@@ -1,0 +1,16 @@
+rapier2d/compat
+rapier3d/compat
+**/*.rs.bk
+node_modules
+target
+.idea
+.DS_Store
+dist
+pkg
+pkg2d
+pkg3d
+gen2d/
+gen3d/
+docs
+*.swp
+*.d.ts

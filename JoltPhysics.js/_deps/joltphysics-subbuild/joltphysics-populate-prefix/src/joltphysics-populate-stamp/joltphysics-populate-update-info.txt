@@ -1,0 +1,7 @@
+# This is a generated file and its contents are an internal implementation detail.
+# The patch step will be re-executed if anything in this file changes.
+# No other meaning or use of this file is supported.
+
+command (connected)=/private/var/folders/ks/_614mn9d3c53zg_y00d9md840000gn/T/AppTranslocation/96E5E032-80E3-4A4B-94D0-EB2343CB2F60/d/CMake.app/Contents/bin/cmake;-Dcan_fetch=YES;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/Shared/Code/WebGpu/JoltPhysics.js/_deps/joltphysics-subbuild/joltphysics-populate-prefix/tmp/joltphysics-populate-gitupdate.cmake
+command (disconnected)=/private/var/folders/ks/_614mn9d3c53zg_y00d9md840000gn/T/AppTranslocation/96E5E032-80E3-4A4B-94D0-EB2343CB2F60/d/CMake.app/Contents/bin/cmake;-Dcan_fetch=NO;-DCMAKE_MESSAGE_LOG_LEVEL=VERBOSE;-P;/Users/Shared/Code/WebGpu/JoltPhysics.js/_deps/joltphysics-subbuild/joltphysics-populate-prefix/tmp/joltphysics-populate-gitupdate.cmake
+work_dir=/Users/Shared/Code/WebGpu/JoltPhysics.js/_deps/joltphysics-src
