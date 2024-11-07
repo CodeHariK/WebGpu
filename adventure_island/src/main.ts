@@ -10,9 +10,10 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 import { TextureLoader } from 'three';
 import { AddLabel, isBitSet } from './function';
 import { side, corner, THREEMESHES, LoadMeshes } from './mesh';
-import { GenerateMap } from './Map';
+import { GenerateMap, MAPGROUP, RenderMap, SolveMap } from './Map';
+import { INPUT, InputKeys } from './input';
 
-
+INPUT.RegisterKeys()
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 // Position the camera
@@ -44,12 +45,9 @@ controls.maxPolarAngle = Math.PI / 2; // Limit vertical movement
 // Set up the scene, camera, and renderer
 const scene = new THREE.Scene();
 
-
 LoadMeshes(scene, () => {
-  const mapGroup = GenerateMap()
-  scene.add(mapGroup);
+  GenerateMap(scene)
 })
-
 
 // Add ambient light to softly illuminate the scene
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.3); // Adjust intensity as needed
@@ -69,13 +67,34 @@ scene.add(sunLight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
+let KeyPressed = false
+
 // Render loop
 function animate() {
+
+  if (INPUT.current == InputKeys.ArrowDOWN && !KeyPressed) {
+    document.querySelectorAll(".label").forEach((label) => {
+      label.remove();  // Remove each label from the DOM
+    });
+
+    MAPGROUP.clear()
+
+    SolveMap()
+    RenderMap()
+    scene.add(MAPGROUP)
+  }
+
   requestAnimationFrame(animate);
   controls.update();
 
-  renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
+  renderer.render(scene, camera);
+
+  if (INPUT.current) {
+    KeyPressed = true
+  } else {
+    KeyPressed = false
+  }
 }
 animate();
 

@@ -12,13 +12,10 @@ export const base = [
 
 export const side = [
     "Wall",
-    "Stone",
-    "Fence",
     "Door"
 ]
 export const corner = [
     "Wall_c",
-    "Stone_c",
     "Fence_c"
 ]
 
@@ -38,7 +35,7 @@ export class Mesh {
     attachableRight: Set<Mesh> = new Set();
     attachableTop: Set<Mesh> = new Set();
     attachableBottom: Set<Mesh> = new Set();
-    probabitly: number = 0;
+    probability: number = 0;
 
     constructor(mesh: THREE.Mesh, right: boolean, left: boolean, top: boolean, bottom: boolean) {
         this.mesh = mesh;
@@ -123,12 +120,15 @@ export function LoadMeshes(scene: THREE.Scene, AfterMeshLoaded: () => void) {
                 let j = 1
                 for (const attachable in Meshes) {
                     let a = Meshes[attachable]
-                    if ((
-                        (a.name == waterMesh || a.name == grassMesh) && m.right == false && m.top == false && m.bottom == false)
-                        ||
-                        (a.mesh.name.split("_")[0] == m.mesh.name.split("_")[0])
-                        && (a.left == false && m.right == false && a.top == m.top && a.bottom == m.bottom)
-                    ) {
+
+                    if (
+                        !(a.name == waterMesh && m.name == grassMesh || a.name == grassMesh && m.name == waterMesh) &&
+                        ((
+                            (a.name == waterMesh || a.name == grassMesh) && m.right == false && m.top == false && m.bottom == false)
+                            ||
+                            (a.mesh.name.split("_")[0] == m.mesh.name.split("_")[0])
+                            && (a.left == false && m.right == false && a.top == m.top && a.bottom == m.bottom)
+                        )) {
                         //Right
                         let aa = a.mesh.clone()
                         aa.position.set(j * spacing, 0, (i - 1) * spacing);
@@ -144,10 +144,14 @@ export function LoadMeshes(scene: THREE.Scene, AfterMeshLoaded: () => void) {
                 j = 1
                 for (const attachable in Meshes) {
                     let a = Meshes[attachable]
-                    if (((a.name == waterMesh || a.name == grassMesh) && m.left == false && m.top == false && m.bottom == false)
-                        ||
-                        a.mesh.name.split("_")[0] == m.mesh.name.split("_")[0]
-                        && (a.right == false && m.left == false && a.top == m.top && a.bottom == m.bottom)) {
+                    if (
+                        !(a.name == waterMesh && m.name == grassMesh || a.name == grassMesh && m.name == waterMesh) &&
+                        (
+                            ((a.name == waterMesh || a.name == grassMesh) && m.left == false && m.top == false && m.bottom == false)
+                            ||
+                            a.mesh.name.split("_")[0] == m.mesh.name.split("_")[0]
+                            && (a.right == false && m.left == false && a.top == m.top && a.bottom == m.bottom))
+                    ) {
                         //Left
                         let aa = a.mesh.clone()
                         aa.position.set(12 + j * spacing, 0, (i - 1) * spacing);
@@ -163,10 +167,13 @@ export function LoadMeshes(scene: THREE.Scene, AfterMeshLoaded: () => void) {
                 j = 1
                 for (const attachable in Meshes) {
                     let a = Meshes[attachable]
-                    if (((a.name == waterMesh || a.name == grassMesh) && m.top == false && m.left == false && m.right == false)
-                        ||
-                        a.mesh.name.split("_")[0] == m.mesh.name.split("_")[0]
-                        && (a.bottom == false && m.top == false && a.left == m.left && a.right == m.right)) {
+                    if (
+                        !(a.name == waterMesh && m.name == grassMesh || a.name == grassMesh && m.name == waterMesh) &&
+                        (((a.name == waterMesh || a.name == grassMesh) && m.top == false && m.left == false && m.right == false)
+                            ||
+                            a.mesh.name.split("_")[0] == m.mesh.name.split("_")[0]
+                            && (a.bottom == false && m.top == false && a.left == m.left && a.right == m.right))
+                    ) {
                         //Top
                         let aa = a.mesh.clone()
                         aa.position.set(24 + j * spacing, 0, (i - 1) * spacing);
@@ -182,10 +189,13 @@ export function LoadMeshes(scene: THREE.Scene, AfterMeshLoaded: () => void) {
                 j = 1
                 for (const attachable in Meshes) {
                     let a = Meshes[attachable]
-                    if (((a.name == waterMesh || a.name == grassMesh) && m.bottom == false && m.left == false && m.right == false)
-                        ||
-                        a.mesh.name.split("_")[0] == m.mesh.name.split("_")[0]
-                        && (a.top == false && m.bottom == false && a.left == m.left && a.right == m.right)) {
+                    if (
+                        !(a.name == waterMesh && m.name == grassMesh || a.name == grassMesh && m.name == waterMesh) &&
+                        (((a.name == waterMesh || a.name == grassMesh) && m.bottom == false && m.left == false && m.right == false)
+                            ||
+                            a.mesh.name.split("_")[0] == m.mesh.name.split("_")[0]
+                            && (a.top == false && m.bottom == false && a.left == m.left && a.right == m.right)
+                        )) {
                         //Bottom
                         let aa = a.mesh.clone()
                         aa.position.set(36 + j * spacing, 0, (i - 1) * spacing);
@@ -210,9 +220,9 @@ export function LoadMeshes(scene: THREE.Scene, AfterMeshLoaded: () => void) {
             let totalProbability = 0
             for (const ms in Meshes) {
                 let mm = Meshes[ms]
-                mm.probabitly = (mm.attachableLeft.size + mm.attachableRight.size + mm.attachableTop.size + mm.attachableBottom.size) / totalRef
-                console.log(mm.name, mm.probabitly)
-                totalProbability += mm.probabitly
+                mm.probability = (mm.attachableLeft.size + mm.attachableRight.size + mm.attachableTop.size + mm.attachableBottom.size) / totalRef
+                console.log(mm.name, mm.probability)
+                totalProbability += mm.probability
             }
             console.log(totalProbability)
 
