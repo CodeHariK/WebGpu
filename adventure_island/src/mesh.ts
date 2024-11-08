@@ -16,7 +16,6 @@ export const side = [
 ]
 export const corner = [
     "Wall_c",
-    "Fence_c"
 ]
 
 export const foliage = [
