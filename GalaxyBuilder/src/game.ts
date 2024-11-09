@@ -4,15 +4,17 @@ import Stats from 'three/addons/libs/stats.module.js';
 
 import { INPUT, InputKeys } from './input.ts';
 import { CreateCSS2dRenderer, CreateHUDCamera, CreateOrbitControls, CreateRenderer, ResizeReset } from './camera.ts';
-import { RegisterMouseMove, SerializedUnitTile, Tile, UnitTile } from './tile.ts';
+import { ColorName, CreateScene, Tile } from './tile.ts';
 import { AddLight } from './light.ts';
-import { AddGUI } from './gui.ts';
+import { Gui } from './gui.ts';
 import { CreateHUDView } from './hud.ts';
 
 class TileSet {
     GRID_DIMENSION_X: number
     GRID_DIMENSION_Y: number
     GRID_DIMENSION_Z: number
+
+    ALL_COLORS: { [key: number]: ColorName } = { 0xff0000: { color: 0xff0000, name: 'Red', hash: 0xff0000 } }
 
     Tiles: { [key: string]: Tile }
 
@@ -29,7 +31,8 @@ export class Game {
     GRID_DIMENSION_X: number = 2
     GRID_DIMENSION_Y: number = 2
     GRID_DIMENSION_Z: number = 2
-    TILE_COLOR: number = 0xff0000
+
+    TILE_COLOR_HASH: ColorName = { color: 0xff0000, name: 'Red', hash: 0xff0000 }
 
     GRID_DIMENSION_HALF_X = Math.floor(this.GRID_DIMENSION_X / 2) + (this.GRID_DIMENSION_X % 2 === 1 ? 0.5 : 0)
     GRID_DIMENSION_HALF_Z = Math.floor(this.GRID_DIMENSION_Z / 2) + (this.GRID_DIMENSION_Z % 2 === 1 ? 0.5 : 0)
@@ -67,9 +70,9 @@ export class Game {
 
         ResizeReset(this)
 
-        AddGUI(this)
+        Gui.AddGUI(this)
 
-        RegisterMouseMove(this)
+        CreateScene(this)
 
         //--------------------------------------------
         const stats = new Stats()
@@ -126,12 +129,11 @@ export class Game {
         this.GRID_DIMENSION_HALF_Z = Math.floor(this.GRID_DIMENSION_Z / 2) + (this.GRID_DIMENSION_Z % 2 === 1 ? 0.5 : 0)
 
         this.reset()
-        RegisterMouseMove(this)
     }
 
-    updateTileColor(color: number) {
-        this.TILE_COLOR = color
-        RegisterMouseMove(this)
+    updateTileColor(color: ColorName) {
+        this.TILE_COLOR_HASH = color
+        CreateScene(this)
     }
 
     clearScene() {
@@ -144,6 +146,8 @@ export class Game {
         this.SCENE3D.children.forEach((child) => {
             child.removeFromParent()
         })
+
+        CreateScene(this)
     }
 
     reset() {
@@ -159,7 +163,7 @@ export class Game {
 
         let jsonString = JSON.stringify(this.TILESET, null, 2)
 
-        // console.log(jsonString)
+        console.log(jsonString)
 
         // saveJSONToFile(jsonString, 'unitTileMap.json');
     }
