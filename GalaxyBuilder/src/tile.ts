@@ -1,12 +1,147 @@
 import * as THREE from 'three';
-import { PI2, UNITX, UNITY, UNITZ } from './constants';
+import * as Constants from './constants';
 import { AddLabel } from './function';
-import { Game } from './main';
+import { RectangularGrid } from './grid';
+import { Game } from './game';
 
 const mousePosition = new THREE.Vector2();
 const rayCaster = new THREE.Raycaster();
 
-export function RegisterMouseMove(game: Game, scene3D: THREE.Scene, ACTIVE_CAMERA: THREE.PerspectiveCamera | THREE.OrthographicCamera) {
+// X Y Z
+export class Tile {
+    tiles: (UnitTile | null)[][][]
+
+    hashLeft: string
+    hashRight: string
+
+    constructor(game: Game) {
+        this.tiles = Array.from({ length: game.GRID_DIMENSION_X }, () =>
+            Array.from({ length: game.GRID_DIMENSION_Y }, () =>
+                Array.from({ length: game.GRID_DIMENSION_Z }, () => null)
+            )
+        )
+
+        this.hashLeft = ""
+        this.hashRight = ""
+    }
+
+    TileHashLeft_X(game: Game) {
+        let hash = ""
+        for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
+            for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
+                hash += (game.TILE.tiles[0][y][z]?.color ?? "_") + "."
+            }
+        }
+        console.log("Left : " + hash)
+    }
+
+    TileHashRight_X(game: Game) {
+        let hash = ""
+        for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
+            for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
+                hash += (game.TILE.tiles[game.GRID_DIMENSION_X - 1][y][z]?.color ?? "_") + "."
+            }
+        }
+        console.log("Right : " + hash)
+    }
+
+    CalculateTileHash(game: Game) {
+        this.TileHashLeft_X(game)
+        this.TileHashRight_X(game)
+    }
+}
+
+export class SerializedUnitTile {
+    x: number
+    y: number
+    z: number
+
+    color: number
+
+    constructor(x: number, y: number, z: number, color: number) {
+        this.x = x
+        this.y = y
+        this.z = z
+        this.color = color
+    }
+}
+
+export class UnitTile {
+    x: number
+    y: number
+    z: number
+
+    color: number
+
+    mesh: THREE.Mesh
+
+    constructor(x: number, y: number, z: number, color: number, mesh: THREE.Mesh) {
+        this.x = x
+        this.y = y
+        this.z = z
+        this.color = color
+
+        this.mesh = mesh
+    }
+
+    name = () => {
+        return `box_${this.x}_${this.y}_${this.z}_${this.color}`
+    }
+
+    toJSON(): SerializedUnitTile {
+        return {
+            x: this.x,
+            y: this.y,
+            z: this.z,
+            color: this.color,
+        }
+    }
+
+    static generateTile = (game: Game, x: number, y: number, z: number): UnitTile | undefined => {
+        let fx = Math.floor(x)
+        let fy = Math.floor(y)
+        let fz = Math.floor(z)
+
+        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const boxMaterial = new THREE.MeshMatcapMaterial({
+            color: game.TILE_COLOR,
+            // wireframe: true,
+        });
+        const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+        boxMesh.name = `box_${fx}_${fy}_${fz}_${game.TILE_COLOR}`
+        AddLabel(boxMesh.name, boxMesh)
+        game.SCENE3D.add(boxMesh);
+        boxMesh.position.set(x, y, z);
+        // boxMesh.rotation.set(Math.PI / 4, Math.PI / 4, Math.PI / 4);
+        boxMesh.castShadow = true;
+
+        return new UnitTile(fx, fy, fz, game.TILE_COLOR, boxMesh);
+    }
+}
+
+export function RegisterMouseMove(game: Game) {
+    const axesHelper = new THREE.AxesHelper(5);  // Length of the axes lines
+    axesHelper.position.set(0, 0, 0)
+    game.SCENE3D.add(axesHelper);
+
+    const grid = RectangularGrid(game.GRID_DIMENSION_X, game.GRID_DIMENSION_Z)
+    grid.position.set(game.GRID_DIMENSION_HALF_X, 0.01, game.GRID_DIMENSION_HALF_Z)
+    grid.name = "grid"
+    game.SCENE3D.add(grid)
+
+    const planeMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(game.GRID_DIMENSION_X, game.GRID_DIMENSION_Z),
+        new THREE.MeshMatcapMaterial({
+            color: 0xffffff,
+            side: THREE.DoubleSide,
+            visible: false,
+        })
+    );
+    game.SCENE3D.add(planeMesh);
+    planeMesh.rotation.x = -0.5 * Math.PI;
+    planeMesh.receiveShadow = true;
+    planeMesh.position.set(game.GRID_DIMENSION_HALF_X, 0, game.GRID_DIMENSION_HALF_Z)
+    planeMesh.name = "ground";
 
     const highlight_planeMesh = new THREE.Mesh(
         new THREE.SphereGeometry(.2, 10),
@@ -15,30 +150,94 @@ export function RegisterMouseMove(game: Game, scene3D: THREE.Scene, ACTIVE_CAMER
             visible: false,
         })
     );
-    game.scene3D.add(highlight_planeMesh);
+    game.SCENE3D.add(highlight_planeMesh);
     highlight_planeMesh.name = "highlight";
-    highlight_planeMesh.rotation.x = -PI2;
+    highlight_planeMesh.rotation.x = -Constants.PI2;
     highlight_planeMesh.receiveShadow = true;
     highlight_planeMesh.position.set(0.5, 0, 0.5);
 
-    window.addEventListener("mousemove", (e) => {
+    window.addEventListener("mousemove", MouseMove(game, highlight_planeMesh));
+
+    window.addEventListener("dblclick", AddTile(game, highlight_planeMesh));
+
+    window.addEventListener("contextmenu", DeleteTile(game, highlight_planeMesh));
+}
+
+function AddTile(game: Game, highlight_planeMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshMatcapMaterial, THREE.Object3DEventMap>): (this: Window, ev: MouseEvent) => any {
+    return () => {
+        for (let i = 0; i < game.Intersects.length; i++) {
+            const dintersect = game.Intersects[i];
+
+            if (dintersect.object.name.startsWith("box")) {
+
+                let rotX = dintersect.normal?.dot(Constants.UNITX) ?? 0;
+                let rotY = dintersect.normal?.dot(Constants.UNITY) ?? 0;
+                let rotZ = dintersect.normal?.dot(Constants.UNITZ) ?? 0;
+
+                const x = dintersect.object.position.x + rotX;
+                const y = dintersect.object.position.y + rotY;
+                const z = dintersect.object.position.z + rotZ;
+
+                if (x >= game.GRID_DIMENSION_X || y >= game.GRID_DIMENSION_Y || z >= game.GRID_DIMENSION_Z ||
+                    x < 0 || y < 0 || z < 0
+                ) {
+                    return undefined
+                }
+
+                let tile = game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)];
+
+                if (!tile) {
+                    const genMesh = UnitTile.generateTile(game, x, y, z);
+                    if (genMesh) {
+                        game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)] = genMesh;
+                    }
+
+                    highlight_planeMesh.material.color.setHex(0xff0000);
+                }
+                break;
+            }
+
+            if (dintersect.object.name === "ground") {
+
+                let { x, z } = new THREE.Vector3()
+                    .copy(dintersect.point)
+                    .floor()
+                    .addScalar(0.5);
+
+                let tile = game.TILE.tiles[Math.floor(x)][0][Math.floor(z)];
+
+                if (!tile) {
+                    const genMesh = UnitTile.generateTile(game, x, 0.5, z);
+                    if (genMesh) {
+                        game.TILE.tiles[Math.floor(x)][0][Math.floor(z)] = genMesh;
+                    }
+
+                    highlight_planeMesh.material.color.setHex(0xff0000);
+                }
+            }
+        }
+    };
+}
+
+function MouseMove(game: Game, highlight_planeMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshMatcapMaterial, THREE.Object3DEventMap>): (this: Window, ev: MouseEvent) => any {
+    return (e) => {
         mousePosition.x = (e.clientX / window.innerWidth) * 2 - 1;
         mousePosition.y = -(e.clientY / window.innerHeight) * 2 + 1;
-        rayCaster.setFromCamera(mousePosition, ACTIVE_CAMERA);
-        game.intersects = rayCaster.intersectObjects(scene3D.children);
+        rayCaster.setFromCamera(mousePosition, game.ACTIVE_CAMERA);
+        game.Intersects = rayCaster.intersectObjects(game.SCENE3D.children);
         let found = false;
-        for (let i = 0; i < game.intersects.length; i++) {
-            const dintersect = game.intersects[i];
+        for (let i = 0; i < game.Intersects.length; i++) {
+            const dintersect = game.Intersects[i];
             if (dintersect.object.name.startsWith("box")) {
                 found = true;
 
-                let rotX = dintersect.normal?.dot(UNITX) ?? 0
-                let rotY = dintersect.normal?.dot(UNITY) ?? 0
-                let rotZ = dintersect.normal?.dot(UNITZ) ?? 0
+                let rotX = dintersect.normal?.dot(Constants.UNITX) ?? 0;
+                let rotY = dintersect.normal?.dot(Constants.UNITY) ?? 0;
+                let rotZ = dintersect.normal?.dot(Constants.UNITZ) ?? 0;
 
-                highlight_planeMesh.rotation.set(PI2 + rotZ * PI2, rotX * PI2, 0)
+                highlight_planeMesh.rotation.set(Constants.PI2 + rotZ * Constants.PI2, rotX * Constants.PI2, 0);
 
-                highlight_planeMesh.position.set(dintersect.object.position.x + rotX / 2, dintersect.object.position.y + Math.abs(rotY) * .5, dintersect.object.position.z + + rotZ / 2);
+                highlight_planeMesh.position.set(dintersect.object.position.x + rotX / 2, dintersect.object.position.y + Math.abs(rotY) * .5, dintersect.object.position.z + +rotZ / 2);
 
                 highlight_planeMesh.material.color.setHex(
                     0x00ccff
@@ -52,9 +251,7 @@ export function RegisterMouseMove(game: Game, scene3D: THREE.Scene, ACTIVE_CAMER
                     .copy(dintersect.point)
                     .floor()
                     .addScalar(0.5);
-                // x += GRID_ALIGNMENT_CONSTANT_X
-                // z += GRID_ALIGNMENT_CONSTANT_Z
-                highlight_planeMesh.rotation.set(PI2, 0, 0)
+                highlight_planeMesh.rotation.set(Constants.PI2, 0, 0);
                 highlight_planeMesh.position.set(x, 0, z);
                 highlight_planeMesh.material.color.setHex(
                     0x00ff00
@@ -64,104 +261,28 @@ export function RegisterMouseMove(game: Game, scene3D: THREE.Scene, ACTIVE_CAMER
             }
         }
         highlight_planeMesh.material.visible = found;
-    });
-
-
-    const GenerateCube = (x: number, y: number, z: number): THREE.Mesh | undefined => {
-        let fx = Math.floor(x)
-        let fy = Math.floor(y)
-        let fz = Math.floor(z)
-
-        if (fx >= game.GRID_DIMENTION_X || fy >= game.GRID_DIMENTION_Y || fz >= game.GRID_DIMENTION_Z ||
-            fx < 0 || fy < 0 || fz < 0
-        ) {
-            return undefined
-        }
-
-        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-        const boxMaterial = new THREE.MeshMatcapMaterial({
-            color: 0xBF40BF,
-            // wireframe: true,
-        });
-        const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
-        boxMesh.name = `box_${fx}_${fy}_${fz}`
-        AddLabel(boxMesh.name, boxMesh)
-        scene3D.add(boxMesh);
-        boxMesh.position.set(x, y, z);
-        // boxMesh.rotation.set(Math.PI / 4, Math.PI / 4, Math.PI / 4);
-        boxMesh.castShadow = true;
-        return boxMesh;
     };
-    //Create
-    window.addEventListener("dblclick", () => {
-        for (let i = 0; i < game.intersects.length; i++) {
-            const dintersect = game.intersects[i];
+}
 
-            if (dintersect.object.name.startsWith("box")) {
-
-
-                // highlight_planeMesh.position.set(dintersect.object.position.x, dintersect.object.position.y + .5, dintersect.object.position.z);
-                // highlight_planeMesh.material.color.setHex(
-                //   0x00ccff
-                //   // collection[[x, z].toString()] ? 0xff0000 : 0x00ff00
-                // );
-
-                let rotX = dintersect.normal?.dot(UNITX) ?? 0
-                let rotY = dintersect.normal?.dot(UNITY) ?? 0
-                let rotZ = dintersect.normal?.dot(UNITZ) ?? 0
-
-                const x = dintersect.object.position.x + rotX, y = dintersect.object.position.y + rotY, z = dintersect.object.position.z + rotZ
-                let key = [Math.floor(x), Math.floor(y), Math.floor(z)].toString()
-                if (!game.collection[key]) {
-
-                    const genMesh = GenerateCube(x, y, z)
-                    if (genMesh) {
-                        game.collection[key] = genMesh;
-                    }
-
-                    highlight_planeMesh.material.color.setHex(0xff0000);
-                }
-                break;
-            }
-
-            if (dintersect.object.name === "ground") {
-                let { x, z } = new THREE.Vector3()
-                    .copy(dintersect.point)
-                    .floor()
-                    .addScalar(0.5);
-                // x += GRID_ALIGNMENT_CONSTANT_X
-                // z += GRID_ALIGNMENT_CONSTANT_Z
-                let key = [Math.floor(x), 0, Math.floor(z)].toString()
-                if (!game.collection[key]) {
-
-                    const genMesh = GenerateCube(x, 0.5, z)
-                    if (genMesh) {
-                        game.collection[key] = genMesh;
-                    }
-
-                    highlight_planeMesh.material.color.setHex(0xff0000);
-                }
-            }
-        }
-    });
-    //Delete
-    window.addEventListener("contextmenu", (e) => {
+function DeleteTile(game: Game, highlight_planeMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshMatcapMaterial, THREE.Object3DEventMap>): (this: Window, ev: MouseEvent) => any {
+    return (e) => {
         e.preventDefault();
-        for (let i = 0; i < game.intersects.length; i++) {
-            const dintersect = game.intersects[i];
+        for (let i = 0; i < game.Intersects.length; i++) {
+            const dintersect = game.Intersects[i];
 
             if (dintersect.object.name.startsWith("box")) {
 
-                const x = dintersect.object.position.x, y = dintersect.object.position.y, z = dintersect.object.position.z
-                let key = [Math.floor(x), Math.floor(y), Math.floor(z)].toString()
+                const x = dintersect.object.position.x, y = dintersect.object.position.y, z = dintersect.object.position.z;
 
-                if (game.collection[key]) {
-                    game.collection[key].children.forEach((c) => {
-                        c.removeFromParent()
-                    })
-                    scene3D.remove(game.collection[key]);
+                let tile = game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)];
+
+                if (tile) {
+                    tile.mesh.children.forEach((c) => {
+                        c.removeFromParent();
+                    });
+                    game.SCENE3D.remove(tile.mesh);
                     highlight_planeMesh.material.color.setHex(0x00ff00);
-                    delete game.collection[key];
+                    game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)] = null;
                     break;
                 }
                 break;
@@ -172,15 +293,16 @@ export function RegisterMouseMove(game: Game, scene3D: THREE.Scene, ACTIVE_CAMER
                     .copy(dintersect.point)
                     .floor()
                     .addScalar(0.5);
-                // x += GRID_ALIGNMENT_CONSTANT_X
-                // z += GRID_ALIGNMENT_CONSTANT_Z
-                if (game.collection[[x, z].toString()]) {
-                    scene3D.remove(game.collection[[x, z].toString()]);
+
+                let tile = game.TILE.tiles[Math.floor(x)][0][Math.floor(z)];
+
+                if (tile) {
+                    game.SCENE3D.remove(tile.mesh);
                     highlight_planeMesh.material.color.setHex(0x00ff00);
-                    delete game.collection[[x, z].toString()];
+                    game.TILE.tiles[Math.floor(x)][0][Math.floor(z)] = null;
                     break;
                 }
             }
         }
-    });
+    };
 }

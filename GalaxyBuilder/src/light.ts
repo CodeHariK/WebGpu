@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 
-
 export function AddLight(scene: THREE.Scene) {
     // Add ambient light to softly illuminate the scene
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.3); // Adjust intensity as needed
@@ -16,4 +15,3 @@ export function AddLight(scene: THREE.Scene) {
     sunLight.shadow.camera.far = 50;
     scene.add(sunLight);
 }
-

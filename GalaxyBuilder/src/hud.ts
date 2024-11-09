@@ -6,5 +6,4 @@ export function CreateHUDView(sceneHUD: THREE.Scene, ASPECT_RATIO: number) {
     const hudElement = new THREE.Mesh(hudGeometry, hudMaterial);
     hudElement.position.set(-ASPECT_RATIO * .9, -0.9, 0);
     sceneHUD.add(hudElement);
-
 }
