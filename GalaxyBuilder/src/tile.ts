@@ -103,6 +103,9 @@ export class Tile {
         this.hashRight = ""
         this.hashBack = ""
         this.hashFront = ""
+
+        const axesHelper = new THREE.AxesHelper(5);  // Length of the axes lines
+        axesHelper.position.set(0, 0, 0)
     }
 
     get(x: number, y: number, z: number) {
@@ -112,6 +115,42 @@ export class Tile {
         this.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)] = unittile
 
         this.CalculateTileHash(game)
+    }
+
+    scaleX(game: Game) {
+        let newTile = new Tile(game)
+
+        for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
+            for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
+                for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
+                    let t = this.tiles[x][y][z]
+                    if (t !== null) {
+                        t.scaleX(game)
+                        newTile.tiles[t.x][t.y][t.z] = t
+                    }
+                }
+            }
+        }
+        this.tiles = newTile.tiles
+        game.rerenderScene()
+    }
+
+    rotateY(game: Game) {
+        let newTile = new Tile(game)
+
+        for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
+            for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
+                for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
+                    let t = this.tiles[x][y][z]
+                    if (t !== null) {
+                        t.rotateY(game)
+                        newTile.tiles[t.x][t.y][t.z] = t
+                    }
+                }
+            }
+        }
+        this.tiles = newTile.tiles
+        game.rerenderScene()
     }
 
     // //Y+ -> Z+
@@ -184,10 +223,6 @@ export class Tile {
         let tile = game.TILE.get(x, y, z);
 
         if (tile) {
-            // tile.mesh.children.forEach((c) => {
-            //     c.removeFromParent();
-            // });
-            // game.SCENE3D.remove(tile.mesh);
             game.TILE.set(game, x, y, z, null);
 
             game.rerenderScene()
@@ -217,25 +252,30 @@ export class UnitTile {
 
     colorHash: string
 
-    // mesh: THREE.Mesh
-
-    // constructor(x: number, y: number, z: number, colorHash: string, mesh: THREE.Mesh) {
     constructor(x: number, y: number, z: number, colorHash: string) {
         this.x = x
         this.y = y
         this.z = z
         this.colorHash = colorHash
+    }
 
-        // this.mesh = mesh
+    scaleX(game: Game) {
+        this.x = game.GRID_DIMENSION_X - 1 - this.x
+    }
+
+    rotateY(game: Game) {
+        let x = this.x
+        let z = this.z
+        this.x = z
+        this.z = game.GRID_DIMENSION_X - 1 - x
     }
 
     name = (game: Game) => {
         let color = game.TILESET.ALL_COLORS.get(this.colorHash)!.name
         return `box_${this.x}_${this.y}_${this.z}_${color}`
     }
-    static name = (game: Game, x: number, y: number, z: number, colorHash: string) => {
-        let color = game.TILESET.ALL_COLORS.get(colorHash)!.name
-        return `box_${x}_${y}_${z}_${color}`
+    static name = (x: number, y: number, z: number, color: TileColor) => {
+        return `box_${x}_${y}_${z}_${color.name}`
     }
 
     static generateTile = (game: Game, x: number, y: number, z: number, tilecolor: TileColor) => {
@@ -243,9 +283,8 @@ export class UnitTile {
         let fy = Math.floor(y)
         let fz = Math.floor(z)
 
-        // const boxMesh = UnitTile.renderTile(game, fx, fy, fz, tilecolor);
+        UnitTile.renderCube(game, fx, fy, fz, tilecolor);
 
-        // let unittile = new UnitTile(fx, fy, fz, game.TILE_COLOR_HASH.hash, boxMesh);
         let unittile = new UnitTile(fx, fy, fz, game.TILE_COLOR_HASH.hash);
 
         game.TILE.set(game, x, y, z, unittile)
@@ -253,14 +292,14 @@ export class UnitTile {
         game.rerenderScene()
     }
 
-    static renderCube(game: Game, fx: number, fy: number, fz: number, color: number, name: string) {
+    static renderCube(game: Game, fx: number, fy: number, fz: number, tilecolor: TileColor | null) {
         const boxGeometry = new THREE.SphereGeometry(.5, 100, 100);
         const boxMaterial = new THREE.MeshMatcapMaterial({
-            color: color,
+            color: tilecolor?.color ?? 0xffffff,
             // wireframe: true,
         });
         const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
-        boxMesh.name = name;
+        boxMesh.name = tilecolor != null ? UnitTile.name(fx, fy, fz, tilecolor) : "center"
         AddLabel(boxMesh.name, boxMesh);
         game.SCENE3D.add(boxMesh);
         boxMesh.position.set(fx + 0.5, fy + 0.5, fz + 0.5);
@@ -270,8 +309,7 @@ export class UnitTile {
     }
 
     renderTile(game: Game) {
-        // this.mesh = UnitTile.renderTile(game, this.x, this.y, this.z, game.TILESET.ALL_COLORS.get(this.colorHash)!)
-        UnitTile.renderCube(game, this.x, this.y, this.z, game.TILESET.ALL_COLORS.get(this.colorHash)!.color, this.name(game))
+        UnitTile.renderCube(game, this.x, this.y, this.z, game.TILESET.ALL_COLORS.get(this.colorHash)!)
     }
 }
 
@@ -322,7 +360,7 @@ export function CreateScene(game: Game) {
         });
     });
 
-    UnitTile.renderCube(game, game.GRID_DIMENSION_X / 2 - 0.5, game.GRID_DIMENSION_Y / 2 - 0.5, game.GRID_DIMENSION_Z / 2 - 0.5, 0xffffff, 'center')
+    UnitTile.renderCube(game, game.GRID_DIMENSION_X / 2 - 0.5, game.GRID_DIMENSION_Y / 2 - 0.5, game.GRID_DIMENSION_Z / 2 - 0.5, null)
 
     window.onmousemove = (event) => { MouseMove(event, game, highlight_planeMesh) }
     window.ondblclick = () => { AddTile(game, highlight_planeMesh) }

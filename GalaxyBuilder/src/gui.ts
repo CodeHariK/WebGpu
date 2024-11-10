@@ -25,6 +25,13 @@ export class Gui {
         Gui.colorHashControl.updateDisplay();
     }
 
+    static scaleX = (game: Game) => {
+        game.TILE.scaleX(game)
+    }
+    static rotateY = (game: Game) => {
+        game.TILE.rotateY(game)
+    }
+
     static save = (game: Game) => {
         console.clear()
         game.save()
@@ -60,16 +67,20 @@ export class Gui {
         Gui.ydimControl = Gui.gui.add(game, 'GRID_DIMENSION_Y', 2, 8).onChange((y) => { game.updateDimension(null, y, null) }).name('Y Dimension').step(1);
         Gui.zdimControl = Gui.gui.add(game, 'GRID_DIMENSION_Z', 2, 8).onChange((z) => { game.updateDimension(null, null, z) }).name('Z Dimension').step(1);
 
-        Gui.colorHashControl = Gui.gui.addColor(game.TILE_COLOR_HASH, 'color').name('Color').disable();
+        Gui.gui.add({ scaleX: () => Gui.scaleX(game) }, 'scaleX').name('Scale X');
+        Gui.gui.add({ rotateY: () => Gui.rotateY(game) }, 'rotateY').name('Rotate Y');
 
         Gui.gui.add({ reset: () => Gui.reset(game) }, 'reset').name('Reset Tile');
         Gui.gui.add({ save: () => Gui.save(game) }, 'save').name('Save Tile');
-        Gui.gui.add({ addColor: () => Gui.addColor(game) }, 'addColor').name('Add Color');
+
+        Gui.colorHashControl = Gui.gui.addColor(game.TILE_COLOR_HASH, 'color').name('Color').disable();
+
+        const colorFolder = Gui.gui.addFolder(`Colors`).close();
+        colorFolder.add({ addColor: () => Gui.addColor(game) }, 'addColor').name('Add Color');
 
         game.TILESET.ALL_COLORS.forEach((tilecolor, colorHash) => {
 
-            // Create a folder for each color
-            const folder = Gui.gui.addFolder(`Color ${tilecolor.name}`);
+            const folder = colorFolder.addFolder(`Color ${tilecolor.name}`);
 
             // Add name input for the color
             folder.add(tilecolor, 'name')
