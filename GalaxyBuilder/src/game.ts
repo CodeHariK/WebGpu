@@ -4,35 +4,19 @@ import Stats from 'three/addons/libs/stats.module.js';
 
 import { INPUT, InputKeys } from './input.ts';
 import { CreateCSS2dRenderer, CreateHUDCamera, CreateOrbitControls, CreateRenderer, ResizeReset } from './camera.ts';
-import { ColorName, CreateScene, Tile } from './tile.ts';
+import { TileColor, CreateScene, Tile, TileSet } from './tile.ts';
 import { AddLight } from './light.ts';
 import { Gui } from './gui.ts';
 import { CreateHUDView } from './hud.ts';
+import { Test_TileJson } from './serialization_test.ts';
 
-class TileSet {
-    GRID_DIMENSION_X: number
-    GRID_DIMENSION_Y: number
-    GRID_DIMENSION_Z: number
-
-    ALL_COLORS: { [key: number]: ColorName } = { 0xff0000: { color: 0xff0000, name: 'Red', hash: 0xff0000 } }
-
-    Tiles: { [key: string]: Tile }
-
-    constructor(x: number, y: number, z: number, tiles: { [key: string]: Tile }) {
-        this.GRID_DIMENSION_X = x
-        this.GRID_DIMENSION_Y = y
-        this.GRID_DIMENSION_Z = z
-
-        this.Tiles = tiles
-    }
-}
 
 export class Game {
     GRID_DIMENSION_X: number = 2
     GRID_DIMENSION_Y: number = 2
     GRID_DIMENSION_Z: number = 2
 
-    TILE_COLOR_HASH: ColorName = { color: 0xff0000, name: 'Red', hash: 0xff0000 }
+    TILE_COLOR_HASH: TileColor = { color: 0xff0000, name: 'Red', hash: '8aI' }
 
     GRID_DIMENSION_HALF_X = Math.floor(this.GRID_DIMENSION_X / 2) + (this.GRID_DIMENSION_X % 2 === 1 ? 0.5 : 0)
     GRID_DIMENSION_HALF_Z = Math.floor(this.GRID_DIMENSION_Z / 2) + (this.GRID_DIMENSION_Z % 2 === 1 ? 0.5 : 0)
@@ -49,7 +33,7 @@ export class Game {
 
     TILE: Tile = new Tile(this)
 
-    TILESET: TileSet = new TileSet(this.GRID_DIMENSION_X, this.GRID_DIMENSION_Y, this.GRID_DIMENSION_Z, {});
+    TILESET: TileSet = new TileSet(this.GRID_DIMENSION_X, this.GRID_DIMENSION_Y, this.GRID_DIMENSION_Z, new Map());
 
     Intersects: THREE.Intersection[] = [];
 
@@ -73,6 +57,8 @@ export class Game {
         Gui.AddGUI(this)
 
         CreateScene(this)
+
+        console.log("Serialization Working", JSON.stringify(TileSet.fromJSON(Test_TileJson)) == Test_TileJson)
 
         //--------------------------------------------
         const stats = new Stats()
@@ -123,20 +109,19 @@ export class Game {
             this.GRID_DIMENSION_Z = z
         }
 
-        console.log(this.SCENE3D)
-
         this.GRID_DIMENSION_HALF_X = Math.floor(this.GRID_DIMENSION_X / 2) + (this.GRID_DIMENSION_X % 2 === 1 ? 0.5 : 0)
         this.GRID_DIMENSION_HALF_Z = Math.floor(this.GRID_DIMENSION_Z / 2) + (this.GRID_DIMENSION_Z % 2 === 1 ? 0.5 : 0)
 
         this.reset()
     }
 
-    updateTileColor(color: ColorName) {
+    updateTileColor(color: TileColor) {
         this.TILE_COLOR_HASH = color
-        CreateScene(this)
+        this.rerenderScene()
+
     }
 
-    clearScene() {
+    rerenderScene() {
         this.SCENE3D.clear()
 
         document.querySelectorAll(".label").forEach((label) => {
@@ -146,23 +131,21 @@ export class Game {
         this.SCENE3D.children.forEach((child) => {
             child.removeFromParent()
         })
-
         CreateScene(this)
     }
 
     reset() {
         this.TILE = new Tile(this)
 
-        this.clearScene()
+        this.rerenderScene()
     }
 
     save() {
-        this.TILESET.Tiles[this.TILE.toString()] = this.TILE
-
-        // this.clearScene()
+        this.TILESET.Tiles.set(this.TILE.toString(), this.TILE)
 
         let jsonString = JSON.stringify(this.TILESET, null, 2)
 
+        console.log(this.TILESET)
         console.log(jsonString)
 
         // saveJSONToFile(jsonString, 'unitTileMap.json');
@@ -170,18 +153,11 @@ export class Game {
 }
 
 function saveJSONToFile(json: string, filename: string) {
-    // Create a Blob with JSON data
     const blob = new Blob([json], { type: 'application/json' });
-    // Create a link element
     const link = document.createElement('a');
-    // Set the link's href to a URL created from the Blob
     link.href = URL.createObjectURL(blob);
-    // Set the link's download attribute to the desired filename
     link.download = filename;
-    // Append link to the document (necessary for Firefox)
     document.body.appendChild(link);
-    // Programmatically click the link to trigger download
     link.click();
-    // Remove the link from the document
     document.body.removeChild(link);
 }

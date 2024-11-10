@@ -7,7 +7,83 @@ import { Game } from './game';
 const mousePosition = new THREE.Vector2();
 const rayCaster = new THREE.Raycaster();
 
-// X Y Z
+export class TileSet {
+    GRID_DIMENSION_X: number
+    GRID_DIMENSION_Y: number
+    GRID_DIMENSION_Z: number
+
+    ALL_COLORS: Map<string, TileColor> = new Map<string, TileColor>([
+        ['8aI', new TileColor('8aI', 0xff0000, 'Red')]
+    ]);
+
+    Tiles: Map<string, Tile> = new Map()
+
+    constructor(x: number, y: number, z: number, tiles: Map<string, Tile>) {
+        this.GRID_DIMENSION_X = x
+        this.GRID_DIMENSION_Y = y
+        this.GRID_DIMENSION_Z = z
+
+        this.Tiles = tiles
+    }
+
+    updateAllColors(hash: string, name: string | null, color: number | null) {
+        let allColors = this.ALL_COLORS.get(hash)
+        if (allColors && name) {
+            allColors.name = name
+        }
+        if (allColors && color) {
+            allColors.color = color
+        }
+    }
+
+    toJSON() {
+        return {
+            GRID_DIMENSION_X: this.GRID_DIMENSION_X,
+            GRID_DIMENSION_Y: this.GRID_DIMENSION_Y,
+            GRID_DIMENSION_Z: this.GRID_DIMENSION_Z,
+            ALL_COLORS: Array.from(this.ALL_COLORS.entries()).map(([key, value]) => ({
+                key,
+                value
+            })),
+            Tiles: Array.from(this.Tiles.entries()).map(([key, value]) => ({
+                key,
+                value
+            }))
+        };
+    }
+
+    // Static method to create a TileSet instance from a JSON object
+    static fromJSON(jsonString: any): TileSet {
+
+        const json = JSON.parse(jsonString)
+
+        const tileSet = new TileSet(
+            json.GRID_DIMENSION_X,
+            json.GRID_DIMENSION_Y,
+            json.GRID_DIMENSION_Z,
+            new Map()
+        );
+
+        // Reconstruct ALL_COLORS map
+        tileSet.ALL_COLORS = new Map<string, TileColor>(
+            json.ALL_COLORS.map((entry: { key: string; value: TileColor }) => [
+                entry.key,
+                entry.value
+            ])
+        );
+
+        // Reconstruct Tiles map (assuming Tile has an appropriate constructor)
+        tileSet.Tiles = new Map<string, Tile>(
+            json.Tiles.map((entry: { key: string; value: Tile }) => [
+                entry.key,
+                entry.value
+            ])
+        );
+
+        return tileSet;
+    }
+}
+
 export class Tile {
     tiles: (UnitTile | null)[][][]
 
@@ -38,63 +114,63 @@ export class Tile {
         this.CalculateTileHash(game)
     }
 
-    //Y+ -> Z+
-    TileHashLeft_X(game: Game) {
-        let hashhash = ""
-        for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
-            let hash = ""
-            for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
-                hash += (game.TILE.tiles[0][y][z]?.colorHash ?? "_") + "."
-            }
-            hashhash += hash
-        }
-        this.hashLeft = hashhash
-    }
+    // //Y+ -> Z+
+    // TileHashLeft_X(game: Game) {
+    //     let hashhash = ""
+    //     for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
+    //         let hash = ""
+    //         for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
+    //             hash += (game.TILE.tiles[0][y][z]?.colorHash ?? "_") + "."
+    //         }
+    //         hashhash += hash
+    //     }
+    //     this.hashLeft = hashhash
+    // }
 
-    //Y+ -> Z+
-    TileHashRight_X(game: Game) {
-        let hashhash = ""
-        for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
-            let hash = ""
-            for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
-                hash += (game.TILE.tiles[game.GRID_DIMENSION_X - 1][y][z]?.colorHash ?? "_") + "."
-            }
-            hashhash += hash
-        }
-        this.hashRight = hashhash
-    }
+    // //Y+ -> Z+
+    // TileHashRight_X(game: Game) {
+    //     let hashhash = ""
+    //     for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
+    //         let hash = ""
+    //         for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
+    //             hash += (game.TILE.tiles[game.GRID_DIMENSION_X - 1][y][z]?.colorHash ?? "_") + "."
+    //         }
+    //         hashhash += hash
+    //     }
+    //     this.hashRight = hashhash
+    // }
 
-    //Y+ -> X+
-    TileHashBack_Z(game: Game) {
-        let hashhash = ""
-        for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
-            let hash = ""
-            for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
-                hash += (game.TILE.tiles[x][y][0]?.colorHash ?? "_") + "."
-            }
-            hashhash += hash
-        }
-        this.hashBack = hashhash
-    }
+    // //Y+ -> X+
+    // TileHashBack_Z(game: Game) {
+    //     let hashhash = ""
+    //     for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
+    //         let hash = ""
+    //         for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
+    //             hash += (game.TILE.tiles[x][y][0]?.colorHash ?? "_") + "."
+    //         }
+    //         hashhash += hash
+    //     }
+    //     this.hashBack = hashhash
+    // }
 
-    //Y+ -> X+
-    TileHashFront_Z(game: Game) {
-        let hashhash = ""
-        for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
-            let hash = ""
-            for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
-                hash += (game.TILE.tiles[x][y][game.GRID_DIMENSION_Z - 1]?.colorHash ?? "_") + "."
-            }
-            hashhash += hash
-        }
-        this.hashFront = hashhash
-    }
+    // //Y+ -> X+
+    // TileHashFront_Z(game: Game) {
+    //     let hashhash = ""
+    //     for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
+    //         let hash = ""
+    //         for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
+    //             hash += (game.TILE.tiles[x][y][game.GRID_DIMENSION_Z - 1]?.colorHash ?? "_") + "."
+    //         }
+    //         hashhash += hash
+    //     }
+    //     this.hashFront = hashhash
+    // }
 
     CalculateTileHash(game: Game) {
-        this.TileHashLeft_X(game)
-        this.TileHashRight_X(game)
-        this.TileHashFront_Z(game)
-        this.TileHashBack_Z(game)
+        // this.TileHashLeft_X(game)
+        // this.TileHashRight_X(game)
+        // this.TileHashFront_Z(game)
+        // this.TileHashBack_Z(game)
 
         // console.log({
         //     "Left": this.hashLeft,
@@ -103,32 +179,34 @@ export class Tile {
         //     "Front": this.hashFront
         // })
     }
-}
 
-export class ColorName {
-    hash: number
-    color: number
-    name: string
+    delete(game: Game, x: number, y: number, z: number): boolean {
+        let tile = game.TILE.get(x, y, z);
 
-    constructor(hash: number, color: number, name: string) {
-        this.hash = hash
-        this.color = color
-        this.name = name
+        if (tile) {
+            // tile.mesh.children.forEach((c) => {
+            //     c.removeFromParent();
+            // });
+            // game.SCENE3D.remove(tile.mesh);
+            game.TILE.set(game, x, y, z, null);
+
+            game.rerenderScene()
+
+            return true
+        }
+        return false
     }
 }
 
-export class SerializedUnitTile {
-    x: number
-    y: number
-    z: number
+export class TileColor {
+    hash: string
+    color: number
+    name: string
 
-    colorHash: number
-
-    constructor(x: number, y: number, z: number, colorHash: number) {
-        this.x = x
-        this.y = y
-        this.z = z
-        this.colorHash = colorHash
+    constructor(hash: string, color: number, name: string) {
+        this.hash = hash
+        this.color = color
+        this.name = name
     }
 }
 
@@ -137,77 +215,63 @@ export class UnitTile {
     y: number
     z: number
 
-    colorHash: number
+    colorHash: string
 
-    mesh: THREE.Mesh
+    // mesh: THREE.Mesh
 
-    constructor(x: number, y: number, z: number, colorHash: number, mesh: THREE.Mesh) {
+    // constructor(x: number, y: number, z: number, colorHash: string, mesh: THREE.Mesh) {
+    constructor(x: number, y: number, z: number, colorHash: string) {
         this.x = x
         this.y = y
         this.z = z
         this.colorHash = colorHash
 
-        this.mesh = mesh
+        // this.mesh = mesh
     }
 
     name = (game: Game) => {
-        let color = game.TILESET.ALL_COLORS[this.colorHash].name
+        let color = game.TILESET.ALL_COLORS.get(this.colorHash)!.name
         return `box_${this.x}_${this.y}_${this.z}_${color}`
     }
-    static name = (game: Game, x: number, y: number, z: number, colorHash: number) => {
-        console.log(colorHash)
-        console.log(game.TILESET.ALL_COLORS)
-        let color = game.TILESET.ALL_COLORS[colorHash].name
+    static name = (game: Game, x: number, y: number, z: number, colorHash: string) => {
+        let color = game.TILESET.ALL_COLORS.get(colorHash)!.name
         return `box_${x}_${y}_${z}_${color}`
     }
 
-    toJSON(): SerializedUnitTile {
-        return {
-            x: this.x,
-            y: this.y,
-            z: this.z,
-            colorHash: this.colorHash,
-        }
-    }
-
-    generateTile = (game: Game): UnitTile | undefined => {
-
-        let color = game.TILESET.ALL_COLORS[this.colorHash].color
-
-        const boxMesh = UnitTile.renderTile(game, this.x, this.y, this.z, game.TILE_COLOR_HASH);
-
-        let unittile = new UnitTile(this.x, this.y, this.z, color, boxMesh);
-
-        return unittile
-    }
-
-    static generateTile = (game: Game, x: number, y: number, z: number, colorName: ColorName): UnitTile | undefined => {
+    static generateTile = (game: Game, x: number, y: number, z: number, tilecolor: TileColor) => {
         let fx = Math.floor(x)
         let fy = Math.floor(y)
         let fz = Math.floor(z)
 
-        const boxMesh = UnitTile.renderTile(game, fx, fy, fz, colorName);
+        // const boxMesh = UnitTile.renderTile(game, fx, fy, fz, tilecolor);
 
-        let unittile = new UnitTile(fx, fy, fz, game.TILE_COLOR_HASH.hash, boxMesh);
+        // let unittile = new UnitTile(fx, fy, fz, game.TILE_COLOR_HASH.hash, boxMesh);
+        let unittile = new UnitTile(fx, fy, fz, game.TILE_COLOR_HASH.hash);
 
-        return unittile
+        game.TILE.set(game, x, y, z, unittile)
+
+        game.rerenderScene()
     }
 
-    static renderTile(game: Game, fx: number, fy: number, fz: number, colorName: ColorName) {
-
-        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
+    static renderCube(game: Game, fx: number, fy: number, fz: number, color: number, name: string) {
+        const boxGeometry = new THREE.SphereGeometry(.5, 100, 100);
         const boxMaterial = new THREE.MeshMatcapMaterial({
-            color: colorName.color,
+            color: color,
             // wireframe: true,
         });
         const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
-        boxMesh.name = UnitTile.name(game, fx, fy, fz, colorName.hash);
+        boxMesh.name = name;
         AddLabel(boxMesh.name, boxMesh);
         game.SCENE3D.add(boxMesh);
         boxMesh.position.set(fx + 0.5, fy + 0.5, fz + 0.5);
         // boxMesh.rotation.set(Math.PI / 4, Math.PI / 4, Math.PI / 4);
         boxMesh.castShadow = true;
         return boxMesh;
+    }
+
+    renderTile(game: Game) {
+        // this.mesh = UnitTile.renderTile(game, this.x, this.y, this.z, game.TILESET.ALL_COLORS.get(this.colorHash)!)
+        UnitTile.renderCube(game, this.x, this.y, this.z, game.TILESET.ALL_COLORS.get(this.colorHash)!.color, this.name(game))
     }
 }
 
@@ -248,172 +312,172 @@ export function CreateScene(game: Game) {
     highlight_planeMesh.receiveShadow = true;
     highlight_planeMesh.position.set(0.5, 0, 0.5);
 
-    game.TILE.tiles.forEach((layer, x) => {
-        layer.forEach((row, y) => {
-            row.forEach((tile, z) => {
+    game.TILE.tiles.forEach((layer) => {
+        layer.forEach((row) => {
+            row.forEach((tile) => {
                 if (tile instanceof UnitTile) {
-                    console.log(`UnitTile at [${x}, ${y}, ${z}]:`, tile);
-                    UnitTile.generateTile(game, x, y, z, game.TILE_COLOR_HASH)
+                    tile.renderTile(game)
                 }
             });
         });
     });
 
-    window.addEventListener("mousemove", MouseMove(game, highlight_planeMesh));
+    UnitTile.renderCube(game, game.GRID_DIMENSION_X / 2 - 0.5, game.GRID_DIMENSION_Y / 2 - 0.5, game.GRID_DIMENSION_Z / 2 - 0.5, 0xffffff, 'center')
 
-    window.addEventListener("dblclick", AddTile(game, highlight_planeMesh));
-
-    window.addEventListener("contextmenu", DeleteTile(game, highlight_planeMesh));
+    window.onmousemove = (event) => { MouseMove(event, game, highlight_planeMesh) }
+    window.ondblclick = () => { AddTile(game, highlight_planeMesh) }
+    window.oncontextmenu = (event) => { DeleteTile(event, game, highlight_planeMesh) }
 }
 
-function AddTile(game: Game, highlight_planeMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshMatcapMaterial, THREE.Object3DEventMap>): (this: Window, ev: MouseEvent) => any {
-    return () => {
-        for (let i = 0; i < game.Intersects.length; i++) {
-            const dintersect = game.Intersects[i];
+function AddTile(game: Game, highlight_planeMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshMatcapMaterial, THREE.Object3DEventMap>) {
+    for (let i = 0; i < game.Intersects.length; i++) {
+        const dintersect = game.Intersects[i];
 
-            if (dintersect.object.name.startsWith("box")) {
+        if (dintersect.object.name.startsWith("box")) {
 
-                let rotX = dintersect.normal?.dot(Constants.UNITX) ?? 0;
-                let rotY = dintersect.normal?.dot(Constants.UNITY) ?? 0;
-                let rotZ = dintersect.normal?.dot(Constants.UNITZ) ?? 0;
+            let rotX = dintersect.normal?.dot(Constants.UNITX) ?? 0;
+            let rotY = dintersect.normal?.dot(Constants.UNITY) ?? 0;
+            let rotZ = dintersect.normal?.dot(Constants.UNITZ) ?? 0;
 
-                const x = dintersect.object.position.x + rotX;
-                const y = dintersect.object.position.y + rotY;
-                const z = dintersect.object.position.z + rotZ;
+            const x = dintersect.object.position.x + rotX;
+            const y = dintersect.object.position.y + rotY;
+            const z = dintersect.object.position.z + rotZ;
 
-                if (x >= game.GRID_DIMENSION_X || y >= game.GRID_DIMENSION_Y || z >= game.GRID_DIMENSION_Z ||
-                    x < 0 || y < 0 || z < 0
-                ) {
-                    return undefined
-                }
-
-                // let tile = game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)];
-                let tile = game.TILE.get(x, y, z);
-
-                if (!tile) {
-                    const genMesh = UnitTile.generateTile(game, x, y, z, game.TILE_COLOR_HASH);
-                    if (genMesh) {
-                        // game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)] = genMesh;
-                        game.TILE.set(game, x, y, z, genMesh)
-                    }
-
-                    highlight_planeMesh.material.color.setHex(0xff0000);
-                }
-                break;
+            if (x >= game.GRID_DIMENSION_X || y >= game.GRID_DIMENSION_Y || z >= game.GRID_DIMENSION_Z ||
+                x < 0 || y < 0 || z < 0
+            ) {
+                return undefined
             }
 
-            if (dintersect.object.name === "ground") {
+            // let tile = game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)];
+            let tile = game.TILE.get(x, y, z);
 
-                let { x, z } = new THREE.Vector3()
-                    .copy(dintersect.point)
-                    .floor()
-                    .addScalar(0.5);
+            if (!tile) {
+                UnitTile.generateTile(game, x, y, z, game.TILE_COLOR_HASH);
 
-                // let tile = game.TILE.tiles[Math.floor(x)][0][Math.floor(z)];
-                let tile = game.TILE.get(x, 0, z);
+                highlight_planeMesh.material.color.setHex(0xff0000);
+            }
+            break;
+        }
 
-                if (!tile) {
-                    const genMesh = UnitTile.generateTile(game, x, 0.5, z, game.TILE_COLOR_HASH);
-                    if (genMesh) {
-                        // game.TILE.tiles[Math.floor(x)][0][Math.floor(z)] = genMesh;
-                        game.TILE.set(game, x, 0, z, genMesh);
-                    }
+        if (dintersect.object.name === "ground") {
 
-                    highlight_planeMesh.material.color.setHex(0xff0000);
-                }
+            let { x, z } = new THREE.Vector3()
+                .copy(dintersect.point)
+                .floor()
+                .addScalar(0.5);
+
+            // let tile = game.TILE.tiles[Math.floor(x)][0][Math.floor(z)];
+            let tile = game.TILE.get(x, 0, z);
+
+            if (!tile) {
+                UnitTile.generateTile(game, x, 0.5, z, game.TILE_COLOR_HASH);
+
+                highlight_planeMesh.material.color.setHex(0xff0000);
             }
         }
-    };
+    }
 }
 
-function MouseMove(game: Game, highlight_planeMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshMatcapMaterial, THREE.Object3DEventMap>): (this: Window, ev: MouseEvent) => any {
-    return (e) => {
-        mousePosition.x = (e.clientX / window.innerWidth) * 2 - 1;
-        mousePosition.y = -(e.clientY / window.innerHeight) * 2 + 1;
-        rayCaster.setFromCamera(mousePosition, game.ACTIVE_CAMERA);
-        game.Intersects = rayCaster.intersectObjects(game.SCENE3D.children);
-        let found = false;
-        for (let i = 0; i < game.Intersects.length; i++) {
-            const dintersect = game.Intersects[i];
-            if (dintersect.object.name.startsWith("box")) {
-                found = true;
+function MouseMove(e: MouseEvent, game: Game, highlight_planeMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshMatcapMaterial, THREE.Object3DEventMap>) {
+    mousePosition.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mousePosition.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    rayCaster.setFromCamera(mousePosition, game.ACTIVE_CAMERA);
+    game.Intersects = rayCaster.intersectObjects(game.SCENE3D.children);
+    let found = false;
+    for (let i = 0; i < game.Intersects.length; i++) {
+        const dintersect = game.Intersects[i];
+        if (dintersect.object.name.startsWith("box")) {
+            found = true;
 
-                let rotX = dintersect.normal?.dot(Constants.UNITX) ?? 0;
-                let rotY = dintersect.normal?.dot(Constants.UNITY) ?? 0;
-                let rotZ = dintersect.normal?.dot(Constants.UNITZ) ?? 0;
+            let rotX = dintersect.normal?.dot(Constants.UNITX) ?? 0;
+            let rotY = dintersect.normal?.dot(Constants.UNITY) ?? 0;
+            let rotZ = dintersect.normal?.dot(Constants.UNITZ) ?? 0;
 
-                highlight_planeMesh.rotation.set(Constants.PI2 + rotZ * Constants.PI2, rotX * Constants.PI2, 0);
+            highlight_planeMesh.rotation.set(Constants.PI2 + rotZ * Constants.PI2, rotX * Constants.PI2, 0);
 
-                highlight_planeMesh.position.set(dintersect.object.position.x + rotX / 2, dintersect.object.position.y + Math.abs(rotY) * .5, dintersect.object.position.z + +rotZ / 2);
+            highlight_planeMesh.position.set(dintersect.object.position.x + rotX / 2, dintersect.object.position.y + Math.abs(rotY) * .5, dintersect.object.position.z + +rotZ / 2);
 
-                highlight_planeMesh.material.color.setHex(
-                    0x00ccff
-                    // collection[[x, z].toString()] ? 0xff0000 : 0x00ff00
-                );
-                break;
-            }
-            if (dintersect.object.name === "ground") {
-                found = true;
-                let { x, z } = new THREE.Vector3()
-                    .copy(dintersect.point)
-                    .floor()
-                    .addScalar(0.5);
-                highlight_planeMesh.rotation.set(Constants.PI2, 0, 0);
-                highlight_planeMesh.position.set(x, 0, z);
-                highlight_planeMesh.material.color.setHex(
-                    0x00ff00
-                    // collection[[x, z].toString()] ? 0xff0000 : 0x00ff00
-                );
-                break;
-            }
+            highlight_planeMesh.material.color.setHex(
+                0x00ccff
+                // collection[[x, z].toString()] ? 0xff0000 : 0x00ff00
+            );
+            break;
         }
-        highlight_planeMesh.material.visible = found;
-    };
+        if (dintersect.object.name === "ground") {
+            found = true;
+            let { x, z } = new THREE.Vector3()
+                .copy(dintersect.point)
+                .floor()
+                .addScalar(0.5);
+            highlight_planeMesh.rotation.set(Constants.PI2, 0, 0);
+            highlight_planeMesh.position.set(x, 0, z);
+            highlight_planeMesh.material.color.setHex(
+                0x00ff00
+                // collection[[x, z].toString()] ? 0xff0000 : 0x00ff00
+            );
+            break;
+        }
+    }
+    highlight_planeMesh.material.visible = found;
 }
 
-function DeleteTile(game: Game, highlight_planeMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshMatcapMaterial, THREE.Object3DEventMap>): (this: Window, ev: MouseEvent) => any {
-    return (e) => {
-        e.preventDefault();
-        for (let i = 0; i < game.Intersects.length; i++) {
-            const dintersect = game.Intersects[i];
+function DeleteTile(e: MouseEvent, game: Game, highlight_planeMesh: THREE.Mesh<THREE.SphereGeometry, THREE.MeshMatcapMaterial, THREE.Object3DEventMap>) {
 
-            if (dintersect.object.name.startsWith("box")) {
+    e.preventDefault();
+    for (let i = 0; i < game.Intersects.length; i++) {
+        const dintersect = game.Intersects[i];
 
-                const x = dintersect.object.position.x, y = dintersect.object.position.y, z = dintersect.object.position.z;
+        // console.log(dintersect.object.name, dintersect.object.position)
 
-                // let tile = game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)];
-                let tile = game.TILE.get(x, y, z);
+        if (dintersect.object.name.startsWith("box")) {
 
-                if (tile) {
-                    tile.mesh.children.forEach((c) => {
-                        c.removeFromParent();
-                    });
-                    game.SCENE3D.remove(tile.mesh);
-                    highlight_planeMesh.material.color.setHex(0x00ff00);
-                    // game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)] = null;
-                    game.TILE.set(game, x, y, z, null);
-                    break;
-                }
+            const x = dintersect.object.position.x, y = dintersect.object.position.y, z = dintersect.object.position.z;
+
+            // let tile = game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)];
+            // let tile = game.TILE.get(x, y, z);
+
+            // console.log(tile)
+
+            // if (tile) {
+            //     tile.mesh.children.forEach((c) => {
+            //         c.removeFromParent();
+            //     });
+            //     game.SCENE3D.remove(tile.mesh);
+            //     highlight_planeMesh.material.color.setHex(0x00ff00);
+            //     // game.TILE.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)] = null;
+            //     game.TILE.set(game, x, y, z, null);
+            //     break;
+            // }
+
+            if (game.TILE.delete(game, x, y, z)) {
+                highlight_planeMesh.material.color.setHex(0x00ff00);
+                // console.log("Delete Box", x, y, z)
                 break;
             }
+        }
 
-            if (dintersect.object.name === "ground") {
-                let { x, z } = new THREE.Vector3()
-                    .copy(dintersect.point)
-                    .floor()
-                    .addScalar(0.5);
+        if (dintersect.object.name === "ground") {
+            let { x, z } = new THREE.Vector3()
+                .copy(dintersect.point)
+                .floor()
+                .addScalar(0.5);
 
-                // let tile = game.TILE.tiles[Math.floor(x)][0][Math.floor(z)];
-                let tile = game.TILE.get(x, 0, z);
+            // // let tile = game.TILE.tiles[Math.floor(x)][0][Math.floor(z)];
+            // let tile = game.TILE.get(x, 0, z);
 
-                if (tile) {
-                    game.SCENE3D.remove(tile.mesh);
-                    highlight_planeMesh.material.color.setHex(0x00ff00);
-                    // game.TILE.tiles[Math.floor(x)][0][Math.floor(z)] = null;
-                    game.TILE.set(game, x, 0, z, null);
-                    break;
-                }
+            // if (tile) {
+            //     game.SCENE3D.remove(tile.mesh);
+            //     // game.TILE.tiles[Math.floor(x)][0][Math.floor(z)] = null;
+            //     game.TILE.set(game, x, 0, z, null);
+            //     highlight_planeMesh.material.color.setHex(0x00ff00);
+            //     break;
+            // }
+
+            if (game.TILE.delete(game, x, 0, z)) {
+                highlight_planeMesh.material.color.setHex(0x00ff00);
+                break;
             }
         }
-    };
+    }
 }

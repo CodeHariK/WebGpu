@@ -1,6 +1,8 @@
 import { ColorController, GUI, NumberController } from 'three/addons/libs/lil-gui.module.min.js';
 import { CreateNewCamera } from './camera';
 import { Game } from './game';
+import { RandomString } from './constants';
+import { TileColor } from './tile';
 
 export class Gui {
 
@@ -11,11 +13,11 @@ export class Gui {
     static xdimControl: NumberController<Game, "GRID_DIMENSION_X">
     static ydimControl: NumberController<Game, "GRID_DIMENSION_Y">
     static zdimControl: NumberController<Game, "GRID_DIMENSION_Z">
-    static colorHashControl: ColorController<Game, "TILE_COLOR_HASH">
+    static colorHashControl: ColorController<TileColor, "color">
 
     static reset = (game: Game) => {
         game.updateDimension(2, 2, 2)
-        game.updateTileColor({ color: 0xff0000, name: 'Red', hash: 0xff0000 })
+        game.updateTileColor({ color: 0xff0000, name: 'Red', hash: '8aI' })
 
         Gui.xdimControl.updateDisplay();
         Gui.ydimControl.updateDisplay();
@@ -24,23 +26,22 @@ export class Gui {
     }
 
     static save = (game: Game) => {
+        console.clear()
         game.save()
     }
 
-    static genColor = (game: Game) => {
+    static addColor = (game: Game) => {
 
         let newColor = Math.floor(Math.random() * (2 << 23))
+        let newHash = RandomString(3)
 
         if (
             !Object.values(game.TILESET.ALL_COLORS).some(colorObj =>
-                colorObj.color === newColor || colorObj.name === newColor.toString() || colorObj.hash === newColor
+                colorObj.color === newColor || colorObj.name === newHash || colorObj.hash === newHash
             )
         ) {
-            game.TILESET.ALL_COLORS[newColor] = {
-                color: newColor,
-                hash: newColor,
-                name: newColor.toString(),
-            }
+            game.TILESET.ALL_COLORS.set(newHash,
+                new TileColor(newHash, newColor, newHash))
 
             Gui.AddGUI(game)
         }
@@ -59,45 +60,44 @@ export class Gui {
         Gui.ydimControl = Gui.gui.add(game, 'GRID_DIMENSION_Y', 2, 8).onChange((y) => { game.updateDimension(null, y, null) }).name('Y Dimension').step(1);
         Gui.zdimControl = Gui.gui.add(game, 'GRID_DIMENSION_Z', 2, 8).onChange((z) => { game.updateDimension(null, null, z) }).name('Z Dimension').step(1);
 
-        Gui.colorHashControl = Gui.gui.addColor(game, 'TILE_COLOR_HASH').name('color')
+        Gui.colorHashControl = Gui.gui.addColor(game.TILE_COLOR_HASH, 'color').name('Color').disable();
 
         Gui.gui.add({ reset: () => Gui.reset(game) }, 'reset').name('Reset Tile');
         Gui.gui.add({ save: () => Gui.save(game) }, 'save').name('Save Tile');
-        Gui.gui.add({ genColor: () => Gui.genColor(game) }, 'genColor').name('Add Color');
+        Gui.gui.add({ addColor: () => Gui.addColor(game) }, 'addColor').name('Add Color');
 
-        Object.entries(game.TILESET.ALL_COLORS).forEach(([key, value], index) => {
-
-            const keyCode = parseInt(key);
+        game.TILESET.ALL_COLORS.forEach((tilecolor, colorHash) => {
 
             // Create a folder for each color
-            const folder = Gui.gui.addFolder(`Color ${value.name}`);
+            const folder = Gui.gui.addFolder(`Color ${tilecolor.name}`);
 
             // Add name input for the color
-            folder.add(value, 'name')
+            folder.add(tilecolor, 'name')
                 .name('Name')
                 .onChange((newName) => {
-                    game.TILESET.ALL_COLORS[keyCode].name = newName;
-                    // game.clearScene()
+                    game.TILESET.updateAllColors(colorHash, newName, null)
+                    game.rerenderScene()
                 });
 
             // Create a color picker
-            folder.addColor(value, 'color')
+            folder.addColor(tilecolor, 'color')
                 .name('Color')
                 .onChange((newColor) => {
-                    game.TILESET.ALL_COLORS[keyCode].color = newColor;
-                    game.clearScene()
+                    game.TILESET.updateAllColors(colorHash, null, newColor)
+                    game.rerenderScene()
                 });
 
             folder.add({
                 delete: () => {
-                    delete game.TILESET.ALL_COLORS[keyCode];
+                    game.TILESET.ALL_COLORS.delete(colorHash);
                     Gui.AddGUI(game);
                 }
             }, 'delete').name('Delete Color');
 
             folder.add({
                 select: () => {
-                    game.updateTileColor(game.TILESET.ALL_COLORS[keyCode])
+                    game.updateTileColor(game.TILESET.ALL_COLORS.get(colorHash)!)
+
                     Gui.AddGUI(game);
                 }
             }, 'select').name('Select Color');
