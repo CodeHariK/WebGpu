@@ -152,8 +152,6 @@ export class Game {
 
         CreateScene(this)
 
-        Gui.AddGUI(this);
-
         this.updateHUDView(this.SCENEHUD, this)
     }
 

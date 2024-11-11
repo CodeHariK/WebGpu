@@ -17,6 +17,7 @@ export class Gui {
 
     static newTile = (game: Game) => {
         game.newTile()
+        Gui.AddGUI(game);
     }
 
     static reset = (game: Game) => {
@@ -34,8 +35,14 @@ export class Gui {
         if (selected) {
             game.TILE = selected
         }
-        console.log(selected)
         game.rerenderScene()
+        Gui.AddGUI(game);
+    }
+
+    static DeleteTile = (game: Game) => {
+        game.TILESET.Tiles.delete(game.TILE.codename)
+        game.reset()
+        Gui.AddGUI(game);
     }
 
     static mirrorX = (game: Game) => {
@@ -48,6 +55,7 @@ export class Gui {
     static save = (game: Game) => {
         console.clear()
         game.save()
+        Gui.AddGUI(game);
     }
 
     static addColor = (game: Game) => {
@@ -82,11 +90,11 @@ export class Gui {
 
         const tileFolder = Gui.gui.addFolder(`Tiles`)
         game.TILESET.Tiles.forEach((t) => {
-            console.log(t.name)
             tileFolder.add({ selectTile: () => Gui.selectTile(game, t.codename) }, 'selectTile').name(t.name + ' : (' + t.codename + ')');
         })
 
         Gui.gui.add(game.TILE, 'name').name('Tile Name')
+        Gui.gui.add({ DeleteTile: () => Gui.DeleteTile(game) }, 'DeleteTile').name('Delete Tile');
 
         Gui.gui.add({ MirrorX: () => Gui.mirrorX(game) }, 'MirrorX').name('Mirror X');
         Gui.gui.add({ rotateY: () => Gui.rotateY(game) }, 'rotateY').name('Rotate Y');
@@ -126,8 +134,38 @@ export class Gui {
 
             folder.add({
                 delete: () => {
-                    game.TILESET.ALL_COLORS.delete(colorHash);
-                    Gui.AddGUI(game);
+
+                    let used = false
+
+                    game.TILESET.Tiles.forEach((tile) => {
+                        tile.tiles.forEach((layer) => {
+                            layer.forEach((row) => {
+                                row.forEach((t) => {
+                                    if (t?.colorHash == colorHash) {
+                                        used = true
+                                    }
+                                })
+                            })
+                        })
+                    })
+
+                    game.TILE.tiles.forEach((layer) => {
+                        layer.forEach((row) => {
+                            row.forEach((t) => {
+                                if (t?.colorHash == colorHash) {
+                                    used = true
+                                }
+                            })
+                        })
+                    })
+
+                    if (!used) {
+                        game.TILESET.ALL_COLORS.delete(colorHash);
+                        Gui.AddGUI(game);
+                    } else {
+                        console.log("Cannot delete color in use")
+                    }
+
                 }
             }, 'delete').name('Delete Color');
 

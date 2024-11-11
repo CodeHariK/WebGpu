@@ -5,7 +5,7 @@ import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 export function AddLabel(name: string, mesh: THREE.Mesh) {
     const labelDiv = document.createElement('div');
     labelDiv.classList.add("label")
-    labelDiv.textContent = name;
+    labelDiv.innerHTML = name.replace(/\n/g, '<br>');
     labelDiv.style.color = 'white';
     const label = new CSS2DObject(labelDiv);
     label.position.set(0, -0.5, 0);

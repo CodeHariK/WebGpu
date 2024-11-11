@@ -28,7 +28,7 @@ export function CreateRenderer(): THREE.WebGLRenderer {
     renderer.shadowMap.enabled = true;
     renderer.autoClear = false;
     renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    document.getElementById("app")?.appendChild(renderer.domElement);
     return renderer
 }
 
@@ -38,7 +38,7 @@ export function CreateCSS2dRenderer(): CSS2DRenderer {
     labelRenderer.domElement.style.position = 'absolute';
     labelRenderer.domElement.style.top = '0px';
     labelRenderer.domElement.style.pointerEvents = 'none';
-    document.body.appendChild(labelRenderer.domElement)
+    document.getElementById("app")?.appendChild(labelRenderer.domElement)
     return labelRenderer
 }
 
