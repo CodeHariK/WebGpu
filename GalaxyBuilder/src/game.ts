@@ -7,7 +7,6 @@ import { CreateCSS2dRenderer, CreateHUDCamera, CreateOrbitControls, CreateRender
 import { TileColor, CreateScene, Tile, TileSet } from './tile.ts';
 import { AddLight } from './light.ts';
 import { Gui } from './gui.ts';
-import { CreateHUDView } from './hud.ts';
 import { Test_TileJson } from './serialization_test.ts';
 
 
@@ -25,20 +24,20 @@ export class Game {
 
     ACTIVE_CAMERA: THREE.PerspectiveCamera | THREE.OrthographicCamera = new THREE.PerspectiveCamera(75, this.ASPECT_RATIO, 0.1, 1000);
 
-    HUD_ORTHOGRAPHIC_CAMERA = CreateHUDCamera(this.ASPECT_RATIO);
+    HUD_ORTHOGRAPHIC_CAMERA = CreateHUDCamera(this.ASPECT_RATIO, 10);
 
     LABEL_RENDERER = CreateCSS2dRenderer()
     RENDERER = CreateRenderer()
     ORBIT_CONTROLS = CreateOrbitControls(this)
 
-    TILE: Tile = new Tile(this)
+    TILE: Tile
 
-    TILESET: TileSet = new TileSet(this.GRID_DIMENSION_X, this.GRID_DIMENSION_Y, this.GRID_DIMENSION_Z, new Map());
+    TILESET: TileSet;
 
     Intersects: THREE.Intersection[] = [];
 
-    SCENE3D = new THREE.Scene();
-    SCENEHUD = new THREE.Scene();
+    SCENE3D: THREE.Scene;
+    SCENEHUD: THREE.Scene;
 
     constructor() {
         INPUT.RegisterKeys()
@@ -46,24 +45,27 @@ export class Game {
         this.ACTIVE_CAMERA.position.set(-2, 5, 5);
         this.ACTIVE_CAMERA.lookAt(0, 0, 0);
 
-        CreateHUDView(this.SCENEHUD, this.ASPECT_RATIO)
+        this.SCENE3D = new THREE.Scene()
+        this.SCENEHUD = new THREE.Scene()
+
+        this.TILESET = new TileSet(this.GRID_DIMENSION_X, this.GRID_DIMENSION_Y, this.GRID_DIMENSION_Z, new Map())
+        this.TILE = new Tile(this)
 
         AddLight(this.SCENE3D)
-
-        let KeyPressed = false
 
         ResizeReset(this)
 
         Gui.AddGUI(this)
 
-        CreateScene(this)
+        this.rerenderScene()
 
-        console.log("Serialization Working", JSON.stringify(TileSet.fromJSON(Test_TileJson)) == Test_TileJson)
+        console.log("Serialization Working", JSON.stringify(TileSet.fromJSON(Test_TileJson, this), null, 4) == Test_TileJson)
 
         //--------------------------------------------
         const stats = new Stats()
         document.body.appendChild(stats.dom)
 
+        let KeyPressed = false
         const animate = (time: number) => {
             if (INPUT.current == InputKeys.ArrowDOWN && !KeyPressed) {
                 document.querySelectorAll(".label").forEach((label) => {
@@ -118,7 +120,23 @@ export class Game {
     updateTileColor(color: TileColor) {
         this.TILE_COLOR_HASH = color
         this.rerenderScene()
+    }
 
+    updateHUDView(sceneHUD: THREE.Scene, game: Game) {
+        // const hudGeometry = new THREE.PlaneGeometry(1, 1);
+        // const hudMaterial = new THREE.MeshMatcapMaterial({ color: 0xff0000 });
+        // const hudElement = new THREE.Mesh(hudGeometry, hudMaterial);
+        // hudElement.position.set(-game.ASPECT_RATIO * 9, 0, 0);
+
+        // let dy = 0
+        // game.TILESET.Tiles.forEach((e) => {
+        //     dy += 3
+        //     e.renderOne(game, game.SCENEHUD, -game.ASPECT_RATIO * 9, dy, "")
+        // })
+
+        // game.TILE.renderOne(game, game.SCENEHUD, -game.ASPECT_RATIO * 9, -9, "")
+
+        // sceneHUD.add(hudElement);
     }
 
     rerenderScene() {
@@ -131,7 +149,12 @@ export class Game {
         this.SCENE3D.children.forEach((child) => {
             child.removeFromParent()
         })
+
         CreateScene(this)
+
+        Gui.AddGUI(this);
+
+        this.updateHUDView(this.SCENEHUD, this)
     }
 
     reset() {
@@ -140,10 +163,27 @@ export class Game {
         this.rerenderScene()
     }
 
-    save() {
-        this.TILESET.Tiles.set(this.TILE.toString(), this.TILE)
+    newTile() {
+        if (!this.TILE.isEmpty()) {
+            this.TILESET.Tiles.set(this.TILE.codename, this.TILE)
+        } else {
+            this.TILESET.Tiles.delete(this.TILE.codename)
+        }
+        this.TILE = new Tile(this)
 
-        let jsonString = JSON.stringify(this.TILESET, null, 2)
+        this.rerenderScene()
+    }
+
+    save() {
+        this.rerenderScene()
+
+        if (!this.TILE.isEmpty()) {
+            this.TILESET.Tiles.set(this.TILE.codename, this.TILE)
+        } else {
+            this.TILESET.Tiles.delete(this.TILE.codename)
+        }
+
+        let jsonString = JSON.stringify(this.TILESET, null, 4)
 
         console.log(this.TILESET)
         console.log(jsonString)

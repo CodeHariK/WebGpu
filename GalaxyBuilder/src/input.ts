@@ -9,12 +9,10 @@ export class INPUT {
     static current: InputKeys | undefined = undefined;
 
     static RegisterKeys() {
-        document.addEventListener("keyup", (event) => {
+        document.addEventListener("keyup", () => {
             this.current = undefined
         })
         document.addEventListener("keydown", (event) => {
-            console.log(`Key pressed: ${event.key}`);
-
             switch (event.key) {
                 case "ArrowUp":
                     this.current = InputKeys.ArrowUP

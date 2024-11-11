@@ -45,15 +45,15 @@ export class TileSet {
                 key,
                 value
             })),
-            Tiles: Array.from(this.Tiles.entries()).map(([key, value]) => ({
+            Tiles: Array.from(this.Tiles.entries()).map(([key, tile]) => ({
                 key,
-                value
-            }))
+                tile
+            })),
         };
     }
 
     // Static method to create a TileSet instance from a JSON object
-    static fromJSON(jsonString: any): TileSet {
+    static fromJSON(jsonString: any, game: Game): TileSet {
 
         const json = JSON.parse(jsonString)
 
@@ -72,11 +72,10 @@ export class TileSet {
             ])
         );
 
-        // Reconstruct Tiles map (assuming Tile has an appropriate constructor)
         tileSet.Tiles = new Map<string, Tile>(
-            json.Tiles.map((entry: { key: string; value: Tile }) => [
+            json.Tiles.map((entry: { key: string; tile: any }) => [
                 entry.key,
-                entry.value
+                Tile.fromJSON(entry.tile, game)
             ])
         );
 
@@ -87,10 +86,20 @@ export class TileSet {
 export class Tile {
     tiles: (UnitTile | null)[][][]
 
+    name: string = Constants.RandomString(6)
+    codename: string = Constants.RandomString(6)
+    hash: string = ""
+
     hashLeft: string
     hashRight: string
     hashBack: string
     hashFront: string
+
+    mirrorX: Tile | null
+    mirrorZ: Tile | null
+    rotateY: Tile | null
+    rotateYrotateY: Tile | null
+    rotateYrotateYrotateY: Tile | null
 
     constructor(game: Game) {
         this.tiles = Array.from({ length: game.GRID_DIMENSION_X }, () =>
@@ -104,53 +113,159 @@ export class Tile {
         this.hashBack = ""
         this.hashFront = ""
 
-        const axesHelper = new THREE.AxesHelper(5);  // Length of the axes lines
-        axesHelper.position.set(0, 0, 0)
+        this.rotateY = null
+        this.rotateYrotateY = null
+        this.rotateYrotateYrotateY = null
+        this.mirrorX = null
+        this.mirrorZ = null
+    }
+
+    static fromJSON(data: any, game: Game): Tile {
+        const tile = new Tile(game);
+
+        tile.tiles = data.tiles;
+
+        tile.name = data.name;
+
+        tile.hash = data.hash;
+        tile.hashLeft = data.hashLeft;
+        tile.hashRight = data.hashRight;
+        tile.hashBack = data.hashBack;
+        tile.hashFront = data.hashFront;
+
+        tile.rotateY = data.rotateY
+        tile.rotateYrotateY = data.rotateYrotateY
+        tile.rotateYrotateYrotateY = data.rotateYrotateYrotateY
+        tile.mirrorX = data.mirrorX
+        tile.mirrorZ = data.mirrorZ
+
+        return tile;
     }
 
     get(x: number, y: number, z: number) {
         return this.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)]
     }
-    set(game: Game, x: number, y: number, z: number, unittile: (UnitTile | null)) {
+    set(x: number, y: number, z: number, unittile: (UnitTile | null)) {
         this.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)] = unittile
+    }
+
+    update(game: Game) {
 
         this.CalculateTileHash(game)
+
+        this.rotateY = Tile.RotateY(game, this)
+        this.rotateY.name = 'rotateY'
+        this.rotateY.CalculateTileHash(game)
+
+        this.rotateYrotateY = Tile.RotateY(game, Tile.RotateY(game, this))
+        this.rotateYrotateY.name = 'rotateYrotateY'
+        this.rotateYrotateY.CalculateTileHash(game)
+
+        this.rotateYrotateYrotateY = Tile.RotateY(game, Tile.RotateY(game, Tile.RotateY(game, this)))
+        this.rotateYrotateYrotateY.name = 'rotateYrotateYrotateY'
+        this.rotateYrotateYrotateY.CalculateTileHash(game)
+
+        this.mirrorX = Tile.MirrorX(game, this)
+        this.mirrorX.name = 'mirrorX'
+        this.mirrorX.CalculateTileHash(game)
+
+        this.mirrorZ = Tile.MirrorZ(game, this)
+        this.mirrorZ.name = 'mirrorZ'
+        this.mirrorZ.CalculateTileHash(game)
     }
 
-    scaleX(game: Game) {
+    isEmpty(): boolean {
+        let empty = true
+        this.tiles.forEach((layer) => {
+            layer.forEach((row) => {
+                row.forEach((t) => {
+                    if (t !== null) {
+                        empty = false
+                    }
+                })
+            })
+        })
+        return empty
+    }
+
+    static MirrorX(game: Game, tile: Tile): Tile {
         let newTile = new Tile(game)
 
         for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
             for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
                 for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
-                    let t = this.tiles[x][y][z]
-                    if (t !== null) {
-                        t.scaleX(game)
+                    let t = tile.tiles[x][y][z]?.mirrorX(game)
+                    if (t) {
                         newTile.tiles[t.x][t.y][t.z] = t
                     }
                 }
             }
         }
-        this.tiles = newTile.tiles
+        return newTile
+    }
+
+    MirrorX(game: Game) {
+        this.tiles = Tile.MirrorX(game, this).tiles
         game.rerenderScene()
     }
 
-    rotateY(game: Game) {
+    static MirrorZ(game: Game, tile: Tile): Tile {
         let newTile = new Tile(game)
 
         for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
             for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
                 for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
-                    let t = this.tiles[x][y][z]
-                    if (t !== null) {
-                        t.rotateY(game)
+                    let t = tile.tiles[x][y][z]?.mirrorZ(game)
+                    if (t) {
                         newTile.tiles[t.x][t.y][t.z] = t
                     }
                 }
             }
         }
-        this.tiles = newTile.tiles
+        return newTile
+    }
+
+    MirrorZ(game: Game) {
+        this.tiles = Tile.MirrorZ(game, this).tiles
         game.rerenderScene()
+    }
+
+    static RotateY(game: Game, tile: Tile): Tile {
+        let newTile = new Tile(game)
+
+        for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
+            for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
+                for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
+                    let t = tile.tiles[x][y][z]?.rotateY(game)
+                    if (t) {
+                        newTile.tiles[t.x][t.y][t.z] = t
+                    }
+                }
+            }
+        }
+        return newTile
+    }
+
+    RotateY(game: Game) {
+        this.tiles = Tile.RotateY(game, this).tiles
+        game.rerenderScene()
+    }
+
+    CalculateHash(game: Game) {
+        let hash = ""
+
+        for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
+            for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
+                for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
+                    let t = this.tiles[x][y][z]
+                    hash += t?.colorHash != null ? game.TILESET.ALL_COLORS.get(t.colorHash)!.hash + '.' : "___."
+                }
+                hash += '*'
+            }
+            hash += '+'
+        }
+
+        this.hash = hash
     }
 
     // //Y+ -> Z+
@@ -206,6 +321,9 @@ export class Tile {
     // }
 
     CalculateTileHash(game: Game) {
+
+        this.CalculateHash(game)
+
         // this.TileHashLeft_X(game)
         // this.TileHashRight_X(game)
         // this.TileHashFront_Z(game)
@@ -223,13 +341,49 @@ export class Tile {
         let tile = game.TILE.get(x, y, z);
 
         if (tile) {
-            game.TILE.set(game, x, y, z, null);
+            game.TILE.set(x, y, z, null);
 
             game.rerenderScene()
 
             return true
         }
         return false
+    }
+
+    renderOne(game: Game, scene: THREE.Scene, dx: number, dy: number, name: string) {
+        const axesHelper = new THREE.AxesHelper(3);  // Length of the axes lines
+        axesHelper.position.set(dx, dy, 0)
+        scene.add(axesHelper)
+
+        const grid = RectangularGrid(game.GRID_DIMENSION_X, game.GRID_DIMENSION_Z)
+        grid.position.set(dx + game.GRID_DIMENSION_HALF_X, 0.01 + dy, game.GRID_DIMENSION_HALF_Z)
+        grid.name = "grid"
+        scene.add(grid)
+
+        const boxMesh = new THREE.Mesh();
+        AddLabel(name + "  " + this.hash, boxMesh);
+        scene.add(boxMesh);
+        boxMesh.position.set(dx + 2, dy + 2 * game.GRID_DIMENSION_Y, 0);
+
+        this.tiles.forEach((layer) => {
+            layer.forEach((row) => {
+                row.forEach((tile) => {
+                    if (tile instanceof UnitTile) {
+                        tile.renderTile(game, scene, dx, dy)
+                    }
+                });
+            });
+        });
+    }
+
+    render(game: Game, scene: THREE.Scene) {
+        this.update(game)
+        this.renderOne(game, scene, 0, 0, "")
+        this.mirrorX?.renderOne(game, scene, 4 * (game.GRID_DIMENSION_X + 4), 0, "mirrorX")
+        this.mirrorZ?.renderOne(game, scene, 5 * (game.GRID_DIMENSION_X + 4), 0, "mirrorZ")
+        this.rotateY?.renderOne(game, scene, game.GRID_DIMENSION_X + 4, 0, "rotateY")
+        this.rotateYrotateY?.renderOne(game, scene, 2 * (game.GRID_DIMENSION_X + 4), 0, "rotateYrotateY")
+        this.rotateYrotateYrotateY?.renderOne(game, scene, 3 * (game.GRID_DIMENSION_X + 4), 0, "rotateYrotateYrotateY")
     }
 }
 
@@ -259,15 +413,23 @@ export class UnitTile {
         this.colorHash = colorHash
     }
 
-    scaleX(game: Game) {
-        this.x = game.GRID_DIMENSION_X - 1 - this.x
+    mirrorX(game: Game): UnitTile {
+        let u = new UnitTile(this.x, this.y, this.z, this.colorHash)
+        u.x = game.GRID_DIMENSION_X - 1 - this.x
+        return u
     }
 
-    rotateY(game: Game) {
-        let x = this.x
-        let z = this.z
-        this.x = z
-        this.z = game.GRID_DIMENSION_X - 1 - x
+    mirrorZ(game: Game): UnitTile {
+        let u = new UnitTile(this.x, this.y, this.z, this.colorHash)
+        u.z = game.GRID_DIMENSION_Z - 1 - this.z
+        return u
+    }
+
+    rotateY(game: Game): UnitTile {
+        let u = new UnitTile(this.x, this.y, this.z, this.colorHash)
+        u.x = this.z
+        u.z = game.GRID_DIMENSION_X - 1 - this.x
+        return u
     }
 
     name = (game: Game) => {
@@ -283,16 +445,16 @@ export class UnitTile {
         let fy = Math.floor(y)
         let fz = Math.floor(z)
 
-        UnitTile.renderCube(game, fx, fy, fz, tilecolor);
+        UnitTile.renderCube(game.SCENE3D, fx, fy, fz, tilecolor);
 
         let unittile = new UnitTile(fx, fy, fz, game.TILE_COLOR_HASH.hash);
 
-        game.TILE.set(game, x, y, z, unittile)
+        game.TILE.set(x, y, z, unittile)
 
         game.rerenderScene()
     }
 
-    static renderCube(game: Game, fx: number, fy: number, fz: number, tilecolor: TileColor | null) {
+    static renderCube(scene: THREE.Scene, fx: number, fy: number, fz: number, tilecolor: TileColor | null) {
         const boxGeometry = new THREE.SphereGeometry(.5, 100, 100);
         const boxMaterial = new THREE.MeshMatcapMaterial({
             color: tilecolor?.color ?? 0xffffff,
@@ -301,28 +463,19 @@ export class UnitTile {
         const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
         boxMesh.name = tilecolor != null ? UnitTile.name(fx, fy, fz, tilecolor) : "center"
         AddLabel(boxMesh.name, boxMesh);
-        game.SCENE3D.add(boxMesh);
+        scene.add(boxMesh);
         boxMesh.position.set(fx + 0.5, fy + 0.5, fz + 0.5);
         // boxMesh.rotation.set(Math.PI / 4, Math.PI / 4, Math.PI / 4);
         boxMesh.castShadow = true;
         return boxMesh;
     }
 
-    renderTile(game: Game) {
-        UnitTile.renderCube(game, this.x, this.y, this.z, game.TILESET.ALL_COLORS.get(this.colorHash)!)
+    renderTile(game: Game, scene: THREE.Scene, dx: number, dy: number) {
+        UnitTile.renderCube(scene, this.x + dx, this.y + dy, this.z, game.TILESET.ALL_COLORS.get(this.colorHash)!)
     }
 }
 
 export function CreateScene(game: Game) {
-    const axesHelper = new THREE.AxesHelper(5);  // Length of the axes lines
-    axesHelper.position.set(0, 0, 0)
-    game.SCENE3D.add(axesHelper);
-
-    const grid = RectangularGrid(game.GRID_DIMENSION_X, game.GRID_DIMENSION_Z)
-    grid.position.set(game.GRID_DIMENSION_HALF_X, 0.01, game.GRID_DIMENSION_HALF_Z)
-    grid.name = "grid"
-    game.SCENE3D.add(grid)
-
     const planeMesh = new THREE.Mesh(
         new THREE.PlaneGeometry(game.GRID_DIMENSION_X, game.GRID_DIMENSION_Z),
         new THREE.MeshMatcapMaterial({
@@ -350,17 +503,9 @@ export function CreateScene(game: Game) {
     highlight_planeMesh.receiveShadow = true;
     highlight_planeMesh.position.set(0.5, 0, 0.5);
 
-    game.TILE.tiles.forEach((layer) => {
-        layer.forEach((row) => {
-            row.forEach((tile) => {
-                if (tile instanceof UnitTile) {
-                    tile.renderTile(game)
-                }
-            });
-        });
-    });
+    game.TILE.render(game, game.SCENE3D)
 
-    UnitTile.renderCube(game, game.GRID_DIMENSION_X / 2 - 0.5, game.GRID_DIMENSION_Y / 2 - 0.5, game.GRID_DIMENSION_Z / 2 - 0.5, null)
+    UnitTile.renderCube(game.SCENE3D, game.GRID_DIMENSION_X / 2 - 0.5, game.GRID_DIMENSION_Y / 2 - 0.5, game.GRID_DIMENSION_Z / 2 - 0.5, null)
 
     window.onmousemove = (event) => { MouseMove(event, game, highlight_planeMesh) }
     window.ondblclick = () => { AddTile(game, highlight_planeMesh) }

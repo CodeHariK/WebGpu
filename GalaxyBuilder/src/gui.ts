@@ -15,6 +15,10 @@ export class Gui {
     static zdimControl: NumberController<Game, "GRID_DIMENSION_Z">
     static colorHashControl: ColorController<TileColor, "color">
 
+    static newTile = (game: Game) => {
+        game.newTile()
+    }
+
     static reset = (game: Game) => {
         game.updateDimension(2, 2, 2)
         game.updateTileColor({ color: 0xff0000, name: 'Red', hash: '8aI' })
@@ -25,11 +29,20 @@ export class Gui {
         Gui.colorHashControl.updateDisplay();
     }
 
-    static scaleX = (game: Game) => {
-        game.TILE.scaleX(game)
+    static selectTile = (game: Game, tilehash: string) => {
+        const selected = game.TILESET.Tiles.get(tilehash)
+        if (selected) {
+            game.TILE = selected
+        }
+        console.log(selected)
+        game.rerenderScene()
+    }
+
+    static mirrorX = (game: Game) => {
+        game.TILE.MirrorX(game)
     }
     static rotateY = (game: Game) => {
-        game.TILE.rotateY(game)
+        game.TILE.RotateY(game)
     }
 
     static save = (game: Game) => {
@@ -67,15 +80,24 @@ export class Gui {
         Gui.ydimControl = Gui.gui.add(game, 'GRID_DIMENSION_Y', 2, 8).onChange((y) => { game.updateDimension(null, y, null) }).name('Y Dimension').step(1);
         Gui.zdimControl = Gui.gui.add(game, 'GRID_DIMENSION_Z', 2, 8).onChange((z) => { game.updateDimension(null, null, z) }).name('Z Dimension').step(1);
 
-        Gui.gui.add({ scaleX: () => Gui.scaleX(game) }, 'scaleX').name('Scale X');
+        const tileFolder = Gui.gui.addFolder(`Tiles`)
+        game.TILESET.Tiles.forEach((t) => {
+            console.log(t.name)
+            tileFolder.add({ selectTile: () => Gui.selectTile(game, t.codename) }, 'selectTile').name(t.name + ' : (' + t.codename + ')');
+        })
+
+        Gui.gui.add(game.TILE, 'name').name('Tile Name')
+
+        Gui.gui.add({ MirrorX: () => Gui.mirrorX(game) }, 'MirrorX').name('Mirror X');
         Gui.gui.add({ rotateY: () => Gui.rotateY(game) }, 'rotateY').name('Rotate Y');
 
         Gui.gui.add({ reset: () => Gui.reset(game) }, 'reset').name('Reset Tile');
-        Gui.gui.add({ save: () => Gui.save(game) }, 'save').name('Save Tile');
+        Gui.gui.add({ newTile: () => Gui.newTile(game) }, 'newTile').name('Save/New Tile');
+        Gui.gui.add({ save: () => Gui.save(game) }, 'save').name('Save to Local');
 
         Gui.colorHashControl = Gui.gui.addColor(game.TILE_COLOR_HASH, 'color').name('Color').disable();
 
-        const colorFolder = Gui.gui.addFolder(`Colors`).close();
+        const colorFolder = Gui.gui.addFolder(`Colors`)
         colorFolder.add({ addColor: () => Gui.addColor(game) }, 'addColor').name('Add Color');
 
         game.TILESET.ALL_COLORS.forEach((tilecolor, colorHash) => {
@@ -83,6 +105,10 @@ export class Gui {
             const folder = colorFolder.addFolder(`Color ${tilecolor.name}`);
 
             // Add name input for the color
+            folder.add(tilecolor, 'hash')
+                .name('Hash')
+                .disable();
+
             folder.add(tilecolor, 'name')
                 .name('Name')
                 .onChange((newName) => {

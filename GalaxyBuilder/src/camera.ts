@@ -42,9 +42,9 @@ export function CreateCSS2dRenderer(): CSS2DRenderer {
     return labelRenderer
 }
 
-export function CreateHUDCamera(aspectRatio: number): THREE.OrthographicCamera {
+export function CreateHUDCamera(aspectRatio: number, mag: number): THREE.OrthographicCamera {
     const HUD_ORTHOGRAPHIC_CAMERA = new THREE.OrthographicCamera(
-        -aspectRatio, aspectRatio, 1, -1, 0.1, 10
+        -aspectRatio * mag, aspectRatio * mag, mag, -mag, 0.1, 10
     );
     HUD_ORTHOGRAPHIC_CAMERA.position.z = 5;
     return HUD_ORTHOGRAPHIC_CAMERA
