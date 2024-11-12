@@ -14,7 +14,7 @@ export function CreateOrbitControls(game: Game) {
     orbit_control.enablePan = true
     orbit_control.dampingFactor = 0.05;    // Lower values for smoother orbiting
     orbit_control.minDistance = 5;         // Minimum zoom distance
-    orbit_control.maxDistance = 20;        // Maximum zoom distance
+    orbit_control.maxDistance = 200;        // Maximum zoom distance
     orbit_control.maxPolarAngle = Math.PI / 2; // Limit vertical movement
 
     game.ORBIT_CONTROLS = orbit_control
@@ -27,6 +27,8 @@ export function CreateRenderer(): THREE.WebGLRenderer {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.shadowMap.enabled = true;
     renderer.autoClear = false;
+    renderer.setPixelRatio(window.devicePixelRatio)
+    renderer.setClearColor(0x27214e)
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById("app")?.appendChild(renderer.domElement);
     return renderer
@@ -60,11 +62,12 @@ export function ResizeReset(game: Game) {
             game.ACTIVE_CAMERA.aspect = game.ASPECT_RATIO;
             game.ACTIVE_CAMERA.updateProjectionMatrix();
         } else if (game.ACTIVE_CAMERA instanceof THREE.OrthographicCamera) {
+            const viewSize = 10;
             // Adjust orthographic camera's frustum on resize
-            game.ACTIVE_CAMERA.left = -10 * game.ASPECT_RATIO;
-            game.ACTIVE_CAMERA.right = 10 * game.ASPECT_RATIO;
-            game.ACTIVE_CAMERA.top = 10;
-            game.ACTIVE_CAMERA.bottom = -10;
+            game.ACTIVE_CAMERA.left = -viewSize * game.ASPECT_RATIO;
+            game.ACTIVE_CAMERA.right = viewSize * game.ASPECT_RATIO;
+            game.ACTIVE_CAMERA.top = viewSize;
+            game.ACTIVE_CAMERA.bottom = -viewSize;
             game.ACTIVE_CAMERA.updateProjectionMatrix();
         }
 
@@ -77,20 +80,21 @@ export function CreateNewCamera(game: Game, perspective: boolean) {
 
     // Switch active camera based on GUI selection
     if (perspective) {
-        game.ACTIVE_CAMERA = new THREE.PerspectiveCamera(75, game.ASPECT_RATIO, 0.1, 1000);
-        game.ACTIVE_CAMERA.position.set(-2, 5, 5);
+        game.ACTIVE_CAMERA = new THREE.PerspectiveCamera(75, game.ASPECT_RATIO, 0.01, 10000);
     } else {
-        const viewSize = 3;
+        const viewSize = 10;
         game.ACTIVE_CAMERA = new THREE.OrthographicCamera(
             -viewSize * game.ASPECT_RATIO, viewSize * game.ASPECT_RATIO,
             viewSize, -viewSize,
-            0.1, 1000
+            0.01, 10000
         );
-        game.ACTIVE_CAMERA.position.set(3, 3, 6);
     }
+    game.ACTIVE_CAMERA.position.set(-2, 5, 5);
     game.ACTIVE_CAMERA.lookAt(0, 0, 0);
 
-    game.ORBIT_CONTROLS.dispose();
+    game.ORBIT_CONTROLS?.dispose();
 
     game.ORBIT_CONTROLS = CreateOrbitControls(game);
+
+    return game.ACTIVE_CAMERA
 }

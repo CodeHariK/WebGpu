@@ -17,6 +17,7 @@ export class TileSet {
     ]);
 
     Tiles: Map<string, Tile> = new Map()
+    UniqueTiles: Map<string, Tile> = new Map()
 
     constructor(x: number, y: number, z: number, tiles: Map<string, Tile>) {
         this.GRID_DIMENSION_X = x
@@ -24,6 +25,7 @@ export class TileSet {
         this.GRID_DIMENSION_Z = z
 
         this.Tiles = tiles
+        this.UniqueTiles = new Map()
     }
 
     updateAllColors(hash: string, name: string | null, color: number | null) {
@@ -49,6 +51,12 @@ export class TileSet {
                 key,
                 tile
             })),
+            UniqueTiles: Array.from(this.UniqueTiles.entries()).map(([key, tile]) => {
+                return {
+                    key,
+                    tile
+                }
+            }),
         };
     }
 
@@ -79,51 +87,53 @@ export class TileSet {
             ])
         );
 
+        tileSet.UniqueTiles = new Map<string, Tile>(
+            json.UniqueTiles.map((entry: { key: string; tile: any }) => [
+                entry.key,
+                Tile.fromJSON(entry.tile, game)
+            ])
+        );
+
         return tileSet;
     }
 }
 
 export class Tile {
-    tiles: (UnitTile | null)[][][]
+    unittiles: (UnitTile | null)[][][]
 
     name: string = Constants.RandomString(6)
     codename: string = Constants.RandomString(6)
     hash: string = ""
 
-    hashLeft: string
-    hashRight: string
-    hashBack: string
-    hashFront: string
+    hashLeft: string = ""
+    hashRight: string = ""
+    hashBack: string = ""
+    hashFront: string = ""
 
-    mirrorX: Tile | null
-    mirrorZ: Tile | null
-    rotateY: Tile | null
-    rotateYrotateY: Tile | null
-    rotateYrotateYrotateY: Tile | null
+    mirrorX: string = ""
+    mirrorZ: string = ""
+    rotateY: string = ""
+    rotateYrotateY: string = ""
+    rotateYrotateYrotateY: string = ""
 
     constructor(game: Game) {
-        this.tiles = Array.from({ length: game.GRID_DIMENSION_X }, () =>
+        this.unittiles = Array.from({ length: game.GRID_DIMENSION_X }, () =>
             Array.from({ length: game.GRID_DIMENSION_Y }, () =>
                 Array.from({ length: game.GRID_DIMENSION_Z }, () => null)
             )
         )
-
-        this.hashLeft = ""
-        this.hashRight = ""
-        this.hashBack = ""
-        this.hashFront = ""
-
-        this.rotateY = null
-        this.rotateYrotateY = null
-        this.rotateYrotateYrotateY = null
-        this.mirrorX = null
-        this.mirrorZ = null
     }
 
     static fromJSON(data: any, game: Game): Tile {
         const tile = new Tile(game);
 
-        tile.tiles = data.tiles;
+        tile.unittiles = data.unittiles.map((layer: any[][]) =>
+            layer.map((row: any[]) =>
+                row.map((unitTileData: any) =>
+                    unitTileData ? UnitTile.fromJSON(unitTileData) : null
+                )
+            )
+        );
 
         tile.name = data.name;
         tile.codename = data.codename;
@@ -144,40 +154,72 @@ export class Tile {
     }
 
     get(x: number, y: number, z: number) {
-        return this.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)]
+        return this.unittiles[Math.floor(x)][Math.floor(y)][Math.floor(z)]
     }
     set(x: number, y: number, z: number, unittile: (UnitTile | null)) {
-        this.tiles[Math.floor(x)][Math.floor(y)][Math.floor(z)] = unittile
+        this.unittiles[Math.floor(x)][Math.floor(y)][Math.floor(z)] = unittile
     }
 
-    update(game: Game) {
+    updateOne(game: Game) {
+        {
+            this.CalculateTileHash(game)
+            game.TILESET.UniqueTiles.set(this.hash, this)
+        }
 
-        this.CalculateTileHash(game)
+        {
+            const rotateY = Tile.RotateY(game, this)
+            rotateY.name = 'rotateY'
+            rotateY.CalculateTileHash(game)
+            this.rotateY = rotateY.hash
+            game.TILESET.UniqueTiles.set(this.rotateY, rotateY)
+        }
 
-        this.rotateY = Tile.RotateY(game, this)
-        this.rotateY.name = 'rotateY'
-        this.rotateY.CalculateTileHash(game)
+        {
+            const rotateYrotateY = Tile.RotateY(game, Tile.RotateY(game, this))
+            rotateYrotateY.name = 'rotateYrotateY'
+            rotateYrotateY.CalculateTileHash(game)
+            this.rotateYrotateY = rotateYrotateY.hash
+            game.TILESET.UniqueTiles.set(this.rotateYrotateY, rotateYrotateY)
+        }
 
-        this.rotateYrotateY = Tile.RotateY(game, Tile.RotateY(game, this))
-        this.rotateYrotateY.name = 'rotateYrotateY'
-        this.rotateYrotateY.CalculateTileHash(game)
+        {
+            const rotateYrotateYrotateY = Tile.RotateY(game, Tile.RotateY(game, Tile.RotateY(game, this)))
+            rotateYrotateYrotateY.name = 'rotateYrotateYrotateY'
+            rotateYrotateYrotateY.CalculateTileHash(game)
+            this.rotateYrotateYrotateY = rotateYrotateYrotateY.hash
+            game.TILESET.UniqueTiles.set(this.rotateYrotateYrotateY, rotateYrotateYrotateY)
+        }
 
-        this.rotateYrotateYrotateY = Tile.RotateY(game, Tile.RotateY(game, Tile.RotateY(game, this)))
-        this.rotateYrotateYrotateY.name = 'rotateYrotateYrotateY'
-        this.rotateYrotateYrotateY.CalculateTileHash(game)
+        {
+            const mirrorX = Tile.MirrorX(game, this)
+            mirrorX.name = 'mirrorX'
+            mirrorX.CalculateTileHash(game)
+            this.mirrorX = mirrorX.hash
+            game.TILESET.UniqueTiles.set(this.mirrorX, mirrorX)
+        }
 
-        this.mirrorX = Tile.MirrorX(game, this)
-        this.mirrorX.name = 'mirrorX'
-        this.mirrorX.CalculateTileHash(game)
+        {
+            const mirrorZ = Tile.MirrorZ(game, this)
+            mirrorZ.name = 'mirrorZ'
+            mirrorZ.CalculateTileHash(game)
+            this.mirrorZ = mirrorZ.hash
+            game.TILESET.UniqueTiles.set(this.mirrorZ, mirrorZ)
+        }
+    }
 
-        this.mirrorZ = Tile.MirrorZ(game, this)
-        this.mirrorZ.name = 'mirrorZ'
-        this.mirrorZ.CalculateTileHash(game)
+    static update(game: Game) {
+
+        game.TILESET.UniqueTiles = new Map()
+
+        game.TILESET.Tiles.forEach((tile) => {
+            tile.updateOne(game)
+        })
+        game.TILE.updateOne(game)
     }
 
     isEmpty(): boolean {
         let empty = true
-        this.tiles.forEach((layer) => {
+        this.unittiles.forEach((layer) => {
             layer.forEach((row) => {
                 row.forEach((t) => {
                     if (t !== null) {
@@ -195,9 +237,9 @@ export class Tile {
         for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
             for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
                 for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
-                    let t = tile.tiles[x][y][z]?.mirrorX(game)
+                    let t = tile.unittiles[x][y][z]?.mirrorX(game)
                     if (t) {
-                        newTile.tiles[t.x][t.y][t.z] = t
+                        newTile.unittiles[t.x][t.y][t.z] = t
                     }
                 }
             }
@@ -206,7 +248,7 @@ export class Tile {
     }
 
     MirrorX(game: Game) {
-        this.tiles = Tile.MirrorX(game, this).tiles
+        this.unittiles = Tile.MirrorX(game, this).unittiles
         game.rerenderScene()
     }
 
@@ -216,9 +258,9 @@ export class Tile {
         for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
             for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
                 for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
-                    let t = tile.tiles[x][y][z]?.mirrorZ(game)
+                    let t = tile.unittiles[x][y][z]?.mirrorZ(game)
                     if (t) {
-                        newTile.tiles[t.x][t.y][t.z] = t
+                        newTile.unittiles[t.x][t.y][t.z] = t
                     }
                 }
             }
@@ -227,7 +269,7 @@ export class Tile {
     }
 
     MirrorZ(game: Game) {
-        this.tiles = Tile.MirrorZ(game, this).tiles
+        this.unittiles = Tile.MirrorZ(game, this).unittiles
         game.rerenderScene()
     }
 
@@ -237,9 +279,10 @@ export class Tile {
         for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
             for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
                 for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
-                    let t = tile.tiles[x][y][z]?.rotateY(game)
+
+                    let t = tile.unittiles[x][y][z]?.rotateY(game)
                     if (t) {
-                        newTile.tiles[t.x][t.y][t.z] = t
+                        newTile.unittiles[t.x][t.y][t.z] = t
                     }
                 }
             }
@@ -248,7 +291,7 @@ export class Tile {
     }
 
     RotateY(game: Game) {
-        this.tiles = Tile.RotateY(game, this).tiles
+        this.unittiles = Tile.RotateY(game, this).unittiles
         game.rerenderScene()
     }
 
@@ -258,7 +301,7 @@ export class Tile {
         for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
             for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
                 for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
-                    let t = this.tiles[x][y][z]
+                    let t = this.unittiles[x][y][z]
                     hash += t?.colorHash != null ? game.TILESET.ALL_COLORS.get(t.colorHash)!.hash + '.' : "___."
                 }
                 hash += '*'
@@ -275,7 +318,7 @@ export class Tile {
         for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
             let hash = ""
             for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
-                hash += (this.tiles[0][y][z]?.colorHash ?? "___") + "."
+                hash += (this.unittiles[0][y][z]?.colorHash ?? "___") + "."
             }
             hashhash += hash
         }
@@ -288,7 +331,7 @@ export class Tile {
         for (let z = 0; z < game.GRID_DIMENSION_Z; z++) {
             let hash = ""
             for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
-                hash += (this.tiles[game.GRID_DIMENSION_X - 1][y][z]?.colorHash ?? "___") + "."
+                hash += (this.unittiles[game.GRID_DIMENSION_X - 1][y][z]?.colorHash ?? "___") + "."
             }
             hashhash += hash
         }
@@ -301,7 +344,7 @@ export class Tile {
         for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
             let hash = ""
             for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
-                hash += (this.tiles[x][y][0]?.colorHash ?? "___") + "."
+                hash += (this.unittiles[x][y][0]?.colorHash ?? "___") + "."
             }
             hashhash += hash
         }
@@ -314,7 +357,7 @@ export class Tile {
         for (let x = 0; x < game.GRID_DIMENSION_X; x++) {
             let hash = ""
             for (let y = 0; y < game.GRID_DIMENSION_Y; y++) {
-                hash += (this.tiles[x][y][game.GRID_DIMENSION_Z - 1]?.colorHash ?? "___") + "."
+                hash += (this.unittiles[x][y][game.GRID_DIMENSION_Z - 1]?.colorHash ?? "___") + "."
             }
             hashhash += hash
         }
@@ -345,6 +388,7 @@ export class Tile {
     }
 
     renderOne(game: Game, scene: THREE.Scene, dx: number, dy: number, name: string) {
+
         const axesHelper = new THREE.AxesHelper(game.GRID_DIMENSION_X + 1);
         axesHelper.position.set(dx, dy, 0)
         scene.add(axesHelper)
@@ -365,7 +409,7 @@ export class Tile {
         scene.add(boxMesh);
         boxMesh.position.set(dx + 3 * game.GRID_DIMENSION_X, dy + game.GRID_DIMENSION_Y, 0);
 
-        this.tiles.forEach((layer) => {
+        this.unittiles.forEach((layer) => {
             layer.forEach((row) => {
                 row.forEach((tile) => {
                     if (tile instanceof UnitTile) {
@@ -377,13 +421,15 @@ export class Tile {
     }
 
     render(game: Game, scene: THREE.Scene) {
-        this.update(game)
+        Tile.update(game)
+
         this.renderOne(game, scene, 0, 0, "")
-        this.rotateY?.renderOne(game, scene, 0, game.GRID_DIMENSION_Y + 3, "rotateY")
-        this.rotateYrotateY?.renderOne(game, scene, 0, 2 * (game.GRID_DIMENSION_Y + 3), "rotateYrotateY")
-        this.rotateYrotateYrotateY?.renderOne(game, scene, 0, 3 * (game.GRID_DIMENSION_Y + 3), "rotateYrotateYrotateY")
-        this.mirrorX?.renderOne(game, scene, 0, 4 * (game.GRID_DIMENSION_Y + 3), "mirrorX")
-        this.mirrorZ?.renderOne(game, scene, 0, 5 * (game.GRID_DIMENSION_Y + 3), "mirrorZ")
+
+        game.TILESET.UniqueTiles.get(this.rotateY!)?.renderOne(game, scene, 0, game.GRID_DIMENSION_Y + 3, "rotateY")
+        game.TILESET.UniqueTiles.get(this.rotateYrotateY!)?.renderOne(game, scene, 0, 2 * (game.GRID_DIMENSION_Y + 3), "rotateYrotateY")
+        game.TILESET.UniqueTiles.get(this.rotateYrotateYrotateY!)?.renderOne(game, scene, 0, 3 * (game.GRID_DIMENSION_Y + 3), "rotateYrotateYrotateY")
+        game.TILESET.UniqueTiles.get(this.mirrorX!)?.renderOne(game, scene, 0, 4 * (game.GRID_DIMENSION_Y + 3), "mirrorX")
+        game.TILESET.UniqueTiles.get(this.mirrorZ!)?.renderOne(game, scene, 0, 5 * (game.GRID_DIMENSION_Y + 3), "mirrorZ")
     }
 }
 
@@ -411,6 +457,10 @@ export class UnitTile {
         this.y = y
         this.z = z
         this.colorHash = colorHash
+    }
+
+    static fromJSON(data: any): UnitTile {
+        return new UnitTile(data.x, data.y, data.z, data.colorHash);
     }
 
     mirrorX(game: Game): UnitTile {

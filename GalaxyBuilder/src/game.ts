@@ -3,12 +3,12 @@ import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 
 import { INPUT, InputKeys } from './input.ts';
-import { CreateCSS2dRenderer, CreateHUDCamera, CreateOrbitControls, CreateRenderer, ResizeReset } from './camera.ts';
+import { CreateCSS2dRenderer, CreateHUDCamera, CreateNewCamera, CreateOrbitControls, CreateRenderer, ResizeReset } from './camera.ts';
 import { TileColor, CreateScene, Tile, TileSet } from './tile.ts';
 import { AddLight } from './light.ts';
 import { Gui } from './gui.ts';
 import { Test_TileJson } from './serialization_test.ts';
-
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 export class Game {
     GRID_DIMENSION_X: number = 2
@@ -22,13 +22,13 @@ export class Game {
 
     ASPECT_RATIO: number = window.innerWidth / window.innerHeight
 
-    ACTIVE_CAMERA: THREE.PerspectiveCamera | THREE.OrthographicCamera = new THREE.PerspectiveCamera(75, this.ASPECT_RATIO, 0.1, 1000);
+    ACTIVE_CAMERA: THREE.PerspectiveCamera | THREE.OrthographicCamera = new THREE.PerspectiveCamera()
 
-    HUD_ORTHOGRAPHIC_CAMERA = CreateHUDCamera(this.ASPECT_RATIO, 10);
+    HUD_ORTHOGRAPHIC_CAMERA: THREE.OrthographicCamera
 
     LABEL_RENDERER = CreateCSS2dRenderer()
     RENDERER = CreateRenderer()
-    ORBIT_CONTROLS = CreateOrbitControls(this)
+    ORBIT_CONTROLS: OrbitControls | null
 
     TILE: Tile
 
@@ -42,24 +42,25 @@ export class Game {
     constructor() {
         INPUT.RegisterKeys()
 
-        this.ACTIVE_CAMERA.position.set(-2, 5, 5);
-        this.ACTIVE_CAMERA.lookAt(0, 0, 0);
+        this.ACTIVE_CAMERA = CreateNewCamera(this, true)
+
+        this.HUD_ORTHOGRAPHIC_CAMERA = CreateHUDCamera(this.ASPECT_RATIO, 10);
+
+        this.ORBIT_CONTROLS = CreateOrbitControls(this)
 
         this.SCENE3D = new THREE.Scene()
         this.SCENEHUD = new THREE.Scene()
 
-        this.TILESET = new TileSet(this.GRID_DIMENSION_X, this.GRID_DIMENSION_Y, this.GRID_DIMENSION_Z, new Map())
         this.TILE = new Tile(this)
+        this.TILESET = new TileSet(this.GRID_DIMENSION_X, this.GRID_DIMENSION_Y, this.GRID_DIMENSION_Z, new Map())
+        // console.log(JSON.stringify(TileSet.fromJSON(Test_TileJson, this), null, 4))
+        console.log("Serialization Working", JSON.stringify(TileSet.fromJSON(Test_TileJson, this), null, 4) == Test_TileJson)
+        this.TILESET = TileSet.fromJSON(Test_TileJson, this)
 
         AddLight(this.SCENE3D)
-
         ResizeReset(this)
-
         Gui.AddGUI(this)
-
         this.rerenderScene()
-
-        console.log("Serialization Working", JSON.stringify(TileSet.fromJSON(Test_TileJson, this), null, 4) == Test_TileJson)
 
         //--------------------------------------------
         const stats = new Stats()
@@ -73,7 +74,7 @@ export class Game {
                 });
             }
 
-            this.ORBIT_CONTROLS.update();
+            this.ORBIT_CONTROLS?.update();
 
             this.LABEL_RENDERER.render(this.SCENE3D, this.ACTIVE_CAMERA);
 

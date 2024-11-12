@@ -88,7 +88,12 @@ export class Gui {
         Gui.ydimControl = Gui.gui.add(game, 'GRID_DIMENSION_Y', 2, 8).onChange((y) => { game.updateDimension(null, y, null) }).name('Y Dimension').step(1);
         Gui.zdimControl = Gui.gui.add(game, 'GRID_DIMENSION_Z', 2, 8).onChange((z) => { game.updateDimension(null, null, z) }).name('Z Dimension').step(1);
 
+
         const tileFolder = Gui.gui.addFolder(`Tiles`)
+
+        const tileStats = { totalTiles: `Total tiles: ${game.TILESET.UniqueTiles.size}` };
+        tileFolder.add(tileStats, 'totalTiles').name('Total Tiles').disable();
+
         game.TILESET.Tiles.forEach((t) => {
             tileFolder.add({ selectTile: () => Gui.selectTile(game, t.codename) }, 'selectTile').name(t.name + ' : (' + t.codename + ')');
         })
@@ -138,7 +143,7 @@ export class Gui {
                     let used = false
 
                     game.TILESET.Tiles.forEach((tile) => {
-                        tile.tiles.forEach((layer) => {
+                        tile.unittiles.forEach((layer) => {
                             layer.forEach((row) => {
                                 row.forEach((t) => {
                                     if (t?.colorHash == colorHash) {
@@ -149,7 +154,7 @@ export class Gui {
                         })
                     })
 
-                    game.TILE.tiles.forEach((layer) => {
+                    game.TILE.unittiles.forEach((layer) => {
                         layer.forEach((row) => {
                             row.forEach((t) => {
                                 if (t?.colorHash == colorHash) {
