@@ -7,6 +7,7 @@ import { Game } from './game';
 const mousePosition = new THREE.Vector2();
 const rayCaster = new THREE.Raycaster();
 
+
 export class TileSet {
     GRID_DIMENSION_X: number
     GRID_DIMENSION_Y: number
@@ -18,6 +19,11 @@ export class TileSet {
 
     Tiles: Map<string, Tile> = new Map()
     UniqueTiles: Map<string, Tile> = new Map()
+
+    HashLeft: Map<string, Map<string, number>> = new Map()
+    HashRight: Map<string, Map<string, number>> = new Map()
+    HashFront: Map<string, Map<string, number>> = new Map()
+    HashBack: Map<string, Map<string, number>> = new Map()
 
     constructor(x: number, y: number, z: number, tiles: Map<string, Tile>) {
         this.GRID_DIMENSION_X = x
@@ -39,6 +45,24 @@ export class TileSet {
     }
 
     toJSON() {
+
+        const HashLeft: Record<string, Record<string, number>> = {};
+        this.HashLeft.forEach((innerMap, outerKey) => {
+            HashLeft[outerKey] = Object.fromEntries(innerMap);
+        });
+        const HashRight: Record<string, Record<string, number>> = {};
+        this.HashRight.forEach((innerMap, outerKey) => {
+            HashRight[outerKey] = Object.fromEntries(innerMap);
+        });
+        const HashFront: Record<string, Record<string, number>> = {};
+        this.HashFront.forEach((innerMap, outerKey) => {
+            HashFront[outerKey] = Object.fromEntries(innerMap);
+        });
+        const HashBack: Record<string, Record<string, number>> = {};
+        this.HashBack.forEach((innerMap, outerKey) => {
+            HashBack[outerKey] = Object.fromEntries(innerMap);
+        });
+
         return {
             GRID_DIMENSION_X: this.GRID_DIMENSION_X,
             GRID_DIMENSION_Y: this.GRID_DIMENSION_Y,
@@ -57,6 +81,10 @@ export class TileSet {
                     tile
                 }
             }),
+            HashLeft: HashLeft,
+            HashRight: HashRight,
+            HashFront: HashFront,
+            HashBack: HashBack,
         };
     }
 
@@ -93,6 +121,52 @@ export class TileSet {
                 Tile.fromJSON(entry.tile, game)
             ])
         );
+
+        {
+            const HashLeft = new Map<string, Map<string, number>>();
+            for (const outerKey in json.HashLeft) {
+                if (Object.prototype.hasOwnProperty.call(json.HashLeft, outerKey)) {
+                    const innerObj = json.HashLeft[outerKey];
+                    const innerMap = new Map<string, number>(Object.entries(innerObj));
+                    HashLeft.set(outerKey, innerMap);
+                }
+            }
+            tileSet.HashLeft = HashLeft
+        }
+
+        {
+            const HashRight = new Map<string, Map<string, number>>();
+            for (const outerKey in json.HashRight) {
+                if (Object.prototype.hasOwnProperty.call(json.HashRight, outerKey)) {
+                    const innerObj = json.HashRight[outerKey];
+                    const innerMap = new Map<string, number>(Object.entries(innerObj));
+                    HashRight.set(outerKey, innerMap);
+                }
+            }
+            tileSet.HashRight = HashRight
+        }
+        {
+            const HashFront = new Map<string, Map<string, number>>();
+            for (const outerKey in json.HashFront) {
+                if (Object.prototype.hasOwnProperty.call(json.HashFront, outerKey)) {
+                    const innerObj = json.HashFront[outerKey];
+                    const innerMap = new Map<string, number>(Object.entries(innerObj));
+                    HashFront.set(outerKey, innerMap);
+                }
+            }
+            tileSet.HashFront = HashFront
+        }
+        {
+            const HashBack = new Map<string, Map<string, number>>();
+            for (const outerKey in json.HashBack) {
+                if (Object.prototype.hasOwnProperty.call(json.HashBack, outerKey)) {
+                    const innerObj = json.HashBack[outerKey];
+                    const innerMap = new Map<string, number>(Object.entries(innerObj));
+                    HashBack.set(outerKey, innerMap);
+                }
+            }
+            tileSet.HashBack = HashBack
+        }
 
         return tileSet;
     }
@@ -168,7 +242,7 @@ export class Tile {
 
         {
             const rotateY = Tile.RotateY(game, this)
-            rotateY.name = 'rotateY'
+            rotateY.name = this.name + '_rotateY'
             rotateY.CalculateTileHash(game)
             this.rotateY = rotateY.hash
             game.TILESET.UniqueTiles.set(this.rotateY, rotateY)
@@ -176,7 +250,7 @@ export class Tile {
 
         {
             const rotateYrotateY = Tile.RotateY(game, Tile.RotateY(game, this))
-            rotateYrotateY.name = 'rotateYrotateY'
+            rotateYrotateY.name = this.name + '_rotateYrotateY'
             rotateYrotateY.CalculateTileHash(game)
             this.rotateYrotateY = rotateYrotateY.hash
             game.TILESET.UniqueTiles.set(this.rotateYrotateY, rotateYrotateY)
@@ -184,7 +258,7 @@ export class Tile {
 
         {
             const rotateYrotateYrotateY = Tile.RotateY(game, Tile.RotateY(game, Tile.RotateY(game, this)))
-            rotateYrotateYrotateY.name = 'rotateYrotateYrotateY'
+            rotateYrotateYrotateY.name = this.name + '_rotateYrotateYrotateY'
             rotateYrotateYrotateY.CalculateTileHash(game)
             this.rotateYrotateYrotateY = rotateYrotateYrotateY.hash
             game.TILESET.UniqueTiles.set(this.rotateYrotateYrotateY, rotateYrotateYrotateY)
@@ -192,7 +266,7 @@ export class Tile {
 
         {
             const mirrorX = Tile.MirrorX(game, this)
-            mirrorX.name = 'mirrorX'
+            mirrorX.name = this.name + '_mirrorX'
             mirrorX.CalculateTileHash(game)
             this.mirrorX = mirrorX.hash
             game.TILESET.UniqueTiles.set(this.mirrorX, mirrorX)
@@ -200,7 +274,7 @@ export class Tile {
 
         {
             const mirrorZ = Tile.MirrorZ(game, this)
-            mirrorZ.name = 'mirrorZ'
+            mirrorZ.name = this.name + '_mirrorZ'
             mirrorZ.CalculateTileHash(game)
             this.mirrorZ = mirrorZ.hash
             game.TILESET.UniqueTiles.set(this.mirrorZ, mirrorZ)
@@ -211,10 +285,42 @@ export class Tile {
 
         game.TILESET.UniqueTiles = new Map()
 
+        game.TILESET.HashLeft = new Map()
+        game.TILESET.HashRight = new Map()
+        game.TILESET.HashFront = new Map()
+        game.TILESET.HashBack = new Map()
+
         game.TILESET.Tiles.forEach((tile) => {
             tile.updateOne(game)
         })
         game.TILE.updateOne(game)
+
+        game.TILESET.UniqueTiles.forEach((tile, _) => {
+            {
+                let l = game.TILESET.HashLeft.get(tile.hashLeft) ?? new Map<string, number>()
+                let count = (l.get(tile.hash) ?? 0) + 1
+                l.set(tile.hash, count)
+                game.TILESET.HashLeft.set(tile.hashLeft, l)
+            }
+            {
+                let l = game.TILESET.HashRight.get(tile.hashRight) ?? new Map<string, number>()
+                let count = (l.get(tile.hash) ?? 0) + 1
+                l.set(tile.hash, count)
+                game.TILESET.HashRight.set(tile.hashRight, l)
+            }
+            {
+                let l = game.TILESET.HashFront.get(tile.hashFront) ?? new Map<string, number>()
+                let count = (l.get(tile.hash) ?? 0) + 1
+                l.set(tile.hash, count)
+                game.TILESET.HashFront.set(tile.hashFront, l)
+            }
+            {
+                let l = game.TILESET.HashBack.get(tile.hashBack) ?? new Map<string, number>()
+                let count = (l.get(tile.hash) ?? 0) + 1
+                l.set(tile.hash, count)
+                game.TILESET.HashBack.set(tile.hashBack, l)
+            }
+        });
     }
 
     isEmpty(): boolean {
