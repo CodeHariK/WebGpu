@@ -10,6 +10,8 @@
 
 <body>
 
+    Broadcast
+
     <div id="signalingContainer" style="display: none">
         Browser base64 Session Description<br />
         <textarea id="localSessionDescription" readonly="true"></textarea> <br />
@@ -41,20 +43,17 @@
 
 <script>
 
-    const ws = new WebSocket("ws://localhost:8080/ws");
-
+    const ws = new WebSocket("ws://localhost:80/ws");
     ws.onopen = () => {
         console.log("Connected to WebSocket server!");
     };
-
     ws.onmessage = (event) => {
         document.getElementById('remoteSessionDescription').value = event.data
+        startSession()
     };
-
     ws.onclose = (error) => {
         console.log("WebSocket connection closed.", error);
     };
-
     ws.onerror = (error) => {
         console.error("WebSocket error:", error);
     };
@@ -77,8 +76,6 @@
             if (event.candidate === null) {
                 let browserOffer = btoa(JSON.stringify(pc.localDescription))
                 document.getElementById('localSessionDescription').value = browserOffer
-
-                console.log("---")
 
                 ws.send(browserOffer);
             }

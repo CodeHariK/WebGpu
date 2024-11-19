@@ -2,130 +2,25 @@
 package main
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
-	"log"
-	"net/http"
-	"strconv"
-	"sync"
 
-	"github.com/gorilla/websocket"
+	"webrtc/utils"
 
 	"github.com/pion/interceptor"
 	"github.com/pion/interceptor/pkg/intervalpli"
 	"github.com/pion/webrtc/v4"
 )
 
-// Define the connectObj struct
-type connectObj struct {
-	conn *websocket.Conn
-	sdp  string
-}
-
-// Declare a slice of connectObj
-var helo map[*websocket.Conn]*connectObj
-
-var (
-	sdpChan = make(chan connectObj)
-	mu      sync.Mutex
-)
-
-var upgrader = websocket.Upgrader{
-	// Allow all connections (in production, use proper origin checks)
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
-
-// Handle WebSocket connection
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Upgrade HTTP to WebSocket
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		fmt.Println("Upgrade error:", err)
-		return
-	}
-	defer conn.Close()
-
-	fmt.Println("Client connected!")
-
-	// Store the connection in the map
-	mu.Lock()
-	helo[conn] = &connectObj{
-		conn: conn,
-		sdp:  "",
-	}
-	mu.Unlock()
-
-	var wg sync.WaitGroup
-
-	// Increment the WaitGroup counter for this goroutine
-	wg.Add(1)
-
-	// Start a goroutine for handling the WebSocket communication
-	go func() {
-		defer wg.Done() // Mark this goroutine as done when finished
-
-		// Handle the WebSocket connection
-		for {
-			_, message, err := conn.ReadMessage()
-			if err != nil {
-				// Check for WebSocket closure or error
-				if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
-					fmt.Println("Connection closed gracefully")
-				} else {
-					fmt.Println("Read error:", err)
-				}
-				break
-			}
-
-			fmt.Printf("Received: %d bytes\n", len(message))
-
-			// Update the SDP in the map
-			mu.Lock() // Lock the map while updating
-			helo[conn].sdp = string(message)
-			mu.Unlock()
-
-			// Send the updated SDP to the channel
-			sdpChan <- *helo[conn]
-		}
-
-		// Clean up after finishing
-		mu.Lock()
-		delete(helo, conn) // Remove the connection from the map
-		mu.Unlock()
-	}()
-
-	wg.Wait()
-}
-
-func main() { // nolint:gocognit
-	port := flag.Int("port", 8080, "http server port")
-	flag.Parse()
-
-	helo = make(map[*websocket.Conn]*connectObj)
-
-	fs := http.FileServer(http.Dir("."))
-	http.Handle("/ui/", http.StripPrefix("/ui/", fs))
-
-	http.HandleFunc("/ws", handleWebSocket)
-
-	go func() {
-		// nolint: gosec
-		panic(http.ListenAndServe(":"+strconv.Itoa(*port), nil))
-	}()
+func main() {
+	utils.BuildServer()
+	sdpobj := <-utils.SdpChan
 
 	// Everything below is the Pion WebRTC API, thanks for using it ❤️.
 	offer := webrtc.SessionDescription{}
 
-	sdpobj := <-sdpChan
-
-	decode(sdpobj, &offer)
-	fmt.Println("...")
+	utils.Decode(sdpobj, &offer)
 
 	peerConnectionConfig := webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
@@ -229,12 +124,9 @@ func main() { // nolint:gocognit
 	<-gatherComplete
 
 	// Get the LocalDescription and take it to base64 so we can paste in browser
-	encodedObj := encode(peerConnection.LocalDescription())
-	fmt.Println("\n---> ", encodedObj)
-	err = sdpobj.conn.WriteMessage(websocket.TextMessage, []byte(encodedObj))
-	if err != nil {
-		log.Println("Write error:", err)
-	}
+	utils.SendMessage(
+		utils.Encode(peerConnection.LocalDescription()),
+		sdpobj)
 
 	localTrack := <-localTrackChan
 	for {
@@ -243,8 +135,8 @@ func main() { // nolint:gocognit
 
 		recvOnlyOffer := webrtc.SessionDescription{}
 
-		sdpobj := <-sdpChan
-		decode(sdpobj, &recvOnlyOffer)
+		sdpobj := <-utils.SdpChan
+		utils.Decode(sdpobj, &recvOnlyOffer)
 
 		// Create a new PeerConnection
 		peerConnection, err := webrtc.NewPeerConnection(peerConnectionConfig)
@@ -296,33 +188,8 @@ func main() { // nolint:gocognit
 		<-gatherComplete
 
 		// Get the LocalDescription and take it to base64 so we can paste in browser
-		encodedObj := encode(peerConnection.LocalDescription())
-		fmt.Println("\n***> ", encodedObj)
-		err = sdpobj.conn.WriteMessage(websocket.TextMessage, []byte(encodedObj))
-		if err != nil {
-			log.Println("Write error:", err)
-		}
-	}
-}
-
-// JSON encode + base64 a SessionDescription
-func encode(obj *webrtc.SessionDescription) string {
-	b, err := json.Marshal(obj)
-	if err != nil {
-		panic(err)
-	}
-
-	return base64.StdEncoding.EncodeToString(b)
-}
-
-// Decode a base64 and unmarshal JSON into a SessionDescription
-func decode(in connectObj, obj *webrtc.SessionDescription) {
-	b, err := base64.StdEncoding.DecodeString(in.sdp)
-	if err != nil {
-		panic(err)
-	}
-
-	if err = json.Unmarshal(b, obj); err != nil {
-		panic(err)
+		utils.SendMessage(
+			utils.Encode(peerConnection.LocalDescription()),
+			sdpobj)
 	}
 }

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    Swap Tracks
+
+    Browser base64 Session Description<br />
+    <textarea id="localSessionDescription" readonly="true"></textarea> <br />
+    <button onclick="window.copySDP()">
+        Copy browser SDP to clipboard
+    </button>
+    <br />
+    <br />
+
+    Golang base64 Session Description<br />
+    <textarea id="remoteSessionDescription"></textarea> <br />
+    <button onclick="window.startSession()"> Start Session </button><br />
+
+    <br />
+
+    <div style="display: flex">
+        <div>
+            Browser stream 1<br />
+            <canvas id="canvasOne" height="200" width="200"></canvas>
+        </div>
+        <div>
+            Browser stream 2<br />
+            <canvas id="canvasTwo" height="200" width="200"></canvas>
+        </div>
+        <div>
+            Browser stream 3<br />
+            <canvas id="canvasThree" height="200" width="200"></canvas>
+        </div>
+    </div>
+
+    Video from server<br />
+    <video id="serverVideo" width="200" height="200" autoplay muted></video> <br />
+</body>
+
+<script>
+
+    const ws = new WebSocket("ws://localhost:80/ws");
+    ws.onopen = () => {
+        console.log("Connected to WebSocket server!");
+    };
+    ws.onmessage = (event) => {
+        document.getElementById('remoteSessionDescription').value = event.data
+        startSession()
+    };
+    ws.onclose = (error) => {
+        console.log("WebSocket connection closed.", error);
+    };
+    ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+    };
+
+
+    // Create peer conn
+    const pc = new RTCPeerConnection({
+        iceServers: [
+            {
+                urls: 'stun:stun.l.google.com:19302'
+            }
+        ]
+    })
+
+    pc.oniceconnectionstatechange = e => {
+        console.debug('connection state change', pc.iceConnectionState)
+    }
+    pc.onicecandidate = event => {
+        if (event.candidate === null) {
+
+            let browserOffer = btoa(JSON.stringify(pc.localDescription))
+            document.getElementById('localSessionDescription').value = browserOffer
+
+            ws.send(browserOffer);
+        }
+    }
+
+    pc.onnegotiationneeded = e =>
+        pc.createOffer().then(d => pc.setLocalDescription(d)).catch(console.error)
+
+    pc.ontrack = event => {
+        console.log('Got track event', event)
+        document.getElementById('serverVideo').srcObject = new MediaStream([event.track])
+    }
+
+    const canvases = [
+        document.getElementById('canvasOne'),
+        document.getElementById('canvasTwo'),
+        document.getElementById('canvasThree')
+    ]
+
+    // Firefox requires getContext to be invoked on an HTML Canvas Element
+    // prior to captureStream
+    const canvasContexts = canvases.map(c => c.getContext('2d'))
+
+    // Capture canvas streams and add to peer conn
+    const streams = canvases.map(c => c.captureStream())
+    streams.forEach(stream => stream.getVideoTracks().forEach(track => pc.addTrack(track, stream)))
+
+    // Start circles
+    requestAnimationFrame(() => drawCircle(canvasContexts[0], '#006699', 0))
+    requestAnimationFrame(() => drawCircle(canvasContexts[1], '#cf635f', 0))
+    requestAnimationFrame(() => drawCircle(canvasContexts[2], '#46c240', 0))
+
+    function drawCircle(ctx, color, angle) {
+        // Background
+        ctx.clearRect(0, 0, 200, 200)
+        ctx.fillStyle = '#eeeeee'
+        ctx.fillRect(0, 0, 200, 200)
+        // Draw and fill in circle
+        ctx.beginPath()
+        const radius = 25 + 50 * Math.abs(Math.cos(angle))
+        ctx.arc(100, 100, radius, 0, Math.PI * 2, false)
+        ctx.closePath()
+        ctx.fillStyle = color
+        ctx.fill()
+        // Call again
+        requestAnimationFrame(() => drawCircle(ctx, color, angle + (Math.PI / 64)))
+    }
+
+    window.startSession = () => {
+        const sd = document.getElementById('remoteSessionDescription').value
+        if (sd === '') {
+            return alert('Session Description must not be empty')
+        }
+
+        try {
+            pc.setRemoteDescription(JSON.parse(atob(sd)))
+        } catch (e) {
+            alert(e)
+        }
+    }
+
+    window.copySDP = () => {
+        const browserSDP = document.getElementById('localSessionDescription')
+
+        browserSDP.focus()
+        browserSDP.select()
+
+        try {
+            const successful = document.execCommand('copy')
+            const msg = successful ? 'successful' : 'unsuccessful'
+            console.log('Copying SDP was ' + msg)
+        } catch (err) {
+            console.log('Unable to copy SDP ' + err)
+        }
+    }
+</script>
+
+</html>
