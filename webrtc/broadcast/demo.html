@@ -43,25 +43,28 @@
 
 <script>
 
-    const ws = new WebSocket("ws://localhost:80/ws");
+    const log = msg => {
+        document.getElementById('logs').innerHTML += msg + '<br>'
+    }
+
+
+    const ws = (new WebSocket("ws://atlantic.shark.run:80/ws")) || (new WebSocket("ws://localhost:80/ws"));
+    log(ws.url)
     ws.onopen = () => {
-        console.log("Connected to WebSocket server!");
+        log("Connected to WebSocket server!");
     };
     ws.onmessage = (event) => {
         document.getElementById('remoteSessionDescription').value = event.data
         startSession()
+        log('onmessage')
     };
     ws.onclose = (error) => {
-        console.log("WebSocket connection closed.", error);
+        log("WebSocket connection closed." + error);
     };
     ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
+        log("WebSocket error:" + error);
     };
 
-
-    const log = msg => {
-        document.getElementById('logs').innerHTML += msg + '<br>'
-    }
 
     window.createSession = isPublisher => {
         const pc = new RTCPeerConnection({

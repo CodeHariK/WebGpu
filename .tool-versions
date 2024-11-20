@@ -1,2 +1,3 @@
 bun 1.1.27
 golang 1.23.1
+cloudflared 2024.9.1
