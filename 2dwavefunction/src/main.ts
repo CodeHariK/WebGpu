@@ -1,16 +1,3 @@
-///
-///
-///
-///   ---->right +1
-///   <----left  -1
-///   ^
-///   |  up      -1
-///   *  down    +1
-///
-///    col =>right
-///    row !down
-///
-
 import { PriorityQueue } from "./queue"
 class Tile {
     imageData: ImageData
@@ -47,10 +34,6 @@ class Tile {
         return hash >>> 0;
     }
 
-    static getRandomTile(tiles: Tile[]): Tile | null {
-        return tiles[Math.floor(Math.random() * tiles.length)]
-    }
-
     static getMosLikelyTile(tiles: Tile[]): Tile | null {
         const totalOccurrences = tiles.reduce((sum, tile) => sum + tile.occurrence, 0);
         const randomValue = Math.random() * totalOccurrences;
@@ -62,7 +45,21 @@ class Tile {
                 return tile;
             }
         }
-        return null; // In case the list is empty
+        return null;
+    }
+
+    // Method to get a Set of Tile objects based on a set of hash numbers
+    static getTilesFromHashes(tiles: Map<number, Tile>, hashes: Set<number>): Set<Tile> {
+        // Filter the tiles map based on the keys in the hashes set and return a Set of Tiles
+        return new Set(
+            Array.from(tiles)
+                .filter(([hash, _]) => hashes.has(hash)) // Filter entries where the key is in the hashes set
+                .map(([_, tile]) => tile) // Map to just the Tile objects
+        );
+    }
+
+    static getTileFromHash(tiles: Map<number, Tile>, hash: number): Tile {
+        return Array.from(Tile.getTilesFromHashes(tiles, new Set([hash])))[0]
     }
 }
 
@@ -73,6 +70,8 @@ class WFCTile {
     c: number
 
     entropy: number = 9999
+
+    checked: boolean = false
 
     tiles: Set<number>
 
@@ -85,7 +84,26 @@ class WFCTile {
         this.tiles = tiles
     }
 
+    numTiles(): number {
+        return this.tiles.size
+    }
+
+    updateTiles(tiles: Set<number>) {
+        if (this.checked) return
+
+        this.tiles = tiles
+    }
+
+    intersect(possibleTiles: Set<number>) {
+        if (this.checked) return
+
+        this.tiles = new Set(Array.from(possibleTiles).filter(num => this.tiles.has(num)))
+    }
+
     calculateEntropy(tiles: Map<number, Tile>, entropyPQ: PriorityQueue<WFCTile>) {
+
+        if (this.checked) return
+
         const probabilities: number[] = [];
 
         for (const hash of this.tiles) {
@@ -114,6 +132,37 @@ class WFCTile {
     }
 }
 
+///
+///   -------->
+///   |
+///   |
+///  \/
+
+class WFCMap {
+    rows: number
+    cols: number
+    private wfcTiles: WFCTile[][] = []
+
+    constructor(rows: number, cols: number) {
+        this.rows = rows
+        this.cols = cols
+        this.wfcTiles = [];
+        for (let r = 0; r < rows; r++) {
+            this.wfcTiles[r] = []; // Create a new row for each column index
+            for (let c = 0; c < cols; c++) {
+                this.wfcTiles[r][c] = new WFCTile(null, r, c, new Set());
+            }
+        }
+    }
+
+    get(r: number, c: number): WFCTile | null {
+        if (r < this.rows && c < this.cols) {
+            return this.wfcTiles[r][c]
+        }
+        return null
+    }
+}
+
 class WFC {
 
     sampleTileImageData: ImageData | null = null
@@ -128,12 +177,14 @@ class WFC {
     img: HTMLImageElement | null = null
 
     fullCanvas: HTMLCanvasElement
+    possibilitiesCanvas: HTMLCanvasElement
     singleTileCanvas: HTMLCanvasElement
     tileCanvas: HTMLCanvasElement
     sampleCanvas: HTMLCanvasElement
     wfcCanvas: HTMLCanvasElement
 
     fullCtx: CanvasRenderingContext2D
+    possibilitiesCtx: CanvasRenderingContext2D
     singleTileCtx: CanvasRenderingContext2D
     sampleCtx: CanvasRenderingContext2D
     tileCtx: CanvasRenderingContext2D
@@ -141,7 +192,7 @@ class WFC {
 
     tiles: Map<number, Tile> = new Map()
 
-    wfcTiles: WFCTile[][] = []
+    wfcTiles: WFCMap = new WFCMap(0, 0)
     entropyPQ = new PriorityQueue<WFCTile>();
 
     constructor() {
@@ -150,14 +201,16 @@ class WFC {
         this.tileCanvas = document.getElementById("tiles") as HTMLCanvasElement;
         this.sampleCanvas = document.getElementById("sampletile") as HTMLCanvasElement;
         this.wfcCanvas = document.getElementById("wfc") as HTMLCanvasElement;
+        this.possibilitiesCanvas = document.getElementById('possibilities') as HTMLCanvasElement;
 
         const ctx = this.fullCanvas.getContext('2d', { willReadFrequently: true });
         const singleTileCtx = this.singleTileCanvas.getContext('2d', { willReadFrequently: true });
         const sampleTileCtx = this.sampleCanvas.getContext("2d", { willReadFrequently: true });
         const tileCtx = this.tileCanvas.getContext('2d', { willReadFrequently: true });
         const wfcCtx = this.wfcCanvas.getContext('2d', { willReadFrequently: true });
+        const possibilitiesCtx = this.possibilitiesCanvas.getContext('2d', { willReadFrequently: true });
 
-        if (!ctx || !sampleTileCtx || !tileCtx || !singleTileCtx || !wfcCtx) {
+        if (!ctx || !sampleTileCtx || !tileCtx || !singleTileCtx || !wfcCtx || !possibilitiesCtx) {
             throw new DOMException("canvas context not found")
         } else {
             this.fullCtx = ctx
@@ -165,6 +218,7 @@ class WFC {
             this.sampleCtx = sampleTileCtx
             this.tileCtx = tileCtx
             this.wfcCtx = wfcCtx
+            this.possibilitiesCtx = possibilitiesCtx
         }
     }
 
@@ -299,15 +353,12 @@ class WFC {
         for (let r = 0; r < numRows; r++) {
             for (let c = 0; c < numCols; c++) {
 
-                // WFC.getSampleImageData(this.tileCtx, this.unitTileSize, i, j, 0, 0)
-
                 const tileImageData = this.sampleCtx.getImageData(
                     c * this.unitTileSize,
                     r * this.unitTileSize,
                     this.unitTileSize, this.unitTileSize);
 
                 {
-
                     let tile = updateNewTile(tileImageData, r, c)
                     tile.occurrence += 1
                     tile.probability = tile.occurrence / (numRows * numCols)
@@ -322,8 +373,7 @@ class WFC {
 
                         let leftTile = updateNewTile(leftTileImageData, r, c - 1)
 
-                        tile.leftNeighbours.add(leftTile.hash); // Add left tile to the current tile's leftNeighbors
-                        // leftTile.rightNeighbours.add(tile.hash); // Add current tile to the left tile's rightNeighbors
+                        tile.leftNeighbours.add(leftTile.hash);
                     }
 
                     // Check and add the right neighbor if available
@@ -336,8 +386,7 @@ class WFC {
 
                         let rightTile = updateNewTile(rightTileImageData, r, c + 1)
 
-                        tile.rightNeighbours.add(rightTile.hash); // Add right tile to the current tile's rightNeighbors
-                        // rightTile.leftNeighbours.add(tile.hash); // Add current tile to the right tile's leftNeighbors
+                        tile.rightNeighbours.add(rightTile.hash);
                     }
 
                     // Check and add the top neighbor if available
@@ -350,8 +399,7 @@ class WFC {
 
                         let topTile = updateNewTile(topTileImageData, r - 1, c)
 
-                        tile.upNeighbours.add(topTile.hash); // Add top tile to the current tile's topNeighbors
-                        // topTile.downNeighbours.add(tile.hash); // Add current tile to the top tile's downNeighbours
+                        tile.upNeighbours.add(topTile.hash);
                     }
 
                     // Check and add the down neighbor if available
@@ -363,8 +411,7 @@ class WFC {
                         );
                         let downTile = updateNewTile(downTileImageData, r + 1, c)
 
-                        tile.downNeighbours.add(downTile.hash); // Add down tile to the current tile's downNeighbours
-                        // downTile.upNeighbours.add(tile.hash); // Add current tile to the down tile's topNeighbours
+                        tile.downNeighbours.add(downTile.hash);
                     }
                 }
             }
@@ -374,45 +421,96 @@ class WFC {
     }
 
     debugDraw() {
+
         this.singleTileCanvas.width = 1000
         this.singleTileCanvas.height = this.tiles.size * 16
 
-        let i = 0
+        const redrawSingleCtx = (hash: number | null) => {
+            this.singleTileCtx.clearRect(0, 0, this.singleTileCanvas.width, this.singleTileCanvas.height)
 
-        this.tiles.forEach((tile) => {
+            let tile = hash !== null ? Tile.getTileFromHash(this.tiles, hash) : null
 
-            this.singleTileCtx.putImageData(tile.imageData, 500, i * 16)
+            let i = 0
+            this.tiles.forEach((t) => {
 
-            let ll = 0
-            tile.leftNeighbours.forEach((l) => {
-                ll++
-                let ltile = this.tiles.get(l)!
-                this.singleTileCtx.putImageData(ltile.imageData, 250 + ll * 16, i * 16)
+                if (tile === t) {
+                    this.singleTileCtx.strokeStyle = "red";
+                    this.singleTileCtx.lineWidth = 5;
+                    this.singleTileCtx.strokeRect(0, i * 16, 1000, 16)
+                }
+
+                this.singleTileCtx.putImageData(t.imageData, 500, i * 16)
+
+                let ll = 0
+                t.leftNeighbours.forEach((l) => {
+                    ll++
+                    let ltile = this.tiles.get(l)!
+                    this.singleTileCtx.putImageData(ltile.imageData, 250 + ll * 16, i * 16)
+                })
+
+                let rr = 0
+                t.rightNeighbours.forEach((r) => {
+                    rr++
+                    let rtile = this.tiles.get(r)!
+                    this.singleTileCtx.putImageData(rtile.imageData, 520 + rr * 16, i * 16)
+                })
+
+                let tt = 0
+                t.upNeighbours.forEach((t) => {
+                    tt++
+                    let ttile = this.tiles.get(t)!
+                    this.singleTileCtx.putImageData(ttile.imageData, 750 + tt * 16, i * 16)
+                })
+
+                let dd = 0
+                t.downNeighbours.forEach((t) => {
+                    dd++
+                    let dtile = this.tiles.get(t)!
+                    this.singleTileCtx.putImageData(dtile.imageData, 0 + dd * 16, i * 16)
+                })
+
+                i++
             })
 
-            let rr = 0
-            tile.rightNeighbours.forEach((r) => {
-                rr++
-                let rtile = this.tiles.get(r)!
-                this.singleTileCtx.putImageData(rtile.imageData, 520 + rr * 16, i * 16)
-            })
+            this.singleTileCtx.fillText("Down", 100, 10)
+            this.singleTileCtx.fillText("Left", 400, 10)
+            this.singleTileCtx.fillText("Right", 600, 10)
+            this.singleTileCtx.fillText("Up", 800, 10)
+        }
 
-            let tt = 0
-            tile.upNeighbours.forEach((t) => {
-                tt++
-                let ttile = this.tiles.get(t)!
-                this.singleTileCtx.putImageData(ttile.imageData, 750 + tt * 16, i * 16)
-            })
+        redrawSingleCtx(null)
 
-            let dd = 0
-            tile.downNeighbours.forEach((t) => {
-                dd++
-                let dtile = this.tiles.get(t)!
-                this.singleTileCtx.putImageData(dtile.imageData, 0 + dd * 16, i * 16)
-            })
+        this.possibilitiesCanvas.width = 320
+        this.possibilitiesCanvas.height = 320
 
-            i++
-        })
+        this.wfcCanvas.onmousemove = (event) => {
+            let offc = event.offsetX
+            let offr = event.offsetY
+            let wfcc = Math.floor(offc / 16)
+            let wfcr = Math.floor(offr / 16)
+
+            this.possibilitiesCtx.clearRect(0, 0, 320, 320)
+
+            let wfcTile = this.wfcTiles.get(wfcr, wfcc)
+            if (wfcTile) {
+
+                let tiles = Tile.getTilesFromHashes(this.tiles, wfcTile.tiles)
+
+                let i = 10
+                tiles.forEach((t) => {
+                    i += 20
+                    this.possibilitiesCtx.putImageData(t.imageData, i, 50)
+                })
+
+                this.possibilitiesCtx.fillText("" + wfcr + ", " + wfcc
+                    + " c: " + wfcTile.c
+                    + " e: " + wfcTile.entropy.toFixed(2)
+                    + " s: " + wfcTile.numTiles(),
+                    20, 20)
+
+                redrawSingleCtx(wfcTile.currentTile)
+            }
+        }
     }
 
     collapse() {
@@ -422,28 +520,24 @@ class WFC {
         let rows = this.wfcCanvas.width / this.unitTileSize;
         let cols = this.wfcCanvas.height / this.unitTileSize;
 
-        this.wfcTiles = [];
-        for (let r = 0; r < rows; r++) {
-            this.wfcTiles[r] = []; // Create a new row for each column index
-            for (let c = 0; c < cols; c++) {
-                this.wfcTiles[r][c] = new WFCTile(null, r, c, new Set());
-            }
-        }
+        this.wfcTiles = new WFCMap(rows, cols);
 
         // Initialization
         {
-            this.collapseTile(rows / 2, cols / 2, rows, cols, true)
+            this.collapseTile(rows / 2, cols / 2, rows, cols)
         }
 
         document.onkeydown = (e) => {
             e.preventDefault()
             if (e.key == "ArrowRight") {
                 if (this.entropyPQ.size() > 0) {
+
                     let wfctile = this.entropyPQ.extractMin()
+                    wfctile!.checked = true
 
-                    // console.log(wfctile)
-
-                    this.collapseTile(wfctile!.r, wfctile!.c, rows, cols, false)
+                    this.collapseTile(wfctile!.r, wfctile!.c, rows, cols)
+                } else {
+                    this.collapseRandomTile(rows, cols)
                 }
 
                 this.drawWFC(rows, cols)
@@ -460,7 +554,7 @@ class WFC {
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
 
-                let wfcTile = this.wfcTiles[r][c]
+                let wfcTile = this.wfcTiles.get(r, c)!
                 if (wfcTile.currentTile) {
 
                     let tile = this.tiles.get(wfcTile.currentTile)!
@@ -469,7 +563,16 @@ class WFC {
 
                     this.wfcCtx.putImageData(tile!.imageData, wfcTile!.c * 16, wfcTile!.r * 16)
                 } else {
-                    this.wfcCtx.fillText(wfcTile.tiles.size.toString(), wfcTile!.c * 16 + 4, wfcTile!.r * 16 + 12, 16)
+                    if (wfcTile.numTiles() != 0) {
+
+                        this.wfcCtx.fillText(
+                            // wfcTile.r + "," + wfcTile.c + "",
+                            // wfcTile.tiles.size
+                            wfcTile.entropy.toFixed(1),
+                            wfcTile!.c * 16 + 4,
+                            wfcTile!.r * 16 + 12,
+                            25)
+                    }
                 }
             }
         }
@@ -478,125 +581,220 @@ class WFC {
     collapseRandomTile(rows: number, cols: number) {
         for (let i = 0; i < rows; i++) {
             for (let j = 0; j < cols; j++) {
-                if (this.collapseTile(i, j, rows, cols, true)) {
+                if (this.collapseTile(i, j, rows, cols)) {
                     return
                 }
             }
         }
     }
 
-    // Method to get a Set of Tile objects based on a set of hash numbers
-    getTileSetFromHashes(hashes: Set<number>): Set<Tile> {
-        // Filter the tiles map based on the keys in the hashes set and return a Set of Tiles
-        return new Set(
-            Array.from(this.tiles)
-                .filter(([hash, _]) => hashes.has(hash)) // Filter entries where the key is in the hashes set
-                .map(([_, tile]) => tile) // Map to just the Tile objects
-        );
+    allNeighbourTile(wfcTile: WFCTile, r: number, c: number, rows: number, cols: number) {
+        // console.log("row", r, "col", c)
+
+        let allHashes = wfcTile.tiles
+        if (c + 1 < cols) {
+            const rightTile = this.wfcTiles.get(r, c + 1)!;
+            let rr = rightTile.currentTile ? (new Set([...Array.from(rightTile.tiles), rightTile.currentTile])) : rightTile.tiles
+            if (rr.size != 0) {
+                let leftPossibleTiles =
+                    Array.from(Tile.getTilesFromHashes(this.tiles, rr))
+                        .flatMap(t => Array.from(t.leftNeighbours))
+                        .filter((f) => allHashes.has(f))
+                allHashes = new Set(leftPossibleTiles)
+                // console.log("right", rightTile, rr, allHashes)
+            }
+        }
+
+        if (c - 1 >= 0) {
+            const leftTile = this.wfcTiles.get(r, c - 1)!;
+            let ll = leftTile.currentTile ? (new Set([...Array.from(leftTile.tiles), leftTile.currentTile])) : leftTile.tiles
+            if (ll.size != 0) {
+                let rightPossibleTiles =
+                    Array.from(Tile.getTilesFromHashes(this.tiles, ll))
+                        .flatMap(t => Array.from(t.rightNeighbours))
+                        .filter((f) => allHashes.has(f))
+                allHashes = new Set(rightPossibleTiles)
+                // console.log("left", leftTile, ll, allHashes)
+            }
+        }
+
+        if (r - 1 >= 0) {
+            const upTile = this.wfcTiles.get(r - 1, c)!;
+            let uu = upTile.currentTile ? (new Set([...Array.from(upTile.tiles), upTile.currentTile])) : upTile.tiles
+            if (uu.size != 0) {
+                let upPossibleTiles =
+                    Array.from(Tile.getTilesFromHashes(this.tiles, uu))
+                        .flatMap(t => Array.from(t.downNeighbours))
+                        .filter((f) => allHashes.has(f))
+                allHashes = new Set(upPossibleTiles)
+                // console.log("up", upTile, uu, allHashes)
+            }
+        }
+
+        if (r + 1 < rows) {
+            const downTile = this.wfcTiles.get(r + 1, c)!;
+            let dd = downTile.currentTile ? (new Set([...Array.from(downTile.tiles), downTile.currentTile])) : downTile.tiles
+            if (dd.size != 0) {
+                let downPossibleTiles =
+                    Array.from(Tile.getTilesFromHashes(this.tiles, dd))
+                        .flatMap(t => Array.from(t.upNeighbours))
+                        .filter((f) => allHashes.has(f))
+                allHashes = new Set(downPossibleTiles)
+                // console.log("down", downTile, dd, allHashes)
+            }
+        }
+
+        return Tile.getMosLikelyTile(Array.from(Tile.getTilesFromHashes(this.tiles, allHashes)))
     }
 
-    collapseTile(r: number, c: number, rows: number, cols: number, random: boolean): boolean {
+    collapseTile(r: number, c: number, rows: number, cols: number): boolean {
 
-        // const randomTile = Tile.getMosLikelyTile(Array.from(this.tiles.values()))
+        let wfcTile = this.wfcTiles.get(r, c)!
 
-        let wfcTile = this.wfcTiles[r][c]
+        if (wfcTile.currentTile) {
+            return false
+        }
 
         let randomTile: Tile | null
-        let possibleTiles = this.getTileSetFromHashes(wfcTile.tiles)
-        if (possibleTiles.size > 0) {
-            randomTile = Tile.getMosLikelyTile(Array.from(possibleTiles))
+        if (wfcTile.numTiles() > 0) {
+
+            // randomTile = Tile.getMosLikelyTile(Array.from(Tile.getTilesFromHashes(this.tiles, wfcTile.tiles)))
+
+            randomTile = this.allNeighbourTile(wfcTile, r, c, rows, cols)
+
         } else {
-            if (random) {
-                randomTile = Tile.getMosLikelyTile(Array.from(this.tiles.values()))
-            } else {
+
+            randomTile = Tile.getMosLikelyTile(Array.from(this.tiles.values()))
+
+            if (wfcTile.checked) {
                 console.log("No Possible Tiles")
                 return false
             }
         }
 
-        if (wfcTile.currentTile === null && randomTile) {
+        if (randomTile) {
 
-            // console.log("Collapsed", r, c, wfcTile)
+            if (!this.checkTile(randomTile, r, c, rows, cols)) {
+                return false
+            }
 
             // RightTile
             if (c + 1 < cols) {
-                const rightTile = this.wfcTiles[r][c + 1];
-                const possibleTiles = randomTile.rightNeighbours;
+                const rightTile = this.wfcTiles.get(r, c + 1)!;
+                const rightPossibleTiles = randomTile.rightNeighbours;
 
                 if (!rightTile.currentTile) {
-                    if (rightTile.tiles.size === 0) {
-                        rightTile.tiles = possibleTiles;
+                    if (rightTile.numTiles() === 0) {
+                        rightTile.updateTiles(rightPossibleTiles);
                     } else {
-                        rightTile.tiles = new Set(Array.from(possibleTiles).filter(num => rightTile.tiles.has(num)));
+                        rightTile.intersect(rightPossibleTiles);
                     }
 
-                    // console.log("right")
                     rightTile.calculateEntropy(this.tiles, this.entropyPQ)
                 }
             }
 
             // LeftTile
             if (c - 1 >= 0) {
-                const leftTile = this.wfcTiles[r][c - 1];
-                const possibleTiles = randomTile.leftNeighbours
+                const leftTile = this.wfcTiles.get(r, c - 1)!;
+                const leftPossibleTiles = randomTile.leftNeighbours
 
                 if (!leftTile.currentTile) {
-                    if (leftTile.tiles.size === 0) {
-                        leftTile.tiles = possibleTiles;
+                    if (leftTile.numTiles() === 0) {
+                        leftTile.updateTiles(leftPossibleTiles);
                     } else {
-                        leftTile.tiles = new Set(Array.from(possibleTiles).filter(num => leftTile.tiles.has(num)));
+                        leftTile.intersect(leftPossibleTiles);
                     }
 
-                    // console.log("left")
                     leftTile.calculateEntropy(this.tiles, this.entropyPQ)
                 }
             }
 
             // UpTile
             if (r - 1 >= 0) {
-                const upTile = this.wfcTiles[r - 1][c];
-                const possibleTiles = randomTile.upNeighbours
+                const upTile = this.wfcTiles.get(r - 1, c)!;
+                const upPossibleTiles = randomTile.upNeighbours
 
                 if (!upTile.currentTile) {
-                    if (upTile.tiles.size === 0) {
-                        upTile.tiles = possibleTiles;
+                    if (upTile.numTiles() === 0) {
+                        upTile.updateTiles(upPossibleTiles);
                     } else {
-                        upTile.tiles = new Set(Array.from(possibleTiles).filter(num => upTile.tiles.has(num)));
+                        upTile.intersect(upPossibleTiles);
                     }
 
-                    // console.log("up")
                     upTile.calculateEntropy(this.tiles, this.entropyPQ)
                 }
             }
 
             // DownTile
             if (r + 1 < rows) {
-                const downTile = this.wfcTiles[r + 1][c];
-                const possibleTiles = randomTile.downNeighbours
+                const downTile = this.wfcTiles.get(r + 1, c)!;
+                const downPossibleTiles = randomTile.downNeighbours
 
                 if (!downTile.currentTile) {
-                    if (downTile.tiles.size === 0) {
-                        downTile.tiles = possibleTiles;
+                    if (downTile.numTiles() === 0) {
+                        downTile.updateTiles(downPossibleTiles);
                     } else {
-                        downTile.tiles = new Set(Array.from(possibleTiles).filter(num => downTile.tiles.has(num)));
+                        downTile.intersect(downPossibleTiles);
                     }
 
-                    // console.log("down")
                     downTile.calculateEntropy(this.tiles, this.entropyPQ)
                 }
             }
 
             wfcTile.entropy = -1
             wfcTile.currentTile = randomTile.hash
-            wfcTile.tiles = new Set()
+            wfcTile.updateTiles(new Set())
 
             return true
         }
 
-        console.log(this.wfcTiles)
-        console.log(this.entropyPQ)
-
         return false
+    }
+
+    checkTile(randomTile: Tile, r: number, c: number, rows: number, cols: number): boolean {
+
+        if (c + 1 < cols) {
+            const rightTile = this.wfcTiles.get(r, c + 1)!;
+            if (rightTile.currentTile && !randomTile.rightNeighbours.has(rightTile.currentTile)) {
+
+                console.log("Right not possible")
+
+                return false
+            }
+        }
+
+        if (c - 1 >= 0) {
+            const leftTile = this.wfcTiles.get(r, c - 1)!;
+            if (leftTile.currentTile && !randomTile.leftNeighbours.has(leftTile.currentTile)) {
+
+                console.log("Left not possible")
+
+                return false
+            }
+        }
+
+        if (r - 1 >= 0) {
+            const upTile = this.wfcTiles.get(r - 1, c)!;
+            if (upTile.currentTile && !randomTile.upNeighbours.has(upTile.currentTile)) {
+
+                console.log("Up not possible")
+
+                return false
+            }
+        }
+
+        if (r + 1 < rows) {
+            const downTile = this.wfcTiles.get(r + 1, c)!;
+            if (downTile.currentTile && !randomTile.downNeighbours.has(downTile.currentTile)) {
+
+                console.log("Down not possible")
+
+                return false
+            }
+        }
+
+        return true
     }
 }
 

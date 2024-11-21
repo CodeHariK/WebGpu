@@ -15,6 +15,12 @@
 
     <title>Canvas to video</title>
 
+    <style>
+        canvas {
+            background-color: aqua;
+        }
+    </style>
+
 </head>
 
 <body>
@@ -50,14 +56,6 @@
 
     </div>
 
-    <!-- Teapot code -->
-    <script src="webgl-utils.js"></script>
-    <script src="webgl-debug.js"></script>
-    <script src="matrix4x4.js"></script>
-    <script src="cameracontroller.js"></script>
-    <script src="teapot-streams.js"></script>
-    <script src="demo.js"></script>
-
 </body>
 
 <script>
@@ -65,6 +63,53 @@
     'use strict';
 
     const canvas = document.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Resize canvas to fill the window
+    canvas.width = 300;
+    canvas.height = 300;
+
+    // Circle properties
+    let x = canvas.width / 2;
+    let y = canvas.height / 2;
+    let radius = 30;
+    let dx = 2;
+    let dy = 2;
+
+    // Function to draw the circle
+    function drawCircle() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas for each frame
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2); // Draw a circle at (x, y)
+        ctx.fillStyle = 'blue';
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    // Function to update the position of the circle
+    function update() {
+        x += dx;
+        y += dy;
+
+        // Bounce the circle off the edges
+        if (x + radius > canvas.width || x - radius < 0) {
+            dx = -dx;
+        }
+        if (y + radius > canvas.height || y - radius < 0) {
+            dy = -dy;
+        }
+
+        drawCircle(); // Redraw the circle at the new position
+        requestAnimationFrame(update); // Call the update function for the next frame
+    }
+
+    update(); // Start the animation
+
+
+
+
+
+
     const video = document.querySelector('video');
 
     let pc1;
@@ -87,9 +132,6 @@
             startTime = null;
         }
     };
-
-    // Call main() in demo.js
-    main();
 
     const stream = canvas.captureStream();
     console.log('Got stream from canvas');

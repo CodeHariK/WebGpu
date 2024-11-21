@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -95,20 +94,21 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func BuildServer() {
-	port := flag.Int("port", 80, "http server port")
-	flag.Parse()
-
 	ConnectObjMap = make(map[*websocket.Conn]*ConnectObj)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./demo.html")
 	})
 
-	http.HandleFunc("/ws", handleWebSocket)
+	mux.HandleFunc("/ws", handleWebSocket)
+
+	port := 80
 
 	go func() {
-		fmt.Println("Server running on port", *port)
-		panic(http.ListenAndServe(":"+strconv.Itoa(*port), nil))
+		fmt.Println("Server running on port", port)
+		panic(http.ListenAndServe(":"+strconv.Itoa(port), corsMiddleware((mux))))
 	}()
 }
 
@@ -117,4 +117,22 @@ func SendMessage(encodedObj string, sdpobj ConnectObj) {
 	if err != nil {
 		log.Println("Write error:", err)
 	}
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*") // Allow all origins
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight (OPTIONS) requests
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		// Call the next handler
+		next.ServeHTTP(w, r)
+	})
 }

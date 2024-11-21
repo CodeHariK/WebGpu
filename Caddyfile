@@ -1,0 +1,13 @@
+127.0.0.1:443 {
+
+reverse_proxy 127.0.0.1:1234
+header {
+Cache-Control "no-cache, no-store, must-revalidate"
+}
+
+log {
+output file ./access.log.json
+format json
+}
+
+}

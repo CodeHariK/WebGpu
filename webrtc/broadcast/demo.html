@@ -48,7 +48,7 @@
     }
 
 
-    const ws = (new WebSocket("ws://atlantic.shark.run:80/ws")) || (new WebSocket("ws://localhost:80/ws"));
+    const ws = new WebSocket("ws://localhost:80/ws");
     log(ws.url)
     ws.onopen = () => {
         log("Connected to WebSocket server!");
