@@ -1,5 +1,5 @@
 import type RAPIER from "@dimforge/rapier3d";
-import type {Testbed} from "../Testbed";
+import type { Testbed } from "../Testbed";
 
 type RAPIER_API = typeof import("@dimforge/rapier3d");
 
@@ -285,8 +285,8 @@ export function initWorld(RAPIER: RAPIER_API, testbed: Testbed) {
 
     testbed.setWorld(world);
     let cameraPosition = {
-        eye: {x: 15.0, y: 5.0, z: 42.0},
-        target: {x: 13.0, y: 1.0, z: 1.0},
+        eye: { x: 15.0, y: 5.0, z: 42.0 },
+        target: { x: 13.0, y: 1.0, z: 1.0 },
     };
     testbed.lookAt(cameraPosition);
 }

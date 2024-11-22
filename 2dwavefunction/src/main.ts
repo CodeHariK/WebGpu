@@ -34,7 +34,7 @@ class Tile {
         return hash >>> 0;
     }
 
-    static getMosLikelyTile(tiles: Tile[]): Tile | null {
+    static getMostLikelyTile(tiles: Tile[]): Tile | null {
         const totalOccurrences = tiles.reduce((sum, tile) => sum + tile.occurrence, 0);
         const randomValue = Math.random() * totalOccurrences;
 
@@ -168,7 +168,7 @@ class WFC {
     sampleTileImageData: ImageData | null = null
 
     unitTileSize: number = 16
-    sampleSize: number = 320
+    sampleSize: number = 160
     tileX: number = 0
     tileY: number = 0
     distanceX: number = 0
@@ -189,6 +189,8 @@ class WFC {
     sampleCtx: CanvasRenderingContext2D
     tileCtx: CanvasRenderingContext2D
     wfcCtx: CanvasRenderingContext2D
+
+    strategy: "AllNeighbourTile" | "MostLikelyTile" | "Random" = "AllNeighbourTile"
 
     tiles: Map<number, Tile> = new Map()
 
@@ -242,7 +244,7 @@ class WFC {
             UI.createSlider("unitTileSize", "Unit Tile Size", 16, 300, 16, (value) => {
                 this.unitTileSize = value; this.draw();
             });
-            UI.createSlider("tileSize", "Tile Size", 320, Math.min(this.img.width, this.img.height), this.sampleSize, (value) => {
+            UI.createSlider("tileSize", "Tile Size", 160, Math.min(this.img.width, this.img.height), this.sampleSize, (value) => {
                 this.sampleSize = value; this.draw();
             });
             UI.createSlider("tileX", "Tile X", 0, this.img.width / this.sampleSize - 1, 0, (value) => {
@@ -480,8 +482,8 @@ class WFC {
 
         redrawSingleCtx(null)
 
-        this.possibilitiesCanvas.width = 320
-        this.possibilitiesCanvas.height = 320
+        this.possibilitiesCanvas.width = 160
+        this.possibilitiesCanvas.height = 160
 
         this.wfcCanvas.onmousemove = (event) => {
             let offc = event.offsetX
@@ -489,7 +491,7 @@ class WFC {
             let wfcc = Math.floor(offc / 16)
             let wfcr = Math.floor(offr / 16)
 
-            this.possibilitiesCtx.clearRect(0, 0, 320, 320)
+            this.possibilitiesCtx.clearRect(0, 0, 160, 160)
 
             let wfcTile = this.wfcTiles.get(wfcr, wfcc)
             if (wfcTile) {
@@ -515,8 +517,8 @@ class WFC {
 
     collapse() {
 
-        this.wfcCanvas.width = 320
-        this.wfcCanvas.height = 320
+        this.wfcCanvas.width = 160
+        this.wfcCanvas.height = 160
         let rows = this.wfcCanvas.width / this.unitTileSize;
         let cols = this.wfcCanvas.height / this.unitTileSize;
 
@@ -537,7 +539,10 @@ class WFC {
 
                     this.collapseTile(wfctile!.r, wfctile!.c, rows, cols)
                 } else {
-                    this.collapseRandomTile(rows, cols)
+                    if (!this.collapseRandomTile(rows, cols)) {
+                        this.strategy = "MostLikelyTile"
+                        console.log("Change strategy", this.strategy)
+                    }
                 }
 
                 this.drawWFC(rows, cols)
@@ -578,14 +583,15 @@ class WFC {
         }
     }
 
-    collapseRandomTile(rows: number, cols: number) {
+    collapseRandomTile(rows: number, cols: number): boolean {
         for (let i = 0; i < rows; i++) {
             for (let j = 0; j < cols; j++) {
                 if (this.collapseTile(i, j, rows, cols)) {
-                    return
+                    return true
                 }
             }
         }
+        return false
     }
 
     allNeighbourTile(wfcTile: WFCTile, r: number, c: number, rows: number, cols: number) {
@@ -644,7 +650,7 @@ class WFC {
             }
         }
 
-        return Tile.getMosLikelyTile(Array.from(Tile.getTilesFromHashes(this.tiles, allHashes)))
+        return Tile.getMostLikelyTile(Array.from(Tile.getTilesFromHashes(this.tiles, allHashes)))
     }
 
     collapseTile(r: number, c: number, rows: number, cols: number): boolean {
@@ -658,13 +664,17 @@ class WFC {
         let randomTile: Tile | null
         if (wfcTile.numTiles() > 0) {
 
-            // randomTile = Tile.getMosLikelyTile(Array.from(Tile.getTilesFromHashes(this.tiles, wfcTile.tiles)))
-
-            randomTile = this.allNeighbourTile(wfcTile, r, c, rows, cols)
+            // if (this.strategy === "AllNeighbourTile") {
+            //     randomTile = this.allNeighbourTile(wfcTile, r, c, rows, cols)
+            // } else if (this.strategy === "MostLikelyTile") {
+            randomTile = Tile.getMostLikelyTile(Array.from(Tile.getTilesFromHashes(this.tiles, wfcTile.tiles)))
+            // } else {
+            //     randomTile = randomTile = Tile.getMostLikelyTile(Array.from(this.tiles.values()))
+            // }
 
         } else {
 
-            randomTile = Tile.getMosLikelyTile(Array.from(this.tiles.values()))
+            randomTile = Tile.getMostLikelyTile(Array.from(this.tiles.values()))
 
             if (wfcTile.checked) {
                 console.log("No Possible Tiles")

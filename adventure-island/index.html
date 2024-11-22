@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vite + TS</title>
+</head>
+
+<body>
+  <div id="app"></div>
+
+  <script type="x-shader/x-vertex" id="vertexShader">
+
+    varying vec3 vWorldPosition;
+
+    void main() {
+
+      vec4 worldPosition = modelMatrix * vec4( position, 1.0 );
+      vWorldPosition = worldPosition.xyz;
+
+      gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+    }
+
+  </script>
+
+  <script type="x-shader/x-fragment" id="fragmentShader">
+
+    uniform vec3 topColor;
+    uniform vec3 bottomColor;
+    uniform float offset;
+    uniform float exponent;
+
+    varying vec3 vWorldPosition;
+
+    void main() {
+
+      float h = normalize( vWorldPosition + offset ).y;
+      gl_FragColor = vec4( mix( bottomColor, topColor, max( pow( max( h , 0.0), exponent ), 0.0 ) ), 1.0 );
+
+    }
+
+  </script>
+
+
+  <!-- <script type="module" src="/src/car.ts"></script> -->
+  <script type="module" src="/src/flamingo.ts"></script>
+  <!-- <script type="module" src="/src/fps.ts"></script> -->
+</body>
+
+</html>
