@@ -28,7 +28,7 @@ export function CreateRenderer(): THREE.WebGLRenderer {
     renderer.shadowMap.enabled = true;
     renderer.autoClear = false;
     renderer.setPixelRatio(window.devicePixelRatio)
-    renderer.setClearColor(0x222222)
+    renderer.setClearColor(0x111)
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById("app")?.appendChild(renderer.domElement);
     return renderer

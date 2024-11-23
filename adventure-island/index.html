@@ -8,45 +8,25 @@
   <title>Vite + TS</title>
 </head>
 
+<style>
+  body {
+    margin: 0px;
+  }
+</style>
+
 <body>
   <div id="app"></div>
 
-  <script type="x-shader/x-vertex" id="vertexShader">
-
-    varying vec3 vWorldPosition;
-
-    void main() {
-
-      vec4 worldPosition = modelMatrix * vec4( position, 1.0 );
-      vWorldPosition = worldPosition.xyz;
-
-      gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-
-    }
-
-  </script>
-
-  <script type="x-shader/x-fragment" id="fragmentShader">
-
-    uniform vec3 topColor;
-    uniform vec3 bottomColor;
-    uniform float offset;
-    uniform float exponent;
-
-    varying vec3 vWorldPosition;
-
-    void main() {
-
-      float h = normalize( vWorldPosition + offset ).y;
-      gl_FragColor = vec4( mix( bottomColor, topColor, max( pow( max( h , 0.0), exponent ), 0.0 ) ), 1.0 );
-
-    }
-
-  </script>
-
-
-  <!-- <script type="module" src="/src/car.ts"></script> -->
-  <script type="module" src="/src/flamingo.ts"></script>
+  <!-- <script type="module" src="/src/character-controller.ts"></script> -->
+  <!-- <script type="module" src="/src/procedural-terrain.ts"></script> -->
+  <script type="module" src="/src/raycast-car.ts"></script>
+  <!-- <script type="module" src="/src/ik.ts"></script> -->
+  <!-- <script type="module" src="/src/morph_webcam.ts"></script> -->
+  <!-- <script type="module" src="/src/morph_face.ts"></script> -->
+  <!-- <script type="module" src="/src/morph_anim.ts"></script> -->
+  <!-- <script type="module" src="/src/morph_anim2.ts"></script> -->
+  <!-- <script type="module" src="/src/anim_blend.ts"></script> -->
+  <!-- <script type="module" src="/src/flamingo.ts"></script> -->
   <!-- <script type="module" src="/src/fps.ts"></script> -->
 </body>
 
