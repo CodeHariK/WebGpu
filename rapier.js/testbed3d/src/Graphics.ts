@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import RAPIER from "@dimforge/rapier3d";
 
 const BOX_INSTANCE_INDEX = 0;
@@ -92,7 +92,7 @@ export class Graphics {
             0.1,
             10000,
         );
-        this.renderer = new THREE.WebGLRenderer({antialias: true});
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setClearColor(0x292929, 1);
         // High pixel Ratio make the rendering extremely slow, so we cap it.
@@ -228,14 +228,14 @@ export class Graphics {
         this.renderer.render(this.scene, this.camera);
     }
 
-    rayAtMousePosition(pos: {x: number; y: number}) {
+    rayAtMousePosition(pos: { x: number; y: number }) {
         this.raycaster.setFromCamera(pos, this.camera);
         return this.raycaster.ray;
     }
 
     lookAt(pos: {
-        target: {x: number; y: number; z: number};
-        eye: {x: number; y: number; z: number};
+        target: { x: number; y: number; z: number };
+        eye: { x: number; y: number; z: number };
     }) {
         this.camera.position.set(pos.eye.x, pos.eye.y, pos.eye.z);
         this.controls.target.set(pos.target.x, pos.target.y, pos.target.z);
@@ -294,7 +294,7 @@ export class Graphics {
 
                 let highlightInstance =
                     this.instanceGroups[gfx.groupId][
-                        this.highlightInstanceId()
+                    this.highlightInstanceId()
                     ];
                 if (gfx.highlighted) {
                     highlightInstance.count = 1;
@@ -407,7 +407,7 @@ export class Graphics {
                 let hext = collider.halfExtents();
                 instance =
                     this.instanceGroups[BOX_INSTANCE_INDEX][
-                        instanceDesc.instanceId
+                    instanceDesc.instanceId
                     ];
                 instanceDesc.groupId = BOX_INSTANCE_INDEX;
                 instanceDesc.scale = new THREE.Vector3(hext.x, hext.y, hext.z);
@@ -416,7 +416,7 @@ export class Graphics {
                 let rad = collider.radius();
                 instance =
                     this.instanceGroups[BALL_INSTANCE_INDEX][
-                        instanceDesc.instanceId
+                    instanceDesc.instanceId
                     ];
                 instanceDesc.groupId = BALL_INSTANCE_INDEX;
                 instanceDesc.scale = new THREE.Vector3(rad, rad, rad);
@@ -427,7 +427,7 @@ export class Graphics {
                 let cyl_height = collider.halfHeight() * 2.0;
                 instance =
                     this.instanceGroups[CYLINDER_INSTANCE_INDEX][
-                        instanceDesc.instanceId
+                    instanceDesc.instanceId
                     ];
                 instanceDesc.groupId = CYLINDER_INSTANCE_INDEX;
                 instanceDesc.scale = new THREE.Vector3(
@@ -441,7 +441,7 @@ export class Graphics {
                 let cone_height = collider.halfHeight() * 2.0;
                 instance =
                     this.instanceGroups[CONE_INSTANCE_INDEX][
-                        instanceDesc.instanceId
+                    instanceDesc.instanceId
                     ];
                 instanceDesc.groupId = CONE_INSTANCE_INDEX;
                 instanceDesc.scale = new THREE.Vector3(
@@ -497,7 +497,7 @@ export class Graphics {
 
         let highlightInstance =
             this.instanceGroups[instanceDesc.groupId][
-                this.highlightInstanceId()
+            this.highlightInstanceId()
             ];
         highlightInstance.count = 0;
 

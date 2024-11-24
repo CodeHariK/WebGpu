@@ -78,8 +78,5 @@
 	"devDependencies": {
 		"express": "^4.19.2",
 		"webidl-dts-gen": "^1.11.0"
-	},
-	"dependencies": {
-		"jolt-physics": "^0.29.0"
 	}
 }
