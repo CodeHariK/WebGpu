@@ -20,8 +20,8 @@ export function createTerrain(scene: THREE.Scene, world: RAPIER.World) {
     const vertices = []
     const heights = new Float32Array((segments + 1) * (segments + 1));
 
-    for (let z = 0; z < segments; z++) {
-        for (let x = 0; x < segments; x++) {
+    for (let z = 0; z <= segments; z++) {
+        for (let x = 0; x <= segments; x++) {
             // Get the four corner points of the current grid cell
             const x0 = x - hscale;
             const x1 = x + 1 - hscale;
@@ -47,7 +47,7 @@ export function createTerrain(scene: THREE.Scene, world: RAPIER.World) {
                 x0, y00, z0  // Bottom-left
             );
 
-            heights[x * segments + z] = y00
+            heights[z * segments + x] = y00
         }
     }
 
@@ -107,7 +107,7 @@ export function createTerrain(scene: THREE.Scene, world: RAPIER.World) {
         segments,
         segments,
         heights,
-        new RAPIER.Vector3(hscale * 2, 1, hscale * 2)
+        new RAPIER.Vector3(hscale * 2, bounds * 2, hscale * 2)
     );
     world.createCollider(groundColliderDesc, groundBody);
 

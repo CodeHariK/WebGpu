@@ -17,6 +17,8 @@
     "@dimforge/rapier3d": "^0.14.0",
     "@mediapipe/tasks-vision": "^0.10.18",
     "jolt-physics": "^0.29.0",
+    "md5": "^2.3.0",
+    "seedrandom": "^3.0.5",
     "three": "^0.170.0",
     "vite-plugin-wasm": "^3.3.0"
   }

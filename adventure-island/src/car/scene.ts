@@ -1,11 +1,9 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import * as RAPIER from '@dimforge/rapier3d';
-import { createTerrain } from './terrain';
 import { Physics } from './physics';
-import { Car } from './car';
 import { CarGui } from './gui';
-import { Keyboard } from './keyboard';
+import { createTerrain } from './terrain';
 
 // Third-Person Camera Class
 class ThirdPersonCamera {
@@ -27,18 +25,17 @@ class ThirdPersonCamera {
     }
 }
 
+export class AdvScene {
 
-export class CarScene {
+    scene: THREE.Scene
 
-    static scene: THREE.Scene
+    renderer: THREE.WebGLRenderer
 
-    static renderer: THREE.WebGLRenderer
+    orbitControls: OrbitControls
+    thirdPersonCamera: ThirdPersonCamera
+    camera: THREE.PerspectiveCamera
 
-    static orbitControls: OrbitControls
-    static thirdPersonCamera: ThirdPersonCamera
-    static camera: THREE.PerspectiveCamera
-
-    static create() {
+    constructor() {
 
         let scene = new THREE.Scene();
 
@@ -46,7 +43,7 @@ export class CarScene {
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap; // or other types of shadow maps
-        CarScene.renderer = renderer
+        this.renderer = renderer
 
         document.body.appendChild(renderer.domElement);
 
@@ -67,46 +64,44 @@ export class CarScene {
         const axesHelper = new THREE.AxesHelper(5);
         scene.add(axesHelper);
 
-        CarScene.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        CarScene.camera.position.set(0, 6, 8)
-        CarScene.camera.lookAt(0, 0, 0)
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera.position.set(0, 6, 8)
+        this.camera.lookAt(0, 0, 0)
 
         // Third-Person Camera
-        CarScene.thirdPersonCamera = new ThirdPersonCamera(CarScene.camera, new THREE.Vector3(0, 8, -8));
+        this.thirdPersonCamera = new ThirdPersonCamera(this.camera, new THREE.Vector3(0, 8, -8));
 
         // Orbit Camera
-        CarScene.orbitControls = new OrbitControls(CarScene.camera, renderer.domElement);
-        CarScene.orbitControls.target.set(0, 0, 0); // Center the controls on the car
-        CarScene.orbitControls.enabled = false;
+        this.orbitControls = new OrbitControls(this.camera, renderer.domElement);
+        this.orbitControls.target.set(0, 0, 0); // Center the controls on the car
+        this.orbitControls.enabled = false;
 
-        CarScene.scene = scene
+        this.scene = scene
 
-        CarScene.createTerrain()
+        this.createGround()
 
         // // Spawn 4 objects
         // for (let i = 0; i < 40; i++) {
         //     CarScene.spawnRandomObject();
         // }
-
-        return scene
     }
 
-    static createTerrain() {
+    createGround() {
         //Ground
         const groundGeometry = new THREE.PlaneGeometry(100, 100);
         const groundMaterial = new THREE.MeshToonMaterial({ color: 0x228b22 });
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
-        const groundColliderDesc = RAPIER.ColliderDesc.cuboid(50, 0.1, 50).setTranslation(0, 0.1, 0);
+        const groundColliderDesc = RAPIER.ColliderDesc.cuboid(50, 0.1, 50).setTranslation(0, -.1, 0);
         Physics.World.createCollider(groundColliderDesc);
 
-        CarScene.scene.add(ground);
+        this.scene.add(ground);
 
-        // createTerrain(scene, Physics.World)
+        // createTerrain(this.scene, Physics.World)
     }
 
-    static spawnRandomObject() {
+    spawnRandomObject() {
         const objectGeometries = [
             new THREE.SphereGeometry(1, 32, 32),
             new THREE.BoxGeometry(2, 2, 2),
@@ -125,7 +120,7 @@ export class CarScene {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
 
-        CarScene.scene.add(mesh);
+        this.scene.add(mesh);
 
         // Create RigidBody and Collider
         const bodyDesc = RAPIER.RigidBodyDesc.dynamic().setTranslation(
@@ -151,17 +146,33 @@ export class CarScene {
         return { mesh, rigidBody };
     }
 
-    static update(mesh: THREE.Mesh) {
+    update(mesh: THREE.Mesh) {
         // Update the selected camera
         if (CarGui.panelSettings.cameraMode === 'TPS') {
-            CarScene.orbitControls.enabled = false;
-            CarScene.thirdPersonCamera.update(mesh);
+            this.orbitControls.enabled = false;
+            this.thirdPersonCamera.update(mesh);
         } else {
-            CarScene.orbitControls.enabled = true;
-            CarScene.orbitControls.update();
+            this.orbitControls.enabled = true;
+            this.orbitControls.update();
         }
 
+        // let material = new THREE.LineBasicMaterial({
+        //     color: 0xffffff,
+        //     vertexColors: true,
+        // });
+        // let geometry = new THREE.BufferGeometry();
+        // let lines = new THREE.LineSegments(geometry, material);
+        // let buffers = Physics.World.debugRender();
+        // lines.visible = true;
+        // lines.geometry.setAttribute(
+        //     "position",
+        //     new THREE.BufferAttribute(buffers.vertices, 3),
+        // );
+        // lines.geometry.setAttribute(
+        //     "color",
+        //     new THREE.BufferAttribute(buffers.colors, 4),
+        // );
         // Render the scene
-        CarScene.renderer.render(CarScene.scene, CarScene.camera);
+        this.renderer.render(this.scene, this.camera);
     }
 }

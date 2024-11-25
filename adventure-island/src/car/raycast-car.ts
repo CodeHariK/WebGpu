@@ -1,18 +1,15 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import * as RAPIER from '@dimforge/rapier3d';
-import { createTerrain } from './terrain';
 import { Physics } from './physics';
-import { Car } from './car';
 import { CarGui } from './gui';
 import { Keyboard } from './keyboard';
-import { CarScene } from './scene';
+import { AdvScene } from './scene';
+import { Car } from './car';
+import { Vector3 } from 'three';
 
-let scene = CarScene.create()
+let advscene = new AdvScene()
 
 const k = new Keyboard()
 
-const car = new Car(scene, 0.8);
+const car = new Car(advscene.scene, new Vector3(0, 4, 0), 1, .4, 1.8);
 
 const g = new CarGui()
 
@@ -20,14 +17,11 @@ const g = new CarGui()
 function animate(): void {
     requestAnimationFrame(animate);
 
-    // Handle keyboard input
-    car.handleKeyboardInput();
-
     // Update car position and rotation based on physics
     car.update();
 
     // Synchronize Three.js objects with Rapier bodies
-    scene.children.forEach((child) => {
+    advscene.scene.children.forEach((child) => {
 
         if (child.userData.rigidBody) {
             const rigidBody = child.userData.rigidBody;
@@ -42,7 +36,7 @@ function animate(): void {
     Physics.World.step();
 
 
-    CarScene.update(car.mesh)
+    advscene.update(car.mesh)
 }
 
 animate();

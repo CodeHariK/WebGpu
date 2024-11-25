@@ -12,15 +12,32 @@
   body {
     margin: 0px;
   }
+
+  #hud {
+    padding: 5px;
+    font-family: monospace;
+    font-size: 12px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: white;
+    background: #ffffff44;
+  }
+
+  #hud * {
+    display: block;
+  }
 </style>
 
 <body>
+  <div id="hud"></div>
   <div id="app"></div>
 
+  <!-- <script type="module" src="/src/rapier/index.ts"></script> -->
   <!-- <script type="module" src="/src/character-controller.ts"></script> -->
   <!-- <script type="module" src="/src/procedural-terrain.ts"></script> -->
-  <!-- <script type="module" src="/src/car/raycast-car.ts"></script> -->
-  <script type="module" src="/src/jolt-car/car.ts"></script>
+  <script type="module" src="/src/car/raycast-car.ts"></script>
+  <!-- <script type="module" src="/src/jolt-car/car.ts"></script> -->
   <!-- <script type="module" src="/src/ik.ts"></script> -->
   <!-- <script type="module" src="/src/morph_webcam.ts"></script> -->
   <!-- <script type="module" src="/src/morph_face.ts"></script> -->

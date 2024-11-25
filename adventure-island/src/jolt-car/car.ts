@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import initJolt from "jolt-physics";
 
-import { DegreesToRadians, initGraphics, initPhysics, createVehicleTrack, wrapQuat, wrapVec3, LAYER_MOVING, addToScene, physicsSystem, bodyInterface, camera, controls, dynamicObjects, renderExample, iJolt, updateJolt, onExampleUpdate, updateOnExampleUpdate } from './js/example';
+import { DegreesToRadians, initGraphics, initPhysics, createVehicleTrack, wrapQuat, wrapVec3, LAYER_MOVING, addToScene, physicsSystem, bodyInterface, camera, controls, dynamicObjects, renderExample, updateJolt, updateOnExampleUpdate } from './js/example';
 
 const bodyPosition: [number, number, number] = [0, 2, 0];
 const castType: string = 'cylinder';
