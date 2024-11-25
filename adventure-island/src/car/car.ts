@@ -11,6 +11,8 @@ class Wheel {
     canSteer: boolean
     steerAngle: number
 
+    springLength: number
+
     constructor(x: number, z: number, radius: number, canSteer: boolean) {
         this.origin = new THREE.Vector3(x, 0, z)
         this.mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, .2, 24), new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff, wireframe: true }))
@@ -18,6 +20,8 @@ class Wheel {
         this.contactMesh = new THREE.Mesh(new THREE.BoxGeometry(.3, .3, .3, 2), new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff }))
         this.canSteer = canSteer
         this.steerAngle = 0
+
+        this.springLength = 0
     }
 }
 
@@ -38,7 +42,7 @@ export class Car {
     wheelCircumference: number
     suspension: number; // Maximum suspension travel
     suspensionStiffness: number; // Spring stiffness
-    damping = 10; // Damping to reduce oscillation
+    damping = 2; // Damping to reduce oscillation
 
     constructor(scene: THREE.Scene, position: THREE.Vector3, wheelRadius: number, suspension: number, bouncy: number) {
 
@@ -52,10 +56,15 @@ export class Car {
         const colliderDesc = RAPIER.ColliderDesc.cuboid(1, .5, 2); // Dimensions match the car mesh
         Physics.World.createCollider(colliderDesc, this.rigidBody);
 
+
+        this.rigidBody.setLinearDamping(1);
+        this.rigidBody.setAngularDamping(1);
+
+
         this.wheelRadius = wheelRadius
         this.wheelCircumference = 2 * Math.PI * wheelRadius;
         this.suspension = suspension
-        this.suspensionStiffness = (this.mass * 10 * Math.max(bouncy, 1.1)) / (this.suspension * 4)
+        this.suspensionStiffness = (this.mass * 10 * bouncy) / (this.suspension * 4)
         console.log(this.suspensionStiffness)
         this.wheels = [
             new Wheel(1.5, 2, wheelRadius, true),
@@ -94,7 +103,7 @@ export class Car {
         return carMesh;
     }
 
-    update(): void {
+    update(deltaTime: number): void {
 
         this.handleKeyboardInput()
 
@@ -127,7 +136,7 @@ export class Car {
         this.mesh.position.set(position.x, position.y, position.z);
         this.mesh.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
 
-        this.rigidBody.addForce(new RAPIER.Vector3(0, -9.81 * this.mass, 0), true);
+        // this.rigidBody.addForce(new RAPIER.Vector3(0, -9.81 * this.mass, 0), true);
 
         // Rotate and position each wheel
         for (const wheel of this.wheels) {
@@ -147,32 +156,35 @@ export class Car {
 
                 // Suspension force (Hooke's law: F = -kx)
                 // Calculate compression (distance to ground)
+                let lastSpringLength = wheel.springLength
                 const compressionDistance = this.wheelRadius + this.suspension - hit.timeOfImpact;
-                const validCompression = Math.max(0, Math.min(this.suspension, compressionDistance));
-                const compressionForce = validCompression * this.suspensionStiffness
-                this.suspensionHUD.innerHTML += compressionDistance.toFixed(2) + " "
+                wheel.springLength = Math.min(this.suspension, compressionDistance)
+                let springVelocity = (lastSpringLength - wheel.springLength) / deltaTime
 
-                // this.suspensionHUD.innerHTML += suspensionForce.toFixed(2) + " "
+                const compressionForce = wheel.springLength * this.suspensionStiffness
+                // const compressionForce = validCompression * this.suspensionStiffness
+                this.suspensionHUD.innerHTML += "   (h:" + hit.timeOfImpact.toFixed(2) + " s:" + wheel.springLength.toFixed(2) + " c:" + " f:" + compressionForce.toFixed(2)
 
                 // Damping force
-                const relativeVelocity = Physics.linearVelocityAtLocalPoint(this.rigidBody, wheel.origin)
-                const dampingForce = 0//relativeVelocity.y * this.damping;
-
+                const dampingForce = springVelocity * this.damping
+                this.suspensionHUD.innerHTML += "  d:" + springVelocity.toFixed(2) + ")  "
 
                 // Apply total force at the wheel position
-                const suspensionForce = rVecScale(new THREE.Vector3(0, rayDirectionLocal.y, 0), - compressionForce + dampingForce)
+                const suspensionForce = rVecScale(new THREE.Vector3(0, rayDirectionLocal.y, 0), (- compressionForce + dampingForce))
                 // const suspensionForce = rVecScale(new THREE.Vector3(0, -1, 0), - compressionForce + dampingForce)
-                // this.suspensionHUD.innerHTML += rVecString(suspensionForce) + " "
 
                 this.rigidBody.addForceAtPoint(suspensionForce, contactPoint, true);
             }
 
-            wheel.mesh.position.set(wheelWorldPos.x, wheelWorldPos.y, wheelWorldPos.z);
-            wheel.raycastMesh.position.set(wheelWorldPos.x, wheelWorldPos.y, wheelWorldPos.z)
+            {
+                let ll = rVecAdd(wheelWorldPos, rVecScale(rayDirectionLocal, wheel.springLength))
+                wheel.mesh.position.set(ll.x, ll.y, ll.z);
+                wheel.raycastMesh.position.set(wheelWorldPos.x, wheelWorldPos.y, wheelWorldPos.z)
+            }
 
             // Wheel rotation variables
             const forwardDistance = rVecMag(linearVelocity) // Linear velocity (speed)
-            wheel.mesh.rotation.x = (forwardDistance / this.wheelCircumference) * 2 * Math.PI; // Distance -> rotation;
+            // wheel.mesh.rotation.x = (forwardDistance / this.wheelCircumference) * 2 * Math.PI; // Distance -> rotation;
 
             // // Apply steering rotation (if applicable) around the Y-axis
             // if (wheel.canSteer) {
@@ -189,12 +201,12 @@ export class Car {
             Physics.applyImpulse(this.rigidBody, new THREE.Vector3(0, 0, -this.speed))
         }
 
-        if (Keyboard.keys.ArrowLeft) {
-            this.rigidBody.applyTorqueImpulse(new THREE.Vector3(0, 1, 0), true)
-        }
-        if (Keyboard.keys.ArrowRight) {
-            this.rigidBody.applyTorqueImpulse(new THREE.Vector3(0, -1, 0), true)
-        }
+        // if (Keyboard.keys.ArrowLeft) {
+        //     this.rigidBody.applyTorqueImpulse(new THREE.Vector3(0, 1, 0), true)
+        // }
+        // if (Keyboard.keys.ArrowRight) {
+        //     this.rigidBody.applyTorqueImpulse(new THREE.Vector3(0, -1, 0), true)
+        // }
 
         // Adjust steering angle for front tires
         const steeringSpeed = 0.05; // Steering angle increment

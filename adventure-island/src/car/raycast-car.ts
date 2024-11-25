@@ -9,16 +9,22 @@ let advscene = new AdvScene()
 
 const k = new Keyboard()
 
-const car = new Car(advscene.scene, new Vector3(0, 4, 0), 1, .4, 1.8);
+const car = new Car(advscene.scene, new Vector3(0, 4, 0), 1, .4, 2);
 
 const g = new CarGui()
 
+let previousTime = performance.now();
+
 // Animation Loop
 function animate(): void {
-    requestAnimationFrame(animate);
+
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - previousTime) / 1000; // Convert milliseconds to seconds
+    previousTime = currentTime;
+
 
     // Update car position and rotation based on physics
-    car.update();
+    car.update(deltaTime);
 
     // Synchronize Three.js objects with Rapier bodies
     advscene.scene.children.forEach((child) => {
@@ -39,4 +45,4 @@ function animate(): void {
     advscene.update(car.mesh)
 }
 
-animate();
+advscene.renderer.setAnimationLoop(animate);
