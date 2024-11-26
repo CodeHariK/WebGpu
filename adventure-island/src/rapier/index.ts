@@ -1,4 +1,4 @@
-import {Testbed} from "./Testbed";
+import { Testbed } from "./Testbed";
 import * as Trimesh from "./demos/trimesh";
 import * as CollisionGroups from "./demos/collisionGroups";
 import * as Pyramid from "./demos/pyramid";

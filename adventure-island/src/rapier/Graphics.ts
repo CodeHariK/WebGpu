@@ -107,6 +107,9 @@ export class Graphics {
         this.light = new THREE.PointLight(0xffffff, 1, 1000);
         this.scene.add(this.light);
 
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        this.scene.add(directionalLight);
+
         // For the debug-renderer.
         {
             let material = new THREE.LineBasicMaterial({

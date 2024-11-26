@@ -1,48 +1,45 @@
-import { Physics } from './physics';
 import { CarGui } from './gui';
 import { Keyboard } from './keyboard';
-import { AdvScene } from './scene';
+import { Game } from './game';
 import { Car } from './car';
-import { Vector3 } from 'three';
+import { AxesHelper, Mesh, Vector3 } from 'three';
+import { createTerrain } from './terrain';
+import { createGround } from './environment';
 
-let advscene = new AdvScene()
+let game = new Game()
 
-const k = new Keyboard()
+new Keyboard()
 
-const car = new Car(advscene.scene, new Vector3(0, 4, 0), 1, .4, 2);
+createGround(game)
 
-const g = new CarGui()
+// createTerrain(game, 100, .04, new Vector3(100, 4, 100))
 
-let previousTime = performance.now();
+// // Spawn 4 objects
+// for (let i = 0; i < 40; i++) {
+//     this.spawnRandomObject();
+// }
 
-// Animation Loop
-function animate(): void {
+const car = new Car(
+    game,
+    new Vector3(0, 4, 0),
+    100,
+    1,
+    500,
+    .4,
+    2,
+    .2);
 
-    const currentTime = performance.now();
-    const deltaTime = (currentTime - previousTime) / 1000; // Convert milliseconds to seconds
-    previousTime = currentTime;
+new CarGui()
 
+game.SCENE.traverse((object) => {
+    // Check if the object is a Mesh
+    if (object instanceof Mesh) {
+        const axesHelper = new AxesHelper(1.2);
+        object.add(axesHelper); // Add AxesHelper to the Mesh
+    }
+});
 
-    // Update car position and rotation based on physics
-    car.update(deltaTime);
-
-    // Synchronize Three.js objects with Rapier bodies
-    advscene.scene.children.forEach((child) => {
-
-        if (child.userData.rigidBody) {
-            const rigidBody = child.userData.rigidBody;
-            const position = rigidBody.translation();
-            const rotation = rigidBody.rotation();
-            child.position.set(position.x, position.y, position.z);
-            child.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-        }
-    });
-
-    // Step the physics world
-    Physics.World.step();
-
-
-    advscene.update(car.mesh)
-}
-
-advscene.renderer.setAnimationLoop(animate);
+game.animate((deltaTime: number) => {
+    game.cameraUpdate(car.mesh)
+    car.update(game, deltaTime);
+})

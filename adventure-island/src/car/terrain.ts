@@ -1,117 +1,121 @@
 import * as THREE from 'three';
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 import { createNoise2D } from '../libs/simplex-noise';
 import RAPIER from '@dimforge/rapier3d';
+import { Game } from './game';
 
+function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: number, scale: RAPIER.Vector3) {
 
-export function createTerrain(scene: THREE.Scene, world: RAPIER.World) {
+    let nrows = segments
+    let ncols = segments
 
-    const segments = 100
+    let vertices = [];
+    let indices = [];
+    let eltWX = 1.0 / segments;
+    let eltWY = 1.0 / segments;
 
-    const hscale = 100 / 2
+    let i: number;
+    let j: number;
+    for (j = 0; j <= ncols; ++j) {
+        for (i = 0; i <= nrows; ++i) {
+            let x = (j * eltWX - 0.5) * scale.x;
+            let y = heights[j * (nrows + 1) + i] * scale.y;
+            let z = (i * eltWY - 0.5) * scale.z;
 
-    const noiseScale = .05;
-    const bounds = 5
-    const fnNoise2D = createNoise2D(Math.random)
-    // const fnNoise2D = (x, z) => Math.sin(x / 10) * Math.cos(z / 10);
-
-
-    const vertices = []
-    const heights = new Float32Array((segments + 1) * (segments + 1));
-
-    for (let z = 0; z <= segments; z++) {
-        for (let x = 0; x <= segments; x++) {
-            // Get the four corner points of the current grid cell
-            const x0 = x - hscale;
-            const x1 = x + 1 - hscale;
-            const z0 = z - hscale;
-            const z1 = z + 1 - hscale;
-
-            // Heights from noise
-            const y00 = Math.max(-bounds, Math.min(bounds, fnNoise2D(noiseScale * x0, noiseScale * z0) * bounds));
-            const y10 = Math.max(-bounds, Math.min(bounds, fnNoise2D(noiseScale * x1, noiseScale * z0) * bounds));
-            const y01 = Math.max(-bounds, Math.min(bounds, fnNoise2D(noiseScale * x0, noiseScale * z1) * bounds));
-            const y11 = Math.max(-bounds, Math.min(bounds, fnNoise2D(noiseScale * x1, noiseScale * z1) * bounds));
-
-            // Two triangles per grid cell
-            vertices.push(
-                // Triangle 1
-                x0, y00, z0, // Bottom-left
-                x1, y10, z0, // Bottom-right
-                x1, y11, z1, // Top-right
-
-                // Triangle 2
-                x1, y11, z1, // Top-right
-                x0, y01, z1, // Top-left
-                x0, y00, z0  // Bottom-left
-            );
-
-            heights[z * segments + x] = y00
+            vertices.push(x, y, z);
         }
     }
 
-    const vertexData = new Float32Array(vertices);
+    for (j = 0; j < ncols; ++j) {
+        for (i = 0; i < nrows; ++i) {
+            let i1 = (i + 0) * (ncols + 1) + (j + 0);
+            let i2 = (i + 0) * (ncols + 1) + (j + 1);
+            let i3 = (i + 1) * (ncols + 1) + (j + 0);
+            let i4 = (i + 1) * (ncols + 1) + (j + 1);
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(vertexData, 3));
-    const material = new THREE.MeshStandardMaterial({
-        color: 0x008Bff, // Grass green
-        side: THREE.DoubleSide,
-        wireframe: false, // Useful for debugging
-    });
-    const ground = new THREE.Mesh(geometry, material);
+            indices.push(i1, i3, i2);
+            indices.push(i3, i4, i2);
+        }
+    }
 
-    ground.receiveShadow = true;
-    ground.position.set(0, 0, 0)
-
-    geometry.attributes.position.needsUpdate = true;
-    geometry.computeVertexNormals(); // Recalculate normals for lighting
-
-
-    // const textureLoader = new THREE.TextureLoader();
-    // const grassTexture = textureLoader.load('./src/assets/Grass_005_BaseColor.jpg');
-    // grassTexture.wrapS = grassTexture.wrapT = THREE.RepeatWrapping;
-    // grassTexture.repeat.set(10, 10); // Adjust repeat for scaling
-
-    // material.map = grassTexture;
-    material.needsUpdate = true;
+    return {
+        vertices: new Float32Array(vertices),
+        indices: new Uint32Array(indices),
+    };
+}
 
 
-    // function updateTerrain() {
-    //     for (let i = 0; i < vertices.length; i += 3) {
-    //         const x = vertices[i];
-    //         const z = vertices[i + 2];
-    //         const noise = fnNoise2D(x * settings.noiseScale, z * settings.noiseScale);
-    //         vertices[i + 1] = noise * settings.height;
-    //     }
+export function createTerrain(game: Game, segments: number, noiseScale: number, scale: THREE.Vector3) {
 
-    //     geometry.attributes.position.needsUpdate = true;
-    //     geometry.computeVertexNormals(); // Update normals after vertex changes
-    // }
+    const fnNoise2D = createNoise2D(Math.random)
 
-
-    // const gui = new GUI();
-    // const settings = {
-    //     noiseScale: 0.05,
-    //     height: 10,
-    // };
-
-    // gui.add(settings, 'noiseScale', 0.01, 0.1).onChange(updateTerrain);
-    // gui.add(settings, 'height', 1, 20).onChange(updateTerrain);
-
+    const heights = new Float32Array((segments + 1) * (segments + 1));
+    for (let i = 0; i <= segments; i++) {
+        for (let j = 0; j <= segments; j++) {
+            heights[i * (segments + 1) + j] = fnNoise2D(noiseScale * i, noiseScale * j)
+        }
+    }
 
     let groundBodyDesc = RAPIER.RigidBodyDesc.fixed();
-    let groundBody = world.createRigidBody(groundBodyDesc);
+    let groundBody = game.WORLD.createRigidBody(groundBodyDesc);
     let groundColliderDesc = RAPIER.ColliderDesc.heightfield(
         segments,
         segments,
         heights,
-        new RAPIER.Vector3(hscale * 2, bounds * 2, hscale * 2)
+        scale
     );
-    world.createCollider(groundColliderDesc, groundBody);
+    game.WORLD.createCollider(groundColliderDesc, groundBody);
 
-    ground.userData = { name: "Ground", rigidBody: groundBody };
+    let g = genHeightfieldGeometry(heights, segments, scale);
 
-    scene.add(ground)
+    let geometry = new THREE.BufferGeometry();
+    geometry.setIndex(Array.from(g.indices));
+    geometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(g.vertices, 3),
+    );
+
+    let material = new THREE.MeshPhongMaterial({
+        color: 0x008Bff,
+        side: THREE.DoubleSide,
+        flatShading: true,
+    });
+
+    let ground = new THREE.Mesh(geometry, material);
+    ground.receiveShadow = true;
+    geometry.attributes.position.needsUpdate = true;
+    geometry.computeVertexNormals();
+
+    ground.position.set(0, 0, 0)
+
+    game.SCENE.add(ground);
+
+    // // const textureLoader = new THREE.TextureLoader();
+    // // const grassTexture = textureLoader.load('./src/assets/Grass_005_BaseColor.jpg');
+    // // grassTexture.wrapS = grassTexture.wrapT = THREE.RepeatWrapping;
+    // // grassTexture.repeat.set(10, 10); // Adjust repeat for scaling
+
+    // // material.map = grassTexture;
+    // material.needsUpdate = true;
+
+    // // function updateTerrain() {
+    // //     for (let i = 0; i < vertices.length; i += 3) {
+    // //         const x = vertices[i];
+    // //         const z = vertices[i + 2];
+    // //         const noise = fnNoise2D(x * settings.noiseScale, z * settings.noiseScale);
+    // //         vertices[i + 1] = noise * settings.height;
+    // //     }
+
+    // //     geometry.attributes.position.needsUpdate = true;
+    // //     geometry.computeVertexNormals(); // Update normals after vertex changes
+    // // }
+
+    // // const gui = new GUI();
+    // // const settings = {
+    // //     noiseScale: 0.05,
+    // //     height: 10,
+    // // };
+
+    // // gui.add(settings, 'noiseScale', 0.01, 0.1).onChange(updateTerrain);
+    // // gui.add(settings, 'height', 1, 20).onChange(updateTerrain);
 }

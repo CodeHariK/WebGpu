@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import { Vector3, RigidBody, World, Quaternion } from '@dimforge/rapier3d';
+import { Vector3, RigidBody, Quaternion } from '@dimforge/rapier3d';
 
 export class Physics {
-    static World = new World(new THREE.Vector3(0, -9.81, 0)); // Gravity
 
     static applyImpulse(rb: RigidBody, dir: THREE.Vector3) {
         dir.applyQuaternion(new THREE.Quaternion(
@@ -16,7 +15,7 @@ export class Physics {
     }
 
 
-    //     The linear velocity at a point  P  in local space is:
+    // The linear velocity at a point  P  in local space is:
 
     // vP = vcenter + omega * l
 
@@ -25,13 +24,16 @@ export class Physics {
     // 	•	 vcenter : Linear velocity of the rigid body’s center of mass.
     // 	•	 omega : Angular velocity of the rigid body (world space).
     // 	•	 local : Position of the point  P (in local space).
-    static linearVelocityAtLocalPoint(rb: RigidBody, point: THREE.Vector3) {
+    static linearVelocityAtLocalPoint(rb: RigidBody, point: Vector3) {
         return rVecAdd(rb.linvel(), rVec(point).cross(rb.angvel()))
+    }
+    static linearVelocityAtWorldPoint(rb: RigidBody, point: Vector3) {
+        return rVecAdd(rb.linvel(), rVecSub(point, rb.translation()).cross(rb.angvel()))
     }
 }
 
 export function rVecString(ss: Vector3) {
-    return "" + ss.x.toFixed(2) + "," + ss.y.toFixed(2) + "," + ss.z.toFixed(2)
+    return "" + ss.x.toFixed(2) + ", " + ss.y.toFixed(2) + ", " + ss.z.toFixed(2) + " - " + rVec(ss).length().toFixed(2)
 }
 export function rVec(ss: Vector3) {
     return new THREE.Vector3(ss.x, ss.y, ss.z)
@@ -41,6 +43,9 @@ export function rVecMag(ss: Vector3) {
 }
 export function rVecAdd(ss: Vector3, vv: Vector3) {
     return new THREE.Vector3(ss.x + vv.x, ss.y + vv.y, ss.z + vv.z)
+}
+export function rVecSub(ss: Vector3, vv: Vector3) {
+    return new THREE.Vector3(ss.x - vv.x, ss.y - vv.y, ss.z - vv.z)
 }
 export function rVecMul(ss: Vector3, vv: Vector3) {
     return new THREE.Vector3(ss.x * vv.x, ss.y * vv.y, ss.z * vv.z)
