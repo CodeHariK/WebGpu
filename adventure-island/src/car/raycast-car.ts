@@ -4,7 +4,7 @@ import { Game } from './game';
 import { Car } from './car';
 import { AxesHelper, Mesh, Vector3 } from 'three';
 import { createTerrain } from './terrain';
-import { createGround } from './environment';
+import { createGround, spawnRandomObject } from './environment';
 
 let game = new Game()
 
@@ -16,18 +16,22 @@ createGround(game)
 
 // // Spawn 4 objects
 // for (let i = 0; i < 40; i++) {
-//     this.spawnRandomObject();
+//     spawnRandomObject(game);
 // }
 
 const car = new Car(
     game,
     new Vector3(0, 4, 0),
-    100,
+    10000,
     1,
-    500,
+    1500,
     .4,
-    2,
-    .2);
+    1.5,
+    .3,
+    3.75,
+    1.6,
+    30,
+);
 
 new CarGui()
 

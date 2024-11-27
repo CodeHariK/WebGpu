@@ -3,8 +3,18 @@ import * as RAPIER from '@dimforge/rapier3d';
 import { Game } from './game';
 
 export function createGround(game: Game) {
+    // Load the texture
+    const textureLoader = new THREE.TextureLoader();
+    const groundTexture = textureLoader.load('./src/assets/ground_grid.png');
+    groundTexture.wrapS = THREE.RepeatWrapping; // Enable texture wrapping on S (horizontal) axis
+    groundTexture.wrapT = THREE.RepeatWrapping; // Enable texture wrapping on T (vertical) axis
+    groundTexture.repeat.set(50, 50); // Adjust the repeat to scale the texture
+
+    // Create ground geometry and material
     const groundGeometry = new THREE.PlaneGeometry(100, 100);
-    const groundMaterial = new THREE.MeshToonMaterial({ color: 0x228b22 });
+    const groundMaterial = new THREE.MeshToonMaterial({ map: groundTexture });
+
+
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -32,7 +42,7 @@ export function spawnRandomObject(game: Game) {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
 
-    this.scene.add(mesh);
+    game.SCENE.add(mesh);
 
     // Create RigidBody and Collider
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic().setTranslation(

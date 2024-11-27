@@ -4,7 +4,7 @@ export class CarGui {
 
     static gui = new GUI();
     static panelSettings = {
-        cameraMode: 'Orbit', // Default camera mode
+        cameraMode: 'TPS', // Default camera mode
         directionalLightIntensity: 2,
         ambientLightIntensity: 1.5,
     };
