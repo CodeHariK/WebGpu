@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import * as RAPIER from '@dimforge/rapier3d';
 import { Game } from './game';
 
-export function createGround(game: Game) {
+export function createGround(game: Game, width: number, height: number) {
     // Load the texture
     const textureLoader = new THREE.TextureLoader();
     const groundTexture = textureLoader.load('./src/assets/ground_grid.png');
@@ -11,19 +11,19 @@ export function createGround(game: Game) {
     groundTexture.repeat.set(50, 50); // Adjust the repeat to scale the texture
 
     // Create ground geometry and material
-    const groundGeometry = new THREE.PlaneGeometry(100, 100);
+    const groundGeometry = new THREE.PlaneGeometry(width, height);
     const groundMaterial = new THREE.MeshToonMaterial({ map: groundTexture });
 
 
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
-    const groundColliderDesc = RAPIER.ColliderDesc.cuboid(50, 0.1, 50).setTranslation(0, -.1, 0);
+    const groundColliderDesc = RAPIER.ColliderDesc.cuboid(width / 2, 0.1, height / 2).setTranslation(0, -.1, 0);
     game.WORLD.createCollider(groundColliderDesc);
     game.SCENE.add(ground);
 }
 
-export function spawnRandomObject(game: Game) {
+export function spawnRandomObject(game: Game, width: number, height: number) {
     const objectGeometries = [
         new THREE.SphereGeometry(1, 32, 32),
         new THREE.BoxGeometry(2, 2, 2),
@@ -35,9 +35,9 @@ export function spawnRandomObject(game: Game) {
 
     // Random spawn position above terrain
     mesh.position.set(
-        (Math.random() - 0.5) * 50, // X
+        (Math.random() - 0.5) * width, // X
         20 + Math.random() * 10,   // Y (above terrain)
-        (Math.random() - 0.5) * 50 // Z
+        (Math.random() - 0.5) * height // Z
     );
     mesh.castShadow = true;
     mesh.receiveShadow = true;

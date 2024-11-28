@@ -1,19 +1,48 @@
-type KeyStates = { [key: string]: boolean };
 export class Keyboard {
-    static keys: KeyStates = {
-        ArrowUp: false,
-        ArrowDown: false,
-        ArrowLeft: false,
-        ArrowRight: false,
+    // Instance properties to track key states
+    Up = false;
+    Down = false;
+    Left = false;
+    Right = false;
+    Nitrous = false;
+
+    static keys: Keyboard;
+
+    // Static key-to-action mapping
+    static keyMap: { [key: string]: keyof Keyboard } = {
+        ArrowUp: 'Up',
+        KeyW: 'Up',
+
+        ArrowDown: 'Down',
+        KeyS: 'Down',
+
+        ArrowLeft: 'Left',
+        KeyA: 'Left',
+
+        ArrowRight: 'Right',
+        KeyD: 'Right',
+
+        ShiftLeft: 'Nitrous',
+        ShiftRight: 'Nitrous',
     };
 
     constructor() {
+        // Handle keydown
         window.addEventListener('keydown', (event: KeyboardEvent) => {
-            Keyboard.keys[event.code] = true;
+            const action = Keyboard.keyMap[event.code];
+            if (action) {
+                this[action] = true; // Update instance property
+            }
         });
 
+        // Handle keyup
         window.addEventListener('keyup', (event: KeyboardEvent) => {
-            Keyboard.keys[event.code] = false;
+            const action = Keyboard.keyMap[event.code];
+            if (action) {
+                this[action] = false; // Update instance property
+            }
         });
+
+        Keyboard.keys = this
     }
 }

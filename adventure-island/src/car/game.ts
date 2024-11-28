@@ -79,6 +79,12 @@ export class Game {
         this.orbitControls.enabled = false;
 
         this.SCENE = scene
+
+        window.addEventListener('resize', () => {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     }
 
     animate(customUpdate: (deltaTime: number) => void) {

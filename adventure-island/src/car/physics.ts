@@ -24,12 +24,10 @@ export class Physics {
     // 	•	 vcenter : Linear velocity of the rigid body’s center of mass.
     // 	•	 omega : Angular velocity of the rigid body (world space).
     // 	•	 local : Position of the point  P (in local space).
-    static linearVelocityAtLocalPoint(rb: RigidBody, point: Vector3) {
-        return rVecAdd(rb.linvel(), rVec(point).cross(rb.angvel()))
-    }
+    // static linearVelocityAtLocalPoint(rb: RigidBody, point: Vector3) {
+    //     return rVecAdd(rb.linvel(), rVec(point).cross(rb.angvel()))
+    // }
     static linearVelocityAtWorldPoint(rb: RigidBody, point: Vector3) {
-        // return rVecSub(point, rb.translation())
-        // return rVec(rb.linvel())
         return rVecAdd(
             rb.linvel(),
             rVecSub(point, rb.translation())

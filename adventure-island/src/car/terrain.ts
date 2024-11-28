@@ -45,7 +45,7 @@ function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: nu
 }
 
 
-export function createTerrain(game: Game, segments: number, noiseScale: number, scale: THREE.Vector3) {
+export function createTerrain(game: Game, segments: number, noiseScale: number, scale: THREE.Vector3, position: THREE.Vector3) {
 
     const fnNoise2D = createNoise2D(Math.random)
 
@@ -56,7 +56,7 @@ export function createTerrain(game: Game, segments: number, noiseScale: number, 
         }
     }
 
-    let groundBodyDesc = RAPIER.RigidBodyDesc.fixed();
+    let groundBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(position.x, position.y, position.z);
     let groundBody = game.WORLD.createRigidBody(groundBodyDesc);
     let groundColliderDesc = RAPIER.ColliderDesc.heightfield(
         segments,
@@ -86,7 +86,7 @@ export function createTerrain(game: Game, segments: number, noiseScale: number, 
     geometry.attributes.position.needsUpdate = true;
     geometry.computeVertexNormals();
 
-    ground.position.set(0, 0, 0)
+    ground.position.set(position.x, position.y, position.z)
 
     game.SCENE.add(ground);
 
