@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CarGui } from './gui';
-import { CreateCSS2dRenderer } from './ui';
+import { CreateCSS2dRenderer, hudClear as updateHUDClear } from './ui';
 import RAPIER from '@dimforge/rapier3d';
 
 // Third-Person Camera Class
@@ -38,7 +37,7 @@ export class Game {
     thirdPersonCamera: ThirdPersonCamera
     camera: THREE.PerspectiveCamera
 
-    previousTime: number
+    previousTime: number = performance.now()
 
     constructor() {
 
@@ -91,19 +90,22 @@ export class Game {
         this.renderer.setAnimationLoop(() => { this.update(customUpdate) });
     }
 
-    cameraUpdate(mesh: THREE.Mesh) {
-        if (CarGui.panelSettings.cameraMode === 'TPS') {
+    cameraUpdate(mesh: THREE.Mesh, cameraMode: 'TPS' | 'Orbit') {
+        if (cameraMode === 'TPS') {
             this.orbitControls.enabled = false;
             this.thirdPersonCamera.update(mesh);
         } else {
             this.orbitControls.enabled = true;
             this.orbitControls.update();
+            this.orbitControls.target = mesh.position
         }
 
         this.LABEL_RENDERER.render(this.SCENE, this.camera);
     }
 
     update(customUpdate: (deltaTime: number) => void) {
+
+        updateHUDClear()
 
         const currentTime = performance.now();
         const deltaTime = (currentTime - this.previousTime) / 1000; // Convert milliseconds to seconds

@@ -5,6 +5,7 @@ export class Keyboard {
     Left = false;
     Right = false;
     Nitrous = false;
+    BANANA = false;
 
     static keys: Keyboard;
 
@@ -24,6 +25,8 @@ export class Keyboard {
 
         ShiftLeft: 'Nitrous',
         ShiftRight: 'Nitrous',
+
+        KeyB: 'BANANA'
     };
 
     constructor() {

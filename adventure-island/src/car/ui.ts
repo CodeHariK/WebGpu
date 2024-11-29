@@ -23,11 +23,20 @@ export function AddLabel(name: string, mesh: THREE.Mesh): CSS2DObject {
     return label
 }
 
+const HUD = document.getElementById("HUD")
+const UPDATE_HUD = document.getElementById("UPDATE_HUD")
+export function hudUpdate(text: string) {
+    UPDATE_HUD.innerHTML += text + '<br>'
+}
+export function hudClear() {
+    UPDATE_HUD.innerHTML = ''
+}
+
 export function createButton(
     label: string,
     callback: () => void,
     options?: { id?: string; className?: string; style?: Partial<CSSStyleDeclaration> }
-): HTMLButtonElement {
+) {
     const button = document.createElement('button');
     button.textContent = label;
     button.addEventListener('click', callback);
@@ -37,7 +46,7 @@ export function createButton(
     if (options?.className) button.className = options.className;
     if (options?.style) Object.assign(button.style, options.style);
 
-    return button;
+    HUD.appendChild(button)
 }
 
 export function createSlider(
@@ -47,7 +56,7 @@ export function createSlider(
     value: number,
     callback: (value: number) => void,
     options?: { id?: string; className?: string; style?: Partial<CSSStyleDeclaration> }
-): HTMLInputElement {
+) {
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.min = min.toString();
@@ -61,14 +70,16 @@ export function createSlider(
     if (options?.className) slider.className = options.className;
     if (options?.style) Object.assign(slider.style, options.style);
 
-    return slider;
+    HUD.appendChild(slider)
 }
 
 export function createCheckbox(
+    label: string,
     checked: boolean,
     callback: (checked: boolean) => void,
     options?: { id?: string; className?: string; style?: Partial<CSSStyleDeclaration> }
-): HTMLInputElement {
+) {
+
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.checked = checked;
@@ -79,5 +90,9 @@ export function createCheckbox(
     if (options?.className) checkbox.className = options.className;
     if (options?.style) Object.assign(checkbox.style, options.style);
 
-    return checkbox;
+    const box = document.createElement('div')
+    box.innerHTML = label
+    box.appendChild(checkbox)
+
+    HUD.appendChild(box)
 }

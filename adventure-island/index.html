@@ -13,7 +13,7 @@
     margin: 0px;
   }
 
-  #hud {
+  #ui {
     padding: 5px;
     font-family: monospace;
     font-size: 12px;
@@ -24,13 +24,16 @@
     background: #ffffff44;
   }
 
-  #hud * {
-    display: block;
-  }
+  #HUD *,
+  #UPDATE_HUD * {}
 </style>
 
 <body>
-  <div id="hud"></div>
+  <div id="ui">
+    <div id="HUD"></div>
+    <div id="UPDATE_HUD"></div>
+  </div>
+
   <div id="app"></div>
 
   <!-- <script type="module" src="/src/rapier/index.ts"></script> -->
