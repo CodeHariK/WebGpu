@@ -44,29 +44,32 @@ function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: nu
     };
 }
 
-
-export function createTerrain(game: Game, segments: number, noiseScale: number, scale: THREE.Vector3, position: THREE.Vector3) {
+export function createTerrainHeight(segments: number, noiseScale: number) {
 
     const fnNoise2D = createNoise2D(Math.random)
 
-    const heights = new Float32Array((segments + 1) * (segments + 1));
-    for (let i = 0; i <= segments; i++) {
-        for (let j = 0; j <= segments; j++) {
-            heights[i * (segments + 1) + j] = fnNoise2D(noiseScale * i, noiseScale * j)
+    const heights = new Float32Array(segments * segments);
+    for (let i = 0; i < segments; i++) {
+        for (let j = 0; j < segments; j++) {
+            heights[i * segments + j] = fnNoise2D(noiseScale * i, noiseScale * j)
         }
     }
+    return heights
+}
+
+export function createTerrain(game: Game, heights: Float32Array<ArrayBuffer>, segments: number, scale: THREE.Vector3, position: THREE.Vector3) {
 
     let groundBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(position.x, position.y, position.z);
     let groundBody = game.WORLD.createRigidBody(groundBodyDesc);
     let groundColliderDesc = RAPIER.ColliderDesc.heightfield(
-        segments,
-        segments,
+        segments - 1,
+        segments - 1,
         heights,
         scale
     );
     game.WORLD.createCollider(groundColliderDesc, groundBody);
 
-    let g = genHeightfieldGeometry(heights, segments, scale);
+    let g = genHeightfieldGeometry(heights, segments - 1, scale);
 
     let geometry = new THREE.BufferGeometry();
     geometry.setIndex(Array.from(g.indices));
@@ -76,10 +79,19 @@ export function createTerrain(game: Game, segments: number, noiseScale: number, 
     );
 
     let material = new THREE.MeshPhongMaterial({
-        color: 0x008Bff,
+        color: 0x888888,
         side: THREE.DoubleSide,
         flatShading: true,
     });
+
+    // const textureLoader = new THREE.TextureLoader();
+    // const groundTexture = textureLoader.load('./src/assets/ground_grid.png');
+    // groundTexture.wrapS = THREE.RepeatWrapping; // Enable texture wrapping on S (horizontal) axis
+    // groundTexture.wrapT = THREE.RepeatWrapping; // Enable texture wrapping on T (vertical) axis
+    // groundTexture.repeat.set(50, 50); // Adjust the repeat to scale the texture
+    // const groundMaterial = new THREE.MeshToonMaterial({ map: groundTexture });
+
+
 
     let ground = new THREE.Mesh(geometry, material);
     ground.receiveShadow = true;

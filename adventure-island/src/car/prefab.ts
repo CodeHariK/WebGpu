@@ -15,8 +15,8 @@ export const CAR_TOY_CAR = (game: Game): Car => {
 
         100,
 
-        1,
-        4,
+        .8,
+        6,
         .2,
 
         1,
@@ -30,7 +30,7 @@ export const CAR_TOY_CAR = (game: Game): Car => {
 
         20,
         16,
-        7,
+        12,
     )
 }
 

@@ -37,7 +37,7 @@ export class Game {
     thirdPersonCamera: ThirdPersonCamera
     camera: THREE.PerspectiveCamera
 
-    previousTime: number = performance.now()
+    clock = new THREE.Clock()
 
     constructor() {
 
@@ -66,11 +66,11 @@ export class Game {
         scene.add(ambientLight);
 
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.set(0, 6, -8)
+        this.camera.position.set(0, 4, -4)
         this.camera.lookAt(0, 0, 0)
 
         // Third-Person Camera
-        this.thirdPersonCamera = new ThirdPersonCamera(this.camera, new THREE.Vector3(0, 6, -8));
+        this.thirdPersonCamera = new ThirdPersonCamera(this.camera, new THREE.Vector3(0, 2, -4));
 
         // Orbit Camera
         this.orbitControls = new OrbitControls(this.camera, renderer.domElement);
@@ -107,11 +107,7 @@ export class Game {
 
         updateHUDClear()
 
-        const currentTime = performance.now();
-        const deltaTime = (currentTime - this.previousTime) / 1000; // Convert milliseconds to seconds
-        this.previousTime = currentTime;
-
-        customUpdate(deltaTime)
+        customUpdate(this.clock.getDelta())
 
         // Synchronize Three.js objects with Rapier bodies
         this.SCENE.children.forEach((child) => {

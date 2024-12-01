@@ -14,7 +14,7 @@ class Circle {
     }
 }
 
-class Canvas {
+export class Canvas {
     canvasElement: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
 
@@ -28,7 +28,7 @@ class Canvas {
             throw new Error('Failed to get 2D rendering context');
         }
 
-        document.body.appendChild(this.canvasElement);
+        // document.body.appendChild(this.canvasElement);
     }
 
     width(): number {
@@ -36,6 +36,21 @@ class Canvas {
     }
     height(): number {
         return this.canvasElement.height
+    }
+
+    getImageData(normalized: boolean): Float32Array<ArrayBuffer> {
+        const data = new Array<number>(this.canvasElement.width * this.canvasElement.height)
+        const img = this.context.getImageData(0, 0, this.canvasElement.width, this.canvasElement.height).data
+
+        for (let i = 0; i < this.canvasElement.width * this.canvasElement.height; i++) {
+            if (normalized) {
+                data[i] = img[4 * i] / 255
+            } else {
+                data[i] = img[4 * i]
+            }
+        }
+
+        return new Float32Array(data)
     }
 
     clearRect() {
@@ -142,7 +157,7 @@ class Canvas {
     }
 }
 
-class Track {
+export class Track {
     circles: Circle[] = new Array<Circle>();
 
     canvas: Canvas
@@ -156,19 +171,28 @@ class Track {
     maxRadius: number
     numCircle: number
 
-    constructor(numCircle: number, minRadius: number, maxRadius: number) {
+    trackWidth: number
+    trackHeight: number
 
-        this.canvas = new Canvas(800, 800)
+    constructor(width: number, height: number, numCircle: number, minRadius: number, maxRadius: number, trackWidth: number, trackHeight: number, blur: number) {
+
+        this.canvas = new Canvas(width, height)
+
+        this.canvas.blur(blur)
 
         this.minRadius = minRadius
         this.maxRadius = maxRadius
         this.numCircle = numCircle
 
+        this.trackWidth = trackWidth
+        this.trackHeight = trackHeight
+
         this.NewTrack()
 
         this.addListeners()
-    }
 
+        this.drawTrack()
+    }
 
     NewTrack() {
         this.circles = []
@@ -250,7 +274,7 @@ class Track {
                 return;
             }
 
-            this.canvas.drawLine(tangent.start, tangent.end, 2, 'rgb(30, 30, 30)')
+            this.canvas.drawLine(tangent.start, tangent.end, this.trackWidth, `rgb(${this.trackHeight}, ${this.trackHeight}, ${this.trackHeight})`)
 
             // for (let i of this.canvas.sampleLine(tangent.start, tangent.end, 20)) {
             //     this.canvas.drawCircle(i, 2, true, 1, 'rgb(30,30,30)', null)
@@ -288,8 +312,8 @@ class Track {
             let angleStart = curr.endAngle * Math.PI / 180;
 
             // Draw the arc using the Canvas API
-            this.canvas.drawArc(curr.pos, curr.radius, angleStart, angleEnd, 2, 'rgb(30, 30, 30)')
-            this.canvas.drawCircle(curr.pos, curr.radius, false, 2, 'rgb(30, 30, 30)', 4)
+            this.canvas.drawArc(curr.pos, curr.radius, angleStart, angleEnd, this.trackWidth, `rgb(${this.trackHeight}, ${this.trackHeight}, ${this.trackHeight})`)
+            // this.canvas.drawCircle(curr.pos, curr.radius, false, lineWidth, `rgb(${height}, ${height}, ${height})`, 4)
 
             // for (let i of this.canvas.sampleArc(curr.pos, curr.radius, angleStart, angleEnd, 20)) {
             //     this.canvas.drawCircle(i, 2, true, 1, 'rgb(30,30,30)', null)
@@ -369,6 +393,3 @@ class Track {
         return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
     }
 }
-
-const track = new Track(6, 20, 50);
-track.drawTrack()

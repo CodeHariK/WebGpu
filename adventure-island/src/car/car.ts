@@ -349,23 +349,30 @@ export class Car {
 
                     // this.rigidBody.addForceAtPoint(wheel.netForce, this.position, true);
                 }
+
+                {
+                    let ll = rVecAdd(wheel.contactPoint, rVecScale(Car_YN_Local_Down, - this.wheelRadius))
+                    wheel.mesh.position.set(ll.x, ll.y, ll.z);
+                }
+
             } else {
                 wheel.contactMesh.visible = false
                 wheel.velocityHelp.visible = false
+
+                wheel.mesh.position.set(suspensionAnchorPos.x, suspensionAnchorPos.y, suspensionAnchorPos.z)
             }
 
             {
-                let ll = rVecAdd(wheel.contactPoint, rVecScale(Car_YN_Local_Down, - this.wheelRadius))
-                wheel.mesh.position.set(ll.x, ll.y, ll.z);
                 wheel.raycastMesh.position.set(suspensionAnchorPos.x, suspensionAnchorPos.y, suspensionAnchorPos.z)
                 wheel.raycastMesh.setLength(this.suspensionLength + this.wheelRadius)
                 wheel.raycastMesh.setDirection(Car_YN_Local_Down)
             }
 
-            wheel.mesh.setRotationFromQuaternion(this.rotation)
-            wheel.mesh.rotateY(wheel.steerAngle)
-            wheel.mesh.rotateX(this.wheelRotation);
-
+            {
+                wheel.mesh.setRotationFromQuaternion(this.rotation)
+                wheel.mesh.rotateY(wheel.steerAngle)
+                wheel.mesh.rotateX(this.wheelRotation);
+            }
             this.updateUI(game, wheel)
         }
 
