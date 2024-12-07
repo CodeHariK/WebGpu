@@ -37,12 +37,17 @@ https://github.com/webgpu/webgpu-samples
 
 ## Procedural Animation
 
+* [The Procedural Animation of Gibbon: Beyond the Trees - Wolfire Games](https://www.youtube.com/watch?v=KCKdGlpsdlo&ab_channel=WolfireGames)
 * [Making Fluid and Powerful Animations For 'Skullgirls'](https://www.youtube.com/watch?v=Mw0h9WmBlsw&ab_channel=GDC2025)
 * [The Rain World Animation Process](https://www.youtube.com/watch?v=sVntwsrjNe4&ab_channel=GDC2025)
+* [Animation Bootcamp: An Indie Approach to Procedural Animation](https://www.youtube.com/watch?v=LNidsMesxSE&ab_channel=GDC2025)
+* [IK Rig: Procedural Pose Animation](https://www.youtube.com/watch?v=KLjTU0yKS00&ab_channel=GDC2025)
 
 * [I Spent a Week Making an AI's Video Game Idea](https://www.youtube.com/watch?v=PGk0rnyTa1U&ab_channel=SebastianLague)
 
 * [A simple procedural animation technique](https://www.youtube.com/watch?v=qlfh_rv6khY&ab_channel=argonaut)
+
+* [Procedural Animation in Unity: Environment Interactions [FINAL]](https://www.youtube.com/watch?v=J2Dr_l4ISfU&ab_channel=iHeartGameDev)
 
 ## Procedural Music
 
@@ -110,6 +115,28 @@ https://github.com/webgpu/webgpu-samples
 
 * [The Design Behind Super Mario Odyssey](https://www.youtube.com/watch?v=z_KVEjhT4wQ&ab_channel=GameMaker%27sToolkit)
 
+* [You shouldn't notice this video game animation](https://www.youtube.com/watch?v=SlWgQ3YlKps&ab_channel=Polygon)
+
+* [How Link's Climbing Animation Works in Breath of the Wild](https://www.youtube.com/watch?v=hRD1EstmSPs&ab_channel=NewFramePlus)
+* [Climbing System In Unity | Zelda Tutorial](https://www.youtube.com/watch?v=W3z8RpbU-kE)
+* [Cloning the Climbing of Shadow of the Colossus in Unity | Part 2](https://www.youtube.com/watch?v=sDQ-R8ZmWtk)
+
 ### Aerodynamics
 
 * [Aerodynamics Explained by a World Record Paper Airplane Designer | Level Up | WIRED](https://www.youtube.com/watch?v=3KqjRPV9_PY&ab_channel=WIRED)
+
+
+### Devlog
+
+* [I MADE An Open World Game](https://www.youtube.com/watch?v=uD4HLG5ewfE&ab_channel=advancenine)
+* [Open World Pirate Game - Piratoos! Devlog # 1](https://www.youtube.com/watch?v=50nJocmSC7o&ab_channel=Gamedevas)
+* [Vibrant Open Worlds: Busy Cities that Stand Out](https://www.youtube.com/watch?v=QCsh_nzF0FY)
+
+
+#### Animal Crossing
+
+* [Animal Crossing World Bending Effect | Shader Graph | Unity Tutorial](https://www.youtube.com/watch?v=SOK3Ias5Nk0&ab_channel=NotSlot)
+* [Recreating Animal Crossing's Dialogue | Mix and Jam](https://www.youtube.com/watch?v=ta_L_qoMaqc&ab_channel=MixandJam)
+* [Animal Crossing Curved World Shader Unity](https://www.youtube.com/watch?v=GF0_1-8NWBs)
+* [Animal Crossing - Character Customization in Unity](https://www.youtube.com/watch?v=5Ow_FUEzqHM&ab_channel=TNTC)
+* [How To Make Animal Crossing Music](https://www.youtube.com/watch?v=DuLHEThoShY&ab_channel=DylanTallchief)
