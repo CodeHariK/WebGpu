@@ -47,7 +47,11 @@ https://github.com/webgpu/webgpu-samples
 
 * [A simple procedural animation technique](https://www.youtube.com/watch?v=qlfh_rv6khY&ab_channel=argonaut)
 
+* [I Made a Procedural Snake Game in Godot](https://www.youtube.com/watch?v=T73lvhhw_rA&ab_channel=RachelfTech)
+
 * [Procedural Animation in Unity: Environment Interactions [FINAL]](https://www.youtube.com/watch?v=J2Dr_l4ISfU&ab_channel=iHeartGameDev)
+
+* https://zalo.github.io/blog/inverse-kinematics/
 
 ## Procedural Music
 

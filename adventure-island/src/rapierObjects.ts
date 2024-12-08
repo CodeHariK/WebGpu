@@ -1,65 +1,3 @@
-// import { Keyboard } from './keyboard';
-// import { Game } from './game';
-// import { Car } from './car';
-// import { AxesHelper, Mesh, Vector3, CatmullRomCurve3, Line, LineBasicMaterial, BufferGeometry, BufferAttribute, MeshStandardMaterial } from 'three';
-// import { createTerrain, createTerrainHeight } from './terrain';
-// import { createGround, spawnRandomObject } from './environment';
-// import { CARMODELS, loadCar } from './model';
-// import { CAR_FERRAI as CAR_FERRARI, CAR_MONSTER_TRUCK, CAR_TOY_CAR, CAR_TURN } from './prefab';
-// import { createCheckbox } from './ui';
-// import { Track } from './canvas_track';
-// import { ColliderDesc, RigidBodyDesc } from '@dimforge/rapier3d';
-
-// let game = new Game()
-
-// new Keyboard()
-
-// createGround(game, 100, 100, new Vector3(0, -1, 0))
-
-// let terrainHeights = createTerrainHeight(500, 0.010)
-
-// const track = new Track(
-//     500, 500, 6,
-//     20, 50,
-//     60, 150,
-//     0
-// );
-// let raceTrackHeights = track.canvas.getImageData(true)
-
-// if (terrainHeights.length != raceTrackHeights.length) {
-//     console.log('Lenght Mismatch')
-// }
-
-// let heights = new Float32Array(raceTrackHeights.length)
-// for (let i = 0; i < raceTrackHeights.length; i++) {
-//     heights[i] = Math.min(0, (-raceTrackHeights[i] + terrainHeights[i]) / 2)
-// }
-
-// // createTerrain(game, heights, 500, new Vector3(100, 1, 100), new Vector3(0, 0, 0))
-
-
-// // for (let i = 0; i < 40; i++) {
-// //     spawnRandomObject(game, 200, 200);
-// // }
-
-// // const curve = new CatmullRomCurve3([
-// //     new Vector3(-10, 0, 10),
-// //     new Vector3(-5, 5, 5),
-// //     new Vector3(0, 0, 0),
-// //     new Vector3(5, -5, 5),
-// //     new Vector3(10, 0, 10)
-// // ]);
-// // const points = curve.getPoints(50);
-// // const geometry = new BufferGeometry().setFromPoints(points);
-// // const material = new LineBasicMaterial({ color: 0xff0000 });
-// // const curveObject = new Line(geometry, material);
-// // game.SCENE.add(curveObject)
-
-// const car = CAR_TOY_CAR(game);
-
-
-
-
 
 
 import * as THREE from 'three'
@@ -70,29 +8,6 @@ import Stats from 'three/addons/libs/stats.module.js'
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js'
 import RAPIER from '@dimforge/rapier3d'
 
-class RapierDebugRenderer {
-    mesh: THREE.LineSegments
-    world: RAPIER.World
-    enabled = true
-
-    constructor(scene: THREE.Scene, world: RAPIER.World) {
-        this.world = world
-        this.mesh = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, vertexColors: true }))
-        this.mesh.frustumCulled = false
-        scene.add(this.mesh)
-    }
-
-    update() {
-        if (this.enabled) {
-            const { vertices, colors } = this.world.debugRender()
-            this.mesh.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
-            this.mesh.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 4))
-            this.mesh.visible = true
-        } else {
-            this.mesh.visible = false
-        }
-    }
-}
 
 class Car {
     dynamicBodies: [THREE.Object3D, RAPIER.RigidBody][] = []
@@ -237,7 +152,6 @@ const dynamicBodies: [THREE.Object3D, RAPIER.RigidBody][] = []
 
 const scene = new THREE.Scene()
 
-const rapierDebugRenderer = new RapierDebugRenderer(scene, world)
 
 const light1 = new THREE.SpotLight(undefined, Math.PI * 10)
 light1.position.set(2.5, 5, 5)
@@ -372,14 +286,6 @@ renderer.domElement.addEventListener('click', (e) => {
 const stats = new Stats()
 document.body.appendChild(stats.dom)
 
-const gui = new GUI()
-gui.add(rapierDebugRenderer, 'enabled').name('Rapier Degug Renderer')
-
-const physicsFolder = gui.addFolder('Physics')
-physicsFolder.add(world.gravity, 'x', -10.0, 10.0, 0.1)
-physicsFolder.add(world.gravity, 'y', -10.0, 10.0, 0.1)
-physicsFolder.add(world.gravity, 'z', -10.0, 10.0, 0.1)
-
 const clock = new THREE.Clock()
 let delta
 
@@ -397,8 +303,6 @@ function animate() {
 
     car.update()
     //car2.update()
-
-    rapierDebugRenderer.update()
 
     controls.update()
 

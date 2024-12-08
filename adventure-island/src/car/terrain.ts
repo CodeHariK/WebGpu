@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 
 import { createNoise2D } from '../libs/simplex-noise';
+
 import RAPIER from '@dimforge/rapier3d';
+
 import { Game } from './game';
 
 function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: number, scale: RAPIER.Vector3) {
@@ -44,17 +46,40 @@ function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: nu
     };
 }
 
-export function createTerrainHeight(segments: number, noiseScale: number) {
-
-    const fnNoise2D = createNoise2D(Math.random)
+export function createMaxTerrainHeight(
+    segments: number,
+    scalexz: number,
+    scaley: number,
+    noiseScale: number,
+    position: THREE.Vector2,
+    seeds: number[],
+): Float32Array {
 
     const heights = new Float32Array(segments * segments);
-    for (let i = 0; i < segments; i++) {
-        for (let j = 0; j < segments; j++) {
-            heights[i * segments + j] = fnNoise2D(noiseScale * i, noiseScale * j)
+    heights.fill(-scaley)
+
+    for (let n = 0; n < seeds.length; n++) {
+
+        const fnNoise2D = createNoise2D(Math.random);
+        // const fnNoise2D = createNoise2D(() => seeds[n]);
+
+        const s = scalexz / (segments - 1)
+
+        for (let i = 0; i < segments; i++) {
+            for (let j = 0; j < segments; j++) {
+                // Calculate the world position of each grid point
+                const worldX = noiseScale * (position.x + i * s);
+                const worldY = noiseScale * (position.y + j * s);
+
+                // Get the height from the noise function
+                heights[i * segments + j] = Math.max(
+                    heights[i * segments + j],
+                    fnNoise2D(worldX, worldY),
+                );
+            }
         }
     }
-    return heights
+    return heights;
 }
 
 export function createTerrain(game: Game, heights: Float32Array<ArrayBuffer>, segments: number, scale: THREE.Vector3, position: THREE.Vector3) {
@@ -84,15 +109,6 @@ export function createTerrain(game: Game, heights: Float32Array<ArrayBuffer>, se
         flatShading: true,
     });
 
-    // const textureLoader = new THREE.TextureLoader();
-    // const groundTexture = textureLoader.load('./src/assets/ground_grid.png');
-    // groundTexture.wrapS = THREE.RepeatWrapping; // Enable texture wrapping on S (horizontal) axis
-    // groundTexture.wrapT = THREE.RepeatWrapping; // Enable texture wrapping on T (vertical) axis
-    // groundTexture.repeat.set(50, 50); // Adjust the repeat to scale the texture
-    // const groundMaterial = new THREE.MeshToonMaterial({ map: groundTexture });
-
-
-
     let ground = new THREE.Mesh(geometry, material);
     ground.receiveShadow = true;
     geometry.attributes.position.needsUpdate = true;
@@ -101,33 +117,4 @@ export function createTerrain(game: Game, heights: Float32Array<ArrayBuffer>, se
     ground.position.set(position.x, position.y, position.z)
 
     game.SCENE.add(ground);
-
-    // // const textureLoader = new THREE.TextureLoader();
-    // // const grassTexture = textureLoader.load('./src/assets/Grass_005_BaseColor.jpg');
-    // // grassTexture.wrapS = grassTexture.wrapT = THREE.RepeatWrapping;
-    // // grassTexture.repeat.set(10, 10); // Adjust repeat for scaling
-
-    // // material.map = grassTexture;
-    // material.needsUpdate = true;
-
-    // // function updateTerrain() {
-    // //     for (let i = 0; i < vertices.length; i += 3) {
-    // //         const x = vertices[i];
-    // //         const z = vertices[i + 2];
-    // //         const noise = fnNoise2D(x * settings.noiseScale, z * settings.noiseScale);
-    // //         vertices[i + 1] = noise * settings.height;
-    // //     }
-
-    // //     geometry.attributes.position.needsUpdate = true;
-    // //     geometry.computeVertexNormals(); // Update normals after vertex changes
-    // // }
-
-    // // const gui = new GUI();
-    // // const settings = {
-    // //     noiseScale: 0.05,
-    // //     height: 10,
-    // // };
-
-    // // gui.add(settings, 'noiseScale', 0.01, 0.1).onChange(updateTerrain);
-    // // gui.add(settings, 'height', 1, 20).onChange(updateTerrain);
 }

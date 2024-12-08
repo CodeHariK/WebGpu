@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { Hello_Shader } from './hello';
 import { Normal_Shader } from './normal';
 import { Triplanar_Shader } from './triplanar';
+import { Height_Shader } from './height';
 
 
 const scene = new THREE.Scene();
@@ -38,7 +39,8 @@ normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
 
 
 // const shaderMaterial = Hello_Shader
-const shaderMaterial = Triplanar_Shader
+const shaderMaterial = Height_Shader
+// const shaderMaterial = Triplanar_Shader
 // const shaderMaterial = Normal_Shader
 // const shaderMaterial = Diffuse_Shader
 

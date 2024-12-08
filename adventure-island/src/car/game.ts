@@ -3,6 +3,31 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CreateCSS2dRenderer, hudClear as updateHUDClear } from './ui';
 import RAPIER from '@dimforge/rapier3d';
 
+class RapierDebugRenderer {
+    mesh: THREE.LineSegments
+    world: RAPIER.World
+    enabled = true
+
+    constructor(scene: THREE.Scene, world: RAPIER.World) {
+        this.world = world
+        this.mesh = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, vertexColors: true }))
+        this.mesh.frustumCulled = false
+        scene.add(this.mesh)
+    }
+
+    update() {
+        if (this.enabled) {
+            const { vertices, colors } = this.world.debugRender()
+            this.mesh.geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3))
+            this.mesh.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 4))
+            this.mesh.visible = true
+        } else {
+            this.mesh.visible = false
+        }
+    }
+}
+
+
 // Third-Person Camera Class
 class ThirdPersonCamera {
     camera: THREE.PerspectiveCamera;
@@ -36,6 +61,9 @@ export class Game {
     orbitControls: OrbitControls
     thirdPersonCamera: ThirdPersonCamera
     camera: THREE.PerspectiveCamera
+
+    rapierDebugRenderer: RapierDebugRenderer
+
 
     clock = new THREE.Clock()
 
@@ -78,6 +106,8 @@ export class Game {
         this.orbitControls.enabled = false;
 
         this.SCENE = scene
+
+        this.rapierDebugRenderer = new RapierDebugRenderer(this.SCENE, this.WORLD)
 
         window.addEventListener('resize', () => {
             this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -123,6 +153,8 @@ export class Game {
 
         // Step the physics world
         this.WORLD.step();
+
+        this.rapierDebugRenderer.update()
 
         this.renderer.render(this.SCENE, this.camera);
     }
