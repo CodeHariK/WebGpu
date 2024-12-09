@@ -14,18 +14,43 @@ let game = new Game()
 
 new Keyboard()
 
-createGround(game, 100, 100, new Vector3(0, -1, 0))
+createGround(game, 100, 100, new Vector3(0, 0, 0))
 
 const noiseScale = 0.1
-const segments = 100
+const lowresSegments = 10
+const highresSegments = 100
 const s = 10
 const scale = new Vector3(s, 1, s)
 
-for (let row = 0; row < 1; row++) {
-    for (let col = 0; col < 1; col++) {
-        let terrainHeights = createMaxTerrainHeight(segments, s, 1, noiseScale, new Vector2(row, col), [17, 2000, 124])
+for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 2; col++) {
+        let lowresHeights = createMaxTerrainHeight(
+            lowresSegments,
+            scale,
+            new Vector2(row, col),
+            [
+                { seed: 17, noiseScale },
+                { seed: 1700, noiseScale },
+            ],
+            'MIN'
+        )
+        let highresHeights = createMaxTerrainHeight(
+            highresSegments,
+            scale,
+            new Vector2(row, col),
+            [
+                { seed: 17, noiseScale },
+                { seed: 1700, noiseScale },
+            ],
+            'MIN'
+        )
 
-        createTerrain(game, terrainHeights, segments, scale, new Vector3(0, 0, 0))
+        createTerrain(game,
+            lowresHeights, lowresSegments,
+            highresHeights, highresSegments,
+            scale,
+            new Vector3(row * s, 3, col * s)
+        )
     }
 }
 
@@ -51,9 +76,9 @@ for (let row = 0; row < 1; row++) {
 // createTerrain(game, terrainHeights00, segments, scale, new Vector3(0, 0, 0))
 
 
-for (let i = 0; i < 40; i++) {
-    spawnRandomObject(game, 200, 200);
-}
+// for (let i = 0; i < 40; i++) {
+//     spawnRandomObject(game, 50, 50);
+// }
 
 const car = CAR_TOY_CAR(game);
 

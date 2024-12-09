@@ -30,8 +30,7 @@ export class Physics {
     static linearVelocityAtWorldPoint(rb: RigidBody, point: Vector3) {
         return rVecAdd(
             rb.linvel(),
-            rVecSub(point, rb.translation())
-                .cross(rb.angvel())
+            rVecSub(point, rb.translation()).cross(rb.angvel())
         )
     }
 }

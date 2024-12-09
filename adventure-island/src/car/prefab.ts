@@ -24,8 +24,8 @@ export const CAR_TOY_CAR = (game: Game): Car => {
         1,
         .5,
 
-        .8,
-        1.8,
+        1.2,
+        2.4,
         .3,
 
         20,

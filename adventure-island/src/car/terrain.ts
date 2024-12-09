@@ -48,53 +48,69 @@ function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: nu
 
 export function createMaxTerrainHeight(
     segments: number,
-    scalexz: number,
-    scaley: number,
-    noiseScale: number,
+    scale: THREE.Vector3,
     position: THREE.Vector2,
-    seeds: number[],
+    seedNoises: { seed: number, noiseScale: number }[],
+    strategy: 'MIN' | 'MAX' | 'ADDITIVE'
 ): Float32Array {
 
     const heights = new Float32Array(segments * segments);
-    heights.fill(-scaley)
+    heights.fill(strategy == 'MIN' ? scale.y : (strategy == 'MAX' ? -scale.y : 0))
 
-    for (let n = 0; n < seeds.length; n++) {
+    for (let n = 0; n < seedNoises.length; n++) {
 
-        const fnNoise2D = createNoise2D(Math.random);
-        // const fnNoise2D = createNoise2D(() => seeds[n]);
+        // const fnNoise2D = createNoise2D(Math.random);
+        const seededRandom = () => {
+            let x = Math.sin(seedNoises[n].seed++) * 10000;
+            return x - Math.floor(x);
+        };
+        const fnNoise2D = createNoise2D(seededRandom);
 
-        const s = scalexz / (segments - 1)
+
+        const s = scale.x / (segments - 1)
 
         for (let i = 0; i < segments; i++) {
             for (let j = 0; j < segments; j++) {
                 // Calculate the world position of each grid point
-                const worldX = noiseScale * (position.x + i * s);
-                const worldY = noiseScale * (position.y + j * s);
+                const worldX = seedNoises[n].noiseScale * (position.x * scale.x + i * s);
+                const worldY = seedNoises[n].noiseScale * (position.y * scale.x + j * s);
 
-                // Get the height from the noise function
-                heights[i * segments + j] = Math.max(
-                    heights[i * segments + j],
-                    fnNoise2D(worldX, worldY),
-                );
+                if (strategy == 'MIN') {
+                    heights[i * segments + j] = Math.min(
+                        heights[i * segments + j],
+                        fnNoise2D(worldX, worldY),
+                    );
+                } else if (strategy == 'MAX') {
+                    heights[i * segments + j] = Math.max(
+                        heights[i * segments + j],
+                        fnNoise2D(worldX, worldY),
+                    );
+                } else {
+                    heights[i * segments + j] += fnNoise2D(worldX, worldY)
+                }
             }
         }
     }
     return heights;
 }
 
-export function createTerrain(game: Game, heights: Float32Array<ArrayBuffer>, segments: number, scale: THREE.Vector3, position: THREE.Vector3) {
+export function createTerrain(game: Game,
+    lowresHeights: Float32Array<ArrayBuffer>, lowresSegments: number,
+    highresHeights: Float32Array<ArrayBuffer>, highresSegments: number,
+    scale: THREE.Vector3, position: THREE.Vector3
+) {
 
     let groundBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(position.x, position.y, position.z);
     let groundBody = game.WORLD.createRigidBody(groundBodyDesc);
     let groundColliderDesc = RAPIER.ColliderDesc.heightfield(
-        segments - 1,
-        segments - 1,
-        heights,
+        lowresSegments - 1,
+        lowresSegments - 1,
+        lowresHeights,
         scale
     );
     game.WORLD.createCollider(groundColliderDesc, groundBody);
 
-    let g = genHeightfieldGeometry(heights, segments - 1, scale);
+    let g = genHeightfieldGeometry(highresHeights, highresSegments - 1, scale);
 
     let geometry = new THREE.BufferGeometry();
     geometry.setIndex(Array.from(g.indices));

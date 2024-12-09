@@ -25,6 +25,12 @@ export function createGround(game: Game, width: number, height: number, position
 }
 
 export function spawnRandomObject(game: Game, width: number, height: number) {
+
+    if (Math.random() < 0.2) {
+        createRamp(game, 5, 5, 10, new THREE.Vector3((Math.random() - 0.5) * width, 0, (Math.random() - 0.5) * height));
+        return
+    }
+
     const objectGeometries = [
         new THREE.SphereGeometry(1, 32, 32),
         new THREE.BoxGeometry(2, 2, 2),
@@ -67,4 +73,63 @@ export function spawnRandomObject(game: Game, width: number, height: number) {
     mesh.userData = { name: "Obj", rigidBody: rigidBody };
 
     return { mesh, rigidBody };
+}
+
+function createRamp(game: Game, width: number, height: number, length: number, position: THREE.Vector3) {
+    // Define the geometry
+    const geometry = new THREE.BufferGeometry();
+
+    // Define the vertices for a ramp
+    const vertices = new Float32Array([
+        // Base rectangle (bottom face)
+        -width / 2, 0, length / 2,  // Bottom left
+        width / 2, 0, length / 2,  // Bottom right
+        -width / 2, 0, -length / 2, // Top left
+        width / 2, 0, -length / 2, // Top right
+
+        // Sloped face
+        -width / 2, 0, length / 2,  // Bottom left
+        width / 2, 0, length / 2,  // Bottom right
+        -width / 2, height, -length / 2, // Top left
+        width / 2, height, -length / 2  // Top right
+    ]);
+
+    // Define the faces (triangles) for the ramp
+    const indices = [
+        // Base face
+        0, 1, 2,
+        1, 3, 2,
+
+        // Sloped face
+        4, 6, 5,
+        5, 6, 7,
+
+        // Side faces
+        0, 2, 4,
+        2, 6, 4,
+
+        1, 5, 3,
+        3, 5, 7
+    ];
+
+    // Add the vertices and indices to the geometry
+    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals(); // Calculate normals for proper lighting
+
+    // Create a material
+    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00, side: THREE.DoubleSide });
+
+    // Create the mesh
+    const ramp = new THREE.Mesh(geometry, material);
+
+    // Set the position of the ramp
+    ramp.position.copy(position);
+
+    const rampRigidBody = game.WORLD.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(ramp.position.x, ramp.position.y, ramp.position.z).setCanSleep(false))
+    const points = new Float32Array(ramp.geometry.attributes.position.array)
+    const rampShape = (RAPIER.ColliderDesc.convexHull(points) as RAPIER.ColliderDesc).setMass(1).setRestitution(0.5)
+    game.WORLD.createCollider(rampShape, rampRigidBody)
+
+    game.SCENE.add(ramp);
 }

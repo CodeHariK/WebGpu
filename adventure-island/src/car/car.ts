@@ -104,6 +104,8 @@ export class Car {
     wheelGripBottom: number
     steeringTorque: number
 
+    wheelContact: number
+
     cameraType: 'TPS' | 'Orbit' = 'TPS'
 
     suspensionLength: number; // Maximum suspension travel
@@ -192,43 +194,43 @@ export class Car {
             hudUpdate("Vel : " + rVecString(this.linearVelocity))
         }
 
-        wheel.label.element.innerHTML = ""
+        // wheel.label.element.innerHTML = ""
         // wheel.label.element.innerHTML += "<br>c: " + wheel.springCompression.toFixed(2)
         // wheel.label.element.innerHTML += "<br>d: " + wheel.dampingForceMag.toFixed(2)
-        wheel.label.element.innerHTML += "<br>v: " + rVecString(wheel.velocity)
+        // wheel.label.element.innerHTML += "<br>v: " + rVecString(wheel.velocity)
         // wheel.label.element.innerHTML += "<br>r: " + THREE.MathUtils.radToDeg(wheel.steerAngle).toFixed(2)
         // wheel.label.element.innerHTML += "<br>s: " + rVecString(wheel.suspensionForce)
-        wheel.label.element.innerHTML += "<br>f: " + rVecString(wheel.forceForward)
-        wheel.label.element.innerHTML += "<br>c: " + rVecString(wheel.curvatureForce)
+        // wheel.label.element.innerHTML += "<br>f: " + rVecString(wheel.forceForward)
+        // wheel.label.element.innerHTML += "<br>c: " + rVecString(wheel.curvatureForce)
         // wheel.label.element.innerHTML += "<br>n: " + rVecString(wheel.netForce)
 
-        wheel.contactMesh.position.set(wheel.contactPoint.x, wheel.contactPoint.y, wheel.contactPoint.z)
-        wheel.contactMesh.setRotationFromQuaternion(this.rotation)
+        // wheel.contactMesh.position.set(wheel.contactPoint.x, wheel.contactPoint.y, wheel.contactPoint.z)
+        // wheel.contactMesh.setRotationFromQuaternion(this.rotation)
 
-        wheel.suspensionForceHelp.position.set(wheel.contactPoint.x, wheel.contactPoint.y + .1, wheel.contactPoint.z)
-        wheel.suspensionForceHelp.setLength(clamp(wheel.suspensionForce.length(), 0, 2))
-        wheel.suspensionForceHelp.setDirection(rVec(wheel.suspensionForce).normalize())
+        // wheel.suspensionForceHelp.position.set(wheel.contactPoint.x, wheel.contactPoint.y + .1, wheel.contactPoint.z)
+        // wheel.suspensionForceHelp.setLength(clamp(wheel.suspensionForce.length(), 0, 2))
+        // wheel.suspensionForceHelp.setDirection(rVec(wheel.suspensionForce).normalize())
 
-        wheel.curvatureForceHelp.position.set(wheel.contactPoint.x, wheel.contactPoint.y + .1, wheel.contactPoint.z)
-        wheel.curvatureForceHelp.setLength(clamp(wheel.curvatureForce.length(), 0, 2))
-        wheel.curvatureForceHelp.setDirection(rVec(wheel.curvatureForce).normalize())
+        // wheel.curvatureForceHelp.position.set(wheel.contactPoint.x, wheel.contactPoint.y + .1, wheel.contactPoint.z)
+        // wheel.curvatureForceHelp.setLength(clamp(wheel.curvatureForce.length(), 0, 2))
+        // wheel.curvatureForceHelp.setDirection(rVec(wheel.curvatureForce).normalize())
 
-        wheel.forwardForceHelp.position.set(wheel.contactPoint.x, wheel.contactPoint.y + .1, wheel.contactPoint.z)
-        wheel.forwardForceHelp.setLength(clamp(wheel.forceForward.length(), 0, 5))
-        wheel.forwardForceHelp.setDirection(rVec(wheel.forceForward).normalize())
+        // wheel.forwardForceHelp.position.set(wheel.contactPoint.x, wheel.contactPoint.y + .1, wheel.contactPoint.z)
+        // wheel.forwardForceHelp.setLength(clamp(wheel.forceForward.length(), 0, 5))
+        // wheel.forwardForceHelp.setDirection(rVec(wheel.forceForward).normalize())
 
-        this.velocityHelp.position.set(this.position.x, this.position.y, this.position.z)
-        this.velocityHelp.setLength(clamp(this.linearVelocity.length(), 0, 2))
-        this.velocityHelp.setDirection(rVec(this.linearVelocity).normalize())
+        // this.velocityHelp.position.set(this.position.x, this.position.y, this.position.z)
+        // this.velocityHelp.setLength(clamp(this.linearVelocity.length(), 0, 2))
+        // this.velocityHelp.setDirection(rVec(this.linearVelocity).normalize())
 
-        wheel.velocityHelp.position.set(wheel.contactPoint.x, wheel.contactPoint.y + .1, wheel.contactPoint.z)
-        wheel.velocityHelp.setLength(clamp(wheel.velocity.length(), 0, 2))
-        wheel.velocityHelp.setDirection((rVec(wheel.velocity).normalize()))
+        // wheel.velocityHelp.position.set(wheel.contactPoint.x, wheel.contactPoint.y + .1, wheel.contactPoint.z)
+        // wheel.velocityHelp.setLength(clamp(wheel.velocity.length(), 0, 2))
+        // wheel.velocityHelp.setDirection((rVec(wheel.velocity).normalize()))
 
-        let dis = rVecSub(wheel.contactPoint, this.position)
-        wheel.disHelp.position.set(this.position.x, this.position.y + .1, this.position.z)
-        wheel.disHelp.setLength(dis.length())
-        wheel.disHelp.setDirection(dis.normalize())
+        // let dis = rVecSub(wheel.contactPoint, this.position)
+        // wheel.disHelp.position.set(this.position.x, this.position.y + .1, this.position.z)
+        // wheel.disHelp.setLength(dis.length())
+        // wheel.disHelp.setDirection(dis.normalize())
 
         // wheel.netForceHelp.position.set(wheel.contactPoint.x, wheel.contactPoint.y + .1, wheel.contactPoint.z)
         // wheel.netForceHelp.setLength(clamp(wheel.netForce.length(), 0, 2))
@@ -239,7 +241,9 @@ export class Car {
 
     update(game: Game, deltaTime: number): void {
 
+        // if (this.wheelContact >= 2) {
         this.handleKeyboardInput(deltaTime)
+        // }
 
         {
             // Sync mesh position/rotation with Rapier body
@@ -261,6 +265,8 @@ export class Car {
         this.rigidBody.resetForces(true)
         this.rigidBody.resetTorques(true)
 
+        this.wheelContact = 0
+
         // Rotate and position each wheel
         for (const wheel of this.wheels) {
 
@@ -280,6 +286,8 @@ export class Car {
             if (hit) {
                 wheel.contactMesh.visible = true
                 wheel.velocityHelp.visible = true
+
+                this.wheelContact++
 
                 {
                     // Suspension force (Hooke's law: F = -kx)
@@ -377,11 +385,29 @@ export class Car {
         }
 
         {
-            // this.rigidBody.setLinearDamping(1.0); // Simulate resistance to motion
-            // this.rigidBody.setAngularDamping(0.1); // Stabilize rotation
+            const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(this.rotation);
+            let angleX = Math.atan2(currentUp.z, currentUp.y); // Rotation in X-axis
+            let angleZ = Math.atan2(currentUp.x, currentUp.y); // Rotation in Z-axis
+
+            // console.log(
+            //     angleX.toFixed(2),
+            //     angleZ.toFixed(2),
+            //     THREE.MathUtils.radToDeg(angleX).toFixed(2),
+            //     THREE.MathUtils.radToDeg(angleZ).toFixed(2),
+            //     this.airborne,
+            //     rVecString(currentUp),
+            // )
+
+            const torqueX = -angleX * 30;
+            const torqueZ = -angleZ * 1;
+
+            this.rigidBody.applyTorqueImpulse({ x: torqueX, y: 0, z: torqueZ }, true);
+        }
+
+        {
             // if (Keyboard.keys.Left || Keyboard.keys.Right) {
-            this.rigidBody.setLinearDamping(2.0); // Simulate resistance to motion
-            this.rigidBody.setAngularDamping(0.2); // Stabilize rotation
+            this.rigidBody.setLinearDamping(.4 + this.wheelContact / 2); // Simulate resistance to motion
+            this.rigidBody.setAngularDamping(6 + this.wheelContact / 2); // Stabilize rotation
             // }
         }
     }
