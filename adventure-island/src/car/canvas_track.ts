@@ -6,11 +6,13 @@ class Circle {
     startAngle: number
     endAngle: number
     usedTangent?: Vector2
+    color: string
 
-    constructor(x: number, y: number, radius: number) {
+    constructor(x: number, y: number, radius: number, color: string) {
         this.pos.x = x
         this.pos.y = y
         this.radius = radius
+        this.color = color
     }
 }
 
@@ -98,19 +100,19 @@ export class Canvas {
         }
     }
 
-    sampleLine(point1: Vector2, point2: Vector2, nu: number): DirPoint[] {
-        const distance = point1.distanceTo(point2);
+    sampleLine(point1: Vector2, point2: Vector2, sampleDistance: number): DirPoint[] {
+        const len = point1.distanceTo(point2);
 
-        let n = nu * distance
-        if (n < 2) {
-            throw new Error("The number of samples (n) must be at least 2.");
-        }
+        let n = Math.floor(len / sampleDistance)
+        // if (n < 2) {
+        //     throw new Error("The number of samples (n) must be at least 2.");
+        // }
 
         const samples: DirPoint[] = [];
-        const offset = distance / (n - 1);
+        const offset = len / n;
         const direction = point2.sub(point1).normalize();
 
-        for (let i = 0; i < n - 1; i++) {
+        for (let i = 0; i < n; i++) {
             samples.push(
                 new DirPoint(
                     point1.clone().add(direction.clone().multiplyScalar((i + 0.5) * offset)),
@@ -149,20 +151,19 @@ export class Canvas {
         this.context.stroke();
     }
 
-    sampleArc(center: Vector2, radius: number, startAngle: number, endAngle: number, nu: number): DirPoint[] {
+    sampleArc(center: Vector2, radius: number, startAngle: number, endAngle: number, sampleDistance: number): DirPoint[] {
 
-        let len = radius * ((endAngle - startAngle) > 0 ? (endAngle - startAngle) : 2 * Math.PI + (endAngle - startAngle))
-        let n = nu * len
-        if (n < 2) {
-            throw new Error("The number of samples (n) must be at least 2.");
-        }
+        let angleDiff = (endAngle - startAngle) > 0 ? (endAngle - startAngle) : 2 * Math.PI + (endAngle - startAngle)
+        let len = radius * angleDiff
+        let n = Math.floor(len / sampleDistance)
+        // if (n < 2) {
+        //     throw new Error("The number of samples (n) must be at least 2.");
+        // }
 
         const samples: DirPoint[] = [];
-        let angleStep = ((endAngle - startAngle) / (n - 1));
+        let angleStep = angleDiff / n;
 
-        angleStep = angleStep + (angleStep > 0 ? 0 : Math.PI * 2 / (n - 1))
-
-        for (let i = 0; i < n - 1; i++) {
+        for (let i = 0; i < n; i++) {
             const angle = startAngle + (i + 0.5) * angleStep;
             const x = center.x + radius * Math.cos(angle);
             const y = center.y + radius * Math.sin(angle);
@@ -180,7 +181,7 @@ export class Canvas {
             ));
         }
 
-        return samples;
+        return samples.reverse();
     }
 
     drawRectangle(topLeft: Vector2, width: number, height: number, lineWidth: number, color: string): void {
@@ -222,7 +223,15 @@ export class Track {
     trackWidth: number
     trackColor255: number
 
-    constructor(width: number, height: number, numCircle: number, minRadius: number, maxRadius: number, trackWidth: number, trackColor255: number, blur: number) {
+    debugDraw: boolean
+
+    gridSize: number
+    grid: Array<string | null>
+
+    sampleDistance: number
+    samples: DirPoint[] = []
+
+    constructor(width: number, height: number, numCircle: number, minRadius: number, maxRadius: number, trackWidth: number, trackColor255: number, blur: number, sampleDistance: number, gridSize: number, debugDraw: boolean) {
 
         this.canvas = new Canvas(width, height)
 
@@ -235,26 +244,191 @@ export class Track {
         this.trackWidth = trackWidth
         this.trackColor255 = trackColor255
 
-        while (true) {
+        this.sampleDistance = sampleDistance
+
+        this.gridSize = gridSize
+        this.debugDraw = debugDraw
+
+        let numTry = 0
+        while (numTry <= 1000) {
+            if (numTry == 1000) {
+                numTry = 0
+                this.numCircle--
+            }
             try {
+                numTry++
                 this.NewTrack()
                 this.drawTrack()
                 break
             } catch (error) {
-                console.log(error)
+                console.log(numTry)
             }
         }
 
         this.addListeners()
     }
 
+
     NewTrack() {
-        this.circles = []
+        const gridXNum = this.canvas.width() / this.gridSize;
+        const gridYNum = this.canvas.height() / this.gridSize;
+        this.grid = new Array(Math.ceil(gridXNum) * Math.ceil(gridYNum)).fill(null);
+
+        this.circles = [];
+        let attempts = 0;
         for (let i = 0; i < this.numCircle; i++) {
-            let radius = Math.random() * (this.maxRadius - this.minRadius) + this.minRadius; // Random radius between 40 and 100
-            let x = Math.random() * (this.canvas.width() - 4 * radius) + 2 * radius; // Random X position
-            let y = Math.random() * (this.canvas.height() - 4 * radius) + 2 * radius; // Random Y position
-            this.circles.push(new Circle(x, y, radius));
+            let placed = false;
+
+            while (!placed) {
+                if (attempts > 1000) {
+                    console.warn("Could not place all circles without overlap.");
+                    break;
+                }
+
+                let radius = Math.random() * (this.maxRadius - this.minRadius) + this.minRadius; // Random radius between 40 and 100
+                let x = Math.random() * (this.canvas.width() - 4 * radius) + 2 * radius; // Random X position
+                let y = Math.random() * (this.canvas.height() - 4 * radius) + 2 * radius; // Random Y position
+
+                // Calculate the cells occupied by the circle
+                const startX = Math.floor((x - radius) / this.gridSize);
+                const startY = Math.floor((y - radius) / this.gridSize);
+                const endX = Math.ceil((x + radius) / this.gridSize);
+                const endY = Math.ceil((y + radius) / this.gridSize);
+
+                let canPlace = true;
+                for (let gx = startX; gx < endX; gx++) {
+                    for (let gy = startY; gy < endY; gy++) {
+                        const index = gy * Math.ceil(gridXNum) + gx;
+                        if (this.grid[index]) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+                    if (!canPlace) break;
+                }
+
+                if (canPlace) {
+
+                    let color = `rgba(${Math.random() * 155}, ${Math.random() * 155}, ${Math.random() * 155}, ${0.2})`;
+
+                    // Mark the cells as occupied
+                    for (let gx = startX; gx < endX; gx++) {
+                        for (let gy = startY; gy < endY; gy++) {
+                            const index = gy * Math.ceil(gridXNum) + gx;
+                            this.grid[index] = color;
+                        }
+                    }
+
+                    // Place the circle
+                    this.circles.push(new Circle(x, y, radius, color));
+                    placed = true;
+                }
+
+                attempts++;
+            }
+        }
+    }
+
+    checkGridLine(start: Vector2, end: Vector2, currColor: string, nextColor: string) {
+        let x0 = Math.floor(start.x / this.gridSize);
+        let y0 = Math.floor(start.y / this.gridSize);
+        const x1 = Math.floor(end.x / this.gridSize);
+        const y1 = Math.floor(end.y / this.gridSize);
+
+        const deltaX = Math.abs(x1 - x0);
+        const deltaY = Math.abs(y1 - y0);
+        const signX = x0 < x1 ? 1 : -1;
+        const signY = y0 < y1 ? 1 : -1;
+
+        const gridXNum = this.canvas.width() / this.gridSize;
+
+        let error = deltaX - deltaY;
+
+        while (true) {
+            // Calculate rectangle position based on grid cell
+            const rectX = x0 * this.gridSize;
+            const rectY = y0 * this.gridSize;
+
+            const index = y0 * Math.ceil(gridXNum) + x0;
+
+            if (this.grid[index] == currColor || this.grid[index] == nextColor || this.grid[index] === null) {
+                if (this.debugDraw) {
+                    this.canvas.drawRectangle(
+                        new Vector2(rectX, rectY),
+                        this.gridSize,
+                        this.gridSize,
+                        10,
+                        `rgb(200,200,200)`
+                    );
+                }
+            }
+            else {
+                if (this.debugDraw) {
+                    this.canvas.drawRectangle(
+                        new Vector2(rectX, rectY),
+                        this.gridSize,
+                        this.gridSize,
+                        10,
+                        `rgb(200,0,0)`
+                    );
+                }
+                throw new Error('Collapse');
+            }
+
+            // Stop if the line has reached its endpoint
+            if (x0 === x1 && y0 === y1) break;
+
+            const error2 = error * 2;
+            if (error2 > -deltaY) {
+                error -= deltaY;
+                x0 += signX;
+            }
+            if (error2 < deltaX) {
+                error += deltaX;
+                y0 += signY;
+            }
+        }
+    }
+
+    fillGridCircle(circle: Circle) {
+
+        const gridXNum = this.canvas.width() / this.gridSize;
+
+        const startX = Math.floor((circle.pos.x - circle.radius) / this.gridSize);
+        const startY = Math.floor((circle.pos.y - circle.radius) / this.gridSize);
+        const endX = Math.ceil((circle.pos.x + circle.radius) / this.gridSize);
+        const endY = Math.ceil((circle.pos.y + circle.radius) / this.gridSize);
+
+        for (let gx = startX; gx < endX; gx++) {
+            for (let gy = startY; gy < endY; gy++) {
+
+                // const rectX = gx * this.gridSize;
+                // const rectY = gy * this.gridSize;
+
+                const index = gy * Math.ceil(gridXNum) + gx;
+                this.grid[index] = circle.color
+
+                // this.canvas.drawRectangle(new Vector2(rectX, rectY), this.gridSize, this.gridSize, 10, circle.color);
+            }
+        }
+    }
+
+    debugGrid() {
+        const gridXNum = this.canvas.width() / this.gridSize;
+        const gridYNum = this.canvas.height() / this.gridSize;
+
+        for (let gx = 0; gx < gridXNum; gx++) {
+            for (let gy = 0; gy < gridYNum; gy++) {
+
+                const rectX = gx * this.gridSize;
+                const rectY = gy * this.gridSize;
+
+                const index = gy * Math.ceil(gridXNum) + gx;
+
+                if (this.debugDraw && this.grid[index]) {
+                    this.canvas.drawRectangle(new Vector2(rectX, rectY), this.gridSize, this.gridSize, 10, this.grid[index]);
+                }
+            }
         }
     }
 
@@ -314,9 +488,15 @@ export class Track {
     drawTrack() {
         this.canvas.clearRect()
 
-        this.canvas.drawGrid(50, 2, `rgb(230,230,230)`)
+        this.samples = []
+
+        if (this.debugDraw) {
+            this.canvas.drawGrid(this.gridSize, 2, `rgb(230,230,230)`)
+        }
+        this.debugGrid()
 
         for (let i = 0; i < this.circles.length; i++) {
+
             let curr = this.circles[i];
             let next = this.circles[(i + 1) % this.circles.length]; // Wrap around to connect last to first
 
@@ -330,11 +510,8 @@ export class Track {
                 return;
             }
 
-            this.canvas.drawLine(tangent.start, tangent.end, this.trackWidth, `rgb(${this.trackColor255}, ${this.trackColor255}, ${this.trackColor255})`)
-
-            for (let dirpoint of this.canvas.sampleLine(tangent.start, tangent.end, .05)) {
-                this.canvas.drawCircle(dirpoint.pos, 2, true, 1, 'rgb(30,30,30)', null)
-            }
+            this.checkGridLine(tangent.start, tangent.end, curr.color, next.color)
+            this.canvas.drawLine(tangent.start, tangent.end, this.trackWidth, `rgb(${this.trackColor255}, ${this.trackColor255}, ${this.trackColor255})`);
 
             // Angle at the start tangent point
             let angle = Math.atan2(tangent.start.y - curr.pos.y, tangent.start.x - curr.pos.x) * 180 / Math.PI;
@@ -353,6 +530,9 @@ export class Track {
             // Mark the tangent as used for the next circle
             curr.usedTangent = tangent.start; // Store the start point of the tangent
             next.usedTangent = tangent.end; // Ensure a different tangent for the next circle
+
+            // const lineSamples = this.canvas.sampleLine(tangent.start, tangent.end, this.sampleDistance)
+            // this.samples.push(...lineSamples)
         }
 
         {
@@ -369,13 +549,19 @@ export class Track {
 
             // Draw the arc using the Canvas API
             this.canvas.drawArc(curr.pos, curr.radius, angleStart, angleEnd, this.trackWidth, `rgb(${this.trackColor255}, ${this.trackColor255}, ${this.trackColor255})`)
-            // this.canvas.drawCircle(curr.pos, curr.radius, false, lineWidth, `rgb(${height}, ${height}, ${height})`, 4)
 
-            for (let dirpoint of this.canvas.sampleArc(curr.pos, curr.radius, angleStart, angleEnd, .05)) {
+            const arcSamples = this.canvas.sampleArc(curr.pos, curr.radius, angleStart, angleEnd, this.sampleDistance)
+            this.samples.push(...arcSamples)
+        }
+
+        if (this.debugDraw) {
+            for (let i = 0; i < this.samples.length; i++) {
+                let dirpoint = this.samples[i]
                 this.canvas.drawCircle(dirpoint.pos, 2, true, 1, 'rgb(30,30,30)', null)
-                // this.canvas.drawText(`s:${curr.startAngle.toFixed(2)}, e: ${curr.endAngle.toFixed(2)}`, curr.pos, 16, 'rgb(30,30,30)')
+                this.canvas.drawText(`${i}`, dirpoint.pos, 12, 'rgb(30,30,30)')
             }
         }
+
     }
 
     addListeners(): void {
@@ -413,9 +599,13 @@ export class Track {
             this.selectedCircle.radius = this.getDistance(mousePos, new Vector2(this.selectedCircle.pos.x, this.selectedCircle.pos.y));
         }
 
+        this.grid.fill(null)
+
         for (const c of this.circles) {
             c.startAngle = null
             c.endAngle = null
+
+            this.fillGridCircle(c)
         }
 
         this.drawTrack()
@@ -451,9 +641,13 @@ export class Track {
 }
 
 const track = new Track(
-    500, 500, 6,
+    500, 500,
+    3,
     20, 50,
     10, 240,
-    0
+    0,
+    25,
+    10,
+    true
 );
 let raceTrackHeights = track.canvas.getImageData(true)
