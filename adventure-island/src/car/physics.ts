@@ -63,6 +63,9 @@ export function rVecMul(ss: Vector3, vv: Vector3) {
 export function rVecScale(ss: Vector3, vv: number) {
     return new THREE.Vector3(ss.x * vv, ss.y * vv, ss.z * vv)
 }
+export function rVecXZ(ss: Vector3) {
+    return new THREE.Vector3(ss.x, 0, ss.z)
+}
 
 
 export function rQuat(ss: Quaternion) {

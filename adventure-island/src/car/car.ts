@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import * as RAPIER from '@dimforge/rapier3d';
-import { Physics, rVecAdd, rVec, rVecMag, rVecString, rVecScale, rVecSub, rVecDot, rVecAddd, UNIT_YN, UNIT_Z, ZERO, UNIT_X, UNIT_XN, clamp, rQuat } from './physics';
-import { Keyboard } from './keyboard';
+import { Physics, rVecAdd, rVec, rVecMag, rVecString, rVecScale, rVecSub, rVecDot, rVecAddd, UNIT_YN, UNIT_Z, ZERO, UNIT_X, UNIT_XN, clamp, rQuat, rVecMul, rVecXZ } from './physics';
+import { Keyboard } from './input';
 import { AddLabel, createCheckbox, hudUpdate } from './ui';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { Game } from './game';
@@ -387,7 +387,7 @@ export class Car {
         {
             const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(this.rotation);
             let angleX = Math.atan2(currentUp.z, currentUp.y); // Rotation in X-axis
-            let angleZ = Math.atan2(currentUp.x, currentUp.y); // Rotation in Z-axis
+            let angleZ = 0//Math.atan2(currentUp.x, currentUp.y); // Rotation in Z-axis
 
             // console.log(
             //     angleX.toFixed(2),
@@ -405,6 +405,34 @@ export class Car {
         }
 
         {
+            if (Keyboard.keys.JUMP && this.wheelContact >= 2) {
+                this.rigidBody.addForceAtPoint(
+                    new THREE.Vector3(0, this.mass * 80, 0),
+                    this.position,
+                    true
+                );
+            }
+            if (Keyboard.keys.FLY) {
+                this.rigidBody.addForceAtPoint(
+                    new THREE.Vector3(0, this.mass * 40, 0),
+                    this.position,
+                    true
+                );
+            }
+            if (this.wheelContact == 0) {
+                let force = rVecScale(Car_Z_Local_Forward, 40 * this.mass)
+                this.rigidBody.addForceAtPoint(
+                    rVecAddd([
+                        Keyboard.keys.Up ? force : ZERO(),
+                        Keyboard.keys.Down ? rVecScale(force, -1) : ZERO(),
+                    ]),
+                    this.position,
+                    true
+                );
+            }
+        }
+
+        {
             // if (Keyboard.keys.Left || Keyboard.keys.Right) {
             this.rigidBody.setLinearDamping(.4 + this.wheelContact / 2); // Simulate resistance to motion
             this.rigidBody.setAngularDamping(6 + this.wheelContact / 2); // Stabilize rotation
@@ -414,10 +442,11 @@ export class Car {
 
     handleKeyboardInput(deltaTime: number): void {
 
-        let velocityMag = this.linearVelocity.length()
+        let velocityMag = rVecXZ(this.linearVelocity).length()
         let velocityRatio = (velocityMag) / (this.accelerationForce / this.mass)
-        let steeringMultiplier = (1 - Math.pow(1 - 2.1 * velocityRatio, 2) / 2)
+        let steeringMultiplier = 1// this.wheelContact == 0 ? 1 : Math.abs(1 - Math.pow(1 - 2.1 * velocityRatio, 2) / 2)
         let steeringTorque = this.steeringTorque * steeringMultiplier
+        console.log(steeringTorque)
 
         if ((Keyboard.keys.Left && Keyboard.keys.Up) || (Keyboard.keys.Right && Keyboard.keys.Down)) {
             this.rigidBody.applyTorqueImpulse(new RAPIER.Vector3(0, steeringTorque, 0), true);

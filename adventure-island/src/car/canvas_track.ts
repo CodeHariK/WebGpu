@@ -14,6 +14,16 @@ class Circle {
     }
 }
 
+class DirPoint {
+    pos: Vector2
+    dir: Vector2
+
+    constructor(pos: Vector2, dir: Vector2) {
+        this.pos = pos
+        this.dir = dir
+    }
+}
+
 export class Canvas {
     canvasElement: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
@@ -28,7 +38,7 @@ export class Canvas {
             throw new Error('Failed to get 2D rendering context');
         }
 
-        // document.body.appendChild(this.canvasElement);
+        document.body.appendChild(this.canvasElement);
     }
 
     width(): number {
@@ -70,19 +80,43 @@ export class Canvas {
         this.context.stroke();
     }
 
-    sampleLine(point1: Vector2, point2: Vector2, n: number): Vector2[] {
+    drawGrid(
+        cellSize: number,
+        lineWidth: number,
+        color: string
+    ): void {
+        const { width, height } = this.canvasElement;
+
+        // Draw vertical lines
+        for (let x = 0; x <= width; x += cellSize) {
+            this.drawLine(new Vector2(x, 0), new Vector2(x, height), lineWidth, color);
+        }
+
+        // Draw horizontal lines
+        for (let y = 0; y <= height; y += cellSize) {
+            this.drawLine(new Vector2(0, y), new Vector2(width, y), lineWidth, color);
+        }
+    }
+
+    sampleLine(point1: Vector2, point2: Vector2, nu: number): DirPoint[] {
         const distance = point1.distanceTo(point2);
 
+        let n = nu * distance
         if (n < 2) {
             throw new Error("The number of samples (n) must be at least 2.");
         }
 
-        const samples: Vector2[] = [];
+        const samples: DirPoint[] = [];
         const offset = distance / (n - 1);
         const direction = point2.sub(point1).normalize();
 
-        for (let i = 0; i < n; i++) {
-            samples.push(point1.clone().add(direction.clone().multiplyScalar(i * offset)));
+        for (let i = 0; i < n - 1; i++) {
+            samples.push(
+                new DirPoint(
+                    point1.clone().add(direction.clone().multiplyScalar((i + 0.5) * offset)),
+                    direction,
+                )
+            );
         }
 
         return samples;
@@ -115,21 +149,35 @@ export class Canvas {
         this.context.stroke();
     }
 
-    sampleArc(center: Vector2, radius: number, startAngle: number, endAngle: number, n: number): Vector2[] {
+    sampleArc(center: Vector2, radius: number, startAngle: number, endAngle: number, nu: number): DirPoint[] {
+
+        let len = radius * ((endAngle - startAngle) > 0 ? (endAngle - startAngle) : 2 * Math.PI + (endAngle - startAngle))
+        let n = nu * len
         if (n < 2) {
             throw new Error("The number of samples (n) must be at least 2.");
         }
 
-        const samples: Vector2[] = [];
+        const samples: DirPoint[] = [];
         let angleStep = ((endAngle - startAngle) / (n - 1));
 
         angleStep = angleStep + (angleStep > 0 ? 0 : Math.PI * 2 / (n - 1))
 
-        for (let i = 0; i < n; i++) {
-            const angle = startAngle + i * angleStep;
+        for (let i = 0; i < n - 1; i++) {
+            const angle = startAngle + (i + 0.5) * angleStep;
             const x = center.x + radius * Math.cos(angle);
             const y = center.y + radius * Math.sin(angle);
-            samples.push(new Vector2(x, y));
+
+            // Calculate tangent vector
+            const tx = -Math.sin(angle);
+            const ty = Math.cos(angle);
+
+            // Create a normalized tangent vector
+            const tangentVector = new Vector2(tx, ty).normalize();
+
+            samples.push(new DirPoint(
+                new Vector2(x, y),
+                tangentVector,
+            ));
         }
 
         return samples;
@@ -172,9 +220,9 @@ export class Track {
     numCircle: number
 
     trackWidth: number
-    trackHeight: number
+    trackColor255: number
 
-    constructor(width: number, height: number, numCircle: number, minRadius: number, maxRadius: number, trackWidth: number, trackHeight: number, blur: number) {
+    constructor(width: number, height: number, numCircle: number, minRadius: number, maxRadius: number, trackWidth: number, trackColor255: number, blur: number) {
 
         this.canvas = new Canvas(width, height)
 
@@ -185,21 +233,27 @@ export class Track {
         this.numCircle = numCircle
 
         this.trackWidth = trackWidth
-        this.trackHeight = trackHeight
+        this.trackColor255 = trackColor255
 
-        this.NewTrack()
+        while (true) {
+            try {
+                this.NewTrack()
+                this.drawTrack()
+                break
+            } catch (error) {
+                console.log(error)
+            }
+        }
 
         this.addListeners()
-
-        this.drawTrack()
     }
 
     NewTrack() {
         this.circles = []
         for (let i = 0; i < this.numCircle; i++) {
             let radius = Math.random() * (this.maxRadius - this.minRadius) + this.minRadius; // Random radius between 40 and 100
-            let x = Math.random() * (this.canvas.width() - 200) + 100; // Random X position
-            let y = Math.random() * (this.canvas.height() - 200) + 100; // Random Y position
+            let x = Math.random() * (this.canvas.width() - 4 * radius) + 2 * radius; // Random X position
+            let y = Math.random() * (this.canvas.height() - 4 * radius) + 2 * radius; // Random Y position
             this.circles.push(new Circle(x, y, radius));
         }
     }
@@ -260,6 +314,8 @@ export class Track {
     drawTrack() {
         this.canvas.clearRect()
 
+        this.canvas.drawGrid(50, 2, `rgb(230,230,230)`)
+
         for (let i = 0; i < this.circles.length; i++) {
             let curr = this.circles[i];
             let next = this.circles[(i + 1) % this.circles.length]; // Wrap around to connect last to first
@@ -274,11 +330,11 @@ export class Track {
                 return;
             }
 
-            this.canvas.drawLine(tangent.start, tangent.end, this.trackWidth, `rgb(${this.trackHeight}, ${this.trackHeight}, ${this.trackHeight})`)
+            this.canvas.drawLine(tangent.start, tangent.end, this.trackWidth, `rgb(${this.trackColor255}, ${this.trackColor255}, ${this.trackColor255})`)
 
-            // for (let i of this.canvas.sampleLine(tangent.start, tangent.end, 20)) {
-            //     this.canvas.drawCircle(i, 2, true, 1, 'rgb(30,30,30)', null)
-            // }
+            for (let dirpoint of this.canvas.sampleLine(tangent.start, tangent.end, .05)) {
+                this.canvas.drawCircle(dirpoint.pos, 2, true, 1, 'rgb(30,30,30)', null)
+            }
 
             // Angle at the start tangent point
             let angle = Math.atan2(tangent.start.y - curr.pos.y, tangent.start.x - curr.pos.x) * 180 / Math.PI;
@@ -312,13 +368,13 @@ export class Track {
             let angleStart = curr.endAngle * Math.PI / 180;
 
             // Draw the arc using the Canvas API
-            this.canvas.drawArc(curr.pos, curr.radius, angleStart, angleEnd, this.trackWidth, `rgb(${this.trackHeight}, ${this.trackHeight}, ${this.trackHeight})`)
+            this.canvas.drawArc(curr.pos, curr.radius, angleStart, angleEnd, this.trackWidth, `rgb(${this.trackColor255}, ${this.trackColor255}, ${this.trackColor255})`)
             // this.canvas.drawCircle(curr.pos, curr.radius, false, lineWidth, `rgb(${height}, ${height}, ${height})`, 4)
 
-            // for (let i of this.canvas.sampleArc(curr.pos, curr.radius, angleStart, angleEnd, 20)) {
-            //     this.canvas.drawCircle(i, 2, true, 1, 'rgb(30,30,30)', null)
-            //     this.canvas.drawText(`s:${curr.startAngle.toFixed(2)}, e: ${curr.endAngle.toFixed(2)}`, curr.pos, 16, 'rgb(30,30,30)')
-            // }
+            for (let dirpoint of this.canvas.sampleArc(curr.pos, curr.radius, angleStart, angleEnd, .05)) {
+                this.canvas.drawCircle(dirpoint.pos, 2, true, 1, 'rgb(30,30,30)', null)
+                // this.canvas.drawText(`s:${curr.startAngle.toFixed(2)}, e: ${curr.endAngle.toFixed(2)}`, curr.pos, 16, 'rgb(30,30,30)')
+            }
         }
     }
 
@@ -393,3 +449,11 @@ export class Track {
         return Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
     }
 }
+
+const track = new Track(
+    500, 500, 6,
+    20, 50,
+    10, 240,
+    0
+);
+let raceTrackHeights = track.canvas.getImageData(true)

@@ -1,4 +1,4 @@
-import { Keyboard } from './keyboard';
+import { Keyboard } from './input';
 import { Game } from './game';
 import { Car } from './car';
 import { AxesHelper, Mesh, Vector3, CatmullRomCurve3, Line, LineBasicMaterial, BufferGeometry, BufferAttribute, MeshStandardMaterial, Vector2 } from 'three';
@@ -18,12 +18,15 @@ createGround(game, 100, 100, new Vector3(0, 0, 0))
 
 const noiseScale = 0.1
 const lowresSegments = 10
-const highresSegments = 100
+const highresSegments = 40
 const s = 10
-const scale = new Vector3(s, 1, s)
+const scale = new Vector3(s, 1.5, s)
 
-for (let row = 0; row < 2; row++) {
-    for (let col = 0; col < 2; col++) {
+for (let row = 0; row < 10; row++) {
+    for (let col = 0; col < 10; col++) {
+
+        let strategy: 'MIN' | 'MAX' | 'ADDITIVE' = 'MAX'  // Math.random() < 0.33 ? 'MIN' : (Math.random() < 0.33 ? 'MAX' : 'ADDITIVE')
+
         let lowresHeights = createMaxTerrainHeight(
             lowresSegments,
             scale,
@@ -32,7 +35,7 @@ for (let row = 0; row < 2; row++) {
                 { seed: 17, noiseScale },
                 { seed: 1700, noiseScale },
             ],
-            'MIN'
+            strategy
         )
         let highresHeights = createMaxTerrainHeight(
             highresSegments,
@@ -42,14 +45,14 @@ for (let row = 0; row < 2; row++) {
                 { seed: 17, noiseScale },
                 { seed: 1700, noiseScale },
             ],
-            'MIN'
+            strategy
         )
 
         createTerrain(game,
             lowresHeights, lowresSegments,
             highresHeights, highresSegments,
             scale,
-            new Vector3(row * s, 3, col * s)
+            new Vector3(row * s, 1, col * s)
         )
     }
 }

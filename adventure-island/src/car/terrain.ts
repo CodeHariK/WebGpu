@@ -110,27 +110,44 @@ export function createTerrain(game: Game,
     );
     game.WORLD.createCollider(groundColliderDesc, groundBody);
 
-    let g = genHeightfieldGeometry(highresHeights, highresSegments - 1, scale);
+    let lowresObject = genHeightfieldGeometry(lowresHeights, lowresSegments - 1, scale);
+    let highresObject = genHeightfieldGeometry(highresHeights, highresSegments - 1, scale);
 
-    let geometry = new THREE.BufferGeometry();
-    geometry.setIndex(Array.from(g.indices));
-    geometry.setAttribute(
-        "position",
-        new THREE.BufferAttribute(g.vertices, 3),
-    );
+    let lowresGround = generateTerrainMesh(lowresObject)
+    let highresGround = generateTerrainMesh(highresObject)
+
+    let lod = new THREE.LOD()
+    lod.position.set(position.x, position.y, position.z)
+    lod.addLevel(lowresGround, 2 * scale.x);
+    lod.addLevel(highresGround, 0);
+
+    game.SCENE.add(lod)
+    game.LODS.push(lod)
+}
+
+let generateTerrainMesh = (
+    object: {
+        vertices: Float32Array<ArrayBuffer>;
+        indices: Uint32Array<ArrayBuffer>;
+    }
+) => {
 
     let material = new THREE.MeshPhongMaterial({
         color: 0x888888,
         side: THREE.DoubleSide,
         flatShading: true,
+        // wireframe: true,
     });
 
-    let ground = new THREE.Mesh(geometry, material);
+    let higresGeometry = new THREE.BufferGeometry();
+    higresGeometry.setIndex(Array.from(object.indices));
+    higresGeometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(object.vertices, 3),
+    );
+    let ground = new THREE.Mesh(higresGeometry, material);
     ground.receiveShadow = true;
-    geometry.attributes.position.needsUpdate = true;
-    geometry.computeVertexNormals();
-
-    ground.position.set(position.x, position.y, position.z)
-
-    game.SCENE.add(ground);
+    higresGeometry.attributes.position.needsUpdate = true;
+    higresGeometry.computeVertexNormals();
+    return ground
 }

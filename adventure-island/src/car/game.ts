@@ -4,6 +4,7 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { CreateCSS2dRenderer, hudClear as updateHUDClear } from './ui';
 import RAPIER from '@dimforge/rapier3d';
+import { rVecString } from './physics';
 
 class RapierDebugRenderer {
     mesh: THREE.LineSegments
@@ -66,6 +67,8 @@ export class Game {
     orbitControls: OrbitControls
     thirdPersonCamera: ThirdPersonCamera
     CAMERA: THREE.PerspectiveCamera
+
+    LODS: THREE.LOD[] = []
 
     rapierDebugRenderer: RapierDebugRenderer
 
@@ -164,6 +167,10 @@ export class Game {
                 child.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
             }
         });
+
+        this.LODS.forEach((lod) => {
+            lod.update(this.CAMERA)
+        })
 
         // Step the physics world
         this.WORLD.step();
