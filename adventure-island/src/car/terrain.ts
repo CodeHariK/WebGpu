@@ -46,16 +46,36 @@ function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: nu
     };
 }
 
-export function createMaxTerrainHeight(
+export type biomeColorType = { r: number, g: number, b: number, height: number, type: 'WATER' | 'SAND' | 'GRASS' | 'SNOW' }
+export function strategySearch(water: number, sand: number, grass: number): (c: number) => biomeColorType {
+    return (c: number): biomeColorType => {
+        if (c < water) return { r: 0, g: 0, b: 255, height: -1, type: 'WATER' } // water
+        if (c < sand) return { r: 246, g: 215, b: 176, height: 1, type: 'SAND' } // sand
+        if (c < grass) return { r: 0, g: 255, b: 0, height: -1, type: 'GRASS' } // grass
+        return { r: 230, g: 230, b: 230, height: 1, type: 'SNOW' } // snow
+    }
+}
+
+export function createTerrainHeight(
     segments: number,
     scale: THREE.Vector3,
     position: THREE.Vector2,
     seedNoises: { seed: number, noiseScale: number }[],
-    strategy: 'MIN' | 'MAX' | 'ADDITIVE'
+    fixedStrategy: 'MIN' | 'MAX' | 'ADDITIVE',
+    strategy?: Float32Array<ArrayBufferLike>,
+    strategyFunction?: (c: number) => biomeColorType
 ): Float32Array {
 
     const heights = new Float32Array(segments * segments);
-    heights.fill(strategy == 'MIN' ? scale.y : (strategy == 'MAX' ? -scale.y : 0))
+    if (strategy && strategyFunction) {
+        for (let i = 0; i < segments; i++) {
+            for (let j = 0; j < segments; j++) {
+                heights[i * segments + j] = strategyFunction(strategy[i * segments + j]).height
+            }
+        }
+    } else {
+        heights.fill(fixedStrategy == 'MIN' ? 1 : (fixedStrategy == 'MAX' ? -1 : 0))
+    }
 
     for (let n = 0; n < seedNoises.length; n++) {
 
@@ -66,7 +86,6 @@ export function createMaxTerrainHeight(
         };
         const fnNoise2D = createNoise2D(seededRandom);
 
-
         const s = scale.x / (segments - 1)
 
         for (let i = 0; i < segments; i++) {
@@ -75,18 +94,42 @@ export function createMaxTerrainHeight(
                 const worldX = seedNoises[n].noiseScale * (position.x * scale.x + i * s);
                 const worldY = seedNoises[n].noiseScale * (position.y * scale.x + j * s);
 
-                if (strategy == 'MIN') {
-                    heights[i * segments + j] = Math.min(
-                        heights[i * segments + j],
-                        fnNoise2D(worldX, worldY),
-                    );
-                } else if (strategy == 'MAX') {
-                    heights[i * segments + j] = Math.max(
-                        heights[i * segments + j],
-                        fnNoise2D(worldX, worldY),
-                    );
-                } else {
-                    heights[i * segments + j] += fnNoise2D(worldX, worldY)
+                if (strategy && strategyFunction) {
+                    let s = strategyFunction(strategy[i * segments + j]).type
+
+                    if (s == 'SAND') {
+                        heights[i * segments + j] = Math.min(
+                            heights[i * segments + j],
+                            fnNoise2D(worldX, worldY),
+                        );
+                    }
+                    else if (s == 'GRASS') {
+                        heights[i * segments + j] = Math.max(
+                            heights[i * segments + j],
+                            fnNoise2D(worldX, worldY),
+                        );
+                    }
+                    else if (s == 'SNOW') {
+                        heights[i * segments + j] += fnNoise2D(worldX, worldY)
+                    }
+                    else if (s == 'WATER') {
+                        heights[i * segments + j] += fnNoise2D(worldX, worldY)
+                    }
+                }
+                else {
+                    if (fixedStrategy == 'MIN') {
+                        heights[i * segments + j] = Math.min(
+                            heights[i * segments + j],
+                            fnNoise2D(worldX, worldY),
+                        );
+                    } else if (fixedStrategy == 'MAX') {
+                        heights[i * segments + j] = Math.max(
+                            heights[i * segments + j],
+                            fnNoise2D(worldX, worldY),
+                        );
+                    } else {
+                        heights[i * segments + j] += fnNoise2D(worldX, worldY)
+                    }
                 }
             }
         }

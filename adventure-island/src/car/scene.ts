@@ -2,7 +2,7 @@ import { Keyboard } from './input';
 import { Game } from './game';
 import { Car } from './car';
 import { AxesHelper, Mesh, Vector3, CatmullRomCurve3, Line, LineBasicMaterial, BufferGeometry, BufferAttribute, MeshStandardMaterial, Vector2 } from 'three';
-import { createMaxTerrainHeight, createTerrain } from './terrain';
+import { createTerrainHeight, createTerrain } from './terrain';
 import { createGround, spawnRandomObject } from './environment';
 import { CARMODELS, loadCar } from './model';
 import { CAR_FERRAI as CAR_FERRARI, CAR_MONSTER_TRUCK, CAR_TOY_CAR, CAR_TURN } from './prefab';
@@ -27,7 +27,7 @@ for (let row = 0; row < 10; row++) {
 
         let strategy: 'MIN' | 'MAX' | 'ADDITIVE' = 'MAX'  // Math.random() < 0.33 ? 'MIN' : (Math.random() < 0.33 ? 'MAX' : 'ADDITIVE')
 
-        let lowresHeights = createMaxTerrainHeight(
+        let lowresHeights = createTerrainHeight(
             lowresSegments,
             scale,
             new Vector2(row, col),
@@ -37,7 +37,7 @@ for (let row = 0; row < 10; row++) {
             ],
             strategy
         )
-        let highresHeights = createMaxTerrainHeight(
+        let highresHeights = createTerrainHeight(
             highresSegments,
             scale,
             new Vector2(row, col),

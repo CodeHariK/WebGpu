@@ -1,4 +1,5 @@
-import { Vector2 } from "three"
+import { Vector2, Vector3 } from "three"
+import { createTerrainHeight, strategySearch } from "./terrain"
 
 class Circle {
     pos: Vector2 = new Vector2()
@@ -7,6 +8,7 @@ class Circle {
     endAngle: number
     usedTangent?: Vector2
     color: string
+    tangent: { start: Vector2; end: Vector2 }
 
     constructor(x: number, y: number, radius: number, color: string) {
         this.pos.x = x
@@ -475,7 +477,13 @@ export class Track {
     }
 
     // Function to choose a valid tangent (does not reuse the previous one)
-    chooseValidTangent(tangents: any[], usedTangent?: Vector2) {
+    chooseValidTangent(
+        tangents: {
+            start: Vector2;
+            end: Vector2;
+        }[],
+        usedTangent?: Vector2
+    ) {
         for (let tangent of tangents) {
             if (usedTangent && (tangent.start.x === usedTangent.x && tangent.start.y === usedTangent.y)) {
                 continue; // Skip if it's the same as the previous tangent's start point
@@ -505,6 +513,7 @@ export class Track {
 
             // Choose a tangent that doesn't reuse the previous point
             let tangent = this.chooseValidTangent(tangents, curr.usedTangent);
+            curr.tangent = tangent
             if (!tangent) {
                 console.log('No Tangent');
                 return;
@@ -530,9 +539,6 @@ export class Track {
             // Mark the tangent as used for the next circle
             curr.usedTangent = tangent.start; // Store the start point of the tangent
             next.usedTangent = tangent.end; // Ensure a different tangent for the next circle
-
-            // const lineSamples = this.canvas.sampleLine(tangent.start, tangent.end, this.sampleDistance)
-            // this.samples.push(...lineSamples)
         }
 
         {
@@ -552,12 +558,17 @@ export class Track {
 
             const arcSamples = this.canvas.sampleArc(curr.pos, curr.radius, angleStart, angleEnd, this.sampleDistance)
             this.samples.push(...arcSamples)
+
+            const lineSamples = this.canvas.sampleLine(curr.tangent.start, curr.tangent.end, this.sampleDistance)
+            this.samples.push(...lineSamples)
+
         }
 
         if (this.debugDraw) {
             for (let i = 0; i < this.samples.length; i++) {
                 let dirpoint = this.samples[i]
                 this.canvas.drawCircle(dirpoint.pos, 2, true, 1, 'rgb(30,30,30)', null)
+                this.canvas.drawLine(dirpoint.pos, dirpoint.pos.clone().add(dirpoint.dir.clone().multiplyScalar(10)), 1, `rgb(100,0,0)`)
                 this.canvas.drawText(`${i}`, dirpoint.pos, 12, 'rgb(30,30,30)')
             }
         }
@@ -642,7 +653,7 @@ export class Track {
 
 const track = new Track(
     500, 500,
-    3,
+    8,
     20, 50,
     10, 240,
     0,
@@ -651,3 +662,251 @@ const track = new Track(
     true
 );
 let raceTrackHeights = track.canvas.getImageData(true)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function visualizeHeightMap(
+    heightMap: Array<number> | Float32Array<ArrayBufferLike>,
+    width: number,
+    height: number,
+    blur: number = 0,
+    contour: boolean = false,
+    grad?: (c: number) => { r: number; g: number; b: number; }
+): ImageData {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+        console.error('Unable to get 2D context.');
+        return;
+    }
+
+    // Set canvas dimensions
+    canvas.width = width;
+    canvas.height = height;
+
+    // Create ImageData
+    const imageData = ctx.createImageData(width, height);
+    const data = imageData.data; // Pixel data array (RGBA)
+
+    // Map the heightMap values to RGBA
+    for (let i = 0; i < heightMap.length; i++) {
+        const normalizedValue = Math.floor((heightMap[i] + 1) * 127.5);
+
+        if (grad) {
+            let c = grad(heightMap[i])
+            // Fill RGBA channels for the pixel
+            data[i * 4] = c.r; // Red
+            data[i * 4 + 1] = c.g; // Green
+            data[i * 4 + 2] = c.b; // Blue
+        } else {
+            data[i * 4] = normalizedValue; // Red
+            data[i * 4 + 1] = normalizedValue; // Green
+            data[i * 4 + 2] = normalizedValue; // Blue
+        }
+        data[i * 4 + 3] = 255; // Alpha
+    }
+
+    // Create a temporary canvas to hold the ImageData
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = imageData.width;
+    tempCanvas.height = imageData.height;
+    const tempCtx = tempCanvas.getContext('2d');
+
+    // Put the ImageData onto the temporary canvas
+    tempCtx.putImageData(imageData, 0, 0);
+
+    // Apply the filter and draw the temporary canvas onto the final scaled canvas
+    ctx.filter = `blur(${blur}px)`;
+
+    // If no scaling, just put the original ImageData on the canvas
+    ctx.drawImage(tempCanvas, 0, 0);
+
+    if (contour) {
+
+        let newImageData = ctx.getImageData(0, 0, imageData.width, imageData.height)
+        for (let row = 0; row < imageData.height; row++) {
+            for (let col = 0; col < imageData.width; col++) {
+                let index = row * imageData.width * 4 + col * 4
+                let d = newImageData.data[index] - imageData.data[index] != 0 ? 100 : 0
+                newImageData.data[index] = d; // Red
+                newImageData.data[index + 1] = d; // Green
+                newImageData.data[index + 2] = d; // Blue
+            }
+        }
+        ctx.putImageData(newImageData, 0, 0);
+    }
+
+
+    // Append the canvas to the body
+    document.body.appendChild(canvas);
+
+    return ctx.getImageData(0, 0, imageData.width, imageData.height)
+}
+
+
+const noiseScale = 1
+const lowresSegments = 400
+const highresSegments = 40
+const s = 10
+const scale = new Vector3(s, 1.5, s)
+
+let rows = 1, cols = 1
+
+let lowresHeightMap = new Array<number>(rows * cols * lowresSegments * lowresSegments).fill(.5)
+
+let biomeSize = 400
+let biomeMap = createTerrainHeight(
+    biomeSize,
+    scale,
+    new Vector2(0, 0),
+    [
+        { seed: 1700 * Math.random(), noiseScale: 0.1 },
+    ],
+    'ADDITIVE'
+)
+let biomeFunction = strategySearch(-.5, -.1, .5)
+let biomeImageData = visualizeHeightMap(biomeMap, biomeSize, biomeSize, 2, true, biomeFunction);
+
+console.log(biomeMap)
+
+for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+
+        let strategy: 'MIN' | 'MAX' | 'ADDITIVE' = 'ADDITIVE'
+
+        let lowresHeights = createTerrainHeight(
+            lowresSegments,
+            scale,
+            new Vector2(row, col),
+            [
+                { seed: 17, noiseScale },
+                { seed: 1700, noiseScale },
+                { seed: 17000, noiseScale },
+            ],
+            'ADDITIVE',
+            biomeMap,
+            biomeFunction,
+        )
+
+        for (let i = 0; i < lowresSegments; i++) {
+            for (let j = 0; j < lowresSegments; j++) {
+                lowresHeightMap[
+                    col * lowresSegments + i +
+                    (cols * lowresSegments) * (row * lowresSegments + j - 1)
+                ] = lowresHeights[i + j * lowresSegments];
+            }
+        }
+    }
+}
+
+
+
+const width = lowresSegments * cols; // Overall width
+const height = lowresSegments * rows; // Overall height
+
+let heightMapImageData = visualizeHeightMap(lowresHeightMap, width, height);
+
+
+function maskBlurImageData(srcImageData: ImageData, maskImageData: ImageData, radius: number) {
+    const width = srcImageData.width;
+    const height = srcImageData.height;
+
+    const srcData = srcImageData.data;
+    const maskData = maskImageData.data;
+    const resultImageData = new ImageData(width, height);
+    const resultData = resultImageData.data;
+
+    // Helper function: Apply a box blur around a pixel
+    function getBlurredValue(x, y, channel) {
+        let sum = 0, count = 0;
+
+        for (let dy = -radius; dy <= radius; dy++) {
+            for (let dx = -radius; dx <= radius; dx++) {
+                const nx = x + dx;
+                const ny = y + dy;
+
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    const index = (ny * width + nx) * 4 + channel;
+                    sum += srcData[index];
+                    count++;
+                }
+            }
+        }
+
+        return count > 0 ? sum / count : 0;
+    }
+
+    // Iterate through each pixel
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const index = (y * width + x) * 4;
+
+            // Check the mask value
+            const mask = maskData[index]; // Using red channel of mask
+            if (mask > 0) {
+                // Apply blur only if the mask is active
+                for (let channel = 0; channel < 3; channel++) { // R, G, B channels
+                    resultData[index + channel] = getBlurredValue(x, y, channel);
+                }
+            } else {
+                // Use original source value if mask is not active
+                for (let channel = 0; channel < 3; channel++) { // R, G, B channels
+                    resultData[index + channel] = srcData[index + channel];
+                }
+            }
+
+            // Set alpha channel to fully opaque
+            resultData[index + 3] = 255;
+        }
+    }
+
+    return resultImageData;
+}
+
+const blendedImageData = maskBlurImageData(heightMapImageData, biomeImageData, 5);
+
+const showImageData = (imageData: ImageData) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+        console.error('Unable to get 2D context.');
+        return;
+    }
+
+    // Set canvas dimensions
+    canvas.width = width;
+    canvas.height = height;
+
+    ctx.putImageData(imageData, 0, 0);
+
+    // Append the canvas to the body
+    document.body.appendChild(canvas);
+}
+
+showImageData(blendedImageData)
+
+// // main.ts
+// type WorkerResponse = {
+//     result: number;
+// };
+
+// const worker = new Worker(new URL('./worker.ts', import.meta.url));
+
+// worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
+//     console.log('Result from worker:', event.data.result);
+// };
+
+// worker.postMessage({ type: 'multiply', payload: 21 });
