@@ -6,18 +6,18 @@ export const CAR_TOY_CAR = (game: Game): Car => {
     return new Car(
         game,
 
-        new Vector3(0, 4, 0),
+        new Vector3(0, 15, 0),
 
-        2000,
+        3000,
         3000,
         500,
         'FWD',
 
         100,
 
-        .8,
-        6,
-        .2,
+        1,
+        10,
+        .1,
 
         1,
         2,
@@ -30,7 +30,7 @@ export const CAR_TOY_CAR = (game: Game): Car => {
 
         20,
         16,
-        12,
+        20,
     )
 }
 

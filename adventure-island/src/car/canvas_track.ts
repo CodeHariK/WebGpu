@@ -32,8 +32,9 @@ export class Canvas {
     canvasElement: HTMLCanvasElement;
     context: CanvasRenderingContext2D;
 
-    constructor(width: number, height: number) {
+    constructor(width: number, height: number, id: string, append: boolean) {
         this.canvasElement = document.createElement('canvas') as HTMLCanvasElement;
+        this.canvasElement.id = id
         this.canvasElement.width = width;
         this.canvasElement.height = height;
         this.context = this.canvasElement.getContext('2d')!;
@@ -42,7 +43,9 @@ export class Canvas {
             throw new Error('Failed to get 2D rendering context');
         }
 
-        document.body.appendChild(this.canvasElement);
+        if (append) {
+            document.getElementById('ui').appendChild(this.canvasElement);
+        }
     }
 
     width(): number {
@@ -52,19 +55,8 @@ export class Canvas {
         return this.canvasElement.height
     }
 
-    getImageData(normalized: boolean): Float32Array<ArrayBuffer> {
-        const data = new Array<number>(this.canvasElement.width * this.canvasElement.height)
-        const img = this.context.getImageData(0, 0, this.canvasElement.width, this.canvasElement.height).data
-
-        for (let i = 0; i < this.canvasElement.width * this.canvasElement.height; i++) {
-            if (normalized) {
-                data[i] = img[4 * i] / 255
-            } else {
-                data[i] = img[4 * i]
-            }
-        }
-
-        return new Float32Array(data)
+    getImageData(): ImageData {
+        return this.context.getImageData(0, 0, this.canvasElement.width, this.canvasElement.height)
     }
 
     clearRect() {
@@ -193,6 +185,39 @@ export class Canvas {
         this.context.fillRect(topLeft.x, topLeft.y, width, height);
     }
 
+    drawTriangle(center: Vector2, dw: number, dh: number, rotation: number, lineWidth: number, color: string): void {
+        const ctx = this.context;
+
+        // Save the context state
+        ctx.save();
+
+        // Translate to the triangle's center
+        ctx.translate(center.x, center.y);
+
+        // Rotate the context
+        ctx.rotate(rotation);
+
+        // Set styles
+        ctx.fillStyle = color;
+        ctx.lineWidth = lineWidth;
+
+        // Draw the triangle
+        ctx.beginPath();
+        ctx.moveTo(0, -dh); // Top vertex
+        ctx.lineTo(-dw, dh); // Bottom-left vertex
+        ctx.lineTo(dw, dh); // Bottom-right vertex
+        ctx.closePath();
+
+        // Fill and stroke the triangle
+        ctx.fill();
+        if (lineWidth) {
+            ctx.stroke();
+        }
+
+        // Restore the context state
+        ctx.restore();
+    }
+
     drawEllipse(center: Vector2, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number, lineWidth: number, color: string): void {
         this.context.beginPath();
         this.context.ellipse(center.x, center.y, radiusX, radiusY, rotation, startAngle, endAngle);
@@ -235,7 +260,7 @@ export class Track {
 
     constructor(width: number, height: number, numCircle: number, minRadius: number, maxRadius: number, trackWidth: number, trackColor255: number, blur: number, sampleDistance: number, gridSize: number, debugDraw: boolean) {
 
-        this.canvas = new Canvas(width, height)
+        this.canvas = new Canvas(width, height, 'Track', this.debugDraw)
 
         this.canvas.blur(blur)
 
@@ -651,22 +676,6 @@ export class Track {
     }
 }
 
-const track = new Track(
-    500, 500,
-    8,
-    20, 50,
-    10, 240,
-    0,
-    25,
-    10,
-    true
-);
-let raceTrackHeights = track.canvas.getImageData(true)
-
-
-
-
-
 
 
 
@@ -750,34 +759,32 @@ function visualizeHeightMap(
 
 
     // Append the canvas to the body
-    document.body.appendChild(canvas);
+    // document.getElementById('ui').appendChild(canvas);
 
     return ctx.getImageData(0, 0, imageData.width, imageData.height)
 }
 
 
-const noiseScale = 1
+const noiseScale = .4
 const lowresSegments = 400
-const highresSegments = 40
 const s = 10
-const scale = new Vector3(s, 1.5, s)
+const scale = new Vector3(s, 1, s)
 
 let rows = 1, cols = 1
 
 let lowresHeightMap = new Array<number>(rows * cols * lowresSegments * lowresSegments).fill(.5)
 
-let biomeSize = 400
 let biomeMap = createTerrainHeight(
-    biomeSize,
+    lowresSegments,
     scale,
     new Vector2(0, 0),
     [
-        { seed: 1700 * Math.random(), noiseScale: 0.1 },
+        { seed: 1700, noiseScale: 0.1 },
     ],
     'ADDITIVE'
 )
 let biomeFunction = strategySearch(-.5, -.1, .5)
-let biomeImageData = visualizeHeightMap(biomeMap, biomeSize, biomeSize, 2, true, biomeFunction);
+let biomeImageData = visualizeHeightMap(biomeMap, lowresSegments, lowresSegments, 2, true, biomeFunction);
 
 console.log(biomeMap)
 
@@ -875,28 +882,44 @@ function maskBlurImageData(srcImageData: ImageData, maskImageData: ImageData, ra
     return resultImageData;
 }
 
+const MaskCanvas = new Canvas(width, height, 'MaskCanvas', false)
 const blendedImageData = maskBlurImageData(heightMapImageData, biomeImageData, 5);
+MaskCanvas.context.putImageData(blendedImageData, 0, 0)
 
-const showImageData = (imageData: ImageData) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+const track = new Track(
+    lowresSegments, lowresSegments,
+    8,
+    20, 50,
+    10,
+    150,
+    0,
+    25,
+    10,
+    false
+);
+let raceTrackHeights = track.canvas.getImageData()
 
-    if (!ctx) {
-        console.error('Unable to get 2D context.');
-        return;
+export const RaceTrackBlendCanvas = new Canvas(width, height, 'RaceTrackBlendCanvas', true)
+const raceTrackBlendedImageData = maskBlurImageData(blendedImageData, raceTrackHeights, 5);
+RaceTrackBlendCanvas.context.putImageData(raceTrackBlendedImageData, 0, 0)
+
+function mapImageDataRange(imageData: ImageData, h: number) {
+    const data = imageData.data;
+    const result = new Float32Array(data.length / 4); // Use Float32Array for the mapped data
+
+    for (let i = 0; i < data.length; i++) {
+        // Map each value from [0, 255] to [-h, h]
+        result[i] = (data[i * 4] / 255) * (2 * h) - h;
     }
 
-    // Set canvas dimensions
-    canvas.width = width;
-    canvas.height = height;
-
-    ctx.putImageData(imageData, 0, 0);
-
-    // Append the canvas to the body
-    document.body.appendChild(canvas);
+    return result;
 }
 
-showImageData(blendedImageData)
+export const raceTrackMap = mapImageDataRange(raceTrackBlendedImageData, .5)
+
+
+export const RaceTrackMinimapCanvas = new Canvas(200, 200, 'RaceTrackMinimapCanvas', false)
+RaceTrackMinimapCanvas.canvasElement.style.borderRadius = '50%'
 
 // // main.ts
 // type WorkerResponse = {

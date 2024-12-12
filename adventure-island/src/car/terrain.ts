@@ -131,6 +131,10 @@ export function createTerrainHeight(
                         heights[i * segments + j] += fnNoise2D(worldX, worldY)
                     }
                 }
+
+                if (n == seedNoises.length - 1) {
+                    heights[i * segments + j] /= scale.y
+                }
             }
         }
     }
@@ -154,15 +158,15 @@ export function createTerrain(game: Game,
     game.WORLD.createCollider(groundColliderDesc, groundBody);
 
     let lowresObject = genHeightfieldGeometry(lowresHeights, lowresSegments - 1, scale);
-    let highresObject = genHeightfieldGeometry(highresHeights, highresSegments - 1, scale);
+    // let highresObject = genHeightfieldGeometry(highresHeights, highresSegments - 1, scale);
 
     let lowresGround = generateTerrainMesh(lowresObject)
-    let highresGround = generateTerrainMesh(highresObject)
+    // let highresGround = generateTerrainMesh(highresObject)
 
     let lod = new THREE.LOD()
     lod.position.set(position.x, position.y, position.z)
     lod.addLevel(lowresGround, 2 * scale.x);
-    lod.addLevel(highresGround, 0);
+    // lod.addLevel(highresGround, 0);
 
     game.SCENE.add(lod)
     game.LODS.push(lod)

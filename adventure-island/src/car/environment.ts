@@ -24,10 +24,10 @@ export function createGround(game: Game, width: number, height: number, position
     ground.position.set(position.x, position.y, position.z)
 }
 
-export function spawnRandomObject(game: Game, width: number, height: number) {
+export function spawnRandomObject(game: Game, scale: THREE.Vector3) {
 
     if (Math.random() < 0.2) {
-        createRamp(game, 5, 5, 10, new THREE.Vector3((Math.random() - 0.5) * width, 0, (Math.random() - 0.5) * height));
+        createRamp(game, 5, 5, 10, new THREE.Vector3((Math.random() - 0.5) * scale.x, 0, (Math.random() - 0.5) * scale.z));
         return
     }
 
@@ -41,11 +41,7 @@ export function spawnRandomObject(game: Game, width: number, height: number) {
     const mesh = new THREE.Mesh(geometry, material);
 
     // Random spawn position above terrain
-    mesh.position.set(
-        (Math.random() - 0.5) * width, // X
-        20 + Math.random() * 10,   // Y (above terrain)
-        (Math.random() - 0.5) * height // Z
-    );
+    mesh.position.set((Math.random() - 0.5) * scale.x, scale.y, (Math.random() - 0.5) * scale.y);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
 

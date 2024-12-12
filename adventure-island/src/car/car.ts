@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as RAPIER from '@dimforge/rapier3d';
-import { Physics, rVecAdd, rVec, rVecMag, rVecString, rVecScale, rVecSub, rVecDot, rVecAddd, UNIT_YN, UNIT_Z, ZERO, UNIT_X, UNIT_XN, clamp, rQuat, rVecMul, rVecXZ } from './physics';
+import { Physics, rVecAdd, rVec, rVecMag, rVecString, rVecScale, rVecSub, rVecDot, rVecAddd, UNIT_YN, UNIT_Z, ZERO, UNIT_X, UNIT_XN, clamp, rQuat, rVecMul, rVecXZ, UNIT_Y } from './physics';
 import { Keyboard } from './input';
 import { AddLabel, createCheckbox, hudUpdate } from './ui';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
@@ -149,7 +149,7 @@ export class Car {
 
         this.wheelRadius = wheelRadius
         this.suspensionLength = suspensionLength
-        this.suspensionStiffness = (this.mass * 10 * suspensionStiffness) / (this.suspensionLength * 4)
+        this.suspensionStiffness = (this.mass * 1.2 * Game.gravity * suspensionStiffness) / (this.suspensionLength * 4)
         this.suspensionDamping = this.suspensionStiffness * clamp(suspensionDamping, .1, .9)
 
         this.position = position
@@ -384,22 +384,13 @@ export class Car {
             this.updateUI(game, wheel)
         }
 
-        {
-            const currentUp = new THREE.Vector3(0, 1, 0).applyQuaternion(this.rotation);
-            let angleX = Math.atan2(currentUp.z, currentUp.y); // Rotation in X-axis
-            let angleZ = 0//Math.atan2(currentUp.x, currentUp.y); // Rotation in Z-axis
+        if (this.wheelContact == 0) {
 
-            // console.log(
-            //     angleX.toFixed(2),
-            //     angleZ.toFixed(2),
-            //     THREE.MathUtils.radToDeg(angleX).toFixed(2),
-            //     THREE.MathUtils.radToDeg(angleZ).toFixed(2),
-            //     this.airborne,
-            //     rVecString(currentUp),
-            // )
+            let angleX = Math.atan2(-Car_YN_Local_Down.z, -Car_YN_Local_Down.y); // Rotation in X-axis
+            let angleZ = Math.atan2(-Car_YN_Local_Down.x, - Car_YN_Local_Down.y); // Rotation in Z-axis
 
-            const torqueX = -angleX * 30;
-            const torqueZ = -angleZ * 1;
+            const torqueX = -angleX * 40;
+            const torqueZ = angleZ * 40;
 
             this.rigidBody.applyTorqueImpulse({ x: torqueX, y: 0, z: torqueZ }, true);
         }
@@ -407,20 +398,20 @@ export class Car {
         {
             if (Keyboard.keys.JUMP && this.wheelContact >= 2) {
                 this.rigidBody.addForceAtPoint(
-                    new THREE.Vector3(0, this.mass * 80, 0),
+                    new THREE.Vector3(0, this.mass * Game.gravity * 16, 0),
                     this.position,
                     true
                 );
             }
             if (Keyboard.keys.FLY) {
                 this.rigidBody.addForceAtPoint(
-                    new THREE.Vector3(0, this.mass * 40, 0),
+                    new THREE.Vector3(0, this.mass * Game.gravity * 2, 0),
                     this.position,
                     true
                 );
             }
             if (this.wheelContact == 0) {
-                let force = rVecScale(Car_Z_Local_Forward, 40 * this.mass)
+                let force = rVecScale(Car_Z_Local_Forward, 20 * this.mass)
                 this.rigidBody.addForceAtPoint(
                     rVecAddd([
                         Keyboard.keys.Up ? force : ZERO(),
@@ -434,7 +425,7 @@ export class Car {
 
         {
             // if (Keyboard.keys.Left || Keyboard.keys.Right) {
-            this.rigidBody.setLinearDamping(.4 + this.wheelContact / 2); // Simulate resistance to motion
+            this.rigidBody.setLinearDamping(1 + this.wheelContact); // Simulate resistance to motion
             this.rigidBody.setAngularDamping(6 + this.wheelContact / 2); // Stabilize rotation
             // }
         }
@@ -446,7 +437,6 @@ export class Car {
         let velocityRatio = (velocityMag) / (this.accelerationForce / this.mass)
         let steeringMultiplier = 1// this.wheelContact == 0 ? 1 : Math.abs(1 - Math.pow(1 - 2.1 * velocityRatio, 2) / 2)
         let steeringTorque = this.steeringTorque * steeringMultiplier
-        console.log(steeringTorque)
 
         if ((Keyboard.keys.Left && Keyboard.keys.Up) || (Keyboard.keys.Right && Keyboard.keys.Down)) {
             this.rigidBody.applyTorqueImpulse(new RAPIER.Vector3(0, steeringTorque, 0), true);

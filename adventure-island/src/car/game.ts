@@ -4,12 +4,12 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { CreateCSS2dRenderer, hudClear as updateHUDClear } from './ui';
 import RAPIER from '@dimforge/rapier3d';
-import { rVecString } from './physics';
+import Stats from 'three/addons/libs/stats.module.js'
 
 class RapierDebugRenderer {
     mesh: THREE.LineSegments
     world: RAPIER.World
-    enabled = true
+    enabled = false
 
     constructor(scene: THREE.Scene, world: RAPIER.World) {
         this.world = world
@@ -58,7 +58,9 @@ export class Game {
 
     SCENE: THREE.Scene
 
-    WORLD = new RAPIER.World(new THREE.Vector3(0, -9.81, 0)); // Gravity
+    static gravity = 30
+
+    WORLD = new RAPIER.World(new THREE.Vector3(0, -Game.gravity, 0)); // Gravity
 
     RENDERER: THREE.WebGLRenderer
 
@@ -77,7 +79,11 @@ export class Game {
 
     CLOCK = new THREE.Clock()
 
+    stats = new Stats()
+
     constructor() {
+
+        document.body.appendChild(this.stats.dom)
 
         let scene = new THREE.Scene();
 
@@ -175,9 +181,11 @@ export class Game {
         // Step the physics world
         this.WORLD.step();
 
+        this.RENDERER.render(this.SCENE, this.CAMERA);
+
         this.rapierDebugRenderer.update()
 
-        this.RENDERER.render(this.SCENE, this.CAMERA);
+        this.stats.update()
     }
 
     initSky() {
