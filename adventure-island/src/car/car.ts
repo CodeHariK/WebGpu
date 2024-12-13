@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import * as RAPIER from '@dimforge/rapier3d';
-import { Physics, rVecAdd, rVec, rVecMag, rVecString, rVecScale, rVecSub, rVecDot, rVecAddd, UNIT_YN, UNIT_Z, ZERO, UNIT_X, UNIT_XN, clamp, rQuat, rVecMul, rVecXZ, UNIT_Y } from './physics';
+import { Physics, rVecAdd, rVec, rVecString, rVecScale, rVecDot, rVecAddd, UNIT_YN, UNIT_Z, ZERO, UNIT_XN, clamp, rVecXZ } from './physics';
 import { Keyboard } from './input';
 import { AddLabel, createCheckbox, hudUpdate } from './ui';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
@@ -389,8 +389,8 @@ export class Car {
             let angleX = Math.atan2(-Car_YN_Local_Down.z, -Car_YN_Local_Down.y); // Rotation in X-axis
             let angleZ = Math.atan2(-Car_YN_Local_Down.x, - Car_YN_Local_Down.y); // Rotation in Z-axis
 
-            const torqueX = -angleX * 40;
-            const torqueZ = angleZ * 40;
+            const torqueX = -angleX * Math.abs(angleX) * 40;
+            const torqueZ = angleZ * Math.abs(angleZ) * 40;
 
             this.rigidBody.applyTorqueImpulse({ x: torqueX, y: 0, z: torqueZ }, true);
         }

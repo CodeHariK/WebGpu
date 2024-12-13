@@ -5,6 +5,10 @@ import { Hello_Shader } from './hello';
 import { Normal_Shader } from './normal';
 import { Triplanar_Shader } from './triplanar';
 import { Height_Shader } from './height';
+import { UV_Shader } from './uv';
+import { Phong_Shader } from './phong';
+import { BlinnPhong_Shader } from './blinnphong';
+import { TextureSample_Shader } from './texturesample';
 
 
 const scene = new THREE.Scene();
@@ -39,10 +43,14 @@ normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
 
 
 // const shaderMaterial = Hello_Shader
-const shaderMaterial = Height_Shader
+// const shaderMaterial = Height_Shader
 // const shaderMaterial = Triplanar_Shader
 // const shaderMaterial = Normal_Shader
 // const shaderMaterial = Diffuse_Shader
+// const shaderMaterial = UV_Shader
+// const shaderMaterial = Phong_Shader
+// const shaderMaterial = BlinnPhong_Shader
+const shaderMaterial = TextureSample_Shader
 
 
 
@@ -55,9 +63,11 @@ const shaderMaterial = Height_Shader
 const plane = new THREE.Mesh(planeGeometry, shaderMaterial);
 scene.add(plane);
 
+const axesHelper = new THREE.AxesHelper(1.2);
+plane.add(axesHelper);
 
 const sphereDiffuse = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), shaderMaterial);
-sphereDiffuse.position.set(0, 0, 0)
+sphereDiffuse.position.set(2, 0, 0)
 scene.add(sphereDiffuse);
 
 

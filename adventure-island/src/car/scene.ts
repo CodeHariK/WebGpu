@@ -1,7 +1,7 @@
 import { Keyboard } from './input';
 import { Game } from './game';
 import { Car } from './car';
-import { AxesHelper, Mesh, Vector3, CatmullRomCurve3, Line, LineBasicMaterial, BufferGeometry, BufferAttribute, MeshStandardMaterial, Vector2, MathUtils } from 'three';
+import { AxesHelper, Mesh, Vector3, CatmullRomCurve3, Line, LineBasicMaterial, BufferGeometry, BufferAttribute, MeshStandardMaterial, Vector2, MathUtils, PlaneGeometry, MeshPhysicalMaterial, LinearMipMapLinearFilter, LinearFilter, RepeatWrapping, TextureLoader } from 'three';
 import { createTerrainHeight, createTerrain } from './terrain';
 import { createGround, spawnRandomObject } from './environment';
 import { CARMODELS, loadCar } from './model';
@@ -12,6 +12,7 @@ import { ColliderDesc, RigidBodyDesc } from '@dimforge/rapier3d';
 import { UNIT_Z } from './physics';
 
 let game = new Game()
+
 
 new Keyboard()
 
@@ -30,9 +31,9 @@ createTerrain(game,
     new Vector3(0, scale.y / 2, 0)
 )
 
-for (let i = 0; i < 40; i++) {
-    spawnRandomObject(game, new Vector3(s, 30, s));
-}
+// for (let i = 0; i < 40; i++) {
+//     spawnRandomObject(game, new Vector3(s, 30, s));
+// }
 
 const car = CAR_TOY_CAR(game);
 

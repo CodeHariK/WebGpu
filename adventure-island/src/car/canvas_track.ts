@@ -288,7 +288,7 @@ export class Track {
                 this.drawTrack()
                 break
             } catch (error) {
-                console.log(numTry)
+                // console.log(numTry)
             }
         }
 
@@ -785,8 +785,6 @@ let biomeMap = createTerrainHeight(
 )
 let biomeFunction = strategySearch(-.5, -.1, .5)
 let biomeImageData = visualizeHeightMap(biomeMap, lowresSegments, lowresSegments, 2, true, biomeFunction);
-
-console.log(biomeMap)
 
 for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {

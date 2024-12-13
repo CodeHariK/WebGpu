@@ -1,10 +1,13 @@
 import * as THREE from 'three';
+(window as any).THREE = THREE; // Expose THREE globally
+
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { Sky } from 'three/addons/objects/Sky.js';
 import { CreateCSS2dRenderer, hudClear as updateHUDClear } from './ui';
 import RAPIER from '@dimforge/rapier3d';
 import Stats from 'three/addons/libs/stats.module.js'
+import { TextureSample_Shader } from '../shaders/texturesample';
 
 class RapierDebugRenderer {
     mesh: THREE.LineSegments
@@ -84,6 +87,7 @@ export class Game {
     constructor() {
 
         document.body.appendChild(this.stats.dom)
+        this.stats.dom.style.left = '50%';
 
         let scene = new THREE.Scene();
 
@@ -184,6 +188,11 @@ export class Game {
         this.RENDERER.render(this.SCENE, this.CAMERA);
 
         this.rapierDebugRenderer.update()
+
+
+
+        TextureSample_Shader.uniforms.uCameraPosition.value = this.CAMERA.position;
+
 
         this.stats.update()
     }

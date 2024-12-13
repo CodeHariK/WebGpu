@@ -5,6 +5,9 @@ import { createNoise2D } from '../libs/simplex-noise';
 import RAPIER from '@dimforge/rapier3d';
 
 import { Game } from './game';
+import { UV_Shader } from '../shaders/uv';
+import { Height_Shader } from '../shaders/height';
+import { TextureSample_Shader } from '../shaders/texturesample';
 
 function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: number, scale: RAPIER.Vector3) {
 
@@ -13,6 +16,7 @@ function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: nu
 
     let vertices = [];
     let indices = [];
+    const uvs = [];
     let eltWX = 1.0 / segments;
     let eltWY = 1.0 / segments;
 
@@ -25,6 +29,10 @@ function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: nu
             let z = (i * eltWY - 0.5) * scale.z;
 
             vertices.push(x, y, z);
+
+            const u = (j * scale.x / ncols); // Horizontal coordinate (0 to 1)
+            const v = (i * scale.z / nrows); // Vertical coordinate (0 to 1)
+            uvs.push(u, v);
         }
     }
 
@@ -35,14 +43,15 @@ function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: nu
             let i3 = (i + 1) * (ncols + 1) + (j + 0);
             let i4 = (i + 1) * (ncols + 1) + (j + 1);
 
-            indices.push(i1, i3, i2);
-            indices.push(i3, i4, i2);
+            indices.push(i1, i2, i3);
+            indices.push(i3, i2, i4);
         }
     }
 
     return {
         vertices: new Float32Array(vertices),
         indices: new Uint32Array(indices),
+        uvs: new Float32Array(uvs),
     };
 }
 
@@ -176,25 +185,52 @@ let generateTerrainMesh = (
     object: {
         vertices: Float32Array<ArrayBuffer>;
         indices: Uint32Array<ArrayBuffer>;
+        uvs: Float32Array<ArrayBuffer>;
     }
 ) => {
 
-    let material = new THREE.MeshPhongMaterial({
-        color: 0x888888,
-        side: THREE.DoubleSide,
-        flatShading: true,
+    const textureLoader = new THREE.TextureLoader();
+
+    const diffuseTexture = textureLoader.load('src/assets/texture/sand/Stylized_Sand_001_basecolor.jpg');
+    const normalMap = textureLoader.load('src/assets/texture/sand/Stylized_Sand_001_normal.jpg');
+
+    diffuseTexture.wrapS = THREE.RepeatWrapping;
+    diffuseTexture.wrapT = THREE.RepeatWrapping;
+    normalMap.wrapS = THREE.RepeatWrapping;
+    normalMap.wrapT = THREE.RepeatWrapping;
+
+    diffuseTexture.minFilter = THREE.LinearMipMapLinearFilter;
+    diffuseTexture.magFilter = THREE.LinearFilter;
+    normalMap.minFilter = THREE.LinearMipMapLinearFilter;
+    normalMap.magFilter = THREE.LinearFilter;
+
+    let material = new THREE.MeshPhysicalMaterial({
+        // color: 0xd7b5a0,
+        // side: THREE.DoubleSide,
+        flatShading: false,
         // wireframe: true,
+        map: diffuseTexture,
+        // normalMap: normalMap,
     });
 
-    let higresGeometry = new THREE.BufferGeometry();
-    higresGeometry.setIndex(Array.from(object.indices));
-    higresGeometry.setAttribute(
+    let geometry = new THREE.BufferGeometry();
+    geometry.setIndex(Array.from(object.indices));
+    geometry.setAttribute(
         "position",
         new THREE.BufferAttribute(object.vertices, 3),
     );
-    let ground = new THREE.Mesh(higresGeometry, material);
+    geometry.setAttribute(
+        "uv",
+        new THREE.BufferAttribute(object.uvs, 2) // 2 components per UV coordinate (u, v)
+    );
+
+    // let ground = new THREE.Mesh(geometry, material);
+    // let ground = new THREE.Mesh(geometry, UV_Shader);
+    let ground = new THREE.Mesh(geometry, TextureSample_Shader);
+    // let ground = new THREE.Mesh(geometry, Height_Shader(0, 10));
+
     ground.receiveShadow = true;
-    higresGeometry.attributes.position.needsUpdate = true;
-    higresGeometry.computeVertexNormals();
+    geometry.attributes.position.needsUpdate = true;
+    geometry.computeVertexNormals();
     return ground
 }
