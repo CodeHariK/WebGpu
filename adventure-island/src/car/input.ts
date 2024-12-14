@@ -9,6 +9,8 @@ export class Keyboard {
     JUMP = false;
     FLY = false;
 
+    MAP = false;
+
     static keys: Keyboard;
 
     // Static key-to-action mapping
@@ -32,6 +34,8 @@ export class Keyboard {
 
         KeyJ: 'JUMP',
         KeyF: 'FLY',
+
+        KeyM: 'MAP',
     };
 
     constructor() {
@@ -40,6 +44,11 @@ export class Keyboard {
             const action = Keyboard.keyMap[event.code];
             if (action) {
                 this[action] = true; // Update instance property
+            }
+
+            if (Keyboard.keys.MAP) {
+                let map = document.getElementById('ui').style.display
+                document.getElementById('ui').style.display = map == '' || map == 'none' ? 'inherit' : 'none'
             }
         });
 

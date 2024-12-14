@@ -8,7 +8,7 @@ export const CAR_TOY_CAR = (game: Game): Car => {
 
         new Vector3(0, 15, 0),
 
-        3000,
+        2000,
         3000,
         500,
         'FWD',
@@ -128,4 +128,4 @@ export const CAR_TURN = (game: Game): Car => {
         70,
         400,
     )
-} 
+}

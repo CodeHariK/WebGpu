@@ -363,8 +363,8 @@ export const Hello_Shader = new THREE.ShaderMaterial({
     // fragmentShader: fragmentShader7,
 
 
-    vertexShader: vertexShader0,
-    fragmentShader: fragmentShader8,
+    // vertexShader: vertexShader0,
+    // fragmentShader: fragmentShader8,
 
 
     // vertexShader: vertexShader0,

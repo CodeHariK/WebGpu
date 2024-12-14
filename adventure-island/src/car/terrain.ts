@@ -8,6 +8,7 @@ import { Game } from './game';
 import { UV_Shader } from '../shaders/uv';
 import { Height_Shader } from '../shaders/height';
 import { TextureSample_Shader } from '../shaders/texturesample';
+import { HeightTextureBlend_Shader } from '../shaders/heightTextureBlend';
 
 function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: number, scale: RAPIER.Vector3) {
 
@@ -67,7 +68,7 @@ export function strategySearch(water: number, sand: number, grass: number): (c: 
 
 export function createTerrainHeight(
     segments: number,
-    scale: THREE.Vector3,
+    size: number, flatness: number,
     position: THREE.Vector2,
     seedNoises: { seed: number, noiseScale: number }[],
     fixedStrategy: 'MIN' | 'MAX' | 'ADDITIVE',
@@ -86,6 +87,8 @@ export function createTerrainHeight(
         heights.fill(fixedStrategy == 'MIN' ? 1 : (fixedStrategy == 'MAX' ? -1 : 0))
     }
 
+    let maxHeight = 0
+
     for (let n = 0; n < seedNoises.length; n++) {
 
         // const fnNoise2D = createNoise2D(Math.random);
@@ -95,13 +98,13 @@ export function createTerrainHeight(
         };
         const fnNoise2D = createNoise2D(seededRandom);
 
-        const s = scale.x / (segments - 1)
+        const s = size / (segments - 1)
 
         for (let i = 0; i < segments; i++) {
             for (let j = 0; j < segments; j++) {
                 // Calculate the world position of each grid point
-                const worldX = seedNoises[n].noiseScale * (position.x * scale.x + i * s);
-                const worldY = seedNoises[n].noiseScale * (position.y * scale.x + j * s);
+                const worldX = seedNoises[n].noiseScale * (position.x * size + i * s);
+                const worldY = seedNoises[n].noiseScale * (position.y * size + j * s);
 
                 if (strategy && strategyFunction) {
                     let s = strategyFunction(strategy[i * segments + j]).type
@@ -142,9 +145,21 @@ export function createTerrainHeight(
                 }
 
                 if (n == seedNoises.length - 1) {
-                    heights[i * segments + j] /= scale.y
+                    maxHeight = Math.max(heights[i * segments + j], maxHeight)
                 }
             }
+        }
+    }
+
+    maxHeight = maxHeight * flatness
+
+    if (maxHeight < .1) {
+        throw Error('Less than .1')
+    }
+
+    for (let i = 0; i < segments; i++) {
+        for (let j = 0; j < segments; j++) {
+            heights[i * segments + j] /= maxHeight
         }
     }
     return heights;
@@ -224,10 +239,11 @@ let generateTerrainMesh = (
         new THREE.BufferAttribute(object.uvs, 2) // 2 components per UV coordinate (u, v)
     );
 
-    // let ground = new THREE.Mesh(geometry, material);
+    let ground = new THREE.Mesh(geometry, material);
     // let ground = new THREE.Mesh(geometry, UV_Shader);
-    let ground = new THREE.Mesh(geometry, TextureSample_Shader);
+    // let ground = new THREE.Mesh(geometry, TextureSample_Shader);
     // let ground = new THREE.Mesh(geometry, Height_Shader(0, 10));
+    // let ground = new THREE.Mesh(geometry, HeightTextureBlend_Shader(0, 10));
 
     ground.receiveShadow = true;
     geometry.attributes.position.needsUpdate = true;

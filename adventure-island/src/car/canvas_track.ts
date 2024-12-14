@@ -1,5 +1,7 @@
 import { Vector2, Vector3 } from "three"
 import { createTerrainHeight, strategySearch } from "./terrain"
+import { UNIT_Z } from "./physics"
+import { Car } from "./car"
 
 class Circle {
     pos: Vector2 = new Vector2()
@@ -258,9 +260,15 @@ export class Track {
     sampleDistance: number
     samples: DirPoint[] = []
 
-    constructor(width: number, height: number, numCircle: number, minRadius: number, maxRadius: number, trackWidth: number, trackColor255: number, blur: number, sampleDistance: number, gridSize: number, debugDraw: boolean) {
+    constructor(
+        width: number, height: number,
+        numCircle: number, minRadius: number, maxRadius: number,
+        trackWidth: number, trackColor255: number,
+        blur: number, sampleDistance: number,
+        gridSize: number, debugDraw: boolean, append: boolean,
+    ) {
 
-        this.canvas = new Canvas(width, height, 'Track', this.debugDraw)
+        this.canvas = new Canvas(width, height, 'RaceTrack', append)
 
         this.canvas.blur(blur)
 
@@ -678,18 +686,11 @@ export class Track {
 
 
 
-
-
-
-
-
-
-
 function visualizeHeightMap(
     heightMap: Array<number> | Float32Array<ArrayBufferLike>,
     width: number,
     height: number,
-    blur: number = 0,
+    blur: number = 0, blurContour: number = 0,
     contour: boolean = false,
     grad?: (c: number) => { r: number; g: number; b: number; }
 ): ImageData {
@@ -748,83 +749,27 @@ function visualizeHeightMap(
         for (let row = 0; row < imageData.height; row++) {
             for (let col = 0; col < imageData.width; col++) {
                 let index = row * imageData.width * 4 + col * 4
-                let d = newImageData.data[index] - imageData.data[index] != 0 ? 100 : 0
+                let d = newImageData.data[index] - imageData.data[index] != 0 ? 255 : 0
                 newImageData.data[index] = d; // Red
                 newImageData.data[index + 1] = d; // Green
                 newImageData.data[index + 2] = d; // Blue
             }
         }
-        ctx.putImageData(newImageData, 0, 0);
+        tempCtx.putImageData(newImageData, 0, 0);
+
+        ctx.filter = `blur(${blurContour}px)`;
+
+        ctx.drawImage(tempCanvas, 0, 0);
     }
 
 
     // Append the canvas to the body
-    // document.getElementById('ui').appendChild(canvas);
+    document.getElementById('ui').appendChild(canvas);
 
     return ctx.getImageData(0, 0, imageData.width, imageData.height)
 }
 
-
-const noiseScale = .4
-const lowresSegments = 400
-const s = 10
-const scale = new Vector3(s, 1, s)
-
-let rows = 1, cols = 1
-
-let lowresHeightMap = new Array<number>(rows * cols * lowresSegments * lowresSegments).fill(.5)
-
-let biomeMap = createTerrainHeight(
-    lowresSegments,
-    scale,
-    new Vector2(0, 0),
-    [
-        { seed: 1700, noiseScale: 0.1 },
-    ],
-    'ADDITIVE'
-)
-let biomeFunction = strategySearch(-.5, -.1, .5)
-let biomeImageData = visualizeHeightMap(biomeMap, lowresSegments, lowresSegments, 2, true, biomeFunction);
-
-for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-
-        let strategy: 'MIN' | 'MAX' | 'ADDITIVE' = 'ADDITIVE'
-
-        let lowresHeights = createTerrainHeight(
-            lowresSegments,
-            scale,
-            new Vector2(row, col),
-            [
-                { seed: 17, noiseScale },
-                { seed: 1700, noiseScale },
-                { seed: 17000, noiseScale },
-            ],
-            'ADDITIVE',
-            biomeMap,
-            biomeFunction,
-        )
-
-        for (let i = 0; i < lowresSegments; i++) {
-            for (let j = 0; j < lowresSegments; j++) {
-                lowresHeightMap[
-                    col * lowresSegments + i +
-                    (cols * lowresSegments) * (row * lowresSegments + j - 1)
-                ] = lowresHeights[i + j * lowresSegments];
-            }
-        }
-    }
-}
-
-
-
-const width = lowresSegments * cols; // Overall width
-const height = lowresSegments * rows; // Overall height
-
-let heightMapImageData = visualizeHeightMap(lowresHeightMap, width, height);
-
-
-function maskBlurImageData(srcImageData: ImageData, maskImageData: ImageData, radius: number) {
+function maskBlurImageData(srcImageData: ImageData, maskImageData: ImageData, radius: number, addMask: boolean) {
     const width = srcImageData.width;
     const height = srcImageData.height;
 
@@ -859,11 +804,11 @@ function maskBlurImageData(srcImageData: ImageData, maskImageData: ImageData, ra
             const index = (y * width + x) * 4;
 
             // Check the mask value
-            const mask = maskData[index]; // Using red channel of mask
+            let mask = maskData[index]; // Using red channel of mask
             if (mask > 0) {
                 // Apply blur only if the mask is active
                 for (let channel = 0; channel < 3; channel++) { // R, G, B channels
-                    resultData[index + channel] = getBlurredValue(x, y, channel);
+                    resultData[index + channel] = getBlurredValue(x, y, channel) // - (addMask ? mask : 0);
                 }
             } else {
                 // Use original source value if mask is not active
@@ -880,44 +825,182 @@ function maskBlurImageData(srcImageData: ImageData, maskImageData: ImageData, ra
     return resultImageData;
 }
 
-const MaskCanvas = new Canvas(width, height, 'MaskCanvas', false)
-const blendedImageData = maskBlurImageData(heightMapImageData, biomeImageData, 5);
-MaskCanvas.context.putImageData(blendedImageData, 0, 0)
-
-const track = new Track(
-    lowresSegments, lowresSegments,
-    8,
-    20, 50,
-    10,
-    150,
-    0,
-    25,
-    10,
-    false
-);
-let raceTrackHeights = track.canvas.getImageData()
-
-export const RaceTrackBlendCanvas = new Canvas(width, height, 'RaceTrackBlendCanvas', true)
-const raceTrackBlendedImageData = maskBlurImageData(blendedImageData, raceTrackHeights, 5);
-RaceTrackBlendCanvas.context.putImageData(raceTrackBlendedImageData, 0, 0)
-
 function mapImageDataRange(imageData: ImageData, h: number) {
-    const data = imageData.data;
-    const result = new Float32Array(data.length / 4); // Use Float32Array for the mapped data
+    const { width, height, data } = imageData;
+    const result = new Float32Array((data.length / 4)); // Use Float32Array for the mapped data
 
-    for (let i = 0; i < data.length; i++) {
-        // Map each value from [0, 255] to [-h, h]
-        result[i] = (data[i * 4] / 255) * (2 * h) - h;
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            // Compute the source index (unflipped)
+            const srcIndex = (y * width + x) * 4;
+            const targetIndex = (x * width + y);
+            // Map the red channel (data[srcIndex]) to [-h, h]
+            result[targetIndex] = (data[srcIndex] / 255) * (2 * h) - h;
+        }
     }
 
     return result;
 }
 
-export const raceTrackMap = mapImageDataRange(raceTrackBlendedImageData, .5)
 
+export const mapCanvasUpdate = (raceTrackMap: CanvasTrack, car: Car, scale: Vector3, segments: number, cropSize: number) => {
 
-export const RaceTrackMinimapCanvas = new Canvas(200, 200, 'RaceTrackMinimapCanvas', false)
-RaceTrackMinimapCanvas.canvasElement.style.borderRadius = '50%'
+    const Car_Z_Local_Forward = UNIT_Z().applyQuaternion(car.rotation);
+    let car_rot = Math.atan2(Car_Z_Local_Forward.z, Car_Z_Local_Forward.x);
+
+    // Calculate the car's position in the source canvas
+    const carX = car.position.x * segments / scale.x + segments / 2; // Car's X position on the source canvas
+    const carZ = car.position.z * segments / scale.x + segments / 2; // Car's Z position on the source canvas
+
+    raceTrackMap.RaceTrackBlendCanvas.drawCircle(new Vector2(carX, carZ),
+        1, true, 0, 'rgb(230,30,30)', null)
+
+    let ctx = raceTrackMap.RaceTrackMinimapCanvas.context;
+
+    // Clear the minimap canvas
+    raceTrackMap.RaceTrackMinimapCanvas.clearRect();
+
+    if (cropSize > segments) {
+        throw Error('Minimap smaller than map')
+    }
+
+    // Dimensions of the cropped area
+    const canvasWidth = raceTrackMap.RaceTrackBlendCanvas.canvasElement.width;
+    const canvasHeight = raceTrackMap.RaceTrackBlendCanvas.canvasElement.height;
+
+    // Determine the cropping area, ensuring it stays within bounds
+    let sourceX = carX - cropSize / 2;
+    let sourceY = carZ - cropSize / 2;
+
+    // Adjust if cropping area goes out of bounds
+    if (sourceX < 0) sourceX = 0;
+    if (sourceY < 0) sourceY = 0;
+    if (sourceX + cropSize > canvasWidth) sourceX = canvasWidth - cropSize;
+    if (sourceY + cropSize > canvasHeight) sourceY = canvasHeight - cropSize;
+
+    // Save the context state
+    ctx.save();
+
+    // Translate to the car's position in the minimap (center of the canvas)
+    const centerX = raceTrackMap.RaceTrackMinimapCanvas.width() / 2;
+    const centerY = raceTrackMap.RaceTrackMinimapCanvas.height() / 2;
+    ctx.translate(centerX, centerY);
+
+    // Rotate the canvas around the car's position
+    // ctx.rotate(-car_rot);
+
+    // Translate back to align the cropped area for drawing
+    ctx.translate(-centerX, -centerY);
+
+    // Draw the cropped area from the source canvas
+    ctx.drawImage(
+        raceTrackMap.RaceTrackBlendCanvas.canvasElement, // Source canvas
+        sourceX, // Adjusted source X
+        sourceY, // Adjusted source Y
+        cropSize, // Source width
+        cropSize, // Source height
+        0, // Destination X on minimap
+        0, // Destination Y on minimap
+        raceTrackMap.RaceTrackMinimapCanvas.width(), // Destination width (scales the cropped area)
+        raceTrackMap.RaceTrackMinimapCanvas.height() // Destination height
+    );
+
+    // Restore the context state
+    ctx.restore();
+
+    // Calculate the car's position within the minimap
+    const carMinimapX = carX - sourceX; // Car's X position relative to the cropped area
+    const carMinimapY = carZ - sourceY; // Car's Y position relative to the cropped area
+
+    ctx.save();
+    ctx.translate(carMinimapX * (raceTrackMap.RaceTrackMinimapCanvas.width() / cropSize), carMinimapY * (raceTrackMap.RaceTrackMinimapCanvas.height() / cropSize));
+    raceTrackMap.RaceTrackMinimapCanvas.drawTriangle(new Vector2(0, 0), 5, 8, car_rot + Math.PI / 2, 0, 'rgb(0,230,30)')
+    ctx.restore();
+}
+
+type CanvasTrack = {
+    heights: Float32Array<ArrayBuffer>;
+    track: Track;
+    RaceTrackBlendCanvas: Canvas;
+    RaceTrackMinimapCanvas: Canvas;
+}
+
+export const GenerateCanvasTrack = (size: number): CanvasTrack => {
+    const noiseScale = .4
+
+    let lowresHeightMap = new Array<number>(size * size).fill(.5)
+
+    let biomeMap = createTerrainHeight(
+        size,
+        10, 1,
+        new Vector2(0, 0),
+        [
+            { seed: 1700, noiseScale: 0.1 },
+        ],
+        'ADDITIVE'
+    )
+    let biomeFunction = strategySearch(-.5, -.1, .5)
+    let biomeImageData = visualizeHeightMap(biomeMap, size, size, 1, 4, true, biomeFunction);
+
+    {
+        let lowresHeights = createTerrainHeight(
+            size,
+            10, 1,
+            new Vector2(0, 0),
+            [
+                { seed: 17, noiseScale },
+                // { seed: 1700, noiseScale },
+                // { seed: 17000, noiseScale },
+            ],
+            'ADDITIVE',
+            biomeMap,
+            biomeFunction,
+        )
+
+        for (let i = 0; i < size; i++) {
+            for (let j = 0; j < size; j++) {
+                lowresHeightMap[i + size * (j - 1)] = lowresHeights[i + j * size];
+            }
+        }
+    }
+
+    let heightMapImageData = visualizeHeightMap(lowresHeightMap, size, size);
+
+    const MaskCanvas = new Canvas(size, size, 'MaskCanvas', true)
+    const blendedImageData = maskBlurImageData(heightMapImageData, biomeImageData, 4, false);
+    MaskCanvas.context.putImageData(blendedImageData, 0, 0)
+
+    const RaceTrack = new Track(
+        size, size,
+        4,
+        10, 30,
+        10,
+        20,
+        5,
+        25,
+        10,
+        false,
+        true,
+    );
+    let raceTrackHeights = RaceTrack.canvas.getImageData()
+
+    const RaceTrackBlendCanvas = new Canvas(size, size, 'RaceTrackBlendCanvas', true)
+    const raceTrackBlendedImageData = maskBlurImageData(blendedImageData, raceTrackHeights, 12, true);
+    RaceTrackBlendCanvas.context.putImageData(raceTrackBlendedImageData, 0, 0)
+
+    const RaceTrackHeightMap = mapImageDataRange(raceTrackBlendedImageData, .5)
+
+    const RaceTrackMinimapCanvas = new Canvas(200, 200, 'RaceTrackMinimapCanvas', true)
+    RaceTrackMinimapCanvas.canvasElement.style.borderRadius = '50%'
+
+    return {
+        heights: RaceTrackHeightMap,
+        track: RaceTrack,
+        RaceTrackBlendCanvas,
+        RaceTrackMinimapCanvas,
+    }
+}
+
 
 // // main.ts
 // type WorkerResponse = {

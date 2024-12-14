@@ -189,12 +189,13 @@ export class Game {
 
         this.rapierDebugRenderer.update()
 
-
-
-        TextureSample_Shader.uniforms.uCameraPosition.value = this.CAMERA.position;
-
+        this.textureUpdate()
 
         this.stats.update()
+    }
+
+    textureUpdate() {
+        TextureSample_Shader.uniforms.uCameraPosition.value = this.CAMERA.position;
     }
 
     initSky() {

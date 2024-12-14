@@ -130,7 +130,7 @@ export class Car {
         wheelGripTop: number, wheelGripBottom: number, steeringTorque: number
     ) {
         // Create Rapier RigidBody
-        const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic().setTranslation(position.x, position.y, position.z);
+        const rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic().setTranslation(position.x, position.y, position.z).setRotation({ x: 0, y: 1, z: 0, w: 0 });
         this.rigidBody = game.WORLD.createRigidBody(rigidBodyDesc);
 
         // Add a Box Collider

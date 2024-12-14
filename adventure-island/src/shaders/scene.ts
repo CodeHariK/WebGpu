@@ -42,7 +42,7 @@ normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
 
 
 
-// const shaderMaterial = Hello_Shader
+const shaderMaterial = Hello_Shader
 // const shaderMaterial = Height_Shader
 // const shaderMaterial = Triplanar_Shader
 // const shaderMaterial = Normal_Shader
@@ -50,7 +50,7 @@ normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
 // const shaderMaterial = UV_Shader
 // const shaderMaterial = Phong_Shader
 // const shaderMaterial = BlinnPhong_Shader
-const shaderMaterial = TextureSample_Shader
+// const shaderMaterial = TextureSample_Shader
 
 
 
