@@ -25,9 +25,9 @@ function genHeightfieldGeometry(heights: Float32Array<ArrayBuffer>, segments: nu
     let j: number;
     for (j = 0; j <= ncols; ++j) {
         for (i = 0; i <= nrows; ++i) {
-            let x = (j * eltWX - 0.5) * scale.x;
+            let x = (j * eltWX) * scale.x;
             let y = heights[j * (nrows + 1) + i] * scale.y;
-            let z = (i * eltWY - 0.5) * scale.z;
+            let z = (i * eltWY) * scale.z;
 
             vertices.push(x, y, z);
 
@@ -172,7 +172,7 @@ export function createTerrain(game: Game,
     scale: THREE.Vector3, position: THREE.Vector3
 ) {
 
-    let groundBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(position.x, position.y, position.z);
+    let groundBodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(position.x + scale.x / 2, position.y, position.z + scale.z / 2);
     let groundBody = game.WORLD.createRigidBody(groundBodyDesc);
     let groundColliderDesc = RAPIER.ColliderDesc.heightfield(
         lowresSegments - 1,
@@ -192,8 +192,8 @@ export function createTerrain(game: Game,
 
     let lod = new THREE.LOD()
     lod.position.set(position.x, position.y, position.z)
-    lod.addLevel(lowresGround, 4 * scale.x);
-    lod.addLevel(midresGround, 2 * scale.x);
+    // lod.addLevel(lowresGround, 4 * scale.x);
+    // lod.addLevel(midresGround, 2 * scale.x);
     lod.addLevel(highresGround, 0);
 
     game.SCENE.add(lod)

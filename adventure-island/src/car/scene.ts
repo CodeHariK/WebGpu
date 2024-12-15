@@ -14,7 +14,7 @@ new Keyboard()
 
 const segments = 400
 const segmentsPerUnit = 2
-const scale = new Vector3(segments / segmentsPerUnit, 10, segments / segmentsPerUnit)
+const scale = new Vector3(segments / segmentsPerUnit, 20, segments / segmentsPerUnit)
 
 const raceTrackMap = GenerateCanvasTrack(segments)
 
@@ -27,9 +27,12 @@ function createSubGrids(gridsize: number, heights: Float32Array<ArrayBufferLike>
     for (let r = 0; r < subgridsize; r++) {
         for (let c = 0; c < subgridsize; c++) {
 
-            let h = heights[row * segments * gridsize +
+            let h = heights[
+                row * segments * gridsize +
                 r * invresolution * segments +
-                col * gridsize + c * invresolution];
+                col * gridsize +
+                c * invresolution
+            ];
 
             if (!h) {
                 h = .5;
@@ -57,7 +60,7 @@ function createGrid(heights: Float32Array, segments: number, division: number, s
                 m.subgrid, m.subgridsize,
                 h.subgrid, h.subgridsize,
                 new Vector3(scale.x / division, scale.y, scale.z / division),
-                new Vector3(row * (scale.x / division) - scale.x / 2, scale.y / 2, col * (scale.z / division) - scale.z / 2)
+                new Vector3(row * (scale.x / division), scale.y / 2, col * (scale.z / division))
             )
 
         }
@@ -65,13 +68,6 @@ function createGrid(heights: Float32Array, segments: number, division: number, s
 }
 
 createGrid(raceTrackMap.heights, segments, 10, scale)
-
-// createTerrain(game,
-//     raceTrackMap.heights, lowresSegments,
-//     raceTrackMap.heights, highresSegments,
-//     scale,
-//     new Vector3(0, scale.y / 2, 0)
-// )
 
 // for (let i = 0; i < 40; i++) {
 //     spawnRandomObject(game, new Vector3(s, 30, s));
@@ -95,48 +91,48 @@ game.animate((deltaTime: number) => {
 })
 
 
-// {
-//     let points = []
+{
+    let points = []
 
-//     raceTrackMap.track.samples.forEach((d) => {
-//         let checkpointGeometry = new BoxGeometry(5, 5, .2)
-//         const checkpointMaterial = new MeshStandardMaterial({ color: Math.random() * 0xffffff });
-//         const checkpointMesh = new Mesh(checkpointGeometry, checkpointMaterial);
+    raceTrackMap.track.samples.forEach((d) => {
+        let checkpointGeometry = new BoxGeometry(5, 5, .2)
+        const checkpointMaterial = new MeshStandardMaterial({ color: Math.random() * 0xffffff });
+        const checkpointMesh = new Mesh(checkpointGeometry, checkpointMaterial);
 
-//         let sss = lowresSegments
-//         let x = d.pos.x * (scale.x / sss) - scale.x / 2
-//         let z = d.pos.y * (scale.z / sss) - scale.z / 2
+        let sss = segments
+        let x = d.pos.x * (scale.x / sss)
+        let z = d.pos.y * (scale.z / sss)
 
-//         let y = (raceTrackMap.heights[Math.floor(d.pos.y) + Math.floor(d.pos.x) * sss] + 0.5) * scale.y + 1
+        let y = (raceTrackMap.heights[Math.floor(d.pos.y) + Math.floor(d.pos.x) * sss] + 0.5) * scale.y + 1
 
-//         let a = Math.atan2(d.dir.x, d.dir.y)
-//         checkpointMesh.rotateY(a)
+        let a = Math.atan2(d.dir.x, d.dir.y)
+        checkpointMesh.rotateY(a)
 
-//         checkpointMesh.position.set(x, y, z)
+        checkpointMesh.position.set(x, y, z)
 
-//         let baricadeGeometry = new BoxGeometry(.5, .5, .5)
-//         const baricadeMaterial = new MeshStandardMaterial({ color: Math.random() * 0xffffff });
-//         const baricadeMesh1 = new Mesh(baricadeGeometry, baricadeMaterial);
-//         const baricadeMesh2 = new Mesh(baricadeGeometry, baricadeMaterial);
+        let baricadeGeometry = new BoxGeometry(.5, .5, .5)
+        const baricadeMaterial = new MeshStandardMaterial({ color: Math.random() * 0xffffff });
+        const baricadeMesh1 = new Mesh(baricadeGeometry, baricadeMaterial);
+        const baricadeMesh2 = new Mesh(baricadeGeometry, baricadeMaterial);
 
-//         let t = d.dir.clone().rotateAround(new Vector2(0, 0), Math.PI / 2).multiplyScalar(2)
-//         baricadeMesh1.position.set(x + t.x, y, z + t.y)
-//         baricadeMesh2.position.set(x - t.x, y, z - t.y)
+        let t = d.dir.clone().rotateAround(new Vector2(0, 0), Math.PI / 2).multiplyScalar(2)
+        baricadeMesh1.position.set(x + t.x, y, z + t.y)
+        baricadeMesh2.position.set(x - t.x, y, z - t.y)
 
-//         points.push(new Vector3(x, y, z))
-//         game.SCENE.add(checkpointMesh)
-//         game.SCENE.add(baricadeMesh1)
-//         game.SCENE.add(baricadeMesh2)
-//     })
+        points.push(new Vector3(x, y, z))
+        game.SCENE.add(checkpointMesh)
+        game.SCENE.add(baricadeMesh1)
+        game.SCENE.add(baricadeMesh2)
+    })
 
-//     const tubeGeometry = new TubeGeometry(
-//         new CatmullRomCurve3(points), // Curve from points
-//         100, // Number of segments
-//         .5, // Radius
-//         8,   // Radial segments
-//         true // Closed
-//     );
-//     const tubeMaterial = new MeshBasicMaterial({ color: 0x00ff00 });
-//     const tube = new Mesh(tubeGeometry, tubeMaterial);
-//     game.SCENE.add(tube);
-// }
+    const tubeGeometry = new TubeGeometry(
+        new CatmullRomCurve3(points), // Curve from points
+        100, // Number of segments
+        .5, // Radius
+        8,   // Radial segments
+        true // Closed
+    );
+    const tubeMaterial = new MeshBasicMaterial({ color: 0x00ff00 });
+    const tube = new Mesh(tubeGeometry, tubeMaterial);
+    game.SCENE.add(tube);
+}

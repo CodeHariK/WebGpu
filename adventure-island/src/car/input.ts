@@ -47,8 +47,8 @@ export class Keyboard {
             }
 
             if (Keyboard.keys.MAP) {
-                let map = document.getElementById('ui').style.display
-                document.getElementById('ui').style.display = map == '' || map == 'none' ? 'inherit' : 'none'
+                let map = document.getElementById('maps').style.display
+                document.getElementById('maps').style.display = map == '' || map == 'none' ? 'inherit' : 'none'
             }
         });
 

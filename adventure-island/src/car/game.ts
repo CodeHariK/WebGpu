@@ -12,7 +12,7 @@ import { TextureSample_Shader } from '../shaders/texturesample';
 class RapierDebugRenderer {
     mesh: THREE.LineSegments
     world: RAPIER.World
-    enabled = false
+    enabled = true
 
     constructor(scene: THREE.Scene, world: RAPIER.World) {
         this.world = world

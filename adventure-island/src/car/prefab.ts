@@ -6,7 +6,7 @@ export const CAR_TOY_CAR = (game: Game): Car => {
     return new Car(
         game,
 
-        new Vector3(0, 15, 0),
+        new Vector3(50, 15, 50),
 
         2000,
         3000,
