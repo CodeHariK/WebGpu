@@ -167,6 +167,7 @@ export function createTerrainHeight(
 
 export function createTerrain(game: Game,
     lowresHeights: Float32Array<ArrayBuffer>, lowresSegments: number,
+    midresHeights: Float32Array<ArrayBuffer>, midresSegments: number,
     highresHeights: Float32Array<ArrayBuffer>, highresSegments: number,
     scale: THREE.Vector3, position: THREE.Vector3
 ) {
@@ -182,15 +183,18 @@ export function createTerrain(game: Game,
     game.WORLD.createCollider(groundColliderDesc, groundBody);
 
     let lowresObject = genHeightfieldGeometry(lowresHeights, lowresSegments - 1, scale);
-    // let highresObject = genHeightfieldGeometry(highresHeights, highresSegments - 1, scale);
+    let midresObject = genHeightfieldGeometry(midresHeights, midresSegments - 1, scale);
+    let highresObject = genHeightfieldGeometry(highresHeights, highresSegments - 1, scale);
 
     let lowresGround = generateTerrainMesh(lowresObject)
-    // let highresGround = generateTerrainMesh(highresObject)
+    let midresGround = generateTerrainMesh(midresObject)
+    let highresGround = generateTerrainMesh(highresObject)
 
     let lod = new THREE.LOD()
     lod.position.set(position.x, position.y, position.z)
-    lod.addLevel(lowresGround, 2 * scale.x);
-    // lod.addLevel(highresGround, 0);
+    lod.addLevel(lowresGround, 4 * scale.x);
+    lod.addLevel(midresGround, 2 * scale.x);
+    lod.addLevel(highresGround, 0);
 
     game.SCENE.add(lod)
     game.LODS.push(lod)
@@ -222,7 +226,7 @@ let generateTerrainMesh = (
     let material = new THREE.MeshPhysicalMaterial({
         // color: 0xd7b5a0,
         // side: THREE.DoubleSide,
-        flatShading: false,
+        // flatShading: true,
         // wireframe: true,
         map: diffuseTexture,
         // normalMap: normalMap,

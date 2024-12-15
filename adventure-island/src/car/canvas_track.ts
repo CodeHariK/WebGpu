@@ -529,11 +529,15 @@ export class Track {
     drawTrack() {
         this.canvas.clearRect()
 
+        this.canvas.drawRectangle(new Vector2(0, 0), this.canvas.width(), this.canvas.height(), 3, 'black')
+
         this.samples = []
 
         if (this.debugDraw) {
             this.canvas.drawGrid(this.gridSize, 2, `rgb(230,230,230)`)
         }
+
+
         this.debugGrid()
 
         for (let i = 0; i < this.circles.length; i++) {
@@ -690,7 +694,7 @@ function visualizeHeightMap(
     heightMap: Array<number> | Float32Array<ArrayBufferLike>,
     width: number,
     height: number,
-    blur: number = 0, blurContour: number = 0,
+    blur: number = 0, blurColor: number = 0, blurContour: number = 0,
     contour: boolean = false,
     grad?: (c: number) => { r: number; g: number; b: number; }
 ): ImageData {
@@ -744,12 +748,11 @@ function visualizeHeightMap(
     ctx.drawImage(tempCanvas, 0, 0);
 
     if (contour) {
-
         let newImageData = ctx.getImageData(0, 0, imageData.width, imageData.height)
         for (let row = 0; row < imageData.height; row++) {
             for (let col = 0; col < imageData.width; col++) {
                 let index = row * imageData.width * 4 + col * 4
-                let d = newImageData.data[index] - imageData.data[index] != 0 ? 255 : 0
+                let d = newImageData.data[index] - imageData.data[index] != 0 ? blurColor : 0
                 newImageData.data[index] = d; // Red
                 newImageData.data[index + 1] = d; // Green
                 newImageData.data[index + 2] = d; // Blue
@@ -762,8 +765,6 @@ function visualizeHeightMap(
         ctx.drawImage(tempCanvas, 0, 0);
     }
 
-
-    // Append the canvas to the body
     document.getElementById('ui').appendChild(canvas);
 
     return ctx.getImageData(0, 0, imageData.width, imageData.height)
@@ -808,7 +809,11 @@ function maskBlurImageData(srcImageData: ImageData, maskImageData: ImageData, ra
             if (mask > 0) {
                 // Apply blur only if the mask is active
                 for (let channel = 0; channel < 3; channel++) { // R, G, B channels
-                    resultData[index + channel] = getBlurredValue(x, y, channel) // - (addMask ? mask : 0);
+
+                    resultData[index + channel] = ((255 - mask) / mask) * srcData[index + channel]
+
+                    // resultData[index + channel] = getBlurredValue(x, y, channel) // - (addMask ? mask : 0);
+
                 }
             } else {
                 // Use original source value if mask is not active
@@ -940,7 +945,10 @@ export const GenerateCanvasTrack = (size: number): CanvasTrack => {
         'ADDITIVE'
     )
     let biomeFunction = strategySearch(-.5, -.1, .5)
-    let biomeImageData = visualizeHeightMap(biomeMap, size, size, 1, 4, true, biomeFunction);
+    let biomeImageData = visualizeHeightMap(
+        biomeMap, size, size,
+        2, 127, 4, true,
+        biomeFunction);
 
     {
         let lowresHeights = createTerrainHeight(
@@ -975,8 +983,8 @@ export const GenerateCanvasTrack = (size: number): CanvasTrack => {
         4,
         10, 30,
         10,
-        20,
-        5,
+        120,
+        4,
         25,
         10,
         false,
