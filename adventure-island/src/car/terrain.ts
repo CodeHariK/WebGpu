@@ -192,8 +192,8 @@ export function createTerrain(game: Game,
 
     let lod = new THREE.LOD()
     lod.position.set(position.x, position.y, position.z)
-    // lod.addLevel(lowresGround, 4 * scale.x);
-    // lod.addLevel(midresGround, 2 * scale.x);
+    lod.addLevel(lowresGround, 4 * scale.x);
+    lod.addLevel(midresGround, 2 * scale.x);
     lod.addLevel(highresGround, 0);
 
     game.SCENE.add(lod)

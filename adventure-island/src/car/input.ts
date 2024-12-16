@@ -48,7 +48,7 @@ export class Keyboard {
 
             if (Keyboard.keys.MAP) {
                 let map = document.getElementById('maps').style.display
-                document.getElementById('maps').style.display = map == '' || map == 'none' ? 'inherit' : 'none'
+                document.getElementById('maps').style.display = map == '' || map == 'none' ? 'ruby' : 'none'
             }
         });
 

@@ -16,7 +16,17 @@ const segments = 400
 const segmentsPerUnit = 2
 const scale = new Vector3(segments / segmentsPerUnit, 20, segments / segmentsPerUnit)
 
-const raceTrackMap = GenerateCanvasTrack(segments)
+const raceTrackMap = GenerateCanvasTrack(
+    segments, .8,
+    [
+        { seed: 1700, noiseScale: 0.1 },
+    ],
+    [
+        { seed: 17, noiseScale: .5 },
+        // { seed: 1700, noiseScale },
+        // { seed: 17000, noiseScale },
+    ],
+)
 
 function createSubGrids(gridsize: number, heights: Float32Array<ArrayBufferLike>, row: number, col: number, segments: number, invresolution: number) {
 
