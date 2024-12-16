@@ -1,4 +1,4 @@
-import { Vector2, Vector3 } from "three"
+import { Vector2, Vector3, Vector4 } from "three"
 import { createTerrainHeight, strategySearch } from "./terrain"
 import { UNIT_Z } from "./physics"
 import { Car } from "./car"
@@ -121,7 +121,7 @@ export class Canvas {
             samples.push(
                 new DirPoint(
                     point1.clone().add(direction.clone().multiplyScalar((i + 0.5) * offset)),
-                    direction,
+                    direction.clone().multiplyScalar(-1),
                 )
             );
         }
@@ -394,6 +394,20 @@ export class Canvas {
         // Update canvas with filtered image
         const filteredImage = new ImageData(sobelData, width, height);
         this.context.putImageData(filteredImage, 0, 0);
+    }
+
+    getPixelAt(row: number, col: number): Vector4 {
+        let { width, height, data } = this.getImageData()
+        if (row >= 0 && row < width && col >= 0 && col < height) {
+            const index = (Math.floor(row) * width + Math.floor(col)) * 4;
+            return new Vector4(
+                data[index],
+                data[index + 1],
+                data[index + 2],
+                data[index + 3]
+            );
+        }
+        throw Error('out of image')
     }
 }
 
@@ -945,7 +959,7 @@ export const GenerateCanvasTrack = (
 
     const divElement = document.createElement('div');
     divElement.id = 'maps'
-    divElement.style.display = 'ruby'
+    divElement.style.display = 'none'
     document.getElementById('ui').appendChild(divElement)
 
     let lowresHeightMap = new Array<number>(size * size).fill(.5)
@@ -1037,9 +1051,15 @@ export const GenerateCanvasTrack = (
         const RaceTrackDebugCanvas = new Canvas(size, size, 'RaceTrackDebugCanvas', true)
         RaceTrackDebugCanvas.context.putImageData(RaceTrackMaskImageData, 0, 0)
 
-        RaceTrack.samples.forEach((dirpoint) => {
-            RaceTrackDebugCanvas.drawCircle(dirpoint.pos, 2, true, 1, 'rgb(30,30,30)', null)
-            RaceTrackDebugCanvas.drawLine(dirpoint.pos, dirpoint.pos.clone().add(dirpoint.dir.clone().multiplyScalar(10)), 1, `rgb(100,0,0)`)
+        RaceTrack.samples.forEach((d) => {
+            RaceTrackDebugCanvas.drawCircle(d.pos, 2, true, 1, 'rgb(30,30,30)', null)
+
+            RaceTrackDebugCanvas.drawLine(d.pos, d.pos.clone().add(d.dir.clone().multiplyScalar(10)), 1, `rgb(250,0,0)`)
+
+            let t = d.dir.clone().rotateAround(new Vector2(0, 0), Math.PI / 2).multiplyScalar(2)
+            RaceTrackDebugCanvas.drawLine(d.pos, d.pos.clone().add(t.multiplyScalar(5)), 1, `rgb(0,250,0)`)
+            RaceTrackDebugCanvas.drawLine(d.pos, d.pos.clone().add(t.multiplyScalar(-1)), 1, `rgb(0,0,250)`)
+
         })
     }
 

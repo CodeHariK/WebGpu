@@ -2,11 +2,11 @@ import { Vector3 } from "three"
 import { Car } from "./car"
 import { Game } from "./game"
 
-export const CAR_TOY_CAR = (game: Game): Car => {
+export const CAR_TOY_CAR = (game: Game, position: Vector3): Car => {
     return new Car(
         game,
 
-        new Vector3(50, 15, 50),
+        position,
 
         2000,
         3000,
@@ -34,11 +34,11 @@ export const CAR_TOY_CAR = (game: Game): Car => {
     )
 }
 
-export const CAR_MONSTER_TRUCK = (game: Game): Car => {
+export const CAR_MONSTER_TRUCK = (game: Game, position: Vector3): Car => {
     return new Car(
         game,
 
-        new Vector3(0, 8, 0),
+        position,
 
         40000,
         20000,
@@ -66,11 +66,11 @@ export const CAR_MONSTER_TRUCK = (game: Game): Car => {
     )
 }
 
-export const CAR_FERRAI = (game: Game): Car => {
+export const CAR_FERRAI = (game: Game, position: Vector3): Car => {
     return new Car(
         game,
 
-        new Vector3(0, 4, 0),
+        position,
 
         50000,
         70000,
@@ -98,11 +98,11 @@ export const CAR_FERRAI = (game: Game): Car => {
     )
 }
 
-export const CAR_TURN = (game: Game): Car => {
+export const CAR_TURN = (game: Game, position: Vector3): Car => {
     return new Car(
         game,
 
-        new Vector3(0, 4, 0),
+        position,
 
         50000,
         70000,
