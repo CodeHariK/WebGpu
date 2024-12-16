@@ -1,6 +1,6 @@
 import { Keyboard } from './input';
 import { Game } from './game';
-import { AxesHelper, Mesh, Vector3, CatmullRomCurve3, MeshStandardMaterial, BoxGeometry, TubeGeometry, MeshBasicMaterial, Vector2, Matrix4, Quaternion, Object3D, SphereGeometry, Scene, BufferGeometry, Float32BufferAttribute } from 'three';
+import { AxesHelper, Mesh, Vector3, CatmullRomCurve3, MeshStandardMaterial, BoxGeometry, TubeGeometry, MeshBasicMaterial, Vector2, Matrix4, Quaternion, Object3D, SphereGeometry, Scene, BufferGeometry, Float32BufferAttribute, TextureLoader, LinearFilter, LinearMipMapLinearFilter, RepeatWrapping, MeshPhysicalMaterial } from 'three';
 import { createTerrain } from './terrain';
 import { CAR_TOY_CAR } from './prefab';
 import { GenerateCanvasTrack, mapCanvasUpdate } from './canvas_track';
@@ -115,7 +115,7 @@ game.animate((deltaTime: number) => {
     }
 
 
-    let extrudePoints: { pos: Vector3; xAxis: Vector3; yAxis: Vector3, zAxis: Vector3; }[] = []
+    let extrudePoints: { pos: Vector3; xAxis: Vector3; yAxis: Vector3 }[] = []
 
     raceTrackMap.track.samples.forEach((d) => {
         let checkpointGeometry = new BoxGeometry(12, 5, .2)
@@ -161,7 +161,6 @@ game.animate((deltaTime: number) => {
             pos: pos,
             xAxis: xAxis,
             yAxis: yAxis,
-            zAxis: zAxis,
         })
 
         baricadeMeshForward.position.set(forwardPoint.x, forwardPoint.y, forwardPoint.z)
@@ -176,16 +175,32 @@ game.animate((deltaTime: number) => {
         game.SCENE.add(baricadeMeshTop)
     })
 
-    extrudeShapeAlongPoints(
-        extrudePoints,
-        [
-            new Vector2(-5, 0), // Bottom-left
-            new Vector2(5, 0),  // Bottom-right
-            new Vector2(5, 1), // Top-right
-            new Vector2(-5, 1), // Top-left
-        ],
-        game.SCENE
-    );
+    {
+        // let shape = []
+        // for (let i = 0; i < 12; i++) {
+        //     shape.push(new Vector2(
+        //         5 * Math.sin(i * Math.PI / 6),
+        //         5 + 5 * Math.cos(i * Math.PI / 6))
+        //     )
+        // }
+
+        // extrudeShapeAlongPoints(
+        //     extrudePoints,
+        //     shape.reverse(),
+        //     game.SCENE
+        // );
+    }
+    {
+        extrudeShapeAlongPoints(
+            extrudePoints,
+            [
+                new Vector2(6, 0),
+                new Vector2(-6, 0),
+            ],
+            game.SCENE,
+            false, false,
+        );
+    }
 
     const tubeGeometry = new TubeGeometry(
         new CatmullRomCurve3(points), // Curve from points
@@ -235,22 +250,45 @@ function spawnSpheresInCircle(mesh: Mesh, radius: number, count: number, scene: 
         scene.add(sphere);
     }
 }
+
 function extrudeShapeAlongPoints(
-    points: { pos: Vector3, xAxis: Vector3, yAxis: Vector3, zAxis: Vector3 }[],
+    points: { pos: Vector3, xAxis: Vector3, yAxis: Vector3 }[],
     shape: Vector2[],
-    scene: Scene
+    scene: Scene,
+    loopClosed: boolean = true,
+    shapeClosed: boolean = true,
 ): void {
     const vertices: number[] = [];
     const indices: number[] = [];
     const uvs: number[] = [];
 
-    const shapeLength = shape.length;
+    let shapeLength = 0
+    for (let i = 0; i < shape.length - 1; i++) {
+        const current = shape[i];
+        const next = shape[i + 1];
+        shapeLength += current.distanceTo(next)
+    }
+    let pointsLength = 0
+    for (let i = 0; i < points.length - 1; i++) {
+        const current = points[i].pos
+        const next = points[i + 1].pos
+        pointsLength += current.distanceTo(next)
+    }
+    shapeLength = pointsLength / Math.floor(pointsLength / shapeLength)
+    console.log(shapeLength, points.length, pointsLength)
 
+    let currentPointsLength = 0
     for (let i = 0; i < points.length; i++) {
-        const { pos, xAxis, yAxis, zAxis } = points[i];
+        const { pos, xAxis, yAxis } = points[i];
+
+        if (i > 0) {
+            const current = points[i - 1].pos
+            const next = points[i].pos
+            currentPointsLength += current.distanceTo(next)
+        }
 
         // Transform each point of the 2D shape into 3D space using the local frame
-        for (let j = 0; j < shapeLength; j++) {
+        for (let j = 0; j < shape.length; j++) {
             const localPoint = shape[j];
             const transformedPoint = new Vector3()
                 .copy(pos)
@@ -259,38 +297,37 @@ function extrudeShapeAlongPoints(
 
             vertices.push(transformedPoint.x, transformedPoint.y, transformedPoint.z);
 
-            // UV mapping: u = shape index / shapeLength, v = segment index / points.length
-            uvs.push(j / (shapeLength - 1), i / (points.length - 1));
+            uvs.push(
+                j / (shape.length - 1),
+                currentPointsLength / shapeLength // / (points.length - 1)
+            );
+        }
+    }
+
+    function pushIndices(segmentStart: number, segmentEnd: number) {
+        for (let j = 0; j < shape.length - 1; j++) {
+            const current = segmentStart + j;
+            const next = segmentEnd + j;
+
+            indices.push(current, next, current + 1);
+            indices.push(current + 1, next, next + 1);
+        }
+
+        if (shapeClosed) {
+            const current = segmentStart + shape.length - 1;
+            const next = segmentEnd + shape.length - 1;
+
+            indices.push(current, next, segmentStart);
+            indices.push(segmentStart, next, segmentEnd);
         }
     }
 
     // Create indices for triangles between consecutive segments
     for (let i = 0; i < points.length - 1; i++) {
-        const segmentStart = i * shapeLength;
-        const segmentEnd = (i + 1) * shapeLength;
-
-        for (let j = 0; j < shapeLength - 1; j++) {
-            const current = segmentStart + j;
-            const next = segmentEnd + j;
-
-            // Two triangles per quad
-            indices.push(current, next, current + 1); // Triangle 1
-            indices.push(current + 1, next, next + 1); // Triangle 2
-        }
+        pushIndices(i * shape.length, (i + 1) * shape.length)
     }
-
-    // Optionally close the loop
-    if (true /* Set to true if the path is closed */) {
-        const segmentStart = (points.length - 1) * shapeLength;
-        const segmentEnd = 0;
-
-        for (let j = 0; j < shapeLength - 1; j++) {
-            const current = segmentStart + j;
-            const next = segmentEnd + j;
-
-            indices.push(current, next, current + 1); // Triangle 1
-            indices.push(current + 1, next, next + 1); // Triangle 2
-        }
+    if (loopClosed) {
+        pushIndices((points.length - 1) * shape.length, 0)
     }
 
     // Create geometry
@@ -298,44 +335,28 @@ function extrudeShapeAlongPoints(
     geometry.setAttribute('position', new Float32BufferAttribute(vertices, 3));
     geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
+    geometry.computeVertexNormals()
 
-    // Create material and mesh
-    const material = new MeshStandardMaterial({ color: 0x333333, side: 2, wireframe: true });
+
+    const textureLoader = new TextureLoader();
+    const roadTexture = textureLoader.load('src/assets/texture/grass_texture.jpg');
+    roadTexture.wrapS = RepeatWrapping;
+    roadTexture.wrapT = RepeatWrapping;
+    roadTexture.minFilter = LinearMipMapLinearFilter;
+    roadTexture.magFilter = LinearFilter;
+
+    let material = new MeshPhysicalMaterial({
+        // color: 0xd7b5a0,
+        // side: THREE.DoubleSide,
+        // flatShading: true,
+        // wireframe: true,
+        map: roadTexture,
+        // normalMap: normalMap,
+    });
+
     const mesh = new Mesh(geometry, material);
+    // const mesh = new Mesh(geometry, UV_Shader);
 
     // Add to the scene
     scene.add(mesh);
 }
-
-// Define the 2D shape (e.g., rectangle)
-const shape = [
-    new Vector2(-1, 0), // Bottom-left
-    new Vector2(1, 0),  // Bottom-right
-    new Vector2(1, 0.5), // Top-right
-    new Vector2(-1, 0.5), // Top-left
-];
-
-// Define the points with local frames
-const points = [
-    {
-        pos: new Vector3(-10, 0, 0),
-        xAxis: new Vector3(0, 0, -1), // Right
-        yAxis: new Vector3(0, 1, 0),  // Up
-        zAxis: new Vector3(1, 0, 0),  // Forward
-    },
-    {
-        pos: new Vector3(-5, 0, 5),
-        xAxis: new Vector3(-0.707, 0, -0.707), // Right
-        yAxis: new Vector3(0, 1, 0), // Up
-        zAxis: new Vector3(0.707, 0, 0.707), // Forward
-    },
-    {
-        pos: new Vector3(0, 0, 10),
-        xAxis: new Vector3(-1, 0, 0), // Right
-        yAxis: new Vector3(0, 1, 0), // Up
-        zAxis: new Vector3(0, 0, 1), // Forward
-    },
-];
-
-// Call the function to create the extruded mesh
-extrudeShapeAlongPoints(points, shape, game.SCENE);

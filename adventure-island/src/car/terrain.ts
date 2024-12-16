@@ -227,7 +227,7 @@ let generateTerrainMesh = (
         // color: 0xd7b5a0,
         // side: THREE.DoubleSide,
         // flatShading: true,
-        // wireframe: true,
+        wireframe: true,
         map: diffuseTexture,
         // normalMap: normalMap,
     });
