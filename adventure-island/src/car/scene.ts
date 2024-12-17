@@ -101,43 +101,21 @@ game.animate((deltaTime: number) => {
     mapCanvasUpdate(raceTrackMap, car, scale, segments, 100)
 })
 
-
 {
-    let points = []
-
-    function getImageToHeight(v: Vector2): Vector3 {
+    function getImageToHeight(v: Vector2, above: number = .4): Vector3 {
         let sss = segments
         let x = v.x * (scale.x / sss)
         let z = v.y * (scale.z / sss)
-        let y = (raceTrackMap.heights[Math.floor(v.y) + Math.floor(v.x) * sss] + 0.5) * scale.y + 1
+        let y = (raceTrackMap.heights[Math.floor(v.y) + Math.floor(v.x) * sss] + 0.5) * scale.y + above
 
         return new Vector3(x, y, z)
     }
 
-
     let extrudePoints: { pos: Vector3; xAxis: Vector3; yAxis: Vector3 }[] = []
 
     raceTrackMap.track.samples.forEach((d) => {
-        let checkpointGeometry = new BoxGeometry(12, 5, .2)
-        const checkpointMaterial = new MeshStandardMaterial({ color: Math.random() * 0xffffff });
-
-        const checkpointMesh = new Mesh(checkpointGeometry, checkpointMaterial);
-        const ax = new AxesHelper(10)
-        checkpointMesh.add(ax)
 
         const pos = getImageToHeight(d.pos)
-
-        checkpointMesh.position.set(pos.x, pos.y, pos.z)
-
-        let baricadeGeometry = new BoxGeometry(.5, .5, .5)
-        const baricadeMaterial = new MeshStandardMaterial({ color: 0xff0000 });
-
-        const baricadeMeshForward = new Mesh(baricadeGeometry, baricadeMaterial);
-
-        const baricadeMeshRight = new Mesh(baricadeGeometry, baricadeMaterial);
-        const baricadeMeshLeft = new Mesh(baricadeGeometry, baricadeMaterial);
-
-        const baricadeMeshTop = new Mesh(baricadeGeometry, baricadeMaterial);
 
         let t = d.dir.clone().rotateAround(new Vector2(0, 0), Math.PI / 2).multiplyScalar(5)
 
@@ -151,44 +129,58 @@ game.animate((deltaTime: number) => {
 
         const topPoint = pos.clone().add(yAxis)
 
-        orientMesh(checkpointMesh, xAxis, yAxis, zAxis)
-
-        spawnSpheresInCircle(checkpointMesh, 6, 20, game.SCENE);
-
-        points.push(new Vector3(pos.x, pos.y, pos.z))
-
         extrudePoints.push({
             pos: pos,
             xAxis: xAxis,
             yAxis: yAxis,
         })
 
-        baricadeMeshForward.position.set(forwardPoint.x, forwardPoint.y, forwardPoint.z)
-        baricadeMeshRight.position.set(rightPoint.x, rightPoint.y, rightPoint.z)
-        baricadeMeshLeft.position.set(leftPoint.x, leftPoint.y, leftPoint.z)
-        baricadeMeshTop.position.set(topPoint.x, topPoint.y, topPoint.z)
+        // {
+        //     let checkpointGeometry = new BoxGeometry(8, 4, .2)
+        //     const checkpointMaterial = new MeshStandardMaterial({ color: Math.random() * 0xffffff });
+        //     const checkpointMesh = new Mesh(checkpointGeometry, checkpointMaterial);
+        //     const ax = new AxesHelper(4)
+        //     checkpointMesh.add(ax)
 
-        game.SCENE.add(checkpointMesh)
-        game.SCENE.add(baricadeMeshForward)
-        game.SCENE.add(baricadeMeshRight)
-        game.SCENE.add(baricadeMeshLeft)
-        game.SCENE.add(baricadeMeshTop)
+        //     let baricadeGeometry = new BoxGeometry(.5, .5, .5)
+        //     const baricadeMaterial = new MeshStandardMaterial({ color: 0xff0000 });
+        //     const baricadeMeshForward = new Mesh(baricadeGeometry, baricadeMaterial);
+        //     const baricadeMeshRight = new Mesh(baricadeGeometry, baricadeMaterial);
+        //     const baricadeMeshLeft = new Mesh(baricadeGeometry, baricadeMaterial);
+        //     const baricadeMeshTop = new Mesh(baricadeGeometry, baricadeMaterial);
+
+        //     baricadeMeshForward.position.set(forwardPoint.x, forwardPoint.y, forwardPoint.z)
+        //     baricadeMeshRight.position.set(rightPoint.x, rightPoint.y, rightPoint.z)
+        //     baricadeMeshLeft.position.set(leftPoint.x, leftPoint.y, leftPoint.z)
+        //     baricadeMeshTop.position.set(topPoint.x, topPoint.y, topPoint.z)
+
+        //     orientMesh(checkpointMesh, xAxis, yAxis, zAxis)
+        //     checkpointMesh.position.set(pos.x, pos.y, pos.z)
+        //     game.SCENE.add(checkpointMesh)
+        //     game.SCENE.add(baricadeMeshForward)
+        //     game.SCENE.add(baricadeMeshRight)
+        //     game.SCENE.add(baricadeMeshLeft)
+        //     game.SCENE.add(baricadeMeshTop)
+        //     spawnSpheresInCircle(checkpointMesh, 6, 20, game.SCENE);
+        // }
     })
 
     {
-        // let shape = []
-        // for (let i = 0; i < 12; i++) {
-        //     shape.push(new Vector2(
-        //         5 * Math.sin(i * Math.PI / 6),
-        //         5 + 5 * Math.cos(i * Math.PI / 6))
-        //     )
-        // }
+        let shape = []
+        let n = 4
+        let a = 2 * Math.PI / n
+        for (let i = 0; i < n; i++) {
+            shape.push(new Vector2(
+                5 * Math.sin(i * a),
+                10 + 5 * Math.cos(i * a))
+            )
+        }
 
-        // extrudeShapeAlongPoints(
-        //     extrudePoints,
-        //     shape.reverse(),
-        //     game.SCENE
-        // );
+        extrudeShapeAlongPoints(
+            extrudePoints,
+            shape.reverse(),
+            game.SCENE
+        );
     }
     {
         extrudeShapeAlongPoints(
@@ -201,17 +193,6 @@ game.animate((deltaTime: number) => {
             false, false,
         );
     }
-
-    const tubeGeometry = new TubeGeometry(
-        new CatmullRomCurve3(points), // Curve from points
-        100, // Number of segments
-        .1, // Radius
-        4,   // Radial segments
-        true // Closed
-    );
-    const tubeMaterial = new MeshBasicMaterial({ color: 0x00ff00 });
-    const tube = new Mesh(tubeGeometry, tubeMaterial);
-    game.SCENE.add(tube);
 }
 
 function orientMesh(mesh: Mesh, xAxis: Vector3, yAxis: Vector3, zAxis: Vector3,): void {
@@ -269,26 +250,34 @@ function extrudeShapeAlongPoints(
         shapeLength += current.distanceTo(next)
     }
     let pointsLength = 0
-    for (let i = 0; i < points.length - 1; i++) {
+    for (let i = 0; i < (loopClosed ? points.length : points.length - 1); i++) {
         const current = points[i].pos
-        const next = points[i + 1].pos
+        const next = points[(i + 1) % points.length].pos
         pointsLength += current.distanceTo(next)
     }
     shapeLength = pointsLength / Math.floor(pointsLength / shapeLength)
     console.log(shapeLength, points.length, pointsLength)
 
     let currentPointsLength = 0
-    for (let i = 0; i < points.length; i++) {
-        const { pos, xAxis, yAxis } = points[i];
+    for (let p = 0; p < points.length; p++) {
+        const { pos, xAxis, yAxis } = points[p];
 
-        if (i > 0) {
-            const current = points[i - 1].pos
-            const next = points[i].pos
+        if (p > 0) {
+            const current = points[p - 1].pos
+            const next = points[p].pos
             currentPointsLength += current.distanceTo(next)
         }
 
+        let currentShapeLength = 0
         // Transform each point of the 2D shape into 3D space using the local frame
         for (let j = 0; j < shape.length; j++) {
+
+            if (j > 0) {
+                const current = shape[j - 1]
+                const next = shape[j]
+                currentShapeLength += current.distanceTo(next)
+            }
+
             const localPoint = shape[j];
             const transformedPoint = new Vector3()
                 .copy(pos)
@@ -298,8 +287,8 @@ function extrudeShapeAlongPoints(
             vertices.push(transformedPoint.x, transformedPoint.y, transformedPoint.z);
 
             uvs.push(
-                j / (shape.length - 1),
-                currentPointsLength / shapeLength // / (points.length - 1)
+                currentShapeLength / shapeLength,
+                currentPointsLength / shapeLength
             );
         }
     }
@@ -348,7 +337,7 @@ function extrudeShapeAlongPoints(
     let material = new MeshPhysicalMaterial({
         // color: 0xd7b5a0,
         // side: THREE.DoubleSide,
-        // flatShading: true,
+        flatShading: true,
         // wireframe: true,
         map: roadTexture,
         // normalMap: normalMap,

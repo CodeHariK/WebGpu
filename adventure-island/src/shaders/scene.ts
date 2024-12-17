@@ -6,8 +6,6 @@ import { Normal_Shader } from './normal';
 import { Triplanar_Shader } from './triplanar';
 import { Height_Shader } from './height';
 import { UV_Shader } from './uv';
-import { Phong_Shader } from './phong';
-import { BlinnPhong_Shader } from './blinnphong';
 import { TextureSample_Shader } from './texturesample';
 
 
@@ -40,8 +38,6 @@ normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
 
 
 
-
-
 const shaderMaterial = Hello_Shader
 // const shaderMaterial = Height_Shader
 // const shaderMaterial = Triplanar_Shader
@@ -51,11 +47,6 @@ const shaderMaterial = Hello_Shader
 // const shaderMaterial = Phong_Shader
 // const shaderMaterial = BlinnPhong_Shader
 // const shaderMaterial = TextureSample_Shader
-
-
-
-
-
 
 
 
@@ -98,7 +89,5 @@ window.addEventListener('resize', () => {
 window.addEventListener('mousemove', (event) => {
     // shaderMaterial.uniforms.u_mouse.value.set(event.clientX, window.innerHeight - event.clientY);
 });
-
-
 
 
