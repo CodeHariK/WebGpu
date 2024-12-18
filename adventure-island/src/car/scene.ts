@@ -1,6 +1,6 @@
 import { Keyboard } from './input';
 import { Game } from './game';
-import { AxesHelper, Mesh, Vector3, CatmullRomCurve3, MeshStandardMaterial, BoxGeometry, TubeGeometry, MeshBasicMaterial, Vector2, Matrix4, Quaternion, Object3D, SphereGeometry, Scene, BufferGeometry, Float32BufferAttribute, TextureLoader, LinearFilter, LinearMipMapLinearFilter, RepeatWrapping, MeshPhysicalMaterial } from 'three';
+import { AxesHelper, Mesh, Vector3, CatmullRomCurve3, MeshStandardMaterial, BoxGeometry, TubeGeometry, MeshBasicMaterial, Vector2, Matrix4, Quaternion, Object3D, SphereGeometry, Scene, BufferGeometry, Float32BufferAttribute, TextureLoader, LinearFilter, LinearMipMapLinearFilter, RepeatWrapping, MeshPhysicalMaterial, MeshMatcapMaterial } from 'three';
 import { createTerrain } from './terrain';
 import { CAR_TOY_CAR } from './prefab';
 import { GenerateCanvasTrack, mapCanvasUpdate } from './canvas_track';
@@ -167,7 +167,7 @@ game.animate((deltaTime: number) => {
 
     {
         let shape = []
-        let n = 4
+        let n = 6
         let a = 2 * Math.PI / n
         for (let i = 0; i < n; i++) {
             shape.push(new Vector2(
@@ -183,15 +183,15 @@ game.animate((deltaTime: number) => {
         );
     }
     {
-        extrudeShapeAlongPoints(
-            extrudePoints,
-            [
-                new Vector2(6, 0),
-                new Vector2(-6, 0),
-            ],
-            game.SCENE,
-            false, false,
-        );
+        // extrudeShapeAlongPoints(
+        //     extrudePoints,
+        //     [
+        //         new Vector2(6, 0),
+        //         new Vector2(-6, 0),
+        //     ],
+        //     game.SCENE,
+        //     false, false,
+        // );
     }
 }
 
@@ -243,10 +243,14 @@ function extrudeShapeAlongPoints(
     const indices: number[] = [];
     const uvs: number[] = [];
 
+    if (shapeClosed) {
+        shape.push(shape[0])
+    }
+
     let shapeLength = 0
-    for (let i = 0; i < shape.length - 1; i++) {
+    for (let i = 0; i < (shapeClosed ? shape.length : shape.length - 1); i++) {
         const current = shape[i];
-        const next = shape[i + 1];
+        const next = shape[(i + 1) % shape.length];
         shapeLength += current.distanceTo(next)
     }
     let pointsLength = 0
@@ -256,29 +260,26 @@ function extrudeShapeAlongPoints(
         pointsLength += current.distanceTo(next)
     }
     shapeLength = pointsLength / Math.floor(pointsLength / shapeLength)
-    console.log(shapeLength, points.length, pointsLength)
+    console.log("shapeLength", shapeLength, "pointsLength", pointsLength)
 
     let currentPointsLength = 0
     for (let p = 0; p < points.length; p++) {
         const { pos, xAxis, yAxis } = points[p];
 
         if (p > 0) {
-            const current = points[p - 1].pos
-            const next = points[p].pos
-            currentPointsLength += current.distanceTo(next)
+            currentPointsLength += points[p - 1].pos.distanceTo(pos)
         }
 
         let currentShapeLength = 0
         // Transform each point of the 2D shape into 3D space using the local frame
         for (let j = 0; j < shape.length; j++) {
 
+            const localPoint = shape[j];
+
             if (j > 0) {
-                const current = shape[j - 1]
-                const next = shape[j]
-                currentShapeLength += current.distanceTo(next)
+                currentShapeLength += shape[j - 1].distanceTo(localPoint)
             }
 
-            const localPoint = shape[j];
             const transformedPoint = new Vector3()
                 .copy(pos)
                 .addScaledVector(xAxis, localPoint.x) // xDir scales X
@@ -291,6 +292,7 @@ function extrudeShapeAlongPoints(
                 currentPointsLength / shapeLength
             );
         }
+
     }
 
     function pushIndices(segmentStart: number, segmentEnd: number) {
@@ -328,13 +330,13 @@ function extrudeShapeAlongPoints(
 
 
     const textureLoader = new TextureLoader();
-    const roadTexture = textureLoader.load('src/assets/texture/grass_texture.jpg');
+    const roadTexture = textureLoader.load('src/assets/UV_Grid.jpg');
     roadTexture.wrapS = RepeatWrapping;
     roadTexture.wrapT = RepeatWrapping;
     roadTexture.minFilter = LinearMipMapLinearFilter;
     roadTexture.magFilter = LinearFilter;
 
-    let material = new MeshPhysicalMaterial({
+    let material = new MeshMatcapMaterial({
         // color: 0xd7b5a0,
         // side: THREE.DoubleSide,
         flatShading: true,
