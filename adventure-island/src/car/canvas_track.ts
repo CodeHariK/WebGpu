@@ -1025,7 +1025,7 @@ export const GenerateCanvasTrack = (
         16,
         250,
         2,
-        5,
+        2,
         10,
         false,
         true,

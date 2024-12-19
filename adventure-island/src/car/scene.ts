@@ -167,12 +167,30 @@ game.animate((deltaTime: number) => {
 
     {
         let shape = []
-        let n = 6
+        let n = 4
         let a = 2 * Math.PI / n
         for (let i = 0; i < n; i++) {
             shape.push(new Vector2(
                 5 * Math.sin(i * a),
-                10 + 5 * Math.cos(i * a))
+                20 + 5 * Math.cos(i * a))
+            )
+        }
+
+        extrudeShapeAlongPoints(
+            extrudePoints,
+            shape.reverse(),
+            game.SCENE,
+            true, false
+        );
+    }
+    {
+        let shape = []
+        let n = 4
+        let a = 2 * Math.PI / n
+        for (let i = 0; i < n; i++) {
+            shape.push(new Vector2(
+                5 * Math.sin(i * a),
+                40 + 5 * Math.cos(i * a))
             )
         }
 
@@ -183,15 +201,33 @@ game.animate((deltaTime: number) => {
         );
     }
     {
-        // extrudeShapeAlongPoints(
-        //     extrudePoints,
-        //     [
-        //         new Vector2(6, 0),
-        //         new Vector2(-6, 0),
-        //     ],
-        //     game.SCENE,
-        //     false, false,
-        // );
+        let shape = []
+        let n = 4
+        let a = 2 * Math.PI / n
+        for (let i = 0; i < n; i++) {
+            shape.push(new Vector2(
+                5 * Math.sin(i * a),
+                60 + 5 * Math.cos(i * a))
+            )
+        }
+
+        extrudeShapeAlongPoints(
+            extrudePoints,
+            shape.reverse(),
+            game.SCENE,
+            false,
+        );
+    }
+    {
+        extrudeShapeAlongPoints(
+            extrudePoints,
+            [
+                new Vector2(6, 0),
+                new Vector2(-6, 0),
+            ],
+            game.SCENE,
+            false, false,
+        );
     }
 }
 
@@ -243,16 +279,20 @@ function extrudeShapeAlongPoints(
     const indices: number[] = [];
     const uvs: number[] = [];
 
-    if (shapeClosed) {
-        shape.push(shape[0])
-    }
+    console.log('-----')
 
     let shapeLength = 0
     for (let i = 0; i < (shapeClosed ? shape.length : shape.length - 1); i++) {
         const current = shape[i];
         const next = shape[(i + 1) % shape.length];
         shapeLength += current.distanceTo(next)
+        console.log(shapeLength)
     }
+
+    if (shapeClosed) {
+        shape.push(shape[0])
+    }
+
     let pointsLength = 0
     for (let i = 0; i < (loopClosed ? points.length : points.length - 1); i++) {
         const current = points[i].pos
