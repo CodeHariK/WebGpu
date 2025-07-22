@@ -1,3 +1,4 @@
 res://node_3d.tscn
-res://new_script.gd
-res://player.gd
+res://TerrainMaterial.tres
+res://terrain_generation.gd
+res://mesh_gen.tscn
