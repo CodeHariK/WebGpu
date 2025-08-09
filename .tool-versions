@@ -2,3 +2,4 @@ bun 1.2.16
 golang 1.23.1
 cloudflared 2024.9.1
 caddy 2.8.4
+rye 0.44.0
