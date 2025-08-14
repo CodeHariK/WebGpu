@@ -10,6 +10,7 @@ from bpy.props import (
 from bpy.types import Operator, Panel, UIList, PropertyGroup
 from mathutils import Vector
 from bpy_extras import view3d_utils
+from . import type
 
 
 class OBJECT_OT_delete_spawned_cube(bpy.types.Operator):
@@ -20,12 +21,12 @@ class OBJECT_OT_delete_spawned_cube(bpy.types.Operator):
     cube_name: StringProperty()
 
     def execute(self, context):
-        wm = context.window_manager
+        c = type.celebi(context)
         cube_obj = bpy.data.objects.get(self.cube_name)
         if cube_obj:
             bpy.data.objects.remove(cube_obj, do_unlink=True)
-        # Remove from spawned_cubes collection
-        items = wm.celebi_data.spawned_cubes
+        # Remove from voxel collection
+        items = c.voxel
         for i, item in enumerate(items):
             if item.name == self.cube_name:
                 items.remove(i)
@@ -53,7 +54,7 @@ class OBJECT_OT_rename_spawned_cube(bpy.types.Operator):
             # Rename the object
             cube_obj.name = self.new_name
             # Update the collection entry
-            items = wm.celebi_data.spawned_cubes
+            items = type.celebi(context).voxel
             for item in items:
                 if item.name == self.cube_name:
                     item.name = self.new_name
@@ -69,16 +70,14 @@ class OBJECT_OT_voxel_cleanup(bpy.types.Operator):
     bl_label = "Cleanup Spawned Cubes"
 
     def execute(self, context):
-        wm = context.window_manager
+        c = type.celebi(context)
         cubes_to_keep = [
-            item.name
-            for item in wm.celebi_data.spawned_cubes
-            if bpy.data.objects.get(item.name)
+            item.name for item in c.voxel if bpy.data.objects.get(item.name)
         ]
 
-        wm.celebi_data.spawned_cubes.clear()
+        c.voxel.clear()
         for name in cubes_to_keep:
-            new_item = wm.celebi_data.spawned_cubes.add()
+            new_item = c.voxel.add()
             new_item.name = name
 
         return {"FINISHED"}
@@ -153,7 +152,8 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
 
                 # Check if a cube already exists at this location
                 found = False
-                for item in context.window_manager.celebi_data.spawned_cubes:
+                c = type.celebi(context)
+                for item in c.voxel:
                     cube = bpy.data.objects.get(item.name)
                     if cube and (cube.location - snapped_location).length < 0.001:
                         found = True
@@ -161,7 +161,7 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
                 if not found:
                     bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
                     new_cube = context.active_object
-                    item = context.window_manager.celebi_data.spawned_cubes.add()
+                    item = c.voxel.add()
                     item.name = new_cube.name
 
         return {"PASS_THROUGH"}
@@ -180,13 +180,14 @@ class VIEW3D_PT_voxel_panel(Panel):
 
     def draw(self, context):
         layout = self.layout
+        c = type.celebi(context)
 
         layout.operator(OBJECT_OT_voxel_hover.bl_idname)
 
         layout.operator(OBJECT_OT_voxel_cleanup.bl_idname, text="Cleanup Cubes")
 
         layout.label(text="Spawned Cubes:")
-        for item in context.window_manager.celebi_data.spawned_cubes:
+        for item in c.voxel:
             obj = bpy.data.objects.get(item.name)
             if obj:
                 row = layout.row(align=True)

@@ -5,21 +5,13 @@
     ],
     "items": [
         {
-            "object_name": "Breast",
-            "tags": []
-        },
-        {
-            "object_name": "Chest",
-            "tags": []
-        },
-        {
-            "object_name": "Foot",
+            "object_name": "Hi",
             "tags": [
-                "blue"
+                "red"
             ]
         },
         {
-            "object_name": "Hand",
+            "object_name": "Foot",
             "tags": [
                 "red",
                 "blue"
