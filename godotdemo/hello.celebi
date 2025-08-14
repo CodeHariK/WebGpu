@@ -17,5 +17,14 @@
                 "blue"
             ]
         }
+    ],
+    "voxels": [
+        "Cube.011",
+        "Cube.012",
+        "Cube.013",
+        "Cube.014",
+        "Cube.015",
+        "Cube.016",
+        "Cube.017"
     ]
 }

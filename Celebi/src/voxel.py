@@ -13,72 +13,90 @@ from bpy_extras import view3d_utils
 from . import type
 
 
-class OBJECT_OT_delete_spawned_cube(bpy.types.Operator):
-    bl_idname = "celebi.delete_spawned_cube"
-    bl_label = "Delete Spawned Cube"
-    bl_description = "Delete the selected spawned cube"
+class OBJECT_OT_delete_voxel(bpy.types.Operator):
+    bl_idname = "celebi.delete_voxel"
+    bl_label = "Delete Voxel"
+    bl_description = "Delete the selected voxel"
 
-    cube_name: StringProperty()
+    voxel_name: StringProperty()
 
     def execute(self, context):
         c = type.celebi(context)
-        cube_obj = bpy.data.objects.get(self.cube_name)
-        if cube_obj:
-            bpy.data.objects.remove(cube_obj, do_unlink=True)
+        voxel_obj = bpy.data.objects.get(self.voxel_name)
+        if voxel_obj:
+            bpy.data.objects.remove(voxel_obj, do_unlink=True)
         # Remove from voxel collection
-        items = c.voxel
+        items = c.voxels
         for i, item in enumerate(items):
-            if item.name == self.cube_name:
+            if item.name == self.voxel_name:
                 items.remove(i)
                 break
         return {"FINISHED"}
 
 
-class OBJECT_OT_rename_spawned_cube(bpy.types.Operator):
-    bl_idname = "celebi.rename_spawned_cube"
-    bl_label = "Rename Spawned Cube"
-    bl_description = "Rename the selected spawned cube"
+class OBJECT_OT_rename_voxel(bpy.types.Operator):
+    bl_idname = "celebi.rename_voxel"
+    bl_label = "Rename Voxel"
+    bl_description = "Rename the selected voxel"
     bl_options = {"REGISTER", "INTERNAL"}
 
-    cube_name: StringProperty()
+    voxel_name: StringProperty()
     new_name: StringProperty(name="New Name")
 
     def invoke(self, context, event):
-        self.new_name = self.cube_name
+        self.new_name = self.voxel_name
         return context.window_manager.invoke_props_dialog(self)
 
     def execute(self, context):
         wm = context.window_manager
-        cube_obj = bpy.data.objects.get(self.cube_name)
-        if cube_obj and self.new_name:
+        voxel_obj = bpy.data.objects.get(self.voxel_name)
+        if voxel_obj and self.new_name:
             # Rename the object
-            cube_obj.name = self.new_name
+            voxel_obj.name = self.new_name
             # Update the collection entry
-            items = type.celebi(context).voxel
+            items = type.celebi(context).voxels
             for item in items:
-                if item.name == self.cube_name:
+                if item.name == self.voxel_name:
                     item.name = self.new_name
                     break
             return {"FINISHED"}
         else:
-            self.report({"WARNING"}, "Cube not found or new name invalid")
+            self.report({"WARNING"}, "voxel not found or new name invalid")
             return {"CANCELLED"}
 
 
 class OBJECT_OT_voxel_cleanup(bpy.types.Operator):
     bl_idname = "celebi.voxel_cleanup"
-    bl_label = "Cleanup Spawned Cubes"
+    bl_label = "Cleanup Voxel"
 
     def execute(self, context):
         c = type.celebi(context)
-        cubes_to_keep = [
-            item.name for item in c.voxel if bpy.data.objects.get(item.name)
+        voxels_to_keep = [
+            item.name for item in c.voxels if bpy.data.objects.get(item.name)
         ]
 
-        c.voxel.clear()
-        for name in cubes_to_keep:
-            new_item = c.voxel.add()
+        c.voxels.clear()
+        for name in voxels_to_keep:
+            new_item = c.voxels.add()
             new_item.name = name
+
+        return {"FINISHED"}
+
+
+class OBJECT_OT_voxel_delete_all(bpy.types.Operator):
+    bl_idname = "celebi.voxel_delete_all"
+    bl_label = "Delete all voxels"
+
+    def execute(self, context):
+        c = type.celebi(context)
+
+        items = c.voxels
+        for i, item in enumerate(items):
+            voxel_obj = bpy.data.objects.get(item.name)
+            if voxel_obj:
+                bpy.data.objects.remove(voxel_obj, do_unlink=True)
+
+        c.voxels.clear()
 
         return {"FINISHED"}
 
@@ -86,24 +104,24 @@ class OBJECT_OT_voxel_cleanup(bpy.types.Operator):
 class OBJECT_OT_voxel_hover(bpy.types.Operator):
     bl_idname = "celebi.voxel_hover"
     bl_label = "Voxel Hover"
-    bl_description = "Spawn cubes by hovering over surfaces"
+    bl_description = "Spawn voxel by hovering over surfaces"
     bl_options = {"REGISTER", "UNDO"}
 
-    _preview_cube = None
+    _preview_voxel = None
 
     def modal(self, context, event):
         if event.type in {"RIGHTMOUSE", "ESC"}:
-            if self._preview_cube:
-                bpy.data.objects.remove(self._preview_cube, do_unlink=True)
-                self._preview_cube = None
+            if self._preview_voxel:
+                bpy.data.objects.remove(self._preview_voxel, do_unlink=True)
+                self._preview_voxel = None
             return {"CANCELLED"}
 
         coord = (event.mouse_region_x, event.mouse_region_y)
 
-        # Temporarily hide the preview cube to exclude it from raycast
+        # Temporarily hide the preview voxel to exclude it from raycast
         preview_hidden = False
-        if self._preview_cube and not self._preview_cube.hide_viewport:
-            self._preview_cube.hide_viewport = True
+        if self._preview_voxel and not self._preview_voxel.hide_viewport:
+            self._preview_voxel.hide_viewport = True
             preview_hidden = True
 
         ray_origin = view3d_utils.region_2d_to_origin_3d(
@@ -118,9 +136,9 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
             )
         )
 
-        # Restore preview cube visibility
+        # Restore preview voxel visibility
         if preview_hidden:
-            self._preview_cube.hide_viewport = False
+            self._preview_voxel.hide_viewport = False
 
         offset_location = ray_location + ray_normal * 0.1
         snapped_location = Vector(
@@ -133,36 +151,36 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
 
         if event.type == "MOUSEMOVE":
             if ray_result:
-                if self._preview_cube is None:
-                    bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
-                    self._preview_cube = context.active_object
-                    self._preview_cube.name = "Voxel_Preview_Cube"
-                    self._preview_cube.hide_select = True
-                    self._preview_cube.display_type = "WIRE"
-                    self._preview_cube.show_in_front = True
+                if self._preview_voxel is None:
+                    bpy.ops.mesh.primitive_voxel_add(size=1, location=snapped_location)
+                    self._preview_voxel = context.active_object
+                    self._preview_voxel.name = "Voxel_Preview_voxel"
+                    self._preview_voxel.hide_select = True
+                    self._preview_voxel.display_type = "WIRE"
+                    self._preview_voxel.show_in_front = True
                 else:
-                    self._preview_cube.hide_viewport = False
-                    self._preview_cube.location = snapped_location
+                    self._preview_voxel.hide_viewport = False
+                    self._preview_voxel.location = snapped_location
             else:
-                if self._preview_cube:
-                    self._preview_cube.hide_viewport = True
+                if self._preview_voxel:
+                    self._preview_voxel.hide_viewport = True
         elif event.type == "LEFTMOUSE" and event.value == "PRESS":
             if ray_result:
                 bpy.ops.celebi.voxel_cleanup()
 
-                # Check if a cube already exists at this location
+                # Check if a voxel already exists at this location
                 found = False
                 c = type.celebi(context)
-                for item in c.voxel:
-                    cube = bpy.data.objects.get(item.name)
-                    if cube and (cube.location - snapped_location).length < 0.001:
+                for item in c.voxels:
+                    voxel = bpy.data.objects.get(item.name)
+                    if voxel and (voxel.location - snapped_location).length < 0.001:
                         found = True
                         break
                 if not found:
-                    bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
-                    new_cube = context.active_object
-                    item = c.voxel.add()
-                    item.name = new_cube.name
+                    bpy.ops.mesh.primitive_voxel_add(size=1, location=snapped_location)
+                    new_voxel = context.active_object
+                    item = c.voxels.add()
+                    item.name = new_voxel.name
 
         return {"PASS_THROUGH"}
 
@@ -183,40 +201,36 @@ class VIEW3D_PT_voxel_panel(Panel):
         c = type.celebi(context)
 
         layout.operator(OBJECT_OT_voxel_hover.bl_idname)
+        layout.operator(OBJECT_OT_voxel_cleanup.bl_idname, text="Cleanup voxels")
+        layout.operator(OBJECT_OT_voxel_delete_all.bl_idname, text="Delete all voxels")
 
-        layout.operator(OBJECT_OT_voxel_cleanup.bl_idname, text="Cleanup Cubes")
-
-        layout.label(text="Spawned Cubes:")
-        for item in c.voxel:
+        layout.label(text="Voxels:")
+        for item in c.voxels:
             obj = bpy.data.objects.get(item.name)
             if obj:
                 row = layout.row(align=True)
                 row.label(text=obj.name)
-                op_del = row.operator(
-                    OBJECT_OT_delete_spawned_cube.bl_idname, text="Delete"
-                )
-                op_del.cube_name = obj.name
+                op_del = row.operator(OBJECT_OT_delete_voxel.bl_idname, text="Delete")
+                op_del.voxel_name = obj.name
                 op_rename = row.operator(
-                    OBJECT_OT_rename_spawned_cube.bl_idname, text="Rename"
+                    OBJECT_OT_rename_voxel.bl_idname, text="Rename"
                 )
-                op_rename.cube_name = obj.name
+                op_rename.voxel_name = obj.name
 
 
 def register():
     bpy.utils.register_class(OBJECT_OT_voxel_hover)
     bpy.utils.register_class(OBJECT_OT_voxel_cleanup)
-    bpy.utils.register_class(OBJECT_OT_delete_spawned_cube)
-    bpy.utils.register_class(OBJECT_OT_rename_spawned_cube)
+    bpy.utils.register_class(OBJECT_OT_voxel_delete_all)
+    bpy.utils.register_class(OBJECT_OT_delete_voxel)
+    bpy.utils.register_class(OBJECT_OT_rename_voxel)
     bpy.utils.register_class(VIEW3D_PT_voxel_panel)
-
-    bpy.types.Scene.library_index = bpy.props.IntProperty()
 
 
 def unregister():
     bpy.utils.unregister_class(OBJECT_OT_voxel_hover)
     bpy.utils.unregister_class(OBJECT_OT_voxel_cleanup)
-    bpy.utils.unregister_class(OBJECT_OT_delete_spawned_cube)
-    bpy.utils.unregister_class(OBJECT_OT_rename_spawned_cube)
+    bpy.utils.unregister_class(OBJECT_OT_voxel_delete_all)
+    bpy.utils.unregister_class(OBJECT_OT_delete_voxel)
+    bpy.utils.unregister_class(OBJECT_OT_rename_voxel)
     bpy.utils.unregister_class(VIEW3D_PT_voxel_panel)
-
-    del bpy.types.Scene.library_index

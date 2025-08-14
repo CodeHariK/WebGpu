@@ -27,12 +27,11 @@ class LibraryItem(bpy.types.PropertyGroup):
 
 
 class CelebiData(bpy.types.PropertyGroup):
-    voxel: CollectionProperty(type=VoxelItem)
+    voxels: CollectionProperty(type=VoxelItem)
 
     library_items: CollectionProperty(type=LibraryItem)
     library_tags: CollectionProperty(type=TagItem)
     library_index: IntProperty(default=-1)
-    last_library_index: IntProperty(default=-1)
     new_tag_name: StringProperty()
 
 

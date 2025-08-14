@@ -17,6 +17,7 @@ from . import type
 
 import json
 
+
 class LIBRARY_OT_save(bpy.types.Operator):
     bl_idname = "celebi.library_save"
     bl_label = "Save Library"
@@ -30,7 +31,11 @@ class LIBRARY_OT_save(bpy.types.Operator):
 
         c = type.celebi(bpy.context)
 
-        data = {"all_tags": [t.name for t in c.library_tags], "items": []}
+        data = {
+            "all_tags": [t.name for t in c.library_tags],
+            "items": [],
+            "voxels": [v.name for v in c.voxels],
+        }
 
         library_items = c.library_items
 
@@ -91,6 +96,11 @@ class LIBRARY_OT_load(bpy.types.Operator):
                 tag_entry = item.tags.add()
                 tag_entry.name = tag_item.name
                 tag_entry.enabled = tag_item.name in enabled_tags
+
+        c.voxels.clear()
+        for voxel_name in data.get("voxels", []):
+            voxel_item = c.voxels.add()
+            voxel_item.name = voxel_name
 
         self.report({"INFO"}, f"Library loaded from {self.filepath}")
         return {"FINISHED"}
@@ -164,7 +174,6 @@ class LIBRARY_UL_items(bpy.types.UIList):
     ):
         obj = item.obj
         if obj is not None:
-            
             row = layout.row()
             # Checkbox reflects obj selection state
             selected = obj.select_get()
@@ -251,7 +260,6 @@ class LIBRARY_VIEW3D_PT_library(bpy.types.Panel):
 
 
 def register():
-
     bpy.utils.register_class(LIBRARY_OT_save)
     bpy.utils.register_class(LIBRARY_OT_load)
     bpy.utils.register_class(LIBRARY_OT_clear)
@@ -265,7 +273,6 @@ def register():
 
 
 def unregister():
-
     bpy.utils.unregister_class(LIBRARY_OT_save)
     bpy.utils.unregister_class(LIBRARY_OT_load)
     bpy.utils.unregister_class(LIBRARY_OT_clear)
