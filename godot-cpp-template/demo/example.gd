@@ -1,0 +1,14 @@
+extends Node
+
+func _ready() -> void:
+	var s = SummatorClass.new()
+	s.add(4)
+	s.sub(5)
+
+	$HelloNode.hello_world("Doom");
+
+	print(s.get_total())
+
+
+func _on_hello_node_2_hello_world_signal(data: String) -> void:
+	print("Data from signal " + data)

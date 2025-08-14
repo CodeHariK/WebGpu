@@ -1,30 +1,28 @@
 {
-    "all_tags": [],
+    "all_tags": [
+        "red",
+        "blue"
+    ],
     "items": [
         {
             "object_name": "Breast",
-            "custom_name": "Breast",
             "tags": []
         },
         {
             "object_name": "Chest",
-            "custom_name": "Chest",
             "tags": []
         },
         {
             "object_name": "Foot",
-            "custom_name": "Foot",
             "tags": [
-                "purple",
-                "red"
+                "blue"
             ]
         },
         {
             "object_name": "Hand",
-            "custom_name": "Hand",
             "tags": [
-                "purple",
-                "red"
+                "red",
+                "blue"
             ]
         }
     ]

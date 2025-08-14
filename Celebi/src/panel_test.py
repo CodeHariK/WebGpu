@@ -34,7 +34,7 @@ class LayoutPanel(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "TOOLS"
     bl_region_type = "UI"
-    bl_category = "Tools"
+    bl_category = "Celebi"
     bl_context = "objectmode"
 
     def draw(self, context):

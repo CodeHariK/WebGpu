@@ -24,3 +24,11 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
+
+[tool.pyright]
+typeCheckingMode = "basic"
+reportInvalidTypeForm = false
+reportAttributeAccessIssue = false
+reportOptionalMemberAccess = false
+reportArgumentType = false
+reportSelfClsParameterName = false

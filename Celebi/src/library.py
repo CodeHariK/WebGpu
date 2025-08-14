@@ -15,16 +15,6 @@ from bpy_extras import view3d_utils
 
 import json
 
-class LibraryTag(bpy.types.PropertyGroup):
-    name: StringProperty(name="Tag Name")
-    enabled: BoolProperty(name="Enabled", default=False)
-
-
-class LibraryItem(bpy.types.PropertyGroup):
-    obj: PointerProperty(type=bpy.types.Object)
-    custom_name: StringProperty(name="Name")
-    tags: CollectionProperty(type=LibraryTag)
-
 
 class LIBRARY_OT_save(bpy.types.Operator):
     bl_idname = "celebi.library_save"
@@ -37,16 +27,16 @@ class LIBRARY_OT_save(bpy.types.Operator):
         if not self.filepath.lower().endswith(".celebi"):
             self.filepath += ".celebi"
 
-        data = {
-            "all_tags": list(context.scene.library_tags), 
-            "items": []
-        }
+        celebi_data = context.window_manager.celebi_data
 
-        for item in context.scene.object_library:
+        data = {"all_tags": [t.name for t in celebi_data.library_tags], "items": []}
+
+        library_items = celebi_data.library_items
+
+        for item in library_items:
             enabled_tags = [t.name for t in item.tags if t.enabled]
             entry = {
                 "object_name": item.obj.name if item.obj else None,
-                "custom_name": item.custom_name,
                 "tags": enabled_tags,
             }
             data["items"].append(entry)
@@ -76,26 +66,30 @@ class LIBRARY_OT_load(bpy.types.Operator):
         with open(self.filepath, "r", encoding="utf-8") as f:
             data = json.load(f)
 
+        celebi_data = context.window_manager.celebi_data
+
         # Load all_tags into scene.library_tags
-        context.scene.library_tags.clear()
+        celebi_data.library_tags.clear()
         for tag_name in data.get("all_tags", []):
-            context.scene.library_tags.append(tag_name)
+            new_tag_entry = celebi_data.library_tags.add()
+            new_tag_entry.name = tag_name
+
+        celebi_data = context.window_manager.celebi_data
 
         # Clear existing
-        context.scene.object_library.clear()
+        celebi_data.library_items.clear()
 
         for entry in data.get("items", []):
-            item = context.scene.object_library.add()
+            item = celebi_data.library_items.add()
             if entry["object_name"] in bpy.data.objects:
                 item.obj = bpy.data.objects[entry["object_name"]]
-            item.custom_name = entry["custom_name"]
 
             # Restore tags collection with enabled status
             enabled_tags = set(entry.get("tags", []))
-            for tag_name in context.scene.library_tags:
+            for tag_item in celebi_data.library_tags:
                 tag_entry = item.tags.add()
-                tag_entry.name = tag_name
-                tag_entry.enabled = tag_name in enabled_tags
+                tag_entry.name = tag_item.name
+                tag_entry.enabled = tag_item.name in enabled_tags
 
         self.report({"INFO"}, f"Library loaded from {self.filepath}")
         return {"FINISHED"}
@@ -112,18 +106,24 @@ class LIBRARY_OT_clear(bpy.types.Operator):
     bl_label = "Clear Library"
 
     def execute(self, context):
-        context.scene.object_library.clear()
+        celebi_data = context.window_manager.celebi_data
+
+        celebi_data.library_items.clear()
+
         self.report({"INFO"}, "Library cleared")
         return {"FINISHED"}
 
 
 def update_tags(self, context):
-    for item in context.scene.object_library:
-        for tag_name in context.scene.library_tags:
-            if tag_name not in [t.name for t in item.tags]:
-                tag = item.tags.add()
-                tag.name = tag_name
-                tag.enabled = False
+    celebi_data = context.window_manager.celebi_data
+
+    for item in celebi_data.library_items:
+        for tag_item in celebi_data.library_tags:  # tag_item is a TagItem
+            if tag_item.name not in [t.name for t in item.tags]:
+                new_tag = item.tags.add()
+                new_tag.name = tag_item.name
+                new_tag.enabled = False
+
 
 # Operator to add new tag
 class LIBRARY_OT_add_tag(bpy.types.Operator):
@@ -132,11 +132,16 @@ class LIBRARY_OT_add_tag(bpy.types.Operator):
     new_tag: StringProperty(name="New Tag")
 
     def execute(self, context):
+        celebi_data = context.window_manager.celebi_data
+
         tag = self.new_tag.strip()
-        if tag and tag not in context.scene.library_tags:
-            context.scene.library_tags.append(tag)
+        if tag and tag not in celebi_data.library_tags:
+            new_tag_entry = celebi_data.library_tags.add()
+            new_tag_entry.name = tag
+
             # Add this tag to every existing LibraryItem's tags collection
-            for item in context.scene.object_library:
+
+            for item in context.window_manager.celebi_data.library_items:
                 if tag not in [t.name for t in item.tags]:
                     new_tag_entry = item.tags.add()
                     new_tag_entry.name = tag
@@ -151,14 +156,13 @@ class LIBRARY_OT_add_objects(bpy.types.Operator):
     bl_label = "Add Selected to Library"
 
     def execute(self, context):
-        lib = context.scene.object_library
+        celebi_data = context.window_manager.celebi_data
         for obj in context.selected_objects:
-            if not any(item.obj == obj for item in lib):
-                item = lib.add()
+            if not any(item.obj == obj for item in celebi_data.library_items):
+                item = celebi_data.library_items.add()
                 item.obj = obj
-                item.custom_name = obj.name
                 # Add a LibraryTag entry for each existing tag in scene.library_tags
-                for tag_name in context.scene.library_tags:
+                for tag_name in celebi_data.library_tags:
                     tag_entry = item.tags.add()
                     tag_entry.name = tag_name
                     tag_entry.enabled = False
@@ -170,7 +174,7 @@ class LIBRARY_UL_items(bpy.types.UIList):
         self, context, layout, data, item, icon, active_data, active_propname
     ):
         if item.obj:
-            layout.label(text=item.custom_name, icon="MESH_CUBE")
+            layout.label(text=item.obj.name, icon="MESH_CUBE")
         else:
             layout.label(text="<Missing>", icon="ERROR")
 
@@ -180,44 +184,39 @@ class LIBRARY_VIEW3D_PT_library(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_library"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Library"
+    bl_category = "Celebi"
 
     def select_library_object(self):
         scene = bpy.context.scene
-        if not scene.selecting_from_library:
-            return None
-        scene.selecting_from_library = False
-
-        print("no")
-
-        scene = bpy.context.scene
-        index = scene.library_index
-        if index is not None and 0 <= index < len(scene.object_library):
-            item = scene.object_library[index]
+        celebi_data = bpy.context.window_manager.celebi_data
+        index = celebi_data.library_index
+        lib = celebi_data.library_items
+        if index is not None and 0 <= index < len(lib):
+            item = lib[index]
             if item.obj:
                 bpy.ops.object.select_all(action="DESELECT")
                 item.obj.select_set(True)
                 bpy.context.view_layer.objects.active = item.obj
 
-                print("Hello")
-
         return None  # No repeat
-
 
     def update_selection(self):
         scene = bpy.context.scene
-        if scene.library_index != scene.get("_last_library_index", -1):
+        celebi_data = bpy.context.window_manager.celebi_data
+
+        if celebi_data.library_index != celebi_data.last_library_index:
+
             def deferred_set():
-                scene["_selecting_from_library"] = True
-                scene["_last_library_index"] = scene.library_index
+                celebi_data.last_library_index = celebi_data.library_index
                 self.select_library_object()
-                print("Hi")
                 return None
+
             bpy.app.timers.register(deferred_set, first_interval=0.01)
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
+        celebi_data = bpy.context.window_manager.celebi_data
 
         row = layout.row()
 
@@ -225,31 +224,35 @@ class LIBRARY_VIEW3D_PT_library(bpy.types.Panel):
         row.operator(LIBRARY_OT_load.bl_idname, icon="FILE_FOLDER")
         row.operator(LIBRARY_OT_clear.bl_idname, icon="TRASH")
         row.operator(LIBRARY_OT_add_objects.bl_idname, icon="PLUS")
-        row.prop(scene, "new_tag_name", text="")
+        row.prop(celebi_data, "new_tag_name", text="")
         row.operator(
             LIBRARY_OT_add_tag.bl_idname, text="", icon="ADD"
-        ).new_tag = scene.new_tag_name
+        ).new_tag = celebi_data.new_tag_name
 
         layout.template_list(
-            "LIBRARY_UL_items", "", scene, "object_library", scene, "library_index"
+            "LIBRARY_UL_items",
+            "",
+            context.window_manager.celebi_data,
+            "library_items",
+            context.window_manager.celebi_data,
+            "library_index",
         )
 
         self.update_selection()
 
+        celebi_data = context.window_manager.celebi_data
+        lib = celebi_data.library_items
+
         # Show details if an item is selected
-        if 0 <= scene.library_index < len(scene.object_library):
-            item = scene.object_library[scene.library_index]
+        if 0 <= celebi_data.library_index < len(lib):
+            item = lib[celebi_data.library_index]
             if item.obj:
-                layout.prop(item, "custom_name")
                 layout.label(text="Tags:")
                 for tag in item.tags:
                     layout.prop(tag, "enabled", text=tag.name)
 
 
 def register():
-    bpy.utils.register_class(LibraryTag)
-    bpy.utils.register_class(LibraryItem)
-
     bpy.utils.register_class(LIBRARY_OT_save)
     bpy.utils.register_class(LIBRARY_OT_load)
     bpy.utils.register_class(LIBRARY_OT_clear)
@@ -259,16 +262,8 @@ def register():
     bpy.utils.register_class(LIBRARY_VIEW3D_PT_library)
     bpy.utils.register_class(LIBRARY_UL_items)
 
-    bpy.types.Scene.object_library = CollectionProperty(type=LibraryItem)
-
-    bpy.types.Scene.last_library_index = bpy.props.IntProperty(default=-1)
-    bpy.types.Scene.selecting_from_library = bpy.props.BoolProperty(default=False)
-
 
 def unregister():
-    bpy.utils.unregister_class(LibraryTag)
-    bpy.utils.unregister_class(LibraryItem)
-
     bpy.utils.unregister_class(LIBRARY_OT_save)
     bpy.utils.unregister_class(LIBRARY_OT_load)
     bpy.utils.unregister_class(LIBRARY_OT_clear)
@@ -277,7 +272,3 @@ def unregister():
 
     bpy.utils.unregister_class(LIBRARY_VIEW3D_PT_library)
     bpy.utils.unregister_class(LIBRARY_UL_items)
-
-    del bpy.types.Scene.last_library_index
-    del bpy.types.Scene.selecting_from_library
-

@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3 uid="uid://dh0oj81pufivs"]
+
+[ext_resource type="Script" uid="uid://bmjqrirqujswp" path="res://example.gd" id="1_jdh55"]
+[ext_resource type="Texture2D" uid="uid://dbx66sovxd1" path="res://icon.svg" id="2_n51mc"]
+
+[node name="Node" type="Node"]
+script = ExtResource("1_jdh55")
+
+[node name="Doom" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="HelloNode" type="HelloNode" parent="."]
+speed = 200.0
+
+[node name="Icon" type="Sprite2D" parent="HelloNode"]
+position = Vector2(628, 272)
+texture = ExtResource("2_n51mc")
+
+[connection signal="hello_world_signal" from="HelloNode" to="." method="_on_hello_node_2_hello_world_signal"]
