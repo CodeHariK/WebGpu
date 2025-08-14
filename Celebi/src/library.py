@@ -232,10 +232,10 @@ class LIBRARY_VIEW3D_PT_library(bpy.types.Panel):
         layout.separator(type="LINE")
 
         tagrow = layout.row()
-        tagrow.prop(c, "new_tag_name", text="")
+        tagrow.prop(c, "T_new_tag_name", text="")
         tagrow.operator(
             LIBRARY_OT_add_tag.bl_idname, text="", icon="ADD"
-        ).new_tag = c.new_tag_name
+        ).new_tag = c.T_new_tag_name
 
         layout.separator(type="LINE")
 
@@ -245,14 +245,14 @@ class LIBRARY_VIEW3D_PT_library(bpy.types.Panel):
             c,
             "library_items",
             c,
-            "library_index",
+            "T_library_index",
         )
 
         lib = c.library_items
 
         # Show details if an item is selected
-        if 0 <= c.library_index < len(lib):
-            item = lib[c.library_index]
+        if 0 <= c.T_library_index < len(lib):
+            item = lib[c.T_library_index]
             if item.obj:
                 layout.label(text="Tags:")
                 for tag in item.tags:

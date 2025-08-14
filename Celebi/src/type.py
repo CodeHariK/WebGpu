@@ -31,9 +31,11 @@ class CelebiData(bpy.types.PropertyGroup):
 
     library_items: CollectionProperty(type=LibraryItem)
     library_tags: CollectionProperty(type=TagItem)
-    library_index: IntProperty(default=-1)
-    new_tag_name: StringProperty()
+    
+    T_library_index: IntProperty(default=-1)
+    T_new_tag_name: StringProperty()
 
+    T_voxel_hover_running: BoolProperty(default=False)
 
 def celebi(context: bpy.context) -> CelebiData:
     wm = context.window_manager

@@ -82,14 +82,13 @@ class OBJECT_OT_voxel_cleanup(bpy.types.Operator):
 
         return {"FINISHED"}
 
-
 class OBJECT_OT_voxel_delete_all(bpy.types.Operator):
     bl_idname = "celebi.voxel_delete_all"
     bl_label = "Delete all voxels"
 
     def execute(self, context):
         c = type.celebi(context)
-
+        
         items = c.voxels
         for i, item in enumerate(items):
             voxel_obj = bpy.data.objects.get(item.name)
@@ -99,7 +98,6 @@ class OBJECT_OT_voxel_delete_all(bpy.types.Operator):
         c.voxels.clear()
 
         return {"FINISHED"}
-
 
 class OBJECT_OT_voxel_hover(bpy.types.Operator):
     bl_idname = "celebi.voxel_hover"
@@ -114,6 +112,9 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
             if self._preview_voxel:
                 bpy.data.objects.remove(self._preview_voxel, do_unlink=True)
                 self._preview_voxel = None
+            
+            type.celebi(context).T_voxel_hover_running = False
+
             return {"CANCELLED"}
 
         coord = (event.mouse_region_x, event.mouse_region_y)
@@ -150,9 +151,10 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
         )
 
         if event.type == "MOUSEMOVE":
+            pass
             if ray_result:
                 if self._preview_voxel is None:
-                    bpy.ops.mesh.primitive_voxel_add(size=1, location=snapped_location)
+                    bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
                     self._preview_voxel = context.active_object
                     self._preview_voxel.name = "Voxel_Preview_voxel"
                     self._preview_voxel.hide_select = True
@@ -177,7 +179,7 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
                         found = True
                         break
                 if not found:
-                    bpy.ops.mesh.primitive_voxel_add(size=1, location=snapped_location)
+                    bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
                     new_voxel = context.active_object
                     item = c.voxels.add()
                     item.name = new_voxel.name
@@ -185,7 +187,14 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
         return {"PASS_THROUGH"}
 
     def invoke(self, context, event):
+
+        c = type.celebi(context)
+        if c.T_voxel_hover_running:
+            self.report({"WARNING"}, "Voxel Hover is already running")
+            return {"CANCELLED"}
+        c.T_voxel_hover_running = True
         context.window_manager.modal_handler_add(self)
+
         return {"RUNNING_MODAL"}
 
 
