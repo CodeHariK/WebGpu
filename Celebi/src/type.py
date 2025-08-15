@@ -48,15 +48,6 @@ class CelebiData(bpy.types.PropertyGroup):
     T_dim_z: bpy.props.IntProperty(
         name="Dim Z", default=1, min=-5, max=5, update=preview.update_preview
     )
-    T_pos_inc_x: bpy.props.IntProperty(
-        name="Pos inc X", default=0, min=-100, max=100, update=preview.update_preview
-    )
-    T_pos_inc_y: bpy.props.IntProperty(
-        name="Pos inc Y", default=0, min=-100, max=100, update=preview.update_preview
-    )
-    T_pos_inc_z: bpy.props.IntProperty(
-        name="Pos inc Z", default=0, min=-100, max=100, update=preview.update_preview
-    )
 
     T_voxel_hover_running: BoolProperty(default=False)
 

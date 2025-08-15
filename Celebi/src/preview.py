@@ -34,9 +34,9 @@ def update_preview(s, context):
         for y in signed_range(c.T_dim_y):
             for z in signed_range(c.T_dim_z):
                 loc = (
-                    base_loc.x + (x + c.T_pos_inc_x) * spacing,
-                    base_loc.y + (y + c.T_pos_inc_y) * spacing,
-                    base_loc.z + (z + c.T_pos_inc_z) * spacing,
+                    base_loc.x + (x) * spacing,
+                    base_loc.y + (y) * spacing,
+                    base_loc.z + (z) * spacing,
                 )
                 bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
                 pv = context.active_object
@@ -61,9 +61,5 @@ def my_cancel_function(context):
     c.T_dim_x = 1
     c.T_dim_z = 1
     c.T_dim_y = 1
-
-    c.T_pos_inc_x = 0
-    c.T_pos_inc_z = 0
-    c.T_pos_inc_y = 0
 
     print("Cancelled!")

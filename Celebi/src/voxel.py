@@ -158,7 +158,7 @@ class VOXEL_OT_hover(bpy.types.Operator):
                 if not found:
                     bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
                     new_voxel = context.active_object
-                    new_voxel.name = "random"
+                    new_voxel.name = "voxel"
                     item = c.voxels.add()
                     item.name = new_voxel.name
 
@@ -253,20 +253,18 @@ class VOXEL_PT_panel(Panel):
 
         l.operator("voxel.toggle_gizmo", text="Enable/Disable Gizmo")
 
-        l.label(text=str(c.T_voxels_index))
+        active = bpy.context.active_object
+        if active.name.startswith("voxel"):
+            l.label(text=active.name)
+            l.prop(c, "T_dim_x", slider=True)
+            l.prop(c, "T_dim_y", slider=True)
+            l.prop(c, "T_dim_z", slider=True)
 
-        l.prop(c, "T_dim_x", slider=True)
-        l.prop(c, "T_dim_y", slider=True)
-        l.prop(c, "T_dim_z", slider=True)
-        l.prop(c, "T_pos_inc_x", slider=True)
-        l.prop(c, "T_pos_inc_y", slider=True)
-        l.prop(c, "T_pos_inc_z", slider=True)
-
-        row = l.row(align=True)
-        op = row.operator(VOXEL_OT_action.bl_idname, text="Confirm", icon="CHECKMARK")
-        op.action = "CONFIRM"
-        op = row.operator(VOXEL_OT_action.bl_idname, text="Cancel", icon="CANCEL")
-        op.action = "CANCEL"
+            row = l.row(align=True)
+            op = row.operator(VOXEL_OT_action.bl_idname, text="Confirm", icon="CHECKMARK")
+            op.action = "CONFIRM"
+            op = row.operator(VOXEL_OT_action.bl_idname, text="Cancel", icon="CANCEL")
+            op.action = "CANCEL"
 
         l.label(text="Voxels:")
         l.template_list("VOXEL_UL_items", "", c, "voxels", c, "T_voxels_index", rows=4)
