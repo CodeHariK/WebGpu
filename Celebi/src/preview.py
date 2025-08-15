@@ -1,9 +1,14 @@
 import bpy
+import time
+
 from . import type
+
 
 def update_preview(s, context):
     c = type.celebi(context)
     spacing = 1.0
+
+    time_start = time.time()
 
     # Remove existing preview
     for v in c.T_preview_voxels:
@@ -11,6 +16,8 @@ def update_preview(s, context):
         if obj:
             bpy.data.objects.remove(obj, do_unlink=True)
     c.T_preview_voxels.clear()
+
+    print("My Script Finished: %.4f sec" % (time.time() - time_start))
 
     base_obj = bpy.data.objects.get(c.voxels[c.T_voxels_index].name)
     if not base_obj:
@@ -40,19 +47,23 @@ def update_preview(s, context):
                 item = c.T_preview_voxels.add()
                 item.name = pv.name
 
+    print("My Script Finished: %.4f sec" % (time.time() - time_start))
+
+
 def my_confirm_function(context):
     print("Confirmed!")
     # spawn cubes, etc.
 
+
 def my_cancel_function(context):
     c = type.celebi(context)
 
-    c.T_dim_x  = 1
-    c.T_dim_z  = 1
-    c.T_dim_y  = 1
+    c.T_dim_x = 1
+    c.T_dim_z = 1
+    c.T_dim_y = 1
 
-    c.T_pos_inc_x  = 0
-    c.T_pos_inc_z  = 0
-    c.T_pos_inc_y  = 0
+    c.T_pos_inc_x = 0
+    c.T_pos_inc_z = 0
+    c.T_pos_inc_y = 0
 
     print("Cancelled!")

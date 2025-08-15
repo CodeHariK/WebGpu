@@ -1,3 +1,4 @@
+import math
 import bpy
 from bpy.props import (
     FloatVectorProperty,
@@ -10,8 +11,11 @@ from bpy.props import (
 from bpy.types import Operator, Panel, UIList, PropertyGroup
 from mathutils import Vector
 from bpy_extras import view3d_utils
+
 from . import type
 from . import preview
+from . import gizmo
+
 
 class VOXEL_OT_delete(bpy.types.Operator):
     bl_idname = "celebi.voxel_delete"
@@ -48,6 +52,8 @@ class VOXEL_OT_cleanup(bpy.types.Operator):
         for name in voxels_to_keep:
             new_item = c.voxels.add()
             new_item.name = name
+
+        c.T_voxel_hover_running = False
 
         return {"FINISHED"}
 
@@ -226,6 +232,7 @@ def sync_selection_to_voxels(scene):
     for item in c.voxels:
         item.selected = item.name in selected_objs
 
+
 class VOXEL_PT_panel(Panel):
     bl_label = "Voxel Panel"
     bl_idname = "VOXEL_PT_panel"
@@ -234,7 +241,6 @@ class VOXEL_PT_panel(Panel):
     bl_category = "Celebi"
 
     def draw(self, context):
-
         l = self.layout
         c = type.celebi(context)
 
@@ -244,6 +250,8 @@ class VOXEL_PT_panel(Panel):
         l.operator(VOXEL_OT_hover.bl_idname)
         l.operator(VOXEL_OT_cleanup.bl_idname, text="Cleanup voxels")
         l.operator(VOXEL_OT_delete_all.bl_idname, text="Delete all voxels")
+
+        l.operator("voxel.toggle_gizmo", text="Enable/Disable Gizmo")
 
         l.label(text=str(c.T_voxels_index))
 
@@ -261,9 +269,8 @@ class VOXEL_PT_panel(Panel):
         op.action = "CANCEL"
 
         l.label(text="Voxels:")
-        l.template_list(
-            "VOXEL_UL_items", "", c, "voxels", c, "T_voxels_index", rows=4
-        )
+        l.template_list("VOXEL_UL_items", "", c, "voxels", c, "T_voxels_index", rows=4)
+
 
 class VOXEL_OT_action(bpy.types.Operator):
     bl_idname = "celebi.voxel_ot_action"
@@ -276,7 +283,7 @@ class VOXEL_OT_action(bpy.types.Operator):
             preview.my_confirm_function(context)
         elif self.action == "CANCEL":
             preview.my_cancel_function(context)
-        return {'FINISHED'}
+        return {"FINISHED"}
 
 
 def register():
@@ -291,6 +298,10 @@ def register():
     bpy.utils.register_class(VOXEL_UL_items)
     bpy.utils.register_class(VOXEL_PT_panel)
 
+    bpy.utils.register_class(gizmo.VOXEL_GGT_offset_gizmo)
+    bpy.utils.register_class(gizmo.VOXEL_OT_toggle_gizmo)
+    bpy.types.Scene.voxel_gizmo_enabled = bpy.props.BoolProperty(default=True)
+
 
 def unregister():
     bpy.utils.unregister_class(VOXEL_OT_hover)
@@ -303,3 +314,7 @@ def unregister():
     bpy.utils.unregister_class(VOXEL_OT_toggle_object_selection)
     bpy.utils.unregister_class(VOXEL_UL_items)
     bpy.utils.unregister_class(VOXEL_PT_panel)
+
+    bpy.utils.unregister_class(gizmo.VOXEL_GGT_offset_gizmo)
+    bpy.utils.unregister_class(gizmo.VOXEL_OT_toggle_gizmo)
+    del bpy.types.Scene.voxel_gizmo_enabled

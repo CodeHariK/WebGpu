@@ -10,6 +10,7 @@ from bpy.props import (
 )
 from . import preview
 
+
 class VoxelItem(bpy.types.PropertyGroup):
     name: StringProperty()
     selected: BoolProperty(default=False)
@@ -26,6 +27,7 @@ class LibraryItem(bpy.types.PropertyGroup):
     tags: CollectionProperty(type=TagItem)
     selected: BoolProperty(default=False)
 
+
 class CelebiData(bpy.types.PropertyGroup):
     voxels: CollectionProperty(type=VoxelItem)
 
@@ -37,12 +39,24 @@ class CelebiData(bpy.types.PropertyGroup):
 
     T_voxels_index: IntProperty(default=-1)
     T_preview_voxels: CollectionProperty(type=VoxelItem)
-    T_dim_x: bpy.props.IntProperty(name="Dim X", default=1, min=-5,max=5, update=preview.update_preview)
-    T_dim_y: bpy.props.IntProperty(name="Dim Y", default=1, min=-5,max=5, update=preview.update_preview)
-    T_dim_z: bpy.props.IntProperty(name="Dim Z", default=1, min=-5,max=5, update=preview.update_preview)
-    T_pos_inc_x: bpy.props.IntProperty(name="Pos inc X", default=0, min=-100,max=100, update=preview.update_preview)
-    T_pos_inc_y: bpy.props.IntProperty(name="Pos inc Y", default=0, min=-100,max=100, update=preview.update_preview)
-    T_pos_inc_z: bpy.props.IntProperty(name="Pos inc Z", default=0, min=-100,max=100, update=preview.update_preview)
+    T_dim_x: bpy.props.IntProperty(
+        name="Dim X", default=1, min=-5, max=5, update=preview.update_preview
+    )
+    T_dim_y: bpy.props.IntProperty(
+        name="Dim Y", default=1, min=-5, max=5, update=preview.update_preview
+    )
+    T_dim_z: bpy.props.IntProperty(
+        name="Dim Z", default=1, min=-5, max=5, update=preview.update_preview
+    )
+    T_pos_inc_x: bpy.props.IntProperty(
+        name="Pos inc X", default=0, min=-100, max=100, update=preview.update_preview
+    )
+    T_pos_inc_y: bpy.props.IntProperty(
+        name="Pos inc Y", default=0, min=-100, max=100, update=preview.update_preview
+    )
+    T_pos_inc_z: bpy.props.IntProperty(
+        name="Pos inc Z", default=0, min=-100, max=100, update=preview.update_preview
+    )
 
     T_voxel_hover_running: BoolProperty(default=False)
 
