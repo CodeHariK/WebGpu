@@ -12,6 +12,7 @@ from bpy.props import (
 
 class VoxelItem(bpy.types.PropertyGroup):
     name: StringProperty()
+    selected: BoolProperty(default=False)
 
 
 class TagItem(bpy.types.PropertyGroup):
@@ -31,11 +32,14 @@ class CelebiData(bpy.types.PropertyGroup):
 
     library_items: CollectionProperty(type=LibraryItem)
     library_tags: CollectionProperty(type=TagItem)
-    
+
     T_library_index: IntProperty(default=-1)
     T_new_tag_name: StringProperty()
 
+    voxels_index: IntProperty(default=-1)
+    T_current_voxel: StringProperty()
     T_voxel_hover_running: BoolProperty(default=False)
+
 
 def celebi(context: bpy.context) -> CelebiData:
     wm = context.window_manager

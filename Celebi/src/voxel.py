@@ -13,8 +13,8 @@ from bpy_extras import view3d_utils
 from . import type
 
 
-class OBJECT_OT_delete_voxel(bpy.types.Operator):
-    bl_idname = "celebi.delete_voxel"
+class VOXEL_OT_delete(bpy.types.Operator):
+    bl_idname = "celebi.voxel_delete"
     bl_label = "Delete Voxel"
     bl_description = "Delete the selected voxel"
 
@@ -33,39 +33,7 @@ class OBJECT_OT_delete_voxel(bpy.types.Operator):
                 break
         return {"FINISHED"}
 
-
-class OBJECT_OT_rename_voxel(bpy.types.Operator):
-    bl_idname = "celebi.rename_voxel"
-    bl_label = "Rename Voxel"
-    bl_description = "Rename the selected voxel"
-    bl_options = {"REGISTER", "INTERNAL"}
-
-    voxel_name: StringProperty()
-    new_name: StringProperty(name="New Name")
-
-    def invoke(self, context, event):
-        self.new_name = self.voxel_name
-        return context.window_manager.invoke_props_dialog(self)
-
-    def execute(self, context):
-        wm = context.window_manager
-        voxel_obj = bpy.data.objects.get(self.voxel_name)
-        if voxel_obj and self.new_name:
-            # Rename the object
-            voxel_obj.name = self.new_name
-            # Update the collection entry
-            items = type.celebi(context).voxels
-            for item in items:
-                if item.name == self.voxel_name:
-                    item.name = self.new_name
-                    break
-            return {"FINISHED"}
-        else:
-            self.report({"WARNING"}, "voxel not found or new name invalid")
-            return {"CANCELLED"}
-
-
-class OBJECT_OT_voxel_cleanup(bpy.types.Operator):
+class VOXEL_OT_cleanup(bpy.types.Operator):
     bl_idname = "celebi.voxel_cleanup"
     bl_label = "Cleanup Voxel"
 
@@ -82,13 +50,14 @@ class OBJECT_OT_voxel_cleanup(bpy.types.Operator):
 
         return {"FINISHED"}
 
-class OBJECT_OT_voxel_delete_all(bpy.types.Operator):
+
+class VOXEL_OT_delete_all(bpy.types.Operator):
     bl_idname = "celebi.voxel_delete_all"
     bl_label = "Delete all voxels"
 
     def execute(self, context):
         c = type.celebi(context)
-        
+
         items = c.voxels
         for i, item in enumerate(items):
             voxel_obj = bpy.data.objects.get(item.name)
@@ -99,7 +68,8 @@ class OBJECT_OT_voxel_delete_all(bpy.types.Operator):
 
         return {"FINISHED"}
 
-class OBJECT_OT_voxel_hover(bpy.types.Operator):
+
+class VOXEL_OT_hover(bpy.types.Operator):
     bl_idname = "celebi.voxel_hover"
     bl_label = "Voxel Hover"
     bl_description = "Spawn voxel by hovering over surfaces"
@@ -108,18 +78,19 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
     _preview_voxel = None
 
     def modal(self, context, event):
+        c = type.celebi(context)
+
         if event.type in {"RIGHTMOUSE", "ESC"}:
             if self._preview_voxel:
                 bpy.data.objects.remove(self._preview_voxel, do_unlink=True)
                 self._preview_voxel = None
-            
-            type.celebi(context).T_voxel_hover_running = False
+
+            c.T_voxel_hover_running = False
 
             return {"CANCELLED"}
 
         coord = (event.mouse_region_x, event.mouse_region_y)
 
-        # Temporarily hide the preview voxel to exclude it from raycast
         preview_hidden = False
         if self._preview_voxel and not self._preview_voxel.hide_viewport:
             self._preview_voxel.hide_viewport = True
@@ -172,7 +143,6 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
 
                 # Check if a voxel already exists at this location
                 found = False
-                c = type.celebi(context)
                 for item in c.voxels:
                     voxel = bpy.data.objects.get(item.name)
                     if voxel and (voxel.location - snapped_location).length < 0.001:
@@ -183,11 +153,11 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
                     new_voxel = context.active_object
                     item = c.voxels.add()
                     item.name = new_voxel.name
+                    c.T_current_voxel = new_voxel.name
 
         return {"PASS_THROUGH"}
 
     def invoke(self, context, event):
-
         c = type.celebi(context)
         if c.T_voxel_hover_running:
             self.report({"WARNING"}, "Voxel Hover is already running")
@@ -198,7 +168,65 @@ class OBJECT_OT_voxel_hover(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
 
-class VIEW3D_PT_voxel_panel(Panel):
+class VOXEL_OT_toggle_object_selection(bpy.types.Operator):
+    bl_idname = "celebi.voxel_toggle_object_selection"
+    bl_label = "Toggle Voxel Object Selection"
+    bl_description = "Toggle selection of the voxel object in the viewport"
+    bl_options = {"INTERNAL"}
+
+    obj_name: StringProperty()
+
+    def execute(self, context):
+        obj = bpy.data.objects.get(self.obj_name)
+        if obj is None:
+            self.report({"WARNING"}, f"Object '{self.obj_name}' not found")
+            return {"CANCELLED"}
+
+        # Toggle selection
+        obj.select_set(not obj.select_get())
+
+        # Update active object if selected
+        if obj.select_get():
+            context.view_layer.objects.active = obj
+        else:
+            # If deselected and it was active, clear active
+            if context.view_layer.objects.active == obj:
+                context.view_layer.objects.active = None
+
+        return {"FINISHED"}
+
+
+class VOXEL_UL_items(UIList):
+    def draw_item(
+        self, context, layout, data, item, icon, active_data, active_propname, index
+    ):
+        c = type.celebi(context)
+        obj = bpy.data.objects.get(item.name)
+        if obj:
+            row = layout.row(align=True)
+
+            toggle_obj_selection_ot = row.operator(
+                VOXEL_OT_toggle_object_selection.bl_idname,
+                text="",
+                icon="CHECKBOX_HLT" if obj.select_get() else "CHECKBOX_DEHLT",
+                emboss=False,
+            )
+            toggle_obj_selection_ot.obj_name = obj.name
+            
+            row.label(text=obj.name)
+            
+            op_del = row.operator(VOXEL_OT_delete.bl_idname, text="", icon="X")
+            op_del.voxel_name = obj.name
+
+
+def sync_selection_to_voxels(scene):
+    c = type.celebi(bpy.context)
+    selected_objs = set(obj.name for obj in bpy.context.selected_objects)
+    for item in c.voxels:
+        item.selected = item.name in selected_objs
+
+
+class VOXEL_PT_panel(Panel):
     bl_label = "Voxel Panel"
     bl_idname = "VIEW3D_PT_voxel_panel"
     bl_space_type = "VIEW_3D"
@@ -209,37 +237,40 @@ class VIEW3D_PT_voxel_panel(Panel):
         layout = self.layout
         c = type.celebi(context)
 
-        layout.operator(OBJECT_OT_voxel_hover.bl_idname)
-        layout.operator(OBJECT_OT_voxel_cleanup.bl_idname, text="Cleanup voxels")
-        layout.operator(OBJECT_OT_voxel_delete_all.bl_idname, text="Delete all voxels")
+        # Sync selection state from objects to voxel items
+        sync_selection_to_voxels(context.scene)
+
+        layout.operator(VOXEL_OT_hover.bl_idname)
+        layout.operator(VOXEL_OT_cleanup.bl_idname, text="Cleanup voxels")
+        layout.operator(VOXEL_OT_delete_all.bl_idname, text="Delete all voxels")
+
+        layout.label(text=c.T_current_voxel)
 
         layout.label(text="Voxels:")
-        for item in c.voxels:
-            obj = bpy.data.objects.get(item.name)
-            if obj:
-                row = layout.row(align=True)
-                row.label(text=obj.name)
-                op_del = row.operator(OBJECT_OT_delete_voxel.bl_idname, text="Delete")
-                op_del.voxel_name = obj.name
-                op_rename = row.operator(
-                    OBJECT_OT_rename_voxel.bl_idname, text="Rename"
-                )
-                op_rename.voxel_name = obj.name
+        layout.template_list(
+            "VOXEL_UL_items", "", c, "voxels", c, "voxels_index", rows=4
+        )
 
 
 def register():
-    bpy.utils.register_class(OBJECT_OT_voxel_hover)
-    bpy.utils.register_class(OBJECT_OT_voxel_cleanup)
-    bpy.utils.register_class(OBJECT_OT_voxel_delete_all)
-    bpy.utils.register_class(OBJECT_OT_delete_voxel)
-    bpy.utils.register_class(OBJECT_OT_rename_voxel)
-    bpy.utils.register_class(VIEW3D_PT_voxel_panel)
+    bpy.utils.register_class(VOXEL_OT_hover)
+
+    bpy.utils.register_class(VOXEL_OT_cleanup)
+    bpy.utils.register_class(VOXEL_OT_delete_all)
+    bpy.utils.register_class(VOXEL_OT_delete)
+
+    bpy.utils.register_class(VOXEL_OT_toggle_object_selection)
+    bpy.utils.register_class(VOXEL_UL_items)
+    bpy.utils.register_class(VOXEL_PT_panel)
 
 
 def unregister():
-    bpy.utils.unregister_class(OBJECT_OT_voxel_hover)
-    bpy.utils.unregister_class(OBJECT_OT_voxel_cleanup)
-    bpy.utils.unregister_class(OBJECT_OT_voxel_delete_all)
-    bpy.utils.unregister_class(OBJECT_OT_delete_voxel)
-    bpy.utils.unregister_class(OBJECT_OT_rename_voxel)
-    bpy.utils.unregister_class(VIEW3D_PT_voxel_panel)
+    bpy.utils.unregister_class(VOXEL_OT_hover)
+
+    bpy.utils.unregister_class(VOXEL_OT_cleanup)
+    bpy.utils.unregister_class(VOXEL_OT_delete_all)
+    bpy.utils.unregister_class(VOXEL_OT_delete)
+
+    bpy.utils.unregister_class(VOXEL_OT_toggle_object_selection)
+    bpy.utils.unregister_class(VOXEL_UL_items)
+    bpy.utils.unregister_class(VOXEL_PT_panel)

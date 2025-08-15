@@ -17,7 +17,6 @@ from . import type
 
 import json
 
-
 class LIBRARY_OT_save(bpy.types.Operator):
     bl_idname = "celebi.library_save"
     bl_label = "Save Library"
@@ -187,13 +186,13 @@ class LIBRARY_UL_items(bpy.types.UIList):
             )
             op.obj_name = obj.name
 
-
 class LIBRARY_OT_toggle_object_selection(bpy.types.Operator):
-    bl_idname = "celebi.toggle_object_selection"
+    bl_idname = "celebi.library_toggle_object_selection"
     bl_label = "Toggle Object Selection"
     bl_description = "Toggle selection of the object in the viewport"
+    bl_options = {"INTERNAL"}
 
-    obj_name: bpy.props.StringProperty()
+    obj_name: bpy.props.StringProperty(name="Object Name")
 
     def execute(self, context):
         obj = bpy.data.objects.get(self.obj_name)
@@ -201,17 +200,13 @@ class LIBRARY_OT_toggle_object_selection(bpy.types.Operator):
             self.report({"WARNING"}, "Object not found")
             return {"CANCELLED"}
         obj.select_set(not obj.select_get())
-        # Optionally, set active object if selected
         if obj.select_get():
             context.view_layer.objects.active = obj
-        else:
-            # If deselected and active object is this obj, clear active object
-            if context.view_layer.objects.active == obj:
-                context.view_layer.objects.active = None
+        elif context.view_layer.objects.active == obj:
+            context.view_layer.objects.active = None
         return {"FINISHED"}
 
-
-class LIBRARY_VIEW3D_PT_library(bpy.types.Panel):
+class LIBRARY_PT_panel(bpy.types.Panel):
     bl_label = "Object Library"
     bl_idname = "VIEW3D_PT_library"
     bl_space_type = "VIEW_3D"
@@ -263,23 +258,23 @@ def register():
     bpy.utils.register_class(LIBRARY_OT_save)
     bpy.utils.register_class(LIBRARY_OT_load)
     bpy.utils.register_class(LIBRARY_OT_clear)
+
     bpy.utils.register_class(LIBRARY_OT_add_tag)
     bpy.utils.register_class(LIBRARY_OT_add_objects)
 
-    bpy.utils.register_class(LIBRARY_VIEW3D_PT_library)
-    bpy.utils.register_class(LIBRARY_UL_items)
-
     bpy.utils.register_class(LIBRARY_OT_toggle_object_selection)
+    bpy.utils.register_class(LIBRARY_UL_items)
+    bpy.utils.register_class(LIBRARY_PT_panel)
 
 
 def unregister():
     bpy.utils.unregister_class(LIBRARY_OT_save)
     bpy.utils.unregister_class(LIBRARY_OT_load)
     bpy.utils.unregister_class(LIBRARY_OT_clear)
+
     bpy.utils.unregister_class(LIBRARY_OT_add_tag)
     bpy.utils.unregister_class(LIBRARY_OT_add_objects)
 
-    bpy.utils.unregister_class(LIBRARY_VIEW3D_PT_library)
-    bpy.utils.unregister_class(LIBRARY_UL_items)
-
     bpy.utils.unregister_class(LIBRARY_OT_toggle_object_selection)
+    bpy.utils.unregister_class(LIBRARY_UL_items)
+    bpy.utils.unregister_class(LIBRARY_PT_panel)
