@@ -11,7 +11,7 @@ from bpy.types import Operator, Panel, UIList, PropertyGroup
 from mathutils import Vector
 from bpy_extras import view3d_utils
 from . import type
-
+from . import preview
 
 class VOXEL_OT_delete(bpy.types.Operator):
     bl_idname = "celebi.voxel_delete"
@@ -32,6 +32,7 @@ class VOXEL_OT_delete(bpy.types.Operator):
                 items.remove(i)
                 break
         return {"FINISHED"}
+
 
 class VOXEL_OT_cleanup(bpy.types.Operator):
     bl_idname = "celebi.voxel_cleanup"
@@ -151,9 +152,9 @@ class VOXEL_OT_hover(bpy.types.Operator):
                 if not found:
                     bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
                     new_voxel = context.active_object
+                    new_voxel.name = "random"
                     item = c.voxels.add()
                     item.name = new_voxel.name
-                    c.T_current_voxel = new_voxel.name
 
         return {"PASS_THROUGH"}
 
@@ -212,9 +213,9 @@ class VOXEL_UL_items(UIList):
                 emboss=False,
             )
             toggle_obj_selection_ot.obj_name = obj.name
-            
+
             row.label(text=obj.name)
-            
+
             op_del = row.operator(VOXEL_OT_delete.bl_idname, text="", icon="X")
             op_del.voxel_name = obj.name
 
@@ -225,31 +226,57 @@ def sync_selection_to_voxels(scene):
     for item in c.voxels:
         item.selected = item.name in selected_objs
 
-
 class VOXEL_PT_panel(Panel):
     bl_label = "Voxel Panel"
-    bl_idname = "VIEW3D_PT_voxel_panel"
+    bl_idname = "VOXEL_PT_panel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "Celebi"
 
     def draw(self, context):
-        layout = self.layout
+
+        l = self.layout
         c = type.celebi(context)
 
         # Sync selection state from objects to voxel items
         sync_selection_to_voxels(context.scene)
 
-        layout.operator(VOXEL_OT_hover.bl_idname)
-        layout.operator(VOXEL_OT_cleanup.bl_idname, text="Cleanup voxels")
-        layout.operator(VOXEL_OT_delete_all.bl_idname, text="Delete all voxels")
+        l.operator(VOXEL_OT_hover.bl_idname)
+        l.operator(VOXEL_OT_cleanup.bl_idname, text="Cleanup voxels")
+        l.operator(VOXEL_OT_delete_all.bl_idname, text="Delete all voxels")
 
-        layout.label(text=c.T_current_voxel)
+        l.label(text=str(c.T_voxels_index))
 
-        layout.label(text="Voxels:")
-        layout.template_list(
-            "VOXEL_UL_items", "", c, "voxels", c, "voxels_index", rows=4
+        l.prop(c, "T_dim_x", slider=True)
+        l.prop(c, "T_dim_y", slider=True)
+        l.prop(c, "T_dim_z", slider=True)
+        l.prop(c, "T_pos_inc_x", slider=True)
+        l.prop(c, "T_pos_inc_y", slider=True)
+        l.prop(c, "T_pos_inc_z", slider=True)
+
+        row = l.row(align=True)
+        op = row.operator(VOXEL_OT_action.bl_idname, text="Confirm", icon="CHECKMARK")
+        op.action = "CONFIRM"
+        op = row.operator(VOXEL_OT_action.bl_idname, text="Cancel", icon="CANCEL")
+        op.action = "CANCEL"
+
+        l.label(text="Voxels:")
+        l.template_list(
+            "VOXEL_UL_items", "", c, "voxels", c, "T_voxels_index", rows=4
         )
+
+class VOXEL_OT_action(bpy.types.Operator):
+    bl_idname = "celebi.voxel_ot_action"
+    bl_label = "Voxel Action"
+
+    action: bpy.props.StringProperty()
+
+    def execute(self, context):
+        if self.action == "CONFIRM":
+            preview.my_confirm_function(context)
+        elif self.action == "CANCEL":
+            preview.my_cancel_function(context)
+        return {'FINISHED'}
 
 
 def register():
@@ -259,6 +286,7 @@ def register():
     bpy.utils.register_class(VOXEL_OT_delete_all)
     bpy.utils.register_class(VOXEL_OT_delete)
 
+    bpy.utils.register_class(VOXEL_OT_action)
     bpy.utils.register_class(VOXEL_OT_toggle_object_selection)
     bpy.utils.register_class(VOXEL_UL_items)
     bpy.utils.register_class(VOXEL_PT_panel)
@@ -271,6 +299,7 @@ def unregister():
     bpy.utils.unregister_class(VOXEL_OT_delete_all)
     bpy.utils.unregister_class(VOXEL_OT_delete)
 
+    bpy.utils.unregister_class(VOXEL_OT_action)
     bpy.utils.unregister_class(VOXEL_OT_toggle_object_selection)
     bpy.utils.unregister_class(VOXEL_UL_items)
     bpy.utils.unregister_class(VOXEL_PT_panel)

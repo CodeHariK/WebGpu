@@ -17,6 +17,7 @@ from . import type
 
 import json
 
+
 class LIBRARY_OT_save(bpy.types.Operator):
     bl_idname = "celebi.library_save"
     bl_label = "Save Library"
@@ -186,6 +187,7 @@ class LIBRARY_UL_items(bpy.types.UIList):
             )
             op.obj_name = obj.name
 
+
 class LIBRARY_OT_toggle_object_selection(bpy.types.Operator):
     bl_idname = "celebi.library_toggle_object_selection"
     bl_label = "Toggle Object Selection"
@@ -205,6 +207,7 @@ class LIBRARY_OT_toggle_object_selection(bpy.types.Operator):
         elif context.view_layer.objects.active == obj:
             context.view_layer.objects.active = None
         return {"FINISHED"}
+
 
 class LIBRARY_PT_panel(bpy.types.Panel):
     bl_label = "Object Library"
