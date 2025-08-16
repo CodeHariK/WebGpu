@@ -23,14 +23,20 @@ class VOXEL_GGT_offset_gizmo(bpy.types.GizmoGroup):
         "Z": Matrix.Identity(4),  # Point along +Z
     }
 
+    planes_rot = {
+        "XY": Matrix.Identity(4),
+        "YZ": Matrix.Rotation(math.radians(90), 4, "Y"),
+        "ZX": Matrix.Rotation(math.radians(90), 4, "X"),
+    }
+
     _start_locations: Dict[str, Vector] = {}
     _start_active: Vector
+    _dragging: bool = False
+    _axes_handles: Dict[str, bpy.types.Gizmo] = {}
+    _plane_handles: Dict[str, bpy.types.Gizmo] = {}
+    _draw_custom_shape = False
 
     def setup(self, context):
-        self._handles = {}
-
-        self._dragging = False
-
         for axis, color in self.axes.items():
             gz = self.gizmos.new("GIZMO_GT_arrow_3d")
             gz.color = color
@@ -43,46 +49,133 @@ class VOXEL_GGT_offset_gizmo(bpy.types.GizmoGroup):
                 get=lambda a=axis: self.get_offset(a),
                 set=lambda val, a=axis: self.set_offset(val, a),
             )
-            self._handles[axis] = gz
+            self._axes_handles[axis] = gz
+
+        verts = [
+            (0.0, 2, 0.0),
+            (-0.25, 1, 0.0),
+            (0.25, 1, 0.0),
+        ]
+
+        for plane, mat in self.planes_rot.items():
+            gz = self.gizmos.new("GIZMO_GT_move_3d")
+            gz.color = (1, 0, 0)
+            gz.alpha = 0.4
+            gz.scale_basis = 0.75
+            gz.matrix_basis = mat
+            gz.draw_style = "RING_2D"
+
+            self.custom_shape_xy = gz.new_custom_shape(
+                "TRIS",
+                [
+                    (1.0, 0.25, 0.0),
+                    (1.0, -0.25, 0.0),
+                    (1.5, -0.25, 0.0),
+                    (1.0, 0.25, 0.0),
+                    (1.5, -0.25, 0.0),
+                    (1.5, 0.25, 0.0),
+                ],
+            )
+            self.custom_shape_yz = gz.new_custom_shape(
+                "TRIS",
+                [
+                    (-0.25, 1.0, 0.0),
+                    (0.25, 1.0, 0.0),
+                    (0.25, 1.5, 0.0),
+                    (-0.25, 1.0, 0.0),
+                    (0.25, 1.5, 0.0),
+                    (-0.25, 1.5, 0.0),
+                ],
+            )
+
+            self.custom_shape_zx = gz.new_custom_shape(
+                "TRIS",
+                [
+                    (-0.25, 1.0, 0.0),
+                    (0.25, 1.0, 0.0),
+                    (0.25, 1.5, 0.0),
+                    (-0.25, 1.0, 0.0),
+                    (0.25, 1.5, 0.0),
+                    (-0.25, 1.5, 0.0),
+                ],
+            )
+
+            gz.target_set_handler(
+                "offset",
+                get=lambda a=plane: self.get_plane_offset(a),
+                set=lambda val, a=plane: self.set_plane_offset(val, a),
+            )
+            self._plane_handles[plane] = gz
 
     def draw_prepare(self, context):
-        obj = context.active_object
-        if not obj:
-            return
+        highlight = False
 
-        highlightx = True
-        highlighty = True
-        highlightz = True
+        active = context.active_object
 
-        for axis, gz in self._handles.items():
-            gz.matrix_basis = obj.matrix_world @ self.axes_rot[axis]
+        all_voxels = True
+        for obj in context.selected_objects:
+            all_voxels = all_voxels and obj.name.startswith("voxel")
 
-            if axis == "X":
+        hide = not active or not active.select_get() or not all_voxels
+
+        for plane, gz in self._plane_handles.items():
+            gz.hide = hide
+            highlight = highlight or gz.is_highlight
+
+            if not active:
+                return
+
+            gz.matrix_basis = active.matrix_world @ self.planes_rot[plane]
+
+            if plane == "XY":
                 gz.matrix_basis = gz.matrix_basis @ Matrix.Translation(
-                    (0, 0, -obj.location.x)
+                    (-active.location.x, -active.location.y, -active.location.z)
                 )
-                highlightx = gz.is_highlight
-            if axis == "Y":
+                if self._draw_custom_shape:
+                    gz.draw_custom_shape(self.custom_shape_xy)
+            if plane == "YZ":
                 gz.matrix_basis = gz.matrix_basis @ Matrix.Translation(
-                    (0, 0, -obj.location.y)
+                    (active.location.z, -active.location.y, -active.location.x)
                 )
-                highlighty = gz.is_highlight
-            if axis == "Z":
+                if self._draw_custom_shape:
+                    gz.draw_custom_shape(self.custom_shape_yz)
+            if plane == "ZX":
                 gz.matrix_basis = gz.matrix_basis @ Matrix.Translation(
-                    (0, 0, -obj.location.z)
+                    (-active.location.x, -active.location.z, active.location.y)
                 )
-                highlightz = gz.is_highlight
+                if self._draw_custom_shape:
+                    gz.draw_custom_shape(self.custom_shape_zx)
 
-        hightlight = highlightx or highlighty or highlightz
+        for plane, gz in self._axes_handles.items():
+            gz.hide = hide
+            highlight = highlight or gz.is_highlight
 
-        if hightlight and not self._dragging:
+            if not active:
+                return
+
+            gz.matrix_basis = active.matrix_world @ self.axes_rot[plane]
+
+            if plane == "X":
+                gz.matrix_basis = gz.matrix_basis @ Matrix.Translation(
+                    (0, 0, -active.location.x)
+                )
+            if plane == "Y":
+                gz.matrix_basis = gz.matrix_basis @ Matrix.Translation(
+                    (0, 0, -active.location.y)
+                )
+            if plane == "Z":
+                gz.matrix_basis = gz.matrix_basis @ Matrix.Translation(
+                    (0, 0, -active.location.z)
+                )
+
+        if highlight and not self._dragging:
             self._dragging = True
             self._start_locations = {
                 obj.name: obj.location.copy() for obj in context.selected_objects
             }
             self._start_active = context.active_object.location.copy()
 
-        if self._dragging and not hightlight:
+        if self._dragging and not highlight:
             self._dragging = False
 
     def get_offset(self, axis):
@@ -103,6 +196,31 @@ class VOXEL_GGT_offset_gizmo(bpy.types.GizmoGroup):
                 if axis == "Z":
                     z = round(value - self._start_active.z)
                     obj.location.z = self._start_locations[obj.name].z + z
+
+    def get_plane_offset(self, plane):
+        obj = bpy.context.active_object
+        if not obj:
+            return (0, 0, 0)
+        return obj.location
+
+    def set_plane_offset(self, value, plane):
+        for obj in bpy.context.selected_objects:
+            if obj.name in self._start_locations:
+                if plane == "XY":
+                    x = round(value[0] - self._start_active.x)
+                    y = round(value[1] - self._start_active.y)
+                    obj.location.x = self._start_locations[obj.name].x + x
+                    obj.location.y = self._start_locations[obj.name].y + y
+                if plane == "YZ":
+                    y = round(value[1] - self._start_active.y)
+                    z = round(value[2] - self._start_active.z)
+                    obj.location.y = self._start_locations[obj.name].y + y
+                    obj.location.z = self._start_locations[obj.name].z + z
+                if plane == "ZX":
+                    z = round(value[2] - self._start_active.z)
+                    x = round(value[0] - self._start_active.x)
+                    obj.location.z = self._start_locations[obj.name].z + z
+                    obj.location.x = self._start_locations[obj.name].x + x
 
 
 class VOXEL_OT_toggle_gizmo(bpy.types.Operator):

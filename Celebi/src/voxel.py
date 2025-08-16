@@ -156,11 +156,26 @@ class VOXEL_OT_hover(bpy.types.Operator):
                         found = True
                         break
                 if not found:
-                    bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
-                    new_voxel = context.active_object
-                    new_voxel.name = "voxel"
-                    item = c.voxels.add()
-                    item.name = new_voxel.name
+                    lib_obj = c.library_items[c.T_library_index].obj
+                    if lib_obj and lib_obj.name in bpy.data.objects:
+                        src_obj = bpy.data.objects[lib_obj.name]
+                        new_voxel = src_obj.copy()
+                        new_voxel.data = src_obj.data  # keep linked mesh
+                        new_voxel.location = snapped_location
+                        new_voxel.name = type.voxel_name(src_obj.name, snapped_location)
+                        context.collection.objects.link(new_voxel)
+
+                        # Add to collection property
+                        item = c.voxels.add()
+                        item.name = new_voxel.name
+                    else:
+                        self.report({"WARNING"}, "Library object not found")
+
+                        # bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
+                        # new_voxel = context.active_object
+                        # new_voxel.name = "voxel"
+                        # item = c.voxels.add()
+                        # item.name = new_voxel.name
 
         return {"PASS_THROUGH"}
 
@@ -254,14 +269,19 @@ class VOXEL_PT_panel(Panel):
         l.operator("voxel.toggle_gizmo", text="Enable/Disable Gizmo")
 
         active = bpy.context.active_object
-        if active.name.startswith("voxel"):
+        if active:
+        # if active and active.name.startswith("voxel"):
+            l.label(text=c.library_items[c.T_library_index].obj.name)
+
             l.label(text=active.name)
-            l.prop(c, "T_dim_x", slider=True)
+            l.prop(c, "T_dim_x", slider=False)
             l.prop(c, "T_dim_y", slider=True)
             l.prop(c, "T_dim_z", slider=True)
 
             row = l.row(align=True)
-            op = row.operator(VOXEL_OT_action.bl_idname, text="Confirm", icon="CHECKMARK")
+            op = row.operator(
+                VOXEL_OT_action.bl_idname, text="Confirm", icon="CHECKMARK"
+            )
             op.action = "CONFIRM"
             op = row.operator(VOXEL_OT_action.bl_idname, text="Cancel", icon="CANCEL")
             op.action = "CANCEL"

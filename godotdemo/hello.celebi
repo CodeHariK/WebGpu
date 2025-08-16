@@ -5,24 +5,24 @@
     ],
     "items": [
         {
+            "object_name": "Breast",
+            "tags": []
+        },
+        {
             "object_name": "Hi",
-            "tags": [
-                "red"
-            ]
+            "tags": []
         },
         {
             "object_name": "Foot",
-            "tags": [
-                "red",
-                "blue"
-            ]
+            "tags": []
+        },
+        {
+            "object_name": "Hand",
+            "tags": []
         }
     ],
     "voxels": [
-        "Cube.005",
-        "Cube.006",
-        "Cube.007",
-        "Cube.008",
-        "Cube.009"
+        "voxel.001",
+        "voxel.002"
     ]
 }

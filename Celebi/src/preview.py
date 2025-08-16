@@ -4,8 +4,8 @@ import time
 from . import type
 
 
-def update_preview(s, context):
-    c = type.celebi(context)
+def update_preview(s, _):
+    c = type.celebi(bpy.context)
     spacing = 1.0
 
     time_start = time.time()
@@ -39,13 +39,15 @@ def update_preview(s, context):
                     base_loc.z + (z) * spacing,
                 )
                 bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
-                pv = context.active_object
+                pv = bpy.context.active_object
                 pv.name = "preview"
                 pv.hide_select = True
                 pv.display_type = "WIRE"
                 pv.show_in_front = True
                 item = c.T_preview_voxels.add()
                 item.name = pv.name
+
+    bpy.context.view_layer.objects.active = base_obj
 
     print("My Script Finished: %.4f sec" % (time.time() - time_start))
 

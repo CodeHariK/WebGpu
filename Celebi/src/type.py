@@ -1,4 +1,5 @@
 import bpy
+from mathutils import Vector
 
 from bpy.props import (
     FloatVectorProperty,
@@ -16,13 +17,20 @@ class VoxelItem(bpy.types.PropertyGroup):
     selected: BoolProperty(default=False)
 
 
+def voxel_name(base_name: str, loc: Vector) -> str:
+    """
+    Generate voxel-style name from base name and location vector.
+    """
+    x, y, z = int(loc.x), int(loc.y), int(loc.z)
+    return f"{base_name}_{x}_{y}_{z}"
+
+
 class TagItem(bpy.types.PropertyGroup):
     name: StringProperty(name="Tag Name")
     enabled: BoolProperty(default=False)
 
 
 class LibraryItem(bpy.types.PropertyGroup):
-    name: StringProperty()
     obj: PointerProperty(type=bpy.types.Object)
     tags: CollectionProperty(type=TagItem)
     selected: BoolProperty(default=False)
