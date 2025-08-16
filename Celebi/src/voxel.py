@@ -15,7 +15,7 @@ from bpy_extras import view3d_utils
 from . import type
 from . import preview
 from . import gizmo
-
+from . import box
 
 class VOXEL_OT_delete(bpy.types.Operator):
     bl_idname = "celebi.voxel_delete"
@@ -269,7 +269,7 @@ class VOXEL_PT_panel(Panel):
         l.operator("voxel.toggle_gizmo", text="Enable/Disable Gizmo")
 
         active = bpy.context.active_object
-        if active:
+        if active and c.T_library_index != -1:
         # if active and active.name.startswith("voxel"):
             l.label(text=c.library_items[c.T_library_index].obj.name)
 
@@ -320,6 +320,8 @@ def register():
     bpy.utils.register_class(gizmo.VOXEL_OT_toggle_gizmo)
     bpy.types.Scene.voxel_gizmo_enabled = bpy.props.BoolProperty(default=True)
 
+    bpy.utils.register_class(box.BOX_OT)
+
 
 def unregister():
     bpy.utils.unregister_class(VOXEL_OT_hover)
@@ -336,3 +338,5 @@ def unregister():
     bpy.utils.unregister_class(gizmo.VOXEL_GGT_offset_gizmo)
     bpy.utils.unregister_class(gizmo.VOXEL_OT_toggle_gizmo)
     del bpy.types.Scene.voxel_gizmo_enabled
+
+    bpy.utils.unregister_class(box.BOX_OT)
