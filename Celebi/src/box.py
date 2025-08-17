@@ -1,6 +1,7 @@
 import bpy
 from mathutils import Vector
 
+
 class BOX_OT(bpy.types.Operator):
     bl_idname = "celebi.box_ot"
     bl_label = "Box"
@@ -8,10 +9,9 @@ class BOX_OT(bpy.types.Operator):
     action: bpy.props.StringProperty()
 
     def execute(self, context):
-
         # Create one base cube (if doesn't exist)
         if "voxel_base" not in bpy.data.objects:
-            bpy.ops.mesh.primitive_cube_add(size=.5, location=(0,0,0))
+            bpy.ops.mesh.primitive_cube_add(size=0.5, location=(0, 0, 0))
             base_cube = bpy.context.active_object
             base_cube.name = "voxel_base"
         else:
@@ -20,20 +20,19 @@ class BOX_OT(bpy.types.Operator):
         # Offsets for 2×2×2 cube block (centered)
         offsets = [
             Vector((-0.5, 0.5, -0.5)),
-            Vector((0.5,  0.5, -0.5)),
+            Vector((0.5, 0.5, -0.5)),
             Vector((0.5, -0.5, -0.5)),
-            Vector((-0.5,-0.5, -0.5)),
-            Vector((-0.5, 0.5,  0.5)),
-            Vector((0.5,  0.5,  0.5)),
-            Vector((0.5, -0.5,  0.5)),
-            Vector((-0.5,-0.5,  0.5)),
+            Vector((-0.5, -0.5, -0.5)),
+            Vector((-0.5, 0.5, 0.5)),
+            Vector((0.5, 0.5, 0.5)),
+            Vector((0.5, -0.5, 0.5)),
+            Vector((-0.5, -0.5, 0.5)),
         ]
 
         for obj in bpy.data.objects:
-
             if obj == base_cube:
                 continue
-            
+
             try:
                 _, num_str = obj.name.split("_", 1)
                 mask = int(num_str)
@@ -52,7 +51,7 @@ class BOX_OT(bpy.types.Operator):
                     cube = base_cube.copy()
                     cube.data = base_cube.data  # linked mesh
                     cube.location = obj.location + off
-                    cube.scale = (.25,.25,.25)
+                    cube.scale = (0.25, 0.25, 0.25)
                     cube.name = f"voxel_{obj.name}_{i}"
                     bpy.context.collection.objects.link(cube)
 

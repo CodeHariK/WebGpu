@@ -1,5 +1,3 @@
-import random
-
 import bpy
 from bpy.props import (
     FloatVectorProperty,
@@ -9,129 +7,29 @@ from bpy.props import (
     IntProperty,
     PointerProperty,
 )
-from bpy.app.handlers import persistent
-from bpy.types import Operator, Panel, UIList, PropertyGroup
-from mathutils import Vector
-from bpy_extras import view3d_utils
 from . import type
+from . import save
 
-import json
-
-
-class LIBRARY_OT_save(bpy.types.Operator):
-    bl_idname = "celebi.library_save"
-    bl_label = "Save Library"
-
-    filepath: StringProperty(subtype="FILE_PATH")
-    filter_glob: StringProperty(default="*.celebi", options={"HIDDEN"})
-
-    def execute(self, context):
-        if not self.filepath.lower().endswith(".celebi"):
-            self.filepath += ".celebi"
-
-        c = type.celebi(bpy.context)
-
-        data = {
-            "all_tags": [t.name for t in c.library_tags],
-            "items": [],
-            "voxels": [v.name for v in c.voxels],
-        }
-
-        library_items = c.library_items
-
-        for item in library_items:
-            enabled_tags = [t.name for t in item.tags if t.enabled]
-            entry = {
-                "object_name": item.obj.name if item.obj else None,
-                "tags": enabled_tags,
-            }
-            data["items"].append(entry)
-
-        with open(self.filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
-
-        self.report({"INFO"}, f"Library saved to {self.filepath}")
-
-        return {"FINISHED"}
-
-    def invoke(self, context, event):
-        if not self.filepath:
-            self.filepath = "library.celebi"
-        context.window_manager.fileselect_add(self)
-        return {"RUNNING_MODAL"}
-
-
-class LIBRARY_OT_load(bpy.types.Operator):
-    bl_idname = "celebi.library_load"
-    bl_label = "Load Library"
-
-    filepath: StringProperty(subtype="FILE_PATH")
-    filter_glob: StringProperty(default="*.celebi", options={"HIDDEN"})
-
-    def execute(self, context):
-        with open(self.filepath, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        c = type.celebi(bpy.context)
-
-        # Load all_tags into scene.library_tags
-        c.library_tags.clear()
-        for tag_name in data.get("all_tags", []):
-            new_tag_entry = c.library_tags.add()
-            new_tag_entry.name = tag_name
-
-        c = type.celebi(bpy.context)
-
-        # Clear existing
-        c.library_items.clear()
-
-        for entry in data.get("items", []):
-            item = c.library_items.add()
-            if entry["object_name"] in bpy.data.objects:
-                item.obj = bpy.data.objects[entry["object_name"]]
-
-            # Restore tags collection with enabled status
-            enabled_tags = set(entry.get("tags", []))
-            for tag_item in c.library_tags:
-                tag_entry = item.tags.add()
-                tag_entry.name = tag_item.name
-                tag_entry.enabled = tag_item.name in enabled_tags
-
-        c.voxels.clear()
-        for voxel_name in data.get("voxels", []):
-            voxel_item = c.voxels.add()
-            voxel_item.name = voxel_name
-
-        self.report({"INFO"}, f"Library loaded from {self.filepath}")
-        return {"FINISHED"}
-
-    def invoke(self, context, event):
-        if not self.filepath:
-            self.filepath = "library.celebi"
-        context.window_manager.fileselect_add(self)
-        return {"RUNNING_MODAL"}
-
-
-class LIBRARY_OT_clear(bpy.types.Operator):
-    bl_idname = "celebi.library_clear"
-    bl_label = "Clear Library"
-
-    def execute(self, context):
-        c = type.celebi(bpy.context)
-
-        c.library_items.clear()
-
-        self.report({"INFO"}, "Library cleared")
-        return {"FINISHED"}
+# Update add_library_item to use separate face collections
+face_collections = [
+    "face_front",
+    "face_back",
+    "face_left",
+    "face_right",
+    "face_top",
+    "face_bottom",
+]
+face_names = ["Front", "Back", "Left", "Right", "Top", "Bottom"]
 
 
 class LIBRARY_OT_add_tag(bpy.types.Operator):
     bl_idname = "celebi.library_add_tag"
     bl_label = "Add Tag"
+
     new_tag: StringProperty(name="New Tag")
 
     def execute(self, context):
-        c = type.celebi(bpy.context)
+        c = type.celebi()
 
         tag = self.new_tag.strip()
         if tag and tag not in c.library_tags:
@@ -153,16 +51,29 @@ class LIBRARY_OT_add_objects(bpy.types.Operator):
     bl_label = "Add Selected to Library"
 
     def execute(self, context):
-        c = type.celebi(bpy.context)
+        c = type.celebi()
         for obj in context.selected_objects:
             if not any(item.obj == obj for item in c.library_items):
                 item = c.library_items.add()
                 item.obj = obj
-                # Add a LibraryTag entry for each existing tag in scene.library_tags
-            for tag_item in c.library_tags:
-                tag_entry = item.tags.add()
-                tag_entry.name = tag_item.name
-                tag_entry.enabled = False
+
+                for tag_item in c.library_tags:
+                    tag_entry = item.tags.add()
+                    tag_entry.name = tag_item.name
+                    tag_entry.enabled = False
+
+                # Populate configs with all enum options
+                for identifier, name, desc in type.cube_configurations(None, None):
+                    cfg = item.configs.add()
+                    cfg.name = identifier
+                    cfg.enabled = False
+
+                for col_name, face in zip(face_collections, face_names):
+                    face_collection = getattr(item, col_name)
+                    f = face_collection.add()
+                    f.face_name = face  # store face name in each FaceEntry
+                    f.config = "R90"  # default config
+
         return {"FINISHED"}
 
 
@@ -175,10 +86,12 @@ class LIBRARY_UL_items(bpy.types.UIList):
         obj = item.obj
         if obj is not None:
             row = layout.row()
-            # Checkbox reflects obj selection state
-            selected = obj.select_get()
+
             # We'll add a toggle button that calls operator to toggle selection
             row.prop(obj, "name", text="", emboss=False, icon="OBJECT_DATA")
+
+            # Checkbox reflects obj selection state
+            selected = obj.select_get()
             op = row.operator(
                 LIBRARY_OT_toggle_object_selection.bl_idname,
                 text="",
@@ -218,13 +131,13 @@ class LIBRARY_PT_panel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        c = type.celebi(bpy.context)
+        c = type.celebi()
 
         grid = layout.grid_flow(row_major=True, columns=2)
 
-        grid.operator(LIBRARY_OT_save.bl_idname, icon="FILE_TICK")
-        grid.operator(LIBRARY_OT_load.bl_idname, icon="FILE_FOLDER")
-        grid.operator(LIBRARY_OT_clear.bl_idname, icon="TRASH")
+        grid.operator(save.LIBRARY_OT_save.bl_idname, icon="FILE_TICK")
+        grid.operator(save.LIBRARY_OT_load.bl_idname, icon="FILE_FOLDER")
+        grid.operator(save.LIBRARY_OT_clear.bl_idname, icon="TRASH")
         grid.operator(LIBRARY_OT_add_objects.bl_idname, icon="PLUS")
 
         layout.separator(type="LINE")
@@ -250,34 +163,50 @@ class LIBRARY_PT_panel(bpy.types.Panel):
 
         # Show details if an item is selected
         if 0 <= c.T_library_index < len(lib):
-            item = lib[c.T_library_index]
-            if item.obj:
+            item = c.getCelebiLibraryItem()
+
+            if item and item.obj:
                 layout.label(text="Tags:")
                 for tag in item.tags:
                     layout.prop(tag, "enabled", text=tag.name)
 
+                layout.separator_spacer()
+
+                layout.label(text="Configurations:")
+                for config in item.configs:
+                    row = layout.row()
+                    row.prop(config, "enabled", text=config.name)
+                    # if config.enabled:
+                    #     obj_name = item.obj.name if item.obj else "Unnamed"
+                    #     print(f"Config {config.name} enabled for object {obj_name}")
+
+                layout.separator_spacer()
+
+                # Update panel draw for separate face collections
+                layout.label(text="Face Links:")
+                for col_name, face in zip(face_collections, face_names):
+                    face_collection = getattr(item, col_name)
+                    for face_entry in face_collection:
+                        row = layout.row()
+                        row.label(text=face)
+                        row.prop(face_entry, "library_item")
+                        row.prop(face_entry, "config", text="")
+
+
+classes = (
+    LIBRARY_OT_add_tag,
+    LIBRARY_OT_add_objects,
+    LIBRARY_OT_toggle_object_selection,
+    LIBRARY_UL_items,
+    LIBRARY_PT_panel,
+)
+
 
 def register():
-    bpy.utils.register_class(LIBRARY_OT_save)
-    bpy.utils.register_class(LIBRARY_OT_load)
-    bpy.utils.register_class(LIBRARY_OT_clear)
-
-    bpy.utils.register_class(LIBRARY_OT_add_tag)
-    bpy.utils.register_class(LIBRARY_OT_add_objects)
-
-    bpy.utils.register_class(LIBRARY_OT_toggle_object_selection)
-    bpy.utils.register_class(LIBRARY_UL_items)
-    bpy.utils.register_class(LIBRARY_PT_panel)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 
 def unregister():
-    bpy.utils.unregister_class(LIBRARY_OT_save)
-    bpy.utils.unregister_class(LIBRARY_OT_load)
-    bpy.utils.unregister_class(LIBRARY_OT_clear)
-
-    bpy.utils.unregister_class(LIBRARY_OT_add_tag)
-    bpy.utils.unregister_class(LIBRARY_OT_add_objects)
-
-    bpy.utils.unregister_class(LIBRARY_OT_toggle_object_selection)
-    bpy.utils.unregister_class(LIBRARY_UL_items)
-    bpy.utils.unregister_class(LIBRARY_PT_panel)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

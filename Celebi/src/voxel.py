@@ -15,7 +15,7 @@ from bpy_extras import view3d_utils
 from . import type
 from . import preview
 from . import gizmo
-from . import box
+
 
 class VOXEL_OT_delete(bpy.types.Operator):
     bl_idname = "celebi.voxel_delete"
@@ -25,7 +25,7 @@ class VOXEL_OT_delete(bpy.types.Operator):
     voxel_name: StringProperty()
 
     def execute(self, context):
-        c = type.celebi(context)
+        c = type.celebi()
         voxel_obj = bpy.data.objects.get(self.voxel_name)
         if voxel_obj:
             bpy.data.objects.remove(voxel_obj, do_unlink=True)
@@ -43,7 +43,7 @@ class VOXEL_OT_cleanup(bpy.types.Operator):
     bl_label = "Cleanup Voxel"
 
     def execute(self, context):
-        c = type.celebi(context)
+        c = type.celebi()
         voxels_to_keep = [
             item.name for item in c.voxels if bpy.data.objects.get(item.name)
         ]
@@ -63,7 +63,7 @@ class VOXEL_OT_delete_all(bpy.types.Operator):
     bl_label = "Delete all voxels"
 
     def execute(self, context):
-        c = type.celebi(context)
+        c = type.celebi()
 
         items = c.voxels
         for i, item in enumerate(items):
@@ -85,7 +85,7 @@ class VOXEL_OT_hover(bpy.types.Operator):
     _preview_voxel = None
 
     def modal(self, context, event):
-        c = type.celebi(context)
+        c = type.celebi()
 
         if event.type in {"RIGHTMOUSE", "ESC"}:
             if self._preview_voxel:
@@ -156,7 +156,7 @@ class VOXEL_OT_hover(bpy.types.Operator):
                         found = True
                         break
                 if not found:
-                    lib_obj = c.library_items[c.T_library_index].obj
+                    lib_obj = c.getCelebiLibraryItem().obj
                     if lib_obj and lib_obj.name in bpy.data.objects:
                         src_obj = bpy.data.objects[lib_obj.name]
                         new_voxel = src_obj.copy()
@@ -180,7 +180,7 @@ class VOXEL_OT_hover(bpy.types.Operator):
         return {"PASS_THROUGH"}
 
     def invoke(self, context, event):
-        c = type.celebi(context)
+        c = type.celebi()
         if c.T_voxel_hover_running:
             self.report({"WARNING"}, "Voxel Hover is already running")
             return {"CANCELLED"}
@@ -222,7 +222,7 @@ class VOXEL_UL_items(UIList):
     def draw_item(
         self, context, layout, data, item, icon, active_data, active_propname, index
     ):
-        c = type.celebi(context)
+        c = type.celebi()
         obj = bpy.data.objects.get(item.name)
         if obj:
             row = layout.row(align=True)
@@ -242,7 +242,7 @@ class VOXEL_UL_items(UIList):
 
 
 def sync_selection_to_voxels(scene):
-    c = type.celebi(bpy.context)
+    c = type.celebi()
     selected_objs = set(obj.name for obj in bpy.context.selected_objects)
     for item in c.voxels:
         item.selected = item.name in selected_objs
@@ -257,7 +257,7 @@ class VOXEL_PT_panel(Panel):
 
     def draw(self, context):
         l = self.layout
-        c = type.celebi(context)
+        c = type.celebi()
 
         # Sync selection state from objects to voxel items
         sync_selection_to_voxels(context.scene)
@@ -269,9 +269,11 @@ class VOXEL_PT_panel(Panel):
         l.operator("voxel.toggle_gizmo", text="Enable/Disable Gizmo")
 
         active = bpy.context.active_object
-        if active and c.T_library_index != -1:
-        # if active and active.name.startswith("voxel"):
-            l.label(text=c.library_items[c.T_library_index].obj.name)
+        currentLibItem = c.getCelebiLibraryItem()
+        if active and currentLibItem:
+            # if active and active.name.startswith("voxel"):
+
+            l.label(text=currentLibItem.obj.name)
 
             l.label(text=active.name)
             l.prop(c, "T_dim_x", slider=False)
@@ -298,45 +300,31 @@ class VOXEL_OT_action(bpy.types.Operator):
 
     def execute(self, context):
         if self.action == "CONFIRM":
-            preview.my_confirm_function(context)
+            preview.my_confirm_function()
         elif self.action == "CANCEL":
-            preview.my_cancel_function(context)
+            preview.my_cancel_function()
         return {"FINISHED"}
 
 
+classes = (
+    VOXEL_OT_hover,
+    VOXEL_OT_cleanup,
+    VOXEL_OT_delete_all,
+    VOXEL_OT_delete,
+    VOXEL_OT_action,
+    VOXEL_OT_toggle_object_selection,
+    VOXEL_UL_items,
+    VOXEL_PT_panel,
+    gizmo.VOXEL_GGT_offset_gizmo,
+    gizmo.VOXEL_OT_toggle_gizmo,
+)
+
+
 def register():
-    bpy.utils.register_class(VOXEL_OT_hover)
-
-    bpy.utils.register_class(VOXEL_OT_cleanup)
-    bpy.utils.register_class(VOXEL_OT_delete_all)
-    bpy.utils.register_class(VOXEL_OT_delete)
-
-    bpy.utils.register_class(VOXEL_OT_action)
-    bpy.utils.register_class(VOXEL_OT_toggle_object_selection)
-    bpy.utils.register_class(VOXEL_UL_items)
-    bpy.utils.register_class(VOXEL_PT_panel)
-
-    bpy.utils.register_class(gizmo.VOXEL_GGT_offset_gizmo)
-    bpy.utils.register_class(gizmo.VOXEL_OT_toggle_gizmo)
-    bpy.types.Scene.voxel_gizmo_enabled = bpy.props.BoolProperty(default=True)
-
-    bpy.utils.register_class(box.BOX_OT)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 
 def unregister():
-    bpy.utils.unregister_class(VOXEL_OT_hover)
-
-    bpy.utils.unregister_class(VOXEL_OT_cleanup)
-    bpy.utils.unregister_class(VOXEL_OT_delete_all)
-    bpy.utils.unregister_class(VOXEL_OT_delete)
-
-    bpy.utils.unregister_class(VOXEL_OT_action)
-    bpy.utils.unregister_class(VOXEL_OT_toggle_object_selection)
-    bpy.utils.unregister_class(VOXEL_UL_items)
-    bpy.utils.unregister_class(VOXEL_PT_panel)
-
-    bpy.utils.unregister_class(gizmo.VOXEL_GGT_offset_gizmo)
-    bpy.utils.unregister_class(gizmo.VOXEL_OT_toggle_gizmo)
-    del bpy.types.Scene.voxel_gizmo_enabled
-
-    bpy.utils.unregister_class(box.BOX_OT)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

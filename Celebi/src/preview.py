@@ -5,7 +5,7 @@ from . import type
 
 
 def update_preview(s, _):
-    c = type.celebi(bpy.context)
+    c = type.celebi()
     spacing = 1.0
 
     time_start = time.time()
@@ -52,13 +52,12 @@ def update_preview(s, _):
     print("My Script Finished: %.4f sec" % (time.time() - time_start))
 
 
-def my_confirm_function(context):
+def my_confirm_function():
     print("Confirmed!")
-    # spawn cubes, etc.
 
 
-def my_cancel_function(context):
-    c = type.celebi(context)
+def my_cancel_function():
+    c = type.celebi()
 
     c.T_dim_x = 1
     c.T_dim_z = 1

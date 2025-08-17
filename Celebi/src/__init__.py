@@ -4,6 +4,7 @@ from . import type_test
 from . import voxel
 from . import library
 from . import type
+from . import save
 
 
 def register():
@@ -12,6 +13,7 @@ def register():
     # type_test.register()
 
     type.register()
+    save.register()
     library.register()
     voxel.register()
 
@@ -22,5 +24,6 @@ def unregister():
     # type_test.unregister()
 
     type.unregister()
+    save.unregister()
     library.unregister()
     voxel.unregister()

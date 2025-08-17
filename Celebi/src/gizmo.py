@@ -2,7 +2,7 @@ import math
 import bpy
 from mathutils import Vector, Matrix
 from typing import Dict
-
+from . import type
 
 class VOXEL_GGT_offset_gizmo(bpy.types.GizmoGroup):
     bl_idname = "VOXEL_GGT_offset_gizmo"
@@ -13,7 +13,8 @@ class VOXEL_GGT_offset_gizmo(bpy.types.GizmoGroup):
 
     @classmethod
     def poll(cls, context):
-        return getattr(context.scene, "voxel_gizmo_enabled", False)
+        c = type.celebi()
+        return c.T_voxel_gizmo_state == 'MOVE'
 
     axes = {"X": (1, 0, 0), "Y": (0, 1, 0), "Z": (0, 0, 1)}
 
@@ -113,8 +114,8 @@ class VOXEL_GGT_offset_gizmo(bpy.types.GizmoGroup):
         active = context.active_object
 
         all_voxels = True
-        for obj in context.selected_objects:
-            all_voxels = all_voxels and obj.name.startswith("voxel")
+        # for obj in context.selected_objects:
+        #     all_voxels = all_voxels and obj.name.startswith("voxel")
 
         hide = not active or not active.select_get() or not all_voxels
 
@@ -228,8 +229,16 @@ class VOXEL_OT_toggle_gizmo(bpy.types.Operator):
     bl_label = "Toggle Voxel Gizmo"
 
     def execute(self, context):
-        g_enabled = getattr(context.scene, "voxel_gizmo_enabled", False)
-        context.scene.voxel_gizmo_enabled = not g_enabled
+        c = type.celebi()
+        if c.T_voxel_gizmo_state == 'DISABLED':
+            c.T_voxel_gizmo_state = 'MOVE'
+        else:
+            c.T_voxel_gizmo_state = 'DISABLED'
+
+        print(c.T_voxel_gizmo_state)
+
+
+
 
         # Force gizmos to refresh
         bpy.ops.wm.tool_set_by_id(name="builtin.move")
