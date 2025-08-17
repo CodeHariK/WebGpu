@@ -7,6 +7,7 @@ from bpy.props import (
     IntProperty,
     PointerProperty,
 )
+from bpy.types import Operator, Panel, UIList
 from . import type
 from . import save
 
@@ -22,7 +23,7 @@ face_collections = [
 face_names = ["Front", "Back", "Left", "Right", "Top", "Bottom"]
 
 
-class LIBRARY_OT_add_tag(bpy.types.Operator):
+class LIBRARY_OT_add_tag(Operator):
     bl_idname = "celebi.library_add_tag"
     bl_label = "Add Tag"
 
@@ -32,35 +33,29 @@ class LIBRARY_OT_add_tag(bpy.types.Operator):
         c = type.celebi()
 
         tag = self.new_tag.strip()
-        if tag and tag not in c.library_tags:
-            new_tag_entry = c.library_tags.add()
-            new_tag_entry.name = tag
+        if tag and tag not in c.getLibraryTags():
+            c.appendTag(tag)
 
             # Add this tag to every existing LibraryItem's tags collection
-            for item in c.library_items:
+            for item in c.getLibraryItems():
                 if tag not in [t.name for t in item.tags]:
-                    new_tag_entry = item.tags.add()
-                    new_tag_entry.name = tag
-                    new_tag_entry.enabled = False
+                    c.addLibraryItem(tag, False, None)
 
         return {"FINISHED"}
 
 
-class LIBRARY_OT_add_objects(bpy.types.Operator):
+class LIBRARY_OT_add_objects(Operator):
     bl_idname = "celebi.library_add_objects"
     bl_label = "Add Selected to Library"
 
     def execute(self, context):
         c = type.celebi()
         for obj in context.selected_objects:
-            if not any(item.obj == obj for item in c.library_items):
-                item = c.library_items.add()
-                item.obj = obj
+            if not any(item.obj == obj for item in c.getLibraryItems()):
+                item = c.addLibraryItem(None, None, obj)
 
-                for tag_item in c.library_tags:
-                    tag_entry = item.tags.add()
-                    tag_entry.name = tag_item.name
-                    tag_entry.enabled = False
+                for tag_item in c.getLibraryTags():
+                    item.appendTag(tag_item.name, False)
 
                 # Populate configs with all enum options
                 for identifier, name, desc in type.cube_configurations(None, None):
@@ -77,7 +72,7 @@ class LIBRARY_OT_add_objects(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class LIBRARY_UL_items(bpy.types.UIList):
+class LIBRARY_UL_items(UIList):
     name = "LIBRARY_UL_items"
 
     def draw_item(
@@ -101,13 +96,13 @@ class LIBRARY_UL_items(bpy.types.UIList):
             op.obj_name = obj.name
 
 
-class LIBRARY_OT_toggle_object_selection(bpy.types.Operator):
+class LIBRARY_OT_toggle_object_selection(Operator):
     bl_idname = "celebi.library_toggle_object_selection"
     bl_label = "Toggle Object Selection"
     bl_description = "Toggle selection of the object in the viewport"
     bl_options = {"INTERNAL"}
 
-    obj_name: bpy.props.StringProperty(name="Object Name")
+    obj_name: StringProperty(name="Object Name")
 
     def execute(self, context):
         obj = bpy.data.objects.get(self.obj_name)
@@ -122,7 +117,7 @@ class LIBRARY_OT_toggle_object_selection(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class LIBRARY_PT_panel(bpy.types.Panel):
+class LIBRARY_PT_panel(Panel):
     bl_label = "Object Library"
     bl_idname = "VIEW3D_PT_library"
     bl_space_type = "VIEW_3D"
@@ -159,11 +154,11 @@ class LIBRARY_PT_panel(bpy.types.Panel):
             "T_library_index",
         )
 
-        lib = c.library_items
+        libItems = c.getLibraryItems()
 
         # Show details if an item is selected
-        if 0 <= c.T_library_index < len(lib):
-            item = c.getCelebiLibraryItem()
+        if 0 <= c.T_library_index < len(libItems):
+            item = c.getCurrentLibraryItem()
 
             if item and item.obj:
                 layout.label(text="Tags:")

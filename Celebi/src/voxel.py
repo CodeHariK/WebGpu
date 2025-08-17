@@ -8,7 +8,7 @@ from bpy.props import (
     IntProperty,
     PointerProperty,
 )
-from bpy.types import Operator, Panel, UIList, PropertyGroup
+from bpy.types import Operator, Panel, UIList, PropertyGroup, Object
 from mathutils import Vector
 from bpy_extras import view3d_utils
 
@@ -17,7 +17,7 @@ from . import preview
 from . import gizmo
 
 
-class VOXEL_OT_delete(bpy.types.Operator):
+class VOXEL_OT_delete(Operator):
     bl_idname = "celebi.voxel_delete"
     bl_label = "Delete Voxel"
     bl_description = "Delete the selected voxel"
@@ -26,19 +26,17 @@ class VOXEL_OT_delete(bpy.types.Operator):
 
     def execute(self, context):
         c = type.celebi()
+
         voxel_obj = bpy.data.objects.get(self.voxel_name)
         if voxel_obj:
             bpy.data.objects.remove(voxel_obj, do_unlink=True)
-        # Remove from voxel collection
-        items = c.voxels
-        for i, item in enumerate(items):
-            if item.name == self.voxel_name:
-                items.remove(i)
-                break
+
+        c.deleteVoxelByName(self.voxel_name)
+
         return {"FINISHED"}
 
 
-class VOXEL_OT_cleanup(bpy.types.Operator):
+class VOXEL_OT_cleanup(Operator):
     bl_idname = "celebi.voxel_cleanup"
     bl_label = "Cleanup Voxel"
 
@@ -48,41 +46,40 @@ class VOXEL_OT_cleanup(bpy.types.Operator):
             item.name for item in c.voxels if bpy.data.objects.get(item.name)
         ]
 
-        c.voxels.clear()
+        c.clearVoxels()
         for name in voxels_to_keep:
-            new_item = c.voxels.add()
-            new_item.name = name
+            c.appendVoxel(name)
 
         c.T_voxel_hover_running = False
 
         return {"FINISHED"}
 
 
-class VOXEL_OT_delete_all(bpy.types.Operator):
+class VOXEL_OT_delete_all(Operator):
     bl_idname = "celebi.voxel_delete_all"
     bl_label = "Delete all voxels"
 
     def execute(self, context):
         c = type.celebi()
 
-        items = c.voxels
+        items = c.getVoxels()
         for i, item in enumerate(items):
             voxel_obj = bpy.data.objects.get(item.name)
             if voxel_obj:
                 bpy.data.objects.remove(voxel_obj, do_unlink=True)
 
-        c.voxels.clear()
+        c.clearVoxels()
 
         return {"FINISHED"}
 
 
-class VOXEL_OT_hover(bpy.types.Operator):
+class VOXEL_OT_hover(Operator):
     bl_idname = "celebi.voxel_hover"
     bl_label = "Voxel Hover"
     bl_description = "Spawn voxel by hovering over surfaces"
     bl_options = {"REGISTER", "UNDO"}
 
-    _preview_voxel = None
+    _preview_voxel: Object | None = None
 
     def modal(self, context, event):
         c = type.celebi()
@@ -141,8 +138,7 @@ class VOXEL_OT_hover(bpy.types.Operator):
                 else:
                     self._preview_voxel.hide_viewport = False
                     self._preview_voxel.location = snapped_location
-            else:
-                if self._preview_voxel:
+            elif self._preview_voxel:
                     self._preview_voxel.hide_viewport = True
         elif event.type == "LEFTMOUSE" and event.value == "PRESS":
             if ray_result:
@@ -150,32 +146,34 @@ class VOXEL_OT_hover(bpy.types.Operator):
 
                 # Check if a voxel already exists at this location
                 found = False
-                for item in c.voxels:
+                for item in c.getVoxels():
                     voxel = bpy.data.objects.get(item.name)
                     if voxel and (voxel.location - snapped_location).length < 0.001:
                         found = True
                         break
                 if not found:
-                    lib_obj = c.getCelebiLibraryItem().obj
-                    if lib_obj and lib_obj.name in bpy.data.objects:
-                        src_obj = bpy.data.objects[lib_obj.name]
-                        new_voxel = src_obj.copy()
-                        new_voxel.data = src_obj.data  # keep linked mesh
-                        new_voxel.location = snapped_location
-                        new_voxel.name = type.voxel_name(src_obj.name, snapped_location)
-                        context.collection.objects.link(new_voxel)
+                    lib_item = c.getCurrentLibraryItem()
+                    if lib_item:
+                        lib_obj = lib_item.obj
+                        if lib_obj and lib_obj.name in bpy.data.objects:
+                            src_obj = bpy.data.objects[lib_obj.name]
+                            new_voxel = src_obj.copy()
+                            new_voxel.data = src_obj.data  # keep linked mesh
+                            new_voxel.location = snapped_location
+                            new_voxel.name = type.voxel_name(
+                                src_obj.name, snapped_location
+                            )
+                            context.collection.objects.link(new_voxel)
 
-                        # Add to collection property
-                        item = c.voxels.add()
-                        item.name = new_voxel.name
-                    else:
-                        self.report({"WARNING"}, "Library object not found")
+                            c.appendVoxel(new_voxel.name)
+                        else:
+                            self.report({"WARNING"}, "Library object not found")
 
-                        # bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
-                        # new_voxel = context.active_object
-                        # new_voxel.name = "voxel"
-                        # item = c.voxels.add()
-                        # item.name = new_voxel.name
+                            # bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
+                            # new_voxel = context.active_object
+                            # new_voxel.name = "voxel"
+                            # item = c.voxels.add()
+                            # item.name = new_voxel.name
 
         return {"PASS_THROUGH"}
 
@@ -190,7 +188,7 @@ class VOXEL_OT_hover(bpy.types.Operator):
         return {"RUNNING_MODAL"}
 
 
-class VOXEL_OT_toggle_object_selection(bpy.types.Operator):
+class VOXEL_OT_toggle_object_selection(Operator):
     bl_idname = "celebi.voxel_toggle_object_selection"
     bl_label = "Toggle Voxel Object Selection"
     bl_description = "Toggle selection of the voxel object in the viewport"
@@ -241,13 +239,6 @@ class VOXEL_UL_items(UIList):
             op_del.voxel_name = obj.name
 
 
-def sync_selection_to_voxels(scene):
-    c = type.celebi()
-    selected_objs = set(obj.name for obj in bpy.context.selected_objects)
-    for item in c.voxels:
-        item.selected = item.name in selected_objs
-
-
 class VOXEL_PT_panel(Panel):
     bl_label = "Voxel Panel"
     bl_idname = "VOXEL_PT_panel"
@@ -260,7 +251,9 @@ class VOXEL_PT_panel(Panel):
         c = type.celebi()
 
         # Sync selection state from objects to voxel items
-        sync_selection_to_voxels(context.scene)
+        selected_objs = set(obj.name for obj in bpy.context.selected_objects)
+        for item in c.getVoxels():
+            item.selected = item.name in selected_objs
 
         l.operator(VOXEL_OT_hover.bl_idname)
         l.operator(VOXEL_OT_cleanup.bl_idname, text="Cleanup voxels")
@@ -269,7 +262,7 @@ class VOXEL_PT_panel(Panel):
         l.operator("voxel.toggle_gizmo", text="Enable/Disable Gizmo")
 
         active = bpy.context.active_object
-        currentLibItem = c.getCelebiLibraryItem()
+        currentLibItem = c.getCurrentLibraryItem()
         if active and currentLibItem:
             # if active and active.name.startswith("voxel"):
 
@@ -292,11 +285,11 @@ class VOXEL_PT_panel(Panel):
         l.template_list("VOXEL_UL_items", "", c, "voxels", c, "T_voxels_index", rows=4)
 
 
-class VOXEL_OT_action(bpy.types.Operator):
+class VOXEL_OT_action(Operator):
     bl_idname = "celebi.voxel_ot_action"
     bl_label = "Voxel Action"
 
-    action: bpy.props.StringProperty()
+    action: StringProperty()
 
     def execute(self, context):
         if self.action == "CONFIRM":

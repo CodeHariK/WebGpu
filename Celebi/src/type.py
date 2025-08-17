@@ -77,6 +77,16 @@ class LibraryItem(PropertyGroup):
     face_top: CollectionProperty(type=FaceEntry)
     face_bottom: CollectionProperty(type=FaceEntry)
 
+    def appendTag(self, tag_name: str, enabled: bool):
+        tag_entry = self.tags.add()
+        tag_entry.name = tag_name
+        tag_entry.enabled = enabled
+
+
+GIZMO_DISABLED = "DISABLED"
+GIZMO_MOVE = "MOVE"
+GIZMO_SCALE = "SCALE"
+
 
 class CelebiData(PropertyGroup):
     voxels: CollectionProperty(type=VoxelItem)
@@ -100,21 +110,69 @@ class CelebiData(PropertyGroup):
     )
 
     T_voxel_hover_running: BoolProperty(default=False)
-    
+
     T_voxel_gizmo_state: EnumProperty(
         name="Voxel Gizmo State",
         description="Current state of the voxel gizmo",
         items=[
-            ('DISABLED', "Disabled", "Gizmo is disabled"),
-            ('SCALE', "Scale", "Gizmo is in scale mode"),
-            ('MOVE', "Move", "Gizmo is in move mode"),
+            (GIZMO_DISABLED, "Disabled", "Gizmo is disabled"),
+            (GIZMO_SCALE, "Scale", "Gizmo is in scale mode"),
+            (GIZMO_MOVE, "Move", "Gizmo is in move mode"),
         ],
-        default='DISABLED'
+        default=GIZMO_DISABLED,
     )
 
-    def getCelebiLibraryItem(self) -> LibraryItem | None:
+    def getCurrentLibraryItem(self) -> LibraryItem | None:
         if self.T_library_index >= 0 and self.T_library_index < len(self.library_items):
             return self.library_items[self.T_library_index]
+
+    def getLibraryItems(self) -> list[LibraryItem]:
+        return self.library_items
+    def clearLibraryItems(self):
+        self.library_items.clear()
+
+    def addLibraryItem(self, name: str | None, enabled: bool|None, obj: Object | None) -> LibraryItem:
+        cLib = self.getLibraryItems()
+        item = cLib.add()
+        if name:
+            item.name = name
+        if enabled != None:
+            item.enabled = enabled
+        if obj != None:
+            item.obj = obj
+        return item
+
+    def getLibraryTags(self) -> list[TagItem]:
+        return self.library_tags
+
+    def getVoxelAt(self, index: int) -> VoxelItem | None:
+        if index >= 0 and index < len(self.voxels):
+            return self.voxels[index]
+    def getCurrentVoxel(self) -> VoxelItem | None:
+        return self.getVoxelAt(self.T_voxels_index)
+    def getVoxels(self) -> list[VoxelItem]:
+        return self.voxels
+    def clearVoxels(self) -> list[VoxelItem]:
+        self.voxels.clear()
+        return self.voxels
+    def deleteVoxelByName(self,name: str) :
+        items = self.voxels
+        for i, item in enumerate(items):
+            if item.name == name:
+                items.remove(i)
+                break
+    def appendVoxel(self, name: str):
+        voxel_item = self.voxels.add()
+        voxel_item.name = name
+
+    def appendTag(self, tag_name):
+        cLibTags = self.getLibraryTags()
+        new_tag_entry = cLibTags.add()
+        new_tag_entry.name = tag_name
+
+    def clearTags(self):
+        cLibTags = self.getLibraryTags()
+        cLibTags.clear()
 
 
 def celebi() -> CelebiData:

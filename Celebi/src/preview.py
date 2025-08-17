@@ -19,7 +19,10 @@ def update_preview(s, _):
 
     print("My Script Finished: %.4f sec" % (time.time() - time_start))
 
-    base_obj = bpy.data.objects.get(c.voxels[c.T_voxels_index].name)
+    cVoxel = c.getCurrentVoxel()
+    if not cVoxel:
+        return
+    base_obj = bpy.data.objects.get(cVoxel.name)
     if not base_obj:
         return
     base_loc = base_obj.location

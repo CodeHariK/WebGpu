@@ -1,0 +1,101 @@
+{
+    "all_tags": [
+        "Hello",
+        "Red",
+        "Blue",
+        "sun",
+        "moon"
+    ],
+    "items": [
+        {
+            "object_name": "Grass",
+            "tags": []
+        },
+        {
+            "object_name": "Sand",
+            "tags": []
+        },
+        {
+            "object_name": "Water",
+            "tags": []
+        },
+        {
+            "object_name": "GrassPlant",
+            "tags": []
+        },
+        {
+            "object_name": "WaterGrassBridge",
+            "tags": []
+        },
+        {
+            "object_name": "GrassBarricade",
+            "tags": []
+        },
+        {
+            "object_name": "GrassFull",
+            "tags": []
+        },
+        {
+            "object_name": "Stair",
+            "tags": []
+        },
+        {
+            "object_name": "GrassHalf",
+            "tags": []
+        },
+        {
+            "object_name": "GrassWaterCorner",
+            "tags": []
+        },
+        {
+            "object_name": "WaterGrass",
+            "tags": []
+        },
+        {
+            "object_name": "Rock",
+            "tags": []
+        },
+        {
+            "object_name": "RockHalf",
+            "tags": []
+        },
+        {
+            "object_name": "RockFull",
+            "tags": []
+        }
+    ],
+    "voxels": [
+        "Grass_2_0_0",
+        "Grass_2_1_0",
+        "Grass_1_1_0",
+        "Grass_1_2_0",
+        "Water_0_0_0",
+        "Water_0_1_0",
+        "Water_0_0_0.001",
+        "Water_-1_0_0",
+        "Water_-1_0_0.001",
+        "Water_0_0_0.002",
+        "Water_0_0_0.003",
+        "Water_1_0_0",
+        "Water_0_-1_0",
+        "Water_0_-1_0.001",
+        "Water_0_1_0.001",
+        "Grass_1_-1_0",
+        "Grass_2_0_0.001",
+        "Grass_0_2_0",
+        "Grass_-1_2_0",
+        "Grass_-1_1_0",
+        "Grass_-2_0_0",
+        "Grass_-2_1_0",
+        "Grass_0_2_0.001",
+        "Grass_-2_0_0.001",
+        "Grass_-1_-1_0",
+        "Grass_0_-2_0",
+        "Grass_0_-2_0.001",
+        "Grass_1_-2_0",
+        "Grass_-1_-2_0",
+        "Water_1_0_0.001",
+        "Grass_2_-1_0",
+        "Grass_-2_-1_0"
+    ]
+}

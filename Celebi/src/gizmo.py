@@ -1,10 +1,12 @@
 import math
 import bpy
+from bpy.types import Gizmo, GizmoGroup, Operator
 from mathutils import Vector, Matrix
 from typing import Dict
 from . import type
 
-class VOXEL_GGT_offset_gizmo(bpy.types.GizmoGroup):
+
+class VOXEL_GGT_offset_gizmo(GizmoGroup):
     bl_idname = "VOXEL_GGT_offset_gizmo"
     bl_label = "Voxel Offset Gizmo"
     bl_space_type = "VIEW_3D"
@@ -14,7 +16,7 @@ class VOXEL_GGT_offset_gizmo(bpy.types.GizmoGroup):
     @classmethod
     def poll(cls, context):
         c = type.celebi()
-        return c.T_voxel_gizmo_state == 'MOVE'
+        return c.T_voxel_gizmo_state == type.GIZMO_MOVE
 
     axes = {"X": (1, 0, 0), "Y": (0, 1, 0), "Z": (0, 0, 1)}
 
@@ -33,8 +35,8 @@ class VOXEL_GGT_offset_gizmo(bpy.types.GizmoGroup):
     _start_locations: Dict[str, Vector] = {}
     _start_active: Vector
     _dragging: bool = False
-    _axes_handles: Dict[str, bpy.types.Gizmo] = {}
-    _plane_handles: Dict[str, bpy.types.Gizmo] = {}
+    _axes_handles: Dict[str, Gizmo] = {}
+    _plane_handles: Dict[str, Gizmo] = {}
     _draw_custom_shape = False
 
     def setup(self, context):
@@ -224,21 +226,16 @@ class VOXEL_GGT_offset_gizmo(bpy.types.GizmoGroup):
                     obj.location.x = self._start_locations[obj.name].x + x
 
 
-class VOXEL_OT_toggle_gizmo(bpy.types.Operator):
+class VOXEL_OT_toggle_gizmo(Operator):
     bl_idname = "voxel.toggle_gizmo"
     bl_label = "Toggle Voxel Gizmo"
 
     def execute(self, context):
         c = type.celebi()
-        if c.T_voxel_gizmo_state == 'DISABLED':
-            c.T_voxel_gizmo_state = 'MOVE'
+        if c.T_voxel_gizmo_state == type.GIZMO_DISABLED:
+            c.T_voxel_gizmo_state = type.GIZMO_MOVE
         else:
-            c.T_voxel_gizmo_state = 'DISABLED'
-
-        print(c.T_voxel_gizmo_state)
-
-
-
+            c.T_voxel_gizmo_state = type.GIZMO_DISABLED
 
         # Force gizmos to refresh
         bpy.ops.wm.tool_set_by_id(name="builtin.move")
