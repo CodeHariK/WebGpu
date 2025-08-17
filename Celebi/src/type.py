@@ -24,7 +24,7 @@ def voxel_name(base_name: str, loc: Vector) -> str:
     Generate voxel-style name from base name and location vector.
     """
     x, y, z = int(loc.x), int(loc.y), int(loc.z)
-    return f"{base_name}_{x}_{y}_{z}"
+    return f"voxel_{base_name}_{x}_{y}_{z}"
 
 
 class TagItem(PropertyGroup):

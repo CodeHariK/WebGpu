@@ -1,3 +1,4 @@
+import time
 import math
 import bpy
 from bpy.props import (
@@ -54,21 +55,57 @@ class VOXEL_OT_delete_all(Operator):
         return {"FINISHED"}
 
 
+VOXEL_PREVIEW = "VOXEL_PREVIEW"
+
+
 class VOXEL_OT_hover(Operator):
     bl_idname = "celebi.voxel_hover"
     bl_label = "Voxel Hover"
     bl_description = "Spawn voxel by hovering over surfaces"
     bl_options = {"REGISTER", "UNDO"}
 
-    _preview_voxel: Object | None = None
+    _left_down = False
+    _right_down = False
+    _last_spawn_time = 0.0
+
+    def spawn_voxel(self, c: type.CelebiData, snapped_location: Vector, now: float):
+        libItem = c.getCurrentLibraryItem()
+        if not libItem:
+            return
+        libObj = libItem.obj
+        if not libObj or libObj.name not in bpy.data.objects:
+            return
+
+        # Prevent duplicates
+        for item in c.getVoxels():
+            voxel = bpy.data.objects.get(item.name)
+            if voxel and (voxel.location - snapped_location).length < 0.001:
+                return
+
+        src_obj = bpy.data.objects[libObj.name]
+        new_voxel = src_obj.copy()
+        new_voxel.data = src_obj.data
+        new_voxel.location = snapped_location
+        new_voxel.name = type.voxel_name(src_obj.name, snapped_location)
+        type.objLinkCollection(new_voxel)
+        c.appendVoxel(new_voxel.name)
+
+        self._last_spawn_time = now
+
+    def deleteVoxel(self, c, ray_obj: Object, now: float):
+        c.deleteVoxelByName(ray_obj.name)
+        bpy.data.objects.remove(ray_obj, do_unlink=True)
+        self._last_spawn_time = now
 
     def modal(self, context, event):
         c = type.celebi()
 
-        if event.type in {"RIGHTMOUSE", "ESC"}:
-            if self._preview_voxel:
-                bpy.data.objects.remove(self._preview_voxel, do_unlink=True)
-                self._preview_voxel = None
+        _preview_voxel = bpy.data.objects.get(VOXEL_PREVIEW)
+
+        if event.type in {"ESC"}:
+            if _preview_voxel:
+                bpy.data.objects.remove(_preview_voxel, do_unlink=True)
+                _preview_voxel = None
 
             c.T_voxel_hover_running = False
 
@@ -77,8 +114,8 @@ class VOXEL_OT_hover(Operator):
         coord = (event.mouse_region_x, event.mouse_region_y)
 
         preview_hidden = False
-        if self._preview_voxel and not self._preview_voxel.hide_viewport:
-            self._preview_voxel.hide_viewport = True
+        if _preview_voxel and not _preview_voxel.hide_viewport:
+            _preview_voxel.hide_viewport = True
             preview_hidden = True
 
         ray_origin = view3d_utils.region_2d_to_origin_3d(
@@ -95,7 +132,10 @@ class VOXEL_OT_hover(Operator):
 
         # Restore preview voxel visibility
         if preview_hidden:
-            self._preview_voxel.hide_viewport = False
+            _preview_voxel.hide_viewport = False
+
+        now = time.time()
+        debounce = (now - self._last_spawn_time) > 0.2
 
         offset_location = ray_location + ray_normal * 0.1
         snapped_location = Vector(
@@ -106,65 +146,58 @@ class VOXEL_OT_hover(Operator):
             )
         )
 
-        if event.type == "MOUSEMOVE":
-            pass
-            if ray_result:
-                if self._preview_voxel is None:
-                    bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
-                    self._preview_voxel = context.active_object
-                    self._preview_voxel.name = "Voxel_Preview_voxel"
-                    self._preview_voxel.hide_select = True
-                    self._preview_voxel.display_type = "WIRE"
-                    self._preview_voxel.show_in_front = True
-                else:
-                    self._preview_voxel.hide_viewport = False
-                    self._preview_voxel.location = snapped_location
-            elif self._preview_voxel:
-                self._preview_voxel.hide_viewport = True
-        elif event.type == "LEFTMOUSE" and event.value == "PRESS":
-            if ray_result:
-                bpy.ops.celebi.voxel_cleanup()
+        if event.type == "LEFTMOUSE" and event.value == "PRESS":
+            self._left_down = True
+            self.spawn_voxel(c, snapped_location, now)
+            return {"RUNNING_MODAL"}
+        if event.type == "RIGHTMOUSE" and event.value == "PRESS":
+            self._right_down = True
+            self.deleteVoxel(c=c, ray_obj=ray_obj, now=now)
+            return {"RUNNING_MODAL"}
 
-                # Check if a voxel already exists at this location
-                found = False
-                for item in c.getVoxels():
-                    voxel = bpy.data.objects.get(item.name)
-                    if voxel and (voxel.location - snapped_location).length < 0.001:
-                        found = True
-                        break
-                if not found:
-                    libItem = c.getCurrentLibraryItem()
-                    if libItem:
-                        libObj = libItem.obj
-                        if libObj and libObj.name in bpy.data.objects:
-                            src_obj = bpy.data.objects[libObj.name]
-                            new_voxel = src_obj.copy()
-                            new_voxel.data = src_obj.data  # keep linked mesh
-                            new_voxel.location = snapped_location
-                            new_voxel.name = type.voxel_name(
-                                src_obj.name, snapped_location
-                            )
+        if event.type == "LEFTMOUSE" and event.value == "RELEASE":
+            self._left_down = False
+            return {"RUNNING_MODAL"}
+        if event.type == "RIGHTMOUSE" and event.value == "RELEASE":
+            self._right_down = False
+            return {"RUNNING_MODAL"}
 
-                            type.objLinkCollection(new_voxel)
+        if ray_result:
+            if not _preview_voxel:
+                bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
+                _preview_voxel = context.active_object
+                _preview_voxel.name = VOXEL_PREVIEW
+                _preview_voxel.hide_select = True
+                _preview_voxel.display_type = "WIRE"
+                _preview_voxel.show_in_front = True
+                type.objLinkCollection(_preview_voxel)
+            else:
+                _preview_voxel.hide_viewport = False
+                _preview_voxel.location = snapped_location
+        elif _preview_voxel:
+            _preview_voxel.hide_viewport = True
 
-                            c.appendVoxel(new_voxel.name)
-                        else:
-                            self.report({"WARNING"}, "Library object not found")
+        if self._left_down and ray_result and debounce:
+            self.spawn_voxel(c, snapped_location, now)
+            return {"RUNNING_MODAL"}
 
-                            # bpy.ops.mesh.primitive_cube_add(size=1, location=snapped_location)
-                            # new_voxel = context.active_object
-                            # new_voxel.name = "voxel"
-                            # item = c.voxels.add()
-                            # item.name = new_voxel.name
+        if (
+            self._right_down
+            and ray_obj
+            and ray_obj.name.startswith("voxel_")
+            and debounce
+        ):
+            self.deleteVoxel(c=c, ray_obj=ray_obj, now=now)
+            return {"RUNNING_MODAL"}
 
         return {"PASS_THROUGH"}
 
     def invoke(self, context, event):
-        c = type.celebi()
-        if c.T_voxel_hover_running:
-            self.report({"WARNING"}, "Voxel Hover is already running")
-            return {"CANCELLED"}
-        c.T_voxel_hover_running = True
+        # c = type.celebi()
+        # if c.T_voxel_hover_running:
+        #     self.report({"WARNING"}, "Voxel Hover is already running")
+        #     return {"CANCELLED"}
+        # c.T_voxel_hover_running = True
         context.window_manager.modal_handler_add(self)
 
         return {"RUNNING_MODAL"}
@@ -247,7 +280,7 @@ class VOXEL_PT_panel(Panel):
         l.operator(VOXEL_OT_hover.bl_idname)
         l.operator(VOXEL_OT_delete_all.bl_idname, text="Delete all voxels")
 
-        l.operator("voxel.toggle_gizmo", text="Enable/Disable Gizmo")
+        l.operator(gizmo.VOXEL_OT_toggle_gizmo.bl_idname, text="Enable/Disable Gizmo")
 
         active = bpy.context.active_object
         currentLibItem = c.getCurrentLibraryItem()
