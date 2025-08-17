@@ -10,7 +10,7 @@ from bpy.props import (
     PointerProperty,
     EnumProperty,
 )
-from bpy.types import Object, PropertyGroup, WindowManager
+from bpy.types import Object, PropertyGroup, WindowManager, Collection
 from . import preview
 
 
@@ -32,15 +32,24 @@ class TagItem(PropertyGroup):
     enabled: BoolProperty(default=False)
 
 
+CONFIG_R90 = "R90"
+CONFIG_R180 = "R180"
+CONFIG_R270 = "R270"
+CONFIG_SX = "SX"
+CONFIG_SXR90 = "SXR90"
+CONFIG_SXR180 = "SXR180"
+CONFIG_SXR270 = "SXR270"
+
+
 def cube_configurations(self, context):
     return [
-        ("R90", "R90", "Rotate 90°"),
-        ("R180", "R180", "Rotate 180°"),
-        ("R270", "R270", "Rotate 270°"),
-        ("SX", "SX", "Mirror"),
-        ("SXR90", "SXR90", "Mirror + Rotate 90°"),
-        ("SX180", "SX180", "Mirror + Rotate 180°"),
-        ("SXR270", "SXR270", "Mirror + Rotate 270°"),
+        (CONFIG_R90, "R90", "Rotate 90°"),
+        (CONFIG_R180, "R180", "Rotate 180°"),
+        (CONFIG_R270, "R270", "Rotate 270°"),
+        (CONFIG_SX, "SX", "Mirror"),
+        (CONFIG_SXR90, "SXR90", "Mirror + Rotate 90°"),
+        (CONFIG_SXR180, "SX180", "Mirror + Rotate 180°"),
+        (CONFIG_SXR270, "SXR270", "Mirror + Rotate 270°"),
     ]
 
 
@@ -128,10 +137,13 @@ class CelebiData(PropertyGroup):
 
     def getLibraryItems(self) -> list[LibraryItem]:
         return self.library_items
+
     def clearLibraryItems(self):
         self.library_items.clear()
 
-    def addLibraryItem(self, name: str | None, enabled: bool|None, obj: Object | None) -> LibraryItem:
+    def addLibraryItem(
+        self, name: str | None, enabled: bool | None, obj: Object | None
+    ) -> LibraryItem:
         cLib = self.getLibraryItems()
         item = cLib.add()
         if name:
@@ -148,19 +160,24 @@ class CelebiData(PropertyGroup):
     def getVoxelAt(self, index: int) -> VoxelItem | None:
         if index >= 0 and index < len(self.voxels):
             return self.voxels[index]
+
     def getCurrentVoxel(self) -> VoxelItem | None:
         return self.getVoxelAt(self.T_voxels_index)
+
     def getVoxels(self) -> list[VoxelItem]:
         return self.voxels
+
     def clearVoxels(self) -> list[VoxelItem]:
         self.voxels.clear()
         return self.voxels
-    def deleteVoxelByName(self,name: str) :
+
+    def deleteVoxelByName(self, name: str):
         items = self.voxels
         for i, item in enumerate(items):
             if item.name == name:
                 items.remove(i)
                 break
+
     def appendVoxel(self, name: str):
         voxel_item = self.voxels.add()
         voxel_item.name = name
@@ -178,9 +195,20 @@ class CelebiData(PropertyGroup):
 def celebi() -> CelebiData:
     wm = bpy.context.window_manager
     if not hasattr(wm, "celebi_data"):
-        # Optionally create or raise
         raise RuntimeError("CelebiData not initialized. Register the addon first.")
     return wm.celebi_data
+
+
+def getVoxelCollection():
+    coll = bpy.data.collections.get("VOXELS")
+    if coll is None:
+        coll = bpy.data.collections.new("VOXELS")
+        bpy.context.scene.collection.children.link(coll)
+    return coll
+
+
+def objLinkCollection(obj: Object):
+    getVoxelCollection().objects.link(obj)
 
 
 classes = (VoxelItem, TagItem, ConfigItem, FaceEntry, LibraryItem, CelebiData)

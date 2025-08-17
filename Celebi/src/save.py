@@ -109,6 +109,7 @@ class LIBRARY_OT_clear(Operator):
         c = type.celebi()
 
         c.clearLibraryItems()
+        c.clearTags()
 
         c.T_library_index = -1
 

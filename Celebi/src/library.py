@@ -20,7 +20,6 @@ face_collections = [
     "face_top",
     "face_bottom",
 ]
-face_names = ["Front", "Back", "Left", "Right", "Top", "Bottom"]
 
 
 class LIBRARY_OT_add_tag(Operator):
@@ -63,11 +62,9 @@ class LIBRARY_OT_add_objects(Operator):
                     cfg.name = identifier
                     cfg.enabled = False
 
-                for col_name, face in zip(face_collections, face_names):
-                    face_collection = getattr(item, col_name)
-                    f = face_collection.add()
-                    f.face_name = face  # store face name in each FaceEntry
-                    f.config = "R90"  # default config
+                # for col_name in face_collections:
+                #     face_collection = getattr(item, col_name)
+                #     f = face_collection.add()
 
         return {"FINISHED"}
 
@@ -179,11 +176,11 @@ class LIBRARY_PT_panel(Panel):
 
                 # Update panel draw for separate face collections
                 layout.label(text="Face Links:")
-                for col_name, face in zip(face_collections, face_names):
+                for col_name in face_collections:
                     face_collection = getattr(item, col_name)
                     for face_entry in face_collection:
                         row = layout.row()
-                        row.label(text=face)
+                        row.label(text=col_name.lstrip("face_"))
                         row.prop(face_entry, "library_item")
                         row.prop(face_entry, "config", text="")
 

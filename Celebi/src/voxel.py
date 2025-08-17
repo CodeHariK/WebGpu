@@ -36,25 +36,6 @@ class VOXEL_OT_delete(Operator):
         return {"FINISHED"}
 
 
-class VOXEL_OT_cleanup(Operator):
-    bl_idname = "celebi.voxel_cleanup"
-    bl_label = "Cleanup Voxel"
-
-    def execute(self, context):
-        c = type.celebi()
-        voxels_to_keep = [
-            item.name for item in c.voxels if bpy.data.objects.get(item.name)
-        ]
-
-        c.clearVoxels()
-        for name in voxels_to_keep:
-            c.appendVoxel(name)
-
-        c.T_voxel_hover_running = False
-
-        return {"FINISHED"}
-
-
 class VOXEL_OT_delete_all(Operator):
     bl_idname = "celebi.voxel_delete_all"
     bl_label = "Delete all voxels"
@@ -139,7 +120,7 @@ class VOXEL_OT_hover(Operator):
                     self._preview_voxel.hide_viewport = False
                     self._preview_voxel.location = snapped_location
             elif self._preview_voxel:
-                    self._preview_voxel.hide_viewport = True
+                self._preview_voxel.hide_viewport = True
         elif event.type == "LEFTMOUSE" and event.value == "PRESS":
             if ray_result:
                 bpy.ops.celebi.voxel_cleanup()
@@ -152,18 +133,19 @@ class VOXEL_OT_hover(Operator):
                         found = True
                         break
                 if not found:
-                    lib_item = c.getCurrentLibraryItem()
-                    if lib_item:
-                        lib_obj = lib_item.obj
-                        if lib_obj and lib_obj.name in bpy.data.objects:
-                            src_obj = bpy.data.objects[lib_obj.name]
+                    libItem = c.getCurrentLibraryItem()
+                    if libItem:
+                        libObj = libItem.obj
+                        if libObj and libObj.name in bpy.data.objects:
+                            src_obj = bpy.data.objects[libObj.name]
                             new_voxel = src_obj.copy()
                             new_voxel.data = src_obj.data  # keep linked mesh
                             new_voxel.location = snapped_location
                             new_voxel.name = type.voxel_name(
                                 src_obj.name, snapped_location
                             )
-                            context.collection.objects.link(new_voxel)
+
+                            type.objLinkCollection(new_voxel)
 
                             c.appendVoxel(new_voxel.name)
                         else:
@@ -250,13 +232,19 @@ class VOXEL_PT_panel(Panel):
         l = self.layout
         c = type.celebi()
 
+        voxels_to_keep = [
+            item.name for item in c.voxels if bpy.data.objects.get(item.name)
+        ]
+        c.clearVoxels()
+        for name in voxels_to_keep:
+            c.appendVoxel(name)
+
         # Sync selection state from objects to voxel items
         selected_objs = set(obj.name for obj in bpy.context.selected_objects)
         for item in c.getVoxels():
             item.selected = item.name in selected_objs
 
         l.operator(VOXEL_OT_hover.bl_idname)
-        l.operator(VOXEL_OT_cleanup.bl_idname, text="Cleanup voxels")
         l.operator(VOXEL_OT_delete_all.bl_idname, text="Delete all voxels")
 
         l.operator("voxel.toggle_gizmo", text="Enable/Disable Gizmo")
@@ -301,7 +289,6 @@ class VOXEL_OT_action(Operator):
 
 classes = (
     VOXEL_OT_hover,
-    VOXEL_OT_cleanup,
     VOXEL_OT_delete_all,
     VOXEL_OT_delete,
     VOXEL_OT_action,

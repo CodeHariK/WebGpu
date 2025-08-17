@@ -16,7 +16,10 @@ class VOXEL_GGT_offset_gizmo(GizmoGroup):
     @classmethod
     def poll(cls, context):
         c = type.celebi()
-        return c.T_voxel_gizmo_state == type.GIZMO_MOVE
+        return (
+            c.T_voxel_gizmo_state == type.GIZMO_MOVE
+            and bpy.context.active_object != None
+        )
 
     axes = {"X": (1, 0, 0), "Y": (0, 1, 0), "Z": (0, 0, 1)}
 
