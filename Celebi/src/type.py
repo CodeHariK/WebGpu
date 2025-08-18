@@ -41,6 +41,21 @@ CONFIG_SXR180 = "SXR180"
 CONFIG_SXR270 = "SXR270"
 
 
+GIZMO_DISABLED = "DISABLED"
+GIZMO_MOVE = "MOVE"
+GIZMO_SCALE = "SCALE"
+
+
+FACE_COLLECTIONS = [
+    "face_front",
+    "face_back",
+    "face_left",
+    "face_right",
+    "face_top",
+    "face_bottom",
+]
+
+
 def cube_configurations(self, context):
     return [
         (CONFIG_R90, "R90", "Rotate 90°"),
@@ -86,15 +101,18 @@ class LibraryItem(PropertyGroup):
     face_top: CollectionProperty(type=FaceEntry)
     face_bottom: CollectionProperty(type=FaceEntry)
 
+    def getTags(self) -> list[TagItem]:
+        return self.tags
+
     def appendTag(self, tag_name: str, enabled: bool):
         tag_entry = self.tags.add()
         tag_entry.name = tag_name
         tag_entry.enabled = enabled
 
-
-GIZMO_DISABLED = "DISABLED"
-GIZMO_MOVE = "MOVE"
-GIZMO_SCALE = "SCALE"
+    def appendConfig(self, identifier: str, enabled: bool):
+        cfg = self.configs.add()
+        cfg.name = identifier
+        cfg.enabled = enabled
 
 
 class CelebiData(PropertyGroup):
@@ -135,6 +153,13 @@ class CelebiData(PropertyGroup):
         if self.T_library_index >= 0 and self.T_library_index < len(self.library_items):
             return self.library_items[self.T_library_index]
 
+    def updateCurrentActiveLibraryObject(self) -> Object | None:
+        active = bpy.context.active_object
+        for i, item in enumerate(self.getLibraryItems()):
+            if item.obj == active:
+                self.T_library_index = i
+                return active
+
     def getLibraryItems(self) -> list[LibraryItem]:
         return self.library_items
 
@@ -146,7 +171,7 @@ class CelebiData(PropertyGroup):
     ) -> LibraryItem:
         cLib = self.getLibraryItems()
         item = cLib.add()
-        if name:
+        if name != None:
             item.name = name
         if enabled != None:
             item.enabled = enabled

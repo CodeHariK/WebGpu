@@ -35,9 +35,13 @@ class LIBRARY_OT_save(Operator):
         lib = c.getLibraryItems()
         for item in lib:
             enabled_tags = [t.name for t in item.tags if t.enabled]
+
+            configs = [cfg.name for cfg in item.configs if cfg.enabled]
+
             entry = {
                 "object_name": item.obj.name if item.obj else None,
                 "tags": enabled_tags,
+                "configs": configs,
             }
             data["items"].append(entry)
 
@@ -79,6 +83,7 @@ class LIBRARY_OT_load(Operator):
 
         for entry in data.get("items", []):
             item = c.addLibraryItem(None, None, None)
+
             if entry["object_name"] in bpy.data.objects:
                 item.obj = bpy.data.objects[entry["object_name"]]
 
@@ -86,6 +91,12 @@ class LIBRARY_OT_load(Operator):
             enabled_tags = set(entry.get("tags", []))
             for tag_item in c.getLibraryTags():
                 item.appendTag(tag_item.name, tag_item.name in enabled_tags)
+
+            # Restore configs
+            saved_configs = set(entry.get("configs", []))
+            item.configs.clear()
+            for idname, _, _ in type.cube_configurations(None, None):
+                item.appendConfig(idname, idname in saved_configs)
 
         c.clearVoxels()
         for voxelName in data.get("voxels", []):

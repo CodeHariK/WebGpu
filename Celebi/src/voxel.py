@@ -193,11 +193,13 @@ class VOXEL_OT_hover(Operator):
         return {"PASS_THROUGH"}
 
     def invoke(self, context, event):
-        # c = type.celebi()
+        c = type.celebi()
         # if c.T_voxel_hover_running:
         #     self.report({"WARNING"}, "Voxel Hover is already running")
         #     return {"CANCELLED"}
-        # c.T_voxel_hover_running = True
+
+        c.T_voxel_hover_running = True
+
         context.window_manager.modal_handler_add(self)
 
         return {"RUNNING_MODAL"}
@@ -235,7 +237,6 @@ class VOXEL_UL_items(UIList):
     def draw_item(
         self, context, layout, data, item, icon, active_data, active_propname, index
     ):
-        c = type.celebi()
         obj = bpy.data.objects.get(item.name)
         if obj:
             row = layout.row(align=True)
@@ -277,7 +278,12 @@ class VOXEL_PT_panel(Panel):
         for item in c.getVoxels():
             item.selected = item.name in selected_objs
 
-        l.operator(VOXEL_OT_hover.bl_idname)
+        l.operator(
+            VOXEL_OT_hover.bl_idname,
+            text="Hover Running" if c.T_voxel_hover_running else "Start Hover",
+            icon="PAUSE" if c.T_voxel_hover_running else "PLAY",
+            depress=c.T_voxel_hover_running,
+        )
         l.operator(VOXEL_OT_delete_all.bl_idname, text="Delete all voxels")
 
         l.operator(gizmo.VOXEL_OT_toggle_gizmo.bl_idname, text="Enable/Disable Gizmo")
@@ -289,7 +295,6 @@ class VOXEL_PT_panel(Panel):
 
             l.label(text=currentLibItem.obj.name)
 
-            l.label(text=active.name)
             l.prop(c, "T_dim_x", slider=False)
             l.prop(c, "T_dim_y", slider=True)
             l.prop(c, "T_dim_z", slider=True)

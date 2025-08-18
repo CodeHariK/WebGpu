@@ -1,101 +1,69 @@
 {
     "all_tags": [
-        "Hello",
-        "Red",
-        "Blue",
-        "sun",
-        "moon"
+        "red"
     ],
     "items": [
         {
-            "object_name": "Grass",
-            "tags": []
+            "object_name": "Soil",
+            "tags": [],
+            "configs": []
         },
         {
             "object_name": "Sand",
-            "tags": []
+            "tags": [],
+            "configs": []
         },
         {
             "object_name": "Water",
-            "tags": []
-        },
-        {
-            "object_name": "GrassPlant",
-            "tags": []
-        },
-        {
-            "object_name": "WaterGrassBridge",
-            "tags": []
+            "tags": [
+                "red"
+            ],
+            "configs": [
+                "R90"
+            ]
         },
         {
             "object_name": "GrassBarricade",
-            "tags": []
+            "tags": [],
+            "configs": [
+                "R90"
+            ]
         },
         {
             "object_name": "GrassFull",
-            "tags": []
+            "tags": [],
+            "configs": []
         },
         {
             "object_name": "Stair",
-            "tags": []
+            "tags": [],
+            "configs": []
         },
         {
             "object_name": "GrassHalf",
-            "tags": []
+            "tags": [],
+            "configs": []
         },
         {
             "object_name": "GrassWaterCorner",
-            "tags": []
+            "tags": [],
+            "configs": []
         },
         {
             "object_name": "WaterGrass",
-            "tags": []
-        },
-        {
-            "object_name": "Rock",
-            "tags": []
+            "tags": [],
+            "configs": []
         },
         {
             "object_name": "RockHalf",
-            "tags": []
+            "tags": [],
+            "configs": []
         },
         {
             "object_name": "RockFull",
-            "tags": []
+            "tags": [],
+            "configs": []
         }
     ],
-    "voxels": [
-        "Grass_2_0_0",
-        "Grass_2_1_0",
-        "Grass_1_1_0",
-        "Grass_1_2_0",
-        "Water_0_0_0",
-        "Water_0_1_0",
-        "Water_0_0_0.001",
-        "Water_-1_0_0",
-        "Water_-1_0_0.001",
-        "Water_0_0_0.002",
-        "Water_0_0_0.003",
-        "Water_1_0_0",
-        "Water_0_-1_0",
-        "Water_0_-1_0.001",
-        "Water_0_1_0.001",
-        "Grass_1_-1_0",
-        "Grass_2_0_0.001",
-        "Grass_0_2_0",
-        "Grass_-1_2_0",
-        "Grass_-1_1_0",
-        "Grass_-2_0_0",
-        "Grass_-2_1_0",
-        "Grass_0_2_0.001",
-        "Grass_-2_0_0.001",
-        "Grass_-1_-1_0",
-        "Grass_0_-2_0",
-        "Grass_0_-2_0.001",
-        "Grass_1_-2_0",
-        "Grass_-1_-2_0",
-        "Water_1_0_0.001",
-        "Grass_2_-1_0",
-        "Grass_-2_-1_0"
-    ]
+    "voxels": []
 }

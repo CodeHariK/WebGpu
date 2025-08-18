@@ -11,16 +11,6 @@ from bpy.types import Operator, Panel, UIList
 from . import type
 from . import save
 
-# Update add_library_item to use separate face collections
-face_collections = [
-    "face_front",
-    "face_back",
-    "face_left",
-    "face_right",
-    "face_top",
-    "face_bottom",
-]
-
 
 class LIBRARY_OT_add_tag(Operator):
     bl_idname = "celebi.library_add_tag"
@@ -31,14 +21,14 @@ class LIBRARY_OT_add_tag(Operator):
     def execute(self, context):
         c = type.celebi()
 
-        tag = self.new_tag.strip()
-        if tag and tag not in c.getLibraryTags():
-            c.appendTag(tag)
+        tag_name = self.new_tag.strip()
+        if tag_name and tag_name not in c.getLibraryTags():
+            c.appendTag(tag_name)
 
             # Add this tag to every existing LibraryItem's tags collection
             for item in c.getLibraryItems():
-                if tag not in [t.name for t in item.tags]:
-                    c.addLibraryItem(tag, False, None)
+                if tag_name not in [t.name for t in item.tags]:
+                    item.appendTag(tag_name=tag_name, enabled=False)
 
         return {"FINISHED"}
 
@@ -58,9 +48,7 @@ class LIBRARY_OT_add_objects(Operator):
 
                 # Populate configs with all enum options
                 for identifier, name, desc in type.cube_configurations(None, None):
-                    cfg = item.configs.add()
-                    cfg.name = identifier
-                    cfg.enabled = False
+                    item.appendConfig(identifier, False)
 
                 # for col_name in face_collections:
                 #     face_collection = getattr(item, col_name)
@@ -75,12 +63,15 @@ class LIBRARY_UL_items(UIList):
     def draw_item(
         self, context, layout, data, item, icon, active_data, active_propname, index
     ):
+        c = type.celebi()
         obj = item.obj
         if obj is not None:
             row = layout.row()
 
             # We'll add a toggle button that calls operator to toggle selection
             row.prop(obj, "name", text="", emboss=False, icon="OBJECT_DATA")
+
+            c.updateCurrentActiveLibraryObject()
 
             # Checkbox reflects obj selection state
             selected = obj.select_get()
@@ -111,6 +102,24 @@ class LIBRARY_OT_toggle_object_selection(Operator):
             context.view_layer.objects.active = obj
         elif context.view_layer.objects.active == obj:
             context.view_layer.objects.active = None
+        return {"FINISHED"}
+
+
+class LIBRARY_OT_toggle_config(bpy.types.Operator):
+    bl_idname = "celebi.toggle_config"
+    bl_label = "Toggle Config"
+
+    item_index: bpy.props.IntProperty()
+
+    def execute(self, context):
+        c = type.celebi()
+        libItem = c.getCurrentLibraryItem()
+        config = libItem.configs[self.item_index]
+
+        config.enabled = not config.enabled
+
+        print(config.name, libItem.obj.name, libItem.obj.location)
+
         return {"FINISHED"}
 
 
@@ -159,24 +168,30 @@ class LIBRARY_PT_panel(Panel):
 
             if item and item.obj:
                 layout.label(text="Tags:")
-                for tag in item.tags:
+                for tag in item.getTags():
                     layout.prop(tag, "enabled", text=tag.name)
 
-                layout.separator_spacer()
+                layout.separator(type="LINE")
 
                 layout.label(text="Configurations:")
-                for config in item.configs:
-                    row = layout.row()
-                    row.prop(config, "enabled", text=config.name)
-                    # if config.enabled:
-                    #     obj_name = item.obj.name if item.obj else "Unnamed"
-                    #     print(f"Config {config.name} enabled for object {obj_name}")
+                configGrid = layout.grid_flow(columns=3)
+                for i, config in enumerate(item.configs):
+                    # configGrid.prop(config, "enabled", text=config.name)
+                    # # if config.enabled:
+                    # #     print(f"Config {config.name} enabled for object {item.obj.name}")
 
-                layout.separator_spacer()
+                    op = configGrid.operator(
+                        LIBRARY_OT_toggle_config.bl_idname,
+                        text=config.name,
+                        depress=config.enabled,
+                    )
+                    op.item_index = i
+
+                layout.separator(type="LINE")
 
                 # Update panel draw for separate face collections
                 layout.label(text="Face Links:")
-                for col_name in face_collections:
+                for col_name in type.FACE_COLLECTIONS:
                     face_collection = getattr(item, col_name)
                     for face_entry in face_collection:
                         row = layout.row()
@@ -188,6 +203,7 @@ class LIBRARY_PT_panel(Panel):
 classes = (
     LIBRARY_OT_add_tag,
     LIBRARY_OT_add_objects,
+    LIBRARY_OT_toggle_config,
     LIBRARY_OT_toggle_object_selection,
     LIBRARY_UL_items,
     LIBRARY_PT_panel,
