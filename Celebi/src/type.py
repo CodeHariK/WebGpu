@@ -1,5 +1,5 @@
 import bpy
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 from bpy.props import (
     FloatVectorProperty,
@@ -39,6 +39,16 @@ CONFIG_SX = "SX"
 CONFIG_SXR90 = "SXR90"
 CONFIG_SXR180 = "SXR180"
 CONFIG_SXR270 = "SXR270"
+
+CONFIG_TRANSFORMS = {
+    CONFIG_R90:   Matrix.Rotation(1.5708, 4, "Z"),   # 90° around Z
+    CONFIG_R180:  Matrix.Rotation(3.1416, 4, "Z"),   # 180° around Z
+    CONFIG_R270:  Matrix.Rotation(4.7124, 4, "Z"),   # 270° around Z
+    CONFIG_SX:    Matrix.Scale(-1, 4, (1, 0, 0)),    # mirror X
+    CONFIG_SXR90: Matrix.Scale(-1, 4, (1, 0, 0)) @ Matrix.Rotation(1.5708, 4, "Z"),
+    CONFIG_SXR180:Matrix.Scale(-1, 4, (1, 0, 0)) @ Matrix.Rotation(3.1416, 4, "Z"),
+    CONFIG_SXR270:Matrix.Scale(-1, 4, (1, 0, 0)) @ Matrix.Rotation(4.7124, 4, "Z"),
+}
 
 
 GIZMO_DISABLED = "DISABLED"
@@ -103,6 +113,8 @@ class LibraryItem(PropertyGroup):
 
     def getTags(self) -> list[TagItem]:
         return self.tags
+    def getConfigs(self) -> list[ConfigItem]:
+        return self.configs
 
     def appendTag(self, tag_name: str, enabled: bool):
         tag_entry = self.tags.add()
@@ -228,6 +240,13 @@ def getVoxelCollection():
     coll = bpy.data.collections.get("VOXELS")
     if coll is None:
         coll = bpy.data.collections.new("VOXELS")
+        bpy.context.scene.collection.children.link(coll)
+    return coll
+
+def getConfigCollection():
+    coll = bpy.data.collections.get("Config")
+    if coll is None:
+        coll = bpy.data.collections.new("Config")
         bpy.context.scene.collection.children.link(coll)
     return coll
 

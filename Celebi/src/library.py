@@ -7,6 +7,7 @@ from bpy.props import (
     IntProperty,
     PointerProperty,
 )
+from mathutils import Vector, Matrix
 from bpy.types import Operator, Panel, UIList
 from . import type
 from . import save
@@ -57,6 +58,82 @@ class LIBRARY_OT_add_objects(Operator):
         return {"FINISHED"}
 
 
+class LIBRARY_OT_toggle_object_selection(Operator):
+    bl_idname = "celebi.library_toggle_object_selection"
+    bl_label = "Toggle Object Selection"
+    bl_description = "Toggle selection of the object in the viewport"
+    bl_options = {"INTERNAL"}
+
+    obj_name: StringProperty(name="Object Name")
+
+    def execute(self, context):
+        obj = bpy.data.objects.get(self.obj_name)
+        if obj is None:
+            self.report({"WARNING"}, "Object not found")
+            return {"CANCELLED"}
+        obj.select_set(not obj.select_get())
+        if obj.select_get():
+            context.view_layer.objects.active = obj
+        elif context.view_layer.objects.active == obj:
+            context.view_layer.objects.active = None
+        return {"FINISHED"}
+
+
+def spawn_config_variants(libItem):
+    """Spawn this library item in +Y direction, one step per config"""
+    base_obj = libItem.obj
+    if not base_obj:
+        return
+    
+    config_col = type.getConfigCollection()
+
+    for obj in list(config_col.objects):
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+    offset_index = 1
+    for cfg in libItem.configs:
+        if not cfg.enabled:
+            continue
+
+        # make linked duplicate
+        new_obj = base_obj.copy()
+        new_obj.data = base_obj.data
+        new_obj.animation_data_clear()
+
+        # apply transform
+        mat = type.CONFIG_TRANSFORMS.get(cfg.name, Matrix.Identity(4))
+        new_obj.matrix_world @= mat
+
+        # name it
+        new_obj.name = f"{base_obj.name}_{cfg.name}"
+
+        # link to collection
+        config_col.objects.link(new_obj)
+
+        new_obj.location = base_obj.location + Vector((0, offset_index, 0))
+        print(base_obj.location, new_obj.location)
+
+        offset_index += 1
+
+class LIBRARY_OT_toggle_config(bpy.types.Operator):
+    bl_idname = "celebi.toggle_config"
+    bl_label = "Toggle Config"
+
+    item_index: bpy.props.IntProperty()
+
+    def execute(self, context):
+        c = type.celebi()
+        libItem = c.getCurrentLibraryItem()
+        config = libItem.configs[self.item_index]
+
+        config.enabled = not config.enabled
+
+        for c in libItem.getConfigs():
+            if c.enabled:
+                spawn_config_variants(libItem)
+
+        return {"FINISHED"}
+
 class LIBRARY_UL_items(UIList):
     name = "LIBRARY_UL_items"
 
@@ -82,46 +159,6 @@ class LIBRARY_UL_items(UIList):
                 emboss=True,
             )
             op.obj_name = obj.name
-
-
-class LIBRARY_OT_toggle_object_selection(Operator):
-    bl_idname = "celebi.library_toggle_object_selection"
-    bl_label = "Toggle Object Selection"
-    bl_description = "Toggle selection of the object in the viewport"
-    bl_options = {"INTERNAL"}
-
-    obj_name: StringProperty(name="Object Name")
-
-    def execute(self, context):
-        obj = bpy.data.objects.get(self.obj_name)
-        if obj is None:
-            self.report({"WARNING"}, "Object not found")
-            return {"CANCELLED"}
-        obj.select_set(not obj.select_get())
-        if obj.select_get():
-            context.view_layer.objects.active = obj
-        elif context.view_layer.objects.active == obj:
-            context.view_layer.objects.active = None
-        return {"FINISHED"}
-
-
-class LIBRARY_OT_toggle_config(bpy.types.Operator):
-    bl_idname = "celebi.toggle_config"
-    bl_label = "Toggle Config"
-
-    item_index: bpy.props.IntProperty()
-
-    def execute(self, context):
-        c = type.celebi()
-        libItem = c.getCurrentLibraryItem()
-        config = libItem.configs[self.item_index]
-
-        config.enabled = not config.enabled
-
-        print(config.name, libItem.obj.name, libItem.obj.location)
-
-        return {"FINISHED"}
-
 
 class LIBRARY_PT_panel(Panel):
     bl_label = "Object Library"
