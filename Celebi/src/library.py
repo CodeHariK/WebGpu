@@ -84,7 +84,7 @@ def spawn_config_variants(libItem):
     base_obj = libItem.obj
     if not base_obj:
         return
-    
+
     config_col = type.getConfigCollection()
 
     for obj in list(config_col.objects):
@@ -115,6 +115,7 @@ def spawn_config_variants(libItem):
 
         offset_index += 1
 
+
 class LIBRARY_OT_toggle_config(bpy.types.Operator):
     bl_idname = "celebi.toggle_config"
     bl_label = "Toggle Config"
@@ -133,6 +134,7 @@ class LIBRARY_OT_toggle_config(bpy.types.Operator):
                 spawn_config_variants(libItem)
 
         return {"FINISHED"}
+
 
 class LIBRARY_UL_items(UIList):
     name = "LIBRARY_UL_items"
@@ -159,6 +161,7 @@ class LIBRARY_UL_items(UIList):
                 emboss=True,
             )
             op.obj_name = obj.name
+
 
 class LIBRARY_PT_panel(Panel):
     bl_label = "Object Library"
