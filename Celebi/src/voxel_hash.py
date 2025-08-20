@@ -10,64 +10,85 @@ def to_signed32(x: int) -> int:
     return x
 
 
-def face_vertex_sort_key(v, normal_axis, sign, mirrorLR):
+DIRECTIONS = ["BL_TR", "BR_TL", "TR_BL", "TL_BR"]
+
+# def face_vertex_sort_key(v, normal_axis, sign, mirrorLR):
+#     if normal_axis == "X":  # YZ plane
+#         return (mirrorLR * sign * round(v.y, 6), round(v.z, 6))
+#     elif normal_axis == "Y":  # XZ plane
+#         return (mirrorLR * (-sign) * round(v.x, 6), round(v.z, 6))
+#     else:  # XY plane
+#         return (mirrorLR * (-sign) * round(v.x, 6),  round(v.y, 6))
+
+
+def face_vertex_sort_key(v, normal_axis, sign, direction):
     if normal_axis == "X":  # YZ plane
-        return (mirrorLR * sign * round(v.y, 6), round(v.z, 6))
+        if sign > 0:
+            # -----------------------
+            if direction == "BL_TR":
+                return (v.y, v.z)
+            elif direction == "BR_TL":
+                return (-v.y, v.z)
+            elif direction == "TR_BL":
+                return (-v.y, -v.z)
+            elif direction == "TL_BR":
+                return (v.y, -v.z)
+        else:
+            # -----------------------
+            if direction == "BL_TR":
+                return (-v.y, v.z)
+            elif direction == "BR_TL":
+                return (v.y, v.z)
+            elif direction == "TR_BL":
+                return (v.y, -v.z)
+            elif direction == "TL_BR":
+                return (-v.y, -v.z)
+
     elif normal_axis == "Y":  # XZ plane
-        return (mirrorLR * (-sign) * round(v.x, 6), round(v.z, 6))
-    else:  # XY plane
-        return (mirrorLR * (-sign) * round(v.x, 6), (sign) * round(v.y, 6))
-
-
-def face_vertex_compare(v1, v2, normal_axis, sign, mirrorLR):
-    """
-    Compare two vertices for sorting along a plane.
-    Returns -1 if v1<v2, 1 if v1>v2, 0 if equal.
-    """
-
-    # Sorting rule based on plane orientation
-    if sign > 0:
-        if normal_axis == "X":
-            # +YZ plane → sort by y
-            primary1, primary2 = v1.y, v2.y
-            secondary1, secondary2 = v1.z, v2.z
-        elif normal_axis == "Y":
-            # -XZ plane → sort by -x
-            primary1, primary2 = -v1.x, -v2.x
-            secondary1, secondary2 = v1.z, v2.z
+        if sign > 0:
+            # ----------------------
+            if direction == "BL_TR":
+                return (-v.x, v.z)
+            elif direction == "BR_TL":
+                return (v.x, v.z)
+            elif direction == "TR_BL":
+                return (v.x, -v.z)
+            elif direction == "TL_BR":
+                return (-v.x, -v.z)
         else:
-            # +XY plane → sort by x
-            primary1, primary2 = v1.x, v2.x
-            secondary1, secondary2 = v1.y, v2.y
-    else:
-        if normal_axis == "X":
-            # -YZ plane → sort by -y
-            primary1, primary2 = -v1.y, -v2.y
-            secondary1, secondary2 = v1.z, v2.z
-        elif normal_axis == "Y":
-            # +XZ plane → sort by x
-            primary1, primary2 = v1.x, v2.x
-            secondary1, secondary2 = v1.z, v2.z
-        else:
-            # X-Y plane → sort by x
-            primary1, primary2 = v1.x, v2.x
-            secondary1, secondary2 = -v1.y, -v2.y
+            # ----------------------
+            if direction == "BL_TR":
+                return (v.x, v.z)
+            elif direction == "BR_TL":
+                return (-v.x, v.z)
+            elif direction == "TR_BL":
+                return (-v.x, -v.z)
+            elif direction == "TL_BR":
+                return (v.x, -v.z)
 
-    primary1 *= mirrorLR
-    primary2 *= mirrorLR
-
-    if primary1 < primary2:
-        return -1
-    elif primary1 > primary2:
-        return 1
-    else:
-        # tie-breaker
-        if secondary1 < secondary2:
-            return -1
-        elif secondary1 > secondary2:
-            return 1
+    else:  # Z axis → XY plane
+        if sign > 0:
+            # ----------------------
+            if direction == "BL_TR":
+                return (v.x, v.y)
+            elif direction == "BR_TL":
+                return (-v.x, v.y)
+            elif direction == "TR_BL":
+                return (-v.x, -v.y)
+            elif direction == "TL_BR":
+                return (v.x, -v.y)
         else:
-            return 0
+            # ----------------------
+            if direction == "BL_TR":
+                return (v.x, -v.y)
+            elif direction == "BR_TL":
+                return (-v.x, -v.y)
+            elif direction == "TR_BL":
+                return (-v.x, v.y)
+            elif direction == "TL_BR":
+                return (v.x, v.y)
+
+    return 0
 
 
 def plane_hash(
@@ -75,7 +96,8 @@ def plane_hash(
     normal_axis: str,
     sign=1,
     size=1.0,
-    direction="LR",
+    # direction="LR",
+    direction="BL_TR",
     scale=100,
 ):
     """
@@ -85,8 +107,6 @@ def plane_hash(
     size: voxel cube size
     direction: "LR" or "RL"
     """
-
-    print(f"{obj.name} {normal_axis} {sign} {direction}")
 
     mesh = obj.data
     verts_local = [v.co for v in mesh.vertices]
@@ -101,12 +121,17 @@ def plane_hash(
         # no face touching this plane → air
         return 0
 
-    mirrorLR = 1 if direction == "LR" else -1
-    print(mirrorLR)
+    # mirrorLR = 1 if direction == "LR" else -1
+    # print(mirrorLR)
+
+    # sorted_verts = sorted(
+    #     boundary_verts,
+    #     key=lambda v: face_vertex_sort_key(v, normal_axis, sign, mirrorLR),
+    # )
 
     sorted_verts = sorted(
         boundary_verts,
-        key=lambda v: face_vertex_sort_key(v, normal_axis, sign, mirrorLR),
+        key=lambda v: face_vertex_sort_key(v, normal_axis, sign, direction),
     )
 
     # sorted_verts = sorted(
@@ -169,7 +194,7 @@ def plane_hash(
                 + int(mat_color[2] * 255)
             )
 
-        print(f"{sigx},{sigy},{sigz},  {sig}, {mat_color_int_cache[mat_color]}")
+        # print(f"{sigx},{sigy},{sigz},  {sig}, {mat_color_int_cache[mat_color]}")
 
         sig ^= mat_color_int_cache[mat_color]
         hash_value = (
@@ -180,7 +205,7 @@ def plane_hash(
 
     hash = to_signed32((hash_value & 0xFFFFFFFF) ^ ((hash_value >> 32) & 0xFFFFFFFF))
 
-    print(f"{hash} \n")
+    print(f"{obj.name} {normal_axis} {sign} {direction}  {hash}")
 
     return hash
 
@@ -195,35 +220,72 @@ class VOXEL_OT_face_hash(bpy.types.Operator):
         for item in lib:
             obj = item.obj
 
-            item.hash_front_lr = plane_hash(
-                obj, normal_axis="Y", sign=-1, direction="LR"
-            )
-            item.hash_front_rl = plane_hash(
-                obj, normal_axis="Y", sign=-1, direction="RL"
-            )
-            item.hash_back_lr = plane_hash(obj, normal_axis="Y", sign=1, direction="LR")
-            item.hash_back_rl = plane_hash(obj, normal_axis="Y", sign=1, direction="RL")
+            # item.hash_front_lr = plane_hash(
+            #     obj, normal_axis="Y", sign=-1, direction="LR"
+            # )
+            # item.hash_front_rl = plane_hash(
+            #     obj, normal_axis="Y", sign=-1, direction="RL"
+            # )
+            # item.hash_back_lr = plane_hash(obj, normal_axis="Y", sign=1, direction="LR")
+            # item.hash_back_rl = plane_hash(obj, normal_axis="Y", sign=1, direction="RL")
 
-            item.hash_left_lr = plane_hash(
-                obj, normal_axis="X", sign=-1, direction="LR"
-            )
-            item.hash_left_rl = plane_hash(
-                obj, normal_axis="X", sign=-1, direction="RL"
-            )
-            item.hash_right_lr = plane_hash(
-                obj, normal_axis="X", sign=1, direction="LR"
-            )
-            item.hash_right_rl = plane_hash(
-                obj, normal_axis="X", sign=1, direction="RL"
-            )
+            # item.hash_left_lr = plane_hash(
+            #     obj, normal_axis="X", sign=-1, direction="LR"
+            # )
+            # item.hash_left_rl = plane_hash(
+            #     obj, normal_axis="X", sign=-1, direction="RL"
+            # )
+            # item.hash_right_lr = plane_hash(
+            #     obj, normal_axis="X", sign=1, direction="LR"
+            # )
+            # item.hash_right_rl = plane_hash(
+            #     obj, normal_axis="X", sign=1, direction="RL"
+            # )
 
-            item.hash_top_lr = plane_hash(obj, normal_axis="Z", sign=1, direction="LR")
-            item.hash_top_rl = plane_hash(obj, normal_axis="Z", sign=1, direction="RL")
-            item.hash_bottom_lr = plane_hash(
-                obj, normal_axis="Z", sign=-1, direction="LR"
-            )
-            item.hash_bottom_rl = plane_hash(
-                obj, normal_axis="Z", sign=-1, direction="RL"
-            )
+            # item.hash_top_lr = plane_hash(obj, normal_axis="Z", sign=1, direction="LR")
+            # item.hash_top_rl = plane_hash(obj, normal_axis="Z", sign=1, direction="RL")
+            # item.hash_bottom_lr = plane_hash(
+            #     obj, normal_axis="Z", sign=-1, direction="LR"
+            # )
+            # item.hash_bottom_rl = plane_hash(
+            #     obj, normal_axis="Z", sign=-1, direction="RL"
+            # )
+
+            print("\n" * 50)
+
+            for normal_axis in ["X", "Y", "Z"]:
+                for sign in [1, -1]:
+                    hashes = ""
+
+                    for direction in ["BL_TR", "BR_TL", "TR_BL", "TL_BR"]:
+                        hash = plane_hash(
+                            obj, normal_axis=normal_axis, sign=sign, direction=direction
+                        )
+                        hashes += direction + "   " + str(hash) + "\n"
+
+                    location = (
+                        obj.location.x
+                        + ((0.8 if sign > 0 else -1.3) if normal_axis == "X" else 0),
+                        obj.location.y + (0.8 * sign if normal_axis == "Y" else 0),
+                        obj.location.z + (0.8 * sign if normal_axis == "Z" else 0),
+                    )
+                    name = f"hash_{obj.name}_{normal_axis}_{sign}_{direction}"
+                    add_text_at(location, str(hashes), name)
+                    print()
 
         return {"FINISHED"}
+
+
+def add_text_at(location, text, name):
+    """Spawn a text object at given location for debugging."""
+    # Remove existing one with same name
+    if name in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects[name], do_unlink=True)
+
+    curve = bpy.data.curves.new(name, type="FONT")
+    curve.body = text
+    obj = bpy.data.objects.new(name, curve)
+    obj.location = location
+    bpy.context.collection.objects.link(obj)
+    obj.scale = (0.08, 0.08, 0.08)  # make text small
+    return obj

@@ -86,9 +86,9 @@ def spawn_config_variants(libItem):
     if not base_obj:
         return
 
-    config_col = type.getConfigCollection()
+    CONFIG_COLLECTION = type.getConfigCollection()
 
-    for obj in list(config_col.objects):
+    for obj in list(CONFIG_COLLECTION.objects):
         bpy.data.objects.remove(obj, do_unlink=True)
 
     offset_index = 1
@@ -109,7 +109,7 @@ def spawn_config_variants(libItem):
         new_obj.name = f"{base_obj.name}_{cfg.name}"
 
         # link to collection
-        config_col.objects.link(new_obj)
+        CONFIG_COLLECTION.objects.link(new_obj)
 
         new_obj.location = base_obj.location + Vector((0, offset_index, 0))
         print(base_obj.location, new_obj.location)
