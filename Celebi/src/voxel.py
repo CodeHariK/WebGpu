@@ -16,7 +16,6 @@ from bpy_extras import view3d_utils
 from . import type
 from . import preview
 from . import gizmo
-from . import voxel_hash
 
 
 class VOXEL_OT_delete(Operator):
@@ -285,10 +284,7 @@ class VOXEL_PT_panel(Panel):
             icon="PAUSE" if c.T_voxel_hover_running else "PLAY",
             depress=c.T_voxel_hover_running,
         )
-        l.operator(
-            voxel_hash.VOXEL_OT_face_hash.bl_idname,
-            text=voxel_hash.VOXEL_OT_face_hash.bl_label,
-        )
+
         l.operator(VOXEL_OT_delete_all.bl_idname, text=VOXEL_OT_delete_all.bl_label)
 
         l.operator(
@@ -343,7 +339,6 @@ classes = (
     VOXEL_PT_panel,
     gizmo.VOXEL_GGT_offset_gizmo,
     gizmo.VOXEL_OT_toggle_gizmo,
-    voxel_hash.VOXEL_OT_face_hash,
 )
 
 

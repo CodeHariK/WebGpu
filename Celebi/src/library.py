@@ -11,6 +11,7 @@ from mathutils import Vector, Matrix
 from bpy.types import Operator, Panel, UIList
 from . import type
 from . import save
+from . import voxel_hash
 
 
 class LIBRARY_OT_add_tag(Operator):
@@ -171,27 +172,34 @@ class LIBRARY_PT_panel(Panel):
     bl_category = "Celebi"
 
     def draw(self, context):
-        layout = self.layout
+        l = self.layout
         c = type.celebi()
 
-        grid = layout.grid_flow(row_major=True, columns=2)
+        grid = l.grid_flow(row_major=True, columns=2)
 
         grid.operator(save.LIBRARY_OT_save.bl_idname, icon="FILE_TICK")
         grid.operator(save.LIBRARY_OT_load.bl_idname, icon="FILE_FOLDER")
         grid.operator(save.LIBRARY_OT_clear.bl_idname, icon="TRASH")
         grid.operator(LIBRARY_OT_add_objects.bl_idname, icon="PLUS")
 
-        layout.separator(type="LINE")
+        l.separator(type="LINE")
 
-        tagrow = layout.row()
+        tagrow = l.row()
         tagrow.prop(c, "T_new_tag_name", text="")
         tagrow.operator(
             LIBRARY_OT_add_tag.bl_idname, text="", icon="ADD"
         ).new_tag = c.T_new_tag_name
 
-        layout.separator(type="LINE")
+        l.separator(type="LINE")
 
-        layout.template_list(
+        l.operator(
+            voxel_hash.VOXEL_OT_face_hash.bl_idname,
+            text=voxel_hash.VOXEL_OT_face_hash.bl_label,
+        )
+
+        l.separator(type="LINE")
+
+        l.template_list(
             LIBRARY_UL_items.name,
             "",
             c,
@@ -207,14 +215,45 @@ class LIBRARY_PT_panel(Panel):
             item = c.getCurrentLibraryItem()
 
             if item and item.obj:
-                layout.label(text="Tags:")
+                l.label(text="Tags:")
                 for tag in item.getTags():
-                    layout.prop(tag, "enabled", text=tag.name)
+                    l.prop(tag, "enabled", text=tag.name)
 
-                layout.separator(type="LINE")
+                l.separator(type="LINE")
 
-                layout.label(text="Configurations:")
-                configGrid = layout.grid_flow(columns=3)
+                grid = l.grid_flow(columns=3, row_major=True)
+                grid.label(text="")
+                grid.label(text="LR")
+                grid.label(text="RL")
+
+                grid.label(text="front")
+                grid.label(text=f"{item.hash_front_lr}")
+                grid.label(text=f"{item.hash_front_rl}")
+
+                grid.label(text="back")
+                grid.label(text=f"{item.hash_back_lr}")
+                grid.label(text=f"{item.hash_back_rl}")
+
+                grid.label(text="left")
+                grid.label(text=f"{item.hash_left_lr}")
+                grid.label(text=f"{item.hash_left_rl}")
+
+                grid.label(text="right")
+                grid.label(text=f"{item.hash_right_lr}")
+                grid.label(text=f"{item.hash_right_rl}")
+
+                grid.label(text="top")
+                grid.label(text=f"{item.hash_top_lr}")
+                grid.label(text=f"{item.hash_top_rl}")
+
+                grid.label(text="bottom")
+                grid.label(text=f"{item.hash_bottom_lr}")
+                grid.label(text=f"{item.hash_bottom_rl}")
+
+                l.separator(type="LINE")
+
+                l.label(text="Configurations:")
+                configGrid = l.grid_flow(columns=3)
                 for i, config in enumerate(item.configs):
                     # configGrid.prop(config, "enabled", text=config.name)
                     # # if config.enabled:
@@ -227,14 +266,14 @@ class LIBRARY_PT_panel(Panel):
                     )
                     op.item_index = i
 
-                layout.separator(type="LINE")
+                l.separator(type="LINE")
 
                 # Update panel draw for separate face collections
-                layout.label(text="Face Links:")
+                l.label(text="Face Links:")
                 for col_name in type.FACE_COLLECTIONS:
                     face_collection = getattr(item, col_name)
                     for face_entry in face_collection:
-                        row = layout.row()
+                        row = l.row()
                         row.label(text=col_name.lstrip("face_"))
                         row.prop(face_entry, "library_item")
                         row.prop(face_entry, "config", text="")
@@ -247,6 +286,7 @@ classes = (
     LIBRARY_OT_toggle_object_selection,
     LIBRARY_UL_items,
     LIBRARY_PT_panel,
+    voxel_hash.VOXEL_OT_face_hash,
 )
 
 

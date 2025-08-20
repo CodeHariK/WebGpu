@@ -104,6 +104,19 @@ class LibraryItem(PropertyGroup):
     # Configurations checkboxes for this library item
     configs: CollectionProperty(type=ConfigItem)
 
+    hash_front_lr: IntProperty()
+    hash_front_rl: IntProperty()
+    hash_back_lr: IntProperty()
+    hash_back_rl: IntProperty()
+    hash_left_lr: IntProperty()
+    hash_left_rl: IntProperty()
+    hash_right_lr: IntProperty()
+    hash_right_rl: IntProperty()
+    hash_top_lr: IntProperty()
+    hash_top_rl: IntProperty()
+    hash_bottom_lr: IntProperty()
+    hash_bottom_rl: IntProperty()
+
     face_front: CollectionProperty(type=FaceEntry)
     face_back: CollectionProperty(type=FaceEntry)
     face_left: CollectionProperty(type=FaceEntry)
@@ -168,6 +181,7 @@ class CelebiData(PropertyGroup):
 
     def updateCurrentActiveLibraryObject(self) -> Object | None:
         active = bpy.context.active_object
+        self.T_library_index = -1
         for i, item in enumerate(self.getLibraryItems()):
             if item.obj == active:
                 self.T_library_index = i
