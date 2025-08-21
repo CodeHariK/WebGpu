@@ -1,5 +1,5 @@
 import bpy
-from functools import cmp_to_key
+from mathutils import Vector
 from . import type
 
 
@@ -11,14 +11,6 @@ def to_signed32(x: int) -> int:
 
 
 DIRECTIONS = ["BL_TR", "BR_TL", "TR_BL", "TL_BR"]
-
-# def face_vertex_sort_key(v, normal_axis, sign, mirrorLR):
-#     if normal_axis == "X":  # YZ plane
-#         return (mirrorLR * sign * round(v.y, 6), round(v.z, 6))
-#     elif normal_axis == "Y":  # XZ plane
-#         return (mirrorLR * (-sign) * round(v.x, 6), round(v.z, 6))
-#     else:  # XY plane
-#         return (mirrorLR * (-sign) * round(v.x, 6),  round(v.y, 6))
 
 
 def face_vertex_sort_key(v, normal_axis, sign, direction):
@@ -121,26 +113,10 @@ def plane_hash(
         # no face touching this plane → air
         return 0
 
-    # mirrorLR = 1 if direction == "LR" else -1
-    # print(mirrorLR)
-
-    # sorted_verts = sorted(
-    #     boundary_verts,
-    #     key=lambda v: face_vertex_sort_key(v, normal_axis, sign, mirrorLR),
-    # )
-
     sorted_verts = sorted(
         boundary_verts,
         key=lambda v: face_vertex_sort_key(v, normal_axis, sign, direction),
     )
-
-    # sorted_verts = sorted(
-    #     boundary_verts,
-    #     key=cmp_to_key(lambda a, b: face_vertex_compare(a, b, normal_axis, sign, mirrorLR)),
-    # )
-    # print(len(sorted_verts))
-    # for v in verts_local:
-    #     print(v,axis_index, boundary, abs(v[axis_index] - boundary), abs(v[axis_index] - boundary) < 1e-6)
 
     mat_color_cache = {}
     mat_color_int_cache = {}
@@ -152,21 +128,21 @@ def plane_hash(
         # Only include the two in-plane coordinates for the hash
         if normal_axis == "X":
             # Plane is YZ, ignore x
-            sigy = int(round(vert.y * scale))
-            # sigy = int(round(vert.y * scale)) * sign
-            sigz = int(round(vert.z * scale))
+            sigy = abs(int(round(vert.y * scale)))
+            # sigy = sign * int(round(vert.y * scale))
+            sigz = abs(int(round(vert.z * scale)))
             sig = sigy ^ sigz
         elif normal_axis == "Y":
             # Plane is XZ, ignore y
-            sigx = int(round(vert.x * scale))
-            # sigx = int(round(vert.x * scale)) * (-sign)
-            sigz = int(round(vert.z * scale))
+            sigx = abs(int(round(vert.x * scale)))
+            # sigx = -sign * int(round(vert.x * scale))
+            sigz = abs(int(round(vert.z * scale)))
             sig = sigx ^ sigz
         else:
             # Plane is XY, ignore z
-            sigx = int(round(vert.x * scale))
-            # sigx = int(round(vert.x * scale)) * sign
-            sigy = int(round(vert.y * scale))
+            sigx = abs(int(round(vert.x * scale)))
+            sigy = abs(int(round(vert.y * scale)))
+            # sigy = sign * int(round(vert.y * scale))
             sig = sigx ^ sigy
 
         # Pick material color from one polygon that uses this vertex
@@ -194,7 +170,7 @@ def plane_hash(
                 + int(mat_color[2] * 255)
             )
 
-        # print(f"{sigx},{sigy},{sigz},  {sig}, {mat_color_int_cache[mat_color]}")
+        print(f"{sigx},{sigy},{sigz},  {sig}, {mat_color_int_cache[mat_color]}")
 
         sig ^= mat_color_int_cache[mat_color]
         hash_value = (
@@ -217,43 +193,17 @@ class VOXEL_OT_face_hash(bpy.types.Operator):
     def execute(self, context):
         c = type.celebi()
         lib = c.getLibraryItems()
+
+        print("\n" * 50)
+
         for item in lib:
             obj = item.obj
 
-            # item.hash_front_lr = plane_hash(
-            #     obj, normal_axis="Y", sign=-1, direction="LR"
-            # )
-            # item.hash_front_rl = plane_hash(
-            #     obj, normal_axis="Y", sign=-1, direction="RL"
-            # )
-            # item.hash_back_lr = plane_hash(obj, normal_axis="Y", sign=1, direction="LR")
-            # item.hash_back_rl = plane_hash(obj, normal_axis="Y", sign=1, direction="RL")
-
-            # item.hash_left_lr = plane_hash(
-            #     obj, normal_axis="X", sign=-1, direction="LR"
-            # )
-            # item.hash_left_rl = plane_hash(
-            #     obj, normal_axis="X", sign=-1, direction="RL"
-            # )
-            # item.hash_right_lr = plane_hash(
-            #     obj, normal_axis="X", sign=1, direction="LR"
-            # )
-            # item.hash_right_rl = plane_hash(
-            #     obj, normal_axis="X", sign=1, direction="RL"
-            # )
-
-            # item.hash_top_lr = plane_hash(obj, normal_axis="Z", sign=1, direction="LR")
-            # item.hash_top_rl = plane_hash(obj, normal_axis="Z", sign=1, direction="RL")
-            # item.hash_bottom_lr = plane_hash(
-            #     obj, normal_axis="Z", sign=-1, direction="LR"
-            # )
-            # item.hash_bottom_rl = plane_hash(
-            #     obj, normal_axis="Z", sign=-1, direction="RL"
-            # )
-
-            print("\n" * 50)
-
-            for normal_axis in ["X", "Y", "Z"]:
+            for normal_axis in [
+                "X",
+                "Y",
+                # "Z"
+            ]:
                 for sign in [1, -1]:
                     hashes = ""
 
@@ -265,9 +215,11 @@ class VOXEL_OT_face_hash(bpy.types.Operator):
 
                     location = (
                         obj.location.x
-                        + ((0.8 if sign > 0 else -1.3) if normal_axis == "X" else 0),
-                        obj.location.y + (0.8 * sign if normal_axis == "Y" else 0),
-                        obj.location.z + (0.8 * sign if normal_axis == "Z" else 0),
+                        + ((0.7 if sign > 0 else -1.3) if normal_axis == "X" else 0),
+                        obj.location.y
+                        + ((0.9 if sign > 0 else -0.7) if normal_axis == "Y" else 0),
+                        obj.location.z
+                        + ((0.7 if sign > 0 else -1.3) if normal_axis == "Z" else 0),
                     )
                     name = f"hash_{obj.name}_{normal_axis}_{sign}_{direction}"
                     add_text_at(location, str(hashes), name)
