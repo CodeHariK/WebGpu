@@ -294,7 +294,7 @@ class VOXEL_PT_panel(Panel):
 
         active = bpy.context.active_object
         currentLibItem = c.getCurrentLibraryItem()
-        if active and currentLibItem:
+        if active and currentLibItem and currentLibItem.obj:
             # if active and active.name.startswith("voxel"):
 
             l.label(text=currentLibItem.obj.name)

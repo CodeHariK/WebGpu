@@ -221,34 +221,25 @@ class LIBRARY_PT_panel(Panel):
 
                 l.separator(type="LINE")
 
-                grid = l.grid_flow(columns=3, row_major=True)
-                grid.label(text="")
-                grid.label(text="LR")
-                grid.label(text="RL")
+                grid = l.grid_flow(columns=2, row_major=True)
 
-                grid.label(text="front")
-                grid.label(text=f"{item.hash_front_lr}")
-                grid.label(text=f"{item.hash_front_rl}")
+                grid.label(text="NY")
+                grid.label(text=f"{item.hash_NY}")
 
-                grid.label(text="back")
-                grid.label(text=f"{item.hash_back_lr}")
-                grid.label(text=f"{item.hash_back_rl}")
+                grid.label(text="PY")
+                grid.label(text=f"{item.hash_PY}")
 
-                grid.label(text="left")
-                grid.label(text=f"{item.hash_left_lr}")
-                grid.label(text=f"{item.hash_left_rl}")
+                grid.label(text="NX")
+                grid.label(text=f"{item.hash_NX}")
 
-                grid.label(text="right")
-                grid.label(text=f"{item.hash_right_lr}")
-                grid.label(text=f"{item.hash_right_rl}")
+                grid.label(text="PX")
+                grid.label(text=f"{item.hash_PX}")
 
-                grid.label(text="top")
-                grid.label(text=f"{item.hash_top_lr}")
-                grid.label(text=f"{item.hash_top_rl}")
+                grid.label(text="PZ")
+                grid.label(text=f"{item.hash_PZ}")
 
-                grid.label(text="bottom")
-                grid.label(text=f"{item.hash_bottom_lr}")
-                grid.label(text=f"{item.hash_bottom_rl}")
+                grid.label(text="NZ")
+                grid.label(text=f"{item.hash_NZ}")
 
                 l.separator(type="LINE")
 
@@ -276,7 +267,7 @@ class LIBRARY_PT_panel(Panel):
                         row = l.row()
                         row.label(text=col_name.lstrip("face_"))
                         row.prop(face_entry, "library_item")
-                        row.prop(face_entry, "config", text="")
+                        row.prop(face_entry, "CONFIG", text="")
 
 
 classes = (
