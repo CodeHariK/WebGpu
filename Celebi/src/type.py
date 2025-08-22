@@ -27,82 +27,17 @@ def voxel_name(base_name: str, loc: Vector) -> str:
     return f"voxel_{base_name}_{x}_{y}_{z}"
 
 
-class TagItem(PropertyGroup):
-    name: StringProperty(name="Tag Name")
-    enabled: BoolProperty(default=False)
-
-
-CONFIG_R90 = "R90"
-CONFIG_R180 = "R180"
-CONFIG_R270 = "R270"
-CONFIG_SX = "SX"
-CONFIG_SXR90 = "SXR90"
-CONFIG_SXR180 = "SXR180"
-CONFIG_SXR270 = "SXR270"
-
-CONFIG_TRANSFORMS = {
-    CONFIG_R90: Matrix.Rotation(1.5708, 4, "Z"),  # 90° around Z
-    CONFIG_R180: Matrix.Rotation(3.1416, 4, "Z"),  # 180° around Z
-    CONFIG_R270: Matrix.Rotation(4.7124, 4, "Z"),  # 270° around Z
-    CONFIG_SX: Matrix.Scale(-1, 4, (1, 0, 0)),  # mirror X
-    CONFIG_SXR90: Matrix.Scale(-1, 4, (1, 0, 0)) @ Matrix.Rotation(1.5708, 4, "Z"),
-    CONFIG_SXR180: Matrix.Scale(-1, 4, (1, 0, 0)) @ Matrix.Rotation(3.1416, 4, "Z"),
-    CONFIG_SXR270: Matrix.Scale(-1, 4, (1, 0, 0)) @ Matrix.Rotation(4.7124, 4, "Z"),
-}
-
-
 GIZMO_DISABLED = "DISABLED"
 GIZMO_MOVE = "MOVE"
 GIZMO_SCALE = "SCALE"
 
 
-FACE_COLLECTIONS = [
-    "face_front",
-    "face_back",
-    "face_left",
-    "face_right",
-    "face_top",
-    "face_bottom",
-]
-
-
-def cube_configurations(self, context):
-    return [
-        (CONFIG_R90, "R90", "Rotate 90°"),
-        (CONFIG_R180, "R180", "Rotate 180°"),
-        (CONFIG_R270, "R270", "Rotate 270°"),
-        (CONFIG_SX, "SX", "Mirror"),
-        (CONFIG_SXR90, "SXR90", "Mirror + Rotate 90°"),
-        (CONFIG_SXR180, "SX180", "Mirror + Rotate 180°"),
-        (CONFIG_SXR270, "SXR270", "Mirror + Rotate 270°"),
-    ]
-
-
-class ConfigItem(PropertyGroup):
-    name: EnumProperty(
-        name="CONFIG",
-        description="Cube configuration",
-        items=cube_configurations,
-    )
-    enabled: BoolProperty(default=False)
-
-
-class FaceEntry(PropertyGroup):
-    library_item: PointerProperty(type=PropertyGroup)
-    config: EnumProperty(
-        name="CONFIG",
-        description="Configuration of linked library item",
-        items=cube_configurations,
-    )
+class HashItem(bpy.types.PropertyGroup):
+    value: bpy.props.StringProperty()
 
 
 class LibraryItem(PropertyGroup):
     obj: PointerProperty(type=Object)
-    tags: CollectionProperty(type=TagItem)
-    selected: BoolProperty(default=False)
-
-    # Configurations checkboxes for this library item
-    configs: CollectionProperty(type=ConfigItem)
 
     hash_NX: IntProperty()
     hash_PX: IntProperty()
@@ -111,38 +46,47 @@ class LibraryItem(PropertyGroup):
     hash_PZ: IntProperty()
     hash_NZ: IntProperty()
 
-    face_front: CollectionProperty(type=FaceEntry)
-    face_back: CollectionProperty(type=FaceEntry)
-    face_left: CollectionProperty(type=FaceEntry)
-    face_right: CollectionProperty(type=FaceEntry)
-    face_top: CollectionProperty(type=FaceEntry)
-    face_bottom: CollectionProperty(type=FaceEntry)
+    def getObjHash(self):
+        return f"{self.hash_NX}_{self.hash_PX}_{self.hash_NY}_{self.hash_PY}_{self.hash_NZ}_{self.hash_PZ}"
 
-    def getTags(self) -> list[TagItem]:
-        return self.tags
+    def serialize(self):
+        if not self.obj:
+            return None
+        return {
+            "obj": self.obj.name,
+            "hash_NX": self.hash_NX,
+            "hash_PX": self.hash_PX,
+            "hash_NY": self.hash_NY,
+            "hash_PY": self.hash_PY,
+            "hash_PZ": self.hash_PZ,
+            "hash_NZ": self.hash_NZ,
+        }
 
-    def getConfigs(self) -> list[ConfigItem]:
-        return self.configs
-
-    def appendTag(self, tag_name: str, enabled: bool):
-        tag_entry = self.tags.add()
-        tag_entry.name = tag_name
-        tag_entry.enabled = enabled
-
-    def appendConfig(self, identifier: str, enabled: bool):
-        cfg = self.configs.add()
-        cfg.name = identifier
-        cfg.enabled = enabled
+    def deserialize(self, clone):
+        if not clone:
+            return
+        if clone["obj"] in bpy.data.objects:
+            self.obj = bpy.data.objects[clone["obj"]]
+        else:
+            return
+        self.hash_NX = clone["hash_NX"]
+        self.hash_PX = clone["hash_PX"]
+        self.hash_NY = clone["hash_NY"]
+        self.hash_PY = clone["hash_PY"]
+        self.hash_PZ = clone["hash_PZ"]
+        self.hash_NZ = clone["hash_NZ"]
 
 
 class CelebiData(PropertyGroup):
     voxels: CollectionProperty(type=VoxelItem)
 
     library_items: CollectionProperty(type=LibraryItem)
-    library_tags: CollectionProperty(type=TagItem)
+
+    hashes: bpy.props.CollectionProperty(type=HashItem)
 
     T_library_index: IntProperty(default=-1)
-    T_new_tag_name: StringProperty()
+
+    T_show_hash: BoolProperty(default=False)
 
     T_voxels_index: IntProperty(default=-1)
     T_preview_voxels: CollectionProperty(type=VoxelItem)
@@ -187,21 +131,51 @@ class CelebiData(PropertyGroup):
     def clearLibraryItems(self):
         self.library_items.clear()
 
-    def addLibraryItem(
-        self, name: str | None, enabled: bool | None, obj: Object | None
-    ) -> LibraryItem:
+    def is_object_really_deleted(self, item: "LibraryItem") -> bool:
+        """Return True if the object's data is gone for real."""
+        if not item.obj:  # pointer cleared
+            return True
+        if item.obj.name not in bpy.data.objects:  # object removed from datablock
+            return True
+        if not item.obj.users_collection and not item.obj.users_scene:
+            # exists in datablock but not linked anywhere
+            return True
+        return False
+
+    def purgeLibrary(self):
+        clones: list[dict] = [
+            item.serialize()
+            for item in self.library_items
+            if not self.is_object_really_deleted(item) and item.serialize()
+        ]
+
+        self.library_items.clear()
+
+        for clone in clones:
+            new_item = self.library_items.add()
+            new_item.deserialize(clone)
+
+    def addLibraryItem(self, obj: Object | None) -> LibraryItem:
         cLib = self.getLibraryItems()
         item = cLib.add()
-        if name != None:
-            item.name = name
-        if enabled != None:
-            item.enabled = enabled
         if obj != None:
             item.obj = obj
         return item
 
-    def getLibraryTags(self) -> list[TagItem]:
-        return self.library_tags
+    def hashExists(self, hash: str) -> bool:
+        for hi in self.hashes:
+            if hi.value == hash:
+                return True
+        return False
+
+    def addHash(self, item: LibraryItem):
+        hash = item.getObjHash()
+        if not self.hashExists(hash):
+            hi = self.hashes.add()
+            hi.value = hash
+
+    def clearHashes(self):
+        self.hashes.clear()
 
     def getVoxelAt(self, index: int) -> VoxelItem | None:
         if index >= 0 and index < len(self.voxels):
@@ -213,9 +187,13 @@ class CelebiData(PropertyGroup):
     def getVoxels(self) -> list[VoxelItem]:
         return self.voxels
 
-    def clearVoxels(self) -> list[VoxelItem]:
+    def purgeVoxels(self):
+        voxels_to_keep = [
+            item.name for item in self.voxels if bpy.data.objects.get(item.name)
+        ]
         self.voxels.clear()
-        return self.voxels
+        for name in voxels_to_keep:
+            self.addVoxel(name)
 
     def deleteVoxelByName(self, name: str):
         items = self.voxels
@@ -224,18 +202,9 @@ class CelebiData(PropertyGroup):
                 items.remove(i)
                 break
 
-    def appendVoxel(self, name: str):
+    def addVoxel(self, name: str):
         voxel_item = self.voxels.add()
         voxel_item.name = name
-
-    def appendTag(self, tag_name):
-        cLibTags = self.getLibraryTags()
-        new_tag_entry = cLibTags.add()
-        new_tag_entry.name = tag_name
-
-    def clearTags(self):
-        cLibTags = self.getLibraryTags()
-        cLibTags.clear()
 
 
 def celebi() -> CelebiData:
@@ -275,14 +244,12 @@ def objLinkCollection(obj: Object):
     getVoxelCollection().objects.link(obj)
 
 
-classes = (VoxelItem, TagItem, ConfigItem, FaceEntry, LibraryItem, CelebiData)
+classes = (VoxelItem, HashItem, LibraryItem, CelebiData)
 
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
-
-    FaceEntry.library_item = PointerProperty(type=LibraryItem)
 
     # Store one instance in WindowManager (shared across scenes)
     WindowManager.celebi_data = PointerProperty(type=CelebiData)

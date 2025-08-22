@@ -1,69 +1,50 @@
 {
-    "all_tags": [
-        "red"
-    ],
     "items": [
         {
-            "object_name": "Soil",
-            "tags": [],
-            "configs": []
+            "obj": "G",
+            "hash_NX": -70135,
+            "hash_PX": 1631531075,
+            "hash_NY": -70135,
+            "hash_PY": 1631531075,
+            "hash_PZ": 1314842459,
+            "hash_NZ": 2147456816
         },
         {
-            "object_name": "Sand",
-            "tags": [],
-            "configs": []
+            "obj": "G_R90",
+            "hash_NX": 1631531075,
+            "hash_PX": -70135,
+            "hash_NY": -70135,
+            "hash_PY": 1622456686,
+            "hash_PZ": -1827074092,
+            "hash_NZ": 2147456816
         },
         {
-            "object_name": "Water",
-            "tags": [
-                "red"
-            ],
-            "configs": [
-                "R90"
-            ]
+            "obj": "G_R180",
+            "hash_NX": 1622456686,
+            "hash_PX": -70135,
+            "hash_NY": 1622456686,
+            "hash_PY": -70135,
+            "hash_PZ": 1717642984,
+            "hash_NZ": 2147456816
         },
         {
-            "object_name": "GrassBarricade",
-            "tags": [],
-            "configs": [
-                "R90"
-            ]
-        },
-        {
-            "object_name": "GrassFull",
-            "tags": [],
-            "configs": []
-        },
-        {
-            "object_name": "Stair",
-            "tags": [],
-            "configs": []
-        },
-        {
-            "object_name": "GrassHalf",
-            "tags": [],
-            "configs": []
-        },
-        {
-            "object_name": "GrassWaterCorner",
-            "tags": [],
-            "configs": []
-        },
-        {
-            "object_name": "WaterGrass",
-            "tags": [],
-            "configs": []
-        },
-        {
-            "object_name": "RockHalf",
-            "tags": [],
-            "configs": []
-        },
-        {
-            "object_name": "RockFull",
-            "tags": [],
-            "configs": []
+            "obj": "G_R270",
+            "hash_NX": -70135,
+            "hash_PX": 1622456686,
+            "hash_NY": 1631531075,
+            "hash_PY": -70135,
+            "hash_PZ": 143844175,
+            "hash_NZ": 2147456816
         }
     ],
-    "voxels": []
+    "voxels": [
+        "voxel_G_R90_-3_5_0",
+        "voxel_G_R90_-3_4_0",
+        "voxel_G_R90_-2_4_0",
+        "voxel_G_R90_-2_5_0",
+        "voxel_G_-4_4_0",
+        "voxel_G_-4_5_0",
+        "voxel_G_-5_5_0",
+        "voxel_G_-5_4_0"
+    ]
 }

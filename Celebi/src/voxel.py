@@ -50,7 +50,7 @@ class VOXEL_OT_delete_all(Operator):
             if voxel_obj:
                 bpy.data.objects.remove(voxel_obj, do_unlink=True)
 
-        c.clearVoxels()
+        c.purgeVoxels()
 
         return {"FINISHED"}
 
@@ -88,7 +88,7 @@ class VOXEL_OT_hover(Operator):
         new_voxel.location = snapped_location
         new_voxel.name = type.voxel_name(src_obj.name, snapped_location)
         type.objLinkCollection(new_voxel)
-        c.appendVoxel(new_voxel.name)
+        c.addVoxel(new_voxel.name)
 
         self._last_spawn_time = now
 
@@ -266,12 +266,7 @@ class VOXEL_PT_panel(Panel):
         l = self.layout
         c = type.celebi()
 
-        voxels_to_keep = [
-            item.name for item in c.voxels if bpy.data.objects.get(item.name)
-        ]
-        c.clearVoxels()
-        for name in voxels_to_keep:
-            c.appendVoxel(name)
+        c.purgeVoxels()
 
         # Sync selection state from objects to voxel items
         selected_objs = set(obj.name for obj in bpy.context.selected_objects)

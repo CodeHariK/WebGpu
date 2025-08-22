@@ -8,7 +8,8 @@ from . import type
 R90 = Matrix.Rotation(radians(90), 4, "Z")
 R180 = Matrix.Rotation(radians(180), 4, "Z")
 R270 = Matrix.Rotation(radians(270), 4, "Z")
-SX = Matrix.Diagonal((-1, 1, 1, 1))  # Mirror in X
+# SX = Matrix.Diagonal((-1, 1, 1, 1))  # Mirror in X
+SX = Matrix.Scale(-1, 4, Vector((1, 0, 0)))
 SXR90 = SX @ R90
 SXR180 = SX @ R180
 SXR270 = SX @ R270
@@ -37,75 +38,43 @@ DIRECTIONS = ["BL_TR", "BR_TL", "TR_BL", "TL_BR"]
 def face_vertex_sort_key(v, normal_axis, sign, direction):
     if normal_axis == "X":  # YZ plane
         if sign > 0:
-            # -----------------------
             if direction == "BL_TR":
                 return (v.y, v.z)
             elif direction == "BR_TL":
                 return (-v.y, v.z)
-            elif direction == "TR_BL":
-                return (-v.y, -v.z)
-            elif direction == "TL_BR":
-                return (v.y, -v.z)
         else:
-            # -----------------------
             if direction == "BL_TR":
                 return (-v.y, v.z)
             elif direction == "BR_TL":
                 return (v.y, v.z)
-            elif direction == "TR_BL":
-                return (v.y, -v.z)
-            elif direction == "TL_BR":
-                return (-v.y, -v.z)
 
     elif normal_axis == "Y":  # XZ plane
         if sign > 0:
-            # ----------------------
             if direction == "BL_TR":
                 return (-v.x, v.z)
             elif direction == "BR_TL":
                 return (v.x, v.z)
-            elif direction == "TR_BL":
-                return (v.x, -v.z)
-            elif direction == "TL_BR":
-                return (-v.x, -v.z)
         else:
-            # ----------------------
             if direction == "BL_TR":
                 return (v.x, v.z)
             elif direction == "BR_TL":
                 return (-v.x, v.z)
-            elif direction == "TR_BL":
-                return (-v.x, -v.z)
-            elif direction == "TL_BR":
-                return (v.x, -v.z)
 
     else:  # Z axis → XY plane
         if sign > 0:
-            # ----------------------
             if direction == "BL_TR":
                 return (v.x, v.y)
             elif direction == "BR_TL":
                 return (-v.x, v.y)
-            elif direction == "TR_BL":
-                return (-v.x, -v.y)
-            elif direction == "TL_BR":
-                return (v.x, -v.y)
         else:
-            # ----------------------
             if direction == "BL_TR":
                 return (v.x, -v.y)
             elif direction == "BR_TL":
                 return (-v.x, -v.y)
-            elif direction == "TR_BL":
-                return (-v.x, v.y)
-            elif direction == "TL_BR":
-                return (v.x, v.y)
-
     return 0
 
 
 def plane_hash(
-    libItem: type.LibraryItem,
     obj: bpy.types.Object,
     normal_axis: str,
     sign=1,
@@ -129,8 +98,11 @@ def plane_hash(
     boundary = sign * (size / 2)
 
     # collect only vertices that actually lie on this voxel boundary
-    boundary_verts = [v for v in verts_local if abs(v[axis_index] - boundary) < 1e-6]
-    # boundary_verts = [v for v in verts_rel if abs(v[axis_index] - boundary) < 1e-6]
+    boundary_verts = [
+        Vector((round(v.x * scale), round(v.y * scale), round(v.z * scale)))
+        for v in verts_local
+        if abs(v[axis_index] - boundary) < 1e-6
+    ]
 
     if not boundary_verts:
         # no face touching this plane → air
@@ -144,29 +116,14 @@ def plane_hash(
     mat_color_cache = {}
     mat_color_int_cache = {}
     hash_value = 0
-    sigx = 0
-    sigy = 0
-    sigz = 0
     for vert in sorted_verts:
         # Only include the two in-plane coordinates for the hash
         if normal_axis == "X":
-            # Plane is YZ, ignore x
-            sigy = int(round(vert.y * scale))
-            # sigy = sign * int(round(vert.y * scale))
-            sigz = int(round(vert.z * scale))
-            sig = sigy ^ sigz
+            sig = int(vert.y) ^ int(vert.z)
         elif normal_axis == "Y":
-            # Plane is XZ, ignore y
-            sigx = int(round(vert.x * scale))
-            # sigx = -sign * int(round(vert.x * scale))
-            sigz = int(round(vert.z * scale))
-            sig = sigx ^ sigz
+            sig = int(vert.x) ^ int(vert.z)
         else:
-            # Plane is XY, ignore z
-            sigx = int(round(vert.x * scale))
-            sigy = int(round(vert.y * scale))
-            # sigy = sign * int(round(vert.y * scale))
-            sig = sigx ^ sigy
+            sig = int(vert.x) ^ int(vert.y)
 
         # Pick material color from one polygon that uses this vertex
         mat_color = (1, 1, 1)
@@ -193,7 +150,7 @@ def plane_hash(
                 + int(mat_color[2] * 255)
             )
 
-        print(f"{sigx},{sigy},{sigz},  {sig}, {mat_color_int_cache[mat_color]}")
+        # print(f"{sigx},{sigy},{sigz},  {sig}, {mat_color_int_cache[mat_color]}")
 
         sig ^= mat_color_int_cache[mat_color]
         hash_value = (
@@ -202,31 +159,7 @@ def plane_hash(
 
     hash = to_signed32((hash_value & 0xFFFFFFFF) ^ ((hash_value >> 32) & 0xFFFFFFFF))
 
-    print(f"{obj.name} {normal_axis} {sign} {direction}  {hash}")
-
-    location = (
-        libItem.obj.location.x + ((0.6 if sign > 0 else -1.0) if normal_axis == "X" else 0),
-        libItem.obj.location.y + ((0.6 if sign > 0 else -0.7) if normal_axis == "Y" else 0),
-        libItem.obj.location.z + ((0.7 if sign > 0 else -1.0) if normal_axis == "Z" else 0),
-    )
-    name = f"hash_{obj.name}_{normal_axis}_{sign}_{direction}"
-    add_text_at(location, str(hash), name)
-
-
-    if normal_axis == "X" and sign > 0:
-        libItem.hash_PX = hash
-    if normal_axis == "X" and sign < 0:
-        libItem.hash_NX = hash
-
-    if normal_axis == "Y" and sign > 0:
-        libItem.hash_PY = hash
-    if normal_axis == "Y" and sign < 0:
-        libItem.hash_NY = hash
-
-    if normal_axis == "Z" and sign > 0:
-        libItem.hash_PZ = hash
-    if normal_axis == "Z" and sign < 0:
-        libItem.hash_NZ = hash
+    # print(f"{obj.name} {normal_axis} {sign} {direction}  {hash}")
 
     return hash
 
@@ -240,47 +173,61 @@ class VOXEL_OT_face_hash(bpy.types.Operator):
         lib = c.getLibraryItems()
 
         type.clearConfigCollection()
+        c.purgeLibrary()
+        c.clearHashes()
 
         print("\n" * 50)
 
         for item in lib:
-            obj = item.obj
+            calc_linked_configs(item)
 
-            spawn_linked_configs(item)
+        bpy.ops.object.select_all(action="DESELECT")
 
         return {"FINISHED"}
 
 
-def add_text_at(location, text, name):
-    """Spawn a text object at given location for debugging."""
-    # Remove existing one with same name
-    if name in bpy.data.objects:
-        bpy.data.objects.remove(bpy.data.objects[name], do_unlink=True)
-
-    curve = bpy.data.curves.new(name, type="FONT")
-    curve.body = text
-    obj = bpy.data.objects.new(name, curve)
-    obj.location = location
-
-    ConfigCollection = type.getConfigCollection()
-    ConfigCollection.objects.link(obj)
-    obj.scale = (0.08, 0.08, 0.08)  # make text small
-    return obj
-
-
-def spawn_linked_configs(oriItem: type.LibraryItem, y_offset=2.0):
+def calc_linked_configs(oriItem: type.LibraryItem):
     """Spawn 7 linked duplicates with object-level transforms."""
-
-    ConfigCollection = type.getConfigCollection()
-    c = type.celebi()
 
     base_obj = oriItem.obj
     if base_obj == None:
         return
 
-    calcHashes(oriItem, oriItem.obj)
+    calcHashes(oriItem, oriItem.obj, None, None, None, None)
+
+    ConfigCollection = type.getConfigCollection()
 
     for i, (label, mat) in enumerate(CONFIGS, start=1):
+        temp_mesh_obj = spawn_temp(base_obj, ConfigCollection, mat, i * 2)
+
+        calcHashes(None, temp_mesh_obj, base_obj, mat, label, i * 2)
+
+        ConfigCollection.objects.unlink(temp_mesh_obj)
+        bpy.data.objects.remove(temp_mesh_obj, do_unlink=True)
+
+
+def calcHashes(
+    libItem: type.LibraryItem | None, temp_mesh_obj, base_obj, mat, label, y_offset
+):
+    hash_NX = plane_hash(temp_mesh_obj, normal_axis="X", sign=-1, direction="BR_TL")
+    hash_PX = plane_hash(temp_mesh_obj, normal_axis="X", sign=1, direction="BL_TR")
+
+    hash_NY = plane_hash(temp_mesh_obj, normal_axis="Y", sign=-1, direction="BL_TR")
+    hash_PY = plane_hash(temp_mesh_obj, normal_axis="Y", sign=1, direction="BR_TL")
+
+    hash_NZ = plane_hash(temp_mesh_obj, normal_axis="Z", sign=-1, direction="BR_TL")
+    hash_PZ = plane_hash(temp_mesh_obj, normal_axis="Z", sign=1, direction="BL_TR")
+
+    c = type.celebi()
+
+    if not libItem:
+        objectHash = f"{hash_NX}_{hash_PX}_{hash_NY}_{hash_PY}_{hash_NZ}_{hash_PZ}"
+
+        ConfigCollection = type.getConfigCollection()
+
+        if c.hashExists(objectHash):
+            return
+
         # Make a linked duplicate
         new_obj = base_obj.copy()
         new_obj.data = base_obj.data  # linked mesh
@@ -290,31 +237,53 @@ def spawn_linked_configs(oriItem: type.LibraryItem, y_offset=2.0):
         new_obj.matrix_world = base_obj.matrix_world @ mat
 
         # Offset along +Y to separate
-        new_obj.location += Vector((0, i * y_offset, 0))
+        new_obj.location += Vector((0, y_offset, 0))
 
         # Name for clarity
         base_name = base_obj.name.split(".")[0]
         new_obj.name = f"{base_name}_{label}"
 
-        linked_lib_item = c.addLibraryItem(name=new_obj.name, enabled=False, obj=new_obj)
+        libItem = c.addLibraryItem(obj=new_obj)
 
-        temp_mesh_obj = spawn_configs(base_obj, ConfigCollection, mat, i * y_offset)
+    libItem.hash_PX = hash_PX
+    libItem.hash_NX = hash_NX
+    libItem.hash_PY = hash_PY
+    libItem.hash_NY = hash_NY
+    libItem.hash_PZ = hash_PZ
+    libItem.hash_NZ = hash_NZ
+    c.addHash(libItem)
 
-        calcHashes(linked_lib_item, temp_mesh_obj)
-
-
-        ConfigCollection.objects.unlink(temp_mesh_obj)      # unlink from collection
-        # bpy.data.objects.remove(temp_mesh_obj, do_unlink=True)  # remove completely
-
-def calcHashes(linked_lib_item, mesh_obj):
-    plane_hash(linked_lib_item,mesh_obj, normal_axis="X", sign=-1, direction="BR_TL")
-    plane_hash(linked_lib_item, mesh_obj, normal_axis="X", sign=1, direction="BL_TR")
-
-    plane_hash(linked_lib_item,mesh_obj, normal_axis="Y", sign=-1, direction="BL_TR")
-    plane_hash(linked_lib_item,mesh_obj, normal_axis="Y", sign=1, direction="BR_TL")
-
-    plane_hash(linked_lib_item,mesh_obj, normal_axis="Z", sign=1, direction="BL_TR")
-    plane_hash(linked_lib_item,mesh_obj, normal_axis="Z", sign=-1, direction="BR_TL")
+    if c.T_show_hash:
+        add_text_at(
+            libItem.obj.location + Vector((-1.5, 0, 0.5)),
+            str(hash_NX),
+            f"hash_{libItem.obj.name}_NX",
+        )
+        add_text_at(
+            libItem.obj.location + Vector((0.7, 0, 0.5)),
+            str(hash_PX),
+            f"hash_{libItem.obj.name}_PX",
+        )
+        add_text_at(
+            libItem.obj.location + Vector((-0.4, -0.8, 0.5)),
+            str(hash_NY),
+            f"hash_{libItem.obj.name}_NY",
+        )
+        add_text_at(
+            libItem.obj.location + Vector((-0.4, 0.8, 0.5)),
+            str(hash_PY),
+            f"hash_{libItem.obj.name}_PY",
+        )
+        add_text_at(
+            libItem.obj.location + Vector((0.8, -0.8, -0.5)),
+            str(hash_NZ),
+            f"hash_{libItem.obj.name}_NZ",
+        )
+        add_text_at(
+            libItem.obj.location + Vector((-1.5, 0.8, 0.5)),
+            str(hash_PZ),
+            f"hash_{libItem.obj.name}_PZ",
+        )
 
 
 def apply_transform_to_mesh(obj: bpy.types.Object, matrix: Matrix):
@@ -335,7 +304,7 @@ def apply_transform_to_mesh(obj: bpy.types.Object, matrix: Matrix):
     obj.matrix_world = Matrix.Identity(4)
 
 
-def spawn_configs(obj: bpy.types.Object, collection, mat, i: float) -> bpy.types.Object:
+def spawn_temp(obj: bpy.types.Object, collection, mat, i: float) -> bpy.types.Object:
     new_obj = obj.copy()
     new_obj.data = obj.data.copy()  # give new mesh
     collection.objects.link(new_obj)
@@ -348,5 +317,23 @@ def spawn_configs(obj: bpy.types.Object, collection, mat, i: float) -> bpy.types
 
     # Move them along Y so they don't overlap
     new_obj.location = obj.location + Vector((2, i, 0))
+    new_obj.name = obj.name + "_temp"
 
     return new_obj
+
+
+def add_text_at(location, text, name):
+    """Spawn a text object at given location for debugging."""
+    # Remove existing one with same name
+    if name in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects[name], do_unlink=True)
+
+    curve = bpy.data.curves.new(name, type="FONT")
+    curve.body = text
+    obj = bpy.data.objects.new(name, curve)
+    obj.location = location
+
+    ConfigCollection = type.getConfigCollection()
+    ConfigCollection.objects.link(obj)
+    obj.scale = (0.15, 0.15, 0.15)
+    return obj
