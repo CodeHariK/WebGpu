@@ -4,6 +4,7 @@ func _ready() -> void:
 	var s = SummatorClass.new()
 	s.add(4)
 	s.sub(5)
+	s.mul(4)
 
 	$HelloNode.hello_world("Doom");
 

@@ -20,6 +20,7 @@ public:
 	void print_type(const Variant &p_variant) const;
 	void add(int p_value);
 	void sub(int p_value);
+	void mul(int p_value);
 	void reset();
 	int get_total() const;
 };

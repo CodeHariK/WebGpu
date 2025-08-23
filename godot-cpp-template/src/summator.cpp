@@ -21,6 +21,9 @@ void SummatorClass::add(int p_value) {
 void SummatorClass::sub(int p_value) {
 	count -= p_value;
 }
+void SummatorClass::mul(int p_value) {
+	count *= p_value;
+}
 
 void SummatorClass::reset() {
 	count = 0;
@@ -34,6 +37,7 @@ void SummatorClass::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("print_type", "variant"), &SummatorClass::print_type);
 	ClassDB::bind_method(D_METHOD("add", "value"), &SummatorClass::add, DEFVAL(1));
 	ClassDB::bind_method(D_METHOD("sub", "value"), &SummatorClass::sub, DEFVAL(1));
+	ClassDB::bind_method(D_METHOD("mul", "value"), &SummatorClass::mul, DEFVAL(1));
 	ClassDB::bind_method(D_METHOD("reset"), &SummatorClass::reset);
 	ClassDB::bind_method(D_METHOD("get_total"), &SummatorClass::get_total);
 }
