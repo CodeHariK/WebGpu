@@ -5,7 +5,7 @@
 #include <vector>
 
 template <typename T>
-class PriorityQueue {
+class MinHeap {
 private:
 	struct Node {
 		T item;
@@ -13,12 +13,12 @@ private:
 	};
 
 	std::vector<Node> elements;
-	std::unordered_map<T, size_t> positions; // item -> index in heap
+	std::unordered_map<T, size_t> itemToIndexMap;
 
 	void swap(size_t i, size_t j) {
 		std::swap(elements[i], elements[j]);
-		positions[elements[i].item] = i;
-		positions[elements[j].item] = j;
+		itemToIndexMap[elements[i].item] = i;
+		itemToIndexMap[elements[j].item] = j;
 	}
 
 	void heapifyUp(size_t index) {
@@ -32,15 +32,15 @@ private:
 	}
 
 	void heapifyDown(size_t index) {
-		size_t n = elements.size();
+		size_t len = elements.size();
 		while (true) {
 			size_t left = 2 * index + 1;
 			size_t right = 2 * index + 2;
 			size_t smallest = index;
 
-			if (left < n && elements[left].priority < elements[smallest].priority)
+			if (left < len && elements[left].priority < elements[smallest].priority)
 				smallest = left;
-			if (right < n && elements[right].priority < elements[smallest].priority)
+			if (right < len && elements[right].priority < elements[smallest].priority)
 				smallest = right;
 
 			if (smallest == index)
@@ -51,12 +51,12 @@ private:
 	}
 
 public:
-	PriorityQueue() = default;
+	MinHeap() = default;
 
 	// Insert item with priority
 	void insert(const T &item, int priority) {
 		elements.push_back({ item, priority });
-		positions[item] = elements.size() - 1;
+		itemToIndexMap[item] = elements.size() - 1;
 		heapifyUp(elements.size() - 1);
 	}
 
@@ -66,14 +66,14 @@ public:
 			return std::nullopt;
 
 		Node minNode = elements[0];
-		positions.erase(minNode.item);
+		itemToIndexMap.erase(minNode.item);
 
 		Node last = elements.back();
 		elements.pop_back();
 
 		if (!elements.empty()) {
 			elements[0] = last;
-			positions[last.item] = 0;
+			itemToIndexMap[last.item] = 0;
 			heapifyDown(0);
 		}
 
@@ -93,12 +93,12 @@ public:
 	}
 
 	// Update priority
-	void updatePriority(const T &item, int newPriority) {
-		auto it = positions.find(item);
-		if (it == positions.end())
-			throw std::runtime_error("Item not found in priority queue");
+	bool updatePriority(const T &item, int newPriority) {
+		auto kv = itemToIndexMap.find(item);
+		if (kv == itemToIndexMap.end())
+			return false; // not found
 
-		size_t index = it->second;
+		size_t index = kv->second;
 		int currentPriority = elements[index].priority;
 		elements[index].priority = newPriority;
 
@@ -107,6 +107,7 @@ public:
 		} else if (newPriority > currentPriority) {
 			heapifyDown(index);
 		}
+		return true;
 	}
 
 	// For debugging

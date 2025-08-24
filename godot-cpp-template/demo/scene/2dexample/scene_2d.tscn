@@ -1,0 +1,20 @@
+[gd_scene load_steps=5 format=3 uid="uid://dmlmm5shkvqgn"]
+
+[ext_resource type="Script" uid="uid://bmjqrirqujswp" path="res://scene/2dexample/example.gd" id="1_5nfjk"]
+[ext_resource type="Texture2D" uid="uid://dbx66sovxd1" path="res://scene/2dexample/assets/icon.svg" id="2_5nfjk"]
+[ext_resource type="Texture2D" uid="uid://cj70xbcabds8l" path="res://scene/2dexample/assets/logo.png" id="3_v0pwx"]
+[ext_resource type="Texture2D" uid="uid://dbw6xqb1bgc6a" path="res://scene/2dexample/assets/SpaceMoon.svg" id="4_tomb1"]
+
+[node name="Scene2d" type="Node2D"]
+script = ExtResource("1_5nfjk")
+
+[node name="HelloNode" type="HelloNode" parent="."]
+speed = 100.0
+
+[node name="Doom" type="Doom" parent="HelloNode"]
+go_texture = ExtResource("2_5nfjk")
+stop_texture = ExtResource("3_v0pwx")
+caution_texture = ExtResource("4_tomb1")
+doom_type = 0
+offset_right = 40.0
+offset_bottom = 40.0

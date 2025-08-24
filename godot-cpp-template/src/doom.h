@@ -6,14 +6,14 @@
 
 using namespace godot;
 
-enum DoomLightType {
-	DOOM_LIGHT_GO,
-	DOOM_LIGHT_STOP,
-	DOOM_LIGHT_CAUTION,
+enum DoomTexEnum {
+	DOOM_TEX_GO,
+	DOOM_TEX_STOP,
+	DOOM_TEX_CAUTION,
 };
 
-class DoomLight : public Control {
-	GDCLASS(DoomLight, Control);
+class Doom : public Control {
+	GDCLASS(Doom, Control);
 
 	TextureRect *texture_rect;
 
@@ -21,7 +21,7 @@ class DoomLight : public Control {
 	Ref<Texture2D> stop_texture;
 	Ref<Texture2D> caution_texture;
 
-	DoomLightType doom_type;
+	DoomTexEnum doom_type;
 
 protected:
 	static void _bind_methods();
@@ -38,10 +38,10 @@ public:
 	void set_caution_texture(const Ref<Texture2D> &p_texture);
 	Ref<Texture2D> get_caution_texture() const;
 
-	void set_doom_type(DoomLightType p_type);
-	DoomLightType get_doom_type() const;
+	void set_doom_tex(DoomTexEnum p_type);
+	DoomTexEnum get_doom_tex() const;
 
-	DoomLight();
+	Doom();
 };
 
-VARIANT_ENUM_CAST(DoomLightType);
+VARIANT_ENUM_CAST(DoomTexEnum);

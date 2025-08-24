@@ -8,6 +8,7 @@
 #include "doom.h"
 #include "hellonode.h"
 #include "summator.h"
+#include "voxel.h"
 
 using namespace godot;
 
@@ -17,7 +18,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	}
 	GDREGISTER_CLASS(SummatorClass);
 	GDREGISTER_CLASS(HelloNode);
-	GDREGISTER_CLASS(DoomLight);
+	GDREGISTER_CLASS(Doom);
+	GDREGISTER_CLASS(VoxelNode);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

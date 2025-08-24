@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://cxnboiabr2v88"]
+
+[ext_resource type="Script" uid="uid://bmjqrirqujswp" path="res://scene/2dexample/example.gd" id="1_6ni71"]
+
+[node name="Node" type="Node"]
+script = ExtResource("1_6ni71")
+
+[node name="Doom" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0

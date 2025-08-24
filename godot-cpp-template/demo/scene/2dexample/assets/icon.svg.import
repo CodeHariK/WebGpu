@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dbw6xqb1bgc6a"
-path="res://.godot/imported/SpaceMoon.svg-8b789cb5768daf89156cfa73f272f49c.ctex"
+uid="uid://dbx66sovxd1"
+path="res://.godot/imported/icon.svg-c0b69193688bd570bbcda7bd49c64142.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://SpaceMoon.svg"
-dest_files=["res://.godot/imported/SpaceMoon.svg-8b789cb5768daf89156cfa73f272f49c.ctex"]
+source_file="res://scene/2dexample/assets/icon.svg"
+dest_files=["res://.godot/imported/icon.svg-c0b69193688bd570bbcda7bd49c64142.ctex"]
 
 [params]
 

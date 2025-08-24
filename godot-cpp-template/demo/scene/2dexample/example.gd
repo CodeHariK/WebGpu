@@ -5,11 +5,10 @@ func _ready() -> void:
 	s.add(4)
 	s.sub(5)
 	s.mul(4)
-
-	$HelloNode.hello_world("Doom");
-
 	print(s.get_total())
 
+	$HelloNode.hello_world("Doom")
 
-func _on_hello_node_2_hello_world_signal(data: String) -> void:
+
+func _on_hello_node_hello_world_signal(data: String) -> void:
 	print("Data from signal " + data)

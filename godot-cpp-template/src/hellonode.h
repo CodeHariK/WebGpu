@@ -12,6 +12,9 @@ private:
 	double speed;
 	Vector2 velocity;
 
+	void minHeapTest();
+	void jsonTest();
+
 protected:
 	static void _bind_methods();
 
