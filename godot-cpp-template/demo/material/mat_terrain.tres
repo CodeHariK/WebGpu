@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://bv0vdkq4v0lmq"]
+
+[ext_resource type="Shader" uid="uid://iooal714ctjd" path="res://material/shaders/shader_terrain.gdshader" id="1_caf5m"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_caf5m")
+shader_parameter/water_color = Color(0, 0.3, 0.8, 1)
+shader_parameter/grass_color = Color(0.3, 0.8, 0.1, 1)
+shader_parameter/rock_color = Color(0.5, 0.5, 0.5, 1)
+shader_parameter/snow_color = Color(1, 1, 1, 1)
