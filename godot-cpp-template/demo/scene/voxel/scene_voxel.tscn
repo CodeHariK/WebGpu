@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://bq21uk7kgsvco"]
 
-[ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/mat_terrain.tres" id="1_juo3p"]
+[ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/mat_terrain.tres" id="1_juo3p"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_juo3p"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)

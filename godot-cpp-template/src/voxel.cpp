@@ -1,4 +1,3 @@
-
 #include "voxel.h"
 
 #include <godot_cpp/classes/engine.hpp>

@@ -7,6 +7,7 @@
 
 #include "doom.h"
 #include "hellonode.h"
+#include "minecraft.h"
 #include "summator.h"
 #include "voxel.h"
 
@@ -20,6 +21,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(HelloNode);
 	GDREGISTER_CLASS(Doom);
 	GDREGISTER_CLASS(VoxelNode);
+	GDREGISTER_CLASS(MinecraftNode);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
