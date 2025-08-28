@@ -1,37 +1,23 @@
-@tool
-extends Node
+extends Node3D
 
-@export var block: PackedScene
+@export var default_cube: MeshInstance3D
 @export var noise: FastNoiseLite
-@export var world_size: int = 64
-
-var min_height: int = 10
-var max_height: int = 30
+@export var world_size: Vector3 = Vector3(16, 16, 16)
+@export var cut_off: float = 0.5
 
 func _ready() -> void:
     noise.seed = randi()
     _generate_world()
 
-func _process(delta: float) -> void:
-    pass
-
 func _generate_world():
-    for x in range(world_size):
-        for z in range(world_size):
-            var noise_val = noise.get_noise_2d(x, z)
+    for x in range(world_size.x):
+        for y in range(world_size.y):
+            for z in range(world_size.z):
+                var noise_val = noise.get_noise_3d(x, y, z)
 
-            var blocks_in_stack = min_height + noise_val * max_height
+                if noise_val > cut_off:
+                    var new_block = default_cube.duplicate()
+                    new_block.position = Vector3(x, y, z)
+                    add_child(new_block)
 
-            if noise_val < 0:
-                blocks_in_stack = 1
-            elif noise_val < .2:
-                blocks_in_stack = 2
-            elif noise_val < .4:
-                blocks_in_stack = 4
-            elif noise_val < 1:
-                blocks_in_stack = 8
-
-            for i in range(blocks_in_stack):
-                var new_block = block.instantiate()
-                new_block.position = Vector3(x, i, z)
-                add_child(new_block)
+    remove_child(default_cube)
