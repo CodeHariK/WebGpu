@@ -1,10 +1,7 @@
-[gd_scene load_steps=8 format=3 uid="uid://bwl3gle0nwihq"]
+[gd_scene load_steps=6 format=3 uid="uid://bwl3gle0nwihq"]
 
-[ext_resource type="Script" uid="uid://dkd220o3qta2o" path="res://scene/voxel/voxel.gd" id="1_ewlhe"]
+[ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/mat_terrain.tres" id="2_0jhad"]
 [ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="2_d82rw"]
-
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_ewlhe"]
-seed = 181850843
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_d82rw"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -19,23 +16,22 @@ sky = SubResource("Sky_0jhad")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="BoxMesh" id="BoxMesh_d82rw"]
+[node name="World" type="Node3D"]
 
-[node name="World" type="Node3D" node_paths=PackedStringArray("default_cube")]
-script = ExtResource("1_ewlhe")
-default_cube = NodePath("DefaultCube")
-noise = SubResource("FastNoiseLite_ewlhe")
-world_size = Vector3(20, 20, 20)
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.866025, -0.480631, 0.137819, 0, 0.275637, 0.961262, -0.5, 0.832477, -0.238709, 0, 0, 0)
+light_energy = 0.25
+shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_jfv7q")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-0.866024, -0.433015, 0.250001, -0.358305, 0.886192, 0.293737, -0.348741, 0.164806, -0.922615, 0, 28.3838, -25.7445)
-shadow_enabled = true
-
 [node name="FlyCamera" parent="." instance=ExtResource("2_d82rw")]
-transform = Transform3D(1, 0, 0, 0, 0.996734, 0.0807556, 0, -0.0807556, 0.996734, 0, 8.82576, 13.5854)
+transform = Transform3D(1, 0, 0, 0, 0.996734, 0.0807556, 0, -0.0807556, 0.996734, 26.9576, 17.1296, 35.3498)
 
-[node name="DefaultCube" type="MeshInstance3D" parent="."]
-mesh = SubResource("BoxMesh_d82rw")
+[node name="MinecraftNode" type="MinecraftNode" parent="."]
+terrain_width = 64
+terrain_depth = 64
+terrain_scale = 0.05
+terrain_height_scale = 12.0
+terrain_material = ExtResource("2_0jhad")

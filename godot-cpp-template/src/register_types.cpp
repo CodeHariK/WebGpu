@@ -9,7 +9,7 @@
 #include "hellonode.h"
 #include "minecraft.h"
 #include "summator.h"
-#include "voxel.h"
+#include "terrain.h"
 
 using namespace godot;
 
@@ -20,7 +20,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(SummatorClass);
 	GDREGISTER_CLASS(HelloNode);
 	GDREGISTER_CLASS(Doom);
-	GDREGISTER_CLASS(VoxelNode);
+	GDREGISTER_CLASS(TerrainNode);
 	GDREGISTER_CLASS(MinecraftNode);
 }
 

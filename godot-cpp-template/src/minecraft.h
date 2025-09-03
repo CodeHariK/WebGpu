@@ -11,39 +11,52 @@
 
 using namespace godot;
 
-enum BlockType : uint8_t {
+struct Vector3iHash {
+	std::size_t operator()(const godot::Vector3i &v) const noexcept {
+		// Simple but effective hash combine
+		std::size_t h1 = std::hash<int>()(v.x);
+		std::size_t h2 = std::hash<int>()(v.y);
+		std::size_t h3 = std::hash<int>()(v.z);
+		return h1 ^ (h2 << 1) ^ (h3 << 2);
+	}
+};
+
+struct Vector3iEqual {
+	bool operator()(const godot::Vector3i &a, const godot::Vector3i &b) const noexcept {
+		return a.x == b.x && a.y == b.y && a.z == b.z;
+	}
+};
+
+enum VoxelType : uint8_t {
 	AIR = 0,
-	DIRT = 1,
+	SOIL = 1,
 	GRASS = 2,
 	STONE = 3,
-	WOOD = 4,
-	LEAVES = 5,
+	WATER = 4,
 };
 
 class Chunk {
 public:
-	static const int CHUNK_SIZE = 16; // 16x16x16 blocks per chunk
-	static const int CHUNK_HEIGHT = 256;
+	static const int WIDTH = 16;
+	static const int HEIGHT = 4;
 
 private:
 	// Use a flat 3D array for block storage
 	std::vector<uint8_t> blocks; // Using uint8_t to store block types efficiently
 	Vector3i chunk_position; // Chunk position in world coordinates
-	bool is_dirty; // Flag for mesh regeneration
 
 public:
 	Chunk(const Vector3i &pos) :
 			chunk_position(pos) {
-		blocks.resize(CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT, 0);
+		blocks.resize(WIDTH * WIDTH * HEIGHT, 0);
 	}
 
 	uint8_t get_block(int x, int y, int z) const {
-		return blocks[x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE];
+		return blocks[x + z * WIDTH + y * WIDTH * WIDTH];
 	}
 
 	void set_block(int x, int y, int z, uint8_t type) {
-		blocks[x + z * CHUNK_SIZE + y * CHUNK_SIZE * CHUNK_SIZE] = type;
-		is_dirty = true;
+		blocks[x + z * WIDTH + y * WIDTH * WIDTH] = type;
 	}
 };
 
@@ -51,8 +64,8 @@ class MinecraftNode : public Node3D {
 	GDCLASS(MinecraftNode, Node3D);
 
 private:
-	int terrain_width = 32;
-	int terrain_depth = 32;
+	int terrain_width = 128;
+	int terrain_depth = 128;
 	float terrain_scale = 0.15f;
 	float terrain_height_scale = 6.0f;
 	Ref<Material> terrain_material;
@@ -62,15 +75,15 @@ private:
 	void generate_terrain();
 
 	///////
-	std::unordered_map<Vector3i, Chunk *> chunks;
+	std::unordered_map<Vector3i, Chunk *, Vector3iHash, Vector3iEqual> chunks;
 	int render_distance = 8; // Number of chunks to render in each direction
 
 	// Helper function to get chunk coordinates from world coordinates
 	Vector3i world_to_chunk_coords(const Vector3 &position) {
 		return Vector3i(
-				floor(position.x / Chunk::CHUNK_SIZE),
-				floor(position.y / Chunk::CHUNK_HEIGHT),
-				floor(position.z / Chunk::CHUNK_SIZE));
+				floor(position.x / Chunk::WIDTH),
+				floor(position.y / Chunk::HEIGHT),
+				floor(position.z / Chunk::WIDTH));
 	}
 
 protected:

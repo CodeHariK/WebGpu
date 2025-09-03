@@ -1,4 +1,4 @@
-#include "voxel.h"
+#include "terrain.h"
 
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
@@ -24,24 +24,24 @@
 
 using namespace godot;
 
-VoxelNode::VoxelNode() {
+TerrainNode::TerrainNode() {
 	set_process_mode(Node::ProcessMode::PROCESS_MODE_ALWAYS);
 }
 
-VoxelNode::~VoxelNode() {
+TerrainNode::~TerrainNode() {
 }
 
-void VoxelNode::_process(double delta) {
+void TerrainNode::_process(double delta) {
 	if (terrain_dirty) {
 		generate_terrain();
 		terrain_dirty = false;
 	}
 }
 
-void VoxelNode::_ready() {
+void TerrainNode::_ready() {
 }
 
-void VoxelNode::blendTest() {
+void TerrainNode::blendTest() {
 	// Load the entire .blend file as a PackedScene and print mesh/object/material names
 	Ref<Resource> blend_resource = ResourceLoader::get_singleton()->load("res://assets/Voxel.blend");
 	if (blend_resource.is_valid() && blend_resource->is_class("PackedScene")) {
@@ -86,7 +86,7 @@ void VoxelNode::blendTest() {
 	}
 }
 
-void VoxelNode::make_triangle() {
+void TerrainNode::make_triangle() {
 	Ref<ArrayMesh> mesh;
 	mesh.instantiate();
 
@@ -119,7 +119,7 @@ void VoxelNode::make_triangle() {
 	UtilityFunctions::print("Generated triangle mesh!");
 }
 
-void VoxelNode::make_quad() {
+void TerrainNode::make_quad() {
 	Ref<SurfaceTool> st;
 	st.instantiate();
 	st->begin(Mesh::PRIMITIVE_TRIANGLES);
@@ -142,7 +142,7 @@ void VoxelNode::make_quad() {
 	UtilityFunctions::print("Generated quad mesh!");
 }
 
-void VoxelNode::generate_terrain() {
+void TerrainNode::generate_terrain() {
 	for (int i = get_child_count() - 1; i >= 0; --i) {
 		Node *child = get_child(i);
 		remove_child(child);

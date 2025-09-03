@@ -8,8 +8,8 @@
 
 using namespace godot;
 
-class VoxelNode : public Node3D {
-	GDCLASS(VoxelNode, Node3D);
+class TerrainNode : public Node3D {
+	GDCLASS(TerrainNode, Node3D);
 
 private:
 	int terrain_width = 32;
@@ -27,30 +27,30 @@ private:
 
 protected:
 	static void _bind_methods() {
-		ClassDB::bind_method(D_METHOD("set_terrain_width", "width"), &VoxelNode::set_terrain_width);
-		ClassDB::bind_method(D_METHOD("get_terrain_width"), &VoxelNode::get_terrain_width);
+		ClassDB::bind_method(D_METHOD("set_terrain_width", "width"), &TerrainNode::set_terrain_width);
+		ClassDB::bind_method(D_METHOD("get_terrain_width"), &TerrainNode::get_terrain_width);
 		ADD_PROPERTY(PropertyInfo(Variant::INT, "terrain_width"), "set_terrain_width", "get_terrain_width");
 
-		ClassDB::bind_method(D_METHOD("set_terrain_depth", "depth"), &VoxelNode::set_terrain_depth);
-		ClassDB::bind_method(D_METHOD("get_terrain_depth"), &VoxelNode::get_terrain_depth);
+		ClassDB::bind_method(D_METHOD("set_terrain_depth", "depth"), &TerrainNode::set_terrain_depth);
+		ClassDB::bind_method(D_METHOD("get_terrain_depth"), &TerrainNode::get_terrain_depth);
 		ADD_PROPERTY(PropertyInfo(Variant::INT, "terrain_depth"), "set_terrain_depth", "get_terrain_depth");
 
-		ClassDB::bind_method(D_METHOD("set_terrain_scale", "scale"), &VoxelNode::set_terrain_scale);
-		ClassDB::bind_method(D_METHOD("get_terrain_scale"), &VoxelNode::get_terrain_scale);
+		ClassDB::bind_method(D_METHOD("set_terrain_scale", "scale"), &TerrainNode::set_terrain_scale);
+		ClassDB::bind_method(D_METHOD("get_terrain_scale"), &TerrainNode::get_terrain_scale);
 		ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terrain_scale"), "set_terrain_scale", "get_terrain_scale");
 
-		ClassDB::bind_method(D_METHOD("set_terrain_height_scale", "height_scale"), &VoxelNode::set_terrain_height_scale);
-		ClassDB::bind_method(D_METHOD("get_terrain_height_scale"), &VoxelNode::get_terrain_height_scale);
+		ClassDB::bind_method(D_METHOD("set_terrain_height_scale", "height_scale"), &TerrainNode::set_terrain_height_scale);
+		ClassDB::bind_method(D_METHOD("get_terrain_height_scale"), &TerrainNode::get_terrain_height_scale);
 		ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terrain_height_scale"), "set_terrain_height_scale", "get_terrain_height_scale");
 
-		ClassDB::bind_method(D_METHOD("set_terrain_material", "material"), &VoxelNode::set_terrain_material);
-		ClassDB::bind_method(D_METHOD("get_terrain_material"), &VoxelNode::get_terrain_material);
+		ClassDB::bind_method(D_METHOD("set_terrain_material", "material"), &TerrainNode::set_terrain_material);
+		ClassDB::bind_method(D_METHOD("get_terrain_material"), &TerrainNode::get_terrain_material);
 		ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_terrain_material", "get_terrain_material");
 	}
 
 public:
-	VoxelNode();
-	~VoxelNode();
+	TerrainNode();
+	~TerrainNode();
 
 	void _process(double delta) override;
 

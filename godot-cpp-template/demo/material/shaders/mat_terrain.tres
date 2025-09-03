@@ -1,11 +1,17 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://bv0vdkq4v0lmq"]
+[gd_resource type="ShaderMaterial" load_steps=4 format=3 uid="uid://bv0vdkq4v0lmq"]
 
 [ext_resource type="Shader" uid="uid://iooal714ctjd" path="res://material/shaders/shader_terrain.gdshader" id="1_caf5m"]
+
+[sub_resource type="Gradient" id="Gradient_gogss"]
+offsets = PackedFloat32Array(0, 0.3, 0.6, 1)
+colors = PackedColorArray(0.179097, 0.595585, 0.875533, 1, 0.82799, 0.704361, 0.211092, 1, 0.23821, 0.491744, 0.298407, 1, 0.722565, 0.33822, 0.169793, 1)
+metadata/_snap_enabled = true
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_nnju8"]
+gradient = SubResource("Gradient_gogss")
 
 [resource]
 render_priority = 0
 shader = ExtResource("1_caf5m")
-shader_parameter/water_color = Color(0, 0.3, 0.8, 1)
-shader_parameter/grass_color = Color(0.3, 0.8, 0.1, 1)
-shader_parameter/rock_color = Color(0.5, 0.5, 0.5, 1)
-shader_parameter/snow_color = Color(1, 1, 1, 1)
+shader_parameter/height = 64.0
+shader_parameter/color_gradient = SubResource("GradientTexture1D_nnju8")
