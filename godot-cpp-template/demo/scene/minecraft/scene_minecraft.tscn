@@ -30,8 +30,34 @@ environment = SubResource("Environment_jfv7q")
 transform = Transform3D(1, 0, 0, 0, 0.996734, 0.0807556, 0, -0.0807556, 0.996734, 26.9576, 17.1296, 35.3498)
 
 [node name="MinecraftNode" type="MinecraftNode" parent="."]
-terrain_width = 64
-terrain_depth = 64
-terrain_scale = 0.05
-terrain_height_scale = 12.0
+terrain_width = 90
+terrain_depth = 90
+terrain_scale = 0.02
+terrain_height_scale = 24.0
 terrain_material = ExtResource("2_0jhad")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="AccordionRoot" type="VBoxContainer" parent="CanvasLayer"]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="AccordionHeader" type="Button" parent="CanvasLayer/AccordionRoot"]
+layout_mode = 2
+text = "▼ Terrain Settings"
+
+[node name="AccordionContent" type="VBoxContainer" parent="CanvasLayer/AccordionRoot"]
+layout_mode = 2
+
+[node name="Terrain Size" type="Label" parent="CanvasLayer/AccordionRoot/AccordionContent"]
+layout_mode = 2
+text = "Terrain Size"
+
+[node name="TerrainSizeSlider" type="HSlider" parent="CanvasLayer/AccordionRoot/AccordionContent"]
+layout_mode = 2
+min_value = 64.0
+max_value = 128.0
+value = 64.0
+
+[connection signal="pressed" from="CanvasLayer/AccordionRoot/AccordionHeader" to="MinecraftNode" method="_on_accordion_header_pressed"]
+[connection signal="value_changed" from="CanvasLayer/AccordionRoot/AccordionContent/TerrainSizeSlider" to="MinecraftNode" method="_on_slider_value_changed"]

@@ -1,6 +1,6 @@
 shader_type spatial;
 
-uniform float height = 12.0;
+uniform float height = 24.0;
 uniform sampler2D color_gradient;
 
 void fragment() {

@@ -6,6 +6,9 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
 
+#include <godot_cpp/classes/button.hpp>
+#include <godot_cpp/classes/control.hpp>
+
 #include <unordered_map>
 #include <vector>
 
@@ -72,7 +75,8 @@ private:
 
 	bool terrain_dirty = false;
 
-	void generate_terrain();
+	void generate_terrain(Vector3 pos);
+	void generate_voxel_terrain(Vector3 pos);
 
 	///////
 	std::unordered_map<Vector3i, Chunk *, Vector3iHash, Vector3iEqual> chunks;
@@ -107,6 +111,9 @@ protected:
 		ClassDB::bind_method(D_METHOD("set_terrain_material", "material"), &MinecraftNode::set_terrain_material);
 		ClassDB::bind_method(D_METHOD("get_terrain_material"), &MinecraftNode::get_terrain_material);
 		ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_terrain_material", "get_terrain_material");
+
+		ClassDB::bind_method(D_METHOD("_on_accordion_header_pressed"), &MinecraftNode::_on_accordion_header_pressed);
+		ClassDB::bind_method(D_METHOD("_on_slider_value_changed", "value"), &MinecraftNode::_on_slider_value_changed);
 	}
 
 public:
@@ -114,8 +121,30 @@ public:
 	~MinecraftNode();
 
 	void _process(double delta) override;
-
 	void _ready() override;
+
+	void _on_accordion_header_pressed() {
+		Node *content_node = get_node_or_null("/root/World/CanvasLayer/AccordionRoot/AccordionContent");
+		Node *header_node = get_node_or_null("/root/World/CanvasLayer/AccordionRoot/AccordionHeader");
+
+		if (content_node && header_node) {
+			Control *content = Object::cast_to<Control>(content_node);
+			Button *header = Object::cast_to<Button>(header_node);
+
+			if (content && header) {
+				bool new_visible = !content->is_visible();
+				content->set_visible(new_visible);
+
+				header->set_text(new_visible ? "Hide" : "Show");
+			}
+		}
+	}
+
+	void _on_slider_value_changed(double value) {
+		terrain_width = (int)value;
+		terrain_depth = (int)value;
+		terrain_dirty = true;
+	}
 
 	void set_terrain_width(int w) {
 		terrain_width = w;
