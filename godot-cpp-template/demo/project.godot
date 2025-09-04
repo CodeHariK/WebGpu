@@ -11,9 +11,16 @@ config_version=5
 [application]
 
 config/name="godot cpp template"
-run/main_scene="uid://dmlmm5shkvqgn"
 config/features=PackedStringArray("4.4", "Forward Plus")
 config/icon="res://scene/2dexample/assets/icon.svg"
+config/main_scene=""
+config/size/initial_position=Vector2i(1200, 600)
+
+[display]
+
+window/size/viewport_width=800
+window/size/viewport_height=600
+window/size/initial_position=Vector2i(1200, 600)
 
 [input]
 

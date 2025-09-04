@@ -5,11 +5,7 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
-#include "doom.h"
-#include "hellonode.h"
-#include "minecraft.h"
-#include "summator.h"
-#include "terrain.h"
+#include "minecraft/minecraft.h"
 
 using namespace godot;
 
@@ -17,10 +13,6 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
-	GDREGISTER_CLASS(SummatorClass);
-	GDREGISTER_CLASS(HelloNode);
-	GDREGISTER_CLASS(Doom);
-	GDREGISTER_CLASS(TerrainNode);
 	GDREGISTER_CLASS(MinecraftNode);
 }
 

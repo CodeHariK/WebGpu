@@ -18,24 +18,6 @@ glow_enabled = true
 
 [node name="World" type="Node3D"]
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(-0.866025, -0.480631, 0.137819, 0, 0.275637, 0.961262, -0.5, 0.832477, -0.238709, 0, 0, 0)
-light_energy = 0.25
-shadow_enabled = true
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
-environment = SubResource("Environment_jfv7q")
-
-[node name="FlyCamera" parent="." instance=ExtResource("2_d82rw")]
-transform = Transform3D(1, 0, 0, 0, 0.996734, 0.0807556, 0, -0.0807556, 0.996734, 26.9576, 17.1296, 35.3498)
-
-[node name="MinecraftNode" type="MinecraftNode" parent="."]
-terrain_width = 90
-terrain_depth = 90
-terrain_scale = 0.02
-terrain_height_scale = 24.0
-terrain_material = ExtResource("2_0jhad")
-
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
 [node name="AccordionRoot" type="VBoxContainer" parent="CanvasLayer"]
@@ -58,6 +40,24 @@ layout_mode = 2
 min_value = 64.0
 max_value = 128.0
 value = 64.0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.866025, -0.480631, 0.137819, 0, 0.275637, 0.961262, -0.5, 0.832477, -0.238709, 0, 0, 0)
+light_energy = 0.25
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_jfv7q")
+
+[node name="FlyCamera" parent="." instance=ExtResource("2_d82rw")]
+transform = Transform3D(1, 0, 0, 0, 0.996734, 0.0807556, 0, -0.0807556, 0.996734, 26.9576, 30.3453, 35.3498)
+
+[node name="MinecraftNode" type="MinecraftNode" parent="."]
+terrain_width = 90
+terrain_depth = 90
+terrain_scale = 0.02
+terrain_height_scale = 64.0
+terrain_material = ExtResource("2_0jhad")
 
 [connection signal="pressed" from="CanvasLayer/AccordionRoot/AccordionHeader" to="MinecraftNode" method="_on_accordion_header_pressed"]
 [connection signal="value_changed" from="CanvasLayer/AccordionRoot/AccordionContent/TerrainSizeSlider" to="MinecraftNode" method="_on_slider_value_changed"]
