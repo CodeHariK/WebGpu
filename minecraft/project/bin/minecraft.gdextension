@@ -1,0 +1,56 @@
+[configuration]
+entry_symbol = "minecraft_library_init"
+compatibility_minimum = "4.4"
+reloadable = true
+
+[libraries]
+
+macos.single.debug = "res://bin/macos/libMinecraftExt.macos.template_debug.dylib"
+macos.double.debug = "res://bin/macos/libMinecraftExt.macos.template_debug.double.dylib"
+macos.single.release = "res://bin/macos/libMinecraftExt.macos.template_release.dylib"
+macos.double.release = "res://bin/macos/libMinecraftExt.macos.template_release.double.dylib"
+
+ios.arm64.single.debug = "res://bin/ios/libMinecraftExt.ios.template_debug.arm64.dylib"
+ios.arm64.double.debug = "res://bin/ios/libMinecraftExt.ios.template_debug.arm64.double.dylib"
+ios.arm64.single.release = "res://bin/ios/libMinecraftExt.ios.template_release.arm64.dylib"
+ios.arm64.double.release = "res://bin/ios/libMinecraftExt.ios.template_release.arm64.double.dylib"
+
+windows.x86_32.single.debug = "res://bin/windows/MinecraftExt.windows.template_debug.x86_32.dll"
+windows.x86_32.double.debug = "res://bin/windows/MinecraftExt.windows.template_debug.x86_32.double.dll"
+windows.x86_32.single.release = "res://bin/windows/MinecraftExt.windows.template_release.x86_32.dll"
+windows.x86_32.double.release = "res://bin/windows/MinecraftExt.windows.template_release.x86_32.double.dll"
+
+windows.x86_64.single.debug = "res://bin/windows/MinecraftExt.windows.template_debug.x86_64.dll"
+windows.x86_64.double.debug = "res://bin/windows/MinecraftExt.windows.template_debug.x86_64.double.dll"
+windows.x86_64.single.release = "res://bin/windows/MinecraftExt.windows.template_release.x86_64.dll"
+windows.x86_64.double.release = "res://bin/windows/MinecraftExt.windows.template_release.x86_64.double.dll"
+
+linux.x86_64.single.debug = "res://bin/linux/libMinecraftExt.linux.template_debug.x86_64.so"
+linux.x86_64.double.debug = "res://bin/linux/libMinecraftExt.linux.template_debug.x86_64.double.so"
+linux.x86_64.single.release = "res://bin/linux/libMinecraftExt.linux.template_release.x86_64.so"
+linux.x86_64.double.release = "res://bin/linux/libMinecraftExt.linux.template_release.x86_64.double.so"
+
+linux.arm64.single.debug = "res://bin/linux/libMinecraftExt.linux.template_debug.arm64.so"
+linux.arm64.double.debug = "res://bin/linux/libMinecraftExt.linux.template_debug.arm64.double.so"
+linux.arm64.single.release = "res://bin/linux/libMinecraftExt.linux.template_release.arm64.so"
+linux.arm64.double.release = "res://bin/linux/libMinecraftExt.linux.template_release.arm64.double.so"
+
+linux.rv64.single.debug = "res://bin/linux/libMinecraftExt.linux.template_debug.rv64.so"
+linux.rv64.double.debug = "res://bin/linux/libMinecraftExt.linux.template_debug.rv64.double.so"
+linux.rv64.single.release = "res://bin/linux/libMinecraftExt.linux.template_release.rv64.so"
+linux.rv64.double.release = "res://bin/linux/libMinecraftExt.linux.template_release.rv64.double.so"
+
+android.x86_64.single.debug = "res://bin/android/libMinecraftExt.android.template_debug.x86_64.so"
+android.x86_64.double.debug = "res://bin/android/libMinecraftExt.android.template_debug.x86_64.double.so"
+android.x86_64.single.release = "res://bin/android/libMinecraftExt.android.template_release.x86_64.so"
+android.x86_64.double.release = "res://bin/android/libMinecraftExt.android.template_release.x86_64.double.so"
+
+android.arm64.single.debug = "res://bin/android/libMinecraftExt.android.template_debug.arm64.so"
+android.arm64.double.debug = "res://bin/android/libMinecraftExt.android.template_debug.arm64.double.so"
+android.arm64.single.release = "res://bin/android/libMinecraftExt.android.template_release.arm64.so"
+android.arm64.double.release = "res://bin/android/libMinecraftExt.android.template_release.arm64.double.so"
+
+web.wasm32.single.debug = "res://bin/web/libMinecraftExt.web.template_debug.wasm32.nothreads.wasm"
+web.wasm32.double.debug = "res://bin/web/libMinecraftExt.web.template_debug.wasm32.double.nothreads.wasm"
+web.wasm32.single.release = "res://bin/web/libMinecraftExt.web.template_release.wasm32.nothreads.wasm"
+web.wasm32.double.release = "res://bin/web/libMinecraftExt.web.template_release.wasm32.double.nothreads.wasm"
