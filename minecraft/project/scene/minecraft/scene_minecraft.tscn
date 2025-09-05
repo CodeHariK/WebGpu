@@ -1,6 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://bwl3gle0nwihq"]
+[gd_scene load_steps=8 format=3 uid="uid://bwl3gle0nwihq"]
 
+[ext_resource type="Script" uid="uid://dtif1g023v2sd" path="res://scene/minecraft/minecraft_node.gd" id="1_d82rw"]
 [ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="2_d82rw"]
+[ext_resource type="Texture2D" uid="uid://c0odcynpeyscu" path="res://scene/minecraft/uv2.png" id="3_0jhad"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_d82rw"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -15,7 +17,12 @@ sky = SubResource("Sky_0jhad")
 tonemap_mode = 2
 glow_enabled = true
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jfv7q"]
+cull_mode = 2
+albedo_texture = ExtResource("3_0jhad")
+
 [node name="World" type="Node3D"]
+script = ExtResource("1_d82rw")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 
@@ -42,7 +49,7 @@ value = 64.0
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(-0.866025, -0.480631, 0.137819, 0, 0.275637, 0.961262, -0.5, 0.832477, -0.238709, 0, 0, 0)
-light_energy = 0.25
+light_energy = 0.5
 shadow_enabled = true
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
@@ -50,3 +57,31 @@ environment = SubResource("Environment_jfv7q")
 
 [node name="FlyCamera" parent="." instance=ExtResource("2_d82rw")]
 transform = Transform3D(1, 0, 0, 0, 0.996734, 0.0807556, 0, -0.0807556, 0.996734, 26.9576, 30.3453, 35.3498)
+
+[node name="CSGBox3D" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.6756, 17.5295, 0)
+use_collision = true
+size = Vector3(5, 5, 5)
+
+[node name="CSGBox3D2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.6756, 17.5295, -18.6197)
+use_collision = true
+size = Vector3(5, 5, 5)
+
+[node name="CSGBox3D5" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.7827, 17.5295, -18.6197)
+use_collision = true
+size = Vector3(5, 5, 5)
+
+[node name="CSGBox3D3" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.6756, 17.5295, -44.4077)
+use_collision = true
+size = Vector3(5, 5, 5)
+
+[node name="CSGBox3D4" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.6756, 17.5295, -71.1701)
+use_collision = true
+size = Vector3(5, 5, 5)
+
+[node name="MinecraftNode" type="MinecraftNode" parent="."]
+terrain_material = SubResource("StandardMaterial3D_jfv7q")

@@ -10,6 +10,9 @@ NM           := nm
 # Default target
 all: build inspect
 
+editor:
+	godot -e --path project
+
 # Build the extension
 build:
 	$(SCONS) target=$(TARGET) platform=$(PLATFORM)

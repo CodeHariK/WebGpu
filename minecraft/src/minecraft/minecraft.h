@@ -1,6 +1,7 @@
 #ifndef MinecraftNode_CLASS
 #define MinecraftNode_CLASS
 
+#include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -67,16 +68,21 @@ class MinecraftNode : public Node3D {
 	GDCLASS(MinecraftNode, Node3D);
 
 private:
-	int terrain_width = 128;
-	int terrain_depth = 128;
-	float terrain_scale = 0.15f;
-	float terrain_height_scale = 6.0f;
+	int terrain_width = 64;
+	int terrain_depth = 64;
+	float terrain_scale = 0.05f;
+	float terrain_height_scale = 12.0f;
 	Ref<Material> terrain_material;
+
+	Camera3D *camera;
 
 	bool terrain_dirty = false;
 
-	void generate_terrain(Vector3 pos);
-	void generate_voxel_terrain(Vector3 pos);
+	std::vector<std::vector<int>> generate_terrain_heights(int width, int depth, float scale, float height_scale);
+
+	void generate_terrain(Vector3 pos, std::vector<std::vector<int>> heights);
+	void generate_voxel_terrain(Vector3 pos, std::vector<std::vector<int>> heights);
+	void generate_voxel_terrain2(Vector3 pos, std::vector<std::vector<int>> heights);
 
 	void blendTest();
 	void minHeapTest();
