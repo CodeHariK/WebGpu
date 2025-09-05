@@ -2,9 +2,9 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://crtbjol613or8"
-path.s3tc="res://.godot/imported/minecraft.png-7c1da0674b39aa9e2dd924fffb003122.s3tc.ctex"
-path.etc2="res://.godot/imported/minecraft.png-7c1da0674b39aa9e2dd924fffb003122.etc2.ctex"
+uid="uid://c0odcynpeyscu"
+path.s3tc="res://.godot/imported/uv2.png-1b7c22ac815c92f8b8a03f5c3d385bf5.s3tc.ctex"
+path.etc2="res://.godot/imported/uv2.png-1b7c22ac815c92f8b8a03f5c3d385bf5.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
@@ -12,8 +12,8 @@ metadata={
 
 [deps]
 
-source_file="res://scene/minecraft/minecraft.png"
-dest_files=["res://.godot/imported/minecraft.png-7c1da0674b39aa9e2dd924fffb003122.s3tc.ctex", "res://.godot/imported/minecraft.png-7c1da0674b39aa9e2dd924fffb003122.etc2.ctex"]
+source_file="res://scene/minecraft/uv2.png"
+dest_files=["res://.godot/imported/uv2.png-1b7c22ac815c92f8b8a03f5c3d385bf5.s3tc.ctex", "res://.godot/imported/uv2.png-1b7c22ac815c92f8b8a03f5c3d385bf5.etc2.ctex"]
 
 [params]
 

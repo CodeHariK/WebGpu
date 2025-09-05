@@ -14,5 +14,5 @@ width = 16
 [resource]
 render_priority = 0
 shader = ExtResource("1_caf5m")
-shader_parameter/height = 24.0
+shader_parameter/height = 12.0
 shader_parameter/color_gradient = SubResource("GradientTexture1D_nnju8")
