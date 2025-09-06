@@ -1,6 +1,15 @@
 #ifndef MinecraftNode_CLASS
 #define MinecraftNode_CLASS
 
+#include "godot_cpp/classes/array_mesh.hpp"
+#include "godot_cpp/classes/global_constants.hpp"
+#include "godot_cpp/classes/node.hpp"
+#include "godot_cpp/classes/ref.hpp"
+#include "godot_cpp/classes/wrapped.hpp"
+#include "godot_cpp/core/property_info.hpp"
+#include "godot_cpp/variant/packed_int32_array.hpp"
+#include "godot_cpp/variant/vector3.hpp"
+
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/node3d.hpp>
@@ -9,58 +18,17 @@
 
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/control.hpp>
-
-#include <unordered_map>
-#include <vector>
+#include <godot_cpp/classes/slider.hpp>
 
 using namespace godot;
 
-struct Vector3iHash {
-	std::size_t operator()(const godot::Vector3i &v) const noexcept {
-		// Simple but effective hash combine
-		std::size_t h1 = std::hash<int>()(v.x);
-		std::size_t h2 = std::hash<int>()(v.y);
-		std::size_t h3 = std::hash<int>()(v.z);
-		return h1 ^ (h2 << 1) ^ (h3 << 2);
-	}
-};
+struct AccordionUI {
+	Control *content = nullptr;
+	Button *header = nullptr;
+	Slider *slider = nullptr;
 
-struct Vector3iEqual {
-	bool operator()(const godot::Vector3i &a, const godot::Vector3i &b) const noexcept {
-		return a.x == b.x && a.y == b.y && a.z == b.z;
-	}
-};
-
-enum VoxelType : uint8_t {
-	AIR = 0,
-	SOIL = 1,
-	GRASS = 2,
-	STONE = 3,
-	WATER = 4,
-};
-
-class Chunk {
-public:
-	static const int WIDTH = 16;
-	static const int HEIGHT = 4;
-
-private:
-	// Use a flat 3D array for block storage
-	std::vector<uint8_t> blocks; // Using uint8_t to store block types efficiently
-	Vector3i chunk_position; // Chunk position in world coordinates
-
-public:
-	Chunk(const Vector3i &pos) :
-			chunk_position(pos) {
-		blocks.resize(WIDTH * WIDTH * HEIGHT, 0);
-	}
-
-	uint8_t get_block(int x, int y, int z) const {
-		return blocks[x + z * WIDTH + y * WIDTH * WIDTH];
-	}
-
-	void set_block(int x, int y, int z, uint8_t type) {
-		blocks[x + z * WIDTH + y * WIDTH * WIDTH] = type;
+	bool is_valid() const {
+		return content != nullptr && header != nullptr && slider != nullptr;
 	}
 };
 
@@ -78,27 +46,24 @@ private:
 
 	bool terrain_dirty = false;
 
-	std::vector<std::vector<int>> generate_terrain_heights(int width, int depth, float scale, float height_scale);
+	AccordionUI ui_accordion;
 
-	void generate_terrain(Vector3 pos, std::vector<std::vector<int>> heights);
-	void generate_voxel_terrain(Vector3 pos, std::vector<std::vector<int>> heights);
-	void generate_voxel_terrain2(Vector3 pos, std::vector<std::vector<int>> heights);
+	PackedInt32Array heights;
+	PackedInt32Array generate_terrain_heights(int width, int depth, float scale, float height_scale);
+	inline int get_height(int x, int z) {
+		return heights[x + z * terrain_width];
+	}
+
+	Ref<ArrayMesh> build_chunk_mesh(int size);
+	void generate_terrain(Vector3 pos);
+	void generate_voxel_terrain(Vector3 pos);
+	void generate_voxel_terrain2(Vector3 pos);
 
 	void blendTest();
 	void minHeapTest();
 	void jsonTest();
 
-	///////
-	std::unordered_map<Vector3i, Chunk *, Vector3iHash, Vector3iEqual> chunks;
-	int render_distance = 8; // Number of chunks to render in each direction
-
-	// Helper function to get chunk coordinates from world coordinates
-	Vector3i world_to_chunk_coords(const Vector3 &position) {
-		return Vector3i(
-				floor(position.x / Chunk::WIDTH),
-				floor(position.y / Chunk::HEIGHT),
-				floor(position.z / Chunk::WIDTH));
-	}
+	void raycast();
 
 protected:
 	static void _bind_methods() {
@@ -134,20 +99,9 @@ public:
 	void _ready() override;
 
 	void _on_accordion_header_pressed() {
-		Node *content_node = get_node_or_null("/root/World/CanvasLayer/AccordionRoot/AccordionContent");
-		Node *header_node = get_node_or_null("/root/World/CanvasLayer/AccordionRoot/AccordionHeader");
-
-		if (content_node && header_node) {
-			Control *content = Object::cast_to<Control>(content_node);
-			Button *header = Object::cast_to<Button>(header_node);
-
-			if (content && header) {
-				bool new_visible = !content->is_visible();
-				content->set_visible(new_visible);
-
-				header->set_text(new_visible ? "Hide" : "Show");
-			}
-		}
+		bool new_visible = !ui_accordion.content->is_visible();
+		ui_accordion.content->set_visible(new_visible);
+		ui_accordion.header->set_text(new_visible ? "Hide" : "Show");
 	}
 
 	void _on_slider_value_changed(double value) {
