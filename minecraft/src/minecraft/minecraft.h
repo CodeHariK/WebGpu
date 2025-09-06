@@ -3,7 +3,6 @@
 
 #include "godot_cpp/classes/array_mesh.hpp"
 #include "godot_cpp/classes/global_constants.hpp"
-#include "godot_cpp/classes/node.hpp"
 #include "godot_cpp/classes/ref.hpp"
 #include "godot_cpp/classes/wrapped.hpp"
 #include "godot_cpp/core/property_info.hpp"
@@ -11,6 +10,7 @@
 #include "godot_cpp/variant/vector3.hpp"
 
 #include <godot_cpp/classes/camera3d.hpp>
+#include <godot_cpp/classes/curve.hpp>
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -22,7 +22,7 @@
 
 using namespace godot;
 
-struct AccordionUI {
+struct MinecraftUI {
 	Control *content = nullptr;
 	Button *header = nullptr;
 	Slider *slider = nullptr;
@@ -41,23 +41,24 @@ private:
 	float terrain_scale = 0.05f;
 	float terrain_height_scale = 12.0f;
 	Ref<Material> terrain_material;
+	Ref<Curve> height_curve;
 
 	Camera3D *camera;
 
 	bool terrain_dirty = false;
 
-	AccordionUI ui_accordion;
+	MinecraftUI ui;
 
 	PackedInt32Array heights;
-	PackedInt32Array generate_terrain_heights(int width, int depth, float scale, float height_scale);
+	PackedInt32Array generate_terrain_heights(bool height_curve_sampling, int width, int depth, float scale, float height_scale);
 	inline int get_height(int x, int z) {
 		return heights[x + z * terrain_width];
 	}
 
 	Ref<ArrayMesh> build_chunk_mesh(int size);
-	void generate_terrain(Vector3 pos);
-	void generate_voxel_terrain(Vector3 pos);
-	void generate_voxel_terrain2(Vector3 pos);
+	void generate_terrain(String name, Vector3 pos);
+	void generate_cube_terrain(String name, Vector3 pos);
+	void generate_chunked_terrain(String name, Vector3 pos);
 
 	void blendTest();
 	void minHeapTest();
@@ -87,6 +88,10 @@ protected:
 		ClassDB::bind_method(D_METHOD("get_terrain_material"), &MinecraftNode::get_terrain_material);
 		ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_terrain_material", "get_terrain_material");
 
+		ClassDB::bind_method(D_METHOD("set_height_curve", "material"), &MinecraftNode::set_height_curve);
+		ClassDB::bind_method(D_METHOD("get_height_curve"), &MinecraftNode::get_height_curve);
+		ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "height_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_height_curve", "get_height_curve");
+
 		ClassDB::bind_method(D_METHOD("_on_accordion_header_pressed"), &MinecraftNode::_on_accordion_header_pressed);
 		ClassDB::bind_method(D_METHOD("_on_slider_value_changed", "value"), &MinecraftNode::_on_slider_value_changed);
 	}
@@ -99,9 +104,9 @@ public:
 	void _ready() override;
 
 	void _on_accordion_header_pressed() {
-		bool new_visible = !ui_accordion.content->is_visible();
-		ui_accordion.content->set_visible(new_visible);
-		ui_accordion.header->set_text(new_visible ? "Hide" : "Show");
+		bool new_visible = !ui.content->is_visible();
+		ui.content->set_visible(new_visible);
+		ui.header->set_text(new_visible ? "Hide" : "Show");
 	}
 
 	void _on_slider_value_changed(double value) {
@@ -139,6 +144,12 @@ public:
 		terrain_dirty = true;
 	}
 	Ref<Material> get_terrain_material() const { return terrain_material; }
+
+	void set_height_curve(const Ref<Curve> &c) {
+		height_curve = c;
+		terrain_dirty = true;
+	}
+	Ref<Curve> get_height_curve() const { return height_curve; }
 };
 
 #endif

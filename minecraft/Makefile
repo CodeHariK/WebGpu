@@ -25,7 +25,7 @@ bindings:
 
 # Inspect exported symbols
 inspect:
-	$(NM) $(OUTPUT_DIR)/$(LIB_NAME) > .nm_debug_symbols.txt | code .nm_debug_symbols.txt 
+# 	$(NM) $(OUTPUT_DIR)/$(LIB_NAME) > .nm_debug_symbols.txt | code .nm_debug_symbols.txt 
 	ls -lh $(OUTPUT_DIR)/$(LIB_NAME)
 
 # Clean build artifacts

@@ -12,7 +12,6 @@ config_version=5
 
 config/name="godot cpp template"
 config/features=PackedStringArray("4.4", "Forward Plus")
-config/icon=""
 config/main_scene=""
 config/size/initial_position=Vector2i(1200, 600)
 

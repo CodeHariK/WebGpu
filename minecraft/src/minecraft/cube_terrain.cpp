@@ -12,12 +12,12 @@
 
 #include <godot_cpp/classes/box_mesh.hpp>
 
-void MinecraftNode::generate_voxel_terrain(Vector3 pos) {
+void MinecraftNode::generate_cube_terrain(String name, Vector3 pos) {
 	// Parent node to hold all cubes
-	Node3D *voxel_parent = Object::cast_to<Node3D>(get_node_or_null("VoxelTerrain"));
+	Node3D *voxel_parent = Object::cast_to<Node3D>(get_node_or_null(name));
 	if (!voxel_parent) {
 		voxel_parent = memnew(Node3D);
-		voxel_parent->set_name("VoxelTerrain");
+		voxel_parent->set_name(name);
 		add_child(voxel_parent);
 	} else {
 		// clear children cubes before reusing
