@@ -15,7 +15,7 @@ editor:
 
 # Build the extension
 build:
-	$(SCONS) target=$(TARGET) platform=$(PLATFORM)
+	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
 
 clang:
 	$(SCONS) target=$(TARGET) platform=$(PLATFORM) compiledb=yes compile_commands.json

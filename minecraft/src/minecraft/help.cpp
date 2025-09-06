@@ -7,36 +7,39 @@
 
 #include <godot_cpp/classes/fast_noise_lite.hpp>
 
-PackedInt32Array MinecraftNode::generate_terrain_heights(bool height_curve_sampling, int width, int depth, float scale, float height_scale) {
+PackedInt32Array MinecraftNode::generate_terrain_heights(bool height_curve_sampling) {
 	PackedInt32Array heights;
-	heights.resize(width * depth);
+	heights.resize(terrain_len_x * terrain_len_z);
 
 	Ref<FastNoiseLite> noise;
 	noise.instantiate();
 	noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
 	noise->set_seed(1337);
-	noise->set_frequency(scale);
+	noise->set_frequency(terrain_freq);
 
-	for (int z = 0; z < depth; ++z) {
-		for (int x = 0; x < width; ++x) {
-			float n = noise->get_noise_2d((float)x + 0.5f, (float)z + 0.5f);
+	if (height_curve != nullptr & height_curve_sampling) {
+		for (int z = 0; z < terrain_len_z; ++z) {
+			for (int x = 0; x < terrain_len_x; ++x) {
+				float h = noise->get_noise_2d(x, z) + .5;
 
-			UtilityFunctions::print(n);
+				h = height_curve->sample(h);
 
-			float h;
-			if (height_curve_sampling) {
-				h = (n + 1.0f) / 2.0f; // Normalize to [0, 1]
-				// h = height_curve->sample(h); // Apply curve: output should also be [0, 1]
-			} else {
-				h = n; // Optional: still normalize if you want unsigned height
+				int height = (int)Math::floor(h * terrain_height);
+
+				heights.set(x + z * terrain_len_x, height);
 			}
+		}
+	} else {
+		for (int z = 0; z < terrain_len_z; ++z) {
+			for (int x = 0; x < terrain_len_x; ++x) {
+				float h = noise->get_noise_2d(x, z) + .5;
 
-			int height = (int)Math::floor(h * height_scale);
-			heights.set(x + z * width, height);
+				int height = (int)Math::floor(h * terrain_height);
+
+				heights.set(x + z * terrain_len_x, height);
+			}
 		}
 	}
-
-	UtilityFunctions::print(heights);
 
 	return heights;
 }

@@ -32,8 +32,8 @@ void MinecraftNode::generate_cube_terrain(String name, Vector3 pos) {
 	cube_mesh->set_size(Vector3(1, 1, 1));
 
 	// Step 2: Place cubes for top + exposed sides
-	for (int z = 0; z < terrain_depth; ++z) {
-		for (int x = 0; x < terrain_width; ++x) {
+	for (int z = 0; z < terrain_len_z; ++z) {
+		for (int x = 0; x < terrain_len_x; ++x) {
 			int h = get_height(x, z);
 
 			// --- Top cube
@@ -55,7 +55,7 @@ void MinecraftNode::generate_cube_terrain(String name, Vector3 pos) {
 				int nz = z + dz[dir];
 
 				int neighbor_h = 0;
-				if (nx >= 0 && nx < terrain_width && nz >= 0 && nz < terrain_depth) {
+				if (nx >= 0 && nx < terrain_len_x && nz >= 0 && nz < terrain_len_z) {
 					neighbor_h = get_height(nx, nz);
 				}
 

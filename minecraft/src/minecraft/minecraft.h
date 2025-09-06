@@ -3,6 +3,7 @@
 
 #include "godot_cpp/classes/array_mesh.hpp"
 #include "godot_cpp/classes/global_constants.hpp"
+#include "godot_cpp/classes/node.hpp"
 #include "godot_cpp/classes/ref.hpp"
 #include "godot_cpp/classes/wrapped.hpp"
 #include "godot_cpp/core/property_info.hpp"
@@ -20,15 +21,17 @@
 #include <godot_cpp/classes/control.hpp>
 #include <godot_cpp/classes/slider.hpp>
 
+#include <godot_cpp/classes/tween.hpp>
+
 using namespace godot;
 
 struct MinecraftUI {
 	Control *content = nullptr;
-	Button *header = nullptr;
-	Slider *slider = nullptr;
+	Button *header_button = nullptr;
+	Slider *terrain_slider = nullptr;
 
 	bool is_valid() const {
-		return content != nullptr && header != nullptr && slider != nullptr;
+		return content != nullptr && header_button != nullptr && terrain_slider != nullptr;
 	}
 };
 
@@ -36,12 +39,13 @@ class MinecraftNode : public Node3D {
 	GDCLASS(MinecraftNode, Node3D);
 
 private:
-	int terrain_width = 64;
-	int terrain_depth = 64;
-	float terrain_scale = 0.05f;
-	float terrain_height_scale = 12.0f;
+	int terrain_len_x = 64;
+	int terrain_len_z = 64;
+	float terrain_freq = 0.05f;
+	float terrain_height = 12.0f;
 	Ref<Material> terrain_material;
 	Ref<Curve> height_curve;
+	Ref<Tween> tween;
 
 	Camera3D *camera;
 
@@ -50,9 +54,9 @@ private:
 	MinecraftUI ui;
 
 	PackedInt32Array heights;
-	PackedInt32Array generate_terrain_heights(bool height_curve_sampling, int width, int depth, float scale, float height_scale);
+	PackedInt32Array generate_terrain_heights(bool height_curve_sampling);
 	inline int get_height(int x, int z) {
-		return heights[x + z * terrain_width];
+		return heights[x + z * terrain_len_x];
 	}
 
 	Ref<ArrayMesh> build_chunk_mesh(int size);
@@ -88,12 +92,14 @@ protected:
 		ClassDB::bind_method(D_METHOD("get_terrain_material"), &MinecraftNode::get_terrain_material);
 		ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_terrain_material", "get_terrain_material");
 
-		ClassDB::bind_method(D_METHOD("set_height_curve", "material"), &MinecraftNode::set_height_curve);
+		ClassDB::bind_method(D_METHOD("set_height_curve", "curve"), &MinecraftNode::set_height_curve);
 		ClassDB::bind_method(D_METHOD("get_height_curve"), &MinecraftNode::get_height_curve);
 		ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "height_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_height_curve", "get_height_curve");
 
-		ClassDB::bind_method(D_METHOD("_on_accordion_header_pressed"), &MinecraftNode::_on_accordion_header_pressed);
-		ClassDB::bind_method(D_METHOD("_on_slider_value_changed", "value"), &MinecraftNode::_on_slider_value_changed);
+		ClassDB::bind_method(D_METHOD("ui_on_header_button_pressed"), &MinecraftNode::ui_on_header_button_pressed);
+		ClassDB::bind_method(D_METHOD("ui_on_terrain_slider_change", "value"), &MinecraftNode::ui_on_terrain_slider_change);
+		ClassDB::bind_method(D_METHOD("ui_on_header_mouse_entered"), &MinecraftNode::ui_on_header_mouse_entered);
+		ClassDB::bind_method(D_METHOD("ui_on_header_mouse_exited"), &MinecraftNode::ui_on_header_mouse_exited);
 	}
 
 public:
@@ -103,41 +109,35 @@ public:
 	void _process(double delta) override;
 	void _ready() override;
 
-	void _on_accordion_header_pressed() {
-		bool new_visible = !ui.content->is_visible();
-		ui.content->set_visible(new_visible);
-		ui.header->set_text(new_visible ? "Hide" : "Show");
-	}
-
-	void _on_slider_value_changed(double value) {
-		terrain_width = (int)value;
-		terrain_depth = (int)value;
-		terrain_dirty = true;
-	}
+	void setup_ui();
+	void ui_on_header_button_pressed();
+	void ui_on_header_mouse_entered();
+	void ui_on_header_mouse_exited();
+	void ui_on_terrain_slider_change(double value);
 
 	void set_terrain_width(int w) {
-		terrain_width = w;
+		terrain_len_x = w;
 		terrain_dirty = true;
 	}
-	int get_terrain_width() const { return terrain_width; }
+	int get_terrain_width() const { return terrain_len_x; }
 
 	void set_terrain_depth(int d) {
-		terrain_depth = d;
+		terrain_len_z = d;
 		terrain_dirty = true;
 	}
-	int get_terrain_depth() const { return terrain_depth; }
+	int get_terrain_depth() const { return terrain_len_z; }
 
 	void set_terrain_scale(float s) {
-		terrain_scale = s;
+		terrain_freq = s;
 		terrain_dirty = true;
 	}
-	float get_terrain_scale() const { return terrain_scale; }
+	float get_terrain_scale() const { return terrain_freq; }
 
 	void set_terrain_height_scale(float hs) {
-		terrain_height_scale = hs;
+		terrain_height = hs;
 		terrain_dirty = true;
 	}
-	float get_terrain_height_scale() const { return terrain_height_scale; }
+	float get_terrain_height_scale() const { return terrain_height; }
 
 	void set_terrain_material(const Ref<Material> &mat) {
 		terrain_material = mat;

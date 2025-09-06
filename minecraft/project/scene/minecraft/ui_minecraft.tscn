@@ -7,17 +7,21 @@ offset_right = 40.0
 offset_bottom = 40.0
 
 [node name="TerrainHeaderButton" type="Button" parent="TerrainProperties"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "▼ Terrain Settings"
 
 [node name="TerrainContent" type="VBoxContainer" parent="TerrainProperties"]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Terrain Size" type="Label" parent="TerrainProperties/TerrainContent"]
+[node name="TerrainSize" type="Label" parent="TerrainProperties/TerrainContent"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Terrain Size"
 
 [node name="TerrainSizeSlider" type="HSlider" parent="TerrainProperties/TerrainContent"]
+unique_name_in_owner = true
 layout_mode = 2
 min_value = 64.0
 max_value = 128.0

@@ -9,7 +9,7 @@ void fragment() {
     vec3 model_vertex = (inverse(MODEL_MATRIX) * world_vertex).xyz;
 
     // Gradient lookup based on height
-    float gradient_uv = (model_vertex.y / height) + 0.5;
+    float gradient_uv = model_vertex.y / height;
     ALBEDO = texture(color_gradient, vec2(gradient_uv)).rgb;
 
     // Use the mesh normal, no override

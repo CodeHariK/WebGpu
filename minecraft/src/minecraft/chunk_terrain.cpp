@@ -156,7 +156,7 @@ Ref<ArrayMesh> MinecraftNode::build_chunk_mesh(int size) {
 
 void MinecraftNode::generate_chunked_terrain(String name, Vector3 pos) {
 	// Create voxel data
-	int size = terrain_width;
+	int size = terrain_len_x;
 
 	// Build one mesh directly from heights
 	Ref<ArrayMesh> mesh = build_chunk_mesh(size);
