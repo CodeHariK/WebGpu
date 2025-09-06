@@ -16,20 +16,20 @@ void MinecraftNode::generate_terrain(String name, Vector3 pos) {
 	PackedInt32Array indices;
 
 	// Generate vertices from height map
-	for (int z = 0; z < terrain_depth; ++z) {
-		for (int x = 0; x < terrain_width; ++x) {
+	for (int z = 0; z < terrain_len_z; ++z) {
+		for (int x = 0; x < terrain_len_x; ++x) {
 			float y = get_height(x, z);
 			vertices.push_back(Vector3(pos.x + (float)x, pos.y + y, pos.z + (float)z));
 		}
 	}
 
 	// Generate indices (two triangles per quad)
-	for (int z = 0; z < terrain_depth - 1; ++z) {
-		for (int x = 0; x < terrain_width - 1; ++x) {
-			int i0 = x + z * terrain_width;
-			int i1 = (x + 1) + z * terrain_width;
-			int i2 = x + (z + 1) * terrain_width;
-			int i3 = (x + 1) + (z + 1) * terrain_width;
+	for (int z = 0; z < terrain_len_z - 1; ++z) {
+		for (int x = 0; x < terrain_len_x - 1; ++x) {
+			int i0 = x + z * terrain_len_x;
+			int i1 = (x + 1) + z * terrain_len_x;
+			int i2 = x + (z + 1) * terrain_len_x;
+			int i3 = (x + 1) + (z + 1) * terrain_len_x;
 			// First triangle
 			indices.push_back(i0);
 			indices.push_back(i1);
