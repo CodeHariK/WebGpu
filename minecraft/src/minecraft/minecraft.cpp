@@ -26,9 +26,9 @@ MinecraftNode::~MinecraftNode() {
 }
 
 void MinecraftNode::_process(double delta) {
-	if (Engine::get_singleton()->is_editor_hint()) {
-		return;
-	}
+	// if (Engine::get_singleton()->is_editor_hint()) {
+	// 	return;
+	// }
 
 	if (terrain_dirty) {
 		String children = String::num_int64(get_child_count());
@@ -38,11 +38,14 @@ void MinecraftNode::_process(double delta) {
 		}
 		UtilityFunctions::print(children);
 
-		heights = generate_terrain_heights(terrain_width, terrain_depth, terrain_scale, terrain_height_scale);
+		heights = generate_terrain_heights(false, terrain_width, terrain_depth, terrain_scale, terrain_height_scale);
+		generate_terrain("HTerrain", Vector3(0, -.1, 0));
+		// generate_cube_terrain(Vector3(0, 0, 0));
+		// generate_chunked_terrain(Vector3(0, .1, 0));
 
-		generate_terrain(Vector3(0, -.1, 0));
-		generate_voxel_terrain(Vector3(0, 0, 0));
-		generate_voxel_terrain2(Vector3(0, .1, 0));
+		heights = generate_terrain_heights(true, terrain_width, terrain_depth, terrain_scale, terrain_height_scale);
+		generate_terrain("STerrain", Vector3(100, -.1, 0));
+
 		terrain_dirty = false;
 	}
 }
@@ -54,11 +57,11 @@ void MinecraftNode::_ready() {
 	}
 
 	String ui_root = "/root/World/UiMinecraft/";
-	ui_accordion.header = Object::cast_to<Button>(get_node_or_null(ui_root + "TerrainProperties/TerrainHeaderButton"));
-	ui_accordion.slider = Object::cast_to<Slider>(get_node_or_null(ui_root + "TerrainProperties/TerrainContent/TerrainSizeSlider"));
-	ui_accordion.content = Object::cast_to<Control>(get_node_or_null(ui_root + "TerrainProperties/TerrainContent"));
-	if (ui_accordion.is_valid()) {
-		ui_accordion.header->connect("pressed", Callable(this, "_on_accordion_header_pressed"));
-		ui_accordion.slider->connect("value_changed", Callable(this, "_on_slider_value_changed"));
+	ui.header = Object::cast_to<Button>(get_node_or_null(ui_root + "TerrainProperties/TerrainHeaderButton"));
+	ui.slider = Object::cast_to<Slider>(get_node_or_null(ui_root + "TerrainProperties/TerrainContent/TerrainSizeSlider"));
+	ui.content = Object::cast_to<Control>(get_node_or_null(ui_root + "TerrainProperties/TerrainContent"));
+	if (ui.is_valid()) {
+		ui.header->connect("pressed", Callable(this, "_on_accordion_header_pressed"));
+		ui.slider->connect("value_changed", Callable(this, "_on_slider_value_changed"));
 	}
 }

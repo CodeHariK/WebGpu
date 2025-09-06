@@ -2,24 +2,24 @@
 
 [ext_resource type="Script" uid="uid://dtif1g023v2sd" path="res://scene/minecraft/minecraft_node.gd" id="1_d82rw"]
 [ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="2_d82rw"]
-[ext_resource type="Texture2D" uid="uid://c0odcynpeyscu" path="res://scene/minecraft/uv2.png" id="3_0jhad"]
+[ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/mat_terrain.tres" id="4_2tur5"]
 [ext_resource type="PackedScene" uid="uid://p4auepeepmyy" path="res://scene/minecraft/ui_minecraft.tscn" id="4_jfv7q"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_d82rw"]
-sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
-ground_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_jfv7q"]
 
 [sub_resource type="Sky" id="Sky_0jhad"]
-sky_material = SubResource("ProceduralSkyMaterial_d82rw")
+sky_material = SubResource("ProceduralSkyMaterial_jfv7q")
 
 [sub_resource type="Environment" id="Environment_jfv7q"]
-background_mode = 2
+background_mode = 1
+background_color = Color(0.91703, 0.739792, 0.765747, 1)
 sky = SubResource("Sky_0jhad")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jfv7q"]
-albedo_texture = ExtResource("3_0jhad")
+[sub_resource type="Curve" id="Curve_jfv7q"]
+_data = [Vector2(0.00755667, 0.00516438), 0.0, 0.0, 0, 0, Vector2(0.284635, 0.194366), 0.881092, 0.881092, 0, 0, Vector2(0.607053, 0.57277), 0.828923, 0.828923, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
+point_count = 4
 
 [node name="World" type="Node3D"]
 script = ExtResource("1_d82rw")
@@ -38,4 +38,13 @@ environment = SubResource("Environment_jfv7q")
 transform = Transform3D(1, 0, 0, 0, 0.996734, 0.0807556, 0, -0.0807556, 0.996734, 26.9576, 30.3453, 35.3498)
 
 [node name="MinecraftNode" type="MinecraftNode" parent="."]
-terrain_material = SubResource("StandardMaterial3D_jfv7q")
+terrain_width = 10
+terrain_depth = 10
+terrain_scale = 0.4
+terrain_height_scale = 20.0
+terrain_material = ExtResource("4_2tur5")
+height_curve = SubResource("Curve_jfv7q")
+
+[node name="CSGBox3D" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 82.2856)
+size = Vector3(1, 20, 5)

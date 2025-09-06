@@ -11,7 +11,7 @@
 
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 
-void MinecraftNode::generate_terrain(Vector3 pos) {
+void MinecraftNode::generate_terrain(String name, Vector3 pos) {
 	PackedVector3Array vertices;
 	PackedInt32Array indices;
 
@@ -59,10 +59,10 @@ void MinecraftNode::generate_terrain(Vector3 pos) {
 	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
 
 	// Create MeshInstance3D
-	MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(get_node_or_null("NoiseTerrain"));
+	MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(get_node_or_null(name));
 	if (!mi) {
 		mi = memnew(MeshInstance3D);
-		mi->set_name("NoiseTerrain");
+		mi->set_name(name);
 		add_child(mi);
 	}
 	mi->set_mesh(mesh);
