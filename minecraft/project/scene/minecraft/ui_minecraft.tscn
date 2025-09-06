@@ -1,0 +1,24 @@
+[gd_scene format=3 uid="uid://p4auepeepmyy"]
+
+[node name="UiMinecraft" type="CanvasLayer"]
+
+[node name="TerrainProperties" type="VBoxContainer" parent="."]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="TerrainHeaderButton" type="Button" parent="TerrainProperties"]
+layout_mode = 2
+text = "▼ Terrain Settings"
+
+[node name="TerrainContent" type="VBoxContainer" parent="TerrainProperties"]
+layout_mode = 2
+
+[node name="Terrain Size" type="Label" parent="TerrainProperties/TerrainContent"]
+layout_mode = 2
+text = "Terrain Size"
+
+[node name="TerrainSizeSlider" type="HSlider" parent="TerrainProperties/TerrainContent"]
+layout_mode = 2
+min_value = 64.0
+max_value = 128.0
+value = 64.0
