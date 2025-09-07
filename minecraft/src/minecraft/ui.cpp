@@ -2,6 +2,7 @@
 
 #include "godot_cpp/classes/button.hpp"
 #include "godot_cpp/classes/control.hpp"
+#include "godot_cpp/classes/scene_tree.hpp"
 #include "godot_cpp/classes/slider.hpp"
 #include "godot_cpp/classes/tween.hpp"
 #include "godot_cpp/variant/string.hpp"

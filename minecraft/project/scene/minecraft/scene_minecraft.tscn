@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="2_d82rw"]
 [ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/mat_terrain.tres" id="4_2tur5"]
 [ext_resource type="PackedScene" uid="uid://p4auepeepmyy" path="res://scene/minecraft/ui_minecraft.tscn" id="4_jfv7q"]
+[ext_resource type="Curve" uid="uid://ccpck6g3dfdlv" path="res://scene/minecraft/curve_minecraft.tres" id="5_2tur5"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_jfv7q"]
 
@@ -16,10 +17,6 @@ background_color = Color(0.91703, 0.739792, 0.765747, 1)
 sky = SubResource("Sky_0jhad")
 tonemap_mode = 2
 glow_enabled = true
-
-[sub_resource type="Curve" id="Curve_jfv7q"]
-_data = [Vector2(0.00755667, 0.00516438), 0.0, 0.0, 0, 0, Vector2(0.284635, 0.194366), 0.881092, 0.881092, 0, 0, Vector2(0.607053, 0.57277), 0.828923, 0.828923, 0, 0, Vector2(1, 1), 0.0, 0.0, 0, 0]
-point_count = 4
 
 [node name="World" type="Node3D"]
 script = ExtResource("1_d82rw")
@@ -42,7 +39,7 @@ terrain_width = 80
 terrain_depth = 80
 terrain_height_scale = 20.0
 terrain_material = ExtResource("4_2tur5")
-height_curve = SubResource("Curve_jfv7q")
+height_curve = ExtResource("5_2tur5")
 
 [node name="CSGBox3D" type="CSGBox3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 82.2856)
