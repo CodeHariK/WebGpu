@@ -1,0 +1,65 @@
+[gd_resource type="Sky" load_steps=9 format=3 uid="uid://bfwuyyjpf33uy"]
+
+[sub_resource type="VisualShaderNodeInput" id="VisualShaderNodeInput_lfr3n"]
+input_name = "sky_coords"
+
+[sub_resource type="VisualShaderNodeTexture2DParameter" id="VisualShaderNodeTexture2DParameter_f4a6f"]
+parameter_name = "Texture2DParameter"
+
+[sub_resource type="VisualShaderNodeTexture" id="VisualShaderNodeTexture_lfr3n"]
+source = 5
+
+[sub_resource type="VisualShader" id="VisualShader_rawfo"]
+code = "shader_type sky;
+uniform sampler2D Texture2DParameter;
+
+
+
+void sky() {
+// Input:2
+	vec2 n_out2p0 = SKY_COORDS;
+
+
+	vec4 n_out4p0;
+// Texture2D:4
+	n_out4p0 = texture(Texture2DParameter, n_out2p0);
+
+
+// Output:0
+	COLOR = vec3(n_out4p0.xyz);
+
+
+}
+"
+graph_offset = Vector2(471.468, -2.52478)
+mode = 3
+flags/use_half_res_pass = false
+flags/use_quarter_res_pass = false
+flags/disable_fog = false
+flags/use_debanding = false
+nodes/sky/0/position = Vector2(860, 160)
+nodes/sky/2/node = SubResource("VisualShaderNodeInput_lfr3n")
+nodes/sky/2/position = Vector2(260, 100)
+nodes/sky/3/node = SubResource("VisualShaderNodeTexture2DParameter_f4a6f")
+nodes/sky/3/position = Vector2(240, 220)
+nodes/sky/4/node = SubResource("VisualShaderNodeTexture_lfr3n")
+nodes/sky/4/position = Vector2(580, 140)
+nodes/sky/connections = PackedInt32Array(2, 0, 4, 0, 3, 0, 4, 2, 4, 0, 0, 0)
+
+[sub_resource type="Gradient" id="Gradient_t31xv"]
+offsets = PackedFloat32Array(0.602459, 0.75)
+colors = PackedColorArray(0.180505, 0.391699, 0.844312, 1, 1, 1, 1, 1)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_t31xv"]
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_t31xv"]
+seamless = true
+color_ramp = SubResource("Gradient_t31xv")
+noise = SubResource("FastNoiseLite_t31xv")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vgo80"]
+shader = SubResource("VisualShader_rawfo")
+shader_parameter/Texture2DParameter = SubResource("NoiseTexture2D_t31xv")
+
+[resource]
+sky_material = SubResource("ShaderMaterial_vgo80")

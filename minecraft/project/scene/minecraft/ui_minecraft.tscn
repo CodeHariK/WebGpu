@@ -1,4 +1,11 @@
-[gd_scene format=3 uid="uid://p4auepeepmyy"]
+[gd_scene load_steps=3 format=3 uid="uid://p4auepeepmyy"]
+
+[ext_resource type="Script" uid="uid://bknygamwu3hqr" path="res://scripts/cellular_automata.gd" id="1_setii"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_setii"]
+seed = 1337
+frequency = 0.0346
+fractal_octaves = 2
 
 [node name="UiMinecraft" type="CanvasLayer"]
 
@@ -26,3 +33,15 @@ layout_mode = 2
 min_value = 64.0
 max_value = 128.0
 value = 64.0
+
+[node name="cellular_automata" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_setii")
+NOISE_THRESHOLD = -0.05
+CA_ITERATIONS = 1
+noise = SubResource("FastNoiseLite_setii")
