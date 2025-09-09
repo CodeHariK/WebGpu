@@ -2,7 +2,7 @@
 
 [ext_resource type="Theme" uid="uid://ckrj5f20lppx1" path="res://scripts/ui/menu/ui_theme.tres" id="1_t075c"]
 [ext_resource type="LabelSettings" uid="uid://baqu56giojhxi" path="res://scripts/ui/menu/lui_label.tres" id="2_ex2cq"]
-[ext_resource type="Script" uid="uid://daiqf2h4jafce" path="res://scripts/ui/menu/draw_canvas.gd" id="3_i17ks"]
+[ext_resource type="Script" uid="uid://daiqf2h4jafce" path="res://scripts/ui/menu/radial_menu.gd" id="3_i17ks"]
 
 [node name="Menu" type="Control"]
 layout_mode = 3
@@ -70,8 +70,6 @@ grow_vertical = 2
 script = ExtResource("3_i17ks")
 bg_color = Color(1, 1, 1, 1)
 line_color = Color(0, 0, 0, 1)
-inner_radius = 64
-outer_radius = 128
+outer_radius = 128.0
 sector_segments = 3
-gap_angle_deg = null
-sector_colors = Array[Color]([Color(0.759108, 0.634348, 0.943181, 1), Color(0.382255, 0.592019, 0.797132, 1), Color(0.960213, 0.491914, 0.663088, 1), Color(0.462794, 0.740892, 0.652478, 1)])
+sector_colors = Array[Color]([Color(0.759108, 0.634348, 0.943181, 1), Color(0.382255, 0.592019, 0.797132, 1), Color(0.960213, 0.491914, 0.663088, 1), Color(0.462794, 0.740892, 0.652478, 1), Color(1, 0, 0, 1), Color(1, 1, 0, 1), Color(0, 1, 0, 1), Color(0, 1, 1, 1), Color(0, 0, 1, 1), Color(1, 0, 1, 1)])

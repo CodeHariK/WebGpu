@@ -1,4 +1,3 @@
-@tool
 extends Control
 
 @onready var radial_menu: Control = $"."
@@ -97,7 +96,7 @@ func _process(_delta: float) -> void:
     queue_redraw()
 
     if Engine.is_editor_hint():
-        return 
+        return
 
     if Input.is_action_just_pressed("toggle_radial_menu") and InputMap.has_action("toggle_radial_menu"):
         menu_visible = !menu_visible
