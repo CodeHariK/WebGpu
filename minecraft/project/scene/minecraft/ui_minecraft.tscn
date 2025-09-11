@@ -1,6 +1,25 @@
-[gd_scene load_steps=3 format=3 uid="uid://p4auepeepmyy"]
+[gd_scene load_steps=7 format=3 uid="uid://p4auepeepmyy"]
 
+[ext_resource type="Script" uid="uid://d0ruog1rkctvi" path="res://scripts/poisson.gd" id="1_8booc"]
 [ext_resource type="Script" uid="uid://bknygamwu3hqr" path="res://scripts/cellular_automata.gd" id="1_setii"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_8booc"]
+noise_type = 0
+seed = 1337
+frequency = 0.9865
+fractal_type = 0
+fractal_octaves = 2
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_x18o4"]
+noise_type = 0
+seed = 1111
+frequency = 1.0
+fractal_type = 0
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_mkywg"]
+noise_type = 0
+frequency = 0.0165
+fractal_type = 0
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_setii"]
 seed = 1337
@@ -34,7 +53,21 @@ min_value = 64.0
 max_value = 128.0
 value = 64.0
 
+[node name="poisson" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_8booc")
+WIDTH = 500
+HEIGHT = 500
+CELL_SIZE = 10.0
+noise_angle = SubResource("FastNoiseLite_8booc")
+noise_radius = SubResource("FastNoiseLite_x18o4")
+biome_noise = SubResource("FastNoiseLite_mkywg")
+
 [node name="cellular_automata" type="Control" parent="."]
+visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
