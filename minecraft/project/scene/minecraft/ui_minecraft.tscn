@@ -18,7 +18,7 @@ fractal_type = 0
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_mkywg"]
 noise_type = 0
-frequency = 0.0165
+frequency = 0.1008
 fractal_type = 0
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_setii"]
@@ -61,7 +61,7 @@ offset_bottom = 40.0
 script = ExtResource("1_8booc")
 WIDTH = 500
 HEIGHT = 500
-CELL_SIZE = 10.0
+SPACING = 50.0
 noise_angle = SubResource("FastNoiseLite_8booc")
 noise_radius = SubResource("FastNoiseLite_x18o4")
 biome_noise = SubResource("FastNoiseLite_mkywg")
