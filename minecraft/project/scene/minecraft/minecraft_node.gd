@@ -6,7 +6,8 @@ func _ready() -> void:
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
-    do_raycast()
+    #do_raycast()
+    pass
 
 func do_raycast():
     var camera = get_viewport().get_camera_3d()

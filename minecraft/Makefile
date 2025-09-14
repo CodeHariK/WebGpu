@@ -12,10 +12,16 @@ all: build inspect
 
 editor:
 	godot -e --path project
+run:
+	godot --path project
 
 # Build the extension
 build:
 	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
+
+buildrun:
+	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
+	godot --path project
 
 clang:
 	$(SCONS) target=$(TARGET) platform=$(PLATFORM) compiledb=yes compile_commands.json
