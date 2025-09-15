@@ -9,8 +9,6 @@
 
 #include <godot_cpp/classes/viewport.hpp>
 
-#include <chrono>
-
 using namespace godot;
 
 MinecraftNode::MinecraftNode() {
@@ -55,26 +53,6 @@ void MinecraftNode::_ready() {
 	if (!camera) {
 		UtilityFunctions::print("No active camera found!");
 	}
-
-	using namespace std::chrono;
-
-	auto start = high_resolution_clock::now();
-
-	DelaunatorTest();
-
-	auto end = high_resolution_clock::now();
-	auto duration = duration_cast<milliseconds>(end - start).count();
-
-	UtilityFunctions::print("DelaunatorTest took: ", duration, " ms");
-
-	start = high_resolution_clock::now();
-
-	VoronoiTest();
-
-	end = high_resolution_clock::now();
-	duration = duration_cast<milliseconds>(end - start).count();
-
-	UtilityFunctions::print("VoronoiTest took: ", duration, " ms");
 
 	setup_ui();
 }

@@ -19,6 +19,7 @@
 
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/control.hpp>
+#include <godot_cpp/classes/progress_bar.hpp>
 #include <godot_cpp/classes/slider.hpp>
 
 #include <godot_cpp/classes/tween.hpp>
@@ -26,12 +27,16 @@
 using namespace godot;
 
 struct MinecraftUI {
+	ProgressBar *health_bar = nullptr;
 	Control *content = nullptr;
 	Button *header_button = nullptr;
 	Slider *terrain_slider = nullptr;
 
 	bool is_valid() const {
-		return content != nullptr && header_button != nullptr && terrain_slider != nullptr;
+		return health_bar != nullptr &&
+				content != nullptr &&
+				header_button != nullptr &&
+				terrain_slider != nullptr;
 	}
 };
 
@@ -103,7 +108,6 @@ protected:
 
 		ClassDB::bind_method(D_METHOD("delaunator_test"), &MinecraftNode::DelaunatorTest);
 		ClassDB::bind_method(D_METHOD("voronoi_test"), &MinecraftNode::VoronoiTest);
-		ClassDB::bind_method(D_METHOD("ran_coords"), &MinecraftNode::RanCoords);
 	}
 
 public:
@@ -119,7 +123,6 @@ public:
 	void ui_on_header_mouse_exited();
 	void ui_on_terrain_slider_change(double value);
 
-	godot::Array RanCoords();
 	godot::Dictionary DelaunatorTest();
 	godot::Array VoronoiTest();
 

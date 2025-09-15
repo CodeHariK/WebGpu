@@ -3,21 +3,15 @@ extends Control
 const SCALE = 300
 var offset = Vector2(50, 50)
 
-
-var ran_coords = []
-
 var voronoi_points = []
 
 var delaunay_edges = []
 var delaunay_voronoi_verts = []
 var delaunay_voronoi_edges = []
 
-
 func _ready():
     var node = MinecraftNode.new()
     
-    ran_coords = node.ran_coords()
-
     voronoi_points = node.voronoi_test()
 
     # Get and scale delaunay points
@@ -29,9 +23,6 @@ func _ready():
     queue_redraw()
 
 func _draw():
-    for point in ran_coords:
-        draw_circle(offset + point * SCALE, 8, Color.YELLOW)
-        
     for i in range(0, voronoi_points.size(), 2):
         var a = offset + voronoi_points[i] * SCALE
         var b = offset + voronoi_points[i + 1] * SCALE
