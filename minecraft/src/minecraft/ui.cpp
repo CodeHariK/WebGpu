@@ -2,16 +2,20 @@
 
 #include "godot_cpp/classes/button.hpp"
 #include "godot_cpp/classes/control.hpp"
-#include "godot_cpp/classes/scene_tree.hpp"
+#include "godot_cpp/classes/progress_bar.hpp"
 #include "godot_cpp/classes/slider.hpp"
+
+#include "godot_cpp/classes/scene_tree.hpp"
 #include "godot_cpp/classes/tween.hpp"
 #include "godot_cpp/variant/string.hpp"
+#include <cstdlib>
 #include <godot_cpp/classes/property_tweener.hpp>
 
 void MinecraftNode::setup_ui() {
 	tween = create_tween();
 
 	String ui_root = "/root/World/UiMinecraft/";
+	ui.health_bar = Object::cast_to<ProgressBar>(get_node_or_null(ui_root + "HealthBar"));
 	ui.header_button = Object::cast_to<Button>(get_node_or_null(ui_root + "TerrainProperties/TerrainHeaderButton"));
 	ui.terrain_slider = Object::cast_to<Slider>(get_node_or_null(ui_root + "TerrainProperties/TerrainContent/TerrainSizeSlider"));
 	ui.content = Object::cast_to<Control>(get_node_or_null(ui_root + "TerrainProperties/TerrainContent"));
@@ -29,6 +33,8 @@ void MinecraftNode::ui_on_header_button_pressed() {
 	bool new_visible = !ui.content->is_visible();
 	ui.content->set_visible(new_visible);
 	ui.header_button->set_text(new_visible ? "Hide" : "Show");
+
+	ui.health_bar->set_value(rand() % 101);
 }
 
 void MinecraftNode::ui_on_terrain_slider_change(double value) {

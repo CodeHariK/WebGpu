@@ -161,17 +161,6 @@ Vector2 getTriangleCenter(const std::vector<size_t> &triangles, const std::vecto
 	return Vector2(ux, uy);
 }
 
-godot::Array MinecraftNode::RanCoords() {
-	Array result;
-	result.resize(NPOINT);
-
-	srand(0);
-	for (int i = 0; i < NPOINT; i++) {
-		result[i] = Vector2(((float)rand() / (1.0f + (float)RAND_MAX)), ((float)rand() / (1.0f + (float)RAND_MAX)));
-	}
-	return result;
-}
-
 godot::Dictionary MinecraftNode::DelaunatorTest() {
 	using namespace delaunator;
 

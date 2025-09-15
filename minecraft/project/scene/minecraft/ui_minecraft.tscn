@@ -1,6 +1,7 @@
-[gd_scene load_steps=8 format=3 uid="uid://p4auepeepmyy"]
+[gd_scene load_steps=9 format=3 uid="uid://p4auepeepmyy"]
 
 [ext_resource type="Script" uid="uid://d0ruog1rkctvi" path="res://scripts/poisson.gd" id="1_8booc"]
+[ext_resource type="Script" uid="uid://bwryjyfew5mnw" path="res://scripts/map.gd" id="1_mkywg"]
 [ext_resource type="Script" uid="uid://bknygamwu3hqr" path="res://scripts/cellular_automata.gd" id="1_setii"]
 [ext_resource type="Script" uid="uid://mfuowy2vsijx" path="res://scripts/voronoi.gd" id="3_x18o4"]
 
@@ -28,10 +29,21 @@ frequency = 0.0346
 fractal_octaves = 2
 
 [node name="UiMinecraft" type="CanvasLayer"]
+script = ExtResource("1_mkywg")
+
+[node name="HealthBar" type="ProgressBar" parent="."]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -75.0
+offset_right = 75.0
+offset_bottom = 27.0
+grow_horizontal = 2
+value = 2.0
 
 [node name="TerrainProperties" type="VBoxContainer" parent="."]
-offset_right = 40.0
-offset_bottom = 40.0
+offset_right = 150.0
+offset_bottom = 78.0
 
 [node name="TerrainHeaderButton" type="Button" parent="TerrainProperties"]
 unique_name_in_owner = true
@@ -82,8 +94,16 @@ CA_ITERATIONS = 1
 noise = SubResource("FastNoiseLite_setii")
 
 [node name="voronoi" type="Control" parent="."]
+visible = false
 layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
 script = ExtResource("3_x18o4")
+
+[node name="TextureRect" type="TextureRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

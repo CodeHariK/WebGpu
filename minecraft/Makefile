@@ -7,19 +7,16 @@ LIB_NAME     := libMinecraftExt.$(PLATFORM).$(TARGET).dylib
 SCONS        := scons
 NM           := nm
 
-# Default target
-all: build inspect
-
-editor:
+e:
 	godot -e --path project
-run:
+r:
 	godot --path project
 
 # Build the extension
-build:
+b:
 	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
 
-buildrun:
+br:
 	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
 	godot --path project
 
@@ -30,7 +27,7 @@ bindings:
 	$(SCONS) target=$(TARGET) platform=$(PLATFORM) generate_bindings=yes
 
 # Inspect exported symbols
-inspect:
+i:
 # 	$(NM) $(OUTPUT_DIR)/$(LIB_NAME) > .nm_debug_symbols.txt | code .nm_debug_symbols.txt 
 	ls -lh $(OUTPUT_DIR)/$(LIB_NAME)
 
