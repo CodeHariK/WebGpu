@@ -31,7 +31,6 @@ void sky() {
 
 }
 "
-graph_offset = Vector2(471.468, -2.52478)
 mode = 3
 flags/use_half_res_pass = false
 flags/use_quarter_res_pass = false
@@ -53,9 +52,9 @@ colors = PackedColorArray(0.180505, 0.391699, 0.844312, 1, 1, 1, 1, 1)
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_t31xv"]
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_t31xv"]
-seamless = true
-color_ramp = SubResource("Gradient_t31xv")
 noise = SubResource("FastNoiseLite_t31xv")
+color_ramp = SubResource("Gradient_t31xv")
+seamless = true
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_vgo80"]
 shader = SubResource("VisualShader_rawfo")
