@@ -64,6 +64,8 @@ func _ready() -> void:
 
 # Called every physics frame. 'delta' is the elapsed time since the previous frame.
 func _physics_process(delta: float) -> void:
+    return
+    
     # 1. Get player input (you'll need to set up these actions in Project Settings -> Input Map)
     # throttle_input = Input.get_axis("throttle_down", "throttle_up")
     # steering_input = Input.get_axis("steer_right", "steer_left")
