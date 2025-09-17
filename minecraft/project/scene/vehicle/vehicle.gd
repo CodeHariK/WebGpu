@@ -1,114 +1,182 @@
 extends RigidBody3D
 
-@export_group("Vehicle Properties")
+@onready var rigid_body_3d: RigidBody3D = $"."
+@onready var mesh_3d: MeshInstance3D = $MeshInstance3D
+@onready var collision_shape_3d: CollisionShape3D = $CollisionShape3D
 
-@export var carmass: float = 100.0
+@export var car_mass: float = 1200.0
+@export var car_width: float = 2
+@export var car_length: float = 4
+@export var car_height: float = 1
 
-@export var engine_force: float = 80.0
-@export var brake_force: float = 20.0
-@export var steering_angle_max_deg: float = 25.0
+@export var chassis_base_height: float = 0.5
+@export var suspension_max_compression: float = 0.2
+@export var front_wheel_radius: float = 0.35
+@export var back_wheel_radius: float = 0.35
 
-@export_group("Suspension")
-@export var suspension_rest_length: float = 0.5
-@export var spring_stiffness: float = 100.0
-@export var damping_ratio: float = 0.5 # Between 0 (no damping) and 1 (critical damping)
-var damper_coefficient
+@export var suspension_rest_length: float = 0.4
+@export var suspension_stiffness: float = 20000.0
+@export var suspension_damping_ratio: float = 0.4
 
-@export_group("Dimensions")
-@export var wheelbase: float = 2.5 # Distance from front to rear axle
-@export var track_width: float = 1.6 # Distance between left and right wheels
-@export var wheel_radius: float = 0.4
-@export var wheel_width: float = 0.25
+@export var wheel_x_ratio: float = 1.0 # lateral placement multiplier (width)
+@export var wheel_y_ratio: float = 1.0 # longitudinal placement multiplier (length)
 
-var wheels: Array[Node3D] = []
+@export var debug_draw: bool = true
 
-# Inputs
-var throttle_input: float = 0.0
-var steering_input: float = 0.0
-var brake_input: float = 0.0
+# internal
+var wheel_local_offsets: Array = []
+var debug_wheels: Array = []
 
-
-# Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-    self.mass = carmass
+    ##
+    var transparent_mat = StandardMaterial3D.new()
+    transparent_mat.albedo_color = Color(0.1, 0.6, 1.0, 1.0)
+    transparent_mat.metallic = 0.1
+    transparent_mat.roughness = 0.6
+    transparent_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    transparent_mat.albedo_color.a = 0.5
 
-    var wheel_mass = carmass / 4.0
-    damper_coefficient = 2.0 * damping_ratio * sqrt(spring_stiffness * wheel_mass)
 
-    var div = 1.2
-    var wheel_positions = [
-        Vector3(track_width / div, 0, wheelbase / div),
-        Vector3(-track_width / div, 0, wheelbase / div),
-        Vector3(track_width / div, 0, -wheelbase / div),
-        Vector3(-track_width / div, 0, -wheelbase / div)
+    # set the physics mass
+    mass = car_mass
+
+    rigid_body_3d.mass = car_mass
+
+    # Update mesh_3d to a new BoxMesh
+    var box_mesh = BoxMesh.new()
+    box_mesh.size = Vector3(car_width, car_height, car_length)
+    mesh_3d.mesh = box_mesh
+    mesh_3d.material_override = transparent_mat
+
+    # Update collision_shape_3d to a new BoxShape3D
+    var box_shape = BoxShape3D.new()
+    box_shape.size = Vector3(car_width, car_height, car_length)
+    collision_shape_3d.shape = box_shape
+
+    # compute wheel local offsets (X=forward, Z=right)
+    var half_w = (car_width * 0.5) * wheel_x_ratio
+    var half_l = (car_length * 0.5) * wheel_y_ratio
+    var half_h = - car_height * .5 + (suspension_rest_length + back_wheel_radius - chassis_base_height)
+
+    wheel_local_offsets = [
+        Vector3(+half_w, half_h, -half_l), # FR
+        Vector3(-half_w, half_h, -half_l), # FL
+        Vector3(+half_w, half_h, +half_l), # RR
+        Vector3(-half_w, half_h, +half_l) # RL
     ]
 
-    for pos in wheel_positions:
-        var wheel_node = MeshInstance3D.new()
-        
-        # var cylinder_mesh = CylinderMesh.new()
-        # cylinder_mesh.top_radius = wheel_radius
-        # cylinder_mesh.bottom_radius = wheel_radius
-        # cylinder_mesh.height = wheel_width
-        
-        # wheel_node.mesh = cylinder_mesh
-        # # Rotate the cylinder to lie flat like a wheel
-        # wheel_node.rotate_x(deg_to_rad(90))
-        # wheel_node.rotate_y(deg_to_rad(90))
+    # create small debug meshes to represent tires (Sphere for simplicity)
+    for i in wheel_local_offsets.size():
+        var mi = MeshInstance3D.new()
+        var sm = SphereMesh.new()
+        # SphereMesh has radius, but we also scale to be safe
+        if i < 2:
+            sm.radius = front_wheel_radius
+        else:
+            sm.radius = back_wheel_radius
+        sm.radial_segments = 12
+        sm.rings = 8
+        mi.mesh = sm
+        mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
-        wheel_node.position = pos
-        
-        add_child(wheel_node)
-        wheels.append(wheel_node)
+        mi.material_override = transparent_mat
 
+        mi.visible = !debug_draw
+        add_child(mi)
+        debug_wheels.append(mi)
 
-# Called every physics frame. 'delta' is the elapsed time since the previous frame.
 func _physics_process(delta: float) -> void:
-    return
-    
-    # 1. Get player input (you'll need to set up these actions in Project Settings -> Input Map)
-    # throttle_input = Input.get_axis("throttle_down", "throttle_up")
-    # steering_input = Input.get_axis("steer_right", "steer_left")
-    # brake_input = Input.get_action_strength("brake")
-    var space_state = get_world_3d().direct_space_state
+    var space = get_world_3d().direct_space_state
 
-    # 2. Iterate through each wheel and apply forces
-    for i in range(wheels.size()):
-        var wheel: Node3D = wheels[i]
+    # For each wheel: cast a ray downwards (world -Y) and debug draw the ray + tire
+    for i in wheel_local_offsets.size():
+        var local_off: Vector3 = wheel_local_offsets[i]
 
-        var wheel_transform = wheel.global_transform
-        var ray_origin = wheel_transform.origin
-        var ray_direction = - global_transform.basis.y # Cast down from the vehicle's perspective
-        var ray_end = ray_origin + ray_direction * suspension_rest_length
+        # world position of the wheel hardpoint (no Y offset)
+        var world_offset = global_transform.origin + (global_transform.basis * local_off)
 
-        if Engine.is_editor_hint() == false:
-            DebugDraw3D.draw_line(ray_origin, ray_end, Color.RED)
+        # start the ray at the wheel hardpoint position (no downward offset)
+        var start = world_offset
+        var radius = front_wheel_radius if i < 2 else back_wheel_radius
+        var ray_length = suspension_rest_length + radius + 0.2
+        var to = start + -global_transform.basis.y * ray_length
 
-        var query = PhysicsRayQueryParameters3D.create(ray_origin, ray_end)
-        query.exclude = [get_rid()] # Don't collide with ourself
+        # exclude the car itself
+        var exclude = [self]
+        var query = PhysicsRayQueryParameters3D.new()
+        query.from = start
+        query.to = to
+        query.exclude = [self]
+        var result = space.intersect_ray(query)
 
-        var result = space_state.intersect_ray(query)
+        if debug_draw:
+            # draw full ray (green if hit, red if no hit)
+            if result:
+                var duration = .1
+                DebugDraw3D.draw_line(start, result.position, Color(0.0, 1.0, 0.0), duration)
+            #     DebugDraw3D.draw_line(result.position, result.position + result.normal * 0.25, Color(0.0, 0.6, 1.0))
+            # else:
+            #     DebugDraw3D.draw_line(start, to, Color(1.0, 0.2, 0.2))
 
         if result:
-            # --- Wheel is on the ground ---
-            var hit_pos = result.position
-            var distance = ray_origin.distance_to(hit_pos)
+            var contact_pos: Vector3 = result.position
+            var contact_normal: Vector3 = result.normal
+            var distance = start.distance_to(contact_pos)
 
-            # --- 1. Calculate Suspension Force ---
-            var suspension_compression = suspension_rest_length - distance
-            if suspension_compression > 0.0:
-                var spring_force = spring_stiffness * suspension_compression
+            # Compression is how much shorter the ray is than rest length
+            var compression = suspension_rest_length + radius - distance
+            compression = clamp(compression, 0.0, suspension_max_compression)
 
-                # --- 2. Calculate Damper Force ---
-                # Get the velocity at the wheel's contact point
-                var wheel_velocity = linear_velocity + angular_velocity.cross(ray_origin - global_transform.origin)
-                var damper_velocity = ray_direction.dot(wheel_velocity)
-                var damper_force = damper_coefficient * damper_velocity
-    
+            var compression_ratio = compression / suspension_max_compression
 
-                # --- 3. Apply Total Suspension Force ---
-                # The force is a combination of the spring and the damper
-                var suspension_force_total = - ray_direction * (spring_force - damper_force)
-                apply_force(suspension_force_total, wheel_transform.origin - global_transform.origin)
+            # Relative velocity of wheel along suspension direction
+            var velocity_at_point = linear_velocity + angular_velocity.cross(contact_pos - global_transform.origin)
+            var suspension_dir = contact_normal.normalized()
+            var rel_vel = velocity_at_point.dot(suspension_dir)
 
-                # TODO: Add steering and friction forces here
+            var wheel_mass = car_mass / wheel_local_offsets.size()
+            var critical_damping = 2.0 * sqrt(suspension_stiffness * wheel_mass)
+            var damping_coefficient = suspension_damping_ratio * critical_damping
+
+            # Forces
+            var spring = suspension_stiffness * compression
+            var damping = damping_coefficient * rel_vel
+            var total_force = (spring - damping) * suspension_dir
+
+            apply_force(total_force, contact_pos - global_transform.origin)
+
+            if debug_draw:
+                DebugDraw3D.draw_text(contact_pos + contact_normal * 0.5 + Vector3.UP * 0.3 + Vector3.LEFT, String.num(compression_ratio, 3))
+
+            # position the debug wheel at contact + normal*wheel_radius
+            var tire_pos = contact_pos + contact_normal * radius
+            debug_wheels[i].global_transform = Transform3D(debug_wheels[i].global_transform.basis, tire_pos)
+
+        else:
+            # place at the end of ray (no ground)
+            debug_wheels[i].global_transform = Transform3D(debug_wheels[i].global_transform.basis, to)
+
+
+    #####################################
+    # Driving and steering input handling
+    var throttle_input = Input.get_axis("brake", "accelerate")
+    var steering_input = Input.get_axis("steer_left", "steer_right")
+    var drive_force_magnitude = 5000.0
+
+    # Apply drive force at rear wheels (indices 2 and 3)
+    var forward_dir = - transform.basis.z.normalized() # local car forward
+    for i in [2, 3]:
+        var wheel_world_pos = global_transform.origin + (global_transform.basis * wheel_local_offsets[i])
+        var drive_force = forward_dir * throttle_input * drive_force_magnitude * 0.5
+        apply_force(drive_force, wheel_world_pos - global_transform.origin)
+
+        if debug_draw and drive_force.length() > 0.01:
+            DebugDraw3D.draw_arrow(wheel_world_pos, wheel_world_pos + drive_force * 0.001, Color(1, 0.5, 0))
+
+    # Apply steering torque proportional to steering input and current speed
+    var speed = linear_velocity.length()
+    var steering_torque_magnitude = 1500.0
+    var torque = - Vector3.UP * steering_input * steering_torque_magnitude * speed
+    apply_torque(torque)
+    if debug_draw and torque.length() > 0.01:
+        DebugDraw3D.draw_arrow(global_transform.origin, global_transform.origin + torque.normalized(), Color(0.5, 1, 0))
