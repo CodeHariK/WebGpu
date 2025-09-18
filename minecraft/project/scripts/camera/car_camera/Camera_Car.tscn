@@ -10,18 +10,18 @@ inner_radius = 2.273
 outer_radius = 2.625
 rings = 6
 
-[node name="Camera_Fly" type="Node3D"]
+[node name="Camera_Car" type="Node3D"]
 script = ExtResource("1_6rk2m")
 
-[node name="FlyCamera3D" type="Camera3D" parent="."]
+[node name="CarCamera3D" type="Camera3D" parent="."]
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="FlyCamera3D"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CarCamera3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -7.4459167)
 visible = false
 mesh = SubResource("BoxMesh_6rk2m")
 skeleton = NodePath("../..")
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="FlyCamera3D/MeshInstance3D"]
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="CarCamera3D/MeshInstance3D"]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 4.695697)
 mesh = SubResource("TorusMesh_ty7nd")
 skeleton = NodePath("../../..")
