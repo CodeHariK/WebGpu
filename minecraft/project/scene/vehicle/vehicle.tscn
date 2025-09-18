@@ -1,9 +1,10 @@
-[gd_scene load_steps=10 format=3 uid="uid://c083h1owek27t"]
+[gd_scene load_steps=14 format=3 uid="uid://c083h1owek27t"]
 
 [ext_resource type="Script" uid="uid://dwr1gg0mac84y" path="res://scene/vehicle/vehicle.gd" id="1_kkwn3"]
+[ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="1_x502o"]
 [ext_resource type="PackedScene" uid="uid://4ago17lb6gln" path="res://scripts/camera/car_camera/Camera_Car.tscn" id="2_rafu7"]
 [ext_resource type="PackedScene" uid="uid://bgq4dpehnmquk" path="res://scene/vehicle/suv.glb" id="3_rafu7"]
-[ext_resource type="Texture2D" uid="uid://bb2spfflnkoqe" path="res://scene/minecraft/uv3.jpg" id="4_rafu7"]
+[ext_resource type="Material" uid="uid://dlt37eajck8j1" path="res://material/texture/checkerboard.tres" id="4_rafu7"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_8x1io"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -20,10 +21,40 @@ glow_enabled = true
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_rafu7"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kkwn3"]
-albedo_texture = ExtResource("4_rafu7")
+[sub_resource type="Curve" id="Curve_x502o"]
+_data = [Vector2(0.17708333, 0.850271), 0.0, 0.0, 0, 0, Vector2(0.8506945, 0.15447164), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Curve" id="Curve_bo5md"]
+_data = [Vector2(0.22222224, 0.8590786), 0.0, 0.0, 0, 0, Vector2(1, 0.18089437), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Curve3D" id="Curve3D_rafu7"]
+closed = true
+_data = {
+"points": PackedVector3Array(-31.300629, 0, 32.35571, 31.300629, 0, -32.35571, -22.33019, 0, -28.7138, -43.25818, 0, 31.65232, 43.25818, 0, -31.65232, -47.652054, 0, -69.51013, -27.432022, 0, -28.838783, 27.432022, 0, 28.838783, 59.965843, 0, -71.97198, -24.2668, 0, -24.970163, 24.2668, 0, 24.970163, 68.75814, 0, -18.163027, 20.749847, 0, -20.398151, -20.749847, 0, 20.398151, 69.46154, 0, 71.51854, 22.508316, 0, 5.2753906, -22.508316, 0, -5.2753906, -16.703115, 0, 78.20071, 10.199081, 0, 40.796333, -10.199081, 0, -40.796333, -63.126526, 0, 13.840981),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0)
+}
+point_count = 7
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_rafu7"]
 
 [node name="Vehicle" type="Node3D"]
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="Control" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Control"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_rafu7")
@@ -33,24 +64,32 @@ transform = Transform3D(-0.866025, -0.480631, 0.137819, 0, 0.275637, 0.961262, -
 light_energy = 0.25
 shadow_enabled = true
 
-[node name="Camera_Fly" parent="." node_paths=PackedStringArray("target") instance=ExtResource("2_rafu7")]
+[node name="Camera_Fly" parent="." instance=ExtResource("1_x502o")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.282671, 7.6490936, 0)
+
+[node name="Camera_Car" parent="." node_paths=PackedStringArray("target") instance=ExtResource("2_rafu7")]
 transform = Transform3D(0.9999998, 0, 0, 0, 0.99999994, 0, 0, 0, 0.99999994, -37.56159, 36.587746, -25.327087)
 target = NodePath("../CarRigidBody3D/CollisionShape3D")
-min_zoom_distance = 10.0
+y_dis = 4.0
 max_zoom_distance = 25.0
 
 [node name="CarRigidBody3D" type="RigidBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.532448, 32.75536, -35.205997)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.569778, 5.9949684, 0)
 physics_material_override = SubResource("PhysicsMaterial_rafu7")
 script = ExtResource("1_kkwn3")
-car_height = 2.0
-chassis_base_height = 1.5
+car_length = 5.0
+car_height = 0.5
+chassis_base_height = 0.8
 suspension_max_compression = 0.4
 front_wheel_radius = 0.5
 back_wheel_radius = 0.5
-suspension_rest_length = 1.5
-suspension_stiffness = 40000.0
-suspension_damping_ratio = 0.04
+suspension_rest_length = 0.6
+suspension_stiffness = 30000.0
+drivetrain = 0
+front_grip_curve = SubResource("Curve_x502o")
+rear_grip_curve = SubResource("Curve_bo5md")
+steering_torque_magnitude = 800.0
+max_engine_torque = 15000.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="CarRigidBody3D"]
 skeleton = NodePath("../CollisionShape3D")
@@ -60,44 +99,93 @@ transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, -1.5, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CarRigidBody3D"]
 
-[node name="CSGBox3D2" type="CSGBox3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.3485413, 0, -397.2572)
-use_collision = true
-size = Vector3(922.8017, 103.62, 1)
-material = SubResource("StandardMaterial3D_kkwn3")
-
-[node name="CSGBox3D3" type="CSGBox3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2468872, 0, 406.1413)
-use_collision = true
-size = Vector3(957.7623, 103.62, 1)
-material = SubResource("StandardMaterial3D_kkwn3")
-
-[node name="CSGBox3D4" type="CSGBox3D" parent="."]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -407.224, 0, 0.04762268)
-use_collision = true
-size = Vector3(820.65063, 103.62, 1)
-material = SubResource("StandardMaterial3D_kkwn3")
-
-[node name="CSGBox3D5" type="CSGBox3D" parent="."]
-transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 457.67493, 0, 0.10600281)
-use_collision = true
-size = Vector3(957.21265, 103.62, 1)
-material = SubResource("StandardMaterial3D_kkwn3")
-
 [node name="CSGBox3D" type="CSGBox3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.333252, 0)
 use_collision = true
-size = Vector3(1000, 0.25, 1000)
-material = SubResource("StandardMaterial3D_kkwn3")
+size = Vector3(1000, 1, 1000)
+material = ExtResource("4_rafu7")
 
-[node name="CSGBox3D6" type="CSGBox3D" parent="."]
-transform = Transform3D(0.33005312, 0.9439624, 0, -0.9439624, 0.33005312, 0, 0, 0, 1, -168.96959, 6.7410793, -89.470566)
+[node name="CSGCylinder3D2" type="CSGCylinder3D" parent="CSGBox3D"]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -25.010454)
 use_collision = true
-size = Vector3(1, 124.37685, 225.12448)
-material = SubResource("StandardMaterial3D_kkwn3")
+radius = 0.548
+height = 21.6875
 
-[node name="CSGBox3D7" type="CSGBox3D" parent="."]
-transform = Transform3D(0.037882037, 0.99928224, 0, -0.99928224, 0.037882037, 0, 0, 0, 1, 41.604977, 32.460617, -91.42442)
+[node name="CSGCylinder3D3" type="CSGCylinder3D" parent="CSGBox3D"]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -28.348787)
 use_collision = true
-size = Vector3(1, 306.8213, 229.0322)
-material = SubResource("StandardMaterial3D_kkwn3")
+radius = 0.548
+height = 21.6875
+
+[node name="CSGCylinder3D4" type="CSGCylinder3D" parent="CSGBox3D"]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -32.0292)
+use_collision = true
+radius = 0.548
+height = 21.6875
+
+[node name="CSGCylinder3D5" type="CSGCylinder3D" parent="CSGBox3D"]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -35.537086)
+use_collision = true
+radius = 0.548
+height = 21.6875
+
+[node name="CSGBox3D6" type="CSGBox3D" parent="CSGBox3D"]
+transform = Transform3D(1, 0, 0, 0, 0.96814764, -0.25038, 0, 0.25038, 0.96814764, 10.887694, 1.9056063, -7.0338497)
+use_collision = true
+size = Vector3(18.671509, 1, 31.149704)
+material = ExtResource("4_rafu7")
+
+[node name="CSGCylinder3D" type="CSGCylinder3D" parent="CSGBox3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.131958, 11.269211, -53.630283)
+use_collision = true
+radius = 6.011
+height = 34.756
+
+[node name="CSGBox3D2" type="CSGBox3D" parent="CSGBox3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6711769, 8.674805, 499.26956)
+use_collision = true
+size = Vector3(1111, 20, 1)
+
+[node name="CSGBox3D4" type="CSGBox3D" parent="CSGBox3D"]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 489.20087, 6.7751884, 3.9732132)
+use_collision = true
+size = Vector3(1111, 20, 1)
+
+[node name="CSGBox3D3" type="CSGBox3D" parent="CSGBox3D"]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -495.93942, 8.824875, 0.81622696)
+use_collision = true
+size = Vector3(1111, 20, 1)
+
+[node name="CSGBox3D5" type="CSGBox3D" parent="CSGBox3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99295425, 8.674805, -499.03317)
+use_collision = true
+size = Vector3(1111, 20, 1)
+
+[node name="CSGPolygon3D" type="CSGPolygon3D" parent="CSGBox3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.619602, -10.454519, 0)
+use_collision = true
+polygon = PackedVector2Array(0, 2, 5, 4, 10, 2, 10, 0, 0, 0)
+mode = 2
+path_node = NodePath("../Path3D")
+path_interval_type = 0
+path_interval = 1.0
+path_simplify_angle = 0.0
+path_rotation = 2
+path_rotation_accurate = false
+path_local = false
+path_continuous_u = true
+path_u_distance = 1.0
+path_joined = false
+material = ExtResource("4_rafu7")
+
+[node name="Path3D" type="Path3D" parent="CSGBox3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.994751, 0)
+curve = SubResource("Curve3D_rafu7")
+
+[node name="RigidBody3D" type="RigidBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.659877, 6.0172076, 0)
+
+[node name="CSGSphere3D" type="CSGSphere3D" parent="RigidBody3D"]
+use_collision = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
+shape = SubResource("SphereShape3D_rafu7")

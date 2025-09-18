@@ -11,7 +11,9 @@ extends Node3D
 @export var max_zoom_distance := 40.0
 @export var target_distance: float = 0.0
 
-@onready var camera: Camera3D = $FlyCamera3D
+var middle_mouse_pressed: bool = false
+
+@onready var camera: Camera3D = $CarCamera3D
 
 func _ready():
     Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -21,9 +23,14 @@ func _ready():
 func _physics_process(delta: float) -> void:
     if is_instance_valid(target):
         global_transform.origin = target.global_transform.origin
-        # Calculate camera position at target_distance along local -Z axis
-        # Calculate camera position at target_distance along local -Z axis
-        camera.transform.origin = Vector3(0, y_dis, target_distance)
+
+        if not middle_mouse_pressed:
+            # Automatically keep camera behind target
+            var behind_offset = target.global_transform.basis.z.normalized() * target_distance
+            camera.global_transform.origin = target.global_transform.origin + behind_offset + Vector3(0, y_dis, 0)
+        else:
+            # Use manual orbit positioning
+            camera.transform.origin = Vector3(0, y_dis, target_distance) * target.transform
         camera.look_at(target.global_transform.origin, Vector3.UP)
 
 func _input(event):
@@ -32,8 +39,10 @@ func _input(event):
             target_distance = clamp(target_distance - zoom_speed, min_zoom_distance, max_zoom_distance)
         elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
             target_distance = clamp(target_distance + zoom_speed, min_zoom_distance, max_zoom_distance)
-            
-    elif event is InputEventMouseMotion:
+        elif event.button_index == MOUSE_BUTTON_MIDDLE:
+            middle_mouse_pressed = event.pressed
+
+    elif event is InputEventMouseMotion and middle_mouse_pressed:
         # Orbit pivot horizontally around Y
         rotate_y(-event.relative.x * orbit_speed * 0.01)
 
