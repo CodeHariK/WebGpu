@@ -26,26 +26,26 @@ void MinecraftNode::_process(double delta) {
 		return;
 	}
 
-	if (terrain_dirty) {
-		String children = String::num_int64(get_child_count());
-		for (int i = 0; i < get_child_count(); i++) {
-			Node *c = get_child(i);
-			children += ", " + c->get_name();
-		}
-		UtilityFunctions::print(children);
+	// if (terrain_dirty) {
+	// 	String children = String::num_int64(get_child_count());
+	// 	for (int i = 0; i < get_child_count(); i++) {
+	// 		Node *c = get_child(i);
+	// 		children += ", " + c->get_name();
+	// 	}
+	// 	UtilityFunctions::print(children);
 
-		heights = generate_terrain_heights(false);
-		generate_terrain("HTerrain", Vector3(0, 0, 0));
-		generate_cube_terrain("CTerrain", Vector3(100, 0, 0));
-		generate_chunked_terrain("KTerrain", Vector3(200, 0, 0));
+	// 	heights = generate_terrain_heights(false);
+	// 	generate_terrain("HTerrain", Vector3(0, 0, 0));
+	// 	generate_cube_terrain("CTerrain", Vector3(100, 0, 0));
+	// 	generate_chunked_terrain("KTerrain", Vector3(200, 0, 0));
 
-		heights = generate_terrain_heights(true);
-		generate_terrain("SHTerrain", Vector3(0, 0, 100));
-		generate_cube_terrain("SCTerrain", Vector3(100, 0, 100));
-		generate_chunked_terrain("SKTerrain", Vector3(200, 0, 100));
+	// 	heights = generate_terrain_heights(true);
+	// 	generate_terrain("SHTerrain", Vector3(0, 0, 100));
+	// 	generate_cube_terrain("SCTerrain", Vector3(100, 0, 100));
+	// 	generate_chunked_terrain("SKTerrain", Vector3(200, 0, 100));
 
-		terrain_dirty = false;
-	}
+	// 	terrain_dirty = false;
+	// }
 }
 
 void MinecraftNode::_ready() {
@@ -55,4 +55,8 @@ void MinecraftNode::_ready() {
 	}
 
 	setup_ui();
+
+	// minHeapTest();
+	// jsonTest("res://assets/library.json");
+	loadBlendFile("res://assets/Voxel.blend");
 }

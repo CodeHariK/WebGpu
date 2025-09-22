@@ -69,9 +69,9 @@ private:
 	void generate_cube_terrain(String name, Vector3 pos);
 	void generate_chunked_terrain(String name, Vector3 pos);
 
-	void blendTest();
+	void loadBlendFile(String path);
 	void minHeapTest();
-	void jsonTest();
+	void jsonTest(String path);
 
 	void raycast();
 

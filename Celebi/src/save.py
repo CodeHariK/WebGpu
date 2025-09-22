@@ -18,11 +18,11 @@ class LIBRARY_OT_save(Operator):
     bl_label = "Save Library"
 
     filepath: StringProperty(subtype="FILE_PATH")
-    filter_glob: StringProperty(default="*.celebi", options={"HIDDEN"})
+    filter_glob: StringProperty(default="*.json", options={"HIDDEN"})
 
     def execute(self, context):
-        if not self.filepath.lower().endswith(".celebi"):
-            self.filepath += ".celebi"
+        if not self.filepath.lower().endswith(".json"):
+            self.filepath += ".json"
 
         c = type.celebi()
 
@@ -44,7 +44,7 @@ class LIBRARY_OT_save(Operator):
 
     def invoke(self, context, event):
         if not self.filepath:
-            self.filepath = "library.celebi"
+            self.filepath = "library.json"
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
 
@@ -54,7 +54,7 @@ class LIBRARY_OT_load(Operator):
     bl_label = "Load Library"
 
     filepath: StringProperty(subtype="FILE_PATH")
-    filter_glob: StringProperty(default="*.celebi", options={"HIDDEN"})
+    filter_glob: StringProperty(default="*.json", options={"HIDDEN"})
 
     def execute(self, context):
         with open(self.filepath, "r", encoding="utf-8") as f:
@@ -77,7 +77,7 @@ class LIBRARY_OT_load(Operator):
 
     def invoke(self, context, event):
         if not self.filepath:
-            self.filepath = "library.celebi"
+            self.filepath = "library.json"
         context.window_manager.fileselect_add(self)
         return {"RUNNING_MODAL"}
 

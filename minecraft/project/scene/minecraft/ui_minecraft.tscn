@@ -29,7 +29,6 @@ frequency = 0.0346
 fractal_octaves = 2
 
 [node name="UiMinecraft" type="CanvasLayer"]
-script = ExtResource("1_mkywg")
 
 [node name="HealthBar" type="ProgressBar" parent="."]
 anchors_preset = 5
@@ -102,8 +101,10 @@ offset_bottom = 40.0
 script = ExtResource("3_x18o4")
 
 [node name="TextureRect" type="TextureRect" parent="."]
+visible = false
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_mkywg")
