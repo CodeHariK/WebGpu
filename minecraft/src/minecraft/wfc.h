@@ -78,6 +78,7 @@ private:
 	Vector<WFCTile> tile_prototypes;
 	Vector<WFCCell> grid;
 	int collapsed_count = 0;
+	Dictionary compatibility_map;
 
 	void clear_scene() {
 		for (int i = get_child_count() - 1; i >= 0; --i) {
@@ -88,6 +89,7 @@ private:
 
 	bool parse_tile_definitions() {
 		tile_prototypes.clear();
+		compatibility_map.clear();
 		ResourceLoader *rl = ResourceLoader::get_singleton();
 
 		for (int i = 0; i < tile_definitions.size(); ++i) {
@@ -116,6 +118,27 @@ private:
 
 			tile_prototypes.push_back(tile);
 		}
+
+		if (tile_prototypes.is_empty()) {
+			return false;
+		}
+
+		// --- Pre-calculate the compatibility map ---
+		// For each hash and each direction, find all tiles that have that hash on that face.
+		for (int i = 0; i < tile_prototypes.size(); ++i) {
+			const WFCTile &tile = tile_prototypes[i];
+			for (int dir = 0; dir < 6; ++dir) {
+				// Key: (hash, direction)
+				int64_t key = (int64_t(tile.hashes[dir]) << 3) + dir;
+
+				if (!compatibility_map.has(key)) {
+					compatibility_map[key] = Array();
+				}
+				Array arr = compatibility_map[key];
+				arr.push_back(i); // Add tile_id to the list for this hash/direction pair
+			}
+		}
+		UtilityFunctions::print("Hash-to-tile compatibility map generated.");
 
 		return !tile_prototypes.is_empty();
 	}
@@ -203,28 +226,30 @@ private:
 				Vector<int> &possible_neighbor_tiles = grid_ptrw[neighbor_idx].possible_tiles;
 				bool changed = false;
 
+				// --- OPTIMIZATION using pre-calculated map ---
+				// 1. Build a set of all tile IDs that are valid neighbors for this direction,
+				//    based on the current cell's possibilities.
+				Dictionary valid_neighbor_ids;
+				for (int k = 0; k < possible_current_tiles.size(); ++k) {
+					int current_tile_id = possible_current_tiles[k];
+					int hash_to_match = tile_prototypes[current_tile_id].hashes[i];
+
+					// Find all tiles that have this hash on the opposite face.
+					int64_t lookup_key = (int64_t(hash_to_match) << 3) + opposite_dir_idx[i];
+					if (compatibility_map.has(lookup_key)) {
+						Array compatible_tiles = compatibility_map[lookup_key];
+						for (int l = 0; l < compatible_tiles.size(); ++l) {
+							valid_neighbor_ids[compatible_tiles[l]] = true; // Add to the set of valid neighbors
+						}
+					}
+				}
+
 				// Check each of the neighbor's possible tiles
 				for (int j = possible_neighbor_tiles.size() - 1; j >= 0; --j) {
 					int neighbor_tile_id = possible_neighbor_tiles[j];
-					const WFCTile &neighbor_tile = tile_prototypes[neighbor_tile_id];
-					int neighbor_connector_hash = neighbor_tile.hashes[opposite_dir_idx[i]];
 
-					bool is_compatible = false;
-					// Check if it's compatible with ANY of the current cell's possibilities
-					for (int k = 0; k < possible_current_tiles.size(); ++k) {
-						int current_tile_id = possible_current_tiles[k];
-						const WFCTile &current_tile = tile_prototypes[current_tile_id];
-						int current_connector_hash = current_tile.hashes[i];
-
-						// --- COMPATIBILITY RULE ---
-						// For now, we assume hashes must be equal.
-						// You could implement a more complex rule here (e.g., matching reversed hashes).
-						if (current_connector_hash == neighbor_connector_hash) {
-							is_compatible = true;
-							break;
-						}
-					}
-
+					// 2. A tile is compatible if its ID is in our set of valid IDs.
+					bool is_compatible = valid_neighbor_ids.has(neighbor_tile_id);
 					if (!is_compatible) {
 						possible_neighbor_tiles.remove_at(j);
 						changed = true;

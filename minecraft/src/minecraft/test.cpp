@@ -1,6 +1,5 @@
 #include "minecraft.h"
 
-#include "godot_cpp/classes/node3d.hpp"
 #include "godot_cpp/classes/ref.hpp"
 
 #include "godot_cpp/core/memory.hpp"
@@ -14,6 +13,7 @@
 #include <godot_cpp/classes/resource_loader.hpp>
 
 #include <godot_cpp/classes/file_access.hpp>
+#include <string>
 
 #include "../include/celebi_parse.hpp"
 #include "../include/json.hpp"
@@ -24,50 +24,48 @@
 #define JC_VORONOI_IMPLEMENTATION
 #include "../include/jc_voronoi.h"
 
-#include <string>
-
 using njson = nlohmann::json;
 
-void MinecraftNode::blendTest() {
-	// Load the entire .blend file as a PackedScene and print mesh/object/material names
-	Ref<Resource> blend_resource = ResourceLoader::get_singleton()->load("res://assets/Voxel.blend");
+void traverse(MinecraftNode *current, Node *node, int *mesh_instance_counter) {
+	MeshInstance3D *meshInstance = Object::cast_to<MeshInstance3D>(node);
+	if (meshInstance) {
+		Ref<Mesh> meshObj = meshInstance->get_mesh();
+		if (meshObj.is_valid()) {
+			UtilityFunctions::print(String("  Mesh: ") + " " + meshInstance->get_name() + " " + meshObj->get_name());
+
+			int surf_count = meshObj->get_surface_count();
+			for (int i = 0; i < surf_count; ++i) {
+				Ref<Material> mat = meshObj->surface_get_material(i);
+				if (mat.is_valid()) {
+					UtilityFunctions::print(String("    Material: ") + mat->get_name());
+				}
+			}
+
+			MeshInstance3D *new_mesh_instance = memnew(MeshInstance3D);
+			new_mesh_instance->set_mesh(meshObj);
+			new_mesh_instance->set_name(meshObj->get_name() + String::num(*mesh_instance_counter));
+			new_mesh_instance->set_transform(meshInstance->get_transform());
+			new_mesh_instance->set_position(Vector3(*mesh_instance_counter, 0, 0));
+			current->add_child(new_mesh_instance);
+			(*mesh_instance_counter)++;
+		}
+	}
+	int child_count = node->get_child_count();
+	for (int i = 0; i < child_count; ++i) {
+		Node *child = node->get_child(i);
+		traverse(current, child, mesh_instance_counter);
+	}
+}
+
+// Load the entire .blend file as a PackedScene and print mesh/object/material names
+void MinecraftNode::loadBlendFile(String path) {
+	Ref<Resource> blend_resource = ResourceLoader::get_singleton()->load(path);
 	if (blend_resource.is_valid() && blend_resource->is_class("PackedScene")) {
 		Ref<PackedScene> packed_scene = blend_resource;
 		Node *scene_root = packed_scene->instantiate();
 		if (scene_root) {
-			// Recursive lambda for traversing children
 			int mesh_instance_counter = 0;
-			std::function<void(Node *)> traverse = [&](Node *node) {
-				if (Object::cast_to<Node3D>(node)) {
-					UtilityFunctions::print(String("Node3D: ") + node->get_name());
-				}
-				MeshInstance3D *mesh_instance = Object::cast_to<MeshInstance3D>(node);
-				if (mesh_instance) {
-					Ref<Mesh> m = mesh_instance->get_mesh();
-					if (m.is_valid()) {
-						UtilityFunctions::print(String("  Mesh: ") + m->get_name());
-						int surf_count = m->get_surface_count();
-						for (int i = 0; i < surf_count; ++i) {
-							Ref<Material> mat = m->surface_get_material(i);
-							if (mat.is_valid()) {
-								UtilityFunctions::print(String("    Material: ") + mat->get_name());
-							}
-						}
-						// Instantiate a new MeshInstance3D for each mesh and add it as child to this HelloNode
-						MeshInstance3D *new_mesh_instance = memnew(MeshInstance3D);
-						new_mesh_instance->set_mesh(m);
-						new_mesh_instance->set_name(String("ImportedMeshInstance") + String::num(mesh_instance_counter++));
-						new_mesh_instance->set_transform(mesh_instance->get_transform());
-						this->add_child(new_mesh_instance);
-					}
-				}
-				int child_count = node->get_child_count();
-				for (int i = 0; i < child_count; ++i) {
-					Node *child = node->get_child(i);
-					traverse(child);
-				}
-			};
-			traverse(scene_root);
+			traverse(this, scene_root, &mesh_instance_counter);
 			scene_root->queue_free();
 		}
 	}
@@ -95,41 +93,34 @@ void MinecraftNode::minHeapTest() {
 	godot::UtilityFunctions::print(String("ExtractMin: ") + pq.extractMin().value().c_str()); // cherry
 }
 
-void MinecraftNode::jsonTest() {
+void MinecraftNode::jsonTest(String path) {
 	std::string planetJsonStr = R"(
 		{
 			"planets": ["Mercury", "Venus", "Earth", "Mars",
 						"Jupiter", "Uranus", "Neptune"]
 		}
 	)";
-
-	// parse without exceptions
-	njson j = njson::parse(planetJsonStr, nullptr, false);
-
-	if (j.is_discarded()) {
+	njson planetJson = njson::parse(planetJsonStr, nullptr, false);
+	if (planetJson.is_discarded()) {
 		godot::UtilityFunctions::print("Failed to parse JSON!");
 	} else {
-		godot::UtilityFunctions::print(String("Parsed planets: ") + j.dump(2).c_str());
+		godot::UtilityFunctions::print(String("Parsed planets: ") + planetJson.dump(2).c_str());
 	}
 
-	// ---- Load and parse library.celebi without exceptions ----
-	Ref<FileAccess> f = FileAccess::open("res://data/library.json", FileAccess::READ);
-	if (f.is_null()) {
-		UtilityFunctions::print("Could not open library.json");
+	Ref<FileAccess> fileHandle = FileAccess::open(path, FileAccess::READ);
+	if (fileHandle.is_null()) {
+		UtilityFunctions::print("Could not open " + path);
 		return;
 	}
-
-	String content = f->get_as_text();
-	njson libraryJson = njson::parse(std::string(content.utf8().get_data()), nullptr, false);
-
+	String fileContent = fileHandle->get_as_text();
+	njson libraryJson = njson::parse(std::string(fileContent.utf8().get_data()), nullptr, false);
 	if (libraryJson.is_discarded()) {
-		UtilityFunctions::print("Parse error: invalid JSON in library.json");
+		UtilityFunctions::print("Parse error: invalid JSON in " + path);
 		return;
 	}
-
-	Celebi::Data d1 = libraryJson.get<Celebi::Data>();
-	UtilityFunctions::print(String("library.json item count: ") + String::num_int64(d1.items.size()));
-	for (const auto &item : d1.items) {
+	Celebi::Data data = libraryJson.get<Celebi::Data>();
+	UtilityFunctions::print(String("Item count: ") + String::num_int64(data.items.size()));
+	for (const auto &item : data.items) {
 		UtilityFunctions::print(String(item.obj.c_str()));
 	}
 }
@@ -175,7 +166,7 @@ godot::Dictionary MinecraftNode::DelaunatorTest() {
 	}
 
 	// triangulation happens here
-	Delaunator d(coords);
+	Delaunator delTris(coords);
 
 	Array delaunay_edges;
 	Array voronoi_verts;
@@ -183,20 +174,20 @@ godot::Dictionary MinecraftNode::DelaunatorTest() {
 
 	// Step 1: Compute triangle centers (circumcenters)
 	std::vector<Vector2> centers;
-	size_t triangleCount = d.triangles.size() / 3;
+	size_t triangleCount = delTris.triangles.size() / 3;
 	centers.reserve(triangleCount);
 
 	for (size_t i = 0; i < triangleCount; ++i) {
-		Vector2 center = getTriangleCenter(d.triangles, coords, i);
+		Vector2 center = getTriangleCenter(delTris.triangles, coords, i);
 		centers.push_back(center);
 		voronoi_verts.append(center);
 	}
 
 	// Step 2: Generate Delaunay edges (as before)
-	for (size_t i = 0; i < d.triangles.size(); i += 3) {
-		size_t i0 = d.triangles[i];
-		size_t i1 = d.triangles[i + 1];
-		size_t i2 = d.triangles[i + 2];
+	for (size_t i = 0; i < delTris.triangles.size(); i += 3) {
+		size_t i0 = delTris.triangles[i];
+		size_t i1 = delTris.triangles[i + 1];
+		size_t i2 = delTris.triangles[i + 2];
 
 		Vector2 p0(coords[2 * i0], coords[2 * i0 + 1]);
 		Vector2 p1(coords[2 * i1], coords[2 * i1 + 1]);
@@ -211,8 +202,8 @@ godot::Dictionary MinecraftNode::DelaunatorTest() {
 	}
 
 	// Step 3: Loop over halfedges and construct Voronoi edges
-	for (size_t e = 0; e < d.halfedges.size(); ++e) {
-		size_t opposite = d.halfedges[e];
+	for (size_t e = 0; e < delTris.halfedges.size(); ++e) {
+		size_t opposite = delTris.halfedges[e];
 
 		// Only process each pair once
 		if (opposite != delaunator::INVALID_INDEX && e < opposite) {

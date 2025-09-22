@@ -1,8 +1,8 @@
-extends CanvasLayer
+extends TextureRect
 
 @export_range(128, 4096, 1, "exp") var dimension: int = 512
 
-@onready var heightmap_rect: TextureRect = $TextureRect
+@onready var heightmap_rect: TextureRect = $"."
 
 var noise: FastNoiseLite
 var gradient: Gradient
