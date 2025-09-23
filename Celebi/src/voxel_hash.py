@@ -24,6 +24,16 @@ CONFIGS = [
     ("SXR270", SXR270),
 ]
 
+_hash_to_id = {}
+_next_id = 1
+def get_compact_hash(h: int) -> int:
+    global _next_id
+
+    if h not in _hash_to_id:
+        _hash_to_id[h] = _next_id
+        _next_id += 1
+
+    return _hash_to_id[h]
 
 def to_signed32(x: int) -> int:
     x &= 0xFFFFFFFF  # keep only 32 bits
@@ -160,8 +170,9 @@ def plane_hash(
     hash = to_signed32((hash_value & 0xFFFFFFFF) ^ ((hash_value >> 32) & 0xFFFFFFFF))
 
     # print(f"{obj.name} {normal_axis} {sign} {direction}  {hash}")
+    # return hash
 
-    return hash
+    return get_compact_hash(hash)
 
 
 class VOXEL_OT_face_hash(bpy.types.Operator):
@@ -255,32 +266,32 @@ def calcHashes(
 
     if c.T_show_hash:
         add_text_at(
-            libItem.obj.location + Vector((-1.5, 0, 0.5)),
+            libItem.obj.location + Vector((-.8, 0, 0)),
             str(hash_NX),
             f"hash_{libItem.obj.name}_NX",
         )
         add_text_at(
-            libItem.obj.location + Vector((0.7, 0, 0.5)),
+            libItem.obj.location + Vector((0.7, 0, 0)),
             str(hash_PX),
             f"hash_{libItem.obj.name}_PX",
         )
         add_text_at(
-            libItem.obj.location + Vector((-0.4, -0.8, 0.5)),
+            libItem.obj.location + Vector((-0, -0.8, 0)),
             str(hash_NY),
             f"hash_{libItem.obj.name}_NY",
         )
         add_text_at(
-            libItem.obj.location + Vector((-0.4, 0.8, 0.5)),
+            libItem.obj.location + Vector((-0, 0.6, 0)),
             str(hash_PY),
             f"hash_{libItem.obj.name}_PY",
         )
         add_text_at(
-            libItem.obj.location + Vector((0.8, -0.8, -0.5)),
+            libItem.obj.location + Vector((0.7, -0.8, -0.5)),
             str(hash_NZ),
             f"hash_{libItem.obj.name}_NZ",
         )
         add_text_at(
-            libItem.obj.location + Vector((-1.5, 0.8, 0.5)),
+            libItem.obj.location + Vector((-.8, 0.6, 0.5)),
             str(hash_PZ),
             f"hash_{libItem.obj.name}_PZ",
         )
@@ -335,5 +346,5 @@ def add_text_at(location, text, name):
 
     ConfigCollection = type.getConfigCollection()
     ConfigCollection.objects.link(obj)
-    obj.scale = (0.15, 0.15, 0.15)
+    obj.scale = (0.25, 0.25, 0.25)
     return obj

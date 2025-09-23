@@ -2,183 +2,102 @@
     "items": [
         {
             "obj": "Grass",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
+            "hash_NX": 1,
+            "hash_PX": 1,
+            "hash_NY": 1,
+            "hash_PY": 1,
             "hash_PZ": 0,
-            "hash_NZ": 0
-        },
-        {
-            "obj": "Sand",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
-        },
-        {
-            "obj": "Water",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
-        },
-        {
-            "obj": "Soil",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "hash_NZ": 2
         },
         {
             "obj": "GrassPlant",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
+            "hash_NX": 1,
+            "hash_PX": 1,
+            "hash_NY": 1,
+            "hash_PY": 1,
             "hash_PZ": 0,
-            "hash_NZ": 0
-        },
-        {
-            "obj": "WaterGrassBridge",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
-        },
-        {
-            "obj": "WaterBridge",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
-        },
-        {
-            "obj": "GrassBarricade",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "hash_NZ": 2
         },
         {
             "obj": "GrassFull",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "hash_NX": 2,
+            "hash_PX": 2,
+            "hash_NY": 2,
+            "hash_PY": 2,
+            "hash_PZ": 2,
+            "hash_NZ": 2
         },
         {
-            "obj": "Stair",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "obj": "GrassCornerElevated",
+            "hash_NX": 1,
+            "hash_PX": 3,
+            "hash_NY": 1,
+            "hash_PY": 3,
+            "hash_PZ": 4,
+            "hash_NZ": 2
         },
         {
-            "obj": "GrassHalf",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "obj": "GrassHalfElevated",
+            "hash_NX": 1,
+            "hash_PX": 9,
+            "hash_NY": 3,
+            "hash_PY": 3,
+            "hash_PZ": 10,
+            "hash_NZ": 2
         },
         {
-            "obj": "GrassWaterCorner",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "obj": "GrassCornerElevated_R90",
+            "hash_NX": 3,
+            "hash_PX": 1,
+            "hash_NY": 1,
+            "hash_PY": 5,
+            "hash_PZ": 6,
+            "hash_NZ": 2
         },
         {
-            "obj": "WaterGrass",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "obj": "GrassCornerElevated_R180",
+            "hash_NX": 5,
+            "hash_PX": 1,
+            "hash_NY": 5,
+            "hash_PY": 1,
+            "hash_PZ": 7,
+            "hash_NZ": 2
         },
         {
-            "obj": "Rock",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "obj": "GrassCornerElevated_R270",
+            "hash_NX": 1,
+            "hash_PX": 5,
+            "hash_NY": 3,
+            "hash_PY": 1,
+            "hash_PZ": 8,
+            "hash_NZ": 2
         },
         {
-            "obj": "RockHalf",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "obj": "GrassHalfElevated_R90",
+            "hash_NX": 3,
+            "hash_PX": 3,
+            "hash_NY": 1,
+            "hash_PY": 9,
+            "hash_PZ": 11,
+            "hash_NZ": 2
         },
         {
-            "obj": "RockFull",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "obj": "GrassHalfElevated_R180",
+            "hash_NX": 9,
+            "hash_PX": 1,
+            "hash_NY": 5,
+            "hash_PY": 5,
+            "hash_PZ": 12,
+            "hash_NZ": 2
         },
         {
-            "obj": "GrassCornerRoundElevated",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
-        },
-        {
-            "obj": "GrassCornerRound",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
-        },
-        {
-            "obj": "GrassCornerInvRound",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
-        },
-        {
-            "obj": "GrassHalfSide",
-            "hash_NX": 0,
-            "hash_PX": 0,
-            "hash_NY": 0,
-            "hash_PY": 0,
-            "hash_PZ": 0,
-            "hash_NZ": 0
+            "obj": "GrassHalfElevated_R270",
+            "hash_NX": 5,
+            "hash_PX": 5,
+            "hash_NY": 9,
+            "hash_PY": 1,
+            "hash_PZ": 13,
+            "hash_NZ": 2
         }
     ],
     "voxels": []

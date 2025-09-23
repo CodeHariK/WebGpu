@@ -70,7 +70,6 @@ inline int direction_to_face_index(const Vector3i &dir) {
 	return -1; // Invalid direction
 }
 
-// Then modify build_chunk_mesh to use the lookup map:
 void add_face(PackedVector3Array &vertices, PackedVector3Array &normals,
 		PackedVector2Array &uvs, PackedInt32Array &indices,
 		const Vector3i &pos, const Vector3i &dir, int &index_offset) {
@@ -101,16 +100,18 @@ void add_face(PackedVector3Array &vertices, PackedVector3Array &normals,
 	}
 }
 
-Ref<ArrayMesh> MinecraftNode::build_chunk_mesh(int size) {
+void MinecraftNode::build_voxel_part_mesh(String name, Vector3 pos) {
 	PackedVector3Array vertices;
 	PackedVector3Array normals;
 	PackedVector2Array uvs;
 	PackedInt32Array indices;
 	int index_offset = 0;
 
-	for (int x = 0; x < size; x++) {
-		for (int z = 0; z < size; z++) {
-			int h = get_height(x, z);
+	PackedInt32Array heights = generate_terrain_heights(pos, false);
+
+	for (int x = 0; x < part_size; x++) {
+		for (int z = 0; z < part_size; z++) {
+			int h = heights[x + z * part_size];
 
 			// Top face
 			add_face(vertices, normals, uvs, indices,
@@ -128,8 +129,8 @@ Ref<ArrayMesh> MinecraftNode::build_chunk_mesh(int size) {
 				int nx = x + dx[dir_idx];
 				int nz = z + dz[dir_idx];
 				int neighbor_h = 0;
-				if (nx >= 0 && nx < size && nz >= 0 && nz < size) {
-					neighbor_h = get_height(nx, nz);
+				if (nx >= 0 && nx < part_size && nz >= 0 && nz < part_size) {
+					neighbor_h = heights[nx + nz * part_size];
 				}
 				if (h > neighbor_h) {
 					for (int y = neighbor_h + 1; y <= h; y++) {
@@ -151,17 +152,7 @@ Ref<ArrayMesh> MinecraftNode::build_chunk_mesh(int size) {
 	Ref<ArrayMesh> mesh;
 	mesh.instantiate();
 	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
-	return mesh;
-}
 
-void MinecraftNode::generate_chunked_terrain(String name, Vector3 pos) {
-	// Create voxel data
-	int size = terrain_len_x;
-
-	// Build one mesh directly from heights
-	Ref<ArrayMesh> mesh = build_chunk_mesh(size);
-
-	// Place a MeshInstance3D in the scene
 	MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(get_node_or_null(name));
 	if (!mi) {
 		mi = memnew(MeshInstance3D);
@@ -171,4 +162,8 @@ void MinecraftNode::generate_chunked_terrain(String name, Vector3 pos) {
 	mi->set_mesh(mesh);
 	mi->set_material_override(terrain_material);
 	mi->set_position(pos);
+}
+
+void MinecraftNode::generate_voxel_terrain(String name) {
+	build_voxel_part_mesh(name, Vector3(0, 0, 0));
 }

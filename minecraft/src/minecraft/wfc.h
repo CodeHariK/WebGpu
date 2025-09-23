@@ -1,7 +1,7 @@
 #ifndef WFC
 #define WFC
 
-#include "godot_cpp/classes/global_constants.hpp"
+#include "godot_cpp/classes/file_access.hpp"
 #include "godot_cpp/classes/node.hpp"
 #include "godot_cpp/classes/ref.hpp"
 #include "godot_cpp/classes/wrapped.hpp"
@@ -9,6 +9,7 @@
 #include "godot_cpp/core/object.hpp"
 #include "godot_cpp/core/property_info.hpp"
 #include "godot_cpp/templates/vector.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <godot_cpp/classes/mesh.hpp>
 #include <godot_cpp/classes/node3d.hpp>
@@ -24,8 +25,14 @@
 
 #include <random>
 #include <stack>
+#include <string>
+
+#include "../include/celebi_parse.hpp"
+#include "../include/help.hpp"
+#include "../include/json.hpp"
 
 using namespace godot;
+using njson = nlohmann::json;
 
 // A simple struct to hold all data for a single tile prototype.
 struct WFCTile {
@@ -34,7 +41,7 @@ struct WFCTile {
 
 	// Hashes for connectivity.
 	// Indices correspond to directions: 0:+X, 1:-X, 2:+Y, 3:-Y, 4:+Z, 5:-Z
-	int hashes[6];
+	int16_t hashes[6];
 };
 
 // Represents a single cell in the WFC grid.
@@ -65,82 +72,37 @@ protected:
 		ClassDB::bind_method(D_METHOD("set_grid_size", "size"), &WFCGenerator3D::set_grid_size);
 		ClassDB::bind_method(D_METHOD("get_grid_size"), &WFCGenerator3D::get_grid_size);
 		ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_size"), "set_grid_size", "get_grid_size");
-
-		ClassDB::bind_method(D_METHOD("set_tile_definitions", "definitions"), &WFCGenerator3D::set_tile_definitions);
-		ClassDB::bind_method(D_METHOD("get_tile_definitions"), &WFCGenerator3D::get_tile_definitions);
-		ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "tile_definitions", PROPERTY_HINT_ARRAY_TYPE, "Dictionary"), "set_tile_definitions", "get_tile_definitions");
 	}
 
 private:
 	Vector3i grid_size = Vector3i(10, 2, 10);
-	Array tile_definitions;
 
 	Vector<WFCTile> tile_prototypes;
 	Vector<WFCCell> grid;
 	int collapsed_count = 0;
 	Dictionary compatibility_map;
 
+	Celebi::Data loadCelebiJson(String path) {
+		Ref<FileAccess> fileHandle = FileAccess::open(path, FileAccess::READ);
+		if (fileHandle.is_null()) {
+			UtilityFunctions::print("Could not open " + path);
+			return {};
+		}
+		String fileContent = fileHandle->get_as_text();
+		njson libraryJson = njson::parse(std::string(fileContent.utf8().get_data()), nullptr, false);
+		if (libraryJson.is_discarded()) {
+			UtilityFunctions::print("Parse error: invalid JSON in " + path);
+			return {};
+		}
+		Celebi::Data data = libraryJson.get<Celebi::Data>();
+		return data;
+	}
+
 	void clear_scene() {
 		for (int i = get_child_count() - 1; i >= 0; --i) {
 			Node *child = get_child(i);
 			child->queue_free();
 		}
-	}
-
-	bool parse_tile_definitions() {
-		tile_prototypes.clear();
-		compatibility_map.clear();
-		ResourceLoader *rl = ResourceLoader::get_singleton();
-
-		for (int i = 0; i < tile_definitions.size(); ++i) {
-			Dictionary tile_dict = tile_definitions[i];
-			if (!tile_dict.has("obj") || !tile_dict.has("hash_PX")) {
-				UtilityFunctions::printerr("Tile definition at index ", i, " is missing required keys ('obj', 'hash_PX', etc).");
-				return false;
-			}
-
-			WFCTile tile;
-			tile.id = i;
-
-			String mesh_path = tile_dict["obj"];
-			tile.mesh = rl->load(mesh_path);
-			if (tile.mesh.is_null()) {
-				UtilityFunctions::printerr("Failed to load mesh at path: ", mesh_path);
-				return false;
-			}
-
-			tile.hashes[0] = tile_dict["hash_PX"];
-			tile.hashes[1] = tile_dict["hash_NX"];
-			tile.hashes[2] = tile_dict["hash_PY"];
-			tile.hashes[3] = tile_dict["hash_NY"];
-			tile.hashes[4] = tile_dict["hash_PZ"];
-			tile.hashes[5] = tile_dict["hash_NZ"];
-
-			tile_prototypes.push_back(tile);
-		}
-
-		if (tile_prototypes.is_empty()) {
-			return false;
-		}
-
-		// --- Pre-calculate the compatibility map ---
-		// For each hash and each direction, find all tiles that have that hash on that face.
-		for (int i = 0; i < tile_prototypes.size(); ++i) {
-			const WFCTile &tile = tile_prototypes[i];
-			for (int dir = 0; dir < 6; ++dir) {
-				// Key: (hash, direction)
-				int64_t key = (int64_t(tile.hashes[dir]) << 3) + dir;
-
-				if (!compatibility_map.has(key)) {
-					compatibility_map[key] = Array();
-				}
-				Array arr = compatibility_map[key];
-				arr.push_back(i); // Add tile_id to the list for this hash/direction pair
-			}
-		}
-		UtilityFunctions::print("Hash-to-tile compatibility map generated.");
-
-		return !tile_prototypes.is_empty();
 	}
 
 	void initialize_grid() {
@@ -276,19 +238,66 @@ public:
 		return grid_size;
 	}
 
-	void set_tile_definitions(const Array &p_defs) {
-		tile_definitions = p_defs;
-	}
-	Array get_tile_definitions() const {
-		return tile_definitions;
+	// This is the new primary way to provide tile data to the generator.
+	// It populates the internal data structures from your C++ structs.
+	void parse_tile_data() {
+		Celebi::Data p_data = loadCelebiJson("res://assets/library.json");
+
+		tile_prototypes.clear();
+		compatibility_map.clear();
+
+		godot::Dictionary meshes = Help::loadBlendFile("res://assets/Voxel.blend");
+
+		for (size_t i = 0; i < p_data.items.size(); ++i) {
+			const Celebi::LibraryItem &item = p_data.items[i];
+
+			WFCTile tile;
+			tile.id = i;
+
+			String mesh_path = String(item.obj.c_str());
+			tile.mesh = meshes[mesh_path];
+			if (tile.mesh.is_null()) {
+				UtilityFunctions::printerr("Failed to load mesh at path: ", mesh_path);
+				tile_prototypes.clear(); // Invalidate data on failure
+				return;
+			}
+
+			tile.hashes[0] = item.hashPx;
+			tile.hashes[1] = item.hashNx;
+			tile.hashes[2] = item.hashPy;
+			tile.hashes[3] = item.hashNy;
+			tile.hashes[4] = item.hashPz;
+			tile.hashes[5] = item.hashNz;
+
+			tile_prototypes.push_back(tile);
+		}
+
+		if (tile_prototypes.is_empty()) {
+			return;
+		}
+
+		// --- Pre-calculate the compatibility map ---
+		for (int i = 0; i < tile_prototypes.size(); ++i) {
+			const WFCTile &tile = tile_prototypes[i];
+			for (int dir = 0; dir < 6; ++dir) {
+				int64_t key = (int64_t(tile.hashes[dir]) << 3) + dir;
+				if (!compatibility_map.has(key)) {
+					compatibility_map[key] = Array();
+				}
+				Array arr = compatibility_map[key];
+				arr.push_back(i);
+			}
+		}
+		UtilityFunctions::print("Hash-to-tile compatibility map generated from C++ data.");
 	}
 
 	void generate() {
 		UtilityFunctions::print("Starting WFC generation...");
 		clear_scene();
 
-		if (!parse_tile_definitions()) {
-			UtilityFunctions::printerr("Could not parse tile definitions. Aborting.");
+		// The generate method now expects tile data to have been set already.
+		if (tile_prototypes.is_empty()) {
+			UtilityFunctions::printerr("No tile data has been set. Call set_tile_data() before generating. Aborting.");
 			return;
 		}
 

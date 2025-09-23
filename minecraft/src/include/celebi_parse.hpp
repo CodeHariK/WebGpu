@@ -1,6 +1,9 @@
 #pragma once
 
 #include "json.hpp"
+#include <cstdint>
+#include <string>
+#include <vector>
 
 namespace Celebi {
 using nlohmann::json;
@@ -18,12 +21,12 @@ inline json get_untyped(const json &j, std::string property) {
 
 struct LibraryItem {
 	std::string obj;
-	int64_t hashNx;
-	int64_t hashPx;
-	int64_t hashNy;
-	int64_t hashPy;
-	int64_t hashPz;
-	int64_t hashNz;
+	int16_t hashNx;
+	int16_t hashPx;
+	int16_t hashNy;
+	int16_t hashPy;
+	int16_t hashPz;
+	int16_t hashNz;
 };
 
 struct Data {
@@ -33,12 +36,12 @@ struct Data {
 
 inline void from_json(const json &j, LibraryItem &x) {
 	x.obj = j.at("obj").get<std::string>();
-	x.hashNx = j.at("hash_NX").get<int64_t>();
-	x.hashPx = j.at("hash_PX").get<int64_t>();
-	x.hashNy = j.at("hash_NY").get<int64_t>();
-	x.hashPy = j.at("hash_PY").get<int64_t>();
-	x.hashPz = j.at("hash_PZ").get<int64_t>();
-	x.hashNz = j.at("hash_NZ").get<int64_t>();
+	x.hashNx = j.at("hash_NX").get<int16_t>();
+	x.hashPx = j.at("hash_PX").get<int16_t>();
+	x.hashNy = j.at("hash_NY").get<int16_t>();
+	x.hashPy = j.at("hash_PY").get<int16_t>();
+	x.hashPz = j.at("hash_PZ").get<int16_t>();
+	x.hashNz = j.at("hash_NZ").get<int16_t>();
 }
 
 inline void to_json(json &j, const LibraryItem &x) {

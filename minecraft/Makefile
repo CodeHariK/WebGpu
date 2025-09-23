@@ -20,6 +20,10 @@ br:
 	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
 	godot --path project
 
+celebi:
+	cp ../Celebi/example/Voxel.blend project/assets/
+	cp ../Celebi/example/library.json project/assets/
+
 clang:
 	$(SCONS) target=$(TARGET) platform=$(PLATFORM) compiledb=yes compile_commands.json
 

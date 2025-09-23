@@ -1,3 +1,4 @@
+#include "godot_cpp/variant/packed_int32_array.hpp"
 #include "minecraft.h"
 
 #include "godot_cpp/classes/node3d.hpp"
@@ -26,15 +27,17 @@ void MinecraftNode::generate_cube_terrain(String name, Vector3 pos) {
 		}
 	}
 
+	PackedInt32Array heights = generate_terrain_heights(pos, false);
+
 	// Create a shared cube mesh
 	Ref<BoxMesh> cube_mesh;
 	cube_mesh.instantiate();
 	cube_mesh->set_size(Vector3(1, 1, 1));
 
 	// Step 2: Place cubes for top + exposed sides
-	for (int z = 0; z < terrain_len_z; ++z) {
-		for (int x = 0; x < terrain_len_x; ++x) {
-			int h = get_height(x, z);
+	for (int z = 0; z < part_size; ++z) {
+		for (int x = 0; x < part_size; ++x) {
+			int h = heights[x + z * part_size];
 
 			// --- Top cube
 			{
@@ -55,8 +58,8 @@ void MinecraftNode::generate_cube_terrain(String name, Vector3 pos) {
 				int nz = z + dz[dir];
 
 				int neighbor_h = 0;
-				if (nx >= 0 && nx < terrain_len_x && nz >= 0 && nz < terrain_len_z) {
-					neighbor_h = get_height(nx, nz);
+				if (nx >= 0 && nx < part_size && nz >= 0 && nz < part_size) {
+					neighbor_h = heights[nx + nz * part_size];
 				}
 
 				// If current column is higher, fill the side wall

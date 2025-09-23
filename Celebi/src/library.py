@@ -92,17 +92,17 @@ class LIBRARY_PT_panel(Panel):
             if item and item.obj:
                 grid = l.grid_flow(columns=2, row_major=True)
 
-                grid.label(text="NY")
-                grid.label(text=f"{item.hash_NY}")
-
-                grid.label(text="PY")
-                grid.label(text=f"{item.hash_PY}")
-
                 grid.label(text="NX")
                 grid.label(text=f"{item.hash_NX}")
 
                 grid.label(text="PX")
                 grid.label(text=f"{item.hash_PX}")
+
+                grid.label(text="NY")
+                grid.label(text=f"{item.hash_NY}")
+
+                grid.label(text="PY")
+                grid.label(text=f"{item.hash_PY}")
 
                 grid.label(text="PZ")
                 grid.label(text=f"{item.hash_PZ}")
