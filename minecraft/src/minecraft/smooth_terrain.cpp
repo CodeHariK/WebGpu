@@ -12,11 +12,11 @@
 
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 
-void MinecraftNode::generate_smooth_part_mesh(String name, Vector3 pos) {
+void MinecraftNode::generate_smooth_part_mesh(String name, Vector3 pos, bool height_curve_sampling) {
 	PackedVector3Array vertices;
 	PackedInt32Array indices;
 
-	PackedInt32Array heights = generate_terrain_heights(pos, false);
+	PackedInt32Array heights = generate_terrain_heights(pos, height_curve_sampling);
 
 	// Generate vertices from height map
 	for (int z = 0; z < part_size; ++z) {
@@ -61,7 +61,6 @@ void MinecraftNode::generate_smooth_part_mesh(String name, Vector3 pos) {
 	mesh.instantiate();
 	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
 
-	// Create MeshInstance3D
 	MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(get_node_or_null(name));
 	if (!mi) {
 		mi = memnew(MeshInstance3D);
@@ -70,8 +69,4 @@ void MinecraftNode::generate_smooth_part_mesh(String name, Vector3 pos) {
 	}
 	mi->set_mesh(mesh);
 	mi->set_material_override(terrain_material);
-}
-
-void MinecraftNode::generate_smooth_terrain(String name) {
-	generate_smooth_part_mesh(name, Vector3(0, 0, 0));
 }
