@@ -13,7 +13,7 @@
 
 #include <godot_cpp/classes/box_mesh.hpp>
 
-void MinecraftNode::generate_cube_terrain(String name, Vector3 pos) {
+void MinecraftNode::generate_cube_part_mesh(String name, Vector3 pos, bool height_curve_sampling) {
 	// Parent node to hold all cubes
 	Node3D *voxel_parent = Object::cast_to<Node3D>(get_node_or_null(name));
 	if (!voxel_parent) {
@@ -27,7 +27,7 @@ void MinecraftNode::generate_cube_terrain(String name, Vector3 pos) {
 		}
 	}
 
-	PackedInt32Array heights = generate_terrain_heights(pos, false);
+	PackedInt32Array heights = generate_terrain_heights(pos, height_curve_sampling);
 
 	// Create a shared cube mesh
 	Ref<BoxMesh> cube_mesh;

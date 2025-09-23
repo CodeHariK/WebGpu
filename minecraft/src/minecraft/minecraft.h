@@ -1,7 +1,6 @@
 #ifndef MinecraftNode_CLASS
 #define MinecraftNode_CLASS
 
-#include "godot_cpp/classes/array_mesh.hpp"
 #include "godot_cpp/classes/global_constants.hpp"
 #include "godot_cpp/classes/node.hpp"
 #include "godot_cpp/classes/ref.hpp"
@@ -10,6 +9,9 @@
 #include "godot_cpp/variant/dictionary.hpp"
 #include "godot_cpp/variant/packed_int32_array.hpp"
 #include "godot_cpp/variant/vector3.hpp"
+#include <godot_cpp/variant/vector2i.hpp>
+
+#include <map>
 
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/curve.hpp>
@@ -41,10 +43,18 @@ struct MinecraftUI {
 	}
 };
 
+struct Part {
+	Node3D *node = nullptr;
+};
+
 class MinecraftNode : public Node3D {
 	GDCLASS(MinecraftNode, Node3D);
 
 private:
+	// Chunking and LOD members
+	int render_distance = 8; // in chunks
+	std::map<Vector2i, Part> m_parts;
+
 	int part_size = 32;
 
 	float terrain_height = 12.0f;
@@ -61,13 +71,11 @@ private:
 
 	PackedInt32Array generate_terrain_heights(Vector3 pos, bool height_curve_sampling);
 
-	void generate_smooth_part_mesh(String name, Vector3 pos);
-	void generate_smooth_terrain(String name);
+	void generate_smooth_part_mesh(String name, Vector3 pos, bool height_curve_sampling);
+	void generate_cube_part_mesh(String name, Vector3 pos, bool height_curve_sampling);
+	void generate_voxel_part_mesh(String name, Vector3 pos, bool height_curve_sampling);
 
-	void generate_cube_terrain(String name, Vector3 pos);
-
-	void build_voxel_part_mesh(String name, Vector3 pos);
-	void generate_voxel_terrain(String name);
+	Node3D *generate_part_at(Vector2i part_pos);
 
 	void minHeapTest();
 

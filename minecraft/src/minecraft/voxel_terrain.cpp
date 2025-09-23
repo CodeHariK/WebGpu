@@ -100,14 +100,14 @@ void add_face(PackedVector3Array &vertices, PackedVector3Array &normals,
 	}
 }
 
-void MinecraftNode::build_voxel_part_mesh(String name, Vector3 pos) {
+void MinecraftNode::generate_voxel_part_mesh(String name, Vector3 pos, bool height_curve_sampling) {
 	PackedVector3Array vertices;
 	PackedVector3Array normals;
 	PackedVector2Array uvs;
 	PackedInt32Array indices;
 	int index_offset = 0;
 
-	PackedInt32Array heights = generate_terrain_heights(pos, false);
+	PackedInt32Array heights = generate_terrain_heights(pos, height_curve_sampling);
 
 	for (int x = 0; x < part_size; x++) {
 		for (int z = 0; z < part_size; z++) {
@@ -162,8 +162,4 @@ void MinecraftNode::build_voxel_part_mesh(String name, Vector3 pos) {
 	mi->set_mesh(mesh);
 	mi->set_material_override(terrain_material);
 	mi->set_position(pos);
-}
-
-void MinecraftNode::generate_voxel_terrain(String name) {
-	build_voxel_part_mesh(name, Vector3(0, 0, 0));
 }
