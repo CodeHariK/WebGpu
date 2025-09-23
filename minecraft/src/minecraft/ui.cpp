@@ -38,8 +38,7 @@ void MinecraftNode::ui_on_header_button_pressed() {
 }
 
 void MinecraftNode::ui_on_terrain_slider_change(double value) {
-	terrain_len_x = (int)value;
-	terrain_len_z = (int)value;
+	part_size = (int)value;
 	terrain_dirty = true;
 }
 

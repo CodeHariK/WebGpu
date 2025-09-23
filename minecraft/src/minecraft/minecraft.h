@@ -7,6 +7,7 @@
 #include "godot_cpp/classes/ref.hpp"
 #include "godot_cpp/classes/wrapped.hpp"
 #include "godot_cpp/core/property_info.hpp"
+#include "godot_cpp/variant/dictionary.hpp"
 #include "godot_cpp/variant/packed_int32_array.hpp"
 #include "godot_cpp/variant/vector3.hpp"
 
@@ -44,10 +45,10 @@ class MinecraftNode : public Node3D {
 	GDCLASS(MinecraftNode, Node3D);
 
 private:
-	int terrain_len_x = 64;
-	int terrain_len_z = 64;
-	float terrain_freq = 0.05f;
+	int part_size = 32;
+
 	float terrain_height = 12.0f;
+	float terrain_freq = 0.05f;
 	Ref<Material> terrain_material;
 	Ref<Curve> height_curve;
 	Ref<Tween> tween;
@@ -58,36 +59,29 @@ private:
 
 	MinecraftUI ui;
 
-	PackedInt32Array heights;
-	PackedInt32Array generate_terrain_heights(bool height_curve_sampling);
-	inline int get_height(int x, int z) {
-		return heights[x + z * terrain_len_x];
-	}
+	PackedInt32Array generate_terrain_heights(Vector3 pos, bool height_curve_sampling);
 
-	Ref<ArrayMesh> build_chunk_mesh(int size);
-	void generate_terrain(String name, Vector3 pos);
+	void generate_smooth_part_mesh(String name, Vector3 pos);
+	void generate_smooth_terrain(String name);
+
 	void generate_cube_terrain(String name, Vector3 pos);
-	void generate_chunked_terrain(String name, Vector3 pos);
 
-	void loadBlendFile(String path);
+	void build_voxel_part_mesh(String name, Vector3 pos);
+	void generate_voxel_terrain(String name);
+
 	void minHeapTest();
-	void jsonTest(String path);
 
 	void raycast();
 
 protected:
 	static void _bind_methods() {
-		ClassDB::bind_method(D_METHOD("set_terrain_width", "width"), &MinecraftNode::set_terrain_width);
-		ClassDB::bind_method(D_METHOD("get_terrain_width"), &MinecraftNode::get_terrain_width);
-		ADD_PROPERTY(PropertyInfo(Variant::INT, "terrain_width"), "set_terrain_width", "get_terrain_width");
+		ClassDB::bind_method(D_METHOD("set_part_size", "width"), &MinecraftNode::set_part_size);
+		ClassDB::bind_method(D_METHOD("get_part_size"), &MinecraftNode::get_part_size);
+		ADD_PROPERTY(PropertyInfo(Variant::INT, "part_size"), "set_part_size", "get_part_size");
 
-		ClassDB::bind_method(D_METHOD("set_terrain_depth", "depth"), &MinecraftNode::set_terrain_depth);
-		ClassDB::bind_method(D_METHOD("get_terrain_depth"), &MinecraftNode::get_terrain_depth);
-		ADD_PROPERTY(PropertyInfo(Variant::INT, "terrain_depth"), "set_terrain_depth", "get_terrain_depth");
-
-		ClassDB::bind_method(D_METHOD("set_terrain_scale", "scale"), &MinecraftNode::set_terrain_scale);
-		ClassDB::bind_method(D_METHOD("get_terrain_scale"), &MinecraftNode::get_terrain_scale);
-		ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terrain_scale"), "set_terrain_scale", "get_terrain_scale");
+		ClassDB::bind_method(D_METHOD("set_terrain_freq", "scale"), &MinecraftNode::set_terrain_freq);
+		ClassDB::bind_method(D_METHOD("get_terrain_freq"), &MinecraftNode::get_terrain_freq);
+		ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "terrain_freq"), "set_terrain_freq", "get_terrain_freq");
 
 		ClassDB::bind_method(D_METHOD("set_terrain_height_scale", "height_scale"), &MinecraftNode::set_terrain_height_scale);
 		ClassDB::bind_method(D_METHOD("get_terrain_height_scale"), &MinecraftNode::get_terrain_height_scale);
@@ -126,23 +120,17 @@ public:
 	godot::Dictionary DelaunatorTest();
 	godot::Array VoronoiTest();
 
-	void set_terrain_width(int w) {
-		terrain_len_x = w;
+	void set_part_size(int w) {
+		part_size = w;
 		terrain_dirty = true;
 	}
-	int get_terrain_width() const { return terrain_len_x; }
+	int get_part_size() const { return part_size; }
 
-	void set_terrain_depth(int d) {
-		terrain_len_z = d;
+	void set_terrain_freq(float freq) {
+		terrain_freq = freq;
 		terrain_dirty = true;
 	}
-	int get_terrain_depth() const { return terrain_len_z; }
-
-	void set_terrain_scale(float s) {
-		terrain_freq = s;
-		terrain_dirty = true;
-	}
-	float get_terrain_scale() const { return terrain_freq; }
+	float get_terrain_freq() const { return terrain_freq; }
 
 	void set_terrain_height_scale(float hs) {
 		terrain_height = hs;

@@ -19,8 +19,6 @@ glow_enabled = true
 script = ExtResource("1_d82rw")
 
 [node name="MinecraftNode" type="MinecraftNode" parent="."]
-terrain_width = 80
-terrain_depth = 80
 terrain_height_scale = 20.0
 terrain_material = ExtResource("4_2tur5")
 height_curve = ExtResource("5_2tur5")

@@ -1,3 +1,4 @@
+#include "godot_cpp/variant/string.hpp"
 #include "minecraft.h"
 
 #include "godot_cpp/classes/array_mesh.hpp"
@@ -11,25 +12,27 @@
 
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 
-void MinecraftNode::generate_terrain(String name, Vector3 pos) {
+void MinecraftNode::generate_smooth_part_mesh(String name, Vector3 pos) {
 	PackedVector3Array vertices;
 	PackedInt32Array indices;
 
+	PackedInt32Array heights = generate_terrain_heights(pos, false);
+
 	// Generate vertices from height map
-	for (int z = 0; z < terrain_len_z; ++z) {
-		for (int x = 0; x < terrain_len_x; ++x) {
-			float y = get_height(x, z);
+	for (int z = 0; z < part_size; ++z) {
+		for (int x = 0; x < part_size; ++x) {
+			float y = heights[x + z * part_size];
 			vertices.push_back(Vector3(pos.x + (float)x, pos.y + y, pos.z + (float)z));
 		}
 	}
 
 	// Generate indices (two triangles per quad)
-	for (int z = 0; z < terrain_len_z - 1; ++z) {
-		for (int x = 0; x < terrain_len_x - 1; ++x) {
-			int i0 = x + z * terrain_len_x;
-			int i1 = (x + 1) + z * terrain_len_x;
-			int i2 = x + (z + 1) * terrain_len_x;
-			int i3 = (x + 1) + (z + 1) * terrain_len_x;
+	for (int z = 0; z < part_size - 1; ++z) {
+		for (int x = 0; x < part_size - 1; ++x) {
+			int i0 = x + z * part_size;
+			int i1 = (x + 1) + z * part_size;
+			int i2 = x + (z + 1) * part_size;
+			int i3 = (x + 1) + (z + 1) * part_size;
 			// First triangle
 			indices.push_back(i0);
 			indices.push_back(i1);
@@ -67,4 +70,8 @@ void MinecraftNode::generate_terrain(String name, Vector3 pos) {
 	}
 	mi->set_mesh(mesh);
 	mi->set_material_override(terrain_material);
+}
+
+void MinecraftNode::generate_smooth_terrain(String name) {
+	generate_smooth_part_mesh(name, Vector3(0, 0, 0));
 }
