@@ -100,14 +100,19 @@ void add_face(PackedVector3Array &vertices, PackedVector3Array &normals,
 	}
 }
 
-void MinecraftNode::generate_voxel_part_mesh(String name, Vector3 pos, bool height_curve_sampling) {
+void MinecraftNode::generate_voxel_part_mesh(String name, Vector2i pos, bool height_curve_sampling) {
 	PackedVector3Array vertices;
 	PackedVector3Array normals;
 	PackedVector2Array uvs;
 	PackedInt32Array indices;
 	int index_offset = 0;
 
-	PackedInt32Array heights = generate_terrain_heights(pos, height_curve_sampling);
+	// Generate a larger heightmap (from -1 to part_size) to get neighbor heights at chunk borders.
+	const int query_dim = part_size + 2;
+	Vector2i query_pos = Vector2i(pos.x * part_size - 1, pos.y * part_size - 1);
+	// We need to create a temporary Vector2i for the position because generate_terrain_heights expects a part_pos, not a world pos.
+	// A better long-term solution might be to have it take a world coordinate offset directly.
+	PackedInt32Array heights = generate_terrain_heights(Vector2i(pos.x, pos.y), query_dim, 1, height_curve_sampling);
 
 	for (int x = 0; x < part_size; x++) {
 		for (int z = 0; z < part_size; z++) {
@@ -161,5 +166,4 @@ void MinecraftNode::generate_voxel_part_mesh(String name, Vector3 pos, bool heig
 	}
 	mi->set_mesh(mesh);
 	mi->set_material_override(terrain_material);
-	mi->set_position(pos);
 }

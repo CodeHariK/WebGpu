@@ -12,27 +12,28 @@
 
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 
-void MinecraftNode::generate_smooth_part_mesh(String name, Vector3 pos, bool height_curve_sampling) {
+void MinecraftNode::generate_smooth_part_mesh(String name, Vector2i pos, bool height_curve_sampling) {
 	PackedVector3Array vertices;
 	PackedInt32Array indices;
 
-	PackedInt32Array heights = generate_terrain_heights(pos, height_curve_sampling);
+	const int vert_dim = part_size + 1;
+	PackedInt32Array heights = generate_terrain_heights(pos, vert_dim, 1, height_curve_sampling);
 
 	// Generate vertices from height map
-	for (int z = 0; z < part_size; ++z) {
-		for (int x = 0; x < part_size; ++x) {
-			float y = heights[x + z * part_size];
-			vertices.push_back(Vector3(pos.x + (float)x, pos.y + y, pos.z + (float)z));
+	for (int z = 0; z < vert_dim; ++z) {
+		for (int x = 0; x < vert_dim; ++x) {
+			float y = heights[x + z * vert_dim];
+			vertices.push_back(Vector3((float)x, y, (float)z));
 		}
 	}
 
 	// Generate indices (two triangles per quad)
-	for (int z = 0; z < part_size - 1; ++z) {
-		for (int x = 0; x < part_size - 1; ++x) {
-			int i0 = x + z * part_size;
-			int i1 = (x + 1) + z * part_size;
-			int i2 = x + (z + 1) * part_size;
-			int i3 = (x + 1) + (z + 1) * part_size;
+	for (int z = 0; z < part_size; ++z) {
+		for (int x = 0; x < part_size; ++x) {
+			int i0 = x + z * vert_dim;
+			int i1 = (x + 1) + z * vert_dim;
+			int i2 = x + (z + 1) * vert_dim;
+			int i3 = (x + 1) + (z + 1) * vert_dim;
 			// First triangle
 			indices.push_back(i0);
 			indices.push_back(i1);
