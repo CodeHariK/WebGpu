@@ -3,39 +3,37 @@
 #include "godot_cpp/classes/ref.hpp"
 #include "godot_cpp/core/math.hpp"
 #include "godot_cpp/variant/packed_int32_array.hpp"
+#include "godot_cpp/variant/vector2i.hpp"
 #include "godot_cpp/variant/vector3.hpp"
 #include <godot_cpp/classes/fast_noise_lite.hpp>
 
-PackedInt32Array MinecraftNode::generate_terrain_heights(Vector3 pos, bool height_curve_sampling) {
-	PackedInt32Array heights;
-	heights.resize(part_size * part_size);
+PackedInt32Array MinecraftNode::generate_terrain_heights(Vector2i part_pos, int dim, float freq, bool height_curve_sampling) {
+	Vector3 offset = Vector3(part_pos.x * part_size, 0, part_pos.y * part_size);
 
-	Ref<FastNoiseLite> noise;
-	noise.instantiate();
-	noise->set_noise_type(FastNoiseLite::TYPE_PERLIN);
-	noise->set_seed(1337);
-	noise->set_frequency(terrain_freq);
+	PackedInt32Array heights;
+
+	heights.resize(dim * dim);
 
 	if (height_curve != nullptr & height_curve_sampling) {
-		for (int z = 0; z < part_size; ++z) {
-			for (int x = 0; x < part_size; ++x) {
-				float h = noise->get_noise_2d(pos.x + x, pos.z + z) + .5;
+		for (int z = 0; z < dim; ++z) {
+			for (int x = 0; x < dim; ++x) {
+				float h = noise->get_noise_2d(offset.x + x, offset.z + z) + .5;
 
 				h = height_curve->sample(h);
 
-				int height = (int)Math::floor(h * terrain_height);
+				int height = (int)Math::floor(h * part_size);
 
-				heights.set(x + z * part_size, height);
+				heights.set(x + z * dim, height);
 			}
 		}
 	} else {
-		for (int z = 0; z < part_size; ++z) {
-			for (int x = 0; x < part_size; ++x) {
-				float h = noise->get_noise_2d(pos.x + x, pos.z + z) + .5;
+		for (int z = 0; z < dim; ++z) {
+			for (int x = 0; x < dim; ++x) {
+				float h = noise->get_noise_2d(offset.x + x, offset.z + z) + .5;
 
-				int height = (int)Math::floor(h * terrain_height);
+				int height = (int)Math::floor(h * part_size);
 
-				heights.set(x + z * part_size, height);
+				heights.set(x + z * dim, height);
 			}
 		}
 	}
