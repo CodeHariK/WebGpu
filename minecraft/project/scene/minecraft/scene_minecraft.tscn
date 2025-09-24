@@ -1,14 +1,12 @@
-[gd_scene load_steps=11 format=3 uid="uid://cpw0oipoya1mi"]
+[gd_scene load_steps=10 format=3 uid="uid://cpw0oipoya1mi"]
 
 [ext_resource type="Script" uid="uid://dtif1g023v2sd" path="res://scene/minecraft/minecraft_node.gd" id="1_d82rw"]
+[ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/terrain/mat_terrain.tres" id="2_2a7lt"]
 [ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="2_d82rw"]
 [ext_resource type="Sky" uid="uid://bfwuyyjpf33uy" path="res://material/shaders/sky/new_sky.tres" id="3_byupe"]
-[ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/terrain/mat_terrain.tres" id="4_2tur5"]
 [ext_resource type="PackedScene" uid="uid://p4auepeepmyy" path="res://scene/minecraft/ui_minecraft.tscn" id="4_jfv7q"]
 [ext_resource type="Curve" uid="uid://ccpck6g3dfdlv" path="res://scene/minecraft/curve_minecraft.tres" id="5_2tur5"]
 [ext_resource type="PackedScene" uid="uid://btxgtsxntydrd" path="res://scripts/ui/performance/UI_PerformanceMonitor.tscn" id="6_2a7lt"]
-
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_2a7lt"]
 
 [sub_resource type="Environment" id="Environment_jfv7q"]
 background_mode = 2
@@ -17,15 +15,14 @@ sky = ExtResource("3_byupe")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="BoxMesh" id="BoxMesh_2a7lt"]
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_2a7lt"]
 
 [node name="World" type="Node3D"]
 script = ExtResource("1_d82rw")
 
-[node name="MinecraftNode" type="MinecraftNode" parent="."]
-terrain_noise = SubResource("FastNoiseLite_2a7lt")
-terrain_material = ExtResource("4_2tur5")
-height_curve = ExtResource("5_2tur5")
+[node name="PerformanceMonitor" parent="." instance=ExtResource("6_2a7lt")]
+
+[node name="UiMinecraft" parent="." instance=ExtResource("4_jfv7q")]
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(-0.866025, -0.480631, 0.137819, 0, 0.275637, 0.961262, -0.5, 0.832477, -0.238709, 0, 0, 0)
@@ -38,18 +35,7 @@ environment = SubResource("Environment_jfv7q")
 [node name="FlyCamera" parent="." instance=ExtResource("2_d82rw")]
 transform = Transform3D(1, 0, 0, 0, 0.996734, 0.0807556, 0, -0.0807556, 0.996734, 26.9576, 30.3453, 35.3498)
 
-[node name="CSGBox3D" type="CSGBox3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 82.2856)
-size = Vector3(1, 20, 5)
-
-[node name="PerformanceMonitor" parent="." instance=ExtResource("6_2a7lt")]
-
-[node name="UiMinecraft" parent="." instance=ExtResource("4_jfv7q")]
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 2, 0.5)
-mesh = SubResource("BoxMesh_2a7lt")
-
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.5, 2, 31.5)
-mesh = SubResource("BoxMesh_2a7lt")
+[node name="MinecraftNode" type="MinecraftNode" parent="."]
+terrain_noise = SubResource("FastNoiseLite_2a7lt")
+terrain_material = ExtResource("2_2a7lt")
+height_curve = ExtResource("5_2tur5")

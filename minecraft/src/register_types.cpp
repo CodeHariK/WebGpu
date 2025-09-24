@@ -6,6 +6,7 @@
 #include <godot_cpp/godot.hpp>
 
 #include "minecraft/minecraft.h"
+#include "minecraft/wfc.h"
 
 using namespace godot;
 
@@ -14,6 +15,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 		return;
 	}
 	GDREGISTER_CLASS(MinecraftNode);
+	GDREGISTER_CLASS(WFCGenerator3D);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

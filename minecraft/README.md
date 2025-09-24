@@ -1,3 +1,12 @@
+#
+
+wfc
+biome
+poisson object spawn
+fog
+Water shader
+terrain blend shader
+
 # Voxel Storage
 
 * Palette encoding
