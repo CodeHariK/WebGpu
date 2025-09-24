@@ -2,6 +2,7 @@
 #define MinecraftNode_CLASS
 
 #include "godot_cpp/classes/global_constants.hpp"
+#include "godot_cpp/classes/mesh_instance3d.hpp"
 #include "godot_cpp/classes/node.hpp"
 #include "godot_cpp/classes/noise.hpp"
 #include "godot_cpp/classes/ref.hpp"
@@ -14,6 +15,7 @@
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/control.hpp>
 #include <godot_cpp/classes/curve.hpp>
+#include <godot_cpp/classes/label.hpp>
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/progress_bar.hpp>
@@ -32,28 +34,34 @@ struct MinecraftUI {
 	Control *content = nullptr;
 	Button *header_button = nullptr;
 	Slider *terrain_slider = nullptr;
+	Label *terrain_debug_label = nullptr;
 
 	bool is_valid() const {
 		return health_bar != nullptr &&
 				content != nullptr &&
 				header_button != nullptr &&
-				terrain_slider != nullptr;
+				terrain_slider != nullptr &&
+				terrain_debug_label != nullptr;
 	}
 };
 
 struct Part {
-	Node3D *node = nullptr;
+	MeshInstance3D *mesh = nullptr;
+	bool visible = false;
+	double last_visible_time = 0.0;
 };
 
 class MinecraftNode : public Node3D {
 	GDCLASS(MinecraftNode, Node3D);
 
 private:
-	int render_distance = 4;
 	std::map<Vector2i, Part> m_parts;
 	Vector2i m_last_camera_part_pos;
+	Transform3D m_last_camera_transform;
 
+	int render_distance = 1;
 	int part_size = 32;
+	double part_visibility_time_out_duration = 5.0;
 
 	Ref<Material> terrain_material;
 	Ref<Curve> height_curve;
@@ -64,13 +72,13 @@ private:
 
 	MinecraftUI ui;
 
-	PackedInt32Array generate_terrain_heights(Vector2i part_pos, int dim, float freq, bool height_curve_sampling);
+	bool is_part_visible(const Vector2i &part_pos, const Vector2i &camera_part_pos) const;
 
-	void generate_smooth_part_mesh(String name, Vector2i pos, bool height_curve_sampling);
-	void generate_cube_part_mesh(String name, Vector2i pos, bool height_curve_sampling);
-	void generate_voxel_part_mesh(String name, Vector2i pos, bool height_curve_sampling);
+	PackedInt32Array generate_terrain_heights(Vector2i indexPos, int dim, float freq, bool height_curve_sampling);
 
-	Node3D *generate_part_at(Vector2i part_pos);
+	MeshInstance3D *generate_smooth_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling, bool create_collision);
+	void generate_cube_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling);
+	MeshInstance3D *generate_voxel_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling);
 
 	void minHeapTest();
 

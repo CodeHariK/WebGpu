@@ -7,8 +7,8 @@
 #include "godot_cpp/variant/vector3.hpp"
 #include <godot_cpp/classes/fast_noise_lite.hpp>
 
-PackedInt32Array MinecraftNode::generate_terrain_heights(Vector2i part_pos, int dim, float freq, bool height_curve_sampling) {
-	Vector3 offset = Vector3(part_pos.x * part_size, 0, part_pos.y * part_size);
+PackedInt32Array MinecraftNode::generate_terrain_heights(Vector2i indexPos, int dim, float freq, bool height_curve_sampling) {
+	Vector3 offset = Vector3(indexPos.x * part_size, 0, indexPos.y * part_size);
 
 	PackedInt32Array heights;
 

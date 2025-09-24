@@ -1,23 +1,23 @@
-#include "godot_cpp/variant/string.hpp"
 #include "minecraft.h"
 
 #include "godot_cpp/classes/array_mesh.hpp"
 #include "godot_cpp/classes/object.hpp"
 #include "godot_cpp/classes/ref.hpp"
 #include "godot_cpp/core/memory.hpp"
-
 #include "godot_cpp/variant/packed_int32_array.hpp"
 #include "godot_cpp/variant/packed_vector3_array.hpp"
+#include "godot_cpp/variant/string.hpp"
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
-#include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <cstdlib>
 
-void MinecraftNode::generate_smooth_part_mesh(String name, Vector2i pos, bool height_curve_sampling) {
+MeshInstance3D *MinecraftNode::generate_smooth_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling, bool create_collision) {
 	PackedVector3Array vertices;
 	PackedInt32Array indices;
 
 	const int vert_dim = part_size + 1;
-	PackedInt32Array heights = generate_terrain_heights(pos, vert_dim, 1, height_curve_sampling);
+	PackedInt32Array heights = generate_terrain_heights(indexPos, vert_dim, 1, height_curve_sampling);
 
 	// Generate vertices from height map
 	for (int z = 0; z < vert_dim; ++z) {
@@ -66,8 +66,15 @@ void MinecraftNode::generate_smooth_part_mesh(String name, Vector2i pos, bool he
 	if (!mi) {
 		mi = memnew(MeshInstance3D);
 		mi->set_name(name);
-		add_child(mi);
 	}
 	mi->set_mesh(mesh);
 	mi->set_material_override(terrain_material);
+	mi->set_position(Vector3(indexPos.x * part_size, 0, indexPos.y * part_size));
+
+	// If requested, create a static collision body for the mesh.
+	if (create_collision) {
+		mi->create_trimesh_collision();
+	}
+
+	return mi;
 }

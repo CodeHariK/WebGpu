@@ -1,17 +1,19 @@
+#include "minecraft.h"
+
 #include "godot_cpp/classes/array_mesh.hpp"
 #include "godot_cpp/classes/object.hpp"
 #include "godot_cpp/classes/ref.hpp"
 #include "godot_cpp/core/memory.hpp"
+#include "godot_cpp/variant/packed_int32_array.hpp"
 #include "godot_cpp/variant/packed_vector2_array.hpp"
 #include "godot_cpp/variant/packed_vector3_array.hpp"
-#include "minecraft.h"
-
-#include "godot_cpp/variant/packed_int32_array.hpp"
+#include "godot_cpp/variant/vector2i.hpp"
 #include "godot_cpp/variant/vector3.hpp"
-#include <cstdint>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
-#include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <cstdint>
+#include <cstdlib>
 
 struct FaceData {
 	Vector3i vertices[4];
@@ -100,23 +102,21 @@ void add_face(PackedVector3Array &vertices, PackedVector3Array &normals,
 	}
 }
 
-void MinecraftNode::generate_voxel_part_mesh(String name, Vector2i pos, bool height_curve_sampling) {
+MeshInstance3D *MinecraftNode::generate_voxel_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling) {
 	PackedVector3Array vertices;
 	PackedVector3Array normals;
 	PackedVector2Array uvs;
 	PackedInt32Array indices;
+
 	int index_offset = 0;
 
-	// Generate a larger heightmap (from -1 to part_size) to get neighbor heights at chunk borders.
 	const int query_dim = part_size + 2;
-	Vector2i query_pos = Vector2i(pos.x * part_size - 1, pos.y * part_size - 1);
-	// We need to create a temporary Vector2i for the position because generate_terrain_heights expects a part_pos, not a world pos.
-	// A better long-term solution might be to have it take a world coordinate offset directly.
-	PackedInt32Array heights = generate_terrain_heights(Vector2i(pos.x, pos.y), query_dim, 1, height_curve_sampling);
+	Vector2i query_part_pos = Vector2i(indexPos.x - 1, indexPos.y - 1);
+	PackedInt32Array heights = generate_terrain_heights(query_part_pos, query_dim, 1, height_curve_sampling);
 
-	for (int x = 0; x < part_size; x++) {
-		for (int z = 0; z < part_size; z++) {
-			int h = heights[x + z * part_size];
+	for (int z = 1; z <= part_size; z++) {
+		for (int x = 1; x <= part_size; x++) {
+			int h = heights[x + z * query_dim];
 
 			// Top face
 			add_face(vertices, normals, uvs, indices,
@@ -133,10 +133,7 @@ void MinecraftNode::generate_voxel_part_mesh(String name, Vector2i pos, bool hei
 			for (int dir_idx = 0; dir_idx < 4; dir_idx++) {
 				int nx = x + dx[dir_idx];
 				int nz = z + dz[dir_idx];
-				int neighbor_h = 0;
-				if (nx >= 0 && nx < part_size && nz >= 0 && nz < part_size) {
-					neighbor_h = heights[nx + nz * part_size];
-				}
+				int neighbor_h = heights[nx + nz * query_dim];
 				if (h > neighbor_h) {
 					for (int y = neighbor_h + 1; y <= h; y++) {
 						add_face(vertices, normals, uvs, indices,
@@ -162,8 +159,10 @@ void MinecraftNode::generate_voxel_part_mesh(String name, Vector2i pos, bool hei
 	if (!mi) {
 		mi = memnew(MeshInstance3D);
 		mi->set_name(name);
-		add_child(mi);
 	}
 	mi->set_mesh(mesh);
 	mi->set_material_override(terrain_material);
+	mi->set_position(Vector3(indexPos.x * part_size, 0, indexPos.y * part_size));
+
+	return mi;
 }

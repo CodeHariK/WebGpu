@@ -22,9 +22,9 @@ settings/addon_root_folder="res://addons/debug_draw_3d"
 
 [display]
 
-window/size/viewport_width=800
-window/size/viewport_height=600
-window/size/initial_position=Vector2i(1200, 600)
+window/size/viewport_width=1400
+window/size/viewport_height=800
+window/size/initial_position_type=0
 
 [input]
 
