@@ -95,6 +95,18 @@ protected:
 		ClassDB::bind_method(D_METHOD("set_generate_on_ready", "enable"), &WFCGenerator3D::set_generate_on_ready);
 		ClassDB::bind_method(D_METHOD("get_generate_on_ready"), &WFCGenerator3D::get_generate_on_ready);
 		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "generate_on_ready"), "set_generate_on_ready", "get_generate_on_ready");
+
+		ClassDB::bind_method(D_METHOD("set_step_forward", "enable"), &WFCGenerator3D::set_step_forward);
+		ClassDB::bind_method(D_METHOD("get_step_forward"), &WFCGenerator3D::get_step_forward);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "step_forward"), "set_step_forward", "get_step_forward");
+
+		ClassDB::bind_method(D_METHOD("set_show_all_possibilities", "enable"), &WFCGenerator3D::set_show_all_possibilities);
+		ClassDB::bind_method(D_METHOD("is_showing_all_possibilities"), &WFCGenerator3D::is_showing_all_possibilities);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_all_possibilities"), "set_show_all_possibilities", "is_showing_all_possibilities");
+
+		ClassDB::bind_method(D_METHOD("set_show_compatibility_table", "enable"), &WFCGenerator3D::set_show_compatibility_table);
+		ClassDB::bind_method(D_METHOD("is_showing_compatibility_table"), &WFCGenerator3D::is_showing_compatibility_table);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_compatibility_table"), "set_show_compatibility_table", "is_showing_compatibility_table");
 	}
 
 private:
@@ -109,14 +121,19 @@ private:
 	bool step_by_step = true;
 	bool m_show_entropy = true;
 	bool generate_on_ready = true;
+	bool step_forward = false;
+	bool m_show_all_possibilities = false;
+	bool m_show_compatibility_table = false;
 
-	Vector3i grid_size = Vector3i(10, 2, 10);
+	Vector3i grid_size = Vector3i(2, 1, 2);
 
 	Vector<WFCTile> tile_prototypes;
 	Vector<WFCCell> grid;
 	int collapsed_count = 0;
 	Dictionary compatibility_map;
 	Node3D *m_debug_labels_node = nullptr;
+	Node3D *m_compatibility_table_node = nullptr;
+	Node3D *m_debug_possibilities_node = nullptr;
 	std::mt19937 random_generator;
 
 	Celebi::Data loadCelebiJson(String path) {
@@ -137,6 +154,13 @@ private:
 
 	int get_cell_index(const Vector3i &pos) const {
 		return pos.x + pos.y * grid_size.x + pos.z * grid_size.x * grid_size.y;
+	}
+
+	inline Vector3i get_cell_pos(int p_index) const {
+		return Vector3i(
+				p_index % grid_size.x,
+				(p_index / grid_size.x) % grid_size.y,
+				p_index / (grid_size.x * grid_size.y));
 	}
 
 	bool is_in_bounds(const Vector3i &pos) const {
@@ -181,6 +205,8 @@ private:
 			Vector3i current_pos = propagation_stack.top();
 			propagation_stack.pop();
 
+			UtilityFunctions::print("propagation_stack size : ", String::num(propagation_stack.size()));
+
 			int current_idx = get_cell_index(current_pos);
 			const Vector<int> &possible_current_tiles = grid_ptrw[current_idx].possible_tiles;
 
@@ -195,6 +221,8 @@ private:
 					continue;
 
 				Vector<int> &possible_neighbor_tiles = grid_ptrw[neighbor_idx].possible_tiles;
+				UtilityFunctions::print(neighbor_pos, " ", Help::vector_to_string(possible_neighbor_tiles));
+
 				bool changed = false;
 
 				// --- OPTIMIZATION using pre-calculated map ---
@@ -234,6 +262,8 @@ private:
 					}
 					propagation_stack.push(neighbor_pos);
 				}
+
+				UtilityFunctions::print(neighbor_pos, " changed: ", changed, " tiles: ", Help::vector_to_string(possible_neighbor_tiles));
 			}
 		}
 		return true;
@@ -252,19 +282,30 @@ public:
 	}
 
 	void _ready() override {
-		// Perform one-time setup when the node enters the scene.
-		if (!m_debug_labels_node) {
-			m_debug_labels_node = memnew(Node3D);
-			m_debug_labels_node->set_name("DebugLabels");
-			add_child(m_debug_labels_node);
-		}
-		parse_tile_data();
 	}
 
 	void _process(double delta) override {
+		//		if (Engine::get_singleton()->is_editor_hint()) {
+		//			return;
+		//		}
+
 		// If generate_on_ready is true, run generation once and then disable it.
-		if (generate_on_ready && !Engine::get_singleton()->is_editor_hint()) {
+		if (generate_on_ready) {
+			// Perform one-time setup when the node enters the scene.
+			if (!m_debug_labels_node) {
+				m_debug_labels_node = memnew(Node3D);
+				m_debug_labels_node->set_name("DebugLabels");
+				add_child(m_debug_labels_node);
+			}
+
+			parse_tile_data();
+
 			generate();
+
+			if (m_show_compatibility_table) {
+				show_compatibility_table();
+			}
+
 			generate_on_ready = false;
 		}
 
@@ -272,8 +313,15 @@ public:
 			if (m_show_entropy) {
 				update_entropy_labels();
 			}
-			if (Input::get_singleton()->is_action_just_pressed("wfc_step")) {
+			if (step_forward) {
 				step();
+				step_forward = false;
+			} else if (!Engine::get_singleton()->is_editor_hint() && Input::get_singleton()->is_action_just_pressed("wfc_step")) {
+				step();
+			}
+
+			if (m_show_all_possibilities) {
+				update_all_possibilities_display();
 			}
 		}
 	}
@@ -298,6 +346,27 @@ public:
 
 	bool get_generate_on_ready() const {
 		return generate_on_ready;
+	}
+
+	void set_step_forward(bool p_enable) {
+		step_forward = p_enable;
+	}
+	bool get_step_forward() const {
+		return step_forward;
+	}
+
+	void set_show_all_possibilities(bool p_enable) {
+		m_show_all_possibilities = p_enable;
+	}
+	bool is_showing_all_possibilities() const {
+		return m_show_all_possibilities;
+	}
+
+	void set_show_compatibility_table(bool p_enable) {
+		m_show_compatibility_table = p_enable;
+	}
+	bool is_showing_compatibility_table() const {
+		return m_show_compatibility_table;
 	}
 
 	void set_grid_size(const Vector3i &p_size) {
@@ -349,7 +418,11 @@ public:
 		for (int i = 0; i < tile_prototypes.size(); ++i) {
 			const WFCTile &tile = tile_prototypes[i];
 
-			UtilityFunctions::print(tile.id, tile.hashes, tile.mesh);
+			UtilityFunctions::print(
+					"Id: ", tile.id,
+					" Mesh: ", tile.mesh->get_name(),
+					" hashes: ", tile.hashes[0], ",", tile.hashes[1], ",", tile.hashes[2],
+					",", tile.hashes[3], ",", tile.hashes[4], ",", tile.hashes[5]);
 
 			for (int dir = 0; dir < 6; ++dir) {
 				int64_t key = (int64_t(tile.hashes[dir]) << 3) + dir;
@@ -360,7 +433,6 @@ public:
 				arr.push_back(i);
 			}
 		}
-		UtilityFunctions::print("Hash-to-tile compatibility map generated from C++ data.");
 	}
 
 	void reset() {
@@ -386,32 +458,27 @@ public:
 		}
 		collapsed_count = 0;
 		generation_state = IDLE;
-	}
 
-	void finish_generation() {
-		UtilityFunctions::print("WFC generation complete. Instantiating meshes...");
-
-		const WFCCell *grid_ptr = grid.ptr();
-
-		for (int y = 0; y < grid_size.y; ++y) {
-			for (int z = 0; z < grid_size.z; ++z) {
-				for (int x = 0; x < grid_size.x; ++x) {
-					Vector3i pos(x, y, z);
-					int index = get_cell_index(pos);
-
-					if (grid_ptr[index].collapsed && !grid_ptr[index].possible_tiles.is_empty()) {
-						int tile_id = grid_ptr[index].possible_tiles[0];
-						const WFCTile &tile_data = tile_prototypes[tile_id];
-
-						MeshInstance3D *mi = memnew(MeshInstance3D);
-						mi->set_mesh(tile_data.mesh);
-						mi->set_position(pos);
-						add_child(mi);
-					}
-				}
+		// Create or clear debug labels
+		if (m_show_entropy) {
+			if (!m_debug_labels_node) {
+				m_debug_labels_node = memnew(Node3D);
+				m_debug_labels_node->set_name("DebugLabels");
+				add_child(m_debug_labels_node);
+			}
+			// Ensure we have enough labels
+			for (int i = m_debug_labels_node->get_child_count(); i < total_cells; ++i) {
+				Label3D *label = memnew(Label3D);
+				label->set_position(get_cell_pos(i) + Vector3(0.5, 0.5, 0.5));
+				m_debug_labels_node->add_child(label);
 			}
 		}
-		UtilityFunctions::print("Scene populated.");
+
+		// Clear the possibilities display
+		if (m_debug_possibilities_node) {
+			m_debug_possibilities_node->queue_free();
+			m_debug_possibilities_node = nullptr;
+		}
 	}
 
 	void update_entropy_labels() {
@@ -435,13 +502,88 @@ public:
 		}
 	}
 
-	void hide_entropy_labels() {
-		if (!m_debug_labels_node)
+	void update_all_possibilities_display() {
+		if (!m_show_all_possibilities) {
+			if (m_debug_possibilities_node) {
+				m_debug_possibilities_node->queue_free();
+				m_debug_possibilities_node = nullptr;
+			}
 			return;
-		for (int i = 0; i < m_debug_labels_node->get_child_count(); ++i) {
-			auto *label = Object::cast_to<Label3D>(m_debug_labels_node->get_child(i));
-			if (label) {
-				label->set_visible(false);
+		}
+
+		if (!m_debug_possibilities_node) {
+			m_debug_possibilities_node = memnew(Node3D);
+			m_debug_possibilities_node->set_name("DebugPossibilities");
+			add_child(m_debug_possibilities_node);
+		} else {
+			// Clear previous meshes
+			for (int i = 0; i < m_debug_possibilities_node->get_child_count(); ++i) {
+				m_debug_possibilities_node->get_child(i)->queue_free();
+			}
+		}
+
+		const float vertical_offset_start = grid_size.y + 1.0f;
+		const float vertical_spacing = 1.1f;
+
+		for (int i = 0; i < grid.size(); ++i) {
+			const WFCCell &wfc_cell = grid[i];
+			if (wfc_cell.collapsed || wfc_cell.possible_tiles.size() == tile_prototypes.size()) {
+				continue;
+			}
+
+			Vector3 cell_base_pos = get_cell_pos(i);
+
+			for (int j = 0; j < wfc_cell.possible_tiles.size(); ++j) {
+				int tile_id = wfc_cell.possible_tiles[j];
+				MeshInstance3D *mi = memnew(MeshInstance3D);
+				mi->set_mesh(tile_prototypes[tile_id].mesh);
+				mi->set_position(cell_base_pos + Vector3(0, vertical_offset_start + j * vertical_spacing, 0));
+				m_debug_possibilities_node->add_child(mi);
+			}
+		}
+	}
+
+	void show_compatibility_table() { // Renamed from show_compatibility_table for consistency
+		if (!m_show_compatibility_table) {
+			if (m_compatibility_table_node) {
+				m_compatibility_table_node->queue_free();
+				m_compatibility_table_node = nullptr;
+			}
+			return;
+		}
+
+		m_compatibility_table_node = memnew(Node3D);
+		m_compatibility_table_node->set_name("CompatibilityTable");
+		add_child(m_compatibility_table_node);
+
+		// Render the table directly from the compatibility_map
+		const float row_height = 1.0f;
+		const Vector3 table_origin = Vector3(0, 0, -5.0f);
+		const Vector3 tile_scale = Vector3(0.2, 0.2, 0.2);
+		const float tile_spacing = 0.25f;
+
+		Array keys = compatibility_map.keys();
+		keys.sort(); // Sort for a consistent layout
+
+		for (int i = 0; i < keys.size(); ++i) {
+			int64_t key = keys[i];
+			Vector3 row_pos = table_origin + Vector3(0, i * -row_height, 0);
+
+			// Add key label for the row
+			Label3D *key_label = memnew(Label3D);
+			key_label->set_text("Key: " + String::num_int64(key));
+			key_label->set_position(row_pos + Vector3(-4, 0, 0));
+			m_compatibility_table_node->add_child(key_label);
+
+			Array compatible_tiles = compatibility_map[key];
+
+			for (int k = 0; k < compatible_tiles.size(); ++k) {
+				int tile_id = compatible_tiles[k];
+				MeshInstance3D *mi = memnew(MeshInstance3D);
+				mi->set_mesh(tile_prototypes[tile_id].mesh);
+				mi->set_scale(tile_scale);
+				mi->set_position(row_pos + Vector3((k % 16) * tile_spacing, (float(k) / 16) * -tile_spacing, 0));
+				m_compatibility_table_node->add_child(mi);
 			}
 		}
 	}
@@ -454,10 +596,7 @@ public:
 		int total_cells = grid_size.x * grid_size.y * grid_size.z;
 		if (collapsed_count >= total_cells) {
 			generation_state = DONE;
-			if (m_show_entropy) {
-				hide_entropy_labels();
-			}
-			finish_generation();
+			UtilityFunctions::print("WFC generation complete. Instantiating meshes...");
 			return;
 		}
 
@@ -466,9 +605,6 @@ public:
 		if (cell_to_collapse_idx == -1) {
 			UtilityFunctions::printerr("WFC failed: No cell to collapse, but not all cells are collapsed.");
 			generation_state = FAILED;
-			if (m_show_entropy) {
-				hide_entropy_labels();
-			}
 			return;
 		}
 
@@ -481,18 +617,20 @@ public:
 		cell.collapsed = true;
 		collapsed_count++;
 
-		// 3. Propagate
-		Vector3i cell_pos(
-				cell_to_collapse_idx % grid_size.x,
-				(cell_to_collapse_idx / grid_size.x) % grid_size.y,
-				cell_to_collapse_idx / (grid_size.x * grid_size.y));
+		// Instantiate mesh for the collapsed cell
+		Vector3i cell_pos = get_cell_pos(cell_to_collapse_idx);
+		const WFCTile &tile_data = tile_prototypes[chosen_tile_idx];
+		MeshInstance3D *mi = memnew(MeshInstance3D);
+		mi->set_mesh(tile_data.mesh);
+		mi->set_position(cell_pos);
+		add_child(mi);
 
+		UtilityFunctions::print("Collapsed ", cell_pos, " -> ", chosen_tile_idx);
+
+		// 3. Propagate
 		if (!propagate(cell_pos)) {
 			UtilityFunctions::printerr("Propagation failed. Halting generation.");
 			generation_state = FAILED;
-			if (m_show_entropy) {
-				hide_entropy_labels();
-			}
 			return;
 		}
 	}

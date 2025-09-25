@@ -2,6 +2,7 @@
 
 #include "godot_cpp/classes/packed_scene.hpp"
 #include "godot_cpp/classes/ref.hpp"
+#include "godot_cpp/templates/vector.hpp"
 #include "godot_cpp/variant/dictionary.hpp"
 #include "godot_cpp/variant/string.hpp"
 #include <godot_cpp/classes/mesh_instance3d.hpp>
@@ -39,6 +40,18 @@ inline godot::Dictionary loadBlendFile(String path) {
 		}
 	}
 	return mesh_map;
+}
+
+inline String vector_to_string(const Vector<int> &v) {
+	String s = "[";
+	for (int i = 0; i < v.size(); i++) {
+		s += String::num_int64(v[i]); // convert the integer to a String
+		if (i < v.size() - 1) {
+			s += ", ";
+		}
+	}
+	s += "]";
+	return s;
 }
 
 } //namespace Help
