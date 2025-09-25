@@ -1,8 +1,28 @@
-[gd_scene load_steps=2 format=3 uid="uid://nhdecubqhuf8"]
+[gd_scene load_steps=4 format=3 uid="uid://nhdecubqhuf8"]
 
 [ext_resource type="Script" uid="uid://blavw1e7ra6lh" path="res://scripts/camera/fly_camera/camera_fly.gd" id="1_i3jnu"]
 
-[node name="Camera_Fly" type="Node3D"]
+[sub_resource type="TorusMesh" id="TorusMesh_1jies"]
+inner_radius = 3.5
+outer_radius = 4.0
 
-[node name="FlyCamera3D" type="Camera3D" parent="."]
+[sub_resource type="BoxMesh" id="BoxMesh_71ryh"]
+size = Vector3(0.5, 4, 0.5)
+
+[node name="Camera_X_Pivot" type="Node3D"]
 script = ExtResource("1_i3jnu")
+
+[node name="Camera" type="Camera3D" parent="."]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Camera"]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, -10)
+visible = false
+mesh = SubResource("TorusMesh_1jies")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Camera/MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 0.7071068, -0.7071068, 0, 0.7071068, 0.7071068, 0, 1.5, -2.5)
+mesh = SubResource("BoxMesh_71ryh")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="Camera/MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 0.70710695, 0.70710695, 0, -0.70710695, 0.70710695, 0, 1.5, 2.5)
+mesh = SubResource("BoxMesh_71ryh")
