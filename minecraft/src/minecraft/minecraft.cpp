@@ -15,6 +15,7 @@
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/time.hpp>
 
+#include <godot_cpp/classes/static_body3d.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 
 using namespace godot;
@@ -32,6 +33,10 @@ MinecraftNode::~MinecraftNode() {
 }
 
 void MinecraftNode::_process(double delta) {
+	if (!generate_on_ready) {
+		return;
+	}
+
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
@@ -61,8 +66,10 @@ void MinecraftNode::_process(double delta) {
 
 		// Loop 1: Update visibility status of all loaded parts
 		for (auto &pair : m_parts) { // Use reference to modify Part struct
+			const Vector2i &part_pos = pair.first;
 			Part &part_data = pair.second;
-			bool should_be_visible = is_part_visible(pair.first, camera_part_pos);
+
+			bool should_be_visible = is_part_visible(part_pos, camera_part_pos);
 
 			if (should_be_visible) {
 				// part is within render distance and view angle
@@ -73,6 +80,29 @@ void MinecraftNode::_process(double delta) {
 				if (part_data.visible) { // If it was previously visible
 					part_data.visible = false;
 					part_data.last_visible_time = current_system_time; // Store absolute time
+				}
+			}
+
+			// --- Dynamic Collision Management ---
+			// Define a collision distance (e.g., 3x3 grid around camera)
+			bool should_have_collision = (abs(part_pos.x - camera_part_pos.x) <= 1 && abs(part_pos.y - camera_part_pos.y) <= 1);
+
+			if (should_have_collision && !part_data.has_collision) {
+				// Add collision to a nearby part that doesn't have it
+				if (part_data.mesh) {
+					part_data.mesh->create_trimesh_collision();
+					part_data.has_collision = true;
+				}
+			} else if (!should_have_collision && part_data.has_collision) {
+				// Remove collision from a distant part that has it
+				if (part_data.mesh) {
+					for (int i = 0; i < part_data.mesh->get_child_count(); ++i) {
+						if (StaticBody3D *body = Object::cast_to<StaticBody3D>(part_data.mesh->get_child(i))) {
+							body->queue_free();
+							break; // Assume only one collision body per mesh
+						}
+					}
+					part_data.has_collision = false;
 				}
 			}
 		}
@@ -90,13 +120,12 @@ void MinecraftNode::_process(double delta) {
 				if (m_parts.find(part_pos) == m_parts.end()) {
 					String name = "Part_" + String::num_int64(part_pos.x) + "_" + String::num_int64(part_pos.y);
 
-					// Only create collision for parts in a 3x3 grid around the camera.
-					bool create_collision = (abs(x) <= 1 && abs(z) <= 1);
-					MeshInstance3D *new_mesh = generate_smooth_part_mesh(name, part_pos, false, create_collision);
+					// Generate the mesh without collision. The dynamic system will add it if needed.
+					MeshInstance3D *new_mesh = generate_smooth_part_mesh(name, part_pos, false);
 
 					if (new_mesh) {
 						add_child(new_mesh);
-						m_parts[part_pos] = { new_mesh, true, 0.0 }; // Initialize Part struct
+						m_parts[part_pos] = { new_mesh, true, false, 0.0 }; // Initialize Part struct, has_collision is always false initially.
 					}
 				}
 			}
@@ -126,7 +155,7 @@ void MinecraftNode::_process(double delta) {
 		String debug_text;
 		debug_text += "Total Nodes: " + String::num_int64(get_tree()->get_node_count()) + "\n";
 		debug_text += "Loaded Parts: " + String::num_int64(m_parts.size()) + "\n\n";
-		debug_text += "Part Position | Visible | Timeout (s)\n";
+		debug_text += "Part Position | Visible | Timeout (s) | Collision \n";
 		debug_text += "--------------------------------------\n";
 
 		for (const auto &pair : m_parts) {
@@ -135,6 +164,7 @@ void MinecraftNode::_process(double delta) {
 
 			String pos_str = "(" + String::num_int64(part_pos.x) + ", " + String::num_int64(part_pos.y) + ")";
 			String vis_str = part_data.visible ? "Yes" : "No ";
+			String col_str = part_data.has_collision ? "Yes" : "No ";
 			String time_str;
 
 			if (!part_data.visible && part_data.last_visible_time > 0.0) {
@@ -143,7 +173,7 @@ void MinecraftNode::_process(double delta) {
 			} else {
 				time_str = " - ";
 			}
-			debug_text += pos_str.pad_zeros(2) + " | " + vis_str + " | " + time_str + "\n";
+			debug_text += pos_str.pad_zeros(2) + " | " + vis_str + " | " + time_str + " | " + col_str + "\n";
 		}
 		ui.terrain_debug_label->set_text(debug_text);
 	}
