@@ -2,6 +2,7 @@
 #define WFC
 
 #include "godot_cpp/classes/file_access.hpp"
+#include "godot_cpp/classes/label3d.hpp"
 #include "godot_cpp/classes/node.hpp"
 #include "godot_cpp/classes/ref.hpp"
 #include "godot_cpp/classes/wrapped.hpp"
@@ -9,6 +10,8 @@
 #include "godot_cpp/core/object.hpp"
 #include "godot_cpp/core/property_info.hpp"
 #include "godot_cpp/templates/vector.hpp"
+#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/mesh.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
@@ -31,6 +34,14 @@
 
 using namespace godot;
 using njson = nlohmann::json;
+
+const Vector3i DIRECTIONS[] = {
+	Vector3i(1, 0, 0), Vector3i(-1, 0, 0),
+	Vector3i(0, 1, 0), Vector3i(0, -1, 0),
+	Vector3i(0, 0, 1), Vector3i(0, 0, -1)
+};
+// Opposite direction indices: 0->1, 1->0, 2->3, 3->2, etc.
+const int OPPOSITE_DIR_IDX[] = { 1, 0, 3, 2, 5, 4 };
 
 // A simple struct to hold all data for a single tile prototype.
 struct WFCTile {
@@ -65,20 +76,48 @@ class WFCGenerator3D : public Node3D {
 
 protected:
 	static void _bind_methods() {
+		ClassDB::bind_method(D_METHOD("reset"), &WFCGenerator3D::reset);
 		ClassDB::bind_method(D_METHOD("generate"), &WFCGenerator3D::generate);
+		ClassDB::bind_method(D_METHOD("step"), &WFCGenerator3D::step);
 
 		ClassDB::bind_method(D_METHOD("set_grid_size", "size"), &WFCGenerator3D::set_grid_size);
 		ClassDB::bind_method(D_METHOD("get_grid_size"), &WFCGenerator3D::get_grid_size);
 		ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_size"), "set_grid_size", "get_grid_size");
+
+		ClassDB::bind_method(D_METHOD("set_step_by_step", "enable"), &WFCGenerator3D::set_step_by_step);
+		ClassDB::bind_method(D_METHOD("is_step_by_step"), &WFCGenerator3D::is_step_by_step);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "step_by_step"), "set_step_by_step", "is_step_by_step");
+
+		ClassDB::bind_method(D_METHOD("set_show_entropy", "enable"), &WFCGenerator3D::set_show_entropy);
+		ClassDB::bind_method(D_METHOD("is_showing_entropy"), &WFCGenerator3D::is_showing_entropy);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_entropy"), "set_show_entropy", "is_showing_entropy");
+
+		ClassDB::bind_method(D_METHOD("set_generate_on_ready", "enable"), &WFCGenerator3D::set_generate_on_ready);
+		ClassDB::bind_method(D_METHOD("get_generate_on_ready"), &WFCGenerator3D::get_generate_on_ready);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "generate_on_ready"), "set_generate_on_ready", "get_generate_on_ready");
 	}
 
 private:
+	enum GenerationState {
+		IDLE,
+		GENERATING,
+		DONE,
+		FAILED
+	};
+
+	GenerationState generation_state = IDLE;
+	bool step_by_step = true;
+	bool m_show_entropy = true;
+	bool generate_on_ready = true;
+
 	Vector3i grid_size = Vector3i(10, 2, 10);
 
 	Vector<WFCTile> tile_prototypes;
 	Vector<WFCCell> grid;
 	int collapsed_count = 0;
 	Dictionary compatibility_map;
+	Node3D *m_debug_labels_node = nullptr;
+	std::mt19937 random_generator;
 
 	Celebi::Data loadCelebiJson(String path) {
 		Ref<FileAccess> fileHandle = FileAccess::open(path, FileAccess::READ);
@@ -96,31 +135,14 @@ private:
 		return data;
 	}
 
-	void clear_scene() {
-		for (int i = get_child_count() - 1; i >= 0; --i) {
-			Node *child = get_child(i);
-			child->queue_free();
-		}
+	int get_cell_index(const Vector3i &pos) const {
+		return pos.x + pos.y * grid_size.x + pos.z * grid_size.x * grid_size.y;
 	}
 
-	void initialize_grid() {
-		int total_cells = grid_size.x * grid_size.y * grid_size.z;
-		grid.resize(total_cells);
-		WFCCell *grid_ptr = grid.ptrw();
-		for (int i = 0; i < total_cells; ++i) {
-			grid_ptr[i].initialize(tile_prototypes.size());
-		}
-		collapsed_count = 0;
-	}
-
-	int get_cell_index(const Vector3i &p_pos) const {
-		return p_pos.x + p_pos.y * grid_size.x + p_pos.z * grid_size.x * grid_size.y;
-	}
-
-	bool is_in_bounds(const Vector3i &p_pos) const {
-		return p_pos.x >= 0 && p_pos.x < grid_size.x &&
-				p_pos.y >= 0 && p_pos.y < grid_size.y &&
-				p_pos.z >= 0 && p_pos.z < grid_size.z;
+	bool is_in_bounds(const Vector3i &pos) const {
+		return pos.x >= 0 && pos.x < grid_size.x &&
+				pos.y >= 0 && pos.y < grid_size.y &&
+				pos.z >= 0 && pos.z < grid_size.z;
 	}
 
 	int find_lowest_entropy_cell() {
@@ -146,36 +168,25 @@ private:
 		}
 
 		// Pick one randomly from the cells with the lowest entropy
-		std::random_device rd;
-		std::mt19937 gen(rd());
 		std::uniform_int_distribution<> distrib(0, lowest_entropy_cells.size() - 1);
-		return lowest_entropy_cells[distrib(gen)];
+		return lowest_entropy_cells[distrib(random_generator)];
 	}
 
 	bool propagate(const Vector3i &p_initial_pos) {
 		std::stack<Vector3i> propagation_stack;
 		propagation_stack.push(p_initial_pos);
 
-		const Vector3i directions[] = {
-			Vector3i(1, 0, 0), Vector3i(-1, 0, 0),
-			Vector3i(0, 1, 0), Vector3i(0, -1, 0),
-			Vector3i(0, 0, 1), Vector3i(0, 0, -1)
-		};
-		// Opposite direction indices: 0->1, 1->0, 2->3, 3->2, etc.
-		const int opposite_dir_idx[] = { 1, 0, 3, 2, 5, 4 };
-
+		WFCCell *grid_ptrw = grid.ptrw();
 		while (!propagation_stack.empty()) {
 			Vector3i current_pos = propagation_stack.top();
 			propagation_stack.pop();
-
-			WFCCell *grid_ptrw = grid.ptrw();
 
 			int current_idx = get_cell_index(current_pos);
 			const Vector<int> &possible_current_tiles = grid_ptrw[current_idx].possible_tiles;
 
 			// For each neighbor
 			for (int i = 0; i < 6; ++i) {
-				Vector3i neighbor_pos = current_pos + directions[i];
+				Vector3i neighbor_pos = current_pos + DIRECTIONS[i];
 				if (!is_in_bounds(neighbor_pos))
 					continue;
 
@@ -195,7 +206,7 @@ private:
 					int hash_to_match = tile_prototypes[current_tile_id].hashes[i];
 
 					// Find all tiles that have this hash on the opposite face.
-					int64_t lookup_key = (int64_t(hash_to_match) << 3) + opposite_dir_idx[i];
+					int64_t lookup_key = (int64_t(hash_to_match) << 3) + OPPOSITE_DIR_IDX[i];
 					if (compatibility_map.has(lookup_key)) {
 						Array compatible_tiles = compatibility_map[lookup_key];
 						for (int l = 0; l < compatible_tiles.size(); ++l) {
@@ -229,6 +240,66 @@ private:
 	}
 
 public:
+	WFCGenerator3D() {
+		random_generator.seed(std::random_device()());
+		set_process_mode(Node::ProcessMode::PROCESS_MODE_INHERIT);
+	}
+
+	~WFCGenerator3D() {
+		if (Engine::get_singleton()->is_editor_hint()) {
+			set_process_mode(Node::ProcessMode::PROCESS_MODE_DISABLED);
+		}
+	}
+
+	void _ready() override {
+		// Perform one-time setup when the node enters the scene.
+		if (!m_debug_labels_node) {
+			m_debug_labels_node = memnew(Node3D);
+			m_debug_labels_node->set_name("DebugLabels");
+			add_child(m_debug_labels_node);
+		}
+		parse_tile_data();
+	}
+
+	void _process(double delta) override {
+		// If generate_on_ready is true, run generation once and then disable it.
+		if (generate_on_ready && !Engine::get_singleton()->is_editor_hint()) {
+			generate();
+			generate_on_ready = false;
+		}
+
+		if (generation_state == GENERATING && step_by_step) {
+			if (m_show_entropy) {
+				update_entropy_labels();
+			}
+			if (Input::get_singleton()->is_action_just_pressed("wfc_step")) {
+				step();
+			}
+		}
+	}
+
+	void set_generate_on_ready(bool p_enable) {
+		generate_on_ready = p_enable;
+	}
+
+	void set_step_by_step(bool p_enable) {
+		step_by_step = p_enable;
+	}
+	bool is_step_by_step() const {
+		return step_by_step;
+	}
+
+	void set_show_entropy(bool p_enable) {
+		m_show_entropy = p_enable;
+	}
+	bool is_showing_entropy() const {
+		return m_show_entropy;
+	}
+
+	bool get_generate_on_ready() const {
+		return generate_on_ready;
+	}
+
 	void set_grid_size(const Vector3i &p_size) {
 		grid_size = p_size;
 	}
@@ -239,15 +310,15 @@ public:
 	// This is the new primary way to provide tile data to the generator.
 	// It populates the internal data structures from your C++ structs.
 	void parse_tile_data() {
-		Celebi::Data p_data = loadCelebiJson("res://assets/library.json");
+		Celebi::Data celebiData = loadCelebiJson("res://assets/library.json");
 
 		tile_prototypes.clear();
 		compatibility_map.clear();
 
 		godot::Dictionary meshes = Help::loadBlendFile("res://assets/Voxel.blend");
 
-		for (size_t i = 0; i < p_data.items.size(); ++i) {
-			const Celebi::LibraryItem &item = p_data.items[i];
+		for (size_t i = 0; i < celebiData.items.size(); ++i) {
+			const Celebi::LibraryItem &item = celebiData.items[i];
 
 			WFCTile tile;
 			tile.id = i;
@@ -277,6 +348,9 @@ public:
 		// --- Pre-calculate the compatibility map ---
 		for (int i = 0; i < tile_prototypes.size(); ++i) {
 			const WFCTile &tile = tile_prototypes[i];
+
+			UtilityFunctions::print(tile.id, tile.hashes, tile.mesh);
+
 			for (int dir = 0; dir < 6; ++dir) {
 				int64_t key = (int64_t(tile.hashes[dir]) << 3) + dir;
 				if (!compatibility_map.has(key)) {
@@ -289,75 +363,157 @@ public:
 		UtilityFunctions::print("Hash-to-tile compatibility map generated from C++ data.");
 	}
 
-	void generate() {
-		UtilityFunctions::print("Starting WFC generation...");
-		clear_scene();
+	void reset() {
+		UtilityFunctions::print("Resetting WFC Generator.");
 
-		// The generate method now expects tile data to have been set already.
+		for (int i = get_child_count() - 1; i >= 0; --i) {
+			Node *child = get_child(i);
+			if (child != m_debug_labels_node) {
+				child->queue_free();
+			}
+		}
+
 		if (tile_prototypes.is_empty()) {
-			UtilityFunctions::printerr("No tile data has been set. Call set_tile_data() before generating. Aborting.");
+			UtilityFunctions::printerr("Cannot initialize grid, tile data is empty.");
 			return;
 		}
 
-		initialize_grid();
-
-		std::random_device rd;
-		std::mt19937 gen(rd());
-
 		int total_cells = grid_size.x * grid_size.y * grid_size.z;
-		while (collapsed_count < total_cells) {
-			// 1. Observation: Find cell with lowest entropy
-			int cell_to_collapse_idx = find_lowest_entropy_cell();
-			if (cell_to_collapse_idx == -1) {
-				if (collapsed_count < total_cells) {
-					UtilityFunctions::printerr("WFC failed: No cell to collapse, but not all cells are collapsed.");
-				}
-				break; // Should be finished or failed
-			}
-
-			// 2. Collapse
-			WFCCell &cell = grid.ptrw()[cell_to_collapse_idx];
-			std::uniform_int_distribution<> distrib(0, cell.possible_tiles.size() - 1);
-			int chosen_tile_idx = cell.possible_tiles[distrib(gen)];
-			cell.possible_tiles.clear();
-			cell.possible_tiles.push_back(chosen_tile_idx);
-			cell.collapsed = true;
-			collapsed_count++;
-
-			// 3. Propagate
-			Vector3i cell_pos(
-					cell_to_collapse_idx % grid_size.x,
-					(cell_to_collapse_idx / grid_size.x) % grid_size.y,
-					cell_to_collapse_idx / (grid_size.x * grid_size.y));
-
-			if (!propagate(cell_pos)) {
-				// Handle failure (e.g., clear and retry, or just stop)
-				UtilityFunctions::printerr("Propagation failed. Halting generation.");
-				return;
-			}
+		grid.resize(total_cells);
+		WFCCell *grid_ptr = grid.ptrw();
+		for (int i = 0; i < total_cells; ++i) {
+			grid_ptr[i].initialize(tile_prototypes.size());
 		}
+		collapsed_count = 0;
+		generation_state = IDLE;
+	}
 
-		// Generation complete, instantiate meshes
+	void finish_generation() {
 		UtilityFunctions::print("WFC generation complete. Instantiating meshes...");
-		for (int z = 0; z < grid_size.z; ++z) {
-			for (int y = 0; y < grid_size.y; ++y) {
-				const WFCCell *grid_ptr = grid.ptr();
+
+		const WFCCell *grid_ptr = grid.ptr();
+
+		for (int y = 0; y < grid_size.y; ++y) {
+			for (int z = 0; z < grid_size.z; ++z) {
 				for (int x = 0; x < grid_size.x; ++x) {
 					Vector3i pos(x, y, z);
 					int index = get_cell_index(pos);
+
 					if (grid_ptr[index].collapsed && !grid_ptr[index].possible_tiles.is_empty()) {
 						int tile_id = grid_ptr[index].possible_tiles[0];
 						const WFCTile &tile_data = tile_prototypes[tile_id];
 
 						MeshInstance3D *mi = memnew(MeshInstance3D);
 						mi->set_mesh(tile_data.mesh);
-						mi->set_position(Vector3(x, y, z)); // Assuming 1 unit per cell
+						mi->set_position(pos);
 						add_child(mi);
 					}
 				}
 			}
 		}
 		UtilityFunctions::print("Scene populated.");
+	}
+
+	void update_entropy_labels() {
+		if (!m_debug_labels_node)
+			return;
+
+		for (int i = 0; i < grid.size(); ++i) {
+			if (i >= m_debug_labels_node->get_child_count())
+				continue;
+
+			Label3D *label = Object::cast_to<Label3D>(m_debug_labels_node->get_child(i));
+			if (label) {
+				const WFCCell &cell = grid[i];
+				if (cell.collapsed) {
+					label->set_visible(false);
+				} else {
+					label->set_visible(true);
+					label->set_text(String::num(cell.possible_tiles.size()));
+				}
+			}
+		}
+	}
+
+	void hide_entropy_labels() {
+		if (!m_debug_labels_node)
+			return;
+		for (int i = 0; i < m_debug_labels_node->get_child_count(); ++i) {
+			auto *label = Object::cast_to<Label3D>(m_debug_labels_node->get_child(i));
+			if (label) {
+				label->set_visible(false);
+			}
+		}
+	}
+
+	void step() {
+		if (generation_state != GENERATING) {
+			return;
+		}
+
+		int total_cells = grid_size.x * grid_size.y * grid_size.z;
+		if (collapsed_count >= total_cells) {
+			generation_state = DONE;
+			if (m_show_entropy) {
+				hide_entropy_labels();
+			}
+			finish_generation();
+			return;
+		}
+
+		// 1. Observation: Find cell with lowest entropy
+		int cell_to_collapse_idx = find_lowest_entropy_cell();
+		if (cell_to_collapse_idx == -1) {
+			UtilityFunctions::printerr("WFC failed: No cell to collapse, but not all cells are collapsed.");
+			generation_state = FAILED;
+			if (m_show_entropy) {
+				hide_entropy_labels();
+			}
+			return;
+		}
+
+		// 2. Collapse
+		WFCCell &cell = grid.ptrw()[cell_to_collapse_idx];
+		std::uniform_int_distribution<> distrib(0, cell.possible_tiles.size() - 1);
+		int chosen_tile_idx = cell.possible_tiles[distrib(random_generator)];
+		cell.possible_tiles.clear();
+		cell.possible_tiles.push_back(chosen_tile_idx);
+		cell.collapsed = true;
+		collapsed_count++;
+
+		// 3. Propagate
+		Vector3i cell_pos(
+				cell_to_collapse_idx % grid_size.x,
+				(cell_to_collapse_idx / grid_size.x) % grid_size.y,
+				cell_to_collapse_idx / (grid_size.x * grid_size.y));
+
+		if (!propagate(cell_pos)) {
+			UtilityFunctions::printerr("Propagation failed. Halting generation.");
+			generation_state = FAILED;
+			if (m_show_entropy) {
+				hide_entropy_labels();
+			}
+			return;
+		}
+	}
+
+	void generate() {
+		reset();
+
+		if (tile_prototypes.is_empty()) {
+			UtilityFunctions::printerr("No tile data has been set. Call parse_tile_data() before generating. Aborting.");
+			generation_state = FAILED;
+			return;
+		}
+
+		UtilityFunctions::print("Starting WFC generation...");
+		generation_state = GENERATING;
+
+		if (!step_by_step) {
+			while (generation_state == GENERATING) {
+				step();
+			}
+		}
 	}
 };
 

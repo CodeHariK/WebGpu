@@ -12,7 +12,7 @@
 
 #include <cstdlib>
 
-MeshInstance3D *MinecraftNode::generate_smooth_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling, bool create_collision) {
+MeshInstance3D *MinecraftNode::generate_smooth_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling) {
 	PackedVector3Array vertices;
 	PackedInt32Array indices;
 
@@ -70,11 +70,6 @@ MeshInstance3D *MinecraftNode::generate_smooth_part_mesh(String name, Vector2i i
 	mi->set_mesh(mesh);
 	mi->set_material_override(terrain_material);
 	mi->set_position(Vector3(indexPos.x * part_size, 0, indexPos.y * part_size));
-
-	// If requested, create a static collision body for the mesh.
-	if (create_collision) {
-		mi->create_trimesh_collision();
-	}
 
 	return mi;
 }

@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://cpw0oipoya1mi"]
+[gd_scene load_steps=11 format=3 uid="uid://cpw0oipoya1mi"]
 
 [ext_resource type="Script" uid="uid://dtif1g023v2sd" path="res://scene/minecraft/minecraft_node.gd" id="1_d82rw"]
 [ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/terrain/mat_terrain.tres" id="2_2a7lt"]
@@ -17,6 +17,9 @@ glow_enabled = true
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_2a7lt"]
 
+[sub_resource type="BoxMesh" id="BoxMesh_2a7lt"]
+size = Vector3(2, 2, 2)
+
 [node name="World" type="Node3D"]
 script = ExtResource("1_d82rw")
 
@@ -33,9 +36,18 @@ shadow_enabled = true
 environment = SubResource("Environment_jfv7q")
 
 [node name="FlyCamera" parent="." instance=ExtResource("2_d82rw")]
-transform = Transform3D(1, 0, 0, 0, 0.996734, 0.0807556, 0, -0.0807556, 0.996734, 26.9576, 30.3453, 35.3498)
+transform = Transform3D(1, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, 0, 50, 20)
 
 [node name="MinecraftNode" type="MinecraftNode" parent="."]
+generate_on_ready = false
 terrain_noise = SubResource("FastNoiseLite_2a7lt")
 terrain_material = ExtResource("2_2a7lt")
 height_curve = ExtResource("5_2tur5")
+
+[node name="WFCGenerator3D" type="WFCGenerator3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 40, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 40, 0)
+mesh = SubResource("BoxMesh_2a7lt")
+skeleton = NodePath("../WFCGenerator3D")

@@ -10,6 +10,7 @@
 #include "godot_cpp/core/property_info.hpp"
 #include "godot_cpp/variant/dictionary.hpp"
 #include "godot_cpp/variant/packed_int32_array.hpp"
+#include "godot_cpp/variant/transform3d.hpp"
 #include "godot_cpp/variant/vector3.hpp"
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/camera3d.hpp>
@@ -48,6 +49,7 @@ struct MinecraftUI {
 struct Part {
 	MeshInstance3D *mesh = nullptr;
 	bool visible = false;
+	bool has_collision = false;
 	double last_visible_time = 0.0;
 };
 
@@ -55,6 +57,8 @@ class MinecraftNode : public Node3D {
 	GDCLASS(MinecraftNode, Node3D);
 
 private:
+	bool generate_on_ready = true;
+
 	std::map<Vector2i, Part> m_parts;
 	Vector2i m_last_camera_part_pos;
 	Transform3D m_last_camera_transform;
@@ -76,7 +80,7 @@ private:
 
 	PackedInt32Array generate_terrain_heights(Vector2i indexPos, int dim, float freq, bool height_curve_sampling);
 
-	MeshInstance3D *generate_smooth_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling, bool create_collision);
+	MeshInstance3D *generate_smooth_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling);
 	void generate_cube_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling);
 	MeshInstance3D *generate_voxel_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling);
 
@@ -86,6 +90,10 @@ private:
 
 protected:
 	static void _bind_methods() {
+		ClassDB::bind_method(D_METHOD("set_generate_on_ready", "enable"), &MinecraftNode::set_generate_on_ready);
+		ClassDB::bind_method(D_METHOD("get_generate_on_ready"), &MinecraftNode::get_generate_on_ready);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "generate_on_ready"), "set_generate_on_ready", "get_generate_on_ready");
+
 		ClassDB::bind_method(D_METHOD("set_part_size", "width"), &MinecraftNode::set_part_size);
 		ClassDB::bind_method(D_METHOD("get_part_size"), &MinecraftNode::get_part_size);
 		ADD_PROPERTY(PropertyInfo(Variant::INT, "part_size"), "set_part_size", "get_part_size");
@@ -126,6 +134,13 @@ public:
 
 	godot::Dictionary DelaunatorTest();
 	godot::Array VoronoiTest();
+
+	void set_generate_on_ready(bool p_enable) {
+		generate_on_ready = p_enable;
+	}
+	bool get_generate_on_ready() const {
+		return generate_on_ready;
+	}
 
 	void set_part_size(int w) {
 		part_size = w;
