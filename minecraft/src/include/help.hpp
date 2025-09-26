@@ -17,7 +17,13 @@ inline void traverse(godot::Dictionary &mesh_map, Node *node) {
 	if (meshInstance) {
 		Ref<Mesh> meshObj = meshInstance->get_mesh();
 		if (meshObj.is_valid()) {
-			mesh_map[meshInstance->get_name()] = meshObj;
+			String name = meshInstance->get_name();
+			if (name.begins_with("c_")) {
+				name = name.substr(2); // Remove the "c_" prefix.
+			}
+
+			meshObj->set_name(name);
+			mesh_map[name] = meshObj;
 		}
 	}
 	int child_count = node->get_child_count();
@@ -27,8 +33,7 @@ inline void traverse(godot::Dictionary &mesh_map, Node *node) {
 	}
 }
 
-// Load the entire .blend file as a PackedScene and print mesh/object/material names
-inline godot::Dictionary loadBlendFile(String path) {
+inline godot::Dictionary loadMeshFile(String path) {
 	godot::Dictionary mesh_map;
 	Ref<Resource> blend_resource = ResourceLoader::get_singleton()->load(path);
 	if (blend_resource.is_valid() && blend_resource->is_class("PackedScene")) {

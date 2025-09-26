@@ -21,7 +21,7 @@ br:
 	godot --path project
 
 celebi:
-	cp ../Celebi/example/Voxel.blend project/assets/
+	cp ../Celebi/example/Voxel.glb project/assets/
 	cp ../Celebi/example/library.json project/assets/
 
 clang:

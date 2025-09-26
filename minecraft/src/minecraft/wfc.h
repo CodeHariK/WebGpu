@@ -42,6 +42,7 @@ const Vector3i DIRECTIONS[] = {
 };
 // Opposite direction indices: 0->1, 1->0, 2->3, 3->2, etc.
 const int OPPOSITE_DIR_IDX[] = { 1, 0, 3, 2, 5, 4 };
+const char *DIR_NAMES[] = { "+X", "-X", "+Y", "-Y", "+Z", "-Z" };
 
 // A simple struct to hold all data for a single tile prototype.
 struct WFCTile {
@@ -107,6 +108,10 @@ protected:
 		ClassDB::bind_method(D_METHOD("set_show_compatibility_table", "enable"), &WFCGenerator3D::set_show_compatibility_table);
 		ClassDB::bind_method(D_METHOD("is_showing_compatibility_table"), &WFCGenerator3D::is_showing_compatibility_table);
 		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_compatibility_table"), "set_show_compatibility_table", "is_showing_compatibility_table");
+
+		ClassDB::bind_method(D_METHOD("set_show_tile_prototypes", "enable"), &WFCGenerator3D::set_show_tile_prototypes);
+		ClassDB::bind_method(D_METHOD("is_showing_tile_prototypes"), &WFCGenerator3D::is_showing_tile_prototypes);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_tile_prototypes"), "set_show_tile_prototypes", "is_showing_tile_prototypes");
 	}
 
 private:
@@ -124,6 +129,7 @@ private:
 	bool step_forward = false;
 	bool m_show_all_possibilities = false;
 	bool m_show_compatibility_table = false;
+	bool m_show_tile_prototypes = false;
 
 	Vector3i grid_size = Vector3i(2, 1, 2);
 
@@ -133,6 +139,7 @@ private:
 	Dictionary compatibility_map;
 	Node3D *m_debug_labels_node = nullptr;
 	Node3D *m_compatibility_table_node = nullptr;
+	Node3D *m_tile_prototypes_node = nullptr;
 	Node3D *m_debug_possibilities_node = nullptr;
 	std::mt19937 random_generator;
 
@@ -306,6 +313,10 @@ public:
 				show_compatibility_table();
 			}
 
+			if (m_show_tile_prototypes) {
+				show_tile_prototypes_debug();
+			}
+
 			generate_on_ready = false;
 		}
 
@@ -369,6 +380,13 @@ public:
 		return m_show_compatibility_table;
 	}
 
+	void set_show_tile_prototypes(bool p_enable) {
+		m_show_tile_prototypes = p_enable;
+	}
+	bool is_showing_tile_prototypes() const {
+		return m_show_tile_prototypes;
+	}
+
 	void set_grid_size(const Vector3i &p_size) {
 		grid_size = p_size;
 	}
@@ -384,7 +402,11 @@ public:
 		tile_prototypes.clear();
 		compatibility_map.clear();
 
-		godot::Dictionary meshes = Help::loadBlendFile("res://assets/Voxel.blend");
+		godot::Dictionary meshes = Help::loadMeshFile("res://assets/Voxel.glb");
+		godot::Array keys = meshes.keys();
+		for (int i = 0; i < keys.size(); i++) {
+			UtilityFunctions::print(keys[i], meshes[keys[i]]);
+		}
 
 		for (size_t i = 0; i < celebiData.items.size(); ++i) {
 			const Celebi::LibraryItem &item = celebiData.items[i];
@@ -407,6 +429,12 @@ public:
 			tile.hashes[4] = item.hashPz;
 			tile.hashes[5] = item.hashNz;
 
+			UtilityFunctions::print(
+					"Id: ", tile.id,
+					" Mesh: ", mesh_path,
+					" hashes: ", tile.hashes[0], ",", tile.hashes[1], ",", tile.hashes[2],
+					",", tile.hashes[3], ",", tile.hashes[4], ",", tile.hashes[5]);
+
 			tile_prototypes.push_back(tile);
 		}
 
@@ -417,12 +445,6 @@ public:
 		// --- Pre-calculate the compatibility map ---
 		for (int i = 0; i < tile_prototypes.size(); ++i) {
 			const WFCTile &tile = tile_prototypes[i];
-
-			UtilityFunctions::print(
-					"Id: ", tile.id,
-					" Mesh: ", tile.mesh->get_name(),
-					" hashes: ", tile.hashes[0], ",", tile.hashes[1], ",", tile.hashes[2],
-					",", tile.hashes[3], ",", tile.hashes[4], ",", tile.hashes[5]);
 
 			for (int dir = 0; dir < 6; ++dir) {
 				int64_t key = (int64_t(tile.hashes[dir]) << 3) + dir;
@@ -543,6 +565,51 @@ public:
 		}
 	}
 
+	void show_tile_prototypes_debug() {
+		if (!m_show_tile_prototypes) {
+			if (m_tile_prototypes_node) {
+				m_tile_prototypes_node->queue_free();
+				m_tile_prototypes_node = nullptr;
+			}
+			return;
+		}
+
+		if (m_tile_prototypes_node) {
+			m_tile_prototypes_node->queue_free();
+		}
+		m_tile_prototypes_node = memnew(Node3D);
+		m_tile_prototypes_node->set_name("TilePrototypesDebug");
+		add_child(m_tile_prototypes_node);
+
+		const Vector3 display_origin = Vector3(grid_size.x + 5.0f, 0, 0);
+		const float tile_spacing = 2.0f;
+		const float label_offset = 0.75f;
+
+		for (int i = 0; i < tile_prototypes.size(); ++i) {
+			const WFCTile &tile = tile_prototypes[i];
+			Vector3 tile_pos = display_origin + Vector3(i * tile_spacing, 0, 0);
+
+			// Display the tile mesh
+			MeshInstance3D *mi = memnew(MeshInstance3D);
+			mi->set_mesh(tile.mesh);
+			mi->set_position(tile_pos);
+			m_tile_prototypes_node->add_child(mi);
+
+			Label3D *hash_label = memnew(Label3D);
+			hash_label->set_text(tile.mesh->get_name());
+			hash_label->set_position(tile_pos + Vector3(0, 1.4, 0) * label_offset);
+			m_tile_prototypes_node->add_child(hash_label);
+
+			// Display hash labels for each face
+			for (int dir = 0; dir < 6; ++dir) {
+				Label3D *hash_label = memnew(Label3D);
+				hash_label->set_text(String::num(tile.hashes[dir]));
+				hash_label->set_position(tile_pos + Vector3(DIRECTIONS[dir]) * label_offset);
+				m_tile_prototypes_node->add_child(hash_label);
+			}
+		}
+	}
+
 	void show_compatibility_table() { // Renamed from show_compatibility_table for consistency
 		if (!m_show_compatibility_table) {
 			if (m_compatibility_table_node) {
@@ -571,7 +638,10 @@ public:
 
 			// Add key label for the row
 			Label3D *key_label = memnew(Label3D);
-			key_label->set_text("Key: " + String::num_int64(key));
+			int64_t hash = key >> 3;
+			int dir = key & 0x7; // Mask for the lower 3 bits
+			key_label->set_text("Hash: " + String::num_int64(hash) + ", Dir: " + DIR_NAMES[dir]);
+
 			key_label->set_position(row_pos + Vector3(-4, 0, 0));
 			m_compatibility_table_node->add_child(key_label);
 
