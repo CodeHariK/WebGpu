@@ -1,31 +1,22 @@
 {
     "items": [
         {
-            "obj": "GrassHalfElevated",
-            "hash_NX": 1,
-            "hash_PX": 2,
-            "hash_NY": 3,
-            "hash_PY": 3,
-            "hash_PZ": 5,
-            "hash_NZ": 4
-        },
-        {
             "obj": "Grass",
             "hash_NX": 1,
             "hash_PX": 1,
             "hash_NY": 1,
             "hash_PY": 1,
             "hash_PZ": 0,
-            "hash_NZ": 4
+            "hash_NZ": 2
         },
         {
             "obj": "GrassFull",
-            "hash_NX": 4,
-            "hash_PX": 4,
-            "hash_NY": 4,
-            "hash_PY": 4,
-            "hash_PZ": 4,
-            "hash_NZ": 4
+            "hash_NX": 2,
+            "hash_PX": 2,
+            "hash_NY": 2,
+            "hash_PY": 2,
+            "hash_PZ": 2,
+            "hash_NZ": 2
         },
         {
             "obj": "GrassCornerElevated",
@@ -33,62 +24,71 @@
             "hash_PX": 3,
             "hash_NY": 1,
             "hash_PY": 3,
+            "hash_PZ": 4,
+            "hash_NZ": 2
+        },
+        {
+            "obj": "GrassHalfElevated",
+            "hash_NX": 1,
+            "hash_PX": 9,
+            "hash_NY": 3,
+            "hash_PY": 3,
             "hash_PZ": 10,
-            "hash_NZ": 4
-        },
-        {
-            "obj": "GrassHalfElevated_R90",
-            "hash_NX": 3,
-            "hash_PX": 3,
-            "hash_NY": 1,
-            "hash_PY": 2,
-            "hash_PZ": 6,
-            "hash_NZ": 4
-        },
-        {
-            "obj": "GrassHalfElevated_R180",
-            "hash_NX": 2,
-            "hash_PX": 1,
-            "hash_NY": 7,
-            "hash_PY": 7,
-            "hash_PZ": 8,
-            "hash_NZ": 4
-        },
-        {
-            "obj": "GrassHalfElevated_R270",
-            "hash_NX": 7,
-            "hash_PX": 7,
-            "hash_NY": 2,
-            "hash_PY": 1,
-            "hash_PZ": 9,
-            "hash_NZ": 4
+            "hash_NZ": 2
         },
         {
             "obj": "GrassCornerElevated_R90",
             "hash_NX": 3,
             "hash_PX": 1,
             "hash_NY": 1,
-            "hash_PY": 7,
-            "hash_PZ": 11,
-            "hash_NZ": 4
+            "hash_PY": 5,
+            "hash_PZ": 6,
+            "hash_NZ": 2
         },
         {
             "obj": "GrassCornerElevated_R180",
-            "hash_NX": 7,
+            "hash_NX": 5,
             "hash_PX": 1,
-            "hash_NY": 7,
+            "hash_NY": 5,
             "hash_PY": 1,
-            "hash_PZ": 12,
-            "hash_NZ": 4
+            "hash_PZ": 7,
+            "hash_NZ": 2
         },
         {
             "obj": "GrassCornerElevated_R270",
             "hash_NX": 1,
-            "hash_PX": 7,
+            "hash_PX": 5,
             "hash_NY": 3,
             "hash_PY": 1,
+            "hash_PZ": 8,
+            "hash_NZ": 2
+        },
+        {
+            "obj": "GrassHalfElevated_R90",
+            "hash_NX": 3,
+            "hash_PX": 3,
+            "hash_NY": 1,
+            "hash_PY": 9,
+            "hash_PZ": 11,
+            "hash_NZ": 2
+        },
+        {
+            "obj": "GrassHalfElevated_R180",
+            "hash_NX": 9,
+            "hash_PX": 1,
+            "hash_NY": 5,
+            "hash_PY": 5,
+            "hash_PZ": 12,
+            "hash_NZ": 2
+        },
+        {
+            "obj": "GrassHalfElevated_R270",
+            "hash_NX": 5,
+            "hash_PX": 5,
+            "hash_NY": 9,
+            "hash_PY": 1,
             "hash_PZ": 13,
-            "hash_NZ": 4
+            "hash_NZ": 2
         }
     ],
     "voxels": []

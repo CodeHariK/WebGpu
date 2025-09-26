@@ -36,23 +36,29 @@ struct Data {
 
 inline void from_json(const json &j, LibraryItem &x) {
 	x.obj = j.at("obj").get<std::string>();
+
 	x.hashNx = j.at("hash_NX").get<int16_t>();
 	x.hashPx = j.at("hash_PX").get<int16_t>();
-	x.hashNy = j.at("hash_NY").get<int16_t>();
-	x.hashPy = j.at("hash_PY").get<int16_t>();
-	x.hashPz = j.at("hash_PZ").get<int16_t>();
-	x.hashNz = j.at("hash_NZ").get<int16_t>();
+
+	x.hashNy = j.at("hash_NZ").get<int16_t>();
+	x.hashPy = j.at("hash_PZ").get<int16_t>();
+
+	x.hashNz = j.at("hash_PY").get<int16_t>();
+	x.hashPz = j.at("hash_NY").get<int16_t>();
 }
 
 inline void to_json(json &j, const LibraryItem &x) {
 	j = json::object();
 	j["obj"] = x.obj;
+
 	j["hash_NX"] = x.hashNx;
 	j["hash_PX"] = x.hashPx;
-	j["hash_NY"] = x.hashNy;
-	j["hash_PY"] = x.hashPy;
-	j["hash_PZ"] = x.hashPz;
-	j["hash_NZ"] = x.hashNz;
+
+	j["hash_NZ"] = x.hashNy;
+	j["hash_PZ"] = x.hashPy;
+
+	j["hash_PY"] = x.hashNz;
+	j["hash_NY"] = x.hashPz;
 }
 
 inline void from_json(const json &j, Data &x) {

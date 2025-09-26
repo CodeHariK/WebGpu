@@ -1,8 +1,9 @@
-[gd_scene load_steps=9 format=3 uid="uid://cpw0oipoya1mi"]
+[gd_scene load_steps=10 format=3 uid="uid://cpw0oipoya1mi"]
 
 [ext_resource type="Script" uid="uid://dtif1g023v2sd" path="res://scene/minecraft/minecraft_node.gd" id="1_d82rw"]
 [ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/terrain/mat_terrain.tres" id="2_2a7lt"]
 [ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="2_d82rw"]
+[ext_resource type="Sky" uid="uid://bfwuyyjpf33uy" path="res://material/shaders/sky/new_sky.tres" id="4_2a7lt"]
 [ext_resource type="PackedScene" uid="uid://p4auepeepmyy" path="res://scene/minecraft/ui_minecraft.tscn" id="4_jfv7q"]
 [ext_resource type="Curve" uid="uid://ccpck6g3dfdlv" path="res://scene/minecraft/curve_minecraft.tres" id="5_2tur5"]
 [ext_resource type="PackedScene" uid="uid://btxgtsxntydrd" path="res://scripts/ui/performance/UI_PerformanceMonitor.tscn" id="6_2a7lt"]
@@ -10,6 +11,7 @@
 [sub_resource type="Environment" id="Environment_jfv7q"]
 background_mode = 2
 background_color = Color(0.91703, 0.739792, 0.765747, 1)
+sky = ExtResource("4_2a7lt")
 tonemap_mode = 2
 glow_enabled = true
 
