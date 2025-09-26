@@ -56,11 +56,13 @@ class LIBRARY_PT_panel(Panel):
         l = self.layout
         c = type.celebi()
 
-        grid = l.grid_flow(row_major=True, columns=2)
+        l.operator(save.EXPORT_OT_gltf.bl_idname, icon="EXPORT")
+        l.separator()
+
+        grid = l.grid_flow(row_major=True, columns=3)
 
         grid.operator(save.LIBRARY_OT_save.bl_idname, icon="FILE_TICK")
         grid.operator(save.LIBRARY_OT_load.bl_idname, icon="FILE_FOLDER")
-        grid.operator(save.LIBRARY_OT_clear.bl_idname, icon="TRASH")
         grid.operator(LIBRARY_OT_add_objects.bl_idname, icon="PLUS")
 
         l.separator(type="LINE")
@@ -69,6 +71,8 @@ class LIBRARY_PT_panel(Panel):
             voxel_hash.VOXEL_OT_face_hash.bl_idname,
             text=voxel_hash.VOXEL_OT_face_hash.bl_label,
         )
+
+        l.operator(save.LIBRARY_OT_clear.bl_idname, icon="TRASH")
 
         l.prop(c, "T_show_hash", text="Show Hashes")
 
