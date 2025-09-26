@@ -41,10 +41,6 @@ def to_signed32(x: int) -> int:
         return -((~x & 0xFFFFFFFF) + 1)
     return x
 
-
-DIRECTIONS = ["BL_TR", "BR_TL", "TR_BL", "TL_BR"]
-
-
 def face_vertex_sort_key(v, normal_axis, sign, direction):
     if normal_axis == "X":  # YZ plane
         if sign > 0:
@@ -83,6 +79,108 @@ def face_vertex_sort_key(v, normal_axis, sign, direction):
                 return (-v.x, -v.y)
     return 0
 
+def plane_hash_raycast(
+    obj: bpy.types.Object,
+    normal_axis: str,
+    sign=1,
+    size=1.0,
+    direction="BL_TR",
+    grid_resolution=5,
+):
+    """
+    Compute hash for a voxel face by raycasting on a grid.
+
+    obj: The object to perform the raycast on.
+    normal_axis: "X", "Y", or "Z".
+    sign: +1 (positive side) or -1 (negative side).
+    size: Voxel cube size.
+    direction: The sorting order for the grid points (e.g., "BL_TR").
+    grid_resolution: The number of points to sample along each axis of the face grid.
+    """
+    print(f"--- Hashing mesh '{obj.name}', face {normal_axis}{'+' if sign > 0 else '-'} ---")
+
+    axis_idx = "XYZ".index(normal_axis)
+    
+    # Define the two axes that form the plane perpendicular to the normal_axis
+    plane_axes = [i for i in range(3) if i != axis_idx]
+    u_axis, v_axis = plane_axes[0], plane_axes[1]
+
+    # The constant coordinate for the plane
+    plane_coord = sign * (size / 2)
+    
+    # A small offset to start the ray from outside the object
+    ray_offset = size * 0.1
+
+    hash_value = 0
+
+    # Determine scan order based on face
+    is_special_order = (normal_axis == 'Y' and sign > 0) or \
+                       (normal_axis == 'X' and sign < 0) or \
+                       (normal_axis == 'Z' and sign < 0)
+
+    # Iterate over a 2D grid on the face
+    for r in range(grid_resolution):
+        for c in range(grid_resolution):
+            # Define a margin and calculate the sampling area within it.
+            margin = 0.01
+            sample_width = size - (margin * 2)
+            start_coord = -size / 2 + margin
+            
+            if grid_resolution > 1:
+                step = sample_width / (grid_resolution - 1)
+                
+                if is_special_order:
+                    # Bottom-right to top-left
+                    u = start_coord + (grid_resolution - 1 - c) * step # Right to left
+                    v = start_coord + r * step                         # Bottom to top
+                else:
+                    # Default: Bottom-left to top-right
+                    u = start_coord + c * step # Left to right
+                    v = start_coord + r * step # Bottom to top
+            else: # grid_resolution == 1
+                u = 0.0
+                v = 0.0
+
+            ray_origin_list: list[float] = [0.0, 0.0, 0.0]
+            ray_origin_list[axis_idx] = plane_coord + sign * ray_offset
+            ray_origin_list[u_axis] = u
+            ray_origin_list[v_axis] = v
+
+            local_ray_origin = Vector(ray_origin_list)
+
+            ray_direction_list: list[float] = [0, 0, 0]
+            ray_direction_list[axis_idx] = -sign
+            local_ray_direction = Vector(ray_direction_list)
+
+            hit, location, normal, face_index = obj.ray_cast(local_ray_origin, local_ray_direction, distance=.11)
+
+            mat_name = "air"
+            color_int = 0 # Default for "air"
+            if hit:
+                mat_index = obj.data.polygons[face_index].material_index
+                if obj.material_slots and mat_index < len(obj.material_slots):
+                    mat = obj.material_slots[mat_index].material
+                    if mat:
+                        mat_name = mat.name
+                        c = mat.diffuse_color
+                        color_int = (int(c[0] * 255) << 16) + (int(c[1] * 255) << 8) + int(c[2] * 255)
+
+            print(
+                # f"  - Point({r},{c}): "
+                f"Origin({local_ray_origin.x:.2f}, {local_ray_origin.y:.2f}, {local_ray_origin.z:.2f}), "
+                f"Dir({local_ray_direction.x:.2f}, {local_ray_direction.y:.2f}, {local_ray_direction.z:.2f}), "
+                f"Hit='{mat_name}', ColorVal={color_int}"
+            )
+
+            # Combine into a rolling hash
+            hash_value = (hash_value * 31 + color_int) & 0xFFFFFFFFFFFFFFFF
+
+    # Fold 64-bit hash into 32-bit and get a compact ID
+    final_hash = to_signed32((hash_value & 0xFFFFFFFF) ^ ((hash_value >> 32) & 0xFFFFFFFF))
+
+    print(get_compact_hash(final_hash), "\n")
+
+    return get_compact_hash(final_hash)
 
 def plane_hash(
     obj: bpy.types.Object,
@@ -111,7 +209,7 @@ def plane_hash(
     boundary_verts = [
         Vector((round(v.x * scale), round(v.y * scale), round(v.z * scale)))
         for v in verts_local
-        if abs(v[axis_index] - boundary) < 1e-6
+        if abs(v[axis_index] - boundary) < 1e-4
     ]
 
     if not boundary_verts:
@@ -127,14 +225,6 @@ def plane_hash(
     mat_color_int_cache = {}
     hash_value = 0
     for vert in sorted_verts:
-        # Only include the two in-plane coordinates for the hash
-        if normal_axis == "X":
-            sig = int(vert.y) ^ int(vert.z)
-        elif normal_axis == "Y":
-            sig = int(vert.x) ^ int(vert.z)
-        else:
-            sig = int(vert.x) ^ int(vert.y)
-
         # Pick material color from one polygon that uses this vertex
         mat_color = (1, 1, 1)
         for polygon in mesh.polygons:
@@ -160,7 +250,16 @@ def plane_hash(
                 + int(mat_color[2] * 255)
             )
 
-        # print(f"{sigx},{sigy},{sigz},  {sig}, {mat_color_int_cache[mat_color]}")
+        # Only include the two in-plane coordinates for the hash
+        if normal_axis == "X":
+            sig = int(vert.y) ^ int(vert.z)
+            # print(f"{vert.y}, {vert.z} {sig}  {mat_color_int_cache[mat_color]}   {hash_value}")
+        elif normal_axis == "Y":
+            sig = int(vert.x) ^ int(vert.z)
+            # print(f"{vert.x}, {vert.z} {sig}  {mat_color_int_cache[mat_color]}   {hash_value}")
+        else:
+            sig = int(vert.x) ^ int(vert.y)
+            # print(f"{vert.x}, {vert.y} {sig}  {mat_color_int_cache[mat_color]}   {hash_value}")
 
         sig ^= mat_color_int_cache[mat_color]
         hash_value = (
@@ -169,7 +268,7 @@ def plane_hash(
 
     hash = to_signed32((hash_value & 0xFFFFFFFF) ^ ((hash_value >> 32) & 0xFFFFFFFF))
 
-    # print(f"{obj.name} {normal_axis} {sign} {direction}  {hash}")
+    # print(f"{obj.name} {normal_axis} {sign} {direction}  {get_compact_hash(hash)} \n")
     # return hash
 
     return get_compact_hash(hash)
@@ -186,8 +285,6 @@ class VOXEL_OT_face_hash(bpy.types.Operator):
         type.clearConfigCollection()
         c.purgeLibrary()
         c.clearHashes()
-
-        print("\n" * 50)
 
         for item in lib:
             calc_linked_configs(item)
@@ -206,6 +303,9 @@ def calc_linked_configs(oriItem: type.LibraryItem):
 
     calcHashes(oriItem, oriItem.obj, None, None, None, None)
 
+    # ------------------
+    return
+
     ConfigCollection = type.getConfigCollection()
 
     for i, (label, mat) in enumerate(CONFIGS, start=1):
@@ -220,14 +320,24 @@ def calc_linked_configs(oriItem: type.LibraryItem):
 def calcHashes(
     libItem: type.LibraryItem | None, temp_mesh_obj, base_obj, mat, label, y_offset
 ):
-    hash_NX = plane_hash(temp_mesh_obj, normal_axis="X", sign=-1, direction="BR_TL")
-    hash_PX = plane_hash(temp_mesh_obj, normal_axis="X", sign=1, direction="BL_TR")
+    # Using the new raycasting approach.
+    # The sorting order of the grid points is implicitly handled by the loops.
+    # We can increase grid_resolution for more detail at the cost of performance.
+    grid_res = 2
+    hash_PX = plane_hash_raycast(temp_mesh_obj, normal_axis="X", sign=1, direction="BL_TR", grid_resolution=grid_res)
+    hash_NX = plane_hash_raycast(temp_mesh_obj, normal_axis="X", sign=-1, direction="BR_TL", grid_resolution=grid_res)
+    hash_PY = plane_hash_raycast(temp_mesh_obj, normal_axis="Y", sign=1, direction="BR_TL", grid_resolution=grid_res)
+    hash_NY = plane_hash_raycast(temp_mesh_obj, normal_axis="Y", sign=-1, direction="BL_TR", grid_resolution=grid_res)
+    hash_PZ = plane_hash_raycast(temp_mesh_obj, normal_axis="Z", sign=1, direction="BL_TR", grid_resolution=grid_res)
+    hash_NZ = plane_hash_raycast(temp_mesh_obj, normal_axis="Z", sign=-1, direction="BR_TL", grid_resolution=grid_res)
 
-    hash_NY = plane_hash(temp_mesh_obj, normal_axis="Y", sign=-1, direction="BL_TR")
-    hash_PY = plane_hash(temp_mesh_obj, normal_axis="Y", sign=1, direction="BR_TL")
-
-    hash_NZ = plane_hash(temp_mesh_obj, normal_axis="Z", sign=-1, direction="BR_TL")
-    hash_PZ = plane_hash(temp_mesh_obj, normal_axis="Z", sign=1, direction="BL_TR")
+    # Old vertex-based method is preserved below if you want to switch back.
+    # hash_PX = plane_hash(temp_mesh_obj, normal_axis="X", sign=1, direction="BL_TR")
+    # hash_NX = plane_hash(temp_mesh_obj, normal_axis="X", sign=-1, direction="BR_TL")
+    # hash_PY = plane_hash(temp_mesh_obj, normal_axis="Y", sign=1, direction="BR_TL")
+    # hash_NY = plane_hash(temp_mesh_obj, normal_axis="Y", sign=-1, direction="BL_TR")
+    # hash_PZ = plane_hash(temp_mesh_obj, normal_axis="Z", sign=1, direction="BL_TR")
+    # hash_NZ = plane_hash(temp_mesh_obj, normal_axis="Z", sign=-1, direction="BR_TL")
 
     c = type.celebi()
 

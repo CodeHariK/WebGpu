@@ -42,7 +42,7 @@ const Vector3i DIRECTIONS[] = {
 };
 // Opposite direction indices: 0->1, 1->0, 2->3, 3->2, etc.
 const int OPPOSITE_DIR_IDX[] = { 1, 0, 3, 2, 5, 4 };
-const char *DIR_NAMES[] = { "+X", "-X", "+Y", "-Y", "+Z", "-Z" };
+const inline char *DIR_NAMES[] = { "+X", "-X", "+Y", "-Y", "+Z", "-Z" };
 
 // A simple struct to hold all data for a single tile prototype.
 struct WFCTile {
@@ -403,10 +403,6 @@ public:
 		compatibility_map.clear();
 
 		godot::Dictionary meshes = Help::loadMeshFile("res://assets/Voxel.glb");
-		godot::Array keys = meshes.keys();
-		for (int i = 0; i < keys.size(); i++) {
-			UtilityFunctions::print(keys[i], meshes[keys[i]]);
-		}
 
 		for (size_t i = 0; i < celebiData.items.size(); ++i) {
 			const Celebi::LibraryItem &item = celebiData.items[i];
@@ -595,10 +591,13 @@ public:
 			mi->set_position(tile_pos);
 			m_tile_prototypes_node->add_child(mi);
 
-			Label3D *hash_label = memnew(Label3D);
-			hash_label->set_text(tile.mesh->get_name());
-			hash_label->set_position(tile_pos + Vector3(0, 1.4, 0) * label_offset);
-			m_tile_prototypes_node->add_child(hash_label);
+			Label3D *main_label = memnew(Label3D);
+			main_label->set_text(
+					tile.mesh->get_name() + "\n" +
+					String::num_uint64(tile.hashes[0]) + "," + String::num_uint64(tile.hashes[1]) + "," + String::num_uint64(tile.hashes[2]) +
+					"," + String::num_uint64(tile.hashes[3]) + "," + String::num_uint64(tile.hashes[4]) + "," + String::num_uint64(tile.hashes[5]));
+			main_label->set_position(tile_pos + Vector3(0, 1.6, 0) * label_offset);
+			m_tile_prototypes_node->add_child(main_label);
 
 			// Display hash labels for each face
 			for (int dir = 0; dir < 6; ++dir) {
@@ -642,7 +641,7 @@ public:
 			int dir = key & 0x7; // Mask for the lower 3 bits
 			key_label->set_text("Hash: " + String::num_int64(hash) + ", Dir: " + DIR_NAMES[dir]);
 
-			key_label->set_position(row_pos + Vector3(-4, 0, 0));
+			key_label->set_position(row_pos + Vector3(-1, 0, 0));
 			m_compatibility_table_node->add_child(key_label);
 
 			Array compatible_tiles = compatibility_map[key];
