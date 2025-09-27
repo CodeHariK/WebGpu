@@ -9,7 +9,6 @@
 [ext_resource type="PackedScene" uid="uid://btxgtsxntydrd" path="res://scripts/ui/performance/UI_PerformanceMonitor.tscn" id="6_2a7lt"]
 
 [sub_resource type="Environment" id="Environment_jfv7q"]
-background_mode = 2
 background_color = Color(0.91703, 0.739792, 0.765747, 1)
 sky = ExtResource("4_2a7lt")
 tonemap_mode = 2
@@ -42,7 +41,10 @@ terrain_material = ExtResource("2_2a7lt")
 height_curve = ExtResource("5_2tur5")
 
 [node name="WFCGenerator3D" type="WFCGenerator3D" parent="."]
+grid_size = Vector3i(3, 2, 3)
+step_by_step = false
 generate_on_ready = false
 show_all_possibilities = true
 show_compatibility_table = true
 show_tile_prototypes = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 0.5, 4.5)

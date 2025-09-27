@@ -30,6 +30,8 @@ _hash_to_id = {}
 _next_id = 1
 def get_compact_hash(h: int) -> int:
     global _next_id
+    if h == 0:
+        return 0
 
     if h not in _hash_to_id:
         _hash_to_id[h] = _next_id
