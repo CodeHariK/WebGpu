@@ -31,6 +31,9 @@ GIZMO_DISABLED = "DISABLED"
 GIZMO_MOVE = "MOVE"
 GIZMO_SCALE = "SCALE"
 
+HASH_METHOD_RAYCAST = "RAYCAST"
+HASH_METHOD_VERTEX = "VERTEX"
+
 
 class HashItem(bpy.types.PropertyGroup):
     value: bpy.props.StringProperty()
@@ -112,6 +115,17 @@ class CelebiData(PropertyGroup):
         ],
         default=GIZMO_DISABLED,
     )
+
+    T_hash_method: EnumProperty(
+        name="Hashing Method",
+        description="Method to use for computing face hashes",
+        items=[
+            (HASH_METHOD_RAYCAST, "Raycast", "Use raycasting on a grid. Slower but more robust."),
+            (HASH_METHOD_VERTEX, "Vertex", "Use vertex positions. Faster but sensitive to topology."),
+        ],
+        default=HASH_METHOD_RAYCAST,
+    )
+
 
     def getCurrentLibraryItem(self) -> LibraryItem | None:
         if self.T_library_index >= 0 and self.T_library_index < len(self.library_items):

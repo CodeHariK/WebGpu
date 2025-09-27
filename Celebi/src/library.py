@@ -64,17 +64,18 @@ class LIBRARY_PT_panel(Panel):
         grid.operator(save.LIBRARY_OT_save.bl_idname, icon="FILE_TICK")
         grid.operator(save.LIBRARY_OT_load.bl_idname, icon="FILE_FOLDER")
         grid.operator(LIBRARY_OT_add_objects.bl_idname, icon="PLUS")
+        l.operator(save.LIBRARY_OT_clear.bl_idname, icon="TRASH")
+
 
         l.separator(type="LINE")
-
+        l.prop(c, "T_show_hash", text="Show Hashes")
+        l.prop(c, "T_hash_method", text="")
         l.operator(
             voxel_hash.VOXEL_OT_face_hash.bl_idname,
             text=voxel_hash.VOXEL_OT_face_hash.bl_label,
         )
+        l.separator(type="LINE")
 
-        l.operator(save.LIBRARY_OT_clear.bl_idname, icon="TRASH")
-
-        l.prop(c, "T_show_hash", text="Show Hashes")
 
         l.separator(type="LINE")
 
