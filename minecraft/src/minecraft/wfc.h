@@ -75,44 +75,6 @@ public:
 class WFCGenerator3D : public Node3D {
 	GDCLASS(WFCGenerator3D, Node3D)
 
-protected:
-	static void _bind_methods() {
-		ClassDB::bind_method(D_METHOD("reset"), &WFCGenerator3D::reset);
-		ClassDB::bind_method(D_METHOD("step"), &WFCGenerator3D::step);
-
-		ClassDB::bind_method(D_METHOD("set_grid_size", "size"), &WFCGenerator3D::set_grid_size);
-		ClassDB::bind_method(D_METHOD("get_grid_size"), &WFCGenerator3D::get_grid_size);
-		ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_size"), "set_grid_size", "get_grid_size");
-
-		ClassDB::bind_method(D_METHOD("set_step_by_step", "enable"), &WFCGenerator3D::set_step_by_step);
-		ClassDB::bind_method(D_METHOD("is_step_by_step"), &WFCGenerator3D::is_step_by_step);
-		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "step_by_step"), "set_step_by_step", "is_step_by_step");
-
-		ClassDB::bind_method(D_METHOD("set_generate_on_ready", "enable"), &WFCGenerator3D::set_generate_on_ready);
-		ClassDB::bind_method(D_METHOD("get_generate_on_ready"), &WFCGenerator3D::get_generate_on_ready);
-		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "generate_on_ready"), "set_generate_on_ready", "get_generate_on_ready");
-
-		ClassDB::bind_method(D_METHOD("set_step_forward", "enable"), &WFCGenerator3D::set_step_forward);
-		ClassDB::bind_method(D_METHOD("get_step_forward"), &WFCGenerator3D::get_step_forward);
-		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "step_forward"), "set_step_forward", "get_step_forward");
-
-		ClassDB::bind_method(D_METHOD("set_show_entropy", "enable"), &WFCGenerator3D::set_show_entropy);
-		ClassDB::bind_method(D_METHOD("is_showing_entropy"), &WFCGenerator3D::is_showing_entropy);
-		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_entropy"), "set_show_entropy", "is_showing_entropy");
-
-		ClassDB::bind_method(D_METHOD("set_show_all_possibilities", "enable"), &WFCGenerator3D::set_show_all_possibilities);
-		ClassDB::bind_method(D_METHOD("is_showing_all_possibilities"), &WFCGenerator3D::is_showing_all_possibilities);
-		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_all_possibilities"), "set_show_all_possibilities", "is_showing_all_possibilities");
-
-		ClassDB::bind_method(D_METHOD("set_show_compatibility_table", "enable"), &WFCGenerator3D::set_show_compatibility_table);
-		ClassDB::bind_method(D_METHOD("is_showing_compatibility_table"), &WFCGenerator3D::is_showing_compatibility_table);
-		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_compatibility_table"), "set_show_compatibility_table", "is_showing_compatibility_table");
-
-		ClassDB::bind_method(D_METHOD("set_show_tile_prototypes", "enable"), &WFCGenerator3D::set_show_tile_prototypes);
-		ClassDB::bind_method(D_METHOD("is_showing_tile_prototypes"), &WFCGenerator3D::is_showing_tile_prototypes);
-		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_tile_prototypes"), "set_show_tile_prototypes", "is_showing_tile_prototypes");
-	}
-
 private:
 	enum GenerationState {
 		IDLE,
@@ -685,6 +647,44 @@ public:
 
 	void set_grid_size(const Vector3i &p_size) { grid_size = p_size; }
 	Vector3i get_grid_size() const { return grid_size; }
+
+protected:
+	static void _bind_methods() {
+		ClassDB::bind_method(D_METHOD("reset"), &WFCGenerator3D::reset);
+		ClassDB::bind_method(D_METHOD("step"), &WFCGenerator3D::step);
+
+		ClassDB::bind_method(D_METHOD("set_grid_size", "size"), &WFCGenerator3D::set_grid_size);
+		ClassDB::bind_method(D_METHOD("get_grid_size"), &WFCGenerator3D::get_grid_size);
+		ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_size"), "set_grid_size", "get_grid_size");
+
+		ClassDB::bind_method(D_METHOD("set_step_by_step", "enable"), &WFCGenerator3D::set_step_by_step);
+		ClassDB::bind_method(D_METHOD("is_step_by_step"), &WFCGenerator3D::is_step_by_step);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "step_by_step"), "set_step_by_step", "is_step_by_step");
+
+		ClassDB::bind_method(D_METHOD("set_generate_on_ready", "enable"), &WFCGenerator3D::set_generate_on_ready);
+		ClassDB::bind_method(D_METHOD("get_generate_on_ready"), &WFCGenerator3D::get_generate_on_ready);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "generate_on_ready"), "set_generate_on_ready", "get_generate_on_ready");
+
+		ClassDB::bind_method(D_METHOD("set_step_forward", "enable"), &WFCGenerator3D::set_step_forward);
+		ClassDB::bind_method(D_METHOD("get_step_forward"), &WFCGenerator3D::get_step_forward);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "step_forward"), "set_step_forward", "get_step_forward");
+
+		ClassDB::bind_method(D_METHOD("set_show_entropy", "enable"), &WFCGenerator3D::set_show_entropy);
+		ClassDB::bind_method(D_METHOD("is_showing_entropy"), &WFCGenerator3D::is_showing_entropy);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_entropy"), "set_show_entropy", "is_showing_entropy");
+
+		ClassDB::bind_method(D_METHOD("set_show_all_possibilities", "enable"), &WFCGenerator3D::set_show_all_possibilities);
+		ClassDB::bind_method(D_METHOD("is_showing_all_possibilities"), &WFCGenerator3D::is_showing_all_possibilities);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_all_possibilities"), "set_show_all_possibilities", "is_showing_all_possibilities");
+
+		ClassDB::bind_method(D_METHOD("set_show_compatibility_table", "enable"), &WFCGenerator3D::set_show_compatibility_table);
+		ClassDB::bind_method(D_METHOD("is_showing_compatibility_table"), &WFCGenerator3D::is_showing_compatibility_table);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_compatibility_table"), "set_show_compatibility_table", "is_showing_compatibility_table");
+
+		ClassDB::bind_method(D_METHOD("set_show_tile_prototypes", "enable"), &WFCGenerator3D::set_show_tile_prototypes);
+		ClassDB::bind_method(D_METHOD("is_showing_tile_prototypes"), &WFCGenerator3D::is_showing_tile_prototypes);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_tile_prototypes"), "set_show_tile_prototypes", "is_showing_tile_prototypes");
+	}
 };
 
 #endif
