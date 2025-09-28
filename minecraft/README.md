@@ -1,11 +1,33 @@
 #
 
-wfc
+hulk jump, coyote jump, wall climb, celeste jump, batman aim jump, hollow knight air dash
+graple hook, lasers
+dishonered teleport
+Legend of zelda monster fight
+
+Procedural UFO : https://www.youtube.com/watch?v=uV3LtA_KiAY
+
+https://github.com/monxa/GodotIK
+
+robot enemy
+Pokemon creatures and moves
+Capture mechanic
+Item upgrade, Inventory
+
+terrain tile editor
+wfc: pq
+overlapping wfc
+threads
+Farming, Minecraft Terraforming
 biome
 poisson object spawn
 fog
 Water shader
 terrain blend shader
+
+Amnesia Night creature escape
+
+gta npc fight
 
 # Voxel Storage
 
