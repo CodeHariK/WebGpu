@@ -7,12 +7,12 @@ signal full
 
 
 func _ready():
-	smoke_sounds.pick_random().play()
-	
-	$AnimationPlayer.play("poof")
-	await $AnimationPlayer.animation_finished
-	queue_free()
+    smoke_sounds.pick_random().play()
+    
+    $AnimationPlayer.play("poof")
+    await $AnimationPlayer.animation_finished
+    queue_free()
 
 
 func smoke_at_full_density():
-	full.emit()
+    full.emit()

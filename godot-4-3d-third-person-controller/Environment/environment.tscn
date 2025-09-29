@@ -1,28 +1,28 @@
 [gd_scene load_steps=33 format=3 uid="uid://bde56jd8avj2o"]
 
-[ext_resource type="Sky" uid="uid://jonn5eom7asv" path="res://Environment/sky/blue_sky.tres" id="1_8t23g"]
-[ext_resource type="Shader" uid="uid://dkxj8f3iyev1e" path="res://Environment/water/water_shader.gdshader" id="2_axxqq"]
-[ext_resource type="PackedScene" uid="uid://nhiiwxrhhtao" path="res://Environment/terrain.glb" id="2_u6gug"]
-[ext_resource type="MultiMesh" uid="uid://dcwmnh5np6hna" path="res://Environment/grass/grass_multimesh.res" id="3_ad6l2"]
-[ext_resource type="Texture2D" uid="uid://ssrlnj65d4bs" path="res://Environment/water/textures/caustic_texture.png" id="3_ltffb"]
-[ext_resource type="Material" uid="uid://c5trc4hy86utg" path="res://Environment/Terrain/terrain_mat.tres" id="3_o2vg7"]
-[ext_resource type="Shader" uid="uid://3vc4dvsuqg8n" path="res://Environment/waterfall/waterfall.gdshader" id="4_lo1st"]
-[ext_resource type="NavigationMesh" uid="uid://bd73n68dlm7qp" path="res://Environment/environment_navmesh.res" id="5_0k4by"]
-[ext_resource type="PackedScene" uid="uid://dr8slkof1nc8r" path="res://Environment/trees/tree.tscn" id="6_r8kjl"]
-[ext_resource type="Material" uid="uid://ovciasxou830" path="res://Environment/grass/grass_mat.tres" id="7_u5eta"]
-[ext_resource type="PackedScene" uid="uid://drcwbur5pemly" path="res://Environment/tree_trunk/tree_trunk_small.glb" id="8_0wkfp"]
-[ext_resource type="Material" path="res://Environment/dark_bark/dark_bark.tres" id="9_423rm"]
-[ext_resource type="Script" uid="uid://dbybwgkfcfuvw" path="res://Environment/grass_scatter.gd" id="9_qev2o"]
-[ext_resource type="Script" uid="uid://clhierd667jbu" path="res://Level/DeathPlane.gd" id="10_evept"]
-[ext_resource type="Material" uid="uid://cbwea5kec68u6" path="res://Environment/large_tree_trunk/trunk_top/trunk_top.tres" id="10_junlj"]
-[ext_resource type="PackedScene" uid="uid://ciqrpd5675boy" path="res://Player/Player.tscn" id="11_1wby0"]
-[ext_resource type="PackedScene" uid="uid://c28pgdu71100y" path="res://Environment/tree_trunk/tree_trunk_long.glb" id="11_y8l25"]
-[ext_resource type="PackedScene" uid="uid://7j15r0ej4fwx" path="res://JumpingPad/JumpingPad.tscn" id="12_xdbct"]
-[ext_resource type="PackedScene" uid="uid://cn8o7sv1osssk" path="res://Environment/bushes/bush.tscn" id="16_fjapj"]
-[ext_resource type="PackedScene" uid="uid://cmwyiep10m4u4" path="res://Box/Box.tscn" id="17_5ihnp"]
-[ext_resource type="PackedScene" uid="uid://cndyqf8jamodj" path="res://Environment/orange_flowers/orange_flower.glb" id="17_541bi"]
-[ext_resource type="PackedScene" uid="uid://rn45gytkk6tv" path="res://Enemies/BeeBot.tscn" id="18_6c1ml"]
-[ext_resource type="PackedScene" uid="uid://oxyn25v5khuk" path="res://Enemies/Beetle.tscn" id="19_q0rfw"]
+[ext_resource type="Sky" uid="uid://jonn5eom7asv" path="res://environment/sky/blue_sky.tres" id="1_8t23g"]
+[ext_resource type="Shader" uid="uid://do5ydgs2eaepo" path="res://environment/water/water_shader.gdshader" id="2_axxqq"]
+[ext_resource type="PackedScene" uid="uid://nhiiwxrhhtao" path="res://environment/terrain.glb" id="2_u6gug"]
+[ext_resource type="MultiMesh" uid="uid://dcwmnh5np6hna" path="res://environment/grass/grass_multimesh.res" id="3_ad6l2"]
+[ext_resource type="Texture2D" uid="uid://ssrlnj65d4bs" path="res://environment/water/textures/caustic_texture.png" id="3_ltffb"]
+[ext_resource type="Material" uid="uid://c5trc4hy86utg" path="res://environment/terrain/terrain_mat.tres" id="3_o2vg7"]
+[ext_resource type="Shader" uid="uid://6yg3c2ga7kpw" path="res://environment/waterfall/waterfall.gdshader" id="4_lo1st"]
+[ext_resource type="NavigationMesh" uid="uid://bd73n68dlm7qp" path="res://environment/environment_navmesh.res" id="5_0k4by"]
+[ext_resource type="PackedScene" uid="uid://dr8slkof1nc8r" path="res://environment/trees/tree.tscn" id="6_r8kjl"]
+[ext_resource type="Material" uid="uid://ovciasxou830" path="res://environment/grass/grass_mat.tres" id="7_u5eta"]
+[ext_resource type="PackedScene" uid="uid://drcwbur5pemly" path="res://environment/tree_trunk/tree_trunk_small.glb" id="8_0wkfp"]
+[ext_resource type="Material" path="res://environment/dark_bark/dark_bark.tres" id="9_423rm"]
+[ext_resource type="Script" uid="uid://dx0jpwyf8svty" path="res://environment/grass_scatter.gd" id="9_qev2o"]
+[ext_resource type="Script" uid="uid://dpwkxx17o2c33" path="res://level/death_plane.gd" id="10_evept"]
+[ext_resource type="Material" uid="uid://cbwea5kec68u6" path="res://environment/large_tree_trunk/trunk_top/trunk_top.tres" id="10_junlj"]
+[ext_resource type="PackedScene" uid="uid://ciqrpd5675boy" path="res://player/player.tscn" id="11_1wby0"]
+[ext_resource type="PackedScene" uid="uid://c28pgdu71100y" path="res://environment/tree_trunk/tree_trunk_long.glb" id="11_y8l25"]
+[ext_resource type="PackedScene" uid="uid://7j15r0ej4fwx" path="res://jumping_pad/jumping_pad.tscn" id="12_xdbct"]
+[ext_resource type="PackedScene" uid="uid://cn8o7sv1osssk" path="res://environment/bushes/bush.tscn" id="16_fjapj"]
+[ext_resource type="PackedScene" uid="uid://cmwyiep10m4u4" path="res://box/box.tscn" id="17_5ihnp"]
+[ext_resource type="PackedScene" uid="uid://cndyqf8jamodj" path="res://environment/orange_flowers/orange_flower.glb" id="17_541bi"]
+[ext_resource type="PackedScene" uid="uid://rn45gytkk6tv" path="res://enemies/bee_bot.tscn" id="18_6c1ml"]
+[ext_resource type="PackedScene" uid="uid://oxyn25v5khuk" path="res://enemies/beetle_bot.tscn" id="19_q0rfw"]
 
 [sub_resource type="Environment" id="Environment_k13y0"]
 background_mode = 2
@@ -44,8 +44,8 @@ volumetric_fog_emission = Color(1, 1, 1, 1)
 fractal_type = 0
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_b5x5q"]
-seamless = true
 noise = SubResource("FastNoiseLite_icbax")
+seamless = true
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_62f0f"]
 render_priority = 0
@@ -58,8 +58,8 @@ shader_parameter/water_color_bottom = Color(0.160784, 0.294118, 0.560784, 1)
 fractal_type = 0
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_38v3r"]
-seamless = true
 noise = SubResource("FastNoiseLite_23rrj")
+seamless = true
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_8t5sk"]
 render_priority = -1
