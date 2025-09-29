@@ -3,12 +3,12 @@
 importer="wav"
 type="AudioStreamWAV"
 uid="uid://cgv0ngrh5ofe"
-path="res://.godot/imported/poof_2.wav-3e5919c3dd1f184ade8a8f46288a85c6.sample"
+path="res://.godot/imported/poof_2.wav-33919f45dfe983d8cc21a18515fe6bba.sample"
 
 [deps]
 
-source_file="res://Enemies/smoke_puff/Sounds/poof_2.wav"
-dest_files=["res://.godot/imported/poof_2.wav-3e5919c3dd1f184ade8a8f46288a85c6.sample"]
+source_file="res://enemies/smoke_puff/Sounds/poof_2.wav"
+dest_files=["res://.godot/imported/poof_2.wav-33919f45dfe983d8cc21a18515fe6bba.sample"]
 
 [params]
 

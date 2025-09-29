@@ -4,20 +4,22 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://c28pgdu71100y"
-path="res://.godot/imported/tree_trunk_long.glb-7adc20de6c99b404afc7fd9165129fab.scn"
+path="res://.godot/imported/tree_trunk_long.glb-51fcf43db39d36f77dc810ec1e3b72bb.scn"
 
 [deps]
 
-source_file="res://Environment/tree_trunk/tree_trunk_long.glb"
-dest_files=["res://.godot/imported/tree_trunk_long.glb-7adc20de6c99b404afc7fd9165129fab.scn"]
+source_file="res://environment/tree_trunk/tree_trunk_long.glb"
+dest_files=["res://.godot/imported/tree_trunk_long.glb-51fcf43db39d36f77dc810ec1e3b72bb.scn"]
 
 [params]
 
 nodes/root_type="Node3D"
 nodes/root_name="Scene Root"
+nodes/root_script=null
 nodes/apply_root_scale=true
 nodes/root_scale=1.0
 nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
 nodes/use_node_type_suffixes=true
 meshes/ensure_tangents=true
 meshes/generate_lods=true
@@ -32,6 +34,9 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
 _subresources={
 "nodes": {
 "PATH:long_trunk": {

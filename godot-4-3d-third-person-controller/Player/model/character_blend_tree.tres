@@ -89,20 +89,20 @@ transitions = ["Start", "idle", SubResource("AnimationNodeStateMachineTransition
 graph_offset = Vector2(4, -47)
 
 [resource]
-graph_offset = Vector2(-176.365, -79.3665)
+graph_offset = Vector2(-204.08212, 27.535614)
+nodes/output/position = Vector2(780, 80)
 nodes/Add2/node = SubResource("AnimationNodeAdd2_766tv")
 nodes/Add2/position = Vector2(260, 80)
 "nodes/Add2 2/node" = SubResource("AnimationNodeAdd2_dpb3n")
 "nodes/Add2 2/position" = Vector2(540, 80)
 nodes/Animation/node = SubResource("AnimationNodeAnimation_u6r87")
-nodes/Animation/position = Vector2(-180, 40)
+nodes/Animation/position = Vector2(-160, 80)
 "nodes/Animation 2/node" = SubResource("AnimationNodeAnimation_080es")
-"nodes/Animation 2/position" = Vector2(-180, 200)
+"nodes/Animation 2/position" = Vector2(-160, 240)
 "nodes/Animation 3/node" = SubResource("AnimationNodeAnimation_cakye")
-"nodes/Animation 3/position" = Vector2(20, 560)
+"nodes/Animation 3/position" = Vector2(20, 520)
 nodes/PunchOneShot/node = SubResource("AnimationNodeOneShot_rfqjk")
 nodes/PunchOneShot/position = Vector2(300, 380)
 nodes/StateMachine/node = SubResource("AnimationNodeStateMachine_k7175")
-nodes/StateMachine/position = Vector2(20, 380)
-nodes/output/position = Vector2(760, 80)
-node_connections = [&"Add2", 0, &"Animation", &"Add2", 1, &"Animation 2", &"Add2 2", 0, &"Add2", &"Add2 2", 1, &"PunchOneShot", &"PunchOneShot", 0, &"StateMachine", &"PunchOneShot", 1, &"Animation 3", &"output", 0, &"Add2 2"]
+nodes/StateMachine/position = Vector2(-40, 420)
+node_connections = [&"output", 0, &"Add2 2", &"Add2", 0, &"Animation", &"Add2", 1, &"Animation 2", &"Add2 2", 0, &"Add2", &"Add2 2", 1, &"PunchOneShot", &"PunchOneShot", 0, &"StateMachine", &"PunchOneShot", 1, &"Animation 3"]

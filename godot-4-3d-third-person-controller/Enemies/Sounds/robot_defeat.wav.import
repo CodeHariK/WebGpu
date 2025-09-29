@@ -3,12 +3,12 @@
 importer="wav"
 type="AudioStreamWAV"
 uid="uid://c66nnoqtanfw2"
-path="res://.godot/imported/robot_defeat.wav-5ba51aba54187de215e8fb36afb5cd3e.sample"
+path="res://.godot/imported/robot_defeat.wav-0217d4f929077d4d10328442767b37f7.sample"
 
 [deps]
 
-source_file="res://Enemies/Sounds/robot_defeat.wav"
-dest_files=["res://.godot/imported/robot_defeat.wav-5ba51aba54187de215e8fb36afb5cd3e.sample"]
+source_file="res://enemies/sounds/robot_defeat.wav"
+dest_files=["res://.godot/imported/robot_defeat.wav-0217d4f929077d4d10328442767b37f7.sample"]
 
 [params]
 

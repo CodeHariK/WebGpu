@@ -1,25 +1,24 @@
-[gd_scene load_steps=27 format=3 uid="uid://ccjru1onq2k2c"]
+[gd_scene load_steps=26 format=3 uid="uid://vmbppkwmx2xk"]
 
 [ext_resource type="PackedScene" uid="uid://mb58xbunfaep" path="res://icons/weapon_ui.tscn" id="1_3u7h6"]
-[ext_resource type="Sky" uid="uid://jonn5eom7asv" path="res://Environment/sky/blue_sky.tres" id="2_4bjxn"]
-[ext_resource type="PackedScene" uid="uid://ciqrpd5675boy" path="res://Player/Player.tscn" id="2_q87gh"]
-[ext_resource type="PackedScene" uid="uid://7j15r0ej4fwx" path="res://JumpingPad/JumpingPad.tscn" id="3_w2mh2"]
-[ext_resource type="PackedScene" uid="uid://b602ttibxesgm" path="res://Level/Terrain.glb" id="4_vprlf"]
-[ext_resource type="NavigationMesh" uid="uid://d1ombvi6qufpk" path="res://Level/Main_navmesh.res" id="5_n4asa"]
-[ext_resource type="Material" uid="uid://c5trc4hy86utg" path="res://Environment/Terrain/terrain_mat.tres" id="5_xal68"]
-[ext_resource type="Material" uid="uid://con3572kpt8a3" path="res://Environment/large_tree_trunk/large_tree_trunk_mat.tres" id="6_q3y6j"]
-[ext_resource type="PackedScene" uid="uid://dr8slkof1nc8r" path="res://Environment/trees/tree.tscn" id="7_rvx5i"]
-[ext_resource type="Shader" uid="uid://dkxj8f3iyev1e" path="res://Environment/water/water_shader.gdshader" id="8_trepf"]
-[ext_resource type="Texture2D" uid="uid://ssrlnj65d4bs" path="res://Environment/water/textures/caustic_texture.png" id="9_8eqnd"]
-[ext_resource type="Script" uid="uid://clhierd667jbu" path="res://Level/DeathPlane.gd" id="9_i1hvo"]
-[ext_resource type="PackedScene" uid="uid://dx8qkjcbt8emp" path="res://Environment/grass/GrassChunk.tscn" id="10_8c06q"]
-[ext_resource type="PackedScene" uid="uid://cn8o7sv1osssk" path="res://Environment/bushes/bush.tscn" id="11_f8df7"]
-[ext_resource type="PackedScene" uid="uid://cmwyiep10m4u4" path="res://Box/Box.tscn" id="12_xvr0j"]
-[ext_resource type="PackedScene" uid="uid://rn45gytkk6tv" path="res://Enemies/BeeBot.tscn" id="13_012dc"]
-[ext_resource type="PackedScene" uid="uid://oxyn25v5khuk" path="res://Enemies/Beetle.tscn" id="14_tmmem"]
-[ext_resource type="PackedScene" uid="uid://bi31qtqv1sf2s" path="res://Environment/flowers/flower_patch.tscn" id="15_jqya0"]
-[ext_resource type="PackedScene" uid="uid://cnj0t3ad178q6" path="res://DemoPage/DemoPage.tscn" id="16_qr75n"]
-[ext_resource type="AudioStream" uid="uid://bveh08m6w5ryf" path="res://Level/Music/mountain.mp3" id="17_mil5a"]
+[ext_resource type="Sky" uid="uid://jonn5eom7asv" path="res://environment/sky/blue_sky.tres" id="2_4bjxn"]
+[ext_resource type="PackedScene" uid="uid://ciqrpd5675boy" path="res://player/player.tscn" id="2_q87gh"]
+[ext_resource type="PackedScene" uid="uid://7j15r0ej4fwx" path="res://jumping_pad/jumping_pad.tscn" id="3_w2mh2"]
+[ext_resource type="PackedScene" uid="uid://b602ttibxesgm" path="res://level/terrain.glb" id="4_vprlf"]
+[ext_resource type="NavigationMesh" uid="uid://d1ombvi6qufpk" path="res://level/main_navmesh.res" id="5_n4asa"]
+[ext_resource type="Material" uid="uid://con3572kpt8a3" path="res://environment/large_tree_trunk/large_tree_trunk_mat.tres" id="6_q3y6j"]
+[ext_resource type="PackedScene" uid="uid://dr8slkof1nc8r" path="res://environment/trees/tree.tscn" id="7_rvx5i"]
+[ext_resource type="Shader" uid="uid://do5ydgs2eaepo" path="res://environment/water/water_shader.gdshader" id="8_trepf"]
+[ext_resource type="Texture2D" uid="uid://ssrlnj65d4bs" path="res://environment/water/textures/caustic_texture.png" id="9_8eqnd"]
+[ext_resource type="Script" uid="uid://dpwkxx17o2c33" path="res://level/death_plane.gd" id="9_i1hvo"]
+[ext_resource type="PackedScene" uid="uid://dx8qkjcbt8emp" path="res://environment/grass/grass_chunk.tscn" id="10_8c06q"]
+[ext_resource type="PackedScene" uid="uid://cn8o7sv1osssk" path="res://environment/bushes/bush.tscn" id="11_f8df7"]
+[ext_resource type="PackedScene" uid="uid://cmwyiep10m4u4" path="res://box/box.tscn" id="12_xvr0j"]
+[ext_resource type="PackedScene" uid="uid://rn45gytkk6tv" path="res://enemies/bee_bot.tscn" id="13_012dc"]
+[ext_resource type="PackedScene" uid="uid://oxyn25v5khuk" path="res://enemies/beetle_bot.tscn" id="14_tmmem"]
+[ext_resource type="PackedScene" uid="uid://bi31qtqv1sf2s" path="res://environment/flowers/flower_patch.tscn" id="15_jqya0"]
+[ext_resource type="PackedScene" uid="uid://cnj0t3ad178q6" path="res://demo_page/demo_page.tscn" id="16_qr75n"]
+[ext_resource type="AudioStream" uid="uid://bveh08m6w5ryf" path="res://level/music/mountain.mp3" id="17_mil5a"]
 
 [sub_resource type="Environment" id="Environment_allox"]
 background_mode = 2
@@ -41,8 +40,8 @@ volumetric_fog_emission = Color(1, 1, 1, 1)
 fractal_type = 0
 
 [sub_resource type="NoiseTexture2D" id="NoiseTexture2D_71o0d"]
-seamless = true
 noise = SubResource("FastNoiseLite_le7wx")
+seamless = true
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ylhgr"]
 render_priority = -1
@@ -103,73 +102,31 @@ transform = Transform3D(0.823187, 0, -0.567772, 0, 1, 0, 0.567772, 0, 0.823187, 
 navigation_mesh = ExtResource("5_n4asa")
 metadata/_edit_lock_ = true
 
-[node name="terrain_main_ground" parent="NavigationRegion3D" instance=ExtResource("4_vprlf")]
+[node name="terrain" parent="NavigationRegion3D" instance=ExtResource("4_vprlf")]
 
-[node name="Plane" parent="NavigationRegion3D/terrain_main_ground" index="0"]
-material_override = ExtResource("5_xal68")
-
-[node name="large_trunk" parent="NavigationRegion3D/terrain_main_ground" index="1"]
+[node name="large_trunk" parent="NavigationRegion3D/terrain" index="1"]
 material_override = ExtResource("6_q3y6j")
 
-[node name="StaticBody3D" parent="NavigationRegion3D/terrain_main_ground/large_trunk" index="0"]
-collision_layer = 3
-collision_mask = 3
-
-[node name="large_trunk_001" parent="NavigationRegion3D/terrain_main_ground" index="2"]
+[node name="large_trunk_001" parent="NavigationRegion3D/terrain" index="2"]
 material_override = ExtResource("6_q3y6j")
 
-[node name="StaticBody3D" parent="NavigationRegion3D/terrain_main_ground/large_trunk_001" index="0"]
-collision_layer = 3
-collision_mask = 3
-
-[node name="large_trunk_002" parent="NavigationRegion3D/terrain_main_ground" index="3"]
+[node name="large_trunk_002" parent="NavigationRegion3D/terrain" index="3"]
 material_override = ExtResource("6_q3y6j")
 
-[node name="StaticBody3D" parent="NavigationRegion3D/terrain_main_ground/large_trunk_002" index="0"]
-collision_layer = 3
-collision_mask = 3
-
-[node name="large_trunk_003" parent="NavigationRegion3D/terrain_main_ground" index="4"]
+[node name="large_trunk_003" parent="NavigationRegion3D/terrain" index="4"]
 material_override = ExtResource("6_q3y6j")
 
-[node name="StaticBody3D" parent="NavigationRegion3D/terrain_main_ground/large_trunk_003" index="0"]
-collision_layer = 3
-collision_mask = 3
-
-[node name="terrain" parent="NavigationRegion3D/terrain_main_ground" index="5"]
-material_override = ExtResource("5_xal68")
-
-[node name="StaticBody3D" parent="NavigationRegion3D/terrain_main_ground/terrain" index="0"]
-collision_layer = 3
-collision_mask = 3
-
-[node name="large_trunk_004" parent="NavigationRegion3D/terrain_main_ground" index="6"]
+[node name="large_trunk_004" parent="NavigationRegion3D/terrain" index="6"]
 material_override = ExtResource("6_q3y6j")
 
-[node name="StaticBody3D" parent="NavigationRegion3D/terrain_main_ground/large_trunk_004" index="0"]
-collision_layer = 3
-collision_mask = 3
-
-[node name="large_trunk_005" parent="NavigationRegion3D/terrain_main_ground" index="7"]
+[node name="large_trunk_005" parent="NavigationRegion3D/terrain" index="7"]
 material_override = ExtResource("6_q3y6j")
 
-[node name="StaticBody3D" parent="NavigationRegion3D/terrain_main_ground/large_trunk_005" index="0"]
-collision_layer = 3
-collision_mask = 3
-
-[node name="large_trunk_006" parent="NavigationRegion3D/terrain_main_ground" index="8"]
+[node name="large_trunk_006" parent="NavigationRegion3D/terrain" index="8"]
 material_override = ExtResource("6_q3y6j")
 
-[node name="StaticBody3D" parent="NavigationRegion3D/terrain_main_ground/large_trunk_006" index="0"]
-collision_layer = 3
-collision_mask = 3
-
-[node name="large_trunk_007" parent="NavigationRegion3D/terrain_main_ground" index="9"]
+[node name="large_trunk_007" parent="NavigationRegion3D/terrain" index="9"]
 material_override = ExtResource("6_q3y6j")
-
-[node name="StaticBody3D" parent="NavigationRegion3D/terrain_main_ground/large_trunk_007" index="0"]
-collision_layer = 3
-collision_mask = 3
 
 [node name="Trees" type="Node3D" parent="NavigationRegion3D"]
 
@@ -1612,4 +1569,4 @@ autoplay = true
 
 [connection signal="weapon_switched" from="Player" to="weapon_switch_ui" method="switch_to"]
 
-[editable path="NavigationRegion3D/terrain_main_ground"]
+[editable path="NavigationRegion3D/terrain"]

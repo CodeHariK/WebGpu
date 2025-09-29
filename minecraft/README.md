@@ -1,5 +1,37 @@
 #
 
+https://www.youtube.com/watch?v=JlgZtOFMdfc&t=43s
+
+animation tree https://www.youtube.com/watch?v=E6ajmQhOeo4
+
+https://github.com/gdquest-demos/godot-4-3d-third-person-controller
+https://github.com/GDQuest/godot-steering-ai-framework
+https://github.com/gdquest-demos/godot-4-3D-Characters
+https://github.com/gdquest-demos/godot_2d_and_3d_lasers
+https://github.com/gdquest-demos/godot-shaders
+https://github.com/gdquest-demos/godot-visual-effects
+https://github.com/gdquest-demos/godot-4-VFX-assets
+https://github.com/gdquest-demos/godot-4-stylized-sky
+https://github.com/gdquest-demos/godot-procedural-generation
+https://github.com/gdquest-demos/godot-4-new-features
+
+valet https://www.youtube.com/watch?v=qdskE8PJy6Q
+iHeartGameDev https://www.youtube.com/playlist?list=PLwyUzJb_FNeQrIxCEjj5AMPwawsw5beAy
+https://www.youtube.com/watch?v=STyY26a_dPY
+https://www.youtube.com/watch?v=zCxpzIiUJIg
+https://www.youtube.com/watch?v=7daTGyVZ60I
+https://www.youtube.com/watch?v=yorTG9at90g
+
+https://www.youtube.com/watch?v=YrNQCB34PAc
+https://www.youtube.com/watch?v=dPzHkK1Egns
+https://www.youtube.com/watch?v=eQUrKp19iXE
+https://www.youtube.com/watch?v=n872lbC-_BU
+
+https://www.youtube.com/@ChapC_Creates/videos
+
+Ai https://www.youtube.com/playlist?list=PLnJJ5frTPwRNdPS7F6AYZwyf4b5IXFhtc
+https://www.youtube.com/watch?v=-jkT4oFi1vk
+
 hulk jump, coyote jump, wall climb, celeste jump, batman aim jump, hollow knight air dash
 graple hook, lasers
 dishonered teleport
@@ -21,6 +53,7 @@ threads
 Farming, Minecraft Terraforming
 biome
 poisson object spawn
+voronoi height map mountain
 fog
 Water shader
 terrain blend shader

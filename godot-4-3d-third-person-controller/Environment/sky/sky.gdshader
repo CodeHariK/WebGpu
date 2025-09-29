@@ -22,7 +22,7 @@ vec3 hash( vec3 x ){
 vec3 voronoi( in vec3 x ){
 	vec3 p = floor( x );
 	vec3 f = fract( x );
-
+	
 	float id = 0.0;
 	vec2 res = vec2( 100.0 );
 	for( int k=-1; k<=1; k++ )

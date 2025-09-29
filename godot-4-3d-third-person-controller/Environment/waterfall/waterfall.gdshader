@@ -14,7 +14,7 @@ void vertex(){
 
 void fragment() {
 	float voronoi = texture(voronoi_sampler, (UV * vec2(4.0, 1.0) * 0.5) + vec2(TIME * 0.1, TIME)).x;
-
+	
 	float water_edge = 1.0 - smoothstep(0.84, 0.86, voronoi + UV.y);
 	ALBEDO = mix(mix(water_color_bottom , water_color_top, UV.y), vec3(1.0), water_edge);
 	// ALBEDO *= texture(SCREEN_TEXTURE, SCREEN_UV, 2.0).rgb;

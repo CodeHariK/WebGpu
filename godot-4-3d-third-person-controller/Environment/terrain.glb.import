@@ -4,20 +4,22 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://nhiiwxrhhtao"
-path="res://.godot/imported/terrain.glb-fa7f6c8b122268447f79984bcd26e16e.scn"
+path="res://.godot/imported/terrain.glb-257b7310aba45c9ff3c706d73d281523.scn"
 
 [deps]
 
-source_file="res://Environment/terrain.glb"
-dest_files=["res://.godot/imported/terrain.glb-fa7f6c8b122268447f79984bcd26e16e.scn"]
+source_file="res://environment/terrain.glb"
+dest_files=["res://.godot/imported/terrain.glb-257b7310aba45c9ff3c706d73d281523.scn"]
 
 [params]
 
 nodes/root_type="Node3D"
 nodes/root_name="Scene Root"
+nodes/root_script=null
 nodes/apply_root_scale=true
 nodes/root_scale=1.0
 nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
 nodes/use_node_type_suffixes=true
 meshes/ensure_tangents=true
 meshes/generate_lods=true
@@ -32,13 +34,20 @@ animation/trimming=false
 animation/remove_immutable_tracks=true
 animation/import_rest_as_RESET=false
 import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
 _subresources={
 "nodes": {
 "PATH:bridge_001/bridge": {
-"generate/physics": true
+"generate/physics": true,
+"physics/layer": 3,
+"physics/mask": 3
 },
 "PATH:main_ground": {
-"generate/physics": true
+"generate/physics": true,
+"physics/layer": 3,
+"physics/mask": 3
 }
 }
 }
