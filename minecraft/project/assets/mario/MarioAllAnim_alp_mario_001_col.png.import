@@ -2,18 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://by36b2b428rmg"
-path.s3tc="res://.godot/imported/checkerboard.png-321d25b7b9a9a46fca4e1e52509caa42.s3tc.ctex"
-path.etc2="res://.godot/imported/checkerboard.png-321d25b7b9a9a46fca4e1e52509caa42.etc2.ctex"
+uid="uid://wnv8afak3swk"
+path.s3tc="res://.godot/imported/MarioAllAnim_alp_mario_001_col.png-171a467f2ba65cce659f4ff7a8e3638e.s3tc.ctex"
+path.etc2="res://.godot/imported/MarioAllAnim_alp_mario_001_col.png-171a467f2ba65cce659f4ff7a8e3638e.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
+generator_parameters={
+"md5": "d187b951f2ff882c72217ad81eb4165c"
+}
 
 [deps]
 
-source_file="res://material/texture/checkerboard.png"
-dest_files=["res://.godot/imported/checkerboard.png-321d25b7b9a9a46fca4e1e52509caa42.s3tc.ctex", "res://.godot/imported/checkerboard.png-321d25b7b9a9a46fca4e1e52509caa42.etc2.ctex"]
+source_file="res://assets/mario/MarioAllAnim_alp_mario_001_col.png"
+dest_files=["res://.godot/imported/MarioAllAnim_alp_mario_001_col.png-171a467f2ba65cce659f4ff7a8e3638e.s3tc.ctex", "res://.godot/imported/MarioAllAnim_alp_mario_001_col.png-171a467f2ba65cce659f4ff7a8e3638e.etc2.ctex"]
 
 [params]
 

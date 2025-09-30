@@ -2,18 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://crtbjol613or8"
-path.s3tc="res://.godot/imported/minecraft.png-348a970a552f18a41ed3e334241736ec.s3tc.ctex"
-path.etc2="res://.godot/imported/minecraft.png-348a970a552f18a41ed3e334241736ec.etc2.ctex"
+uid="uid://cposimn2abr27"
+path.s3tc="res://.godot/imported/MarioAllAnim_eye_mario_b_col.png-dd9de71e3b53497c7b0b120a11d7002f.s3tc.ctex"
+path.etc2="res://.godot/imported/MarioAllAnim_eye_mario_b_col.png-dd9de71e3b53497c7b0b120a11d7002f.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
+generator_parameters={
+"md5": "7eaa9e283f311d46fe71501d9b1f7496"
+}
 
 [deps]
 
-source_file="res://material/texture/minecraft.png"
-dest_files=["res://.godot/imported/minecraft.png-348a970a552f18a41ed3e334241736ec.s3tc.ctex", "res://.godot/imported/minecraft.png-348a970a552f18a41ed3e334241736ec.etc2.ctex"]
+source_file="res://assets/mario/MarioAllAnim_eye_mario_b_col.png"
+dest_files=["res://.godot/imported/MarioAllAnim_eye_mario_b_col.png-dd9de71e3b53497c7b0b120a11d7002f.s3tc.ctex", "res://.godot/imported/MarioAllAnim_eye_mario_b_col.png-dd9de71e3b53497c7b0b120a11d7002f.etc2.ctex"]
 
 [params]
 

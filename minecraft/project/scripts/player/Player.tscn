@@ -1,5 +1,6 @@
-[gd_scene load_steps=11 format=3 uid="uid://c6x0asf56jqqj"]
+[gd_scene load_steps=12 format=3 uid="uid://c6x0asf56jqqj"]
 
+[ext_resource type="PackedScene" uid="uid://5pbr5pdewife" path="res://scripts/player/player_3d.tscn" id="1_c6xvm"]
 [ext_resource type="Script" uid="uid://qks4dq0jsh2q" path="res://scripts/player/char_player.gd" id="1_mh2ny"]
 [ext_resource type="Script" uid="uid://6k4tkr6avx2g" path="res://scripts/player/rb_player.gd" id="2_s415c"]
 [ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="3_iwa3u"]
@@ -34,6 +35,9 @@ environment = SubResource("Environment_pg2bq")
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
 shadow_enabled = true
 directional_shadow_max_distance = 1.0
+
+[node name="Player3D" parent="." instance=ExtResource("1_c6xvm")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5611925, -0.40541232, -3.1168852)
 
 [node name="Char3D" type="CharacterBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8366909, 0, -1.9645844)

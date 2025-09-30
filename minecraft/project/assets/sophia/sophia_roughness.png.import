@@ -2,18 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c0odcynpeyscu"
-path.s3tc="res://.godot/imported/uv2.png-0537a1d9637b37fa8a267674506c1c2e.s3tc.ctex"
-path.etc2="res://.godot/imported/uv2.png-0537a1d9637b37fa8a267674506c1c2e.etc2.ctex"
+uid="uid://bjkhv5l0rdscn"
+path.s3tc="res://.godot/imported/sophia_roughness.png-d0fa8e1829c4d35b129a4edbadb9abe8.s3tc.ctex"
+path.etc2="res://.godot/imported/sophia_roughness.png-d0fa8e1829c4d35b129a4edbadb9abe8.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
+generator_parameters={
+"md5": "1803e19cc759f01329d61ebae4874b5d"
+}
 
 [deps]
 
-source_file="res://material/texture/uv2.png"
-dest_files=["res://.godot/imported/uv2.png-0537a1d9637b37fa8a267674506c1c2e.s3tc.ctex", "res://.godot/imported/uv2.png-0537a1d9637b37fa8a267674506c1c2e.etc2.ctex"]
+source_file="res://assets/sophia/sophia_roughness.png"
+dest_files=["res://.godot/imported/sophia_roughness.png-d0fa8e1829c4d35b129a4edbadb9abe8.s3tc.ctex", "res://.godot/imported/sophia_roughness.png-d0fa8e1829c4d35b129a4edbadb9abe8.etc2.ctex"]
 
 [params]
 

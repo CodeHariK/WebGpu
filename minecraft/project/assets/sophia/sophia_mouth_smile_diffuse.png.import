@@ -2,18 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bb2spfflnkoqe"
-path.s3tc="res://.godot/imported/uv3.jpg-0f946ac654bdb20245c59ccac03e1650.s3tc.ctex"
-path.etc2="res://.godot/imported/uv3.jpg-0f946ac654bdb20245c59ccac03e1650.etc2.ctex"
+uid="uid://8p6853hlctkx"
+path.s3tc="res://.godot/imported/sophia_mouth_smile_diffuse.png-c72c48a36ba2980eefb8560e4a449f64.s3tc.ctex"
+path.etc2="res://.godot/imported/sophia_mouth_smile_diffuse.png-c72c48a36ba2980eefb8560e4a449f64.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
+generator_parameters={
+"md5": "6d33c76e821ab24480f46a32744976ec"
+}
 
 [deps]
 
-source_file="res://material/texture/uv3.jpg"
-dest_files=["res://.godot/imported/uv3.jpg-0f946ac654bdb20245c59ccac03e1650.s3tc.ctex", "res://.godot/imported/uv3.jpg-0f946ac654bdb20245c59ccac03e1650.etc2.ctex"]
+source_file="res://assets/sophia/sophia_mouth_smile_diffuse.png"
+dest_files=["res://.godot/imported/sophia_mouth_smile_diffuse.png-c72c48a36ba2980eefb8560e4a449f64.s3tc.ctex", "res://.godot/imported/sophia_mouth_smile_diffuse.png-c72c48a36ba2980eefb8560e4a449f64.etc2.ctex"]
 
 [params]
 

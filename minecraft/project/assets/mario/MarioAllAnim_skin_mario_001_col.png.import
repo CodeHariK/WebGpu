@@ -2,18 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cqqlfpvdu2geq"
-path.s3tc="res://.godot/imported/uv.jpg-a230e03eae12889bca7f9b58ca0e48dc.s3tc.ctex"
-path.etc2="res://.godot/imported/uv.jpg-a230e03eae12889bca7f9b58ca0e48dc.etc2.ctex"
+uid="uid://bqpy8qbrio78r"
+path.s3tc="res://.godot/imported/MarioAllAnim_skin_mario_001_col.png-084370c2a51ce75e7fd4c1c27a27aa28.s3tc.ctex"
+path.etc2="res://.godot/imported/MarioAllAnim_skin_mario_001_col.png-084370c2a51ce75e7fd4c1c27a27aa28.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
+generator_parameters={
+"md5": "cca8689a0f2b342f157454869857ec8e"
+}
 
 [deps]
 
-source_file="res://material/texture/uv.jpg"
-dest_files=["res://.godot/imported/uv.jpg-a230e03eae12889bca7f9b58ca0e48dc.s3tc.ctex", "res://.godot/imported/uv.jpg-a230e03eae12889bca7f9b58ca0e48dc.etc2.ctex"]
+source_file="res://assets/mario/MarioAllAnim_skin_mario_001_col.png"
+dest_files=["res://.godot/imported/MarioAllAnim_skin_mario_001_col.png-084370c2a51ce75e7fd4c1c27a27aa28.s3tc.ctex", "res://.godot/imported/MarioAllAnim_skin_mario_001_col.png-084370c2a51ce75e7fd4c1c27a27aa28.etc2.ctex"]
 
 [params]
 
