@@ -1,8 +1,23 @@
 #
 
-https://www.youtube.com/watch?v=JlgZtOFMdfc&t=43s
+https://www.youtube.com/@mixandjam/videos
+
+https://www.youtube.com/watch?v=AoGOIiBo4Eg
+
+https://www.youtube.com/watch?v=AoGOIiBo4Eg
+https://www.youtube.com/watch?v=jEWFSv3ivTg
+https://www.youtube.com/watch?v=n872lbC-_BU
+
+https://www.youtube.com/@lukky./videos
+https://www.youtube.com/watch?v=eQUrKp19iXE
+https://www.youtube.com/watch?v=hO7T_dUPet4
+https://www.youtube.com/watch?v=iElHZhOxGYA
+https://www.youtube.com/watch?v=jzuvd0Lstuw
 
 animation tree https://www.youtube.com/watch?v=E6ajmQhOeo4
+
+vfx https://www.youtube.com/watch?v=dMthnzpR-eU
+shockwave shader https://www.youtube.com/watch?v=SCHdglr35pk
 
 https://github.com/gdquest-demos/godot-4-3d-third-person-controller
 https://github.com/GDQuest/godot-steering-ai-framework
