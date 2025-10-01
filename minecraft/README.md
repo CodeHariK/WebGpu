@@ -1,5 +1,13 @@
 #
 
+https://github.com/ForlornU/TopdownStarter/tree/main/Scripts/Managers
+
+https://www.youtube.com/watch?v=cGqO7SVKqkM
+https://www.youtube.com/playlist?list=PLyH-qXFkNSxkviZMlWoVilQN40Oqh7m6Y
+https://www.youtube.com/watch?v=gAk3xl5fBsM
+
+https://www.youtube.com/@Bonkahe/playlists
+
 https://www.youtube.com/@mixandjam/videos
 
 https://www.youtube.com/watch?v=AoGOIiBo4Eg
@@ -7,6 +15,8 @@ https://www.youtube.com/watch?v=AoGOIiBo4Eg
 https://www.youtube.com/watch?v=AoGOIiBo4Eg
 https://www.youtube.com/watch?v=jEWFSv3ivTg
 https://www.youtube.com/watch?v=n872lbC-_BU
+
+Minecraft procedural dungeons https://www.youtube.com/watch?v=Ytnp7UeoYUE
 
 https://www.youtube.com/@lukky./videos
 https://www.youtube.com/watch?v=eQUrKp19iXE
@@ -36,6 +46,7 @@ https://www.youtube.com/watch?v=STyY26a_dPY
 https://www.youtube.com/watch?v=zCxpzIiUJIg
 https://www.youtube.com/watch?v=7daTGyVZ60I
 https://www.youtube.com/watch?v=yorTG9at90g
+Coyote Jump https://www.youtube.com/watch?v=NHQIkdbVUCc
 
 https://www.youtube.com/watch?v=YrNQCB34PAc
 https://www.youtube.com/watch?v=dPzHkK1Egns

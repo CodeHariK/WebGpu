@@ -42,15 +42,16 @@
 #include "core/input/input.h"
 #include "editor/debugger/editor_debugger_node.h"
 #include "editor/debugger/script_editor_debugger.h"
+#include "editor/docks/filesystem_dock.h"
 #include "editor/editor_node.h"
-#include "editor/filesystem_dock.h"
 #include "editor/gui/editor_bottom_panel.h"
-#include "editor/plugins/script_editor_plugin.h"
-#include "editor/project_settings_editor.h"
+#include "editor/script/script_editor_plugin.h"
+#include "editor/settings/project_settings_editor.h"
 #include "scene/gui/separator.h"
 #endif // LIMBOAI_MODULE
 
 #ifdef LIMBOAI_GDEXTENSION
+#include "godot_cpp/variant/dictionary.hpp"
 #include <godot_cpp/classes/button_group.hpp>
 #include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/classes/dir_access.hpp>
@@ -66,6 +67,7 @@
 #include <godot_cpp/classes/script.hpp>
 #include <godot_cpp/classes/script_editor.hpp>
 #include <godot_cpp/classes/v_separator.hpp>
+
 using namespace godot;
 #endif // LIMBOAI_GDEXTENSION
 
@@ -1523,7 +1525,7 @@ void LimboAIEditor::_update_banners() {
 		if (banners->get_child(i)->has_meta(LW_NAME(managed))) {
 			Node *banner = banners->get_child(i);
 			banners->remove_child(banner);
-			memfree(banner);
+			banner->queue_free();
 		}
 	}
 
@@ -1688,11 +1690,11 @@ LimboAIEditor::LimboAIEditor() {
 	EDITOR_SETTINGS()->add_property_hint(PropertyInfo(Variant::INT, "limbo_ai/editor/layout", PROPERTY_HINT_ENUM, "Classic:0,Widescreen Optimized:1"));
 	EDITOR_SETTINGS()->set_restart_if_changed("limbo_ai/editor/layout", true);
 #elif LIMBOAI_GDEXTENSION
-	PropertyInfo pinfo;
-	pinfo.name = "limbo_ai/editor/layout";
-	pinfo.type = Variant::INT;
-	pinfo.hint = PROPERTY_HINT_ENUM;
-	pinfo.hint_string = "Classic:0,Widescreen Optimized:1";
+	Dictionary pinfo;
+	pinfo["name"] = "limbo_ai/editor/layout";
+	pinfo["type"] = Variant::INT;
+	pinfo["hint"] = PROPERTY_HINT_ENUM;
+	pinfo["hint_string"] = "Classic:0,Widescreen Optimized:1";
 	EDITOR_SETTINGS()->add_property_info(pinfo);
 #endif
 

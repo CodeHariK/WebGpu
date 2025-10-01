@@ -1,5 +1,5 @@
 /**
- * editor_scale.h
+ * compat/node.h
  * =============================================================================
  * Copyright (c) 2023-present Serhii Snitsaruk and the LimboAI contributors.
  *
@@ -9,17 +9,16 @@
  * =============================================================================
  */
 
-#ifndef COMPAT_EDSCALE_H
-#define COMPAT_EDSCALE_H
+#pragma once
 
 #ifdef LIMBOAI_MODULE
-#include "editor/themes/editor_scale.h"
+
+#define IS_NODE_READY(m_node) (m_node->is_ready())
+
 #endif // LIMBOAI_MODULE
 
 #ifdef LIMBOAI_GDEXTENSION
-#include <godot_cpp/classes/editor_interface.hpp>
-using namespace godot;
-#define EDSCALE (EditorInterface::get_singleton()->get_editor_scale())
-#endif // LIMBOAI_GDEXTENSION
 
-#endif // COMPAT_EDSCALE_H
+#define IS_NODE_READY(m_node) (m_node->is_node_ready())
+
+#endif // LIMBOAI_GDEXTENSION
