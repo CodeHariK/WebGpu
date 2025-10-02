@@ -1,5 +1,12 @@
 #
 
+
+https://www.youtube.com/watch?v=j4zL3u0BSBY&list=PLV5T4EgpiiGPdtBDJO_K4bhab3_xKnNJ5&index=2
+https://www.youtube.com/watch?v=f9_y8A1J4p0&list=PLL3OEv6vd5VAsVqOFCTfPzc1rSgkZvcTm&index=2
+https://www.youtube.com/watch?v=pIrfIIiQvrg
+https://www.youtube.com/watch?v=JQT9sT1YuAI
+https://www.youtube.com/watch?v=AEAc_lLjOMc
+
 https://github.com/ForlornU/TopdownStarter/tree/main/Scripts/Managers
 
 https://www.youtube.com/watch?v=cGqO7SVKqkM
