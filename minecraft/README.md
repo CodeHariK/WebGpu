@@ -1,11 +1,32 @@
 #
 
+https://www.youtube.com/watch?v=ram-057hlx4
+https://www.youtube.com/watch?v=CvM28_ejvTc
+https://www.youtube.com/watch?v=DUYwsxCrQwE
+https://www.youtube.com/watch?v=1Su0-Gh6ilM&t=206s
+https://www.youtube.com/watch?v=ZkAk-GYpcvs
+https://www.youtube.com/watch?v=HCdynE4IL5c
 
+https://www.youtube.com/playlist?list=PLhEFRhEnz05vp8OZu5-5o6VO0fP2Wx_gS
+https://www.youtube.com/playlist?list=PLhEFRhEnz05uTZRATM-W5mnbgyvehhEqW
+
+
+https://www.youtube.com/playlist?list=PLdcL5aF8ZcJsSWrFwmLsQvCIKisuyyMnU
+https://www.youtube.com/watch?v=cxlPWv9giR4&list=PLL3OEv6vd5VCrqZiupP2m68qSWHYAjoiW
+https://www.youtube.com/watch?v=MzJZ7yEEgRA
 https://www.youtube.com/watch?v=j4zL3u0BSBY&list=PLV5T4EgpiiGPdtBDJO_K4bhab3_xKnNJ5&index=2
-https://www.youtube.com/watch?v=f9_y8A1J4p0&list=PLL3OEv6vd5VAsVqOFCTfPzc1rSgkZvcTm&index=2
+https://www.youtube.com/watch?v=pIrfIIiQvrg
 https://www.youtube.com/watch?v=pIrfIIiQvrg
 https://www.youtube.com/watch?v=JQT9sT1YuAI
+https://www.youtube.com/watch?v=MS1z9diLUOI
+https://www.youtube.com/watch?v=JQT9sT1YuAI
+https://www.youtube.com/watch?v=Y2SWwZmwrwM
+https://www.youtube.com/watch?v=3RSwjZLClRc
 https://www.youtube.com/watch?v=AEAc_lLjOMc
+https://www.youtube.com/watch?v=m-Obo_nC3SM
+https://www.youtube.com/watch?v=KEOvnmHslSw
+https://www.youtube.com/watch?v=SCF7nstL68A
+https://www.youtube.com/watch?v=OkhcLqjamqg
 
 https://github.com/ForlornU/TopdownStarter/tree/main/Scripts/Managers
 
