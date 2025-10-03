@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="GodotIK" inherits="SkeletonModifier3D" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		Provides an efficient inverse kinematics solver for 3D skeletal animations.
+	</brief_description>
+	<description>
+		GodotIK is a high-performance inverse kinematics (IK) solver for 3D skeletons. It extends [SkeletonModifier3D] and uses the FABRIK algorithm to adjust bone positions and rotations, creating natural movement and smooth transitions. Developers can customize the IK process — for example, by changing the number of iterations — to balance accuracy and performance. GodotIK should have one or more [GodotIKEffector] children to define IK chains.
+		[b]Configuration overview[/b]
+		- Central Controller: GodotIK serves as the primary IK controller to adjust the skeleton. As a [SkeletonModifier3D], it must be placed directly below a [Skeleton3D] to influence it.
+		- Nested Effectors: GodotIK can contain nested [GodotIKEffector] nodes, each defining an IK chain.
+		- Effector Constraints: [GodotIKEffector] nodes may have direct children that extend [GodotIKConstraint], allowing you to impose additional, scriptable constraints.
+		- [GodotIKRoot]: [GodotIKRoot]s search for effectors across their children and links them into the GodotIK system, making it easier to organize effectors across complex scenes.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="get_bone_position" qualifiers="const">
+			<return type="Vector3" />
+			<param index="0" name="bone_idx" type="int" />
+			<description>
+				Returns the skeleton-local - solver-immediate - position of a bone with [param bone_idx] in the skeleton. This is particularly relevant for most complex constraints.
+			</description>
+		</method>
+		<method name="get_current_iteration">
+			<return type="int" />
+			<description>
+				Returns the current iteration index of the solver if it is actively solving the IK configuration. If the solver is not running at the time of calling, this returns -1.
+				This can be useful for scriptable constraints that need to adapt based on the solver’s progress.
+			</description>
+		</method>
+		<method name="get_effectors">
+			<return type="GodotIKEffector[]" />
+			<description>
+				Returns all recognized [GodotIKEffectors] nodes.
+			</description>
+		</method>
+		<method name="set_effector_transforms_to_bones">
+			<return type="void" />
+			<description>
+				Transforms all linked [GodotIKEffector]s to be at the current [Skeleton3D]s pose. Useful for editor tooling - to reset the IK state.
+				See also [method GodotIKEffector.set_transform_to_bone].
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="iteration_count" type="int" setter="set_iteration_count" getter="get_iteration_count" default="8">
+			Sets the number of iterations during the IK solving process. Higher values provide more accurate results but may reduce performance, while lower values improve speed with less precision.
+		</member>
+		<member name="use_global_rotation_poles" type="bool" setter="set_use_global_rotation_poles" getter="get_global_rotation_poles" default="false" deprecated="">
+			Maintained primarily for backwards compatibility. When enabled, global rotation poles are used as references for rotation adjustments instead of local ones.
+			See: [url]https://github.com/monxa/GodotIK/issues/26#issuecomment-2650330652[/url].
+		</member>
+	</members>
+</class>
