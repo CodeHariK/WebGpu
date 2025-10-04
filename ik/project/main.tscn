@@ -376,13 +376,13 @@ iteration_count = 1
 bone_name = "ffoot.L"
 bone_idx = 3
 chain_length = 3
-transform = Transform3D(1.0000001, 0, 0, 0, 1.0000002, 0, 0, 0, 0.99999976, -0.57830524, 0, -6.3780956)
+transform = Transform3D(1.0000001, 0, 0, 0, 1.0000002, 0, 0, 0, 0.99999976, -0.57830524, 0, -6.181844)
 top_level = true
 
 [node name="PoleBoneConstraint" type="GodotIKConstraint" parent="SkeletonWolf/GodotIK/EffectorFL"]
 bone_idx = 2
 script = ExtResource("2_h2yge")
-pole_direction = Vector3(0, 0, 1)
+active = false
 forward = false
 metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
 
@@ -403,12 +403,12 @@ metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
 [node name="EffectorRL" type="GodotIKEffector" parent="SkeletonWolf/GodotIK"]
 bone_name = "rfoot.L"
 bone_idx = 10
-transform = Transform3D(0.99999976, 0, 0, 0, 0.9999999, 0, 0, 0, 0.99999803, 0.1929887, 0, -0.16348886)
+transform = Transform3D(0.99999976, 0, 0, 0, 0.9999999, 0, 0, 0, 0.99999803, 0.23021388, 0, -0.5537095)
 
 [node name="EffectorRR" type="GodotIKEffector" parent="SkeletonWolf/GodotIK"]
 bone_name = "rfoot.R"
 bone_idx = 12
-transform = Transform3D(0.99999976, 0, 0, 0, 0.9999999, 0, 0, 0, 0.99999803, -0.4091022, 0, -0.7258482)
+transform = Transform3D(0.99999976, 0, 0, 0, 0.9999999, 0, 0, 0, 0.99999803, -0.20323128, 0, -0.5979767)
 
 [node name="SkeletonSimplest" type="Skeleton3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.398928, 0, -6.55336)
@@ -572,10 +572,10 @@ bone_name = "Fingers.L"
 bone_idx = 5
 chain_length = 6
 transform_mode = 1
-transform = Transform3D(0.0446345, -0.982379, -0.181493, 0.998994, 0.0446909, 0.00378087, 0.00439685, -0.18148, 0.983385, -0.8571, -1.0436571, 0.0044817924)
+transform = Transform3D(0.0446345, -0.982379, -0.181493, 0.998994, 0.0446909, 0.00378087, 0.00439685, -0.18148, 0.983385, -0.569994, 0.06259483, 0.5455384)
 
 [node name="BoneAttachment3D" type="BoneAttachment3D" parent="SimpleArmRig/GodotIK/GodotIKEffectorL"]
-transform = Transform3D(0.46881032, -0.8189868, 0.33087236, 0.39670807, 0.52990526, 0.74954754, -0.789201, -0.22013557, 0.5733251, 0.24297073, -0.1998086, 0.033123016)
+transform = Transform3D(0.7558294, 0.6235447, 0.19978221, 0.09415032, 0.19844879, -0.97557795, -0.64796364, 0.7561811, 0.091285884, 0, 0, 0)
 bone_name = "Fingers.L"
 bone_idx = 5
 use_external_skeleton = true
@@ -606,7 +606,7 @@ bone_name = "Fingers.R"
 bone_idx = 11
 chain_length = 6
 transform_mode = 2
-transform = Transform3D(0.0446337, 0.982379, 0.181492, -0.998994, 0.0446901, 0.00378082, -0.00439668, -0.181478, 0.983385, 0.8571, -0.38128507, 0.004483223)
+transform = Transform3D(0.0446337, 0.982379, 0.181492, -0.998994, 0.0446901, 0.00378082, -0.00439668, -0.181478, 0.983385, 0.32126522, -0.24423265, 0.5174706)
 
 [node name="test_arm" parent="." instance=ExtResource("4_1bvp3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.37366, 0, -3.05204)
