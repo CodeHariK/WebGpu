@@ -24,7 +24,7 @@ glow_enabled = true
 size = Vector3(0.4, 0.1, 0.5)
 
 [sub_resource type="BoxMesh" id="BoxMesh_eg6xo"]
-size = Vector3(0.05, 0.33, 0.05)
+size = Vector3(0.05, 0.33, 0.2)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tauih"]
 
@@ -45,28 +45,29 @@ environment = SubResource("Environment_eg6xo")
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
 shadow_enabled = true
 
-[node name="Fly_Camera" parent="." instance=ExtResource("1_ljn4m")]
+[node name="Fly_Camera" parent="." node_paths=PackedStringArray("target") instance=ExtResource("1_ljn4m")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2371032, 4.482495)
+camera_type = 1
+target = NodePath("../SphereCharacterBody3D")
+camera_offset = Vector3(0, 1, 0)
 
-[node name="CharacterBody3D" type="CharacterBody3D" parent="."]
+[node name="SphereCharacterBody3D" type="CharacterBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2884329, 0)
 script = ExtResource("2_p87as")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="CharacterBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SphereCharacterBody3D"]
 shape = SubResource("SphereShape3D_iqhql")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="CharacterBody3D"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="SphereCharacterBody3D"]
 mesh = SubResource("SphereMesh_aq6ea")
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="CharacterBody3D"]
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="SphereCharacterBody3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2816531, -0.5706471)
 mesh = SubResource("BoxMesh_p87as")
 
-[node name="MeshInstance3D3" type="MeshInstance3D" parent="CharacterBody3D"]
+[node name="MeshInstance3D3" type="MeshInstance3D" parent="SphereCharacterBody3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.64602137, 0)
 mesh = SubResource("BoxMesh_eg6xo")
-
-[node name="Camera3D" type="Camera3D" parent="CharacterBody3D"]
-transform = Transform3D(1, 0, 0, 0, 0.9530058, 0.30295208, 0, -0.30295208, 0.9530058, 0, 1.3360901, 1.4996712)
 
 [node name="CSGBox3D2" type="CSGBox3D" parent="."]
 transform = Transform3D(-0.0062502213, 0.00864004, -0.9999433, 0.81022596, 0.5861181, -6.5122103e-09, 0.58608466, -0.81017995, -0.01066377, -7.138451, 0.29527956, -7.373236)
