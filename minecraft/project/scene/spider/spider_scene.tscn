@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=4 uid="uid://cmm7jo8hxwx66"]
+[gd_scene load_steps=21 format=4 uid="uid://cmm7jo8hxwx66"]
 
 [ext_resource type="Script" uid="uid://doowj3paflsjb" path="res://scene/spider/spider_controller.gd" id="1_60ywu"]
 [ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="1_tdyyp"]
@@ -188,6 +188,14 @@ bind/20/pose = Transform3D(-0.21753912, 0.02180425, -0.24162668, -0.24247663, -0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_feuli"]
 
+[sub_resource type="Curve3D" id="Curve3D_tdyyp"]
+closed = true
+_data = {
+"points": PackedVector3Array(-0.41170597, -9.829374, 0.019699097, 0.41170597, 9.829374, -0.019699097, 0.6344476, -0.6104002, -7.1351643, -0.44420528, 9.829346, -4.7683716e-07, 0.44420528, -9.829346, 4.7683716e-07, 0.2799449, -0.6387205, 8.523408),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
 [node name="SpiderWorld" type="Node3D"]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
@@ -203,6 +211,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2371032, 4.482495)
 [node name="SpiderCharacterBody3D" type="CharacterBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.16348791, 0)
 script = ExtResource("1_60ywu")
+ROTATE_HEAD = true
 HEAD_UP_DIS = -0.64
 
 [node name="Camera3D" type="Camera3D" parent="SpiderCharacterBody3D"]
@@ -378,6 +387,7 @@ transform = Transform3D(0.2269144, 0.040011138, 0.23041497, -0.056584287, 0.3209
 target_position = Vector3(0, -6, 0)
 
 [node name="HeadBone" type="BoneAttachment3D" parent="SpiderCharacterBody3D/SpiderSkeleton"]
+visible = false
 bone_name = "Body_2"
 bone_idx = 0
 override_pose = true
@@ -394,6 +404,7 @@ mesh = SubResource("ArrayMesh_vy7gu")
 skeleton = NodePath("")
 
 [node name="Leg" type="MeshInstance3D" parent="SpiderCharacterBody3D/SpiderSkeleton"]
+visible = false
 material_override = SubResource("StandardMaterial3D_qeai8")
 mesh = SubResource("ArrayMesh_7ig2y")
 skin = SubResource("Skin_swqky")
@@ -453,6 +464,14 @@ script = ExtResource("2_xsdk6")
 pole_direction = Vector3(0, 0.5, 0)
 metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
 
+[node name="CSGBox3D" type="CSGBox3D" parent="SpiderCharacterBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0048515797, 0.13501981, -0.24488086)
+size = Vector3(0.7714844, 0.08617401, 1.1682224)
+
+[node name="CSGBox3D2" type="CSGBox3D" parent="SpiderCharacterBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.002235651, 0.18330052, -0.9359102)
+size = Vector3(0.21130371, 0.18273544, 0.47738886)
+
 [node name="CSGBox3D2" type="CSGBox3D" parent="."]
 transform = Transform3D(-0.0062502213, 0.00864004, -0.9999433, 0.81022596, 0.5861181, -6.5122103e-09, 0.58608466, -0.81017995, -0.01066377, -7.138451, 0.29527956, -7.373236)
 use_collision = true
@@ -473,3 +492,23 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
 material_override = SubResource("StandardMaterial3D_feuli")
 use_collision = true
 size = Vector3(50, 0.25, 50)
+
+[node name="Path3D" type="Path3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.9449973, 2.2258759, 1.4682487)
+curve = SubResource("Curve3D_tdyyp")
+debug_custom_color = Color(0.11064782, 0.024028026, 0.11679994, 1)
+
+[node name="CSGPolygon3D" type="CSGPolygon3D" parent="Path3D"]
+use_collision = true
+polygon = PackedVector2Array(0, 0, 0, 5, 1, 5, 1, 0)
+mode = 2
+path_node = NodePath("..")
+path_interval_type = 0
+path_interval = 1.0
+path_simplify_angle = 0.0
+path_rotation = 2
+path_rotation_accurate = false
+path_local = false
+path_continuous_u = true
+path_u_distance = 1.0
+path_joined = false

@@ -45,6 +45,9 @@ var leg_collision_bl # Can be Vector3 or null
 
 var _forward_dir: Vector3
 var _right_dir: Vector3
+var _wall_normal: Vector3
+var _wall_forward_dir: Vector3
+var _is_on_wall: bool = false
 
 func _ready() -> void:
     Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -77,12 +80,6 @@ func _unhandled_input(event: InputEvent) -> void:
             Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _physics_process(delta: float) -> void:
-    velocity += global_transform.basis.y.normalized() * -GRAVITY * delta
-
-    # Handle jump.
-    if Input.is_action_just_pressed("ui_accept"):
-        velocity = global_transform.basis.y.normalized() * JUMP_VELOCITY
-
     # Get the input direction and handle the movement/deceleration.
     # As good practice, you should replace UI actions with custom gameplay actions.
     var input_dir := Input.get_vector("a", "d", "s", "w")
@@ -94,23 +91,36 @@ func _physics_process(delta: float) -> void:
     # var back_midpoint = (ik_target_br + ik_target_bl) / 2.0
 
     _forward_dir = (front_midpoint - back_midpoint).normalized()
-    
+    var _forward_force_dir = (_wall_forward_dir.normalized()) if _is_on_wall else (front_midpoint - back_midpoint).normalized()
+    # print(_wall_forward_dir, _is_on_wall, _forward_force_dir, input_dir.y, _forward_force_dir * input_dir.y)
+
     # Calculate the object's right direction, perpendicular to its forward direction
     _right_dir = _forward_dir.cross(Vector3.UP).normalized()
     
-    var direction = (_forward_dir * input_dir.y + _right_dir * input_dir.x).normalized()
+    var direction = (_forward_force_dir * input_dir.y + _right_dir * input_dir.x).normalized()
     if direction:
-        velocity.x = direction.x * SPEED
-        velocity.z = direction.z * SPEED
+        velocity = direction * SPEED
     else:
         velocity.x = move_toward(velocity.x, 0, SPEED)
+        velocity.y = move_toward(velocity.y, 0, SPEED)
         velocity.z = move_toward(velocity.z, 0, SPEED)
+
+    # # var up_dir = global_transform.basis.y.normalized()
+    # var up_dir = _wall_normal.normalized() if _is_on_wall else global_transform.basis.y.normalized()
+
+    # velocity += up_dir * -GRAVITY * 2 * delta
+
+    # # Handle jump.
+    # if Input.is_action_just_pressed("ui_accept"):
+    #     velocity = up_dir * JUMP_VELOCITY
 
     move_and_slide()
 
     _debug_rays(front_midpoint, back_midpoint)
 
     _update_legs(delta)
+
+    _update_body_orientation()
 
     _update_head()
 
@@ -121,37 +131,48 @@ func _debug_rays(front_midpoint, back_midpoint) -> void:
 
     var body_center = head_bone.global_position
 
-    DebugDraw3D.draw_arrow(body_center, body_center + _forward_dir, Color.CYAN, .1)
-    DebugDraw3D.draw_arrow(body_center, body_center + _right_dir, Color.MAGENTA, .1)
+    DebugDraw3D.draw_line(body_center, body_center + _forward_dir, Color.CYAN)
+    DebugDraw3D.draw_line(body_center, body_center + _right_dir, Color.MAGENTA)
 
     var up_dir = _forward_dir.cross(_right_dir).normalized()
-    DebugDraw3D.draw_arrow(body_center, body_center + up_dir, Color.YELLOW, 0.1)
+    DebugDraw3D.draw_line(body_center, body_center + up_dir, Color.RED)
 
-    var leg_base_center = (front_midpoint + back_midpoint) / 2.0
-    DebugDraw3D.draw_line(leg_base_center, body_center, Color.ORANGE, 0.1)
-    
-    # Raycast from body center down to leg base center to find ground
     var space_state = get_world_3d().direct_space_state
-    var down_direction = (leg_base_center - body_center)
-    var down_query = PhysicsRayQueryParameters3D.create(body_center, body_center + down_direction.normalized() * 5)
-    var down_result = space_state.intersect_ray(down_query)
-    if down_result:
-        DebugDraw3D.draw_line(body_center, down_result.position, Color.LIGHT_BLUE, 0.1)
 
     # Raycast from body_center forward to get wall normal
-    var forward_query = PhysicsRayQueryParameters3D.create(body_center, body_center + _forward_dir * 4)
+    var forward_query = PhysicsRayQueryParameters3D.create(body_center, body_center + _forward_dir * 2)
     # Exclude the spider itself from the raycast
     forward_query.exclude = [get_rid()]
     var forward_result = space_state.intersect_ray(forward_query)
+    _is_on_wall = !forward_result.is_empty()
     if forward_result:
         var collision_point = forward_result.position
-        var collision_normal = forward_result.normal
-        DebugDraw3D.draw_arrow(collision_point, collision_point + collision_normal, Color.WHITE, 0.1)
-        DebugDraw3D.draw_arrow(collision_point, collision_point + collision_normal, Color.WHITE, 0.1, 0.1)
+        _wall_normal = forward_result.normal
+        DebugDraw3D.draw_line(collision_point, collision_point + _wall_normal, Color.MISTY_ROSE)
 
         # Project forward vector onto the collision plane to get the perpendicular direction
-        var perpendicular_dir = _forward_dir - collision_normal * _forward_dir.dot(collision_normal)
-        DebugDraw3D.draw_arrow(collision_point, collision_point + perpendicular_dir.normalized(), Color.RED, 0.1, 0.1)
+        _wall_forward_dir = _forward_dir - _wall_normal * _forward_dir.dot(_wall_normal)
+        DebugDraw3D.draw_line(collision_point, collision_point + _wall_forward_dir.normalized(), Color.RED)
+
+func _update_body_orientation() -> void:
+    if _is_on_wall:
+        # When on a wall, orient the body to the wall's surface
+        var new_forward = _wall_forward_dir.normalized()
+        var new_up = _wall_normal
+        
+        # Use look_at to easily orient the transform.
+        # We look in the 'new_forward' direction, with 'new_up' as the up vector.
+        # The target position is just a point in front of the current position.
+        global_transform = global_transform.looking_at(global_position + new_forward, new_up)
+        print(new_up)
+    else:
+        # When on the ground, align with the world's UP vector to keep the body level.
+        var new_up = Vector3.UP
+        # Project the body's forward direction onto the horizontal plane
+        # to ensure it's perpendicular to the new_up vector.
+        var new_forward = _forward_dir - new_up * _forward_dir.dot(new_up)
+        global_transform = global_transform.looking_at(global_position + new_forward, new_up)
+
 
 func _update_legs(delta: float) -> void:
     # Determine if the planted group needs to step
@@ -205,7 +226,7 @@ func _update_leg_position(effector: GodotIKEffector, raycast: RayCast3D, current
 
     effector.global_position = effector.global_position.lerp(new_target, STEP_SPEED * delta)
 
-    DebugDraw3D.draw_line(raycast.global_position, new_target, Color.YELLOW, .05)
+    # DebugDraw3D.draw_line(raycast.global_position, new_target, Color.YELLOW)
 
     return new_target
 
@@ -217,4 +238,5 @@ func _update_head() -> void:
     head_bone.global_position = avg_ray_origin + Vector3.UP * HEAD_UP_DIS
 
     if ROTATE_HEAD:
-        body.rotation = Vector3(head_rotation.x, head_rotation.y, 0)
+        body.rotation = Vector3(0, head_rotation.y, 0)
+        # body.rotation = Vector3(head_rotation.x, head_rotation.y, 0)
