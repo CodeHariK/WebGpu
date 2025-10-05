@@ -46,22 +46,8 @@ var current_camera_index: int = 0
 func _ready() -> void:
     Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
     
-    # Initialize cameras, making only the first one active.
-    # for i in range(cameras.size()):
-    #     var cam = _get_camera_from_node(cameras[i])
-    #     print(cam)
-    #     if cam:
-    #         cam.current = (i == 0)
-
     var root_node = get_tree().get_root()
     all_cameras = find_all_camera3d_nodes(root_node)
-    
-    if all_cameras.is_empty():
-        print("No Camera3D nodes found in the scene.")
-    else:
-        print("Found the following Camera3D nodes:")
-        print(all_cameras)
-
 
 func _unhandled_input(event: InputEvent) -> void:
     if event is InputEventMouseMotion:
@@ -69,13 +55,8 @@ func _unhandled_input(event: InputEvent) -> void:
         y_rot -= event.relative.x * MOUSE_SENSITIVITY
     
     if event.is_action_pressed("toggle_camera") and not all_cameras.is_empty():
-        # Deactivate the current camera.
         all_cameras[current_camera_index].current = false
-            
-        # Move to the next camera index.
         current_camera_index = (current_camera_index + 1) % all_cameras.size()
-        
-        # Activate the new camera.
         all_cameras[current_camera_index].current = true
     
     if event.is_action_pressed("ui_cancel"):
