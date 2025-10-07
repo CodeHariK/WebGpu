@@ -1,0 +1,14 @@
+[gd_resource type="ShaderMaterial" load_steps=4 format=3 uid="uid://doxnk6f03v868"]
+
+[ext_resource type="Shader" uid="uid://cm7okx0ls0hkx" path="res://material/shaders/practice/distorsion.gdshader" id="1_o4tlv"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_o4tlv"]
+frequency = 0.0304
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_2pgml"]
+noise = SubResource("FastNoiseLite_o4tlv")
+
+[resource]
+shader = ExtResource("1_o4tlv")
+shader_parameter/blur_power = 0.0499999988824
+shader_parameter/noise_texture = SubResource("NoiseTexture2D_2pgml")

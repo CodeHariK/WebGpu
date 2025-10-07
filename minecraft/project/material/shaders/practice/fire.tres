@@ -24,5 +24,5 @@ shader_parameter/base_color = Color(0.7879185, 0.662337, 0.28785497, 1)
 shader_parameter/edge_color = Color(0.9147165, 0, 0.27189213, 1)
 shader_parameter/fire_alpha = 1.0
 shader_parameter/fire_filter = 0.20000000298024
-shader_parameter/fire_power = 0.2
+shader_parameter/fire_power = 5.0000000596048
 shader_parameter/fire_speed = Vector2(0, 1)

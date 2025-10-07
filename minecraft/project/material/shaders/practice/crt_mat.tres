@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://djm80rf7kqtg6"]
+
+[ext_resource type="Shader" uid="uid://c0b8txse2rjn5" path="res://material/shaders/practice/crt_shader.gdshader" id="1_nl37f"]
+
+[resource]
+shader = ExtResource("1_nl37f")
+shader_parameter/crt_brightness = 1.0
+shader_parameter/crt_ghost = 1.0000000149012
+shader_parameter/crt_grid = 0.40000000596048
