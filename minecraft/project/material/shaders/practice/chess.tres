@@ -1,0 +1,6 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://d3fkoxb82vep0"]
+
+[ext_resource type="Shader" uid="uid://bnixxn4tr8rq" path="res://material/shaders/practice/chess.gdshader" id="1_q0nt5"]
+
+[resource]
+shader = ExtResource("1_q0nt5")
