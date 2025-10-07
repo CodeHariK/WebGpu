@@ -1,0 +1,50 @@
+[gd_scene load_steps=9 format=3 uid="uid://tkaefwf8athq"]
+
+[ext_resource type="Material" uid="uid://55svv2sl8lie" path="res://material/shaders/practice/holographic_mat.tres" id="1_076ng"]
+[ext_resource type="Material" uid="uid://bm1sipjoet0pr" path="res://material/shaders/practice/fire.tres" id="2_mtjsl"]
+[ext_resource type="Material" uid="uid://dce6lt0o8glbp" path="res://material/shaders/practice/uv.tres" id="3_r1geu"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_mtjsl"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_r1geu"]
+sky_material = SubResource("ProceduralSkyMaterial_mtjsl")
+
+[sub_resource type="Environment" id="Environment_lf3t2"]
+background_mode = 2
+sky = SubResource("Sky_r1geu")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_mtjsl"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_r1geu"]
+
+[node name="ShaderScene" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_lf3t2")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.88924706, 0.14066812, -0.43526143, 0.026714757, 0.933947, 0.35641247, 0.4566468, -0.3285666, 0.82675153, -2.5180502, 3.8687043, 5.0886803)
+shadow_enabled = true
+directional_shadow_max_distance = 1.0
+
+[node name="Holographic" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1060023, 0)
+visible = false
+mesh = SubResource("CapsuleMesh_mtjsl")
+surface_material_override/0 = ExtResource("1_076ng")
+
+[node name="UV" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6150007, 1.0752503, 0)
+visible = false
+mesh = SubResource("QuadMesh_r1geu")
+surface_material_override/0 = ExtResource("3_r1geu")
+
+[node name="Fire" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2253046, 1.0752503, 0)
+visible = false
+mesh = SubResource("QuadMesh_r1geu")
+surface_material_override/0 = ExtResource("2_mtjsl")

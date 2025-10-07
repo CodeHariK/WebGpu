@@ -1,0 +1,6 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://55svv2sl8lie"]
+
+[ext_resource type="Shader" uid="uid://7a7itqq4k5ey" path="res://material/shaders/practice/holographic_shader.tres" id="1_j1f1m"]
+
+[resource]
+shader = ExtResource("1_j1f1m")
