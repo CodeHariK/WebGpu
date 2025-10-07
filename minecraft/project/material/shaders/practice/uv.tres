@@ -1,0 +1,7 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://dce6lt0o8glbp"]
+
+[ext_resource type="Shader" uid="uid://4lsda4ream04" path="res://material/shaders/practice/uv.gdshader" id="1_hhdr5"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_hhdr5")

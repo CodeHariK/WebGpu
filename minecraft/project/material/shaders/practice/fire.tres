@@ -1,0 +1,28 @@
+[gd_resource type="ShaderMaterial" load_steps=6 format=3 uid="uid://bm1sipjoet0pr"]
+
+[ext_resource type="Shader" uid="uid://c0xfpy86eby66" path="res://material/shaders/practice/fire.gdshader" id="1_ydvv1"]
+
+[sub_resource type="Curve" id="Curve_ydvv1"]
+_data = [Vector2(0.164859, 0.053699374), 0.0, 0.0, 0, 0, Vector2(0.50325376, 1), 0.0, 0.0, 0, 0, Vector2(0.835141, 0.058870316), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[sub_resource type="CurveTexture" id="CurveTexture_8ccrf"]
+curve = SubResource("Curve_ydvv1")
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_ydvv1"]
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_ydvv1"]
+noise = SubResource("FastNoiseLite_ydvv1")
+seamless = true
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_ydvv1")
+shader_parameter/noise_texture = SubResource("NoiseTexture2D_ydvv1")
+shader_parameter/mask_texture = SubResource("CurveTexture_8ccrf")
+shader_parameter/base_color = Color(0.7879185, 0.662337, 0.28785497, 1)
+shader_parameter/edge_color = Color(0.9147165, 0, 0.27189213, 1)
+shader_parameter/fire_alpha = 1.0
+shader_parameter/fire_filter = 0.20000000298024
+shader_parameter/fire_power = 0.2
+shader_parameter/fire_speed = Vector2(0, 1)
