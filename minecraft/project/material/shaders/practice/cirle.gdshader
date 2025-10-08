@@ -1,6 +1,6 @@
 shader_type canvas_item;
 
-#include "library.gdshaderinc"
+#include "library_draw.gdshaderinc"
 
 void vertex() {
 	// Called for every vertex the material is visible on.

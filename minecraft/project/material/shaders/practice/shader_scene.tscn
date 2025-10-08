@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://tkaefwf8athq"]
+[gd_scene load_steps=19 format=3 uid="uid://tkaefwf8athq"]
 
 [ext_resource type="Material" uid="uid://55svv2sl8lie" path="res://material/shaders/practice/holographic_mat.tres" id="1_076ng"]
 [ext_resource type="Material" uid="uid://bm1sipjoet0pr" path="res://material/shaders/practice/fire.tres" id="2_mtjsl"]
@@ -8,6 +8,11 @@
 [ext_resource type="Material" uid="uid://d3fkoxb82vep0" path="res://material/shaders/practice/chess.tres" id="6_aygo4"]
 [ext_resource type="Material" uid="uid://bma487awiyomp" path="res://material/shaders/practice/cirle.tres" id="7_6u4jw"]
 [ext_resource type="Material" uid="uid://doxnk6f03v868" path="res://material/shaders/practice/distorsion_mat.tres" id="8_pu6li"]
+[ext_resource type="Material" uid="uid://cfvvc5j66p376" path="res://material/shaders/practice/plexus_mat.tres" id="9_xtjjw"]
+[ext_resource type="Material" uid="uid://br44w7lmffyte" path="res://material/shaders/practice/color_effect_mat.tres" id="10_v4iug"]
+[ext_resource type="Material" uid="uid://cgsdjd1ieo1lq" path="res://material/shaders/practice/dot_matrix_mat.tres" id="11_yeosa"]
+[ext_resource type="Material" uid="uid://duwfmslaxvvg6" path="res://material/shaders/practice/star_mat.tres" id="12_pbmds"]
+[ext_resource type="Material" uid="uid://c1tu5bvq85o2x" path="res://material/shaders/practice/transition_mat.tres" id="13_m0itp"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_mtjsl"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -101,6 +106,51 @@ visible = false
 material = ExtResource("8_pu6li")
 position = Vector2(704.99994, 403.5)
 scale = Vector2(5.4799995, 3.1479998)
+texture = ExtResource("4_1kfpk")
+
+[node name="Plexus" type="ColorRect" parent="CanvasLayer"]
+visible = false
+material = ExtResource("9_xtjjw")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -800.0
+offset_bottom = -400.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+
+[node name="ColorEffects" type="Sprite2D" parent="CanvasLayer"]
+visible = false
+material = ExtResource("10_v4iug")
+position = Vector2(711, 396)
+scale = Vector2(2.736, 2.5899372)
+texture = ExtResource("4_1kfpk")
+
+[node name="DotMatrix" type="Sprite2D" parent="CanvasLayer"]
+visible = false
+material = ExtResource("11_yeosa")
+position = Vector2(711, 396)
+scale = Vector2(2.736, 2.5899372)
+texture = ExtResource("4_1kfpk")
+
+[node name="Star" type="ColorRect" parent="CanvasLayer"]
+visible = false
+material = ExtResource("12_pbmds")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = -800.0
+offset_bottom = -400.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+
+[node name="Transition" type="Sprite2D" parent="CanvasLayer"]
+visible = false
+material = ExtResource("13_m0itp")
+position = Vector2(711, 396)
+scale = Vector2(2.736, 2.5899372)
 texture = ExtResource("4_1kfpk")
 
 [node name="Camera3D" type="Camera3D" parent="."]

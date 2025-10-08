@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://cgsdjd1ieo1lq"]
+
+[ext_resource type="Shader" uid="uid://6m3lmgedui3b" path="res://material/shaders/practice/dot_matrix_shader.gdshader" id="1_whsd7"]
+
+[resource]
+shader = ExtResource("1_whsd7")
+shader_parameter/luminance = Color(0.3086, 0.6094, 0.082, 1)
+shader_parameter/brightness = 2.99999993666932
+shader_parameter/contrast = 1.88999998010672
+shader_parameter/scale = 1.6899999622251198
+shader_parameter/angle = 4.66999989561616
