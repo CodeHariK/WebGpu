@@ -1,0 +1,13 @@
+[gd_resource type="ShaderMaterial" load_steps=4 format=3 uid="uid://c1tu5bvq85o2x"]
+
+[ext_resource type="Shader" uid="uid://ops675ov0ee3" path="res://material/shaders/practice/transition.gdshader" id="1_64fcy"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_64fcy"]
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_bt7b4"]
+noise = SubResource("FastNoiseLite_64fcy")
+
+[resource]
+shader = ExtResource("1_64fcy")
+shader_parameter/noise_texture = SubResource("NoiseTexture2D_bt7b4")
+shader_parameter/threshold = 0.43999999016512

@@ -1,0 +1,10 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://cfvvc5j66p376"]
+
+[ext_resource type="Shader" uid="uid://bsllnx7bt23ba" path="res://material/shaders/practice/plexus_shader.gdshader" id="1_pohyc"]
+
+[resource]
+shader = ExtResource("1_pohyc")
+shader_parameter/resolution = Vector2(1200, 600)
+shader_parameter/line_color = Vector3(0.1, 0.4, 0.2)
+shader_parameter/octaves = 20
+shader_parameter/zoom_factor = 20.0

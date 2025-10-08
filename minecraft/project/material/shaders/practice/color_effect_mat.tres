@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://br44w7lmffyte"]
+
+[ext_resource type="Shader" uid="uid://ccrbohovauxla" path="res://material/shaders/practice/color_effect_shader.gdshader" id="1_law4m"]
+
+[resource]
+shader = ExtResource("1_law4m")
+shader_parameter/brightness = 0.0
+shader_parameter/contrast = 0.9999997541279999
+shader_parameter/saturation = 0.9999997541279999
