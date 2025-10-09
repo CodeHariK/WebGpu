@@ -1,0 +1,8 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://cog66ki6ers2k"]
+
+[ext_resource type="Shader" uid="uid://dodef7na0goed" path="res://material/shaders/practice/normal_shader.gdshader" id="1_dvr3w"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_dvr3w")
+shader_parameter/depth_range = 10.0

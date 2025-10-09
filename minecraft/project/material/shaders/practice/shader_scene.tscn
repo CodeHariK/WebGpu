@@ -1,10 +1,13 @@
-[gd_scene load_steps=19 format=3 uid="uid://tkaefwf8athq"]
+[gd_scene load_steps=26 format=3 uid="uid://tkaefwf8athq"]
 
+[ext_resource type="PackedScene" uid="uid://buc75e6yxlh17" path="res://assets/sophia/sophia.glb" id="1_7jj1s"]
 [ext_resource type="Material" uid="uid://55svv2sl8lie" path="res://material/shaders/practice/holographic_mat.tres" id="1_076ng"]
 [ext_resource type="Material" uid="uid://bm1sipjoet0pr" path="res://material/shaders/practice/fire.tres" id="2_mtjsl"]
 [ext_resource type="Material" uid="uid://dce6lt0o8glbp" path="res://material/shaders/practice/uv.tres" id="3_r1geu"]
 [ext_resource type="Texture2D" uid="uid://bb2spfflnkoqe" path="res://assets/uv.jpg" id="4_1kfpk"]
+[ext_resource type="Material" uid="uid://by1sg88ld70q" path="res://material/shaders/practice/fog_mat.tres" id="4_c7qtk"]
 [ext_resource type="Material" uid="uid://djm80rf7kqtg6" path="res://material/shaders/practice/crt_mat.tres" id="4_lf3t2"]
+[ext_resource type="Material" uid="uid://cog66ki6ers2k" path="res://material/shaders/practice/normal_mat.tres" id="5_ydx33"]
 [ext_resource type="Material" uid="uid://d3fkoxb82vep0" path="res://material/shaders/practice/chess.tres" id="6_aygo4"]
 [ext_resource type="Material" uid="uid://bma487awiyomp" path="res://material/shaders/practice/cirle.tres" id="7_6u4jw"]
 [ext_resource type="Material" uid="uid://doxnk6f03v868" path="res://material/shaders/practice/distorsion_mat.tres" id="8_pu6li"]
@@ -13,6 +16,7 @@
 [ext_resource type="Material" uid="uid://cgsdjd1ieo1lq" path="res://material/shaders/practice/dot_matrix_mat.tres" id="11_yeosa"]
 [ext_resource type="Material" uid="uid://duwfmslaxvvg6" path="res://material/shaders/practice/star_mat.tres" id="12_pbmds"]
 [ext_resource type="Material" uid="uid://c1tu5bvq85o2x" path="res://material/shaders/practice/transition_mat.tres" id="13_m0itp"]
+[ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="15_eggwm"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_mtjsl"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -29,9 +33,22 @@ glow_enabled = true
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_mtjsl"]
 
+[sub_resource type="QuadMesh" id="QuadMesh_c7qtk"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_eggwm"]
+
 [sub_resource type="QuadMesh" id="QuadMesh_r1geu"]
+flip_faces = true
+size = Vector2(2, 2)
+
+[sub_resource type="QuadMesh" id="QuadMesh_7jj1s"]
+flip_faces = true
+size = Vector2(2, 2)
 
 [node name="ShaderScene" type="Node3D"]
+
+[node name="sophia" parent="." instance=ExtResource("1_7jj1s")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.859903, 0, 0)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_lf3t2")
@@ -50,16 +67,31 @@ surface_material_override/0 = ExtResource("1_076ng")
 [node name="UV" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6150007, 1.0752503, 0)
 visible = false
-mesh = SubResource("QuadMesh_r1geu")
+mesh = SubResource("QuadMesh_c7qtk")
 surface_material_override/0 = ExtResource("3_r1geu")
 
 [node name="Fire" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2253046, 1.0752503, 0)
 visible = false
-mesh = SubResource("QuadMesh_r1geu")
+mesh = SubResource("QuadMesh_eggwm")
 surface_material_override/0 = ExtResource("2_mtjsl")
 
+[node name="Fog" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6159687, 1.0752503, 0)
+visible = false
+extra_cull_margin = 16384.0
+mesh = SubResource("QuadMesh_r1geu")
+surface_material_override/0 = ExtResource("4_c7qtk")
+
+[node name="Normal" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.020147, 1.0752503, 0)
+visible = false
+extra_cull_margin = 16384.0
+mesh = SubResource("QuadMesh_7jj1s")
+surface_material_override/0 = ExtResource("5_ydx33")
+
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
+visible = false
 
 [node name="Sprite2D" type="Sprite2D" parent="CanvasLayer"]
 visible = false
@@ -153,5 +185,4 @@ position = Vector2(711, 396)
 scale = Vector2(2.736, 2.5899372)
 texture = ExtResource("4_1kfpk")
 
-[node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5468868, 1.2399497, 2.9449954)
+[node name="Camera_X_Pivot" parent="." instance=ExtResource("15_eggwm")]
