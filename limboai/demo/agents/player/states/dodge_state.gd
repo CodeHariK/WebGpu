@@ -23,26 +23,26 @@ var elapsed_time: float
 
 
 func _enter() -> void:
-	elapsed_time = 0.0
-	hurtbox_collision.disabled = true
+    elapsed_time = 0.0
+    hurtbox_collision.disabled = true
 
-	var horizontal_move: float = Input.get_axis(&"move_left", &"move_right")
-	if is_zero_approx(horizontal_move):
-		move_dir = Vector2.RIGHT * agent.get_facing()
-	else:
-		move_dir = Vector2.RIGHT * signf(horizontal_move)
-	agent.face_dir(move_dir.x)
+    var horizontal_move: float = Input.get_axis(&"move_left", &"move_right")
+    if is_zero_approx(horizontal_move):
+        move_dir = Vector2.RIGHT * agent.get_facing()
+    else:
+        move_dir = Vector2.RIGHT * signf(horizontal_move)
+    agent.face_dir(move_dir.x)
 
-	animation_player.play(animation, 0.1)
+    animation_player.play(animation, 0.1)
 
 
 func _exit() -> void:
-	hurtbox_collision.set_deferred(&"disabled", false)
+    hurtbox_collision.set_deferred(&"disabled", false)
 
 
 func _update(p_delta: float) -> void:
-	elapsed_time += p_delta
-	var desired_velocity: Vector2 = move_dir * dodge_speed
-	agent.move(desired_velocity)
-	if elapsed_time > duration:
-		get_root().dispatch(EVENT_FINISHED)
+    elapsed_time += p_delta
+    var desired_velocity: Vector2 = move_dir * dodge_speed
+    agent.move(desired_velocity)
+    if elapsed_time > duration:
+        get_root().dispatch(EVENT_FINISHED)

@@ -25,22 +25,22 @@ var _current: float
 
 
 func _ready() -> void:
-	_current = max_health
+    _current = max_health
 
 
 func take_damage(amount: float, knockback: Vector2) -> void:
-	if _current <= 0.0:
-		return
+    if _current <= 0.0:
+        return
 
-	_current -= amount
-	_current = max(_current, 0.0)
+    _current -= amount
+    _current = max(_current, 0.0)
 
-	if _current <= 0.0:
-		death.emit()
-	else:
-		damaged.emit(amount, knockback)
+    if _current <= 0.0:
+        death.emit()
+    else:
+        damaged.emit(amount, knockback)
 
 
 ## Returns current health.
 func get_current() -> float:
-	return _current
+    return _current

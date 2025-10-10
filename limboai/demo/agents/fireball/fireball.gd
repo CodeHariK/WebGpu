@@ -26,31 +26,31 @@ var _is_dead: bool = false
 
 
 func _ready() -> void:
-	var tween := create_tween().set_loops()
-	tween.tween_property(fireball_sprite, ^"rotation", PI * signf(dir), 1.0).as_relative()
+    var tween := create_tween().set_loops()
+    tween.tween_property(fireball_sprite, ^"rotation", PI * signf(dir), 1.0).as_relative()
 
-	var tween2 := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tween2.tween_property(fireball_sprite, "position:y", -10.0, 0.5).as_relative().set_ease(Tween.EASE_OUT)
-	tween2.tween_property(fireball_sprite, "position:y", 0.0, 1.0)
-	tween2.tween_callback(_die)
+    var tween2 := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+    tween2.tween_property(fireball_sprite, "position:y", -10.0, 0.5).as_relative().set_ease(Tween.EASE_OUT)
+    tween2.tween_property(fireball_sprite, "position:y", 0.0, 1.0)
+    tween2.tween_callback(_die)
 
 
 func _physics_process(delta: float) -> void:
-	var speed: float = SPEED if not _is_dead else DEAD_SPEED
-	position += Vector2.RIGHT * speed * dir * delta
+    var speed: float = SPEED if not _is_dead else DEAD_SPEED
+    position += Vector2.RIGHT * speed * dir * delta
 
 
 func _die() -> void:
-	if _is_dead:
-		return
-	_is_dead = true
-	trail.emitting = false
-	root.hide()
-	collision_shape_2d.set_deferred(&"disabled", true)
-	death.emitting = true
-	await death.finished
-	queue_free()
+    if _is_dead:
+        return
+    _is_dead = true
+    trail.emitting = false
+    root.hide()
+    collision_shape_2d.set_deferred(&"disabled", true)
+    death.emitting = true
+    await death.finished
+    queue_free()
 
 
 func _on_hitbox_area_entered(_area: Area2D) -> void:
-	_die()
+    _die()

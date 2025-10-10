@@ -23,17 +23,17 @@ extends Area2D
 
 
 func _ready() -> void:
-	area_entered.connect(_area_entered)
+    area_entered.connect(_area_entered)
 
 
 func _area_entered(hurtbox: Hurtbox) -> void:
-	if hurtbox.owner == owner:
-		return
-	hurtbox.take_damage(damage, get_knockback(), self)
+    if hurtbox.owner == owner:
+        return
+    hurtbox.take_damage(damage, get_knockback(), self)
 
 
 func get_knockback() -> Vector2:
-	var knockback: Vector2
-	if knockback_enabled:
-		knockback = Vector2.RIGHT.rotated(global_rotation) * knockback_strength
-	return knockback
+    var knockback: Vector2
+    if knockback_enabled:
+        knockback = Vector2.RIGHT.rotated(global_rotation) * knockback_strength
+    return knockback

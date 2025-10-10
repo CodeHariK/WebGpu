@@ -15,13 +15,11 @@ var/speed/hint_string = "10,1000,10"
 
 [sub_resource type="BTCondition" id="BTCondition_x0uu7"]
 script = ExtResource("2_jfsyt")
-distance_min = 0.0
 distance_max = 200.0
-target_var = &"target"
 
 [sub_resource type="BBNode" id="BBNode_icf24"]
-resource_name = "AnimationPlayer"
 saved_value = NodePath("AnimationPlayer")
+resource_name = "AnimationPlayer"
 
 [sub_resource type="BTPlayAnimation" id="BTPlayAnimation_iiei3"]
 animation_player = SubResource("BBNode_icf24")
@@ -31,18 +29,13 @@ animation_name = &"walk"
 script = ExtResource("1_rvh1c")
 range_min = 700.0
 range_max = 800.0
-position_var = &"pos"
 
 [sub_resource type="BTAction" id="BTAction_y1you"]
 script = ExtResource("2_t62a0")
-target_position_var = &"pos"
-speed_var = &"speed"
-tolerance = 50.0
-avoid_var = &""
 
 [sub_resource type="BBNode" id="BBNode_ayt56"]
-resource_name = "AnimationPlayer"
 saved_value = NodePath("AnimationPlayer")
+resource_name = "AnimationPlayer"
 
 [sub_resource type="BTPlayAnimation" id="BTPlayAnimation_l1tdg"]
 animation_player = SubResource("BBNode_ayt56")
@@ -58,11 +51,10 @@ children = [SubResource("BTCondition_x0uu7"), SubResource("BTPlayAnimation_iiei3
 script = ExtResource("2_jfsyt")
 distance_min = 200.0
 distance_max = 10000.0
-target_var = &"target"
 
 [sub_resource type="BBNode" id="BBNode_6d0yy"]
-resource_name = "AnimationPlayer"
 saved_value = NodePath("AnimationPlayer")
+resource_name = "AnimationPlayer"
 
 [sub_resource type="BTPlayAnimation" id="BTPlayAnimation_wsspf"]
 animation_player = SubResource("BBNode_6d0yy")
@@ -70,13 +62,10 @@ animation_name = &"walk"
 
 [sub_resource type="BTAction" id="BTAction_wc11r"]
 script = ExtResource("2_nnswb")
-target_var = &"target"
-speed_var = &"speed"
-approach_distance = 100.0
 
 [sub_resource type="BBNode" id="BBNode_aw5jj"]
-resource_name = "AnimationPlayer"
 saved_value = NodePath("AnimationPlayer")
+resource_name = "AnimationPlayer"
 
 [sub_resource type="BTPlayAnimation" id="BTPlayAnimation_3aihc"]
 animation_player = SubResource("BBNode_aw5jj")
@@ -91,7 +80,6 @@ children = [SubResource("BTCondition_d6aub"), SubResource("BTPlayAnimation_wsspf
 [sub_resource type="BTAction" id="BTAction_2murg"]
 script = ExtResource("1_3ed74")
 group = &"player"
-output_var = &"target"
 
 [sub_resource type="BTSelector" id="BTSelector_ddhoo"]
 children = [SubResource("BTSequence_cgwor"), SubResource("BTSequence_vx4uy"), SubResource("BTAction_2murg")]
