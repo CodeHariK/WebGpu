@@ -23,17 +23,17 @@ extends BTAction
 
 # Display a customized name (requires @tool).
 func _generate_name() -> String:
-	return "MoveForward  speed: %s  duration: %ss" % [
-		LimboUtility.decorate_var(speed_var),
-		duration]
+    return "MoveForward  speed: %s  duration: %ss" % [
+        LimboUtility.decorate_var(speed_var),
+        duration]
 
 # Called each time this task is ticked (aka executed).
 func _tick(_delta: float) -> Status:
-	var facing: float = agent.get_facing()
-	var speed: float = blackboard.get_var(speed_var, 100.0)
-	var desired_velocity: Vector2 = Vector2.RIGHT * facing * speed
-	agent.move(desired_velocity)
-	agent.update_facing()
-	if elapsed_time > duration:
-		return SUCCESS
-	return RUNNING
+    var facing: float = agent.get_facing()
+    var speed: float = blackboard.get_var(speed_var, 100.0)
+    var desired_velocity: Vector2 = Vector2.RIGHT * facing * speed
+    agent.move(desired_velocity)
+    agent.update_facing()
+    if elapsed_time > duration:
+        return SUCCESS
+    return RUNNING
