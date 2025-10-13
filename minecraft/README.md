@@ -1,5 +1,7 @@
 #
 
+Minecraft https://www.youtube.com/watch?v=CSa5O6knuwI&t=191s
+
 https://www.youtube.com/watch?v=ram-057hlx4
 https://www.youtube.com/watch?v=CvM28_ejvTc
 https://www.youtube.com/watch?v=DUYwsxCrQwE
@@ -99,6 +101,8 @@ robot enemy
 Pokemon creatures and moves
 Capture mechanic
 Item upgrade, Inventory
+
+SeaOfThieves, hire pirate crew, find treasure, promote ranks, mutiny
 
 terrain tile editor
 wfc: pq
