@@ -5,4 +5,3 @@
 [resource]
 render_priority = 0
 shader = ExtResource("1_dvr3w")
-shader_parameter/depth_range = 10.0
