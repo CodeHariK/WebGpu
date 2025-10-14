@@ -1,63 +1,16 @@
 #
 
-Minecraft https://www.youtube.com/watch?v=CSa5O6knuwI&t=191s
-
-https://www.youtube.com/watch?v=ram-057hlx4
-https://www.youtube.com/watch?v=CvM28_ejvTc
-https://www.youtube.com/watch?v=DUYwsxCrQwE
-https://www.youtube.com/watch?v=1Su0-Gh6ilM&t=206s
-https://www.youtube.com/watch?v=ZkAk-GYpcvs
-https://www.youtube.com/watch?v=HCdynE4IL5c
-
-https://www.youtube.com/playlist?list=PLhEFRhEnz05vp8OZu5-5o6VO0fP2Wx_gS
-https://www.youtube.com/playlist?list=PLhEFRhEnz05uTZRATM-W5mnbgyvehhEqW
-
-
-https://www.youtube.com/playlist?list=PLdcL5aF8ZcJsSWrFwmLsQvCIKisuyyMnU
-https://www.youtube.com/watch?v=cxlPWv9giR4&list=PLL3OEv6vd5VCrqZiupP2m68qSWHYAjoiW
-https://www.youtube.com/watch?v=MzJZ7yEEgRA
-https://www.youtube.com/watch?v=j4zL3u0BSBY&list=PLV5T4EgpiiGPdtBDJO_K4bhab3_xKnNJ5&index=2
-https://www.youtube.com/watch?v=pIrfIIiQvrg
-https://www.youtube.com/watch?v=pIrfIIiQvrg
-https://www.youtube.com/watch?v=JQT9sT1YuAI
-https://www.youtube.com/watch?v=MS1z9diLUOI
-https://www.youtube.com/watch?v=JQT9sT1YuAI
-https://www.youtube.com/watch?v=Y2SWwZmwrwM
-https://www.youtube.com/watch?v=3RSwjZLClRc
-https://www.youtube.com/watch?v=AEAc_lLjOMc
-https://www.youtube.com/watch?v=m-Obo_nC3SM
-https://www.youtube.com/watch?v=KEOvnmHslSw
-https://www.youtube.com/watch?v=SCF7nstL68A
-https://www.youtube.com/watch?v=OkhcLqjamqg
+Minecraft Algorithm https://www.youtube.com/watch?v=CSa5O6knuwI&t=191s
+Minecraft procedural dungeons https://www.youtube.com/watch?v=Ytnp7UeoYUE
 
 https://github.com/ForlornU/TopdownStarter/tree/main/Scripts/Managers
 
-https://www.youtube.com/watch?v=cGqO7SVKqkM
-https://www.youtube.com/playlist?list=PLyH-qXFkNSxkviZMlWoVilQN40Oqh7m6Y
-https://www.youtube.com/watch?v=gAk3xl5fBsM
 
 https://www.youtube.com/@Bonkahe/playlists
 
 https://www.youtube.com/@mixandjam/videos
 
-https://www.youtube.com/watch?v=AoGOIiBo4Eg
-
-https://www.youtube.com/watch?v=AoGOIiBo4Eg
-https://www.youtube.com/watch?v=jEWFSv3ivTg
-https://www.youtube.com/watch?v=n872lbC-_BU
-
-Minecraft procedural dungeons https://www.youtube.com/watch?v=Ytnp7UeoYUE
-
-https://www.youtube.com/@lukky./videos
-https://www.youtube.com/watch?v=eQUrKp19iXE
-https://www.youtube.com/watch?v=hO7T_dUPet4
-https://www.youtube.com/watch?v=iElHZhOxGYA
-https://www.youtube.com/watch?v=jzuvd0Lstuw
-
-animation tree https://www.youtube.com/watch?v=E6ajmQhOeo4
-
-vfx https://www.youtube.com/watch?v=dMthnzpR-eU
-shockwave shader https://www.youtube.com/watch?v=SCHdglr35pk
+zelda godot https://www.youtube.com/watch?v=AoGOIiBo4Eg
 
 https://github.com/gdquest-demos/godot-4-3d-third-person-controller
 https://github.com/GDQuest/godot-steering-ai-framework
@@ -72,7 +25,8 @@ https://github.com/gdquest-demos/godot-4-new-features
 
 valet https://www.youtube.com/watch?v=qdskE8PJy6Q
 iHeartGameDev https://www.youtube.com/playlist?list=PLwyUzJb_FNeQrIxCEjj5AMPwawsw5beAy
-https://www.youtube.com/watch?v=STyY26a_dPY
+
+celeste mixjam https://www.youtube.com/watch?v=STyY26a_dPY
 https://www.youtube.com/watch?v=zCxpzIiUJIg
 https://www.youtube.com/watch?v=7daTGyVZ60I
 https://www.youtube.com/watch?v=yorTG9at90g
@@ -83,24 +37,21 @@ https://www.youtube.com/watch?v=dPzHkK1Egns
 https://www.youtube.com/watch?v=eQUrKp19iXE
 https://www.youtube.com/watch?v=n872lbC-_BU
 
-https://www.youtube.com/@ChapC_Creates/videos
-
-Ai https://www.youtube.com/playlist?list=PLnJJ5frTPwRNdPS7F6AYZwyf4b5IXFhtc
-https://www.youtube.com/watch?v=-jkT4oFi1vk
-
 hulk jump, coyote jump, wall climb, celeste jump, batman aim jump, hollow knight air dash
 graple hook, lasers
 dishonered teleport
 Legend of zelda monster fight
 
-Procedural UFO : https://www.youtube.com/watch?v=uV3LtA_KiAY
-
-https://github.com/monxa/GodotIK
+vfx : laser, smoke, bomb, dissolve
 
 robot enemy
 Pokemon creatures and moves
 Capture mechanic
 Item upgrade, Inventory
+
+Procedural UFO : https://www.youtube.com/watch?v=uV3LtA_KiAY
+flying drone
+https://www.youtube.com/watch?v=MUkKUZ-tKng
 
 SeaOfThieves, hire pirate crew, find treasure, promote ranks, mutiny
 
