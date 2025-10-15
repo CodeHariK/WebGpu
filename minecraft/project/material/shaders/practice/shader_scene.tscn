@@ -1,4 +1,4 @@
-[gd_scene load_steps=30 format=3 uid="uid://tkaefwf8athq"]
+[gd_scene load_steps=26 format=3 uid="uid://tkaefwf8athq"]
 
 [ext_resource type="PackedScene" uid="uid://buc75e6yxlh17" path="res://assets/sophia/sophia.glb" id="1_7jj1s"]
 [ext_resource type="Material" uid="uid://55svv2sl8lie" path="res://material/shaders/practice/holographic_mat.tres" id="1_076ng"]
@@ -17,7 +17,6 @@
 [ext_resource type="Material" uid="uid://duwfmslaxvvg6" path="res://material/shaders/practice/star_mat.tres" id="12_pbmds"]
 [ext_resource type="Material" uid="uid://c1tu5bvq85o2x" path="res://material/shaders/practice/transition_mat.tres" id="13_m0itp"]
 [ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="15_eggwm"]
-[ext_resource type="Shader" uid="uid://djhl11l0v6yg0" path="res://material/shaders/practice/water_shader.tres" id="18_4lubf"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_mtjsl"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -45,17 +44,6 @@ size = Vector2(2, 2)
 [sub_resource type="QuadMesh" id="QuadMesh_7jj1s"]
 flip_faces = true
 size = Vector2(2, 2)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_5gccy"]
-render_priority = 0
-shader = ExtResource("18_4lubf")
-shader_parameter/ColorParameter = Color(0.332623, 0.695442, 0.967303, 1)
-
-[sub_resource type="PlaneMesh" id="PlaneMesh_7jj1s"]
-subdivide_width = 10
-subdivide_depth = 10
-
-[sub_resource type="SphereMesh" id="SphereMesh_4lubf"]
 
 [node name="ShaderScene" type="Node3D"]
 
@@ -198,14 +186,3 @@ scale = Vector2(2.736, 2.5899372)
 texture = ExtResource("4_1kfpk")
 
 [node name="Camera_X_Pivot" parent="." instance=ExtResource("15_eggwm")]
-
-[node name="Water" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.130636, 0, 0)
-visible = false
-material_override = SubResource("ShaderMaterial_5gccy")
-mesh = SubResource("PlaneMesh_7jj1s")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Water"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.22530815, 0)
-mesh = SubResource("SphereMesh_4lubf")
-skeleton = NodePath("../..")
