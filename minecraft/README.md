@@ -55,6 +55,8 @@ https://www.youtube.com/watch?v=MUkKUZ-tKng
 
 SeaOfThieves, hire pirate crew, find treasure, promote ranks, mutiny
 
+Mining, foliage destruction, foliage interaction and elements
+
 terrain tile editor
 wfc: pq
 overlapping wfc
