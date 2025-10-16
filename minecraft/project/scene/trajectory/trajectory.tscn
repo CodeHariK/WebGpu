@@ -1,0 +1,65 @@
+[gd_scene load_steps=9 format=3 uid="uid://bfenerie287jv"]
+
+[ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="1_n4kc0"]
+[ext_resource type="Script" uid="uid://c6ucnocf0rmqf" path="res://scene/trajectory/trajectory.gd" id="2_wsa2c"]
+[ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="3_wsa2c"]
+[ext_resource type="Texture2D" uid="uid://c2ch37vq6dcdq" path="res://material/texture/checker/blue_texture2_text.png" id="4_y4pot"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_n4kc0"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_wsa2c"]
+sky_material = SubResource("ProceduralSkyMaterial_n4kc0")
+
+[sub_resource type="Environment" id="Environment_y4pot"]
+background_mode = 2
+sky = SubResource("Sky_wsa2c")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="Curve3D" id="Curve3D_y4pot"]
+closed = true
+_data = {
+"points": PackedVector3Array(-5.08972, -3.0886345, 3.057251, 5.08972, 3.0886345, -3.057251, -4.374051, 7.4183207, -12.589844, -4.6454, 4.474207, -5.592041, 4.6454, -4.474207, 5.592041, 13.853244, 5.4607363, -2.6044922, 3.118147, -0.06907272, -1.946167, -3.118147, 0.06907272, 1.946167, 3.3257837, 3.764161, 13.028931, 1.5047722, -6.316181, 4.3686523, -1.5047722, 6.316181, -4.3686523, -12.918216, 2.7552118, 8.35498),
+"tilts": PackedFloat32Array(0, 0, 0, 0)
+}
+point_count = 4
+
+[node name="Trajectory" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_y4pot")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+directional_shadow_max_distance = 1.0
+
+[node name="CSGBox3D" type="CSGBox3D" parent="."]
+size = Vector3(40, 0.25, 40)
+material = ExtResource("1_n4kc0")
+
+[node name="CSGBox3D2" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65530884, 0)
+visible = false
+
+[node name="Node3D" type="Node3D" parent="CSGBox3D2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.49903095, 0)
+
+[node name="CSGBox3D" type="CSGBox3D" parent="CSGBox3D2/Node3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.29012513, -1.2000132)
+size = Vector3(0.5, 0.5, 2)
+
+[node name="Camera_X_Pivot" parent="." instance=ExtResource("3_wsa2c")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.8386602, 5.40015)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." node_paths=PackedStringArray("path_node")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1470406, 0)
+script = ExtResource("2_wsa2c")
+path_node = NodePath("Path3D")
+albedo_texture_res = ExtResource("4_y4pot")
+
+[node name="Path3D" type="Path3D" parent="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.508148, 0)
+curve = SubResource("Curve3D_y4pot")
