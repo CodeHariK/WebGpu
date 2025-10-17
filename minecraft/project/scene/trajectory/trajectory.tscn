@@ -18,13 +18,8 @@ sky = SubResource("Sky_wsa2c")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="Curve3D" id="Curve3D_y4pot"]
-closed = true
-_data = {
-"points": PackedVector3Array(-5.08972, -3.0886345, 3.057251, 5.08972, 3.0886345, -3.057251, -4.374051, 7.4183207, -12.589844, -4.6454, 4.474207, -5.592041, 4.6454, -4.474207, 5.592041, 13.853244, 5.4607363, -2.6044922, 3.118147, -0.06907272, -1.946167, -3.118147, 0.06907272, 1.946167, 3.3257837, 3.764161, 13.028931, 1.5047722, -6.316181, 4.3686523, -1.5047722, 6.316181, -4.3686523, -12.918216, 2.7552118, 8.35498),
-"tilts": PackedFloat32Array(0, 0, 0, 0)
-}
-point_count = 4
+[sub_resource type="BoxMesh" id="BoxMesh_f1rsx"]
+size = Vector3(1, 2, 6)
 
 [node name="Trajectory" type="Node3D"]
 
@@ -52,14 +47,16 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.29012513, -1.2000132)
 size = Vector3(0.5, 0.5, 2)
 
 [node name="Camera_X_Pivot" parent="." instance=ExtResource("3_wsa2c")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.8386602, 5.40015)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.557756, -0.07818794)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." node_paths=PackedStringArray("path_node")]
+[node name="LineShader" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.1470406, 0)
 script = ExtResource("2_wsa2c")
-path_node = NodePath("Path3D")
+cross_section = PackedVector2Array(-1, 0, 1, 0)
 albedo_texture_res = ExtResource("4_y4pot")
+pin = 0.709
+num_points = 50
 
-[node name="Path3D" type="Path3D" parent="MeshInstance3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.508148, 0)
-curve = SubResource("Curve3D_y4pot")
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1871333, -15.3913)
+mesh = SubResource("BoxMesh_f1rsx")

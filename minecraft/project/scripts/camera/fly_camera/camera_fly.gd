@@ -5,7 +5,7 @@ enum CameraType {FLY, TARGET}
 
 @export_group("FLY Camera")
 @export var pan_speed = .05
-@export var zoom_speed = .8
+@export var zoom_speed = .4
 @export var orbit_speed = .8
 @export var min_pitch_angle := -89.0
 @export var max_pitch_angle := 89.0
