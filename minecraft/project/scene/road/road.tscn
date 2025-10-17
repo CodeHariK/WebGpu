@@ -1,0 +1,85 @@
+[gd_scene load_steps=11 format=3 uid="uid://d3f0bkjiq57q5"]
+
+[ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="1_r7rn4"]
+[ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="2_u6c3u"]
+[ext_resource type="Script" uid="uid://be44j141fqtoa" path="res://scene/road/road.gd" id="3_2c4dt"]
+[ext_resource type="Material" uid="uid://dce6lt0o8glbp" path="res://material/shaders/practice/uv.tres" id="3_vxexj"]
+[ext_resource type="Script" uid="uid://b38caawuo4t32" path="res://scene/road/gizmo.gd" id="5_r7rn4"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_n4kc0"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_wsa2c"]
+sky_material = SubResource("ProceduralSkyMaterial_n4kc0")
+
+[sub_resource type="Environment" id="Environment_y4pot"]
+background_mode = 2
+sky = SubResource("Sky_wsa2c")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="Curve3D" id="Curve3D_y4pot"]
+closed = true
+_data = {
+"points": PackedVector3Array(-10.810186, -1.2008743, 3.8134422, 10.810186, 1.2008743, -3.8134422, -4.374051, 7.4183207, -12.589844, 0.2137785, 1.6324034, -9.640932, -0.2137785, -1.6324034, 9.640932, 13.8532715, 6.6254997, -2.1537988, 6.7996645, 0.25509644, -2.1685028, -6.7996645, -0.25509644, 2.1685028, 3.3258057, 8.308923, 14.7314415, 4.38033, -2.4485703, 7.671113, -4.38033, 2.4485703, -7.671113, -12.918213, 7.594743, 8.4058485),
+"tilts": PackedFloat32Array(-0.22863813, 0, 0, 0)
+}
+point_count = 4
+
+[sub_resource type="BoxMesh" id="BoxMesh_f1rsx"]
+size = Vector3(1, 2, 6)
+
+[node name="Road" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_y4pot")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+directional_shadow_max_distance = 1.0
+
+[node name="CSGBox3D" type="CSGBox3D" parent="."]
+size = Vector3(40, 0.25, 40)
+material = ExtResource("1_r7rn4")
+
+[node name="Camera_X_Pivot" parent="." instance=ExtResource("2_u6c3u")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.557756, -0.07818794)
+
+[node name="Path3D" type="Path3D" parent="."]
+curve = SubResource("Curve3D_y4pot")
+
+[node name="CSGPolygon3D" type="CSGPolygon3D" parent="Path3D"]
+visible = false
+use_collision = true
+polygon = PackedVector2Array(-2.5, -0.5, -2.5, 0.5, -2, 0.5, -2, 0, 2, 0, 2, 0.5, 2.5, 0.5, 2.5, -0.5)
+mode = 2
+path_node = NodePath("..")
+path_interval_type = 0
+path_interval = 1.0
+path_simplify_angle = 0.0
+path_rotation = 2
+path_rotation_accurate = true
+path_local = false
+path_continuous_u = true
+path_u_distance = 5.0
+path_joined = false
+material = ExtResource("3_vxexj")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1871333, -15.3913)
+mesh = SubResource("BoxMesh_f1rsx")
+skeleton = NodePath("")
+
+[node name="Road" type="Node3D" parent="." node_paths=PackedStringArray("path")]
+script = ExtResource("3_2c4dt")
+gizmo_mode = null
+path = NodePath("../Path3D")
+generate = true
+clear = null
+
+[node name="Gizmo" type="StaticBody3D" parent="."]
+process_mode = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.4780316, -3.5611439)
+script = ExtResource("5_r7rn4")

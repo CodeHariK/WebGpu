@@ -1,5 +1,8 @@
 shader_type spatial;
-// render_mode cull_disabled;
+render_mode 
+// cull_disabled,
+// wireframe,
+unshaded;
 
 // Data Textures
 uniform sampler2D height_texture : source_color;
@@ -11,15 +14,16 @@ uniform float perimeter = 1.0;
 uniform float texture_scale = 1.0;
 
 void vertex() {
-	vec2 displacement = texture(height_texture, UV).rg;
+	// The displacement data is stored along the U-axis of the 1D height_texture.
+	// Our mesh's UV.y coordinate now maps to the progress along the tube's length.
+	vec2 displacement = texture(height_texture, vec2(UV.y, 0.5)).rg;
 
-	// VERTEX.x += displacement.x * amplitude;
-	// VERTEX.y += displacement.y * amplitude;
+	// VERTEX.x += (displacement.x - 0.5) * amplitude;
+	// VERTEX.y += (displacement.y - 0.5) * amplitude;
 }
 
 void fragment() {
-	// Scale UVs based on the mesh's actual world dimensions to prevent stretching.
-	vec2 scaled_uv = vec2(UV.x * perimeter, UV.y) * texture_scale;
+	vec2 scaled_uv = vec2(UV.x, UV.y * perimeter * 5.0) * texture_scale;
 	vec4 tex_color = texture(albedo_texture, scaled_uv);
 	ALBEDO = tex_color.rgb;
 }

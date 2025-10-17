@@ -2,21 +2,18 @@ extends MeshInstance3D
 
 @export var curve_length := 20.0
 @export var cross_section: PackedVector2Array
-@export var path_node: Path3D
 @export var albedo_texture_res: Texture2D
 @export var circle_segments := 16
 @export var close_shape := true
 @export var tube_radius := 0.2
+@export_range(0.0, 1.0) var pin := 1.0
 @export var num_points := 256 # Must be a power of 2 for some GPU optimizations
 
 var height_image: Image
 var height_texture: ImageTexture
 
 func _ready() -> void:
-    if path_node:
-        extrude_along_curve()
-    else:
-        line_mesh()
+    line_mesh()
 
 
 # Called when the node enters the scene tree for the first time.
@@ -42,7 +39,7 @@ func line_mesh() -> void:
     # Generate vertices and UVs
     for i in range(num_points):
         var path_progress = float(i) / (num_points - 1)
-        var z_pos = path_progress * curve_length
+        var z_pos = - path_progress * curve_length
 
         for j in range(shape_point_count):
             var shape_progress = float(j) / (shape_point_count - 1)
@@ -51,7 +48,7 @@ func line_mesh() -> void:
             verts.append(Vector3(shape_point.x, shape_point.y, z_pos))
             # U: along the length (path_progress), V: around the circumference (shape_progress)
             # This aligns textures to run along the tube's length.
-            uvs.append(Vector2(path_progress, shape_progress))
+            uvs.append(Vector2(shape_progress, path_progress))
 
     # Generate indices to form triangles
     for i in range(num_points - 1):
@@ -89,89 +86,10 @@ func line_mesh() -> void:
             indices.append(p3)
             indices.append(p4)
 
-    _create_mesh_from_data(verts, uvs, indices, curve_length)
+    _create_mesh_from_data(verts, uvs, indices)
 
 
-func extrude_along_curve() -> void:
-    if not path_node or not path_node.curve:
-        push_warning("PathNode is not assigned or has no curve. Falling back to line_mesh.")
-        line_mesh()
-        return
-
-    # 1. Define the cross-section shape
-    if cross_section.is_empty():
-        if close_shape:
-            for i in range(circle_segments):
-                var angle = float(i) / circle_segments * TAU
-                cross_section.append(Vector2(cos(angle), sin(angle)))
-        else:
-            for i in range(circle_segments + 1):
-                var angle = float(i) / circle_segments * TAU
-                cross_section.append(Vector2(cos(angle), sin(angle)))
-
-    var st := SurfaceTool.new()
-    st.begin(Mesh.PRIMITIVE_TRIANGLES)
-
-    var curve: Curve3D = path_node.curve
-    var path_len = curve.get_baked_length()
-    var shape_point_count = cross_section.size()
-
-    # 3. Generate vertices and UVs
-    for i in range(num_points):
-        var path_progress = float(i) / (num_points - 1)
-        var distance_on_path = path_progress * path_len
-
-        # Sample the curve to get position and orientation
-        var origin = curve.sample_baked(distance_on_path)
-        var forward_point = curve.sample_baked(distance_on_path + 0.01) # Look ahead slightly
-        var up_vector = curve.sample_baked_up_vector(distance_on_path)
-        
-        var path_transform = Transform3D().looking_at(forward_point, up_vector)
-        path_transform.origin = origin
-
-        for j in range(shape_point_count):
-            var shape_progress = float(j) / (shape_point_count - 1)
-            var shape_point_2d = cross_section[j] * tube_radius
-            
-            # Convert 2D cross-section point to 3D and orient it using the path's transform
-            var vert_pos_world = path_transform * Vector3(shape_point_2d.x, shape_point_2d.y, 0)
-
-            st.set_uv(Vector2(path_progress, shape_progress))
-            st.add_vertex(vert_pos_world)
-
-    # 4. Generate indices
-    for i in range(num_points - 1):
-        var num_segments = shape_point_count - 1
-        if close_shape:
-            num_segments = shape_point_count
-
-        for j in range(num_segments):
-            var current_row = i * shape_point_count
-            var next_row = (i + 1) * shape_point_count
-
-            if close_shape:
-                st.add_index(current_row + j)
-                st.add_index(next_row + j)
-                st.add_index(current_row + (j + 1) % shape_point_count)
-                
-                st.add_index(current_row + (j + 1) % shape_point_count)
-                st.add_index(next_row + j)
-                st.add_index(next_row + (j + 1) % shape_point_count)
-            else:
-                st.add_index(current_row + j)
-                st.add_index(next_row + j)
-                st.add_index(current_row + j + 1)
-                
-                st.add_index(current_row + j + 1)
-                st.add_index(next_row + j)
-                st.add_index(next_row + j + 1)
-
-    st.generate_normals()
-    self.mesh = st.commit()
-    _setup_shader_and_data(path_len)
-
-
-func _create_mesh_from_data(verts: PackedVector3Array, uvs: PackedVector2Array, indices: PackedInt32Array, p_curve_length: float) -> void:
+func _create_mesh_from_data(verts: PackedVector3Array, uvs: PackedVector2Array, indices: PackedInt32Array) -> void:
     var arrays := []
     arrays.resize(Mesh.ARRAY_MAX)
     arrays[Mesh.ARRAY_VERTEX] = verts
@@ -200,10 +118,10 @@ func _create_mesh_from_data(verts: PackedVector3Array, uvs: PackedVector2Array, 
     array_mesh = surface_tool.commit()
 
     self.mesh = array_mesh
-    _setup_shader_and_data(p_curve_length, perimeter)
+    _setup_shader_and_data(perimeter)
 
 
-func _setup_shader_and_data(p_curve_length: float, perimeter: float = 0.0) -> void:
+func _setup_shader_and_data(perimeter: float = 0.0) -> void:
     # 2. Create the image that will store our height data.
     # We use a floating-point format for precision. FORMAT_RGF has two channels (red, green).
     height_image = Image.create(num_points, 1, false, Image.FORMAT_RGF)
@@ -239,9 +157,15 @@ func _generate_curve_data() -> void:
     # Update the height data in the image on the CPU.
     # This represents X/Y displacement from a straight line along the Z-axis.
     for i in range(num_points):
-        var phase = float(i) / num_points * TAU * 3.0 # Create a more interesting curve
-        var displacement_x = sin(time * 2.0 + phase) * 0.5 + 0.5
-        var displacement_y = cos(time * 1.5 + phase * 0.8) * 0.5 + 0.5
+        var progress = float(i) / (num_points - 1)
+        var phase = progress * TAU * 3.0 # Create a more interesting curve
+
+        # Create an envelope to make the wave amplitude zero at the ends.
+        # This prevents the stretching/pinning effect.
+        var envelope = 1.0 - pin * pow(progress * 2.0 - 1.0, 2.0)
+
+        var displacement_x = sin(time + phase) * envelope
+        var displacement_y = cos(time + phase) * envelope
         height_image.set_pixel(i, 0, Color(displacement_x, displacement_y, 0))
 
     # Update the texture with the new image data. This sends it to the GPU.
@@ -249,5 +173,5 @@ func _generate_curve_data() -> void:
 
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
     _generate_curve_data()
