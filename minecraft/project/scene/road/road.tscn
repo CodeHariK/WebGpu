@@ -74,12 +74,10 @@ skeleton = NodePath("")
 
 [node name="Road" type="Node3D" parent="." node_paths=PackedStringArray("path")]
 script = ExtResource("3_2c4dt")
-gizmo_mode = null
 path = NodePath("../Path3D")
-generate = true
-clear = null
 
-[node name="Gizmo" type="StaticBody3D" parent="."]
+[node name="Gizmo" type="Node3D" parent="."]
 process_mode = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.4780316, -3.5611439)
 script = ExtResource("5_r7rn4")
+_manipulation_mode = 3
