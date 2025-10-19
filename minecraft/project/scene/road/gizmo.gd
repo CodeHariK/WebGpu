@@ -9,6 +9,9 @@ extends Node3D
 enum ManipulationMode {
     NONE,
     MOVE,
+    MOVE_PLANAR,
+    MOVE_OR_ROTATE, # A meta-mode for gizmos that can do both
+    MOVE_OR_SCALE, # A meta-mode for gizmos that can do both
     ROTATE,
     SCALE
 }
@@ -29,40 +32,43 @@ var _drag_start_position: Vector3
 var _drag_start_vector: Vector3
 var _last_transform: Transform3D
 var _drag_start_transform: Transform3D
+var _debug_plane_vis: MeshInstance3D
 
 var circle_shader: Shader = preload("res://scene/road/circle_gizmo.gdshader")
+var grid_shader: Shader = preload("res://scene/road/grid_shader.gdshader")
 
 func _init() -> void:
     # This ensures the gizmo runs its _process loop in the editor.
     set_process_mode(Node.PROCESS_MODE_PAUSABLE)
 
-    # _create_box_gizmo("MoveX", Color(1, 0.2, 0.2, 1), Transform3D.IDENTITY.rotated(Vector3.FORWARD, PI / 2.0),
-    #                     ManipulationMode.MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(.06, MOVE_GIZMO_LEN))
-    # _create_box_gizmo("MoveY", Color(0.6, 1, 0.2, 1), Transform3D.IDENTITY,
-    #                     ManipulationMode.MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(.06, MOVE_GIZMO_LEN))
-    # _create_box_gizmo("MoveZ", Color(0.5, 0.5, 1, 1), Transform3D.IDENTITY.rotated(Vector3.RIGHT, PI / 2.0),
-    #                     ManipulationMode.MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(.06, MOVE_GIZMO_LEN))
+    _create_box_gizmo("MoveX", Color(1, 0.2, 0.2, 1), Transform3D.IDENTITY.rotated(Vector3.FORWARD, PI / 2.0),
+                        ManipulationMode.MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(.06, MOVE_GIZMO_LEN))
+    _create_box_gizmo("MoveY", Color(0.6, 1, 0.2, 1), Transform3D.IDENTITY,
+                        ManipulationMode.MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(.06, MOVE_GIZMO_LEN))
+    _create_box_gizmo("MoveZ", Color(0.5, 0.5, 1, 1), Transform3D.IDENTITY.rotated(Vector3.RIGHT, PI / 2.0),
+                        ManipulationMode.MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(.06, MOVE_GIZMO_LEN))
 
-    # _create_box_gizmo("ScaleX", Color(1, 0.2, 0.2, 1), Transform3D.IDENTITY.rotated(Vector3.FORWARD, PI / 2.0),
-    #                     ManipulationMode.SCALE, Vector3(0, MOVE_GIZMO_LEN + SCALE_GIZMO_LEN / 2 + 0.1, 0), Vector2(.1, 0.06))
-    # _create_box_gizmo("ScaleY", Color(0.6, 1, 0.2, 1), Transform3D.IDENTITY,
-    #                     ManipulationMode.SCALE, Vector3(0, MOVE_GIZMO_LEN + SCALE_GIZMO_LEN / 2 + 0.1, 0), Vector2(.1, 0.06))
-    # _create_box_gizmo("ScaleZ", Color(0.5, 0.5, 1, 1), Transform3D.IDENTITY.rotated(Vector3.RIGHT, PI / 2.0),
-    #                     ManipulationMode.SCALE, Vector3(0, MOVE_GIZMO_LEN + SCALE_GIZMO_LEN / 2 + 0.1, 0), Vector2(.1, 0.06))
-    
-    # _create_plane_gizmo("RotateX", Color(1, 0.2, 0.2, 1), Transform3D.IDENTITY.rotated(Vector3.UP, PI / 2.0))
-    # _create_plane_gizmo("RotateY", Color(0.6, 1, 0.2, 1), Transform3D.IDENTITY.rotated(Vector3.RIGHT, PI / 2.0))
-    # _create_plane_gizmo("RotateZ", Color(0.5, 0.5, 1, 1), Transform3D.IDENTITY)
+    _create_plane_gizmo("RotateX", Color(1, 0.2, 0.2, 1), Transform3D.IDENTITY.rotated(Vector3.UP, PI / 2.0))
+    _create_plane_gizmo("RotateY", Color(0.6, 1, 0.2, 1), Transform3D.IDENTITY.rotated(Vector3.RIGHT, PI / 2.0))
+    _create_plane_gizmo("RotateZ", Color(0.5, 0.5, 1, 1), Transform3D.IDENTITY)
 
-    _create_circle_gizmo("RotateX", Color(1, 0.2, 0.2, 1), Transform3D.IDENTITY.rotated(Vector3.FORWARD, PI / 2.0))
-    _create_circle_gizmo("RotateY", Color(0.6, 1, 0.2, 1), Transform3D.IDENTITY)
-    _create_circle_gizmo("RotateZ", Color(0.5, 0.5, 1, 1), Transform3D.IDENTITY.rotated(Vector3.RIGHT, PI / 2.0))
+    # Create a mesh for visualizing the drag plane.
+    _debug_plane_vis = MeshInstance3D.new()
+    var debug_plane_mesh := QuadMesh.new()
+    debug_plane_mesh.size = Vector2(5, 5)
+    var debug_plane_mat := ShaderMaterial.new()
+    debug_plane_mat.shader = grid_shader
+    _debug_plane_vis.mesh = debug_plane_mesh
+    _debug_plane_vis.mesh.surface_set_material(0, debug_plane_mat)
+    _debug_plane_vis.visible = true
+    add_child(_debug_plane_vis)
 
 func _input(event: InputEvent) -> void:
     if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
         if not event.is_pressed():
             # Stop dragging when the mouse button is released.
             _manipulation_mode = ManipulationMode.NONE
+            _debug_plane_vis.visible = false
 
     if event is InputEventMouseMotion and _manipulation_mode != ManipulationMode.NONE:
         var camera := get_viewport().get_camera_3d()
@@ -76,6 +82,7 @@ func _input(event: InputEvent) -> void:
         var intersection_point: Variant = _drag_plane.intersects_ray(ray_origin, ray_dir)
         if intersection_point != null:
             var new_transform := _calculate_new_transform(intersection_point)
+            DebugDraw3D.draw_line(global_transform.origin, intersection_point, Color.WHITE)
             set_gizmo_transform(new_transform)
 
 
@@ -116,7 +123,7 @@ func _create_box_gizmo(p_name: String, p_color: Color, p_transform: Transform3D,
 
     var area := Area3D.new()
     # The area's transform is now local to the mesh instance, so it should be identity.
-    area.input_event.connect(_on_gizmo_input_start.bind(mesh_instance, p_mode))
+    area.input_event.connect(_on_gizmo_input_start.bind(mesh_instance, ManipulationMode.MOVE_OR_SCALE))
     mesh_instance.add_child(area)
 
     var collision_shape := CollisionShape3D.new()
@@ -134,7 +141,7 @@ func _create_plane_gizmo(p_name: String, p_color: Color, p_transform: Transform3
 
     var mat := ShaderMaterial.new()
     mat.shader = circle_shader
-    mat.set_shader_parameter("base_color", p_color)
+    mat.set_shader_parameter("rotation_color", p_color)
 
     var mesh_instance := MeshInstance3D.new()
     mesh_instance.name = p_name
@@ -143,7 +150,7 @@ func _create_plane_gizmo(p_name: String, p_color: Color, p_transform: Transform3
     mesh_instance.mesh.surface_set_material(0, mat)
 
     var area := Area3D.new()
-    area.input_event.connect(_on_gizmo_input_start.bind(mesh_instance, ManipulationMode.ROTATE))
+    area.input_event.connect(_on_gizmo_input_start.bind(mesh_instance, ManipulationMode.MOVE_OR_ROTATE))
     mesh_instance.add_child(area)
 
     var collision_shape := CollisionShape3D.new()
@@ -154,57 +161,34 @@ func _create_plane_gizmo(p_name: String, p_color: Color, p_transform: Transform3
 
     add_child(mesh_instance)
 
-
-func _create_circle_gizmo(p_name: String, p_color: Color, p_transform: Transform3D):
-    var disc := TorusMesh.new()
-    disc.rings = 16
-    disc.ring_segments = 4
-    disc.inner_radius = SCALE_GIZMO_LEN / 2 - .05
-    disc.outer_radius = SCALE_GIZMO_LEN / 2
-
-    var mat := ShaderMaterial.new()
-    # mat.shader = circle_shader
-    mat.set_shader_parameter("base_color", p_color)
-
-    var mesh_instance := MeshInstance3D.new()
-    mesh_instance.name = p_name
-    mesh_instance.mesh = disc
-    mesh_instance.transform = p_transform
-    mesh_instance.mesh.surface_set_material(0, mat)
-
-    var area := Area3D.new()
-    area.input_event.connect(_on_gizmo_input_start.bind(mesh_instance, ManipulationMode.ROTATE))
-    mesh_instance.add_child(area)
-
-    var collision_shape := CollisionShape3D.new()
-    collision_shape.shape = disc.create_trimesh_shape()
-    area.add_child(collision_shape)
-
-    add_child(mesh_instance)
-
-
 func _on_gizmo_input_start(camera: Camera3D, event: InputEvent, position: Vector3, normal: Vector3, shape_idx: int, mesh_node: MeshInstance3D, mode: ManipulationMode) -> void:
     if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.is_pressed():
-        var parent_area: Area3D = mesh_node.get_child(0) # Assuming the Area3D is the first child
-        print(parent_area.get_parent().name, ", origin : ", parent_area.position, ", position : ", position)
-
         var plane_normal: Vector3
-        _manipulation_mode = mode
 
         match mesh_node.name:
             "MoveX": _drag_axis = global_transform.basis.x
             "MoveY": _drag_axis = global_transform.basis.y
             "MoveZ": _drag_axis = global_transform.basis.z
             ###
-            "ScaleZ": _drag_axis = global_transform.basis.z
-            "ScaleY": _drag_axis = global_transform.basis.y
             "ScaleX": _drag_axis = global_transform.basis.x
+            "ScaleY": _drag_axis = global_transform.basis.y
+            "ScaleZ": _drag_axis = global_transform.basis.z
             ###
             "RotateX": _drag_axis = global_transform.basis.x
             "RotateY": _drag_axis = global_transform.basis.y
             "RotateZ": _drag_axis = global_transform.basis.z
 
-        if mode == ManipulationMode.MOVE or mode == ManipulationMode.SCALE:
+        if mode == ManipulationMode.MOVE_OR_ROTATE:
+            # For combined gizmos, decide the mode based on where the user clicked.
+            var distance_from_center = (position - global_transform.origin).length()
+            var inner_radius = SCALE_GIZMO_LEN * 0.45 # Corresponds to rotation_ring_outer in shader
+            if distance_from_center <= inner_radius:
+                _manipulation_mode = ManipulationMode.ROTATE
+            else:
+                _manipulation_mode = ManipulationMode.MOVE_PLANAR
+            plane_normal = _drag_axis
+
+        if mode == ManipulationMode.MOVE_OR_SCALE:
             # Define a plane to drag along. The plane contains the drag axis and is oriented towards the camera.
             # To create a stable plane, we find a vector perpendicular to the drag axis and the camera's view axis.
             # This gives us the normal for a plane that contains the drag axis and faces the camera.
@@ -214,16 +198,35 @@ func _on_gizmo_input_start(camera: Camera3D, event: InputEvent, position: Vector
             # If the camera is aligned with the drag axis, the normal can be zero. Fallback to a different axis.
             if plane_normal.is_zero_approx():
                 plane_normal = _drag_axis.cross(camera.global_transform.basis.x).cross(_drag_axis).normalized()
-        
-        elif mode == ManipulationMode.ROTATE:
-            plane_normal = _drag_axis
-        
+
+            var click_offset_vec = position - global_transform.origin
+            var distance_along_axis = click_offset_vec.dot(_drag_axis)
+            
+            var scale_threshold = MOVE_GIZMO_LEN * 0.5 + SCALE_GIZMO_LEN * 0.6 # A bit more than half the scale gizmo length
+            if distance_along_axis > scale_threshold:
+                _manipulation_mode = ManipulationMode.SCALE
+            else:
+                _manipulation_mode = ManipulationMode.MOVE
+
         _drag_plane = Plane(plane_normal, global_transform.origin)
-        var intersection: Variant = _drag_plane.intersects_ray(camera.project_ray_origin(event.position), camera.project_ray_normal(event.position))
+        var intersection: Variant = _drag_plane.intersects_ray(
+                                        camera.project_ray_origin(event.position),
+                                        camera.project_ray_normal(event.position))
         if intersection:
             _drag_start_position = intersection
             _drag_start_transform = global_transform
             _drag_start_vector = (intersection - global_transform.origin).normalized()
+            
+            var perp = _drag_axis
+
+            if _manipulation_mode == ManipulationMode.MOVE:
+                if _drag_axis == global_transform.basis.y:
+                    perp = global_transform.basis.x
+                else:
+                    perp = global_transform.basis.y
+            
+            _debug_plane_vis.global_transform = Transform3D(Basis.looking_at(perp), global_transform.origin)
+            _debug_plane_vis.visible = true
 
 func _calculate_new_transform(p_intersection_point: Vector3) -> Transform3D:
     var new_transform := _drag_start_transform
@@ -234,8 +237,15 @@ func _calculate_new_transform(p_intersection_point: Vector3) -> Transform3D:
             var projected_motion_length := motion_vector.dot(_drag_axis)
             if move_snap > 0:
                 projected_motion_length = snapped(projected_motion_length, move_snap)
-            
             new_transform.origin = _drag_start_transform.origin + _drag_axis * projected_motion_length
+        ManipulationMode.MOVE_PLANAR:
+            var motion_vector := p_intersection_point - _drag_start_position
+            var new_pos = _drag_start_transform.origin + motion_vector
+            if move_snap > 0:
+                new_pos.x = snapped(new_pos.x, move_snap)
+                new_pos.y = snapped(new_pos.y, move_snap)
+                new_pos.z = snapped(new_pos.z, move_snap)
+            new_transform.origin = new_pos
         ManipulationMode.ROTATE:
             if not _drag_start_vector.is_zero_approx():
                 var rotation_axis := _drag_axis.normalized()
