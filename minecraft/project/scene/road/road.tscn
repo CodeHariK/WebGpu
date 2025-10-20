@@ -49,6 +49,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.557756, -0.07818794)
 
 [node name="Path3D" type="Path3D" parent="."]
 curve = SubResource("Curve3D_y4pot")
+script = ExtResource("3_2c4dt")
 
 [node name="CSGPolygon3D" type="CSGPolygon3D" parent="Path3D"]
 visible = false
@@ -67,14 +68,10 @@ path_u_distance = 5.0
 path_joined = false
 material = ExtResource("3_vxexj")
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="."]
+[node name="Direction" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1871333, -15.3913)
 mesh = SubResource("BoxMesh_f1rsx")
 skeleton = NodePath("")
-
-[node name="Road" type="Node3D" parent="." node_paths=PackedStringArray("path")]
-script = ExtResource("3_2c4dt")
-path = NodePath("../Path3D")
 
 [node name="Gizmo" type="Node3D" parent="."]
 process_mode = 1
