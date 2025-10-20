@@ -26,6 +26,10 @@ window/size/viewport_width=1400
 window/size/viewport_height=800
 window/size/initial_position_type=0
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/roadeditor/plugin.cfg")
+
 [input]
 
 toggle_performance={

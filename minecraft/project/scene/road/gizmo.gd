@@ -60,7 +60,7 @@ func _init() -> void:
     debug_plane_mat.shader = grid_shader
     _debug_plane_vis.mesh = debug_plane_mesh
     _debug_plane_vis.mesh.surface_set_material(0, debug_plane_mat)
-    _debug_plane_vis.visible = true
+    _debug_plane_vis.visible = false
     add_child(_debug_plane_vis)
 
 func _input(event: InputEvent) -> void:
