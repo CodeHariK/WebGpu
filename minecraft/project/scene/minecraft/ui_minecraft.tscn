@@ -1,35 +1,7 @@
-[gd_scene load_steps=10 format=3 uid="uid://p4auepeepmyy"]
-
-[ext_resource type="Script" uid="uid://d0ruog1rkctvi" path="res://scripts/poisson.gd" id="1_8booc"]
-[ext_resource type="Script" uid="uid://bwryjyfew5mnw" path="res://scripts/map.gd" id="1_mkywg"]
-[ext_resource type="Script" uid="uid://bknygamwu3hqr" path="res://scripts/cellular_automata.gd" id="1_setii"]
-[ext_resource type="Script" uid="uid://mfuowy2vsijx" path="res://scripts/voronoi.gd" id="3_x18o4"]
+[gd_scene load_steps=2 format=3 uid="uid://p4auepeepmyy"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mkywg"]
 bg_color = Color(0.47058824, 0.2784314, 0.5882353, 0.5372549)
-
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_8booc"]
-noise_type = 0
-seed = 1337
-frequency = 0.9865
-fractal_type = 0
-fractal_octaves = 2
-
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_x18o4"]
-noise_type = 0
-seed = 1111
-frequency = 1.0
-fractal_type = 0
-
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_mkywg"]
-noise_type = 0
-frequency = 0.1008
-fractal_type = 0
-
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_setii"]
-seed = 1337
-frequency = 0.0346
-fractal_octaves = 2
 
 [node name="UiMinecraft" type="CanvasLayer"]
 
@@ -87,47 +59,3 @@ size_flags_vertical = 3
 [node name="TerrainDebug" type="Label" parent="TerrainPanel/TerrainProperties/ScrollContainer"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-
-[node name="poisson" type="Control" parent="."]
-visible = false
-layout_mode = 3
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
-script = ExtResource("1_8booc")
-WIDTH = 500
-HEIGHT = 500
-SPACING = 50.0
-noise_angle = SubResource("FastNoiseLite_8booc")
-noise_radius = SubResource("FastNoiseLite_x18o4")
-biome_noise = SubResource("FastNoiseLite_mkywg")
-
-[node name="cellular_automata" type="Control" parent="."]
-visible = false
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("1_setii")
-NOISE_THRESHOLD = -0.05
-CA_ITERATIONS = 1
-noise = SubResource("FastNoiseLite_setii")
-
-[node name="voronoi" type="Control" parent="."]
-visible = false
-layout_mode = 3
-anchors_preset = 0
-offset_right = 40.0
-offset_bottom = 40.0
-script = ExtResource("3_x18o4")
-
-[node name="TextureRect" type="TextureRect" parent="."]
-visible = false
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("1_mkywg")

@@ -18,8 +18,8 @@ void vertex() {
 	// Our mesh's UV.y coordinate now maps to the progress along the tube's length.
 	vec2 displacement = texture(height_texture, vec2(UV.y, 0.5)).rg;
 
-	// VERTEX.x += (displacement.x - 0.5) * amplitude;
-	// VERTEX.y += (displacement.y - 0.5) * amplitude;
+	 VERTEX.x += (displacement.x - 0.5) * amplitude;
+	 VERTEX.y += (displacement.y - 0.5) * amplitude;
 }
 
 void fragment() {

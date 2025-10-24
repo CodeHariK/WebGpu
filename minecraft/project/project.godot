@@ -28,7 +28,7 @@ window/size/initial_position_type=0
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/roadeditor/plugin.cfg")
+enabled=PackedStringArray()
 
 [input]
 

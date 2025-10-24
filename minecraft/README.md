@@ -37,6 +37,8 @@ https://www.youtube.com/watch?v=dPzHkK1Egns
 https://www.youtube.com/watch?v=eQUrKp19iXE
 https://www.youtube.com/watch?v=n872lbC-_BU
 
+implement all spline for coaster and road
+
 hulk jump, coyote jump, wall climb, celeste jump, batman aim jump, hollow knight air dash
 graple hook, lasers
 dishonered teleport
@@ -56,6 +58,11 @@ https://www.youtube.com/watch?v=MUkKUZ-tKng
 SeaOfThieves, hire pirate crew, find treasure, promote ranks, mutiny
 
 Mining, foliage destruction, foliage interaction and elements
+
+Cuboid with noise cave with is spline coaster connection to outerworld
+if near to water or lava turn into aquafier
+
+floating mario island connecting with splines
 
 terrain tile editor
 wfc: pq

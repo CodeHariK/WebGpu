@@ -1,0 +1,104 @@
+[gd_scene load_steps=13 format=3 uid="uid://cokypfau28ig3"]
+
+[ext_resource type="Script" uid="uid://d0ruog1rkctvi" path="res://scripts/noise_map/poisson.gd" id="1_quina"]
+[ext_resource type="Script" uid="uid://bknygamwu3hqr" path="res://scripts/noise_map/cellular_automata.gd" id="2_s5l7f"]
+[ext_resource type="Script" uid="uid://mfuowy2vsijx" path="res://scripts/noise_map/voronoi.gd" id="3_ybku3"]
+[ext_resource type="Script" uid="uid://bwryjyfew5mnw" path="res://scripts/noise_map/island.gd" id="4_b84wb"]
+[ext_resource type="Script" uid="uid://cvikyk8a80n2k" path="res://scripts/noise_map/biome.gd" id="5_s5l7f"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_fawo6"]
+noise_type = 0
+seed = 1337
+frequency = 0.9865
+fractal_type = 0
+fractal_octaves = 2
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_x23uq"]
+noise_type = 0
+seed = 1111
+frequency = 1.0
+fractal_type = 0
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_ket30"]
+noise_type = 0
+frequency = 0.1008
+fractal_type = 0
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_2lys1"]
+seed = 1337
+frequency = 0.0346
+fractal_octaves = 2
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_s5l7f"]
+frequency = 0.0126
+offset = Vector3(142.55, 0, 0)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_ybku3"]
+frequency = 0.0231
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_b84wb"]
+frequency = 0.0184
+offset = Vector3(0, 1000, 0)
+
+[node name="Noise" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="poisson" type="Control" parent="."]
+visible = false
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_quina")
+WIDTH = 500
+HEIGHT = 500
+SPACING = 50.0
+noise_angle = SubResource("FastNoiseLite_fawo6")
+noise_radius = SubResource("FastNoiseLite_x23uq")
+biome_noise = SubResource("FastNoiseLite_ket30")
+
+[node name="cellular_automata" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_s5l7f")
+NOISE_THRESHOLD = -0.05
+CA_ITERATIONS = 1
+noise = SubResource("FastNoiseLite_2lys1")
+
+[node name="voronoi" type="Control" parent="."]
+visible = false
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("3_ybku3")
+
+[node name="Island" type="TextureRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("4_b84wb")
+
+[node name="Biome" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("5_s5l7f")
+temperature_noise = SubResource("FastNoiseLite_s5l7f")
+moisture_noise = SubResource("FastNoiseLite_ybku3")
+altitude_noise = SubResource("FastNoiseLite_b84wb")

@@ -32,10 +32,9 @@ shadow_enabled = true
 environment = SubResource("Environment_jfv7q")
 
 [node name="FlyCamera" parent="." instance=ExtResource("2_d82rw")]
-transform = Transform3D(1, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, 0, 39.832863, 9.966476)
+transform = Transform3D(1, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, 6.678692, 4.48015, 14.480703)
 
 [node name="MinecraftNode" type="MinecraftNode" parent="."]
-generate_on_ready = false
 terrain_noise = SubResource("FastNoiseLite_2a7lt")
 terrain_material = ExtResource("2_2a7lt")
 height_curve = ExtResource("5_2tur5")
