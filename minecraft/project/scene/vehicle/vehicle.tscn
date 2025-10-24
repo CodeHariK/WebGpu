@@ -4,7 +4,6 @@
 [ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="1_x502o"]
 [ext_resource type="PackedScene" uid="uid://4ago17lb6gln" path="res://scripts/camera/car_camera/Camera_Car.tscn" id="2_rafu7"]
 [ext_resource type="PackedScene" uid="uid://bgq4dpehnmquk" path="res://scene/vehicle/suv.glb" id="3_rafu7"]
-[ext_resource type="Material" uid="uid://dlt37eajck8j1" path="res://material/texture/checkerboard.tres" id="4_rafu7"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_8x1io"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -28,6 +27,9 @@ point_count = 2
 [sub_resource type="Curve" id="Curve_bo5md"]
 _data = [Vector2(0.22222224, 0.8590786), 0.0, 0.0, 0, 0, Vector2(1, 0.18089437), 0.0, 0.0, 0, 0]
 point_count = 2
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_rafu7"]
+size = Vector3(1.5114975, 2.1256714, 5.21167)
 
 [sub_resource type="Curve3D" id="Curve3D_rafu7"]
 closed = true
@@ -64,8 +66,10 @@ transform = Transform3D(-0.866025, -0.480631, 0.137819, 0, 0.275637, 0.961262, -
 light_energy = 0.25
 shadow_enabled = true
 
-[node name="Camera_Fly" parent="." instance=ExtResource("1_x502o")]
+[node name="Camera_Fly" parent="." node_paths=PackedStringArray("target") instance=ExtResource("1_x502o")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.282671, 7.6490936, 0)
+camera_type = 1
+target = NodePath("../CarRigidBody3D")
 
 [node name="Camera_Car" parent="." node_paths=PackedStringArray("target") instance=ExtResource("2_rafu7")]
 transform = Transform3D(0.9999998, 0, 0, 0, 0.99999994, 0, 0, 0, 0.99999994, -37.56159, 36.587746, -25.327087)
@@ -91,18 +95,18 @@ rear_grip_curve = SubResource("Curve_bo5md")
 steering_torque_magnitude = 800.0
 max_engine_torque = 15000.0
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="CarRigidBody3D"]
-skeleton = NodePath("../CollisionShape3D")
-
 [node name="suv2" parent="CarRigidBody3D" instance=ExtResource("3_rafu7")]
 transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, -1.5, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CarRigidBody3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08274174, 0)
+shape = SubResource("BoxShape3D_rafu7")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CarRigidBody3D"]
 
 [node name="CSGBox3D" type="CSGBox3D" parent="."]
 use_collision = true
 size = Vector3(1000, 1, 1000)
-material = ExtResource("4_rafu7")
 
 [node name="CSGCylinder3D2" type="CSGCylinder3D" parent="CSGBox3D"]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -25.010454)
@@ -132,7 +136,6 @@ height = 21.6875
 transform = Transform3D(1, 0, 0, 0, 0.96814764, -0.25038, 0, 0.25038, 0.96814764, 10.887694, 1.9056063, -7.0338497)
 use_collision = true
 size = Vector3(18.671509, 1, 31.149704)
-material = ExtResource("4_rafu7")
 
 [node name="CSGCylinder3D" type="CSGCylinder3D" parent="CSGBox3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.131958, 11.269211, -53.630283)
@@ -175,7 +178,6 @@ path_local = false
 path_continuous_u = true
 path_u_distance = 1.0
 path_joined = false
-material = ExtResource("4_rafu7")
 
 [node name="Path3D" type="Path3D" parent="CSGBox3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.994751, 0)
