@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://cokypfau28ig3"]
+[gd_scene load_steps=14 format=3 uid="uid://cokypfau28ig3"]
 
 [ext_resource type="Script" uid="uid://d0ruog1rkctvi" path="res://scripts/noise_map/poisson.gd" id="1_quina"]
 [ext_resource type="Script" uid="uid://bknygamwu3hqr" path="res://scripts/noise_map/cellular_automata.gd" id="2_s5l7f"]
@@ -30,15 +30,21 @@ frequency = 0.0346
 fractal_octaves = 2
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_s5l7f"]
-frequency = 0.0126
+frequency = 0.0054
 offset = Vector3(142.55, 0, 0)
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_ybku3"]
-frequency = 0.0231
+frequency = 0.0059
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_b84wb"]
-frequency = 0.0184
-offset = Vector3(0, 1000, 0)
+noise_type = 0
+frequency = 0.0069
+fractal_octaves = 1
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_in4x4"]
+frequency = 0.0048
+fractal_type = 3
+fractal_octaves = 1
 
 [node name="Noise" type="Control"]
 layout_mode = 3
@@ -102,3 +108,4 @@ script = ExtResource("5_s5l7f")
 temperature_noise = SubResource("FastNoiseLite_s5l7f")
 moisture_noise = SubResource("FastNoiseLite_ybku3")
 altitude_noise = SubResource("FastNoiseLite_b84wb")
+river_noise = SubResource("FastNoiseLite_in4x4")
