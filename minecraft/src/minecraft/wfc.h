@@ -28,9 +28,9 @@
 #include <stack>
 #include <string>
 
-#include "../include/celebi_parse.hpp"
 #include "../include/help.hpp"
 #include "../include/json.hpp"
+#include "../include/wfc_blender_hash_parse.hpp"
 
 using namespace godot;
 using njson = nlohmann::json;
@@ -105,7 +105,7 @@ private:
 	bool m_show_all_possibilities = false;
 	Node3D *m_debug_possibilities_node = nullptr;
 
-	Celebi::Data loadCelebiJson(String path) {
+	Wfc_blender_hash::Data loadWfc_blender_hashJson(String path) {
 		Ref<FileAccess> fileHandle = FileAccess::open(path, FileAccess::READ);
 		if (fileHandle.is_null()) {
 			UtilityFunctions::print("Could not open " + path);
@@ -117,7 +117,7 @@ private:
 			UtilityFunctions::print("Parse error: invalid JSON in " + path);
 			return {};
 		}
-		Celebi::Data data = libraryJson.get<Celebi::Data>();
+		Wfc_blender_hash::Data data = libraryJson.get<Wfc_blender_hash::Data>();
 		return data;
 	}
 
@@ -169,15 +169,15 @@ private:
 	// This is the new primary way to provide tile data to the generator.
 	// It populates the internal data structures from your C++ structs.
 	void parse_tile_data() {
-		Celebi::Data celebiData = loadCelebiJson("res://assets/library.json");
+		Wfc_blender_hash::Data Wfc_blender_hashData = loadWfc_blender_hashJson("res://assets/library.json");
 
 		tile_prototypes.clear();
 		compatibility_map.clear();
 
 		godot::Dictionary meshes = Help::loadMeshFile("res://assets/Voxel.glb");
 
-		for (size_t i = 0; i < celebiData.items.size(); ++i) {
-			const Celebi::LibraryItem &item = celebiData.items[i];
+		for (size_t i = 0; i < Wfc_blender_hashData.items.size(); ++i) {
+			const Wfc_blender_hash::LibraryItem &item = Wfc_blender_hashData.items[i];
 
 			WFCTile tile;
 			tile.id = i;
