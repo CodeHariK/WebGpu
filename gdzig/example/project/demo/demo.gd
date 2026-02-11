@@ -1,7 +1,5 @@
 extends Node
 
-var spin_multiplier = 1.0
-
 func _ready() -> void:
     print("Hello GdZig!")
     if $UI/ToggleSpin:
@@ -45,11 +43,8 @@ func _on_set_speed_pressed() -> void:
         var cname = node.get_class()
         print("Invoking set_spin_multiplier on", cname)
         if node.has_method("set_spin_multiplier"):
-            var res = node.call("set_spin_multiplier", spin_multiplier)
-            if (spin_multiplier == 1.0):
-                spin_multiplier = -1.0
-            else:
-                spin_multiplier = 1.0
+            var res = node.call("set_spin_multiplier", .2)
+
             print("call(set_spin_multiplier) result=", res)
         else:
             print("set_spin_multiplier not found on instance")

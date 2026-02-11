@@ -39,10 +39,16 @@ pub fn destroy(self: *My3dNode, allocator: *Allocator) void {
 pub fn _enterTree(self: *My3dNode) void {
     if (Engine.isEditorHint()) return;
 
+    // Ensure this node fills the area the parent gives it (use size_fill like SpriteNode)
+    self.base.setHSizeFlags(.{ .size_fill = true });
+    self.base.setVSizeFlags(.{ .size_fill = true });
+    self.base.setAnchorsPreset(.preset_full_rect, .{});
+
     // Create a SubViewportContainer and SubViewport to host 3D content
     const c = SubViewportContainer.init();
     c.setHSizeFlags(.{ .size_fill = true });
     c.setVSizeFlags(.{ .size_fill = true });
+    c.setAnchorsPreset(.preset_full_rect, .{});
 
     self.base.addChild(.upcast(c), .{});
     self.container = c;
@@ -51,6 +57,12 @@ pub fn _enterTree(self: *My3dNode) void {
     vp.setTransparentBackground(true);
     c.addChild(.upcast(vp), .{});
     self.viewport = vp;
+
+    // Force initial sizes so the SubViewport matches the container
+    const parent_size = c.getParentAreaSize();
+    // let the container handle its own size; set the SubViewport pixel size to match parent area
+    const vp_size = Vector2i.fromVector2(parent_size);
+    vp.setSize(vp_size);
 
     // Create a world root for 3D objects
     const w = Node3d.init();
@@ -68,7 +80,7 @@ pub fn _enterTree(self: *My3dNode) void {
     const mesh_ptr: *Mesh = @ptrCast(torus);
     mesh_inst.setMesh(mesh_ptr);
     // Make the mesh big so it's clearly visible
-    mesh_inst.setScale(Vector3.initXYZ(@as(f32, 3.0), @as(f32, 3.0), @as(f32, 3.0)));
+    mesh_inst.setScale(Vector3.initXYZ(3.0, 3.0, 3.0));
     const mr = Node3d.init();
     mr.addChild(.upcast(mesh_inst), .{});
     self.mesh_inst = mesh_inst;
@@ -106,7 +118,17 @@ pub fn _process(self: *My3dNode, _: f64) void {
     if (self.mesh_root) |m| m.setRotation(self.angle);
     // As a fallback, rotate the MeshInstance directly if present
     if (self.mesh_inst) |mi| mi.setRotation(self.angle);
-    std.log.debug("angles = {any} {any} {any}", .{ self.angle.x, self.angle.y, self.angle.z });
+    // std.log.debug("angles = {any} {any} {any} spin: {any}", .{ self.angle.x, self.angle.y, self.angle.z, self.spin_multiplier });
+
+    // Keep SubViewport sized to the container in case the panel/splitter changed
+    if (self.container) |cont| {
+        const psize = cont.getParentAreaSize();
+        cont.setSize(psize, .{});
+        if (self.viewport) |vp2| {
+            const vp_sz = Vector2i.fromVector2(psize);
+            vp2.setSize(vp_sz);
+        }
+    }
 }
 
 pub fn setSpinMultiplier(self: *My3dNode, m: f64) void {
@@ -122,7 +144,7 @@ pub fn toggleSpin(self: *My3dNode) void {
     const currently = self.base.isProcessing();
     const new_state = !currently;
     self.base.setProcess(new_state);
-    std.log.info("spin toggled to {s}", .{ if (new_state) "on" else "off" });
+    std.log.info("spin toggled to {s}", .{if (new_state) "on" else "off"});
 }
 
 const std = @import("std");
@@ -142,3 +164,5 @@ const Engine = godot.class.Engine;
 const Mesh = godot.class.Mesh;
 const Node = godot.class.Node;
 const Vector3 = godot.builtin.Vector3;
+const Vector2 = godot.builtin.Vector2;
+const Vector2i = godot.builtin.Vector2i;
