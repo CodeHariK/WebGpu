@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://cpw0oipoya1mi"]
+[gd_scene format=3 uid="uid://cpw0oipoya1mi"]
 
 [ext_resource type="Script" uid="uid://dtif1g023v2sd" path="res://scene/minecraft/minecraft_node.gd" id="1_d82rw"]
 [ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/terrain/mat_terrain.tres" id="2_2a7lt"]
@@ -16,32 +16,31 @@ glow_enabled = true
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_2a7lt"]
 
-[node name="World" type="Node3D"]
+[node name="World" type="Node3D" unique_id=332964045]
 script = ExtResource("1_d82rw")
 
-[node name="PerformanceMonitor" parent="." instance=ExtResource("6_2a7lt")]
+[node name="PerformanceMonitor" parent="." unique_id=884688375 instance=ExtResource("6_2a7lt")]
 
-[node name="UiMinecraft" parent="." instance=ExtResource("4_jfv7q")]
+[node name="UiMinecraft" parent="." unique_id=2090726158 instance=ExtResource("4_jfv7q")]
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=470560498]
 transform = Transform3D(-0.866025, -0.480631, 0.137819, 0, 0.275637, 0.961262, -0.5, 0.832477, -0.238709, 0, 0, 0)
 light_energy = 0.5
 shadow_enabled = true
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1662404255]
 environment = SubResource("Environment_jfv7q")
 
-[node name="FlyCamera" parent="." instance=ExtResource("2_d82rw")]
+[node name="FlyCamera" parent="." unique_id=1000671443 instance=ExtResource("2_d82rw")]
 transform = Transform3D(1, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, 6.678692, 4.48015, 14.480703)
 
-[node name="MinecraftNode" type="MinecraftNode" parent="."]
+[node name="MinecraftNode" type="MinecraftNode" parent="." unique_id=1010670938]
 terrain_noise = SubResource("FastNoiseLite_2a7lt")
 terrain_material = ExtResource("2_2a7lt")
 height_curve = ExtResource("5_2tur5")
 
-[node name="WFCGenerator3D" type="WFCGenerator3D" parent="."]
+[node name="WFCGenerator3D" type="WFCGenerator3D" parent="." unique_id=1563275435]
 grid_size = Vector3i(3, 2, 3)
-step_by_step = false
 generate_on_ready = false
 show_all_possibilities = true
 show_compatibility_table = true

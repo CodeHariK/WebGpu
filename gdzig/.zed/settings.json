@@ -1,0 +1,11 @@
+{
+  "file_scan_exclusions": [
+    "**/.DS_Store",
+    "**/.direnv",
+    "**/.git",
+    "**/Thumbs.db",
+    "**/.zig-cache",
+    "**/zig-out"
+  ],
+  "file_scan_inclusions": ["gdzig/**/*.zig"]
+}

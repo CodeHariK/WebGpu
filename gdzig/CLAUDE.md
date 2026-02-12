@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `zig build test` - Run all tests (both bindgen and module tests)
 
 ### Build Options
-- `-Dgodot-path=<path>` - Path to Godot binary (default: "godot")
+- `-Dgodot=<path>` - Path to Godot binary (default: "godot")
 - `-Dprecision=<float|double>` - Floating point precision (default: "float")
 - `-Darch=<32|64>` - Architecture bits (default: "64")
 - `-Dheaders=<GENERATED|VENDORED|DEPENDENCY|path>` - Source for Godot headers (default: GENERATED)
