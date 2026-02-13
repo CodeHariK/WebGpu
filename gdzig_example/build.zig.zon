@@ -4,7 +4,7 @@
     .version = "0.0.0",
     .dependencies = .{
         .gdzig = .{
-            .path = "../",
+            .path = "../gdzig/",
         },
         .godot = .{
             .url = "git+https://github.com/gdzig/godot-versions#07c199a34f4c6414afb513026cd1f225f6751913",
