@@ -50,8 +50,14 @@ pub fn _ready(self: *SpriteNode) void {
     for (0..10000) |_| {
         const s: f32 = self.randfRange(f32, 0.1, 0.2);
         var spr = Sprite{
-            .pos = Vector2.initXY(self.randfRange(f32, 0, sz.x), self.randfRange(f32, 0, sz.y)),
-            .vel = Vector2.initXY(self.randfRange(f32, -1000, 1000), self.randfRange(f32, -1000, 1000)),
+            .pos = Vector2.initXY(
+                self.randfRange(f32, 0, sz.x),
+                self.randfRange(f32, 0, sz.y),
+            ),
+            .vel = Vector2.initXY(
+                self.randfRange(f32, -1000, 1000),
+                self.randfRange(f32, -1000, 1000),
+            ),
             .scale = Vector2.initXY(s, s),
             .size = .zero,
             .gd_sprite = Sprite2D.init(),

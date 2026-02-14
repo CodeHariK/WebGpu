@@ -13,5 +13,4 @@
 * Dual Grid
 * SDF
 
-
 * Splines

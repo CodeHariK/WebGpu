@@ -1,12 +1,16 @@
 pub fn register(r: *Registry) void {
-    // Register a class inline - simplest approach
-    r.addClass(SpriteNode, r.allocator, .auto);
+    // // Register a class inline - simplest approach
+    // r.addClass(SpriteNode, r.allocator, .auto);
 
-    // Use modules to organize registration into separate files
-    r.addModule(ExampleNode);
-    r.addModule(GuiNode);
-    r.addModule(SignalNode);
-    r.addModule(My3dNode);
+    // // Use modules to organize registration into separate files
+    // r.addModule(ExampleNode);
+    // r.addModule(GuiNode);
+    // r.addModule(SignalNode);
+    // r.addModule(My3dNode);
+
+    // r.addModule(Hello3D);
+
+    r.addModule(SmoothMeshPart);
 }
 
 test "godot version is 4.x" {
@@ -23,3 +27,5 @@ const GuiNode = @import("GuiNode.zig");
 const SignalNode = @import("SignalNode.zig");
 const SpriteNode = @import("SpriteNode.zig");
 const My3dNode = @import("My3dNode.zig");
+const Hello3D = @import("Hello3D.zig");
+const SmoothMeshPart = @import("terrain/smooth_mesh.zig");
