@@ -1,3 +1,9 @@
 Diagnostics:
   UnusedIncludes: Strict
   MissingIncludes: Strict
+CompileCommandsDir: build
+Index:
+  Background: true
+  Threads: 2
+CompileFlags:
+  Add: ["-std=c++17"]
