@@ -27,6 +27,8 @@ MeshInstance3D *MinecraftNode::generate_smooth_part_mesh(String name, Vector2i i
 		}
 	}
 
+	indices.resize(6 * part_size * part_size);
+
 	// Generate indices (two triangles per quad)
 	for (int z = 0; z < part_size; ++z) {
 		for (int x = 0; x < part_size; ++x) {

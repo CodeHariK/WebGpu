@@ -20,9 +20,9 @@ br:
 	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
 	godot --path project
 
-wfc_blender_hash:
-	cp ../wfc_blender_hash/example/Voxel.glb project/assets/
-	cp ../wfc_blender_hash/example/library.json project/assets/
+world_blender:
+	cp ../world_blender/example/Voxel.glb project/assets/
+	cp ../world_blender/example/library.json project/assets/
 
 clang:
 	$(SCONS) target=$(TARGET) platform=$(PLATFORM) compiledb=yes compile_commands.json

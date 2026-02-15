@@ -38,6 +38,7 @@ transform = Transform3D(1, 0, 0, 0, 1.0000001, 0, 0, 0, 1.0000001, 6.678692, 4.4
 terrain_noise = SubResource("FastNoiseLite_2a7lt")
 terrain_material = ExtResource("2_2a7lt")
 height_curve = ExtResource("5_2tur5")
+visible = false
 
 [node name="WFCGenerator3D" type="WFCGenerator3D" parent="." unique_id=1563275435]
 grid_size = Vector3i(3, 2, 3)

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace Wfc_blender_hash {
+namespace world_blender {
 using nlohmann::json;
 
 inline json get_untyped(const json &j, const char *property) {
@@ -71,4 +71,4 @@ inline void to_json(json &j, const Data &x) {
 	j["items"] = x.items;
 	j["voxels"] = x.voxels;
 }
-} //namespace Wfc_blender_hash
+} //namespace world_blender
