@@ -121,6 +121,7 @@ void MinecraftNode::_process(double delta) {
 					String name = "Part_" + String::num_int64(part_pos.x) + "_" + String::num_int64(part_pos.y);
 
 					// Generate the mesh without collision. The dynamic system will add it if needed.
+					// MeshInstance3D *new_mesh = generate_voxel_part_mesh(name, part_pos, false);
 					MeshInstance3D *new_mesh = generate_smooth_part_mesh(name, part_pos, false);
 
 					if (new_mesh) {

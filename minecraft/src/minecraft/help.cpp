@@ -14,6 +14,7 @@ PackedInt32Array MinecraftNode::generate_terrain_heights(Vector2i indexPos, int 
 
 	heights.resize(dim * dim);
 
+	// Dont hit branch every time, sample height curve in a separate loop if enabled
 	if (height_curve != nullptr & height_curve_sampling) {
 		for (int z = 0; z < dim; ++z) {
 			for (int x = 0; x < dim; ++x) {

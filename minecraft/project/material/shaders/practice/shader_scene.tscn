@@ -1,10 +1,10 @@
-[gd_scene load_steps=26 format=3 uid="uid://tkaefwf8athq"]
+[gd_scene format=3 uid="uid://tkaefwf8athq"]
 
 [ext_resource type="PackedScene" uid="uid://buc75e6yxlh17" path="res://assets/sophia/sophia.glb" id="1_7jj1s"]
 [ext_resource type="Material" uid="uid://55svv2sl8lie" path="res://material/shaders/practice/holographic_mat.tres" id="1_076ng"]
 [ext_resource type="Material" uid="uid://bm1sipjoet0pr" path="res://material/shaders/practice/fire.tres" id="2_mtjsl"]
 [ext_resource type="Material" uid="uid://dce6lt0o8glbp" path="res://material/shaders/practice/uv.tres" id="3_r1geu"]
-[ext_resource type="Texture2D" uid="uid://bb2spfflnkoqe" path="res://assets/uv.jpg" id="4_1kfpk"]
+[ext_resource type="Texture2D" uid="uid://bb2spfflnkoqe" path="res://material/texture/checker/uv.jpg" id="4_1kfpk"]
 [ext_resource type="Material" uid="uid://by1sg88ld70q" path="res://material/shaders/practice/fog_mat.tres" id="4_c7qtk"]
 [ext_resource type="Material" uid="uid://djm80rf7kqtg6" path="res://material/shaders/practice/crt_mat.tres" id="4_lf3t2"]
 [ext_resource type="Material" uid="uid://cog66ki6ers2k" path="res://material/shaders/practice/normal_mat.tres" id="5_ydx33"]

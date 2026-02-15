@@ -30,7 +30,7 @@
 
 #include "../include/help.hpp"
 #include "../include/json.hpp"
-#include "../include/wfc_blender_hash_parse.hpp"
+#include "../include/world_blender_parse.hpp"
 
 using namespace godot;
 using njson = nlohmann::json;
@@ -105,7 +105,7 @@ private:
 	bool m_show_all_possibilities = false;
 	Node3D *m_debug_possibilities_node = nullptr;
 
-	Wfc_blender_hash::Data loadWfc_blender_hashJson(String path) {
+	world_blender::Data loadworld_blenderJson(String path) {
 		Ref<FileAccess> fileHandle = FileAccess::open(path, FileAccess::READ);
 		if (fileHandle.is_null()) {
 			UtilityFunctions::print("Could not open " + path);
@@ -117,7 +117,7 @@ private:
 			UtilityFunctions::print("Parse error: invalid JSON in " + path);
 			return {};
 		}
-		Wfc_blender_hash::Data data = libraryJson.get<Wfc_blender_hash::Data>();
+		world_blender::Data data = libraryJson.get<world_blender::Data>();
 		return data;
 	}
 
@@ -169,15 +169,15 @@ private:
 	// This is the new primary way to provide tile data to the generator.
 	// It populates the internal data structures from your C++ structs.
 	void parse_tile_data() {
-		Wfc_blender_hash::Data Wfc_blender_hashData = loadWfc_blender_hashJson("res://assets/library.json");
+		world_blender::Data world_blenderData = loadworld_blenderJson("res://assets/library.json");
 
 		tile_prototypes.clear();
 		compatibility_map.clear();
 
 		godot::Dictionary meshes = Help::loadMeshFile("res://assets/Voxel.glb");
 
-		for (size_t i = 0; i < Wfc_blender_hashData.items.size(); ++i) {
-			const Wfc_blender_hash::LibraryItem &item = Wfc_blender_hashData.items[i];
+		for (size_t i = 0; i < world_blenderData.items.size(); ++i) {
+			const world_blender::LibraryItem &item = world_blenderData.items[i];
 
 			WFCTile tile;
 			tile.id = i;

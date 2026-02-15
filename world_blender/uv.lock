@@ -1,0 +1,23 @@
+version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[[package]]
+name = "fake-bpy-module-latest"
+version = "20260212"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/99/87/78afd997044329046a9ee69f16e0499817aae63ed05bea845d3234c453da/fake_bpy_module_latest-20260212.tar.gz", hash = "sha256:9e5aed0791d53c519b9abee142123c98270dfc13c2e38f2a1078c72b9e7ac3c4", size = 902319, upload-time = "2026-02-12T06:51:51.358Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/0c/56/37c52a02ed9c95121cd002f8c194cc0d2ad520bb23730a9a7634017e03c7/fake_bpy_module_latest-20260212-py3-none-any.whl", hash = "sha256:61fbf5a853c6b5eda4dd5ea19bf4c45a743181f46914059532e5469d796afe73", size = 1033369, upload-time = "2026-02-12T06:51:48.503Z" },
+]
+
+[[package]]
+name = "world-blender"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "fake-bpy-module-latest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "fake-bpy-module-latest", specifier = ">=20260212" }]
