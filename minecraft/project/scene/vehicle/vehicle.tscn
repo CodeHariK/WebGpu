@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://c083h1owek27t"]
+[gd_scene format=3 uid="uid://c083h1owek27t"]
 
 [ext_resource type="Script" uid="uid://dwr1gg0mac84y" path="res://scene/vehicle/vehicle.gd" id="1_kkwn3"]
 [ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="1_x502o"]
@@ -41,11 +41,11 @@ point_count = 7
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_rafu7"]
 
-[node name="Vehicle" type="Node3D"]
+[node name="Vehicle" type="Node3D" unique_id=42757262]
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=998328704]
 
-[node name="Control" type="Control" parent="CanvasLayer"]
+[node name="Control" type="Control" parent="CanvasLayer" unique_id=1934672592]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -53,31 +53,37 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Control"]
+[node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/Control" unique_id=1466489505]
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=277216433]
 environment = SubResource("Environment_rafu7")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=380239171]
 transform = Transform3D(-0.866025, -0.480631, 0.137819, 0, 0.275637, 0.961262, -0.5, 0.832477, -0.238709, 0, 0, 0)
 light_energy = 0.25
 shadow_enabled = true
 
-[node name="Camera_Fly" parent="." node_paths=PackedStringArray("target") instance=ExtResource("1_x502o")]
+[node name="Camera_Fly" parent="." unique_id=342700866 node_paths=PackedStringArray("target") instance=ExtResource("1_x502o")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.282671, 7.6490936, 0)
 camera_type = 1
+pan_speed = null
+zoom_speed = null
+orbit_speed = null
+min_pitch_angle = null
+max_pitch_angle = null
 target = NodePath("../CarRigidBody3D")
+camera_offset = null
 
-[node name="Camera_Car" parent="." node_paths=PackedStringArray("target") instance=ExtResource("2_rafu7")]
+[node name="Camera_Car" parent="." unique_id=579378346 node_paths=PackedStringArray("target") instance=ExtResource("2_rafu7")]
 transform = Transform3D(0.9999998, 0, 0, 0, 0.99999994, 0, 0, 0, 0.99999994, -37.56159, 36.587746, -25.327087)
 target = NodePath("../CarRigidBody3D/CollisionShape3D")
 y_dis = 4.0
 max_zoom_distance = 25.0
 
-[node name="CarRigidBody3D" type="RigidBody3D" parent="."]
+[node name="CarRigidBody3D" type="RigidBody3D" parent="." unique_id=1517469411]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.569778, 5.9949684, 0)
 physics_material_override = SubResource("PhysicsMaterial_rafu7")
 script = ExtResource("1_kkwn3")
@@ -95,75 +101,75 @@ rear_grip_curve = SubResource("Curve_bo5md")
 steering_torque_magnitude = 800.0
 max_engine_torque = 15000.0
 
-[node name="suv2" parent="CarRigidBody3D" instance=ExtResource("3_rafu7")]
+[node name="suv2" parent="CarRigidBody3D" unique_id=133529120 instance=ExtResource("3_rafu7")]
 transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, -1.5, 0)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="CarRigidBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CarRigidBody3D" unique_id=1167381753]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08274174, 0)
 shape = SubResource("BoxShape3D_rafu7")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="CarRigidBody3D"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CarRigidBody3D" unique_id=2041106549]
 
-[node name="CSGBox3D" type="CSGBox3D" parent="."]
+[node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=555641220]
 use_collision = true
 size = Vector3(1000, 1, 1000)
 
-[node name="CSGCylinder3D2" type="CSGCylinder3D" parent="CSGBox3D"]
+[node name="CSGCylinder3D2" type="CSGCylinder3D" parent="CSGBox3D" unique_id=586875202]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -25.010454)
 use_collision = true
 radius = 0.548
 height = 21.6875
 
-[node name="CSGCylinder3D3" type="CSGCylinder3D" parent="CSGBox3D"]
+[node name="CSGCylinder3D3" type="CSGCylinder3D" parent="CSGBox3D" unique_id=1151633904]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -28.348787)
 use_collision = true
 radius = 0.548
 height = 21.6875
 
-[node name="CSGCylinder3D4" type="CSGCylinder3D" parent="CSGBox3D"]
+[node name="CSGCylinder3D4" type="CSGCylinder3D" parent="CSGBox3D" unique_id=782860183]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -32.0292)
 use_collision = true
 radius = 0.548
 height = 21.6875
 
-[node name="CSGCylinder3D5" type="CSGCylinder3D" parent="CSGBox3D"]
+[node name="CSGCylinder3D5" type="CSGCylinder3D" parent="CSGBox3D" unique_id=129290321]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -35.537086)
 use_collision = true
 radius = 0.548
 height = 21.6875
 
-[node name="CSGBox3D6" type="CSGBox3D" parent="CSGBox3D"]
+[node name="CSGBox3D6" type="CSGBox3D" parent="CSGBox3D" unique_id=1581271548]
 transform = Transform3D(1, 0, 0, 0, 0.96814764, -0.25038, 0, 0.25038, 0.96814764, 10.887694, 1.9056063, -7.0338497)
 use_collision = true
 size = Vector3(18.671509, 1, 31.149704)
 
-[node name="CSGCylinder3D" type="CSGCylinder3D" parent="CSGBox3D"]
+[node name="CSGCylinder3D" type="CSGCylinder3D" parent="CSGBox3D" unique_id=805996741]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.131958, 11.269211, -53.630283)
 use_collision = true
 radius = 6.011
 height = 34.756
 
-[node name="CSGBox3D2" type="CSGBox3D" parent="CSGBox3D"]
+[node name="CSGBox3D2" type="CSGBox3D" parent="CSGBox3D" unique_id=1012352653]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6711769, 8.674805, 499.26956)
 use_collision = true
 size = Vector3(1111, 20, 1)
 
-[node name="CSGBox3D4" type="CSGBox3D" parent="CSGBox3D"]
+[node name="CSGBox3D4" type="CSGBox3D" parent="CSGBox3D" unique_id=981062904]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 489.20087, 6.7751884, 3.9732132)
 use_collision = true
 size = Vector3(1111, 20, 1)
 
-[node name="CSGBox3D3" type="CSGBox3D" parent="CSGBox3D"]
+[node name="CSGBox3D3" type="CSGBox3D" parent="CSGBox3D" unique_id=1369420351]
 transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -495.93942, 8.824875, 0.81622696)
 use_collision = true
 size = Vector3(1111, 20, 1)
 
-[node name="CSGBox3D5" type="CSGBox3D" parent="CSGBox3D"]
+[node name="CSGBox3D5" type="CSGBox3D" parent="CSGBox3D" unique_id=1174621346]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99295425, 8.674805, -499.03317)
 use_collision = true
 size = Vector3(1111, 20, 1)
 
-[node name="CSGPolygon3D" type="CSGPolygon3D" parent="CSGBox3D"]
+[node name="CSGPolygon3D" type="CSGPolygon3D" parent="CSGBox3D" unique_id=2054379186]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.619602, -10.454519, 0)
 use_collision = true
 polygon = PackedVector2Array(0, 2, 5, 4, 10, 2, 10, 0, 0, 0)
@@ -179,15 +185,15 @@ path_continuous_u = true
 path_u_distance = 1.0
 path_joined = false
 
-[node name="Path3D" type="Path3D" parent="CSGBox3D"]
+[node name="Path3D" type="Path3D" parent="CSGBox3D" unique_id=1278453140]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.994751, 0)
 curve = SubResource("Curve3D_rafu7")
 
-[node name="RigidBody3D" type="RigidBody3D" parent="."]
+[node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=1441984256]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.659877, 6.0172076, 0)
 
-[node name="CSGSphere3D" type="CSGSphere3D" parent="RigidBody3D"]
+[node name="CSGSphere3D" type="CSGSphere3D" parent="RigidBody3D" unique_id=1392468043]
 use_collision = true
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D" unique_id=1531015349]
 shape = SubResource("SphereShape3D_rafu7")
