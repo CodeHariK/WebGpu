@@ -1,14 +1,14 @@
 pub fn register(r: *Registry) void {
-    // // Register a class inline - simplest approach
-    // r.addClass(SpriteNode, r.allocator, .auto);
+    // Register a class inline - simplest approach
+    r.addClass(SpriteNode, r.allocator, .auto);
 
-    // // Use modules to organize registration into separate files
-    // r.addModule(ExampleNode);
-    // r.addModule(GuiNode);
-    // r.addModule(SignalNode);
-    // r.addModule(My3dNode);
+    // Use modules to organize registration into separate files
+    r.addModule(ExampleNode);
+    r.addModule(GuiNode);
+    r.addModule(SignalNode);
+    r.addModule(My3dNode);
 
-    // r.addModule(Hello3D);
+    r.addModule(Hello3D);
 
     r.addModule(SmoothMeshPart);
 }

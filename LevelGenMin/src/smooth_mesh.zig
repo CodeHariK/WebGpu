@@ -24,10 +24,6 @@ const StringName = godot.builtin.StringName;
 const String = godot.builtin.String;
 const PropertyHint = godot.global.PropertyHint;
 
-const GenerateTerrainHeights = @import("terrain_height.zig").generateTerrainHeights;
-
-const cast = @import("../debug/cast.zig").cast;
-
 pub const SmoothMeshPart = @This();
 
 allocator: Allocator,
@@ -52,19 +48,18 @@ const Part = struct {
 pub fn register(r: *Registry) void {
     const class = r.createClass(SmoothMeshPart, r.allocator, .auto);
 
-    _ = class;
-    // class.addProperty("height_curve", .{
-    //     .hint = .property_hint_resource_type,
-    //     .hint_string = .fromLatin1("Curve"),
-    // });
-    // class.addProperty("noise", .{
-    //     .hint = .property_hint_resource_type,
-    //     .hint_string = .fromLatin1("Noise"),
-    // });
-    // class.addProperty("terrain_material", .{
-    //     .hint = .property_hint_resource_type,
-    //     .hint_string = .fromLatin1("Material"),
-    // });
+    class.addProperty("height_curve", .{
+        .hint = .property_hint_resource_type,
+        .hint_string = .fromLatin1("Curve"),
+    });
+    class.addProperty("noise", .{
+        .hint = .property_hint_resource_type,
+        .hint_string = .fromLatin1("Noise"),
+    });
+    class.addProperty("terrain_material", .{
+        .hint = .property_hint_resource_type,
+        .hint_string = .fromLatin1("Material"),
+    });
 }
 
 pub fn create(allocator: *Allocator) !*SmoothMeshPart {
@@ -120,31 +115,31 @@ pub fn _process(self: *SmoothMeshPart, _: f64) void {
     _ = self;
 }
 
-// // --- Property getters/setters ---
+// --- Property getters/setters ---
 
-// pub fn getHeightCurve(self: *SmoothMeshPart) ?*Curve {
-//     return self.height_curve;
-// }
+pub fn getHeightCurve(self: *SmoothMeshPart) ?*Curve {
+    return self.height_curve;
+}
 
-// pub fn setHeightCurve(self: *SmoothMeshPart, curve: ?*Curve) void {
-//     self.height_curve = curve;
-// }
+pub fn setHeightCurve(self: *SmoothMeshPart, curve: *Curve) void {
+    self.height_curve = curve;
+}
 
-// pub fn getNoise(self: *SmoothMeshPart) ?*Noise {
-//     return self.noise;
-// }
+pub fn getNoise(self: *SmoothMeshPart) ?*Noise {
+    return self.noise;
+}
 
-// pub fn setNoise(self: *SmoothMeshPart, n: ?*Noise) void {
-//     self.noise = n;
-// }
+pub fn setNoise(self: *SmoothMeshPart, n: *Noise) void {
+    self.noise = n;
+}
 
-// pub fn getTerrainMaterial(self: *SmoothMeshPart) ?*Material {
-//     return self.terrain_material;
-// }
+pub fn getTerrainMaterial(self: *SmoothMeshPart) ?*Material {
+    return self.terrain_material;
+}
 
-// pub fn setTerrainMaterial(self: *SmoothMeshPart, mat: ?*Material) void {
-//     self.terrain_material = mat;
-// }
+pub fn setTerrainMaterial(self: *SmoothMeshPart, mat: *Material) void {
+    self.terrain_material = mat;
+}
 
 pub fn generateSmoothPartMesh(self: *SmoothMeshPart, name: StringName, indexPos: Vector2i, height_curve_sampling: bool) *MeshInstance3D {
     const vert_dim_i32: i32 = @as(i32, @intFromFloat(self.part_size)) + 1;
@@ -244,4 +239,115 @@ pub fn generateSmoothPartMesh(self: *SmoothMeshPart, name: StringName, indexPos:
     ));
 
     return mi;
+}
+
+pub fn GenerateTerrainHeights(self: *SmoothMeshPart, indexPos: Vector2i, dim: usize, _: f32, height_curve_sampling: bool) PackedInt32Array {
+    const offset = Vector3.initXYZ(
+        cast(f64, indexPos.x) * self.part_size,
+        0.0,
+        cast(f64, indexPos.y) * self.part_size,
+    );
+
+    var heights = PackedInt32Array.init();
+    _ = heights.resize(@intCast(dim * dim));
+
+    const use_curve = (self.height_curve != null) and height_curve_sampling;
+
+    for (0..dim) |z_idx| {
+        for (0..dim) |x_idx| {
+            var h: f64 = 0.5;
+            if (self.noise != null) {
+                h += self.noise.?.getNoise2d(
+                    offset.x + cast(f32, x_idx),
+                    offset.z + cast(f32, z_idx),
+                );
+            } else if (use_curve) {
+                h = self.height_curve.?.sample(h);
+            }
+
+            const height_i: i32 = @intFromFloat(std.math.floor(h * self.part_size));
+            heights.index(x_idx + z_idx * dim).* = height_i;
+        }
+    }
+
+    return heights;
+}
+
+pub inline fn cast(comptime T: type, value: anytype) T {
+    // Handle optional source
+    switch (@typeInfo(@TypeOf(value))) {
+        .optional => {
+            if (value == null) return @as(T, null);
+            const inner = value.?;
+            // If destination is optional, convert to child and wrap
+            switch (@typeInfo(T)) {
+                .optional => |dst_opt| {
+                    const child_t = dst_opt.child;
+                    const conv = cast(child_t, inner);
+                    return @as(T, conv);
+                },
+                else => return cast(T, inner),
+            }
+        },
+        else => {},
+    }
+
+    // Handle optional destination (wrap result)
+    switch (@typeInfo(T)) {
+        .optional => |dst_opt| {
+            const child_t = dst_opt.child;
+            const conv = cast(child_t, value);
+            return @as(T, conv);
+        },
+        else => {},
+    }
+
+    // Now both source and destination are non-optional — examine kinds
+    const SrcTI = @typeInfo(@TypeOf(value));
+    const DstTI = @typeInfo(T);
+
+    const src_is_int = switch (SrcTI) {
+        .int, .comptime_int => true,
+        else => false,
+    };
+    const src_is_float = switch (SrcTI) {
+        .float, .comptime_float => true,
+        else => false,
+    };
+    const src_is_ptr = switch (SrcTI) {
+        .pointer => true,
+        else => false,
+    };
+
+    const dst_is_int = switch (DstTI) {
+        .int, .comptime_int => true,
+        else => false,
+    };
+    const dst_is_float = switch (DstTI) {
+        .float, .comptime_float => true,
+        else => false,
+    };
+    const dst_is_ptr = switch (DstTI) {
+        .pointer => true,
+        else => false,
+    };
+
+    if (src_is_int and dst_is_float) {
+        return @as(T, @floatFromInt(value));
+    }
+    if (src_is_float and dst_is_int) {
+        return @as(T, @intFromFloat(value));
+    }
+    if (src_is_int and dst_is_int) {
+        return @intCast(value);
+    }
+    if (src_is_float and dst_is_float) {
+        return @as(T, value);
+    }
+    if (src_is_ptr and dst_is_ptr) {
+        return @ptrCast(value);
+    }
+
+    // Fallback
+    return @as(T, value);
 }

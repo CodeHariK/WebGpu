@@ -3,7 +3,7 @@ const My3dNode = @This();
 pub fn register(r: *Registry) void {
     // Create class so we can add GDScript-exposed methods and properties
     const class = r.createClass(My3dNode, r.allocator, .auto);
-    class.addMethod("set_spin_multiplier", .auto);
+    // class.addMethod("set_spin_multiplier", .auto);
     class.addMethod("toggle_spin", .auto);
     class.addProperty("spin_multiplier", .auto);
 }
