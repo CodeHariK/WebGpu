@@ -2272,6 +2272,107 @@ SETTING: A chaotic cartoon farm — tractors, mud, animals, and absolute mayhem
   SOUNDTRACK: Banjo + fiddle + silly animal sounds, square dance energy
 ```
 
+### Theme 9: "Neon Metro"
+
+```
+SETTING: A buzzing neon city at night — synth-lit streets, moving billboards, retro futurism
+
+  ╭──────────────────────────────────────────────────────────╮
+  │  🚦 Road:     Slick neon asphalt with reflective puddles    │
+  │  🏙️ Scenery:   Hover-cars, glowing billboards, tram rails     │
+  │  🎛️ Features:  Speed gates, magnetic turntables               │
+  │  🕹️ Aesthetic:  80s arcade + chiptune, high-energy lighting   │
+  ╰──────────────────────────────────────────────────────────╯
+
+  SURFACES:
+  - Neon Tarmac:     friction 1.0, light streak VFX, bright reflections
+  - Tram Rails:      friction 0.4, slide if you cross them at an angle (sparks)
+  - Slick Oil Spill: friction 0.25, violent slide + smoke trail
+  - Magnetic Lane:   friction 1.4, magnetic pull keeps you glued to curve
+  - Glass Walkway:   friction 0.9, shatterable (visual only)
+
+  HAZARDS:
+  - Hover-trams cross the road on set intervals (timing dodge)
+  - Flickering billboards blind briefly (screen glare, reduced visibility)
+  - Neon signs fall (moody sparks) — small damage + spin
+  - EMP pulses disable items for 2s in certain zones
+  - Traffic drones drop packages that become obstacles
+
+  RAMPS:
+  - Billboard ramp (loop through a giant ad)
+  - Tram catapult (launch off a moving tram for big air)
+  - Magnetic corkscrew (mag-rails force a twisting vertical loop)
+
+  SOUNDTRACK: Fast chiptune + synth bass, arcade leads and gated reverb — energetic
+```
+
+### Theme 10: "Misty Garden"
+
+```
+SETTING: A tranquil, slightly surreal botanical garden with fog, koi ponds, and lanterns
+
+  ╭──────────────────────────────────────────────────────────╮
+  │  🌿 Road:     Stone garden paths, wooden boardwalks          │
+  │  🌫️ Atmosphere: Low rolling mist, soft light, serene bridges │
+  │  🌸 Flora:     Giant blossoms, glowing mushrooms             │
+  │  🐉 Hidden:    Gentle guardian statues animate briefly       │
+  ╰──────────────────────────────────────────────────────────╯
+
+  SURFACES:
+  - Moss Path:       friction 0.6, soft particle moss, muted audio
+  - Stone Tiles:     friction 1.0, pleasant clack, subtle reflections
+  - Bamboo Plank:    friction 0.8, creak + springiness on jumps
+  - Koi Pond Edges:  friction 0.4, splash particles but safe to cross
+  - Lantern Lane:    friction 1.0, warm glow, temporary speed calm zones
+
+  HAZARDS:
+  - Mist patches reduce visibility (use drifting lights to navigate)
+  - Animated topiary briefly blocks lanes before snapping back
+  - Falling blossom showers create slippery mulch for 1–2s
+  - Lantern gusts blow you laterally when you pass (timed wind)
+
+  RAMPS:
+  - Stone lantern hop (small, precise jumps)
+  - Water lily catapult (soft float + glide)
+  - Bamboo spring ramp (gentle launch, perfect for slow stunts)
+
+  SOUNDTRACK: Ambient flute + soft pads, calming bells — slow, dreamy
+```
+
+### Theme 11: "Clockwork Factory"
+
+```
+SETTING: A noisy, gear-churning factory full of pistons, conveyor belts, and timed traps
+
+  ╭──────────────────────────────────────────────────────────╮
+  │  🏭 Road:     Metal catwalks and conveyor lanes             │
+  │  ⚙️ Mechanisms: Huge gears, pistons, steam vents            │
+  │  ⏱️ Timing:    Many hazards are rhythmic — learn the beat    │
+  │  🔩 Visuals:    Brass, rivets, steam clouds                  │
+  ╰──────────────────────────────────────────────────────────╯
+
+  SURFACES:
+  - Greasy Plate:    friction 0.3, oily skid particles
+  - Conveyor Belt:   friction 0.5, moves you in a direction continuously
+  - Gear Teeth:      friction 1.0, damaging if you clip them (spin out)
+  - Steam Grate:     friction 0.9, momentary steam puffs obscure view
+  - Magnetic Plate:  friction 1.2, locks you to the floor for precision sections
+
+  HAZARDS:
+  - Crushing pistons — rhythmic, predictable (timing-based obstacle)
+  - Gear spinners slice across lanes if you mistime a jump
+  - Conveyor forks push you into alternate, riskier routes
+  - Steam vent bursts blind and push you sideways briefly
+  - Overhead magnetic clamps drop scrap that becomes moving obstacles
+
+  RAMPS:
+  - Spring-loaded piston launch (timed boost if you hit the piston top)
+  - Gear flip ramp (flip orientation mid-air, must land on a moving platform)
+  - Conveyor jump chain (link small conveyors into a high-speed launcher)
+
+  SOUNDTRACK: Industrial percussion + ticking clocks, tense rhythmic beats
+```
+
 ---
 
 ## 17. Track & Environment Systems
@@ -2384,7 +2485,7 @@ func respawn():
 | **Item Hit Reactions** | Per-item state modification | O(1) | Spin, stun, squash, bubble, chicken, §15.4 |
 | **Driver Expressions** | Priority-based expression FSM | O(1) | 12 expression states, timer-based, §14.1 |
 | **Drift Chain** | Consecutive corner detection | O(1) | +50% boost per chained corner, §13.2 |
-| **Theme Surfaces** | Per-theme friction + particle table | O(1) | 8 themes × 5 surfaces each, §16 |
+| **Theme Surfaces** | Per-theme friction + particle table | O(1) | 11 themes × 5 surfaces each, §16 |
 
 ---
 
@@ -2677,7 +2778,7 @@ Status: 🔴 Not Started
 - [ ] **11.16** Add position tracking (1st, 2nd, 3rd... display)
 - [ ] **11.17** Add post-race results screen with trick stats + silly superlatives ("Most Chickens Survived", "Best Belly Flop")
 
-**Deliverable:** 8 wildly unique themed tracks, each a toybox fever dream with silly hazards, unique surfaces, and theme-specific chaos.
+**Deliverable:** 11 wildly unique themed tracks, each a toybox fever dream with silly hazards, unique surfaces, and theme-specific chaos.
 
 ---
 
@@ -2759,7 +2860,7 @@ Status: 🔴 Not Started
 | 8 | Wacky Weapons | Week 10–12 | 20+ silly throwable items, rubber duckies, pie launchers, chicken curses |
 | 9 | AI | Week 13–14 | Fun AI opponents |
 | 10 | Audio | Week 15 | Complete soundscape + announcer voice lines |
-| 11 | Track Themes | Week 16–19 | 8 themed tracks (candy, dinos, toys, pirates, space, haunted, clouds, farm) |
+| 11 | Track Themes | Week 16–19 | 11 themed tracks (candy, dinos, toys, pirates, space, haunted, clouds, farm, Neon Metro, Misty Garden, Clockwork Factory) |
 | 12 | UI & Flow | Week 20 | Full game loop |
 | 13 | Optimization | Week 21 | Stable 60 FPS |
 | 14 | Polish | Week 22–24 | Tuned, tested, and SUPREMELY silly |
