@@ -1,0 +1,36 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="adjusted-ik-3d-demo"
+run/main_scene="uid://soiypxubgag2"
+config/features=PackedStringArray("4.6", "Forward Plus")
+config/icon="res://environment/icon.svg"
+
+[display]
+
+window/size/viewport_width=1200
+window/size/viewport_height=800
+
+[editor]
+
+movie_writer/movie_file="C:/Users/winds/Desktop/ikdemo/fixed/magnet2/mag.png"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=4
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=4
+anti_aliasing/quality/msaa_3d=3

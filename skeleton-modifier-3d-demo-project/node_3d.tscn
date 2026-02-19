@@ -1,0 +1,91 @@
+[gd_scene load_steps=7 format=3 uid="uid://curp2ullvu8yo"]
+
+[ext_resource type="PackedScene" uid="uid://txf7266rbmds" path="res://model.glb" id="1_qao8o"]
+[ext_resource type="Script" path="res://modifier.gd" id="2_otbj4"]
+[ext_resource type="Script" path="res://label_3d.gd" id="3_j3ei2"]
+
+[sub_resource type="Animation" id="Animation_51u5r"]
+resource_name = "RESET"
+tracks/0/type = "rotation_3d"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Armature/Skeleton3D:Bone.001")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = PackedFloat32Array(0, 1, 0, 0, 0, 1)
+tracks/1/type = "rotation_3d"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Armature/Skeleton3D:Bone.002")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = PackedFloat32Array(0, 1, 0, 0, 0, 1)
+
+[sub_resource type="Animation" id="Animation_8j5ai"]
+resource_name = "move"
+loop_mode = 2
+tracks/0/type = "rotation_3d"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Armature/Skeleton3D:Bone.001")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = PackedFloat32Array(0, 1, 0, 0, 0, 1)
+tracks/1/type = "rotation_3d"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Armature/Skeleton3D:Bone.002")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = PackedFloat32Array(0, 1, 0, 0, 0.382683, 0.92388, 1, 1, 0, 0, -0.382683, 0.92388)
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_yiq2k"]
+_data = {
+"RESET": SubResource("Animation_51u5r"),
+"move": SubResource("Animation_8j5ai")
+}
+
+[node name="Node3D" type="Node3D"]
+
+[node name="model" parent="." instance=ExtResource("1_qao8o")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 10)
+
+[node name="CustomModifier" type="SkeletonModifier3D" parent="model/Armature/Skeleton3D" index="2"]
+_import_path = NodePath("")
+unique_name_in_owner = false
+process_mode = 0
+process_priority = 0
+process_physics_priority = 0
+process_thread_group = 0
+physics_interpolation_mode = 0
+auto_translate_mode = 0
+editor_description = ""
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+rotation_edit_mode = 0
+rotation_order = 2
+top_level = false
+visible = true
+visibility_parent = NodePath("")
+active = true
+influence = 0.0
+script = ExtResource("2_otbj4")
+bone = "Bone.002"
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="model"]
+libraries = {
+"": SubResource("AnimationLibrary_yiq2k")
+}
+
+[node name="Label3D" type="Label3D" parent="model"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 10, 0)
+pixel_size = 0.015
+text = "animated_pose:[X: (0.707108, 0.707106, 0), Y: (-0.707106, 0.707108, 0), Z: (0, 0, 1), O: (0, 2, 0)]
+modified_pose:[X: (0.707108, 0.707106, 0), Y: (-0.707106, 0.707108, 0), Z: (0, 0, 1), O: (0, 2, 0)]"
+horizontal_alignment = 0
+vertical_alignment = 2
+script = ExtResource("3_j3ei2")
+
+[connection signal="skeleton_updated" from="model/Armature/Skeleton3D" to="model/Label3D" method="_on_skeleton_3d_skeleton_updated"]
+[connection signal="mixer_applied" from="model/AnimationPlayer" to="model/Label3D" method="_on_animation_player_mixer_applied"]
+
+[editable path="model"]

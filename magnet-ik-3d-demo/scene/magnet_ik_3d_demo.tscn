@@ -1,0 +1,200 @@
+[gd_scene format=3 uid="uid://ctcvtadifweoq"]
+
+[ext_resource type="PackedScene" uid="uid://dmytn0hq3p5l6" path="res://model/arm/arm.glb" id="1_r3lgm"]
+[ext_resource type="Script" uid="uid://shely24vtuk8" path="res://script/constraint_interpolation.gd" id="2_a1iai"]
+[ext_resource type="PackedScene" uid="uid://bbkugcnfx4h84" path="res://model/gun/gun.glb" id="3_hmwuw"]
+
+[sub_resource type="Environment" id="Environment_2cltu"]
+background_mode = 1
+background_color = Color(0.11764706, 0.23529412, 0.4117647, 1)
+ambient_light_source = 2
+ambient_light_color = Color(1, 1, 1, 1)
+
+[sub_resource type="Curve" id="Curve_ynx2s"]
+_data = [Vector2(0, 1), 0.0, -2.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="Animation" id="Animation_g43n8"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("MagnetRoot:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector3(0, 0.0017453292, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("MagnetRoot/Magnet:position")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 0,
+"values": [Vector3(0.7, 0, 0)]
+}
+
+[sub_resource type="Animation" id="Animation_ucow4"]
+resource_name = "new_animation"
+length = 2.0
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("MagnetRoot:rotation")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector3(0, 0.0017453292, 0), Vector3(0, 6.2849307, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("MagnetRoot/Magnet:position")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 1),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector3(0.7, 0, 0), Vector3(-1.4, 0, 0)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_yad3i"]
+_data = {
+&"RESET": SubResource("Animation_g43n8"),
+&"new_animation": SubResource("Animation_ucow4")
+}
+
+[node name="Node3D" type="Node3D" unique_id=1418701052]
+
+[node name="Environment" type="Node3D" parent="." unique_id=1304052312]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="Environment" unique_id=1574546060]
+environment = SubResource("Environment_2cltu")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="Environment" unique_id=1151607644]
+transform = Transform3D(-0.9396926, 0.29619813, 0.17101009, 0, -0.50000006, 0.8660254, 0.34202015, 0.81379765, 0.46984637, 0, 0, 0)
+light_specular = 0.25
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="Environment" unique_id=1297695655]
+transform = Transform3D(0.7660444, 0, 0.6427875, 0, 1, 0, -0.6427875, 0, 0.7660444, 4.5, -0.135, 4)
+fov = 15.0
+
+[node name="ArmRoot" type="Node3D" parent="." unique_id=2125127446]
+
+[node name="arm" parent="ArmRoot" unique_id=1087442727 instance=ExtResource("1_r3lgm")]
+
+[node name="Skeleton3D" parent="ArmRoot/arm/Armature" parent_id_path=PackedInt32Array(1087442727, 1700781941) index="0" unique_id=1588304804]
+bones/5/rotation = Quaternion(-0.104, 0, 0, 0.995)
+bones/6/rotation = Quaternion(0.104, 0, 0, 0.995)
+
+[node name="AimModifier3D" type="AimModifier3D" parent="ArmRoot/arm/Armature/Skeleton3D" index="1" unique_id=1449844006]
+setting_count = 1
+settings/0/amount = 1.0
+settings/0/apply_bone_name = "arm.001"
+settings/0/apply_bone = 0
+settings/0/reference_type = 1
+settings/0/reference_node = NodePath("../../../../../GunRoot/GunOrigin/gun")
+settings/0/forward_axis = 0
+settings/0/use_euler = false
+settings/0/relative = true
+
+[node name="FABRIK3D" type="FABRIK3D" parent="ArmRoot/arm/Armature/Skeleton3D" index="2" unique_id=42124474]
+angular_delta_limit = 3.141592653589793
+deterministic = true
+setting_count = 2
+settings/0/target_node = NodePath("../../../../../MagnetRoot/Magnet")
+settings/1/target_node = NodePath("../../../../../GunRoot/GunOrigin/gun")
+settings/0/root_bone_name = "arm.001"
+settings/0/root_bone = 0
+settings/0/end_bone_name = "arm.003"
+settings/0/end_bone = 2
+settings/0/extend_end_bone = false
+settings/0/joint_count = 3
+settings/0/joints/0/bone = 0
+settings/0/joints/1/bone = 1
+settings/0/joints/2/bone = 2
+settings/1/root_bone_name = "arm.001"
+settings/1/root_bone = 0
+settings/1/end_bone_name = "hand_p"
+settings/1/end_bone = 4
+settings/1/extend_end_bone = false
+settings/1/joint_count = 5
+settings/1/joints/0/bone = 0
+settings/1/joints/1/bone = 1
+settings/1/joints/2/bone = 2
+settings/1/joints/3/bone = 3
+settings/1/joints/4/bone = 4
+settings/0/joints/0/rotation_axis = 3
+settings/0/joints/0/limitation = null
+settings/0/joints/1/rotation_axis = 3
+settings/0/joints/1/limitation = null
+settings/0/joints/2/rotation_axis = 3
+settings/0/joints/2/limitation = null
+settings/1/joints/0/rotation_axis = 3
+settings/1/joints/0/limitation = null
+settings/1/joints/1/rotation_axis = 3
+settings/1/joints/1/limitation = null
+settings/1/joints/2/rotation_axis = 3
+settings/1/joints/2/limitation = null
+settings/1/joints/3/rotation_axis = 3
+settings/1/joints/3/limitation = null
+settings/1/joints/4/rotation_axis = 3
+settings/1/joints/4/limitation = null
+script = ExtResource("2_a1iai")
+threshold = 0.5
+curve = SubResource("Curve_ynx2s")
+
+[node name="CopyTransformModifier3D" type="CopyTransformModifier3D" parent="ArmRoot/arm/Armature/Skeleton3D" index="3" unique_id=1137594317]
+setting_count = 1
+settings/0/amount = 0.9986197
+settings/0/apply_bone_name = "hand_p"
+settings/0/apply_bone = 4
+settings/0/reference_type = 1
+settings/0/reference_node = NodePath("../../../../../GunRoot/GunOrigin/gun")
+settings/0/copy = 2
+settings/0/axes = 7
+settings/0/invert = 0
+settings/0/additive = false
+
+[node name="GunRoot" type="Node3D" parent="." unique_id=1319626284]
+transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0.915, 0, 0)
+
+[node name="GunOrigin" type="Node3D" parent="GunRoot" unique_id=542048180]
+transform = Transform3D(4.371139e-08, 1, -8.742278e-08, 1, -4.371139e-08, 0, -3.821371e-15, -8.742278e-08, -1, -0.55, 0, 0)
+
+[node name="gun" parent="GunRoot/GunOrigin" unique_id=1867595854 instance=ExtResource("3_hmwuw")]
+transform = Transform3D(0.9999999, 0, 0, 0, 0.99999994, 0, 0, 0, 1, 0, 0.4, 0)
+
+[node name="Mesh" parent="GunRoot/GunOrigin/gun" index="0" unique_id=83347514]
+transform = Transform3D(-4.371139e-08, 1, 4.371139e-08, 0, -4.371139e-08, 1, 1, 4.371139e-08, 1.9106855e-15, 0, 0.15, 0)
+
+[node name="MagnetRoot" type="Node3D" parent="." unique_id=843720059]
+transform = Transform3D(0.9999983, 0, 0.001745328, 0, 1, 0, -0.001745328, 0, 0.9999983, 0.5, -0.6, 0)
+
+[node name="Magnet" type="CSGSphere3D" parent="MagnetRoot" unique_id=542504004]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7, 0, 0)
+radius = 0.05
+radial_segments = 24
+rings = 16
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1039059247]
+libraries/ = SubResource("AnimationLibrary_yad3i")
+autoplay = &"new_animation"
+
+[connection signal="modification_processed" from="ArmRoot/arm/Armature/Skeleton3D/FABRIK3D" to="ArmRoot/arm/Armature/Skeleton3D/FABRIK3D" method="_on_modification_processed"]
+
+[editable path="ArmRoot/arm"]
+[editable path="GunRoot/GunOrigin/gun"]

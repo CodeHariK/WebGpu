@@ -1,5 +1,0 @@
-[gd_scene format=3 uid="uid://b5gx0b0bq3u20"]
-
-[node name="MeshScene" type="Node3D" unique_id=725051087]
-
-[node name="SmoothMesh" type="SmoothMesh" parent="." unique_id=1249255646]
