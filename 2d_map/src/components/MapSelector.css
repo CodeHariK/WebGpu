@@ -1,0 +1,89 @@
+.selector-container {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 40px;
+  background-color: #0d0d0d;
+  min-height: 100vh;
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.selector-title {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #f0f0f0;
+  font-weight: 300;
+  letter-spacing: 1px;
+}
+
+.tabs-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.tabs-list {
+  display: flex;
+  position: relative;
+  background-color: #222;
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 30px;
+}
+
+.tabs-tab {
+  all: unset;
+  position: relative;
+  z-index: 1;
+  padding: 10px 24px;
+  color: #a0a0a0;
+  cursor: pointer;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: color 0.15s ease-out;
+}
+
+.tabs-tab[data-selected] {
+  color: #fff;
+}
+
+.tabs-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: var(--active-tab-left);
+  width: var(--active-tab-width);
+  background-color: #4a4a4a;
+  border-radius: 6px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tabs-panel {
+  width: 100%;
+}
+
+.panel-layout {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.canvas-container {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+}
+
+.explanation-container {
+  flex: 0 1 400px;
+  background-color: #1a1a1a;
+  padding: 30px;
+  border-radius: 12px;
+  border: 1px solid #333;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
