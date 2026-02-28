@@ -267,7 +267,12 @@ export default function ContainerDetailsPage({ params }: { params: Promise<{ id:
                                             <li key={i} style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "6px", wordBreak: "break-all", background: "rgba(0,0,0,0.3)", padding: "6px", borderRadius: "4px" }}>
                                                 <strong>Source:</strong> {m.source || m.Name}<br />
                                                 <strong>Target:</strong> {m.destination || m.Destination}<br />
-                                                <strong>Type:</strong> {m.type || "volume"}
+                                                <strong>Type:</strong>{" "}
+                                                {typeof m.type === "string"
+                                                    ? m.type
+                                                    : typeof m.type === "object"
+                                                        ? Object.keys(m.type)[0]
+                                                        : "volume"}
                                             </li>
                                         ))}
                                     </ul>

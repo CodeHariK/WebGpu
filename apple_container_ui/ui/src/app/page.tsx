@@ -40,7 +40,8 @@ import {
   Trash,
   Settings,
   Database,
-  Network
+  Network,
+  KeySquare
 } from "lucide-react";
 import "./Dashboard.css";
 
@@ -223,11 +224,17 @@ export default function Dashboard() {
         </div>
 
         <div className="system-status-toggle" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Link href="/images" className="btn-icon" title="Images & Builders">
+            <Box size={20} color="var(--text-secondary)" />
+          </Link>
           <Link href="/networks" className="btn-icon" title="Container Networks">
             <Network size={20} color="var(--text-secondary)" />
           </Link>
           <Link href="/volumes" className="btn-icon" title="Storage Volumes">
             <Database size={20} color="var(--text-secondary)" />
+          </Link>
+          <Link href="/registries" className="btn-icon" title="Registries">
+            <KeySquare size={20} color="var(--text-secondary)" />
           </Link>
           <Link href="/settings" className="btn-icon" title="Preferences">
             <Settings size={20} color="var(--text-secondary)" />

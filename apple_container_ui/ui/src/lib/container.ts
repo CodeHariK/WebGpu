@@ -497,3 +497,218 @@ export async function deleteImage(imageRef: string, force = false): Promise<void
     const forceFlag = force ? "--force" : "";
     await runCli(`container image delete ${forceFlag} ${imageRef}`);
 }
+
+/**
+ * Build an image
+ */
+export async function buildImage(dir: string, tag: string): Promise<string> {
+    try {
+        return await runCli(`container build -t ${tag} ${dir}`);
+    } catch (e: any) {
+        throw new Error(e.message || "Failed to build image");
+    }
+}
+
+/**
+ * Save an image to a tarball
+ */
+export async function saveImage(name: string, output: string): Promise<string> {
+    try {
+        return await runCli(`container image save --output ${output} ${name}`);
+    } catch (e: any) {
+        throw new Error(e.message || "Failed to save image");
+    }
+}
+
+/**
+ * Load an image from a tarball
+ */
+export async function loadImage(input: string): Promise<string> {
+    try {
+        return await runCli(`container image load --input ${input}`);
+    } catch (e: any) {
+        throw new Error(e.message || "Failed to load image");
+    }
+}
+
+/**
+ * Tag an image
+ */
+export async function tagImage(source: string, target: string): Promise<string> {
+    try {
+        return await runCli(`container image tag ${source} ${target}`);
+    } catch (e: any) {
+        throw new Error(e.message || "Failed to tag image");
+    }
+}
+
+/**
+ * Get Builder status
+ */
+export async function getBuilderStatus(): Promise<BuilderStatus | null> {
+    try {
+        const output = await runCli(`container builder status --format json`);
+        if (output.trim()) {
+            // We can use a simple check, the CLI might output specific raw strings if it's dead
+            if (output.includes("builder is not running")) return null;
+            return JSON.parse(output);
+        }
+        return null;
+    } catch (e: any) {
+        return null;
+    }
+}
+
+export async function startBuilder(): Promise<string> {
+    try {
+        return await runCli(`container builder start`);
+    } catch (e: any) {
+        throw new Error(e.message || "Failed to start builder");
+    }
+}
+
+export async function stopBuilder(): Promise<string> {
+    try {
+        return await runCli(`container builder stop`);
+    } catch (e: any) {
+        throw new Error(e.message || "Failed to stop builder");
+    }
+}
+
+export interface BuilderStatus {
+    pid?: number;
+    cpus?: number;
+    memory?: number;
+    buildkitdMemoryLimit?: number;
+}
+
+// --- Registry Management ---
+
+/**
+ * List active registry sessions
+ */
+export async function listRegistries(): Promise<string[]> {
+    try {
+        const output = await runCli(`container registry list --format json`);
+        if (!output.trim()) return [];
+        return JSON.parse(output);
+    } catch (e: any) {
+        if (e.message?.includes("connection refused") || e.message?.includes("daemon is not running")) {
+            return [];
+        }
+        console.error("Failed to list registries:", e);
+        return [];
+    }
+}
+
+/**
+ * Login to a registry
+ */
+export async function registryLogin(server: string, user: string, pass: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const child = exec(`container registry login --username ${user} --password-stdin ${server}`, (error, stdout, stderr) => {
+            if (error) {
+                return reject(new Error(stderr || error.message));
+            }
+            resolve(stdout.trim());
+        });
+
+        if (child.stdin) {
+            child.stdin.write(pass + "\n");
+            child.stdin.end();
+        } else {
+            reject(new Error("Unable to write to stdin"));
+        }
+    });
+}
+
+/**
+ * Logout of a registry
+ */
+export async function registryLogout(server: string): Promise<string> {
+    try {
+        return await runCli(`container registry logout ${server}`);
+    } catch (e: any) {
+        throw new Error(e.message || "Failed to logout of registry");
+    }
+}
+
+// --- System Properties & DNS Management ---
+
+export interface SystemProperty {
+    ID: string;
+    Value: string;
+    Type: string;
+    Description: string;
+}
+
+export async function listSystemProperties(): Promise<SystemProperty[]> {
+    try {
+        const output = await runCli(`container system property list --format json`);
+        if (!output.trim()) return [];
+        return JSON.parse(output);
+    } catch (e: any) {
+        if (e.message?.includes("connection refused") || e.message?.includes("daemon is not running")) {
+            return [];
+        }
+        console.error("Failed to list system properties:", e);
+        return [];
+    }
+}
+
+export async function getSystemProperty(id: string): Promise<string> {
+    try {
+        return await runCli(`container system property get ${id}`);
+    } catch (e: any) {
+        throw new Error(e.message || `Failed to get property: ${id}`);
+    }
+}
+
+export async function setSystemProperty(id: string, value: string): Promise<string> {
+    try {
+        return await runCli(`container system property set ${id} ${value}`);
+    } catch (e: any) {
+        throw new Error(e.message || `Failed to set property: ${id}`);
+    }
+}
+
+export async function clearSystemProperty(id: string): Promise<string> {
+    try {
+        return await runCli(`container system property clear ${id}`);
+    } catch (e: any) {
+        throw new Error(e.message || `Failed to clear property: ${id}`);
+    }
+}
+
+export interface DnsDomain {
+    Name: string;
+}
+
+export async function listDnsDomains(): Promise<string[]> {
+    try {
+        const output = await runCli(`container system dns list`);
+        if (!output.trim()) return [];
+        // The output of `dns list` is likely plain text (domains separated by newlines).
+        return output.split('\n').map(line => line.trim()).filter(line => line);
+    } catch (e: any) {
+        return [];
+    }
+}
+
+export async function createDnsDomain(domain: string): Promise<string> {
+    try {
+        return await runCli(`container system dns create ${domain}`);
+    } catch (e: any) {
+        throw new Error(e.message || `Failed to create DNS domain: ${domain}`);
+    }
+}
+
+export async function deleteDnsDomain(domain: string): Promise<string> {
+    try {
+        return await runCli(`container system dns delete ${domain}`);
+    } catch (e: any) {
+        throw new Error(e.message || `Failed to delete DNS domain: ${domain}`);
+    }
+}
+
+

@@ -14,7 +14,10 @@ import {
     createNetwork,
     removeNetwork,
     NetworkInfo,
-    checkSystemStatus
+    checkSystemStatus,
+    listDnsDomains,
+    createDnsDomain,
+    deleteDnsDomain
 } from "@/lib/container";
 import "../Dashboard.css";
 
@@ -24,6 +27,11 @@ export default function NetworksPage() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [newNetworkName, setNewNetworkName] = useState("");
     const [systemRunning, setSystemRunning] = useState(false);
+
+    // DNS Domains State
+    const [dnsDomains, setDnsDomains] = useState<string[]>([]);
+    const [newDnsDomain, setNewDnsDomain] = useState("");
+    const [isLoadingDns, setIsLoadingDns] = useState(false);
 
     const refreshData = async () => {
         setIsLoading(true);
@@ -44,13 +52,29 @@ export default function NetworksPage() {
                 });
 
                 setNetworks(nets);
+
+                // Fetch DNS Domains concurrently
+                fetchDnsDomains();
             } else {
                 setNetworks([]);
+                setDnsDomains([]);
             }
         } catch (e) {
             console.error(e);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchDnsDomains = async () => {
+        setIsLoadingDns(true);
+        try {
+            const domains = await listDnsDomains();
+            setDnsDomains(domains);
+        } catch (e) {
+            console.error("Failed to fetch DNS domains:", e);
+        } finally {
+            setIsLoadingDns(false);
         }
     };
 
@@ -86,6 +110,33 @@ export default function NetworksPage() {
             await refreshData();
         } catch (e: any) {
             alert(e.message);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleCreateDns = async () => {
+        if (!newDnsDomain.trim()) return;
+        setActionLoading("create-dns");
+        try {
+            await createDnsDomain(newDnsDomain.trim());
+            setNewDnsDomain("");
+            await fetchDnsDomains();
+        } catch (e: any) {
+            alert(e.message || "Failed to create DNS domain");
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleDeleteDns = async (domain: string) => {
+        if (!confirm(`Are you sure you want to delete local DNS domain '${domain}'? (Requires admin privileges)`)) return;
+        setActionLoading("delete-dns-" + domain);
+        try {
+            await deleteDnsDomain(domain);
+            await fetchDnsDomains();
+        } catch (e: any) {
+            alert(e.message || "Failed to delete DNS domain");
         } finally {
             setActionLoading(null);
         }
@@ -208,6 +259,77 @@ export default function NetworksPage() {
                             </div>
                         )}
                     </main>
+
+                    {/* DNS Management Section */}
+                    <section className="premium-card" style={{ marginTop: '24px' }}>
+                        <div className="list-header flex-between mb-4">
+                            <h2 style={{ fontSize: '20px' }}>Local DNS Domains</h2>
+                            <button className="btn btn-ghost" onClick={fetchDnsDomains} disabled={isLoadingDns}>
+                                <RefreshCw size={16} className={isLoadingDns ? "spin" : ""} /> Refresh
+                            </button>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', marginBottom: '16px' }}>
+                            <div className="input-group" style={{ flex: 1 }}>
+                                <label>Add DNS Domain (sudo maybe required)</label>
+                                <input
+                                    className="premium-input"
+                                    placeholder="e.g., containers.local"
+                                    value={newDnsDomain}
+                                    onChange={e => setNewDnsDomain(e.target.value)}
+                                    // Submit on Enter key
+                                    onKeyDown={e => e.key === 'Enter' && handleCreateDns()}
+                                />
+                            </div>
+                            <div>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={handleCreateDns}
+                                    disabled={!newDnsDomain.trim() || actionLoading === "create-dns"}
+                                    style={{ height: '40px', padding: '0 24px' }}
+                                >
+                                    {actionLoading === "create-dns" ? <RefreshCw size={16} className="spin" /> : <Plus size={16} />}
+                                    Add Domain
+                                </button>
+                            </div>
+                        </div>
+
+                        {dnsDomains.length === 0 ? (
+                            <div className="empty-state" style={{ padding: '24px 0' }}>
+                                <p>No local DNS domains configured.</p>
+                            </div>
+                        ) : (
+                            <div className="table-responsive">
+                                <table className="container-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Domain Name</th>
+                                            <th style={{ textAlign: "right" }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {dnsDomains.map((domain, i) => (
+                                            <tr key={i} className="container-row">
+                                                <td style={{ fontWeight: 500, color: "var(--text-primary)" }}>{domain}</td>
+                                                <td style={{ textAlign: "right" }}>
+                                                    <div className="action-buttons">
+                                                        <button
+                                                            className="btn-icon text-danger"
+                                                            onClick={() => handleDeleteDns(domain)}
+                                                            disabled={actionLoading === "delete-dns-" + domain}
+                                                            title="Delete Domain"
+                                                        >
+                                                            {actionLoading === "delete-dns-" + domain ? <RefreshCw size={16} className="spin" /> : <Trash2 size={16} />}
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </section>
                 </>
             )}
         </div>
