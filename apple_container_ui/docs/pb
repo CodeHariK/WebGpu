@@ -1,0 +1,10 @@
+ID                 TYPE    VALUE                                     DESCRIPTION
+build.rosetta      Bool    false                                     Build amd64 images on arm64 using Rosetta, instead of QEMU.
+dns.domain         String  *undefined*                               If defined, the local DNS domain to use for containers with unqualified names.
+image.builder      String  ghcr.io/apple/container-builder-shim/...  The image reference for the utility container that `container build` uses.
+image.init         String  ghcr.io/apple/containerization/vminit...  The image reference for the default initial filesystem image.
+kernel.binaryPath  String  opt/kata/share/kata-containers/vmlinu...  If the kernel URL is for an archive, the archive member pathname for the kernel file.
+kernel.url         String  https://github.com/kata-containers/ka...  The URL for the kernel file to install, or the URL for an archive containing the kernel file.
+network.subnet     String  *undefined*                               Default subnet for IPv4 allocation.
+network.subnetv6   String  *undefined*                               Default IPv6 network prefix.
+registry.domain    String  docker.io                                 The default registry to use for image references that do not specify a registry.

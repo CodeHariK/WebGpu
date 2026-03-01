@@ -2,11 +2,12 @@
 
 import { exec } from "child_process";
 import { promisify } from "util";
+import { readdir, stat, readFile } from "fs/promises";
+import { join, relative, isAbsolute } from "path";
 
 const execAsync = promisify(exec);
 
 export type ContainerState = "running" | "stopped" | "paused" | "exited" | "dead" | "unknown";
-
 export interface ContainerInfo {
     Command?: string;
     CreatedAt?: string;
@@ -16,7 +17,7 @@ export interface ContainerInfo {
     LocalVolumes?: string;
     Mounts?: any;
     Names: string;
-    Networks?: any;
+    Networks?: any[];
     Ports?: any;
     RunningFor?: string;
     Size?: string;
@@ -26,6 +27,7 @@ export interface ContainerInfo {
     CPUs?: number;
     MemoryBytes?: number;
 }
+
 
 export interface CommandLog {
     id: string;
@@ -106,70 +108,46 @@ export async function stopSystem(): Promise<void> {
 export async function listContainers(): Promise<ContainerInfo[]> {
     try {
         const output = await runCli("container ls --all --format json");
-        if (!output) return [];
+        if (!output.trim()) return [];
 
-        // The output might be newline-separated JSON objects, or a JSON array.
-        // Docker and podman format json output as one object per line. Let's handle both.
-        let containers: any[] = [];
+        let raw: any[] = [];
         try {
-            containers = JSON.parse(output);
-            if (!Array.isArray(containers)) {
-                containers = [containers];
-            }
+            raw = JSON.parse(output);
+            if (!Array.isArray(raw)) raw = [raw];
         } catch {
-            // If it fails to parse as a single array, split by newline and parse each line
-            containers = output.split('\n').filter(Boolean).map(line => {
-                try {
-                    return JSON.parse(line);
-                } catch (e) {
-                    console.error("Failed to parse line:", line);
-                    return null;
-                }
+            raw = output.split('\n').filter(Boolean).map(line => {
+                try { return JSON.parse(line); } catch { return null; }
             }).filter(Boolean);
         }
 
-        // Attempt to normalize the "State" for the UI based on Status string
-        return containers.map(c => {
+        return raw.map(c => {
+            const id = c.configuration?.id || c.ID || c.Id || "";
+            const image = c.configuration?.image?.reference || c.Image || c.image || "";
+            const status = c.status || c.Status || "";
+            const ports = c.configuration?.publishedPorts || c.Ports || [];
+            const createdAt = c.startedDate ? new Date(c.startedDate * 1000).toLocaleString() : (c.CreatedAt || c.createdAt || "");
+
             let state: ContainerState = "unknown";
-            const statusStr = c.status || c.Status || "";
-            const statusLower = statusStr.toLowerCase();
+            const statusLower = status.toLowerCase();
             if (statusLower.includes("up") || statusLower.includes("running")) state = "running";
             else if (statusLower.includes("exited") || statusLower.includes("stopped")) state = "exited";
 
-            // Support Apple specific JSON mapping
-            const id = c.ID || c.Id || c.configuration?.id || "";
-            const image = c.Image || c.configuration?.image?.reference || "";
-            let names = c.Names || c.Name || "";
-
-            // Clean up docker.io/library prefixes
-            let cleanImage = image;
-            if (cleanImage.startsWith("docker.io/library/")) {
-                cleanImage = cleanImage.replace("docker.io/library/", "");
-            }
-
-            // Extract advanced features
-            const publishedPorts = c.configuration?.publishedPorts || [];
-            const env = c.configuration?.initProcess?.environment || [];
-            const mounts = c.configuration?.mounts || [];
-            const cpus = c.configuration?.resources?.cpus;
-            const memoryBytes = c.configuration?.resources?.memoryInBytes;
-
             return {
-                ...c,
                 ID: id,
-                Image: cleanImage,
-                Names: names,
-                Status: statusStr,
+                Image: image,
+                Status: status,
                 State: state,
-                Ports: publishedPorts,
-                Env: env,
-                Mounts: mounts,
-                CPUs: cpus,
-                MemoryBytes: memoryBytes
+                Ports: ports,
+                Names: id, // Use ID as name if not provided
+                CreatedAt: createdAt,
+                Networks: c.networks || [],
+                Env: c.configuration?.initProcess?.environment || [],
+                Mounts: c.configuration?.mounts || [],
+                CPUs: c.configuration?.resources?.cpus,
+                MemoryBytes: c.configuration?.resources?.memoryInBytes
             };
         });
     } catch (e: any) {
-        // If system is completely off, ls will fail. Return empty list instead of throwing to the UI.
         if (e.message?.includes("connection refused") || e.message?.includes("daemon is not running") || e.message?.includes("apiserver is not running")) {
             return [];
         }
@@ -273,7 +251,6 @@ export async function listVolumes(): Promise<VolumeInfo[]> {
         if (!output.trim()) return [];
         return JSON.parse(output);
     } catch (e: any) {
-        // If apiserver is not running, it will fail
         console.error("Failed to list volumes:", e);
         return [];
     }
@@ -322,7 +299,6 @@ export async function listNetworks(): Promise<NetworkInfo[]> {
         if (!output.trim()) return [];
         return JSON.parse(output);
     } catch (e: any) {
-        // If apiserver is not running, it will fail
         console.error("Failed to list networks:", e);
         return [];
     }
@@ -344,8 +320,6 @@ export async function createNetwork(name: string): Promise<string> {
  */
 export async function removeNetwork(name: string, force = false): Promise<string> {
     try {
-        // force flag isn't officially documented for network rm, but passing it just in case we need it later
-        // or substituting it for prune if we need to.
         return await runCli(`container network rm ${name}`);
     } catch (e: any) {
         throw new Error(e.message || "Failed to remove network");
@@ -387,7 +361,7 @@ export interface ContainerConfig {
  * Create and run a new container with advanced configuration
  */
 export async function createContainer(config: ContainerConfig): Promise<void> {
-    let args = "-d "; // Always detach
+    let args = "-d ";
 
     if (config.cpus) args += `--cpus ${config.cpus} `;
     if (config.memory) args += `--memory ${config.memory} `;
@@ -439,20 +413,10 @@ export interface ImageInfo {
 export async function listImages(): Promise<ImageInfo[]> {
     try {
         const output = await runCli("container image list --format json");
-        if (!output) return [];
-        let rawImages: any[] = [];
-        try {
-            rawImages = JSON.parse(output);
-            if (!Array.isArray(rawImages)) {
-                rawImages = [rawImages];
-            }
-        } catch {
-            rawImages = output.split('\n').filter(Boolean).map(line => {
-                try { return JSON.parse(line); } catch { return null; }
-            }).filter(Boolean);
-        }
+        if (!output.trim()) return [];
 
-        return rawImages.map(img => {
+        const raw: any[] = JSON.parse(output);
+        return raw.map(img => {
             const reference = img.reference || "";
             const lastColonIndex = reference.lastIndexOf(':');
             let repo = reference;
@@ -461,25 +425,22 @@ export async function listImages(): Promise<ImageInfo[]> {
                 repo = reference.substring(0, lastColonIndex);
                 tag = reference.substring(lastColonIndex + 1);
             }
-
-            // Shorten repo name if it starts with docker.io/library/
             if (repo.startsWith("docker.io/library/")) {
                 repo = repo.replace("docker.io/library/", "");
             }
 
-            // Digest usually starts with sha256:
-            let digest = img.descriptor?.digest || "";
+            let digest = img.descriptor?.digest || img.ID || "";
             if (digest.startsWith("sha256:")) {
                 digest = digest.replace("sha256:", "");
             }
 
             return {
                 ID: digest,
-                Name: reference, // Used for deletion
+                Name: reference,
                 Repository: repo,
                 Tag: tag,
                 Size: img.fullSize || img.descriptor?.size || "-",
-                CreatedAt: "-"
+                CreatedAt: img.descriptor?.annotations?.["org.opencontainers.image.created"] || "-"
             };
         });
     } catch (e: any) {
@@ -548,12 +509,19 @@ export async function tagImage(source: string, target: string): Promise<string> 
 export async function getBuilderStatus(): Promise<BuilderStatus | null> {
     try {
         const output = await runCli(`container builder status --format json`);
-        if (output.trim()) {
-            // We can use a simple check, the CLI might output specific raw strings if it's dead
-            if (output.includes("builder is not running")) return null;
-            return JSON.parse(output);
-        }
-        return null;
+        if (!output.trim() || output.includes("builder is not running")) return null;
+
+        const builders: any[] = JSON.parse(output);
+        if (builders.length === 0) return null;
+
+        const b = builders[0];
+        return {
+            id: b.configuration?.id || "buildkit",
+            status: b.status || "unknown",
+            cpus: b.configuration?.resources?.cpus,
+            memoryInBytes: b.configuration?.resources?.memoryInBytes,
+            image: b.configuration?.image?.reference
+        };
     } catch (e: any) {
         return null;
     }
@@ -576,10 +544,11 @@ export async function stopBuilder(): Promise<string> {
 }
 
 export interface BuilderStatus {
-    pid?: number;
+    id: string;
+    status: string;
     cpus?: number;
-    memory?: number;
-    buildkitdMemoryLimit?: number;
+    memoryInBytes?: number;
+    image?: string;
 }
 
 // --- Registry Management ---
@@ -646,7 +615,13 @@ export async function listSystemProperties(): Promise<SystemProperty[]> {
     try {
         const output = await runCli(`container system property list --format json`);
         if (!output.trim()) return [];
-        return JSON.parse(output);
+        const rawProps: any[] = JSON.parse(output);
+        return rawProps.map(p => ({
+            ID: p.id || p.ID || "",
+            Value: p.value !== null && p.value !== undefined ? String(p.value) : "",
+            Type: p.type || p.Type || "",
+            Description: p.description || p.Description || ""
+        }));
     } catch (e: any) {
         if (e.message?.includes("connection refused") || e.message?.includes("daemon is not running")) {
             return [];
@@ -680,15 +655,10 @@ export async function clearSystemProperty(id: string): Promise<string> {
     }
 }
 
-export interface DnsDomain {
-    Name: string;
-}
-
 export async function listDnsDomains(): Promise<string[]> {
     try {
         const output = await runCli(`container system dns list`);
         if (!output.trim()) return [];
-        // The output of `dns list` is likely plain text (domains separated by newlines).
         return output.split('\n').map(line => line.trim()).filter(line => line);
     } catch (e: any) {
         return [];
@@ -708,6 +678,64 @@ export async function deleteDnsDomain(domain: string): Promise<string> {
         return await runCli(`container system dns delete ${domain}`);
     } catch (e: any) {
         throw new Error(e.message || `Failed to delete DNS domain: ${domain}`);
+    }
+}
+
+/**
+ * Recursively find all Dockerfiles in the given directory or project root
+ */
+export async function findDockerfiles(baseDir?: string): Promise<{ path: string; name: string }[]> {
+    const rootDir = process.cwd();
+    let startDir = baseDir || rootDir;
+
+    // Resolve relative paths if provided
+    if (!isAbsolute(startDir)) {
+        startDir = join(rootDir, startDir);
+    }
+
+    const results: { path: string; name: string }[] = [];
+
+    async function search(dir: string) {
+        try {
+            const files = await readdir(dir);
+            for (const file of files) {
+                const fullPath = join(dir, file);
+
+                if (file === "node_modules" || file.startsWith(".")) continue;
+
+                const s = await stat(fullPath);
+                if (s.isDirectory()) {
+                    await search(fullPath);
+                } else if (file === "Dockerfile" || file === "Containerfile" || file.endsWith(".Dockerfile")) {
+                    results.push({
+                        path: fullPath,
+                        name: relative(startDir, fullPath)
+                    });
+                }
+            }
+        } catch (err) {
+            // Silently skip unreadable directories
+        }
+    }
+
+    try {
+        await search(startDir);
+        return results;
+    } catch (e) {
+        console.error("Failed to search Dockerfiles:", e);
+        return [];
+    }
+}
+
+/**
+ * Read the content of a file
+ */
+export async function readFileContent(path: string): Promise<string> {
+    try {
+        const content = await readFile(path, 'utf8');
+        return content;
+    } catch (e: any) {
+        throw new Error(`Failed to read file: ${e.message}`);
     }
 }
 

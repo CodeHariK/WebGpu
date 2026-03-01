@@ -93,7 +93,7 @@ export default function ImagesPage() {
     };
 
     const handleBuilderToggle = () => {
-        if (builderStatus) {
+        if (builderStatus?.status === "running") {
             executeAction("stop-builder", () => stopBuilder());
         } else {
             executeAction("start-builder", () => startBuilder());
@@ -158,22 +158,23 @@ export default function ImagesPage() {
                             <h2 style={{ fontSize: '16px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>BuildKit Daemon</h2>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span className={`status-indicator status-${builderStatus ? 'running' : 'stopped'}`} />
-                                    <span style={{ fontSize: '14px' }}>{builderStatus ? "Running" : "Stopped"}</span>
+                                    <span className={`status-indicator status-${builderStatus?.status === 'running' ? 'running' : 'stopped'}`} />
+                                    <span style={{ fontSize: '14px' }}>{builderStatus?.status === 'running' ? "Running" : "Stopped"}</span>
                                 </div>
                                 <button
-                                    className={`btn ${builderStatus ? 'btn-ghost' : 'btn-primary'}`}
+                                    className={`btn ${builderStatus?.status === 'running' ? 'btn-ghost' : 'btn-primary'}`}
                                     onClick={handleBuilderToggle}
                                     disabled={actionLoading === "start-builder" || actionLoading === "stop-builder"}
                                 >
-                                    {actionLoading?.includes("builder") ? <RefreshCw size={14} className="spin" /> : (builderStatus ? <Square size={14} /> : <Play size={14} />)}
-                                    {builderStatus ? "Stop" : "Start"}
+                                    {actionLoading?.includes("builder") ? <RefreshCw size={14} className="spin" /> : (builderStatus?.status === 'running' ? <Square size={14} /> : <Play size={14} />)}
+                                    {builderStatus?.status === 'running' ? "Stop" : "Start"}
                                 </button>
                             </div>
                             {builderStatus && (
                                 <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                                    <p>PID: {builderStatus.pid}</p>
-                                    <p>CPUs: {builderStatus.cpus}</p>
+                                    <p>ID: {builderStatus.id}</p>
+                                    {builderStatus.cpus && <p>CPUs: {builderStatus.cpus}</p>}
+                                    {builderStatus.memoryInBytes && <p>Memory: {Math.round(builderStatus.memoryInBytes / 1024 / 1024 / 1024)}GB</p>}
                                 </div>
                             )}
                         </section>

@@ -41,7 +41,8 @@ import {
   Settings,
   Database,
   Network,
-  KeySquare
+  KeySquare,
+  FileCode
 } from "lucide-react";
 import "./Dashboard.css";
 
@@ -235,6 +236,9 @@ export default function Dashboard() {
           </Link>
           <Link href="/registries" className="btn-icon" title="Registries">
             <KeySquare size={20} color="var(--text-secondary)" />
+          </Link>
+          <Link href="/dockerfiles" className="btn-icon" title="Build and Discover Dockerfiles">
+            <FileCode size={20} color="var(--text-secondary)" />
           </Link>
           <Link href="/settings" className="btn-icon" title="Preferences">
             <Settings size={20} color="var(--text-secondary)" />

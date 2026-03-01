@@ -205,13 +205,28 @@ export default function SettingsPage() {
                             <label style={{ display: "block", marginBottom: "8px", fontWeight: 500 }}>
                                 {editingProp.ID} <span style={{ opacity: 0.5, fontWeight: 'normal' }}>({editingProp.Type})</span>
                             </label>
-                            <input
-                                type="text"
-                                className="premium-input w-full"
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                autoFocus
-                            />
+                            {editingProp.Type === "Bool" ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                                    <input
+                                        type="checkbox"
+                                        id="prop-bool-input"
+                                        checked={editValue === "true"}
+                                        onChange={(e) => setEditValue(e.target.checked ? "true" : "false")}
+                                        style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                                    />
+                                    <label htmlFor="prop-bool-input" style={{ cursor: 'pointer', fontSize: '14px' }}>
+                                        {editValue === "true" ? "Enabled" : "Disabled"}
+                                    </label>
+                                </div>
+                            ) : (
+                                <input
+                                    type="text"
+                                    className="premium-input w-full"
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    autoFocus
+                                />
+                            )}
                         </div>
                         <div className="modal-actions">
                             <button

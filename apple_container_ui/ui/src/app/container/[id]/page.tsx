@@ -229,6 +229,7 @@ export default function ContainerDetailsPage({ params }: { params: Promise<{ id:
                                 <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px" }}>General</h3>
                                 <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px" }}><strong style={{ color: "var(--text-primary)" }}>Image:</strong> {containerInfo.Image}</p>
                                 <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px" }}><strong style={{ color: "var(--text-primary)" }}>Status:</strong> {containerInfo.Status}</p>
+                                <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px" }}><strong style={{ color: "var(--text-primary)" }}>Created At:</strong> {containerInfo.CreatedAt || "Unknown"}</p>
                                 <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px" }}><strong style={{ color: "var(--text-primary)" }}>CPUs:</strong> {containerInfo.CPUs || "Unlimited"}</p>
                                 <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px" }}><strong style={{ color: "var(--text-primary)" }}>Memory:</strong> {containerInfo.MemoryBytes ? (containerInfo.MemoryBytes / 1024 / 1024) + " MB" : "Unlimited"}</p>
                             </div>
@@ -237,7 +238,7 @@ export default function ContainerDetailsPage({ params }: { params: Promise<{ id:
                                 <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px" }}>Network Ports</h3>
                                 {Array.isArray(containerInfo.Ports) && containerInfo.Ports.length > 0 ? (
                                     <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                                        {containerInfo.Ports.map((p, i) => (
+                                        {containerInfo.Ports.map((p: any, i: number) => (
                                             <li key={i} style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "4px" }}>
                                                 {p.hostAddress || "0.0.0.0"}:{p.hostPort} &rarr; {p.containerPort}/{p.proto || "tcp"}
                                             </li>
@@ -247,10 +248,29 @@ export default function ContainerDetailsPage({ params }: { params: Promise<{ id:
                             </div>
 
                             <div className="premium-card" style={{ padding: "16px", background: "rgba(255,255,255,0.02)" }}>
+                                <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px" }}>Network Interfaces</h3>
+                                {Array.isArray(containerInfo.Networks) && containerInfo.Networks.length > 0 ? (
+                                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                                        {containerInfo.Networks.map((n: any, i: number) => (
+                                            <li key={i} style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "12px", background: "rgba(0,0,0,0.3)", padding: "10px", borderRadius: "6px" }}>
+                                                <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>{n.network || "Interface " + (i + 1)}</div>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px' }}>
+                                                    <strong>IP:</strong> <span style={{ fontFamily: 'monospace' }}>{n.ipv4Address || n.ipv6Address || "-"}</span>
+                                                    <strong>Gateway:</strong> <span style={{ fontFamily: 'monospace' }}>{n.ipv4Gateway || "-"}</span>
+                                                    <strong>MAC:</strong> <span style={{ fontFamily: 'monospace' }}>{n.macAddress || "-"}</span>
+                                                    <strong>Host:</strong> <span style={{ fontFamily: 'monospace' }}>{n.hostname || "-"}</span>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontStyle: "italic" }}>No network details</p>}
+                            </div>
+
+                            <div className="premium-card" style={{ padding: "16px", background: "rgba(255,255,255,0.02)" }}>
                                 <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px" }}>Environment Variables</h3>
                                 {Array.isArray(containerInfo.Env) && containerInfo.Env.length > 0 ? (
                                     <div style={{ maxHeight: "150px", overflowY: "auto", background: "rgba(0,0,0,0.3)", padding: "8px", borderRadius: "4px" }}>
-                                        {containerInfo.Env.map((e, i) => (
+                                        {containerInfo.Env.map((e: string, i: number) => (
                                             <div key={i} style={{ fontSize: "12px", fontFamily: "monospace", color: "var(--text-secondary)", marginBottom: "4px", wordBreak: "break-all" }}>
                                                 {e}
                                             </div>
@@ -263,7 +283,7 @@ export default function ContainerDetailsPage({ params }: { params: Promise<{ id:
                                 <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px" }}>Bind Mounts / Volumes</h3>
                                 {Array.isArray(containerInfo.Mounts) && containerInfo.Mounts.length > 0 ? (
                                     <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                                        {containerInfo.Mounts.map((m, i) => (
+                                        {containerInfo.Mounts.map((m: any, i: number) => (
                                             <li key={i} style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "6px", wordBreak: "break-all", background: "rgba(0,0,0,0.3)", padding: "6px", borderRadius: "4px" }}>
                                                 <strong>Source:</strong> {m.source || m.Name}<br />
                                                 <strong>Target:</strong> {m.destination || m.Destination}<br />
