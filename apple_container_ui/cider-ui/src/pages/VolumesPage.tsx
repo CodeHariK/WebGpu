@@ -53,12 +53,11 @@ export default function VolumesPage() {
         if (!newVolumeName.trim()) return;
         setActionLoading("create");
         try {
-            const res = await createVolume(newVolumeName.trim());
-            if (!res.ok) throw new Error(await res.text() || "Failed to create volume");
+            await createVolume(newVolumeName);
             setNewVolumeName("");
-            await refreshData();
-        } catch (e: any) {
-            alert(e.message);
+            refreshData();
+        } catch (e) {
+            alert(e);
         } finally {
             setActionLoading(null);
         }
@@ -68,11 +67,10 @@ export default function VolumesPage() {
         if (!confirm(`Are you sure you want to delete volume '${name}'?`)) return;
         setActionLoading("delete-" + name);
         try {
-            const res = await removeVolume(name);
-            if (!res.ok) throw new Error(await res.text() || "Failed to delete volume");
-            await refreshData();
-        } catch (e: any) {
-            alert(e.message);
+            await removeVolume(name);
+            refreshData();
+        } catch (e) {
+            alert(e);
         } finally {
             setActionLoading(null);
         }

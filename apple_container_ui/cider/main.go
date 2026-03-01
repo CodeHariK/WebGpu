@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/creack/pty"
+	"github.com/gorilla/websocket"
 )
 
 //go:embed all:dist
@@ -38,11 +42,54 @@ type ContainerInfo struct {
 	Networks  interface{} `json:"Networks"`
 }
 
+type CommandLog struct {
+	ID        string    `json:"id"`
+	Timestamp time.Time `json:"timestamp"`
+	Command   string    `json:"command"`
+	Output    string    `json:"output"`
+	IsError   bool      `json:"isError"`
+}
+
+var (
+	actionLogs []CommandLog
+)
+
+func logAction(command string, output string, isError bool) {
+	// Simple noise filtering similar to original JS implementation
+	if strings.Contains(command, "ls --all") || strings.Contains(command, "image list") || strings.Contains(command, "top") || strings.Contains(command, "stats") {
+		if !isError {
+			return
+		}
+	}
+
+	logEntry := CommandLog{
+		ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
+		Timestamp: time.Now(),
+		Command:   command,
+		Output:    output,
+		IsError:   isError,
+	}
+	actionLogs = append(actionLogs, logEntry)
+	// Keep only last 100 logs
+	if len(actionLogs) > 100 {
+		actionLogs = actionLogs[1:]
+	}
+}
+
 // --- Helpers ---
 
 func runCli(args ...string) ([]byte, error) {
+	fullCmd := "container " + strings.Join(args, " ")
 	cmd := exec.Command("container", args...)
-	return cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		logAction(fullCmd, fmt.Sprintf("Error: %v\nOutput: %s", err, string(output)), true)
+	} else {
+		logAction(fullCmd, string(output), false)
+	}
+
+	return output, err
 }
 
 func enableCors(next http.Handler) http.Handler {
@@ -62,8 +109,15 @@ func enableCors(next http.Handler) http.Handler {
 
 func handleStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	cmd := exec.Command("container", "system", "status")
+	err := cmd.Run()
+	status := "ok"
+	if err != nil {
+		status = "offline"
+	}
+
 	json.NewEncoder(w).Encode(StatusResponse{
-		Status:    "ok",
+		Status:    status,
 		Version:   "0.0.1",
 		Timestamp: time.Now().Format(time.RFC3339),
 	})
@@ -72,12 +126,17 @@ func handleStatus(w http.ResponseWriter, r *http.Request) {
 func handleListContainers(w http.ResponseWriter, r *http.Request) {
 	output, err := runCli("ls", "--all", "--format", "json")
 	if err != nil {
+		outStr := string(output)
+		if strings.Contains(outStr, "container system start") ||
+			strings.Contains(outStr, "XPC connection error") ||
+			strings.Contains(outStr, "Connection invalid") {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
+			return
+		}
 		http.Error(w, fmt.Sprintf("CLI Error: %v\nOutput: %s", err, string(output)), http.StatusInternalServerError)
 		return
 	}
-
-	// We can return the raw JSON if it matches what we want,
-	// or parse and transform if needed. For now, raw CLI JSON is good.
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(output)
 }
@@ -102,6 +161,14 @@ func handleInspectContainer(w http.ResponseWriter, r *http.Request) {
 func handleListImages(w http.ResponseWriter, r *http.Request) {
 	output, err := runCli("image", "list", "--format", "json")
 	if err != nil {
+		outStr := string(output)
+		if strings.Contains(outStr, "container system start") ||
+			strings.Contains(outStr, "XPC connection error") ||
+			strings.Contains(outStr, "Connection invalid") {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
+			return
+		}
 		http.Error(w, fmt.Sprintf("CLI Error: %v\nOutput: %s", err, string(output)), http.StatusInternalServerError)
 		return
 	}
@@ -110,9 +177,9 @@ func handleListImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGetStats(w http.ResponseWriter, r *http.Request) {
-	output, err := runCli("top", "--format", "json")
+	output, err := runCli("stats", "--no-stream", "--format", "json")
 	if err != nil {
-		// If no containers are running, 'top' might error or return empty.
+		// If no containers are running, 'stats' might error or return empty.
 		// For now, return empty array.
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte("[]"))
@@ -167,6 +234,109 @@ func handleRemoveContainer(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func handleSystemAction(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	action := strings.TrimPrefix(r.URL.Path, "/api/system/")
+	var output []byte
+	var err error
+
+	switch action {
+	case "start":
+		output, err = runCli("system", "start")
+	case "stop":
+		output, err = runCli("system", "stop")
+	case "prune":
+		output, err = runCli("system", "prune", "--force")
+	default:
+		http.Error(w, "invalid system action", http.StatusBadRequest)
+		return
+	}
+
+	if err != nil {
+		http.Error(w, string(output), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func handleManageImages(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "POST": // Pull
+		var req struct {
+			Reference string `json:"reference"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		output, err := runCli("image", "pull", req.Reference)
+		if err != nil {
+			http.Error(w, string(output), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	case "DELETE": // Remove
+		ref := r.URL.Query().Get("reference")
+		if ref == "" {
+			http.Error(w, "missing reference", http.StatusBadRequest)
+			return
+		}
+		output, err := runCli("image", "rm", "--force", ref)
+		if err != nil {
+			http.Error(w, string(output), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func handleCreateContainer(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var config struct {
+		Image   string `json:"image"`
+		Command string `json:"command"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	args := []string{"run", "-d", config.Image}
+	if config.Command != "" {
+		cmdParts := strings.Fields(config.Command)
+		args = append(args, cmdParts...)
+	}
+
+	output, err := runCli(args...)
+	if err != nil {
+		http.Error(w, string(output), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func handleActionLogs(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		w.Header().Set("Content-Type", "application/json")
+		if actionLogs == nil {
+			json.NewEncoder(w).Encode([]CommandLog{})
+			return
+		}
+		json.NewEncoder(w).Encode(actionLogs)
+	case "DELETE":
+		actionLogs = []CommandLog{}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
 func handleBuilder(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
@@ -197,15 +367,27 @@ func handleBuilder(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleRegistry(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		output, err := runCli("registry", "list", "--format", "json")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+func handleListRegistries(w http.ResponseWriter, r *http.Request) {
+	output, err := runCli("registry", "list", "--format", "json")
+	if err != nil {
+		outStr := string(output)
+		if strings.Contains(outStr, "container system start") ||
+			strings.Contains(outStr, "XPC connection error") ||
+			strings.Contains(outStr, "Connection invalid") {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(output)
+		http.Error(w, fmt.Sprintf("CLI Error: %v\nOutput: %s", err, string(output)), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(output)
+}
+
+func handleRegistry(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		handleListRegistries(w, r)
 	}
 }
 
@@ -254,15 +436,27 @@ func handleRegistryLogout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func handleSystemProperties(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-		output, err := runCli("system", "property", "list", "--format", "json")
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+func handleListSystemProperties(w http.ResponseWriter, r *http.Request) {
+	output, err := runCli("system", "property", "list", "--format", "json")
+	if err != nil {
+		outStr := string(output)
+		if strings.Contains(outStr, "container system start") ||
+			strings.Contains(outStr, "XPC connection error") ||
+			strings.Contains(outStr, "Connection invalid") {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(output)
+		http.Error(w, fmt.Sprintf("CLI Error: %v\nOutput: %s", err, string(output)), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(output)
+}
+
+func handleSystemProperties(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		handleListSystemProperties(w, r)
 	}
 }
 
@@ -327,6 +521,59 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 	w.Write(output)
 }
 
+func handleLogsSSE(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/api/containers/logs/stream/")
+	if id == "" {
+		http.Error(w, "missing container id", http.StatusBadRequest)
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Use container logs -f to follow logs
+	cmd := exec.Command("container", "logs", "-f", id)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating stdout pipe: %v", err), http.StatusInternalServerError)
+		return
+	}
+	cmd.Stderr = cmd.Stdout
+
+	if err := cmd.Start(); err != nil {
+		http.Error(w, fmt.Sprintf("Error starting logs: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer cmd.Process.Kill()
+
+	// Handle client disconnect
+	notify := r.Context().Done()
+	go func() {
+		<-notify
+		cmd.Process.Kill()
+	}()
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		line := scanner.Text()
+		fmt.Fprintf(w, "data: %s\n\n", line)
+		flusher.Flush()
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(w, "event: error\ndata: %v\n\n", err)
+		flusher.Flush()
+	}
+}
+
 func handleExec(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -369,6 +616,155 @@ func handleExec(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+}
+
+func handleExecStream(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	id := strings.TrimPrefix(r.URL.Path, "/api/containers/exec-stream/")
+	if id == "" {
+		http.Error(w, "missing container id", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Command string `json:"command"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		return
+	}
+
+	args := []string{"exec", id}
+	args = append(args, strings.Fields(req.Command)...)
+	cmd := exec.Command("container", args...)
+
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+
+	if err := cmd.Start(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	sendChunk := func(typ, text string) {
+		resp := struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		}{Type: typ, Text: text}
+		json.NewEncoder(w).Encode(resp)
+		fmt.Fprint(w, "\n")
+		flusher.Flush()
+	}
+
+	// Stream stdout in a goroutine
+	done := make(chan bool)
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			sendChunk("out", scanner.Text())
+		}
+		done <- true
+	}()
+
+	// Stream stderr
+	scannerErr := bufio.NewScanner(stderr)
+	for scannerErr.Scan() {
+		sendChunk("err", scannerErr.Text())
+	}
+
+	<-done
+	if err := cmd.Wait(); err != nil {
+		sendChunk("err", fmt.Sprintf("Command exited with error: %v", err))
+	} else {
+		sendChunk("sys", "Command finished")
+	}
+}
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // In a real app, restrict this
+	},
+}
+
+func handleTerminalWS(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/api/containers/ws/")
+	if id == "" {
+		http.Error(w, "missing container id", http.StatusBadRequest)
+		return
+	}
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("Websocket upgrade failed: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	// Use /bin/sh by default. In the future, this could be configurable.
+	cmd := exec.Command("container", "exec", "-it", id, "/bin/sh")
+
+	f, err := pty.Start(cmd)
+	if err != nil {
+		conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf("\r\n[Cider] Error starting PTY: %v\r\n", err)))
+		return
+	}
+	defer f.Close()
+
+	// Bridge PTY to WebSocket
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := f.Read(buf)
+			if err != nil {
+				conn.WriteMessage(websocket.TextMessage, []byte("\r\n[Cider] PTY closed\r\n"))
+				return
+			}
+			if err := conn.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Bridge WebSocket to PTY
+	for {
+		mt, data, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+
+		if mt == websocket.TextMessage {
+			// Check for resize command
+			var msg struct {
+				Type string `json:"type"`
+				Rows uint16 `json:"rows"`
+				Cols uint16 `json:"cols"`
+			}
+			if err := json.Unmarshal(data, &msg); err == nil && msg.Type == "resize" {
+				pty.Setsize(f, &pty.Winsize{Rows: msg.Rows, Cols: msg.Cols})
+				continue
+			}
+		}
+
+		if _, err := f.Write(data); err != nil {
+			break
+		}
+	}
+
+	cmd.Process.Kill()
+	cmd.Wait()
 }
 
 func handleVolumes(w http.ResponseWriter, r *http.Request) {
@@ -530,18 +926,30 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/api/status", handleStatus)
+	mux.HandleFunc("/api/containers/ws/", handleTerminalWS)
+	mux.HandleFunc("/api/containers/exec-stream/", handleExecStream)
+	mux.HandleFunc("/api/containers/exec/", handleExec)
+	mux.HandleFunc("/api/containers/logs/stream/", handleLogsSSE)
+	mux.HandleFunc("/api/containers/logs/", handleLogs)
 	mux.HandleFunc("/api/containers", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case "GET":
 			handleListContainers(w, r)
+		case "POST":
+			handleCreateContainer(w, r)
 		case "DELETE":
 			handleRemoveContainer(w, r)
 		}
 	})
-	mux.HandleFunc("/api/containers/inspect/", handleInspectContainer)
-	mux.HandleFunc("/api/containers/logs/", handleLogs)
-	mux.HandleFunc("/api/containers/exec/", handleExec)
-	mux.HandleFunc("/api/images", handleListImages)
+	mux.HandleFunc("/api/images", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			handleListImages(w, r)
+		} else {
+			handleManageImages(w, r)
+		}
+	})
+	mux.HandleFunc("/api/system/", handleSystemAction)
+	mux.HandleFunc("/api/logs", handleActionLogs)
 	mux.HandleFunc("/api/stats", handleGetStats)
 	mux.HandleFunc("/api/volumes", handleVolumes)
 	mux.HandleFunc("/api/networks", handleNetworks)

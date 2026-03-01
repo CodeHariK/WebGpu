@@ -66,12 +66,11 @@ export default function SettingsPage() {
         if (!editingProp) return;
         setIsSavingProp(true);
         try {
-            const res = await setSystemProperty(editingProp.ID, editValue);
-            if (!res.ok) throw new Error(await res.text());
+            await setSystemProperty(editingProp.ID, editValue);
             await loadProperties();
-            setEditingProp(null);
+            setEditingProp(null); // Keep this line to close the modal
         } catch (e: any) {
-            alert(e.message || "Failed to set property");
+            alert(e.message || "Failed to save property");
         } finally {
             setIsSavingProp(false);
         }
@@ -81,8 +80,7 @@ export default function SettingsPage() {
         if (!confirm(`Are you sure you want to clear the custom value for ${id}? It will revert to default.`)) return;
         setIsLoadingProps(true);
         try {
-            const res = await clearSystemProperty(id);
-            if (!res.ok) throw new Error(await res.text());
+            await clearSystemProperty(id);
             await loadProperties();
         } catch (e: any) {
             alert(e.message || "Failed to clear property");

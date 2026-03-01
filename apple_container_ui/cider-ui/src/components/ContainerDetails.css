@@ -109,3 +109,41 @@
 .dir-row:hover {
     background: rgba(255, 255, 255, 0.05);
 }
+
+/* Terminal Multi-tab Styles */
+.terminal-tabs-header {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.active-term-tab {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: var(--accent-primary) !important;
+}
+
+.active-term-tab::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--accent-primary);
+}
+
+.close-tab-btn {
+    opacity: 0.5;
+    transition: all 0.2s;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.close-tab-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+    color: var(--danger-color);
+}
+
+.terminal-content-area {
+    background: #000;
+}

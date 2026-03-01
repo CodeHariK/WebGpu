@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
     Terminal,
@@ -6,16 +6,19 @@ import {
     File as FileIcon,
     ArrowLeft,
     RefreshCw,
-    Play,
     CornerLeftUp,
     Info,
+    Plus,
+    X,
     AlignLeft
 } from "lucide-react";
+import TerminalComponent from "../components/TerminalComponent";
 import {
     execContainer,
     listContainers,
     getContainerLogs,
-    checkSystemStatus
+    checkSystemStatus,
+    API_BASE
 } from "../lib/container";
 import type {
     ContainerInfo
@@ -36,11 +39,11 @@ export default function ContainerDetailsPage() {
     const [logs, setLogs] = useState<string>("");
     const [isLoadingLogs, setIsLoadingLogs] = useState<boolean>(false);
 
-    // Terminal State
-    const [termCommand, setTermCommand] = useState<string>("");
-    const [termOutput, setTermOutput] = useState<{ id: number, type: "cmd" | "out" | "err" | "sys", text: string }[]>([]);
-    const [isExecuting, setIsExecuting] = useState(false);
-    const endRef = useRef<HTMLDivElement>(null);
+    // Terminal Multi-tab State
+    const [terminalTabs, setTerminalTabs] = useState<{ id: string, title: string }[]>([
+        { id: "term-1", title: "Terminal 1" }
+    ]);
+    const [activeTerminalId, setActiveTerminalId] = useState<string>("term-1");
 
     // Filesystem State
     const [currentPath, setCurrentPath] = useState<string>("/");
@@ -74,21 +77,48 @@ export default function ContainerDetailsPage() {
             }
         };
         init();
-        appendLog("sys", `Connected to container ${id}`);
-        appendLog("sys", "Type a command and press Enter.");
     }, [id]);
-
-    useEffect(() => {
-        endRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [termOutput]);
 
     useEffect(() => {
         if (activeTab === "files" && isRunning) {
             loadFiles(currentPath);
-        } else if (activeTab === "logs") {
-            fetchLogs();
         }
     }, [activeTab, currentPath, isRunning]);
+
+    useEffect(() => {
+        if (activeTab !== "logs" || !id) return;
+
+        setIsLoadingLogs(true);
+        const eventSource = new EventSource(`${API_BASE}/containers/logs/stream/${id}`);
+
+        eventSource.onopen = () => {
+            setIsLoadingLogs(false);
+            setLogs(""); // Clear initial "loading" state
+        };
+
+        eventSource.onmessage = (event) => {
+            setLogs(prev => {
+                const newLogs = prev + event.data + "\n";
+                // Keep only last 1000 lines roughly
+                const lines = newLogs.split("\n");
+                if (lines.length > 1000) {
+                    return lines.slice(lines.length - 1000).join("\n");
+                }
+                return newLogs;
+            });
+        };
+
+        eventSource.onerror = (err) => {
+            console.error("SSE Error:", err);
+            eventSource.close();
+            setIsLoadingLogs(false);
+            // Don't show error if we already have logs, it might just be a timeout
+        };
+
+        return () => {
+            eventSource.close();
+        };
+    }, [activeTab, id]);
 
     const fetchLogs = async () => {
         if (!id) return;
@@ -100,32 +130,6 @@ export default function ContainerDetailsPage() {
             setLogs(e.message || "Error fetching logs");
         } finally {
             setIsLoadingLogs(false);
-        }
-    };
-
-    const appendLog = (type: "cmd" | "out" | "err" | "sys", text: string) => {
-        if (!text.trim() && type !== "cmd") return;
-        setTermOutput(prev => [...prev, { id: Date.now() + Math.random(), type, text }]);
-    };
-
-    const executeCommand = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!id || !termCommand.trim() || isExecuting) return;
-
-        const cmd = termCommand;
-        setTermCommand("");
-        appendLog("cmd", cmd);
-
-        setIsExecuting(true);
-        try {
-            const res = await execContainer(id, cmd);
-            if (res.stdout) appendLog("out", res.stdout);
-            if (res.stderr) appendLog("err", res.stderr);
-            if (res.error) appendLog("err", `Error: ${res.error}`);
-        } catch (err: any) {
-            appendLog("err", err.message);
-        } finally {
-            setIsExecuting(false);
         }
     };
 
@@ -182,6 +186,25 @@ export default function ContainerDetailsPage() {
         const parts = currentPath.split('/').filter(Boolean);
         parts.pop();
         setCurrentPath('/' + parts.join('/'));
+    };
+
+    const addTerminalTab = () => {
+        const newId = `term-${Date.now()}`;
+        const newTitle = `Terminal ${terminalTabs.length + 1}`;
+        setTerminalTabs([...terminalTabs, { id: newId, title: newTitle }]);
+        setActiveTerminalId(newId);
+    };
+
+    const closeTerminalTab = (e: React.MouseEvent, tabId: string) => {
+        e.stopPropagation();
+        if (terminalTabs.length === 1) return; // Don't close the last one
+
+        const newTabs = terminalTabs.filter(t => t.id !== tabId);
+        setTerminalTabs(newTabs);
+
+        if (activeTerminalId === tabId) {
+            setActiveTerminalId(newTabs[newTabs.length - 1].id);
+        }
     };
 
     return (
@@ -247,6 +270,8 @@ export default function ContainerDetailsPage() {
                                 <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px" }}><strong style={{ color: "var(--text-primary)" }}>Image:</strong> {containerInfo.Image}</p>
                                 <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px" }}><strong style={{ color: "var(--text-primary)" }}>Status:</strong> {containerInfo.Status}</p>
                                 <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px" }}><strong style={{ color: "var(--text-primary)" }}>Created At:</strong> {containerInfo.CreatedAt || "Unknown"}</p>
+                                <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px" }}><strong style={{ color: "var(--text-primary)" }}>CPUs:</strong> {containerInfo.CPUs || "Unlimited"}</p>
+                                <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "8px" }}><strong style={{ color: "var(--text-primary)" }}>Memory:</strong> {containerInfo.MemoryBytes ? (containerInfo.MemoryBytes / 1024 / 1024) + " MB" : "Unlimited"}</p>
                             </div>
 
                             <div className="premium-card" style={{ padding: "16px", background: "rgba(255,255,255,0.02)" }}>
@@ -280,6 +305,39 @@ export default function ContainerDetailsPage() {
                                     </ul>
                                 ) : <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontStyle: "italic" }}>No network details</p>}
                             </div>
+
+                            <div className="premium-card" style={{ padding: "16px", background: "rgba(255,255,255,0.02)" }}>
+                                <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px", marginTop: 0 }}>Environment Variables</h3>
+                                {Array.isArray(containerInfo.Env) && containerInfo.Env.length > 0 ? (
+                                    <div style={{ maxHeight: "150px", overflowY: "auto", background: "rgba(0,0,0,0.3)", padding: "8px", borderRadius: "4px" }}>
+                                        {containerInfo.Env.map((e: string, i: number) => (
+                                            <div key={i} style={{ fontSize: "12px", fontFamily: "monospace", color: "var(--text-secondary)", marginBottom: "4px", wordBreak: "break-all" }}>
+                                                {e}
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontStyle: "italic" }}>No environment variables</p>}
+                            </div>
+
+                            <div className="premium-card" style={{ padding: "16px", background: "rgba(255,255,255,0.02)" }}>
+                                <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px", marginTop: 0 }}>Bind Mounts / Volumes</h3>
+                                {Array.isArray(containerInfo.Mounts) && containerInfo.Mounts.length > 0 ? (
+                                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                                        {containerInfo.Mounts.map((m: any, i: number) => (
+                                            <li key={i} style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "6px", wordBreak: "break-all", background: "rgba(0,0,0,0.3)", padding: "6px", borderRadius: "4px" }}>
+                                                <strong>Source:</strong> {m.source || m.Name}<br />
+                                                <strong>Target:</strong> {m.destination || m.Destination}<br />
+                                                <strong>Type:</strong>{" "}
+                                                {typeof m.type === "string"
+                                                    ? m.type
+                                                    : typeof m.type === "object"
+                                                        ? Object.keys(m.type)[0]
+                                                        : "volume"}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontStyle: "italic" }}>No mounts configured</p>}
+                            </div>
                         </div>
                     )}
 
@@ -297,33 +355,80 @@ export default function ContainerDetailsPage() {
                         </div>
                     )}
 
-                    {activeTab === "terminal" && (
-                        <div className="terminal-container">
-                            <div className="terminal-output" style={{ minHeight: '300px' }}>
-                                {termOutput.map((log) => (
-                                    <div key={log.id} className={`term-line term-${log.type}`}>
-                                        {log.type === "cmd" && <span className="term-prompt">$&nbsp;</span>}
-                                        {log.type === "sys" && <span className="term-sys">[sys]&nbsp;</span>}
-                                        {log.text}
+                    {activeTab === "terminal" && id && (
+                        <div className="terminal-container premium-card" style={{ padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.4)', minHeight: '500px' }}>
+                            {/* Terminal Tabs Header */}
+                            <div className="terminal-tabs-header" style={{ display: 'flex', alignItems: 'center', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '0 8px' }}>
+                                <div style={{ display: 'flex', flex: 1, overflowX: 'auto', gap: '2px' }}>
+                                    {terminalTabs.map(tab => (
+                                        <div
+                                            key={tab.id}
+                                            onClick={() => setActiveTerminalId(tab.id)}
+                                            style={{
+                                                padding: '8px 16px',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                fontSize: '13px',
+                                                borderRight: '1px solid rgba(255,255,255,0.05)',
+                                                background: activeTerminalId === tab.id ? 'rgba(255,255,255,0.05)' : 'transparent',
+                                                color: activeTerminalId === tab.id ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                                                transition: 'all 0.2s',
+                                                minWidth: '120px',
+                                                position: 'relative'
+                                            }}
+                                            className={activeTerminalId === tab.id ? "active-term-tab" : ""}
+                                        >
+                                            <Terminal size={14} />
+                                            <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tab.title}</span>
+                                            {terminalTabs.length > 1 && (
+                                                <X
+                                                    size={12}
+                                                    className="close-tab-btn"
+                                                    onClick={(e) => closeTerminalTab(e, tab.id)}
+                                                    style={{ opacity: 0.6 }}
+                                                />
+                                            )}
+                                            {activeTerminalId === tab.id && (
+                                                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '2px', background: 'var(--accent-primary)' }} />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={addTerminalTab}
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: 'var(--text-secondary)',
+                                        cursor: 'pointer',
+                                        padding: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}
+                                    className="btn-icon"
+                                    title="Open new terminal session"
+                                >
+                                    <Plus size={18} />
+                                </button>
+                            </div>
+
+                            {/* Terminal Content */}
+                            <div className="terminal-content-area" style={{ flex: 1, position: 'relative', padding: '16px' }}>
+                                {terminalTabs.map(tab => (
+                                    <div
+                                        key={tab.id}
+                                        style={{
+                                            display: activeTerminalId === tab.id ? 'block' : 'none',
+                                            height: '100%'
+                                        }}
+                                    >
+                                        <TerminalComponent containerId={id} isActive={activeTerminalId === tab.id} />
                                     </div>
                                 ))}
-                                <div ref={endRef} />
                             </div>
-                            <form onSubmit={executeCommand} className="terminal-input-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <span className="term-prompt">$&nbsp;</span>
-                                <input
-                                    type="text"
-                                    value={termCommand}
-                                    onChange={e => setTermCommand(e.target.value)}
-                                    placeholder="Enter command (e.g., ls -la)"
-                                    disabled={isExecuting}
-                                    autoFocus
-                                    style={{ flex: 1, background: 'transparent', border: 'none', color: 'inherit', outline: 'none', fontFamily: 'monospace' }}
-                                />
-                                <button type="submit" className="btn btn-primary" disabled={isExecuting || !termCommand.trim()}>
-                                    {isExecuting ? <RefreshCw size={16} className="spin" /> : <Play size={16} />}
-                                </button>
-                            </form>
                         </div>
                     )}
 

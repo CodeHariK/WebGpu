@@ -1,14 +1,11 @@
-# Simple Dockerfile using locally built binary
-FROM alpine:latest
-
+# Multi-stage build for Ping-Pong server
+FROM golang:1.22-alpine as builder
 WORKDIR /app
+COPY main.go .
+RUN go build -o ping-pong main.go
 
-# Copy the locally built Linux/ARM64 binary
-COPY hello /usr/local/bin/hello
-
-# Expose the application port
-EXPOSE 8080
-
-# Run the application
-ENTRYPOINT ["/usr/local/bin/hello"]
-
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/ping-pong /usr/local/bin/ping-pong
+EXPOSE 8080 8081
+ENTRYPOINT ["/usr/local/bin/ping-pong"]

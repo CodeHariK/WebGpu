@@ -88,12 +88,11 @@ export default function NetworksPage() {
         if (!newNetworkName.trim()) return;
         setActionLoading("create");
         try {
-            const res = await createNetwork(newNetworkName.trim());
-            if (!res.ok) throw new Error(await res.text() || "Failed to create network");
+            await createNetwork(newNetworkName.trim());
             setNewNetworkName("");
-            await refreshData();
+            refreshData();
         } catch (e: any) {
-            alert(e.message);
+            alert(e);
         } finally {
             setActionLoading(null);
         }
@@ -103,11 +102,10 @@ export default function NetworksPage() {
         if (!confirm(`Are you sure you want to delete network '${name}'?`)) return;
         setActionLoading("delete-" + name);
         try {
-            const res = await removeNetwork(name);
-            if (!res.ok) throw new Error(await res.text() || "Failed to delete network");
-            await refreshData();
+            await removeNetwork(name);
+            refreshData();
         } catch (e: any) {
-            alert(e.message);
+            alert(e);
         } finally {
             setActionLoading(null);
         }
@@ -117,12 +115,11 @@ export default function NetworksPage() {
         if (!newDnsDomain.trim()) return;
         setActionLoading("create-dns");
         try {
-            const res = await createDnsDomain(newDnsDomain.trim());
-            if (!res.ok) throw new Error(await res.text() || "Failed to create DNS domain");
+            await createDnsDomain(newDnsDomain.trim());
             setNewDnsDomain("");
-            await fetchDnsDomains();
+            refreshData();
         } catch (e: any) {
-            alert(e.message || "Failed to create DNS domain");
+            alert(e);
         } finally {
             setActionLoading(null);
         }
@@ -132,11 +129,10 @@ export default function NetworksPage() {
         if (!confirm(`Are you sure you want to delete local DNS domain '${domain}'? (Requires admin privileges)`)) return;
         setActionLoading("delete-dns-" + domain);
         try {
-            const res = await deleteDnsDomain(domain);
-            if (!res.ok) throw new Error(await res.text() || "Failed to delete DNS domain");
-            await fetchDnsDomains();
+            await deleteDnsDomain(domain);
+            refreshData();
         } catch (e: any) {
-            alert(e.message || "Failed to delete DNS domain");
+            alert(e);
         } finally {
             setActionLoading(null);
         }
