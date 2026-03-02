@@ -1,4 +1,18 @@
 // Browser-side library for interacting with the Cider Go Backend
+import {
+    buildPullCommand,
+    buildRemoveImageCommand,
+    buildSaveImageCommand,
+    buildLoadImageCommand,
+    buildTagImageCommand,
+    buildVolumeCreateCommand,
+    buildNetworkCreateCommand,
+    buildDnsCreateCommand,
+    buildBuilderStartCommand,
+    buildSetSystemPropertyCommand,
+    buildClearSystemPropertyCommand,
+    buildRegistryLogoutCommand
+} from "./commandBuilder";
 
 export interface SystemProperty {
     ID: string;
@@ -7,7 +21,7 @@ export interface SystemProperty {
     Description: string;
 }
 
-export const API_BASE = "http://localhost:7777/api";
+export const API_BASE = "/api";
 
 export type ContainerState = "running" | "stopped" | "paused" | "exited" | "dead" | "unknown";
 
@@ -24,16 +38,18 @@ export interface ContainerInfo {
     Mounts?: any;
     CPUs?: number;
     MemoryBytes?: number;
+    Labels?: Record<string, string>;
 }
 
 export interface ContainerConfig {
     image: string;
-    command?: string;
-    ports?: { host: string; container: string }[];
-    env?: { key: string; value: string }[];
-    volumes?: { host: string; container: string }[];
+    command?: string; // override default entrypoint/cmd
     cpus?: number;
     memory?: string;
+    volumes?: string[];
+    ports?: string[];
+    network?: string;
+    env?: string[];
 }
 
 export interface ImageInfo {
@@ -87,6 +103,7 @@ export interface CommandLog {
     command: string;
     output: string;
     isError: boolean;
+    isPartial?: boolean;
 }
 
 // --- System ---
@@ -149,7 +166,8 @@ export async function listContainers(): Promise<ContainerInfo[]> {
             Env: c.configuration?.initProcess?.environment || [],
             Mounts: c.configuration?.mounts || [],
             CPUs: c.configuration?.resources?.cpus,
-            MemoryBytes: c.configuration?.resources?.memoryInBytes
+            MemoryBytes: c.configuration?.resources?.memoryInBytes,
+            Labels: c.configuration?.labels || c.Labels || {}
         }));
     } catch (err) {
         console.error("Failed to fetch containers:", err);
@@ -169,18 +187,22 @@ export async function inspectContainer(id: string): Promise<any | null> {
     }
 }
 
-export async function createContainer(config: ContainerConfig): Promise<void> {
-    const res = await fetch(`${API_BASE}/containers`, {
+export async function createContainer(command: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config)
+        body: JSON.stringify({ command })
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!response.ok) throw new Error(await response.text());
 }
 
-export async function startContainer(id: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/containers/${id}/start`, { method: "POST" });
-    if (!res.ok) throw new Error(await res.text() || `Failed to start container ${id}`);
+export async function startContainer(command: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/command`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command })
+    });
+    if (!response.ok) throw new Error(await response.text() || `Failed to start container`);
 }
 
 export async function stopContainer(id: string): Promise<void> {
@@ -309,51 +331,59 @@ export async function listImages(): Promise<ImageInfo[]> {
 }
 
 export async function pullImage(reference: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/images`, {
+    const command = buildPullCommand(reference);
+    const response = await fetch(`${API_BASE}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference })
+        body: JSON.stringify({ command })
     });
-    if (!res.ok) throw new Error(await res.text());
+    if (!response.ok) throw new Error(await response.text());
 }
 
 export async function deleteImage(reference: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/images?reference=${encodeURIComponent(reference)}`, {
-        method: "DELETE"
+    const command = buildRemoveImageCommand(reference);
+    const res = await fetch(`${API_BASE}/images`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command })
     });
     if (!res.ok) throw new Error(await res.text());
 }
 
-export async function buildImage(context: string, tag: string): Promise<void> {
-    await fetch(`${API_BASE}/images/build`, {
+export async function buildImage(command: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ context, tag })
+        body: JSON.stringify({ command })
     });
+    if (!response.ok) throw new Error(await response.text() || "Failed to build image");
 }
 
 export async function saveImage(name: string, path: string): Promise<void> {
-    await fetch(`${API_BASE}/images/save`, {
+    const response = await fetch(`${API_BASE}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, path })
+        body: JSON.stringify({ command: `container image save --output ${path} ${name}` })
     });
+    if (!response.ok) throw new Error(await response.text() || "Failed to save image");
 }
 
 export async function loadImage(path: string): Promise<void> {
-    await fetch(`${API_BASE}/images/load`, {
+    const response = await fetch(`${API_BASE}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path })
+        body: JSON.stringify({ command: `container image load --input ${path}` })
     });
+    if (!response.ok) throw new Error(await response.text() || "Failed to load image");
 }
 
 export async function tagImage(name: string, tag: string): Promise<void> {
-    await fetch(`${API_BASE}/images/tag`, {
+    const response = await fetch(`${API_BASE}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, tag })
+        body: JSON.stringify({ command: `container image tag ${name} ${tag}` })
     });
+    if (!response.ok) throw new Error(await response.text() || "Failed to tag image");
 }
 
 // --- Volumes ---
@@ -369,12 +399,13 @@ export async function listVolumes(): Promise<VolumeInfo[]> {
 }
 
 export async function createVolume(name: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/volumes`, {
+    const command = buildVolumeCreateCommand(name);
+    const response = await fetch(`${API_BASE}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ command })
     });
-    if (!res.ok) throw new Error(await res.text() || "Failed to create volume");
+    if (!response.ok) throw new Error(await response.text() || "Failed to create volume");
 }
 
 export async function removeVolume(name: string): Promise<void> {
@@ -396,12 +427,13 @@ export async function listNetworks(): Promise<NetworkInfo[]> {
 }
 
 export async function createNetwork(name: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/networks`, {
+    const command = buildNetworkCreateCommand(name);
+    const response = await fetch(`${API_BASE}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ command })
     });
-    if (!res.ok) throw new Error(await res.text() || "Failed to create network");
+    if (!response.ok) throw new Error(await response.text() || "Failed to create network");
 }
 
 export async function removeNetwork(name: string): Promise<void> {
@@ -430,12 +462,31 @@ export async function getBuilderStatus(): Promise<BuilderStatus | null> {
     }
 }
 
-export async function startBuilder(): Promise<void> {
-    await fetch(`${API_BASE}/builder/start`, { method: "POST" });
+export async function startBuilder(cpus?: number, memory?: string): Promise<void> {
+    const command = buildBuilderStartCommand(cpus, memory);
+    await fetch(`${API_BASE}/builder/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command })
+    });
 }
 
 export async function stopBuilder(): Promise<void> {
-    await fetch(`${API_BASE}/builder/stop`, { method: "POST" });
+    const command = "container builder stop";
+    await fetch(`${API_BASE}/builder/stop`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command })
+    });
+}
+
+export async function deleteBuilder(): Promise<void> {
+    const command = "container builder delete";
+    await fetch(`${API_BASE}/builder/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command })
+    });
 }
 
 // --- Registry ---
@@ -460,7 +511,12 @@ export async function registryLogin(server: string, user: string, pass: string):
 }
 
 export async function registryLogout(server: string): Promise<void> {
-    await fetch(`${API_BASE}/registry/logout/${server}`, { method: "POST" });
+    const command = buildRegistryLogoutCommand(server);
+    await fetch(`${API_BASE}/registry/logout/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command })
+    });
 }
 
 // --- System Properties ---
@@ -483,17 +539,23 @@ export async function listSystemProperties(): Promise<SystemProperty[]> {
 }
 
 export async function setSystemProperty(id: string, value: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/system/properties/set`, {
+    const command = buildSetSystemPropertyCommand(id, value);
+    const response = await fetch(`${API_BASE}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, value })
+        body: JSON.stringify({ command })
     });
-    if (!res.ok) throw new Error(await res.text() || "Failed to set property");
+    if (!response.ok) throw new Error(await response.text() || "Failed to set property");
 }
 
 export async function clearSystemProperty(id: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/system/properties/clear/${id}`, { method: "POST" });
-    if (!res.ok) throw new Error(await res.text() || "Failed to clear property");
+    const command = buildClearSystemPropertyCommand(id);
+    const response = await fetch(`${API_BASE}/command`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command })
+    });
+    if (!response.ok) throw new Error(await response.text() || "Failed to clear property");
 }
 
 // --- DNS ---
@@ -510,12 +572,13 @@ export async function listDnsDomains(): Promise<string[]> {
 }
 
 export async function createDnsDomain(domain: string): Promise<void> {
-    const res = await fetch(`${API_BASE}/dns`, {
+    const command = buildDnsCreateCommand(domain);
+    const response = await fetch(`${API_BASE}/command`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain })
+        body: JSON.stringify({ command })
     });
-    if (!res.ok) throw new Error(await res.text() || "Failed to create DNS domain");
+    if (!response.ok) throw new Error(await response.text() || "Failed to create DNS domain");
 }
 
 export async function deleteDnsDomain(domain: string): Promise<void> {
@@ -546,3 +609,83 @@ export async function readFileContent(path: string): Promise<string> {
         throw new Error(`Failed to read file: ${e.message}`);
     }
 }
+export async function composeUp(path: string, projectName: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/compose/up`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path, projectName }),
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Compose up failed: ${error}`);
+    }
+}
+
+export async function composeDown(projectName: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/compose/down`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ projectName }),
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Compose down failed: ${error}`);
+    }
+}
+
+export async function composeStatus(projectName: string): Promise<any[]> {
+    const response = await fetch(`${API_BASE}/compose/status?project=${projectName}`);
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Failed to get compose status: ${error}`);
+    }
+    return await response.json();
+}
+
+export async function parseCompose(path: string): Promise<any> {
+    const response = await fetch(`${API_BASE}/compose/parse`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path }),
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Failed to parse compose file: ${error}`);
+    }
+    return await response.json();
+}
+export async function discoverComposeFiles(baseDir?: string): Promise<{ path: string, name: string }[]> {
+    const url = baseDir ? `${API_BASE}/compose/discover?baseDir=${encodeURIComponent(baseDir)}` : `${API_BASE}/compose/discover`;
+    const response = await fetch(url);
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Failed to discover compose files: ${error}`);
+    }
+    return await response.json();
+}
+
+export async function runRawCommand(command: string): Promise<{ output: string }> {
+    const response = await fetch(`${API_BASE}/command`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.error || data.output || "Failed to run command");
+    }
+    return data;
+}
+
+// Alias for consistency
+export const runContainer = runRawCommand;

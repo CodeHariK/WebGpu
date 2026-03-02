@@ -307,6 +307,20 @@ export default function ContainerDetailsPage() {
                             </div>
 
                             <div className="premium-card" style={{ padding: "16px", background: "rgba(255,255,255,0.02)" }}>
+                                <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px", marginTop: 0 }}>Metadata & Labels</h3>
+                                {containerInfo.Labels && Object.keys(containerInfo.Labels).length > 0 ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {Object.entries(containerInfo.Labels).map(([key, value]) => (
+                                            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: '4px' }}>
+                                                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{key}</span>
+                                                <span style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{value}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : <p style={{ fontSize: "13px", color: "var(--text-secondary)", fontStyle: "italic" }}>No labels assigned</p>}
+                            </div>
+
+                            <div className="premium-card" style={{ padding: "16px", background: "rgba(255,255,255,0.02)" }}>
                                 <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px", marginTop: 0 }}>Environment Variables</h3>
                                 {Array.isArray(containerInfo.Env) && containerInfo.Env.length > 0 ? (
                                     <div style={{ maxHeight: "150px", overflowY: "auto", background: "rgba(0,0,0,0.3)", padding: "8px", borderRadius: "4px" }}>

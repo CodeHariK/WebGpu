@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  ping-serv:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - TARGET_URL=http://pong-serv:8081
+  pong-serv:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      - TARGET_URL=http://ping-serv:8080

@@ -2,59 +2,71 @@ import { useState } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
 import type { ContainerConfig } from "../lib/container";
 import "../Dashboard.css"; // Reuse dashboard styles
+import { buildRunCommand, buildCreateCommand } from "../lib/commandBuilder";
 
 interface Props {
     imageName: string;
     onClose: () => void;
-    onCreate: (config: ContainerConfig) => void;
+    onCreate: (config: { image: string, command: string, runImmediately: boolean }) => void;
     isCreating: boolean;
 }
 
-export default function CreateContainerModal({ imageName, onClose, onCreate, isCreating }: Props) {
-    const [config, setConfig] = useState<ContainerConfig>({
-        image: imageName,
-        command: "",
-        ports: [],
-        env: [],
-        volumes: [],
-        cpus: undefined,
-        memory: "" // e.g., "4G"
-    });
+interface PortConfig { host: string; container: string; }
+interface EnvConfig { key: string; value: string; }
+interface VolConfig { host: string; container: string; }
 
-    const handleCreate = () => {
-        // Filter out empty rows
-        const cleanedConfig = {
-            ...config,
-            ports: config.ports?.filter(p => p.host && p.container),
-            env: config.env?.filter(e => e.key && e.value),
-            volumes: config.volumes?.filter(v => v.host && v.container),
-        };
-        onCreate(cleanedConfig);
+export default function CreateContainerModal({ imageName, onClose, onCreate, isCreating }: Props) {
+    const [command, setCommand] = useState("");
+    const [cpus, setCpus] = useState<number | undefined>(undefined);
+    const [memory, setMemory] = useState("");
+    const [network, setNetwork] = useState("");
+    const [ports, setPorts] = useState<PortConfig[]>([]);
+    const [env, setEnv] = useState<EnvConfig[]>([]);
+    const [volumes, setVolumes] = useState<VolConfig[]>([]);
+    const [runImmediately, setRunImmediately] = useState(true);
+
+    const config: ContainerConfig = {
+        image: imageName,
+        command: command || undefined,
+        cpus: cpus || undefined,
+        memory: memory || undefined,
+        network: network || undefined,
+        ports: ports.filter(p => p.host && p.container).map(p => `${p.host}:${p.container}`),
+        env: env.filter(e => e.key && e.value).map(e => `${e.key}=${e.value}`),
+        volumes: volumes.filter(v => v.host && v.container).map(v => `${v.host}:${v.container}`),
     };
 
-    const addPort = () => setConfig({ ...config, ports: [...(config.ports || []), { host: "", container: "" }] });
-    const updatePort = (idx: number, field: "host" | "container", val: string) => {
-        const newPorts = [...(config.ports || [])];
-        newPorts[idx][field] = val;
-        setConfig({ ...config, ports: newPorts });
-    }
-    const removePort = (idx: number) => setConfig({ ...config, ports: config.ports?.filter((_, i) => i !== idx) });
+    const currentCommand = runImmediately
+        ? buildRunCommand(config)
+        : buildCreateCommand(config);
 
-    const addEnv = () => setConfig({ ...config, env: [...(config.env || []), { key: "", value: "" }] });
-    const updateEnv = (idx: number, field: "key" | "value", val: string) => {
-        const newEnv = [...(config.env || [])];
-        newEnv[idx][field] = val;
-        setConfig({ ...config, env: newEnv });
-    }
-    const removeEnv = (idx: number) => setConfig({ ...config, env: config.env?.filter((_, i) => i !== idx) });
+    const handleCreate = () => {
+        onCreate({ image: imageName, command: currentCommand, runImmediately });
+    };
 
-    const addVol = () => setConfig({ ...config, volumes: [...(config.volumes || []), { host: "", container: "" }] });
-    const updateVol = (idx: number, field: "host" | "container", val: string) => {
-        const newVols = [...(config.volumes || [])];
-        newVols[idx][field] = val;
-        setConfig({ ...config, volumes: newVols });
+    const addPort = () => setPorts([...ports, { host: "", container: "" }]);
+    const updatePort = (idx: number, field: keyof PortConfig, val: string) => {
+        const next = [...ports];
+        next[idx][field] = val;
+        setPorts(next);
     }
-    const removeVol = (idx: number) => setConfig({ ...config, volumes: config.volumes?.filter((_, i) => i !== idx) });
+    const removePort = (idx: number) => setPorts(ports.filter((_, i) => i !== idx));
+
+    const addEnv = () => setEnv([...env, { key: "", value: "" }]);
+    const updateEnv = (idx: number, field: keyof EnvConfig, val: string) => {
+        const next = [...env];
+        next[idx][field] = val;
+        setEnv(next);
+    }
+    const removeEnv = (idx: number) => setEnv(env.filter((_, i) => i !== idx));
+
+    const addVol = () => setVolumes([...volumes, { host: "", container: "" }]);
+    const updateVol = (idx: number, field: keyof VolConfig, val: string) => {
+        const next = [...volumes];
+        next[idx][field] = val;
+        setVolumes(next);
+    }
+    const removeVol = (idx: number) => setVolumes(volumes.filter((_, i) => i !== idx));
 
     return (
         <div className="modal-backdrop flex-center animate-fade-in">
@@ -69,35 +81,56 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                     {/* General */}
                     <section className="mb-4">
                         <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px" }}>General</h3>
+                        <div className="input-group mb-4">
+                            <label className="flex-center" style={{ justifyContent: "flex-start", gap: "8px", cursor: "pointer", userSelect: "none" }}>
+                                <input
+                                    type="checkbox"
+                                    checked={runImmediately}
+                                    onChange={e => setRunImmediately(e.target.checked)}
+                                    style={{ width: "16px", height: "16px" }}
+                                />
+                                <span>Run immediately after creation (-d)</span>
+                            </label>
+                        </div>
+
                         <div className="input-group mb-2">
                             <label>Command Override (Optional)</label>
                             <input
                                 className="premium-input"
                                 placeholder="e.g., tail -f /dev/null"
-                                value={config.command}
-                                onChange={e => setConfig({ ...config, command: e.target.value })}
+                                value={command}
+                                onChange={e => setCommand(e.target.value)}
                             />
                         </div>
-                        <div style={{ display: "flex", gap: "16px" }}>
-                            <div className="input-group" style={{ flex: 1 }}>
-                                <label>CPU Cores (Optional)</label>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+                            <div className="input-group">
+                                <label>CPU Cores</label>
                                 <input
                                     type="number"
                                     step="0.1"
                                     min="0"
                                     className="premium-input"
                                     placeholder="e.g., 2"
-                                    value={config.cpus || ""}
-                                    onChange={e => setConfig({ ...config, cpus: parseFloat(e.target.value) || undefined })}
+                                    value={cpus || ""}
+                                    onChange={e => setCpus(parseFloat(e.target.value) || undefined)}
                                 />
                             </div>
-                            <div className="input-group" style={{ flex: 1 }}>
-                                <label>Memory Limit (Min 200M)</label>
+                            <div className="input-group">
+                                <label>Memory Limit</label>
                                 <input
                                     className="premium-input"
-                                    placeholder="e.g., 4G or 512M"
-                                    value={config.memory}
-                                    onChange={e => setConfig({ ...config, memory: e.target.value })}
+                                    placeholder="e.g., 4G"
+                                    value={memory}
+                                    onChange={e => setMemory(e.target.value)}
+                                />
+                            </div>
+                            <div className="input-group">
+                                <label>Network</label>
+                                <input
+                                    className="premium-input"
+                                    placeholder="e.g., bridge"
+                                    value={network}
+                                    onChange={e => setNetwork(e.target.value)}
                                 />
                             </div>
                         </div>
@@ -111,7 +144,7 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                                 <Plus size={14} style={{ marginRight: "4px" }} /> Add Port
                             </button>
                         </div>
-                        {config.ports?.map((port, idx) => (
+                        {ports.map((port, idx) => (
                             <div key={idx} style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                                 <input className="premium-input" placeholder="Host Port" value={port.host} onChange={e => updatePort(idx, "host", e.target.value)} style={{ flex: 1 }} />
                                 <span className="flex-center" style={{ color: "var(--text-secondary)" }}>:</span>
@@ -119,7 +152,7 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                                 <button className="btn-icon text-danger" onClick={() => removePort(idx)}><Trash2 size={16} /></button>
                             </div>
                         ))}
-                        {config.ports?.length === 0 && <p style={{ color: "var(--text-secondary)", fontSize: "14px", fontStyle: "italic" }}>No ports configured.</p>}
+                        {ports.length === 0 && <p style={{ color: "var(--text-secondary)", fontSize: "14px", fontStyle: "italic" }}>No ports configured.</p>}
                     </section>
 
                     {/* Env Vars */}
@@ -130,7 +163,7 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                                 <Plus size={14} style={{ marginRight: "4px" }} /> Add Env
                             </button>
                         </div>
-                        {config.env?.map((e, idx) => (
+                        {env.map((e, idx) => (
                             <div key={idx} style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                                 <input className="premium-input" placeholder="KEY" value={e.key} onChange={ev => updateEnv(idx, "key", ev.target.value)} style={{ flex: 1 }} />
                                 <span className="flex-center" style={{ color: "var(--text-secondary)" }}>=</span>
@@ -138,7 +171,7 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                                 <button className="btn-icon text-danger" onClick={() => removeEnv(idx)}><Trash2 size={16} /></button>
                             </div>
                         ))}
-                        {config.env?.length === 0 && <p style={{ color: "var(--text-secondary)", fontSize: "14px", fontStyle: "italic" }}>No environment variables configured.</p>}
+                        {env.length === 0 && <p style={{ color: "var(--text-secondary)", fontSize: "14px", fontStyle: "italic" }}>No environment variables configured.</p>}
                     </section>
 
                     {/* Volumes */}
@@ -149,7 +182,7 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                                 <Plus size={14} style={{ marginRight: "4px" }} /> Add Mount
                             </button>
                         </div>
-                        {config.volumes?.map((vol, idx) => (
+                        {volumes.map((vol, idx) => (
                             <div key={idx} style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                                 <input className="premium-input" placeholder="Host Path (/Users/)" value={vol.host} onChange={e => updateVol(idx, "host", e.target.value)} style={{ flex: 1 }} />
                                 <span className="flex-center" style={{ color: "var(--text-secondary)" }}>:</span>
@@ -157,16 +190,22 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                                 <button className="btn-icon text-danger" onClick={() => removeVol(idx)}><Trash2 size={16} /></button>
                             </div>
                         ))}
-                        {config.volumes?.length === 0 && <p style={{ color: "var(--text-secondary)", fontSize: "14px", fontStyle: "italic" }}>No bind mounts configured.</p>}
+                        {volumes.length === 0 && <p style={{ color: "var(--text-secondary)", fontSize: "14px", fontStyle: "italic" }}>No bind mounts configured.</p>}
                     </section>
 
                 </div>
 
-                <div className="modal-footer" style={{ marginTop: "16px", display: "flex", justifyContent: "flex-end", gap: "12px" }}>
-                    <button className="btn btn-secondary" onClick={onClose} disabled={isCreating}>Cancel</button>
-                    <button className="btn btn-primary" onClick={handleCreate} disabled={isCreating}>
-                        {isCreating ? "Creating..." : "Create Container"}
-                    </button>
+                <div className="modal-footer" style={{ marginTop: "16px" }}>
+                    <div className="command-preview mb-4" style={{ background: "rgba(0,0,0,0.3)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}>
+                        <div style={{ fontSize: "11px", color: "var(--text-secondary)", marginBottom: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>Command Preview</div>
+                        <code style={{ fontSize: "12px", color: "var(--accent-primary)", wordBreak: "break-all", fontFamily: "monospace" }}>{currentCommand}</code>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px" }}>
+                        <button className="btn btn-secondary" onClick={onClose} disabled={isCreating}>Cancel</button>
+                        <button className="btn btn-primary" onClick={handleCreate} disabled={isCreating}>
+                            {isCreating ? "Processing..." : (runImmediately ? "Run Container" : "Create Container")}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
