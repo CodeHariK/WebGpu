@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Docker Manager - Images</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#8b5cf6", // Electric Violet
+                        "primary-hover": "#7c3aed",
+                        "background-light": "#f3f4f6",
+                        "background-dark": "#18181b", // Deep Charcoal
+                        "surface-dark": "#27272a", // Slightly lighter charcoal for cards
+                        "surface-light": "#ffffff",
+                        "border-dark": "#3f3f46", // Subtle darker gray
+                        "border-light": "#e5e7eb",
+                        "text-primary-dark": "#f4f4f5", // Zinc 100
+                        "text-secondary-dark": "#a1a1aa", // Zinc 400
+                        "text-primary-light": "#18181b",
+                        "text-secondary-light": "#71717a",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark font-display text-text-primary-light dark:text-text-primary-dark overflow-x-hidden min-h-screen flex flex-col">
+    <header
+        class="border-b border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-6 py-4 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3 text-primary">
+                <div class="size-8 bg-primary/20 rounded flex items-center justify-center">
+                    <span class="material-symbols-outlined text-primary">deployed_code</span>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight text-text-primary-light dark:text-text-primary-dark">Docker
+                    Manager</h1>
+            </div>
+            <nav class="hidden md:flex items-center gap-8">
+                <a class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:text-primary dark:hover:text-primary transition-colors"
+                    href="#">Dashboard</a>
+                <a class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:text-primary dark:hover:text-primary transition-colors"
+                    href="#">Containers</a>
+                <a class="text-sm font-bold text-primary" href="#">Images</a>
+                <a class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:text-primary dark:hover:text-primary transition-colors"
+                    href="#">Volumes</a>
+                <a class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:text-primary dark:hover:text-primary transition-colors"
+                    href="#">Networks</a>
+            </nav>
+            <div class="flex items-center gap-4">
+                <button
+                    class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark hover:text-primary dark:hover:text-primary transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">logout</span>
+                    <span class="hidden sm:inline">Log Out</span>
+                </button>
+                <div class="h-8 w-8 rounded-full bg-cover bg-center border-2 border-primary/20"
+                    data-alt="User profile picture avatar"
+                    style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAAw5_9xiquG5K7L1uP5jU4mFHrCdVHJfgjxGxT2GDgq6vLT182ZjDKD9_9hocUc5F2LSq7hVF4huHISDsYK1kliyYUaQNlax9uvCzWPYC3-VPv1G4cQIGC71x9KtDvWYtXPC16jInMUxILnE9I1FX98oQ0XJaL8vOgJVCbpVGiJ7Wnc3XSYJlHFuR40dHy1PPSncqKrLp5fX2WYoyZfJYjkdAAMSqoXaCkmJBqILgW33nf0Q2fAgnDSEYhCqMI725bM5I0p5Kzgm4');">
+                </div>
+            </div>
+        </div>
+    </header>
+    <main class="flex-grow w-full max-w-7xl mx-auto px-6 py-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
+            <div class="flex flex-col gap-2">
+                <h2 class="text-3xl font-black tracking-tight">Images Management</h2>
+                <p class="text-text-secondary-light dark:text-text-secondary-dark max-w-2xl">
+                    Manage your local Docker images, monitor disk usage, and pull new images from registries.
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div
+                    class="px-4 py-2 bg-surface-light dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark flex items-center gap-2 shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                    <span class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">System
+                        Healthy</span>
+                </div>
+            </div>
+        </div>
+        <section
+            class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark p-6 mb-8 shadow-sm">
+            <div class="flex items-center gap-2 mb-4">
+                <span class="material-symbols-outlined text-primary">cloud_download</span>
+                <h3 class="text-lg font-bold">Pull New Image</h3>
+            </div>
+            <div class="flex flex-col lg:flex-row gap-4 items-end">
+                <label class="flex flex-col gap-2 flex-1 w-full">
+                    <span
+                        class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">Registry</span>
+                    <div class="relative">
+                        <select
+                            class="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg h-12 px-4 pr-10 appearance-none focus:ring-2 focus:ring-primary focus:border-transparent text-text-primary-light dark:text-text-primary-dark outline-none transition-all">
+                            <option>Docker Hub</option>
+                            <option>GitHub Container Registry (ghcr.io)</option>
+                            <option>AWS ECR</option>
+                            <option>Google GCR</option>
+                            <option>Azure ACR</option>
+                        </select>
+                        <span
+                            class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary-light dark:text-text-secondary-dark">expand_more</span>
+                    </div>
+                </label>
+                <label class="flex flex-col gap-2 flex-[2] w-full">
+                    <span class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">Image Name
+                        &amp; Tag</span>
+                    <div class="relative">
+                        <input
+                            class="w-full bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded-lg h-12 pl-10 pr-4 focus:ring-2 focus:ring-primary focus:border-transparent text-text-primary-light dark:text-text-primary-dark placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark outline-none transition-all"
+                            placeholder="e.g. redis:alpine" type="text" />
+                        <span
+                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary-light dark:text-text-secondary-dark">search</span>
+                    </div>
+                </label>
+                <button
+                    class="h-12 px-8 bg-primary hover:bg-primary-hover text-white font-bold rounded-lg flex items-center gap-2 transition-all w-full lg:w-auto justify-center shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined">download</span>
+                    Pull
+                </button>
+            </div>
+        </section>
+        <section class="flex flex-col gap-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold">Local Images</h3>
+                <div class="flex items-center gap-2">
+                    <div class="relative">
+                        <input
+                            class="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg h-9 pl-9 pr-3 text-sm w-64 focus:ring-1 focus:ring-primary outline-none transition-colors dark:text-text-primary-dark"
+                            placeholder="Filter images..." type="text" />
+                        <span
+                            class="material-symbols-outlined text-[18px] absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary-light dark:text-text-secondary-dark">filter_list</span>
+                    </div>
+                    <button
+                        class="h-9 px-3 border border-border-light dark:border-border-dark rounded-lg bg-surface-light dark:bg-surface-dark hover:bg-background-light dark:hover:bg-border-dark text-text-secondary-light dark:text-text-secondary-dark transition-colors"
+                        title="Prune unused images">
+                        <span class="material-symbols-outlined text-[20px]">cleaning_services</span>
+                    </button>
+                </div>
+            </div>
+            <div
+                class="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-surface-light/50 dark:bg-surface-dark/50 border-b border-border-light dark:border-border-dark text-xs font-semibold uppercase tracking-wider text-text-secondary-light dark:text-text-secondary-dark rounded-t-xl">
+                <div class="col-span-4">Repository</div>
+                <div class="col-span-2">Tag</div>
+                <div class="col-span-2">Image ID</div>
+                <div class="col-span-1">Size</div>
+                <div class="col-span-2">Created</div>
+                <div class="col-span-1 text-right">Actions</div>
+            </div>
+            <div
+                class="flex flex-col gap-[1px] bg-border-light dark:bg-border-dark rounded-b-xl md:rounded-xl overflow-hidden shadow-sm">
+                <div
+                    class="bg-surface-light dark:bg-surface-dark p-4 md:px-6 md:py-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center group hover:bg-background-light dark:hover:bg-border-dark/30 transition-colors">
+                    <div class="md:col-span-4 flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded bg-orange-500/10 flex items-center justify-center shrink-0 border border-orange-500/20">
+                            <img alt="Redis Logo" class="w-6 h-6" data-alt="Redis logo icon"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDBqn6odH27LXf4DEspS5ASs8QwYKz_vgreKu6m2C3GggnyPSHTO43-KglaC8YjUz8MC5ewrQw-WQ9s3vmx_rjNe5M8lmHqP3dIipwrt3ryogLWhpzo-rOe7-LoW8ySWFH50xdTKuaPp1vCPJOcsTS36plVTlG1BqhvYAZP7ZwH1ScP0a8xIGRE1WfdDrS3u-5qD9xay9m6dzGZ0MbOPev_wzTVSjU66VxFx9ht7yYsLuhpxtevRoM9tyBbpqE31SBw29gq4mKq4wQ" />
+                        </div>
+                        <div>
+                            <div class="font-semibold text-text-primary-light dark:text-text-primary-dark">redis</div>
+                            <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark md:hidden">Tag:
+                                alpine • 41.4 MB</div>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 hidden md:block">
+                        <span
+                            class="px-2 py-1 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded text-xs font-mono text-text-secondary-light dark:text-text-secondary-dark">alpine</span>
+                    </div>
+                    <div class="md:col-span-2 hidden md:block text-xs font-mono text-text-secondary-light dark:text-text-secondary-dark truncate opacity-70 group-hover:opacity-100 transition-opacity"
+                        title="sha256:828731938...">sha256:828731938...</div>
+                    <div
+                        class="md:col-span-1 hidden md:block text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                        41.4 MB</div>
+                    <div
+                        class="md:col-span-2 hidden md:block text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                        2 days ago</div>
+                    <div class="md:col-span-1 flex justify-end">
+                        <button
+                            class="text-text-secondary-light dark:text-text-secondary-dark hover:text-red-500 dark:hover:text-red-400 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                            title="Delete Image">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </div>
+                </div>
+                <div
+                    class="bg-surface-light dark:bg-surface-dark p-4 md:px-6 md:py-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center group hover:bg-background-light dark:hover:bg-border-dark/30 transition-colors">
+                    <div class="md:col-span-4 flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20">
+                            <img alt="Nginx Logo" class="w-6 h-6" data-alt="Nginx logo icon"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0XktOgbWfgBqr64BTKBYqmqbHnaEpCWnSVIVSxp5lx-DbGVxJNmlXRHAuD3OaKiknLXEPSa1H_mghPcMk_IwuEmSGyq6OI3O9rqhIBaQyc0ARq87oFyNZMEXXaxB3WUOlIMN0uLISLYjsIlamCjtVdlWoW1BP9EM3MvgRAiVlW_j34JyX4lsJQDd8qhb37Gd9d7vf64vyBJ_1MdVxwx4RFJPtP_BXBYkM7HOFxU9Ws58-f-dEkgXxzYVDXO7PXIJvMDSyxVY6AN4" />
+                        </div>
+                        <div>
+                            <div class="font-semibold text-text-primary-light dark:text-text-primary-dark">nginx</div>
+                            <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark md:hidden">Tag:
+                                latest • 187 MB</div>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 hidden md:block">
+                        <span
+                            class="px-2 py-1 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded text-xs font-mono text-text-secondary-light dark:text-text-secondary-dark">latest</span>
+                    </div>
+                    <div class="md:col-span-2 hidden md:block text-xs font-mono text-text-secondary-light dark:text-text-secondary-dark truncate opacity-70 group-hover:opacity-100 transition-opacity"
+                        title="sha256:ab56b1918...">sha256:ab56b1918...</div>
+                    <div
+                        class="md:col-span-1 hidden md:block text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                        187 MB</div>
+                    <div
+                        class="md:col-span-2 hidden md:block text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                        5 days ago</div>
+                    <div class="md:col-span-1 flex justify-end">
+                        <button
+                            class="text-text-secondary-light dark:text-text-secondary-dark hover:text-red-500 dark:hover:text-red-400 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                            title="Delete Image">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </div>
+                </div>
+                <div
+                    class="bg-surface-light dark:bg-surface-dark p-4 md:px-6 md:py-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center group hover:bg-background-light dark:hover:bg-border-dark/30 transition-colors">
+                    <div class="md:col-span-4 flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded bg-green-500/10 flex items-center justify-center shrink-0 border border-green-500/20">
+                            <img alt="NodeJS Logo" class="w-6 h-6" data-alt="Node JS logo icon"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAs79ahfzO9vsUYpm0r80iOaMEfNTzNsX0PC8KWLRSc13oqSzkJfOnxfEtbjcA_5ov5UTWpGTie9n9Xhklna4FpN0elo4pUhIzsHskSerhltEWkA1pKfSWMyIQPFFH948e6JMrUEbCbQ0iEgCR0q0JY4RQp8KAdLeyvNgB0rPjlJvEQ7_yW8pGOB2750sAzCl8llOSDVDCOqWphs1JAacxcEZwLAKBFql3w_HkVO9g9rJLb4Mvr6IIIZjTGRg2QRFwnVBTgJzJsjnU" />
+                        </div>
+                        <div>
+                            <div class="font-semibold text-text-primary-light dark:text-text-primary-dark">node</div>
+                            <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark md:hidden">Tag:
+                                20-slim • 250 MB</div>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 hidden md:block">
+                        <span
+                            class="px-2 py-1 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded text-xs font-mono text-text-secondary-light dark:text-text-secondary-dark">20-slim</span>
+                    </div>
+                    <div class="md:col-span-2 hidden md:block text-xs font-mono text-text-secondary-light dark:text-text-secondary-dark truncate opacity-70 group-hover:opacity-100 transition-opacity"
+                        title="sha256:cc9981298...">sha256:cc9981298...</div>
+                    <div
+                        class="md:col-span-1 hidden md:block text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                        250 MB</div>
+                    <div
+                        class="md:col-span-2 hidden md:block text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                        1 week ago</div>
+                    <div class="md:col-span-1 flex justify-end">
+                        <button
+                            class="text-text-secondary-light dark:text-text-secondary-dark hover:text-red-500 dark:hover:text-red-400 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                            title="Delete Image">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </div>
+                </div>
+                <div
+                    class="bg-surface-light dark:bg-surface-dark p-4 md:px-6 md:py-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-center group hover:bg-background-light dark:hover:bg-border-dark/30 transition-colors">
+                    <div class="md:col-span-4 flex items-center gap-3">
+                        <div
+                            class="w-10 h-10 rounded bg-blue-400/10 flex items-center justify-center shrink-0 border border-blue-400/20">
+                            <img alt="Postgres Logo" class="w-6 h-6" data-alt="Postgres logo icon"
+                                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUPidf-H4g6nQrfcc9PeSo5gj0YZsReW_5P-BNlGHR1D80o7EUG5WXT3PBPaiGBLGodVhD4vgdJA6tb6Y4s7rvJ4T3-ii313lKdxNp8cLgahCsAhNhaZ8indULG4o6W_WOD2qmAvklIwhXDFigUiQDPoiypPnkJLBngS3ANQfvTezqwJP2zCw_-V0TIIreVlVZcxrkbmBC9YP9dqO0d9N37xufS0QkbM_7TvfUea7QiKr6hfBCDp-ecrb72htBnhHM_uWtfNtRiuc" />
+                        </div>
+                        <div>
+                            <div class="font-semibold text-text-primary-light dark:text-text-primary-dark">postgres
+                            </div>
+                            <div class="text-xs text-text-secondary-light dark:text-text-secondary-dark md:hidden">Tag:
+                                15.3 • 380 MB</div>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 hidden md:block">
+                        <span
+                            class="px-2 py-1 bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark rounded text-xs font-mono text-text-secondary-light dark:text-text-secondary-dark">15.3</span>
+                    </div>
+                    <div class="md:col-span-2 hidden md:block text-xs font-mono text-text-secondary-light dark:text-text-secondary-dark truncate opacity-70 group-hover:opacity-100 transition-opacity"
+                        title="sha256:1198aa781...">sha256:1198aa781...</div>
+                    <div
+                        class="md:col-span-1 hidden md:block text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                        380 MB</div>
+                    <div
+                        class="md:col-span-2 hidden md:block text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                        2 weeks ago</div>
+                    <div class="md:col-span-1 flex justify-end">
+                        <button
+                            class="text-text-secondary-light dark:text-text-secondary-dark hover:text-red-500 dark:hover:text-red-400 p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                            title="Delete Image">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+</body>
+
+</html>

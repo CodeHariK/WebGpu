@@ -1,10 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import type {
-    CommandLog
-} from "../lib/container";
+import type { ContainerInfo } from "../lib/container";
 import {
     checkSystemStatus,
     startSystem,
@@ -13,35 +11,28 @@ import {
     startContainer,
     stopContainer,
     removeContainer,
-    deleteImage,
     getContainerStats,
-    getActionLogs,
-    clearActionLogs,
     runContainer,
-    createContainer,
-    type ContainerInfo
+    createContainer
 } from "../lib/container";
 import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { Toast } from "@base-ui/react/toast";
-import CreateContainerModal from "../components/CreateContainerModal";
+
 import {
-    Activity,
-    Box,
-    Layers,
-    Play,
-    Power,
     RefreshCw,
-    Terminal,
+    Search,
+    Play,
     Square,
     Trash2,
-    ExternalLink,
-    Network,
-    Database,
-    KeySquare,
-    FileCode,
-    Settings,
+    FileText,
+    Terminal as TerminalIcon,
+    RotateCcw,
+    Rocket,
+    Plus,
+    Box,
     AlertCircle
 } from 'lucide-react';
+
 import "../Dashboard.css";
 
 const toastManager = Toast.createToastManager();
@@ -59,24 +50,16 @@ function DashboardContent() {
     const [systemRunning, setSystemRunning] = useState<boolean>(false);
     const [containers, setContainers] = useState<ContainerInfo[]>([]);
     const [stats, setStats] = useState<Record<string, any>>({});
-    const [pollingInterval, setPollingInterval] = useState<number>(60000); // 1 min default
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
-    const [logs, setLogs] = useState<CommandLog[]>([]);
-    const [showCreateModalForImage, setShowCreateModalForImage] = useState<string | null>(null);
-    const [groupByProject, setGroupByProject] = useState<boolean>(false);
-    const [isPollingPaused, setIsPollingPaused] = useState<boolean>(false);
+    const [searchQuery, setSearchQuery] = useState<string>("");
+    const [statusFilter, setStatusFilter] = useState<string>("All");
     const [confirmAction, setConfirmAction] = useState<{ id: string, name: string } | null>(null);
-    const [confirmImageDelete, setConfirmImageDelete] = useState<string | null>(null);
 
     const refreshData = async () => {
-        setIsLoading(true);
         try {
             const isRunning = await checkSystemStatus();
             setSystemRunning(isRunning);
-
-            const logList = await getActionLogs();
-            setLogs(logList);
 
             if (isRunning) {
                 const [cList, sList] = await Promise.all([
@@ -102,75 +85,30 @@ function DashboardContent() {
     };
 
     useEffect(() => {
-        const stored = localStorage.getItem("refreshInterval");
-        if (stored !== null) {
-            setPollingInterval(parseInt(stored, 10));
-        }
         refreshData();
-    }, []);
-
-    useEffect(() => {
-        const eventSource = new EventSource("/api/logs/stream");
-
-        eventSource.onmessage = (event) => {
-            try {
-                const logEntry: CommandLog = JSON.parse(event.data);
-                setLogs(prev => [logEntry, ...prev.slice(0, 99)]);
-
-                if (!logEntry.isPartial) {
-                    toastManager.add({
-                        title: logEntry.isError ? "Command Failed" : "Command Successful",
-                        description: logEntry.command,
-                        type: logEntry.isError ? "error" : "success"
-                    });
-                    refreshData();
-                }
-            } catch (e) {
-                console.error("Failed to parse SSE message", e);
-            }
-        };
-
-        eventSource.onerror = (err) => {
-            console.error("EventSource failed:", err);
-            eventSource.close();
-        };
-
-        return () => {
-            eventSource.close();
-        };
-    }, []);
-
-    useEffect(() => {
-        if (isPollingPaused) return;
-
-        const interval = setInterval(() => {
-            refreshData();
-        }, pollingInterval);
+        const interval = setInterval(refreshData, 5000); // Poll every 5 seconds for real-time feel
         return () => clearInterval(interval);
-    }, [pollingInterval, isPollingPaused]);
+    }, []);
 
-    const handleSystemToggle = async () => {
-        setActionLoading("system");
-        try {
-            if (systemRunning) {
-                await stopSystem();
-            } else {
-                await startSystem();
-            }
-            await new Promise(r => setTimeout(r, 2000));
-            await refreshData();
-        } catch (e) {
-            alert("Failed to toggle system: " + e);
-        } finally {
-            setActionLoading(null);
-        }
-    };
+    const filteredContainers = useMemo(() => {
+        return containers.filter(c => {
+            const matchesSearch = (c.Names || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (c.ID || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (c.Image || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+            const matchesStatus = statusFilter === "All" ||
+                (statusFilter === "Running" && c.State === "running") ||
+                (statusFilter === "Exited" && (c.State === "exited" || c.State === "stopped")) ||
+                (statusFilter === "Healthy" && c.State === "running"); // Simplified healthy check
+
+            return matchesSearch && matchesStatus;
+        });
+    }, [containers, searchQuery, statusFilter]);
 
     const handleContainerAction = async (id: string, action: "start" | "stop" | "remove") => {
         if (action === "remove") {
-            const container = (containers as any).find((c: any) => c.ID === id);
-            setConfirmAction({ id, name: container?.Names[0] || id });
-            setIsPollingPaused(true);
+            const c = containers.find(item => item.ID === id);
+            setConfirmAction({ id, name: c?.Names || id });
             return;
         }
 
@@ -178,13 +116,9 @@ function DashboardContent() {
         try {
             if (action === "start") await startContainer(`container start ${id}`);
             if (action === "stop") await stopContainer(id);
+            await refreshData();
         } catch (e) {
-            console.error(e);
-            toastManager.add({
-                title: "Action Failed",
-                description: String(e),
-                type: "error"
-            });
+            toastManager.add({ title: "Action Failed", description: String(e), type: "error" });
         } finally {
             setActionLoading(null);
         }
@@ -192,430 +126,306 @@ function DashboardContent() {
 
     const confirmDelete = async () => {
         if (!confirmAction) return;
-        const id = confirmAction.id;
-
+        setActionLoading(confirmAction.id + "remove");
         try {
-            await removeContainer(id);
+            await removeContainer(confirmAction.id);
             setConfirmAction(null);
-            setIsPollingPaused(false);
+            await refreshData();
         } catch (e) {
-            console.error(e);
-            toastManager.add({
-                title: "Removal Failed",
-                description: String(e),
-                type: "error"
-            });
+            toastManager.add({ title: "Removal Failed", description: String(e), type: "error" });
         } finally {
             setActionLoading(null);
         }
     };
 
-    const confirmImageDeletion = async () => {
-        if (!confirmImageDelete) return;
-        const ref = confirmImageDelete;
-        setActionLoading("delete-image-" + ref);
-        try {
-            await deleteImage(ref);
-            setConfirmImageDelete(null);
-            setIsPollingPaused(false);
-            await refreshData();
-            toastManager.add({
-                title: "Image Deleted",
-                description: `Successfully removed ${ref}`,
-                type: "success"
-            });
-        } catch (e: any) {
-            console.error(e);
-            toastManager.add({
-                title: "Deletion Failed",
-                description: String(e.message || e),
-                type: "error"
-            });
-        } finally {
-            setActionLoading(null);
-        }
+    const getStatusCounters = () => {
+        return {
+            All: containers.length,
+            Running: containers.filter(c => c.State === "running").length,
+            Exited: containers.filter(c => c.State === "exited" || c.State === "stopped").length,
+            Healthy: containers.filter(c => c.State === "running").length // Placeholder
+        };
     };
 
-    const handleCreateFromImage = async (config: any) => {
-        setActionLoading("create-image-" + config.image);
-        try {
-            if (config.runImmediately) {
-                await runContainer(config.command);
-            } else {
-                await createContainer(config.command);
-            }
-            await refreshData();
-            setShowCreateModalForImage(null);
-        } catch (e: any) {
-            alert(`Failed to create container: ` + e.message);
-        } finally {
-            setActionLoading(null);
-        }
-    };
+    const counters = getStatusCounters();
 
-    const totalRunning = containers ? containers.filter(c => c.State === "running").length : 0;
-
-    const renderContainerRow = (container: any) => {
-        const isRunning = container.State === "running";
+    if (!systemRunning) {
         return (
-            <tr key={container.ID} className="container-row">
-                <td>
-                    <div className="flex-center" style={{ justifyContent: "flex-start", gap: "8px" }}>
-                        <span className={`status-indicator status-${container.State}`} />
-                        <span style={{ fontSize: "12px", textTransform: "capitalize" }}>{container.State}</span>
-                    </div>
-                </td>
-                <td style={{ fontWeight: 500 }}>
-                    <Link to={`/container/${container.ID}`} style={{ color: isRunning ? "var(--accent-primary)" : "var(--text-primary)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }} title="Inspect Container">
-                        {container.Names || (container.ID ? container.ID.substring(0, 8) : "-")}
-                        <ExternalLink size={14} style={{ opacity: 0.7 }} />
-                    </Link>
-                </td>
-                <td style={{ color: "var(--text-secondary)" }}>{container.Image}</td>
-                <td style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
-                    {isRunning && stats[container.ID] ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <span style={{ fontWeight: 500 }}>{Math.round(stats[container.ID].cpuUsageUsec / 1000)} ms CPU</span>
-                            <span>{(stats[container.ID].memoryUsageBytes / 1024 / 1024).toFixed(1)} MB / {stats[container.ID].memoryLimitBytes ? (stats[container.ID].memoryLimitBytes / 1024 / 1024 / 1024).toFixed(2) + ' GB' : '-'}</span>
-                            <span style={{ fontSize: '11px', opacity: 0.7 }}>
-                                {(stats[container.ID].networkRxBytes / 1024).toFixed(1)} KB ↓ / {(stats[container.ID].networkTxBytes / 1024).toFixed(1)} KB ↑
-                            </span>
+            <div className="bg-background-light dark:bg-background-dark font-display min-h-screen flex flex-col overflow-x-hidden text-slate-900 dark:text-slate-100">
+                <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-surface-border px-10 py-3 bg-white dark:bg-background-dark sticky top-0 z-50">
+                    <div className="flex items-center gap-4 dark:text-white text-slate-900">
+                        <div className="size-8 text-primary flex items-center justify-center">
+                            <span className="material-symbols-outlined text-3xl">deployed_code</span>
                         </div>
-                    ) : (
-                        "-"
-                    )}
-                </td>
-                <td style={{ color: "var(--text-secondary)", fontSize: "13px" }}>
-                    {Array.isArray(container.Ports) && container.Ports.length > 0
-                        ? container.Ports.map((p: any) => `${p.hostPort || '*'}:${p.containerPort}`).join(", ")
-                        : (typeof container.Ports === 'string' && container.Ports ? container.Ports : "-")}
-                </td>
-                <td style={{ color: "var(--text-secondary)", fontSize: "13px" }}>{container.CreatedAt || "-"}</td>
-                <td style={{ textAlign: "right" }}>
-                    <div className="action-buttons">
-                        {isRunning ? (
-                            <button
-                                type="button"
-                                className="btn-icon text-warning"
-                                onClick={() => handleContainerAction(container.ID, "stop")}
-                                disabled={actionLoading === container.ID + "stop"}
-                                title="Stop Container"
-                            >
-                                {actionLoading === container.ID + "stop" ? <RefreshCw size={16} className="spin" /> : <Square size={16} />}
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                className="btn-icon text-success"
-                                onClick={() => handleContainerAction(container.ID, "start")}
-                                disabled={actionLoading === container.ID + "start"}
-                                title="Start Container"
-                            >
-                                {actionLoading === container.ID + "start" ? <RefreshCw size={16} className="spin" /> : <Play size={16} />}
-                            </button>
-                        )}
+                        <h2 className="text-lg font-bold leading-tight tracking-[-0.015em]">Docker Manager</h2>
                         <button
-                            type="button"
-                            className="btn-icon text-danger"
-                            onClick={() => handleContainerAction(container.ID, "remove")}
-                            disabled={actionLoading === container.ID + "remove"}
-                            title="Remove Container"
+                            onClick={() => { startSystem() }}
+                            className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 px-4 bg-primary hover:bg-primary-hover text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors shadow-lg shadow-violet-900/20"
                         >
-                            {actionLoading === container.ID + "remove" ? <RefreshCw size={16} className="spin" /> : <Trash2 size={16} />}
+                            <span className="flex items-center gap-2">
+                                <span className="truncate">System Start</span>
+                            </span>
                         </button>
                     </div>
-                </td>
-            </tr>
-        );
-    };
-
-    if (isLoading && !systemRunning && containers.length === 0) {
-        return (
-            <div className="flex-center" style={{ height: "100vh", flexDirection: "column", gap: "16px" }}>
-                <RefreshCw size={48} className="spin" color="var(--accent-primary)" />
-                <p style={{ color: "var(--text-secondary)" }}>Initializing dashboard...</p>
+                </header>
             </div>
         );
     }
 
-    const content = systemRunning ? (
-        <>
-            <div className="stats-grid">
-                <div className="stat-card premium-card">
-                    <div className="stat-icon" style={{ background: 'rgba(52, 199, 89, 0.1)', color: '#34c759' }}>
-                        <Box size={20} />
+    return (
+        <div className="bg-background-light dark:bg-background-dark font-display min-h-screen flex flex-col overflow-x-hidden text-slate-900 dark:text-slate-100">
+            <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-surface-border px-10 py-3 bg-white dark:bg-background-dark sticky top-0 z-50">
+                <div className="flex items-center gap-4 dark:text-white text-slate-900">
+                    <div className="size-8 text-primary flex items-center justify-center">
+                        <span className="material-symbols-outlined text-3xl">deployed_code</span>
                     </div>
-                    <div className="stat-info">
-                        <div className="stat-value">{containers.length}</div>
-                        <div className="stat-label">Total Containers</div>
-                    </div>
+                    <h2 className="text-lg font-bold leading-tight tracking-[-0.015em]">Docker Manager</h2>
                 </div>
-                <div className="stat-card premium-card">
-                    <div className="stat-icon" style={{ background: 'rgba(0, 122, 255, 0.1)', color: '#007aff' }}>
-                        <Activity size={20} />
-                    </div>
-                    <div className="stat-info">
-                        <div className="stat-value">{totalRunning}</div>
-                        <div className="stat-label">Running Now</div>
-                    </div>
-                </div>
-                <div className="stat-card premium-card">
-                    <div className="stat-icon" style={{ background: 'rgba(255, 59, 48, 0.1)', color: '#ff3b30' }}>
-                        <AlertCircle size={20} />
-                    </div>
-                    <div className="stat-info">
-                        <div className="stat-value">{containers.filter(c => c.State === "exited").length}</div>
-                        <div className="stat-label">Stopped</div>
-                    </div>
-                </div>
-                <div className="stat-card premium-card">
-                    <div className="stat-icon" style={{ background: 'rgba(175, 82, 222, 0.1)', color: '#af52de' }}>
-                        <Terminal size={20} />
-                    </div>
-                    <div className="stat-info">
-                        <div className="stat-value">{systemRunning ? "Active" : "Offline"}</div>
-                        <div className="stat-label">System Status</div>
-                    </div>
-                </div>
-            </div>
-
-            <main className="containers-list premium-card" style={{ marginTop: '24px' }}>
-                <div className="list-header flex-between mb-4">
-                    <h2 style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Box size={20} /> Containers
-                    </h2>
-                    <div className="flex-center" style={{ gap: '16px' }}>
-                        <div className="flex-center" style={{ gap: '8px' }}>
-                            <label className="switch" style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={groupByProject}
-                                    onChange={e => setGroupByProject(e.target.checked)}
-                                    style={{ width: 'auto' }}
-                                />
-                                Group by Project
-                            </label>
+                <div className="flex flex-1 justify-end gap-8">
+                    <nav className="hidden md:flex items-center gap-9">
+                        <Link className="text-sm font-medium leading-normal hover:text-primary transition-colors text-text-secondary" to="/registries">Registry</Link>
+                        <Link className="text-sm font-medium leading-normal hover:text-primary transition-colors text-text-secondary" to="/settings">Settings</Link>
+                        <Link className="text-sm font-medium leading-normal hover:text-primary transition-colors text-text-secondary" to="/images">Images</Link>
+                        <Link className="text-sm font-medium leading-normal hover:text-primary transition-colors text-text-secondary" to="/volumes">Volumes</Link>
+                        <Link className="text-sm font-medium leading-normal hover:text-primary transition-colors text-text-secondary" to="/networks">Networks</Link>
+                    </nav>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => { stopSystem() }}
+                            className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 px-4 bg-primary hover:bg-primary-hover text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors shadow-lg shadow-violet-900/20"
+                        >
+                            <span className="flex items-center gap-2">
+                                <span className="truncate">System Stop</span>
+                            </span>
+                        </button>
+                        <div className="bg-center bg-no-repeat bg-cover rounded-full size-9 ring-2 ring-surface-border cursor-pointer"
+                            style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBUNbar0KRi2wwoj-G12zeDmUygKG1JDIZQEvok0pXeY7ATbGAa8vMRrf9BFWC8sCXKeQgGWTT6LAh7-YSso1o_t41sh55QYRMMVD68lsOwuPJ10FPZeBXDLOCnfaYGrxCffQHFzPlBuPVN0JUsC350XAFwm3qUGQqM6cCtr6vxJ2dZTYVQWWYwLujGf3wQCEDWHBj4E5UgJmyXR55UBodZT8Y2mZ9pkPbMsuV0WHoNYaL0fT7v_HWV9IJVEAbTQL_EPLDnRpE96vg")' }}>
                         </div>
-                        <button className="btn btn-ghost" onClick={refreshData}>
-                            <RefreshCw size={16} className={isLoading ? "spin" : ""} /> Refresh
+                    </div>
+                </div>
+            </header>
+
+            <main className="flex-1 px-4 md:px-10 py-8 max-w-[1400px] mx-auto w-full">
+                <div className="flex flex-col gap-6 mb-8">
+                    <div className="flex flex-wrap gap-2 items-center text-sm">
+                        <Link className="text-text-secondary hover:text-white transition-colors" to="/">Home</Link>
+                        <span className="text-text-secondary">/</span>
+                        <Link className="text-text-secondary hover:text-white transition-colors" to="/">Projects</Link>
+                        <span className="text-text-secondary">/</span>
+                        <span className="dark:text-white text-slate-900 font-medium">web-app-prod</span>
+                    </div>
+                    <div className="flex flex-row md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="flex flex-col gap-1">
+                            <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Containers</h1>
+                            <p className="text-slate-500 dark:text-text-secondary">Manage your running containers and view real-time resource usage.</p>
+                        </div>
+                        <button className="flex items-center gap-2 h-10 px-4 bg-surface-dark border border-surface-border hover:bg-surface-border text-white text-sm font-bold rounded-lg transition-all">
+                            <Rocket size={18} />
+                            <span>Compose Up</span>
                         </button>
                     </div>
                 </div>
 
-                {!containers || containers.length === 0 ? (
-                    <div className="empty-state">
-                        <Box size={48} color="var(--text-secondary)" opacity={0.5} />
-                        <p>No containers found.</p>
-                        <p className="subtitle">Launch a new container above to get started.</p>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+                    <div className="lg:col-span-5">
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary group-focus-within:text-primary transition-colors">
+                                <Search size={18} />
+                            </div>
+                            <input
+                                className="block w-full pl-10 pr-3 py-2.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-surface-border rounded-lg leading-5 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-text-secondary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition-all shadow-sm"
+                                placeholder="Search containers by name, id, or image..."
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
                     </div>
-                ) : (
-                    <div className="table-responsive">
-                        <table className="container-table">
+                    <div className="lg:col-span-7 flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 lg:pb-0">
+                        {["All", "Running", "Exited", "Healthy"].map((filter) => (
+                            <button
+                                key={filter}
+                                onClick={() => setStatusFilter(filter)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors whitespace-nowrap text-sm font-medium ${statusFilter === filter
+                                    ? "bg-primary/10 text-primary border-primary/20"
+                                    : "bg-white dark:bg-surface-dark border-slate-200 dark:border-surface-border text-text-secondary hover:text-slate-900 dark:hover:text-white hover:border-slate-500"
+                                    }`}
+                            >
+                                {filter} <span className={`${statusFilter === filter ? "bg-primary" : "bg-slate-200 dark:bg-surface-border"} ${statusFilter === filter ? "text-white" : "text-slate-500 dark:text-text-secondary"} text-xs px-1.5 rounded-md py-0.5`}>
+                                    {(counters as any)[filter]}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-surface-dark border border-slate-200 dark:border-surface-border rounded-xl shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr>
-                                    <th>Status</th>
-                                    <th>Name</th>
-                                    <th>Image</th>
-                                    <th>CPU / Mem / Net</th>
-                                    <th>Ports</th>
-                                    <th>Created</th>
-                                    <th style={{ textAlign: "right" }}>Actions</th>
+                                <tr className="border-b border-slate-200 dark:border-surface-border bg-slate-50 dark:bg-[#181818]">
+                                    <th className="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary w-16 text-center">Status</th>
+                                    <th className="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary">Name</th>
+                                    <th className="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary hidden sm:table-cell">Image ID</th>
+                                    <th className="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary hidden md:table-cell">Ports</th>
+                                    <th className="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary w-48 hidden lg:table-cell">CPU</th>
+                                    <th className="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary w-48 hidden lg:table-cell">Memory</th>
+                                    <th className="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {groupByProject ? (
-                                    Object.entries(
-                                        containers.reduce((acc, c) => {
-                                            const project = (c.Labels && c.Labels["cider.compose.project"]) || "Other";
-                                            if (!acc[project]) acc[project] = [];
-                                            acc[project].push(c);
-                                            return acc;
-                                        }, {} as Record<string, ContainerInfo[]>)
-                                    ).map(([project, projectContainers]) => (
-                                        <React.Fragment key={project}>
-                                            <tr className="project-group-header">
-                                                <td colSpan={7} style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 16px', fontWeight: 600 }}>
-                                                    <div className="flex-between">
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                            <Layers size={14} color="var(--accent-primary)" />
-                                                            Project: {project}
+                            <tbody className="divide-y divide-slate-200 dark:divide-surface-border">
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan={7} className="py-12 text-center text-text-secondary">
+                                            <div className="flex flex-col items-center gap-3">
+                                                <RefreshCw size={24} className="spin" />
+                                                <span>Loading containers...</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : filteredContainers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="py-12 text-center text-text-secondary">
+                                            <div className="flex flex-col items-center gap-3">
+                                                <Box size={32} opacity={0.5} />
+                                                <span>No containers found matching your search.</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredContainers.map((container) => {
+                                        const cStats = stats[container.ID];
+                                        const cpuUsage = cStats ? Math.min(Math.round(cStats.cpuUsageUsec / 10000), 100) : 0;
+                                        const memUsageBytes = cStats?.memoryUsageBytes || 0;
+                                        const memLimitBytes = cStats?.memoryLimitBytes || 1024 * 1024 * 1024; // Default 1GB
+                                        const memPercent = Math.min(Math.round((memUsageBytes / memLimitBytes) * 100), 100);
+
+                                        return (
+                                            <tr key={container.ID} className="group hover:bg-slate-50 dark:hover:bg-[#262626] transition-colors">
+                                                <td className="py-4 px-6 whitespace-nowrap">
+                                                    <div className="relative flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <div className={`h-3 w-3 rounded-full ${container.State === "running" ? "bg-green-500 status-pulse-green" :
+                                                            (container.State === "exited" || container.State === "stopped") ? "bg-slate-500" :
+                                                                "bg-red-500 status-pulse-red"
+                                                            }`}></div>
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 px-6">
+                                                    <div className="flex flex-col">
+                                                        <Link to={`/container/${container.ID}`} className="text-sm font-semibold text-slate-900 dark:text-white hover:text-primary transition-colors">
+                                                            {container.Names || container.ID.substring(0, 12)}
+                                                        </Link>
+                                                        <span className="text-xs text-slate-500 dark:text-text-secondary">
+                                                            {container.State === "running" ? `Up ${container.Status}` : container.Status}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 px-6 hidden sm:table-cell">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">
+                                                            {container.ID.substring(0, 12)}
+                                                        </span>
+                                                        <span className="text-xs text-slate-400 truncate max-w-[150px]" title={container.Image}>
+                                                            {container.Image}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 px-6 hidden md:table-cell">
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {Array.isArray(container.Ports) && container.Ports.length > 0 ? (
+                                                            container.Ports.map((p: any, idx) => (
+                                                                <span key={idx} className="text-[10px] font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-surface-border px-1.5 py-0.5 rounded border border-slate-200 dark:border-neutral-700">
+                                                                    {p.hostPort}:{p.containerPort}
+                                                                </span>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-xs text-slate-400">-</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="py-4 px-6 hidden lg:table-cell">
+                                                    {container.State === "running" ? (
+                                                        <div className="flex flex-col gap-1 w-full max-w-[120px]">
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-slate-500">Usage</span>
+                                                                <span className={`font-medium ${cpuUsage > 80 ? "text-red-500" : cpuUsage > 50 ? "text-orange-400" : "text-green-400"}`}>
+                                                                    {cpuUsage}%
+                                                                </span>
+                                                            </div>
+                                                            <div className="h-1.5 w-full bg-slate-200 dark:bg-surface-border rounded-full overflow-hidden">
+                                                                <div className={`h-full rounded-full transition-all duration-500 ${cpuUsage > 80 ? "bg-red-500" : cpuUsage > 50 ? "bg-orange-400" : "bg-green-500"}`} style={{ width: `${cpuUsage}%` }}></div>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex-center" style={{ gap: '8px' }}>
-                                                            {project !== "Other" && (
-                                                                <>
-                                                                    <button className="btn-icon btn-small" title="Start All" onClick={() => Promise.all(projectContainers.map(c => startContainer(`container start ${c.ID}`))).then(refreshData)}>
-                                                                        <Play size={14} />
-                                                                    </button>
-                                                                    <button className="btn-icon btn-small" title="Stop All" onClick={() => Promise.all(projectContainers.map(c => stopContainer(c.ID))).then(refreshData)}>
-                                                                        <Square size={14} />
-                                                                    </button>
-                                                                </>
-                                                            )}
+                                                    ) : (
+                                                        <div className="text-xs text-slate-400 dark:text-slate-600 italic">No usage data</div>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 px-6 hidden lg:table-cell">
+                                                    {container.State === "running" ? (
+                                                        <div className="flex flex-col gap-1 w-full max-w-[120px]">
+                                                            <div className="flex justify-between text-xs">
+                                                                <span className="text-slate-500">{(memUsageBytes / 1024 / 1024).toFixed(0)}MB</span>
+                                                                <span className="font-medium text-primary">{memPercent}%</span>
+                                                            </div>
+                                                            <div className="h-1.5 w-full bg-slate-200 dark:bg-surface-border rounded-full overflow-hidden">
+                                                                <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${memPercent}%` }}></div>
+                                                            </div>
                                                         </div>
+                                                    ) : (
+                                                        <div className="text-xs text-slate-400 dark:text-slate-600 italic">No usage data</div>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 px-6 text-right">
+                                                    <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                        <Link to={`/container/${container.ID}`} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors" title="Logs">
+                                                            <FileText size={18} />
+                                                        </Link>
+                                                        <Link to={`/container/${container.ID}`} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors" title="Terminal">
+                                                            <TerminalIcon size={18} />
+                                                        </Link>
+                                                        <button onClick={() => handleContainerAction(container.ID, "start")} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-orange-400 transition-colors" title="Restart">
+                                                            <RotateCcw size={18} />
+                                                        </button>
+                                                        {container.State === "running" ? (
+                                                            <button onClick={() => handleContainerAction(container.ID, "stop")} className="p-1.5 rounded hover:bg-red-500/20 text-slate-500 dark:text-text-secondary hover:text-red-500 transition-colors" title="Stop">
+                                                                <Square size={18} fill="currentColor" />
+                                                            </button>
+                                                        ) : (
+                                                            <button onClick={() => handleContainerAction(container.ID, "start")} className="p-1.5 rounded hover:bg-green-500/20 text-slate-500 dark:text-text-secondary hover:text-green-500 transition-colors" title="Start">
+                                                                <Play size={18} fill="currentColor" />
+                                                            </button>
+                                                        )}
+                                                        <button onClick={() => handleContainerAction(container.ID, "remove")} className="p-1.5 rounded hover:bg-red-500/20 text-slate-500 dark:text-text-secondary hover:text-red-500 transition-colors" title="Remove">
+                                                            <Trash2 size={18} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
-                                            {projectContainers.map(container => renderContainerRow(container))}
-                                        </React.Fragment>
-                                    ))
-                                ) : (
-                                    containers.map(container => renderContainerRow(container))
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
                     </div>
-                )}
-            </main>
-
-            <main className="containers-list premium-card" style={{ marginTop: '24px' }}>
-                <div className="list-header flex-between mb-4">
-                    <h2 style={{ fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Terminal size={20} /> Command Logs
-                    </h2>
-                    <button className="btn btn-secondary" onClick={async () => { await clearActionLogs(); await refreshData(); }}>Clear Logs</button>
-                </div>
-                <div className="terminal-logs" style={{ background: '#0a0a0a', padding: '16px', borderRadius: '8px', maxHeight: '300px', overflowY: 'auto', fontFamily: 'monospace', fontSize: '13px' }}>
-                    {(logs || []).length === 0 ? (
-                        <span style={{ color: 'var(--text-secondary)' }}>No recent commands executed.</span>
-                    ) : (
-                        logs.map((log) => (
-                            <div key={log.id} style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <div style={{ color: 'var(--accent-primary)', marginBottom: '4px' }}>
-                                    <span style={{ color: 'var(--text-secondary)' }}>[{new Date(log.timestamp).toLocaleTimeString()}]</span> $ {log.command}
-                                </div>
-                                <div style={{ color: log.isError ? 'var(--danger-color)' : 'var(--text-primary)', whiteSpace: 'pre-wrap', paddingLeft: '8px', borderLeft: log.isError ? '2px solid var(--danger-color)' : '2px solid rgba(255,255,255,0.1)' }}>
-                                    {log.output || "No output"}
-                                </div>
-                            </div>
-                        ))
-                    )}
                 </div>
             </main>
-        </>
-    ) : (
-        <div className="empty-state premium-card" style={{ marginTop: '24px', padding: '64px' }}>
-            <Power size={64} style={{ opacity: 0.2, marginBottom: '24px' }} />
-            <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>System Offline</h2>
-            <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto 24px' }}>
-                The container management system is currently offline. Start the system to manage containers and images.
-            </p>
-            <button className="btn btn-primary btn-large" onClick={handleSystemToggle} disabled={actionLoading === "system"}>
-                {actionLoading === "system" ? <RefreshCw size={20} className="spin" /> : <Power size={20} />}
-                Start System
-            </button>
-        </div>
-    );
 
-    return (
-        <div className="dashboard-container animate-fade-in">
-            <header className="dashboard-header premium-card flex-between">
-                <div className="header-brand">
-                    <div className="brand-logo flex-center">
-                        <Box size={24} color="var(--accent-primary)" />
-                    </div>
-                    <div>
-                        <h1 style={{ fontSize: '24px', margin: 0 }}>apple container UI</h1>
-                        <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginTop: "4px" }}>
-                            Next-gen container management
-                        </p>
-                    </div>
-                </div>
 
-                <div className="system-status-toggle" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <Link to="/images" className="btn-icon" title="Images & Builders">
-                        <Layers size={20} color="var(--text-secondary)" />
-                    </Link>
-                    <Link to="/networks" className="btn-icon" title="Container Networks">
-                        <Network size={20} color="var(--text-secondary)" />
-                    </Link>
-                    <Link to="/volumes" className="btn-icon" title="Storage Volumes">
-                        <Database size={20} color="var(--text-secondary)" />
-                    </Link>
-                    <Link to="/registries" className="btn-icon" title="Registries">
-                        <KeySquare size={20} color="var(--text-secondary)" />
-                    </Link>
-                    <Link to="/settings" className="btn-icon" title="Preferences">
-                        <Settings size={20} color="var(--text-secondary)" />
-                    </Link>
-                    <div className="status-badge flex-center" style={{ gap: '8px' }}>
-                        <span className={`status-indicator status-${systemRunning ? 'running' : 'stopped'}`} />
-                        <span>Daemon {systemRunning ? "Running" : "Offline"}</span>
-                    </div>
-                    <button
-                        className={`btn ${systemRunning ? 'btn-danger' : 'btn-primary'}`}
-                        onClick={handleSystemToggle}
-                        disabled={actionLoading === "system"}
-                        style={{ opacity: actionLoading === "system" ? 0.7 : 1 }}
-                    >
-                        {actionLoading === "system" ? (
-                            <RefreshCw size={16} className="spin" />
-                        ) : (
-                            <Power size={16} />
-                        )}
-                        {systemRunning ? "Stop System" : "Start System"}
-                    </button>
-                </div>
-            </header>
-
-            {content}
-
-            {showCreateModalForImage && (
-                <CreateContainerModal
-                    imageName={showCreateModalForImage as string}
-                    onClose={() => setShowCreateModalForImage(null)}
-                    onCreate={handleCreateFromImage}
-                    isCreating={actionLoading === "create-image-" + showCreateModalForImage}
-                />
-            )}
-
-            <AlertDialog.Root open={!!confirmAction} onOpenChange={(open) => {
-                if (!open) {
-                    setConfirmAction(null);
-                    setIsPollingPaused(false);
-                }
-            }}>
+            <AlertDialog.Root open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
                 <AlertDialog.Portal>
                     <AlertDialog.Backdrop className="dialog-backdrop" />
                     <AlertDialog.Popup className="dialog-popup">
-                        <AlertDialog.Title className="dialog-title">Remove Container</AlertDialog.Title>
-                        <AlertDialog.Description className="dialog-description">
+                        <AlertDialog.Title className="dialog-title flex items-center gap-2">
+                            <AlertCircle className="text-red-500" />
+                            Remove Container
+                        </AlertDialog.Title>
+                        <AlertDialog.Description className="dialog-description text-slate-600 dark:text-text-secondary">
                             Are you sure you want to remove <strong>{confirmAction?.name}</strong>? This action cannot be undone.
                         </AlertDialog.Description>
                         <div className="dialog-actions">
-                            <AlertDialog.Close className="btn btn-secondary" disabled={actionLoading === (confirmAction?.id + "remove")}>Cancel</AlertDialog.Close>
-                            <button
-                                className="btn btn-danger"
-                                onClick={confirmDelete}
-                                disabled={actionLoading === (confirmAction?.id + "remove")}
-                            >
-                                {actionLoading === (confirmAction?.id + "remove") ? <RefreshCw size={16} className="spin" /> : "Remove"}
-                            </button>
-                        </div>
-                    </AlertDialog.Popup>
-                </AlertDialog.Portal>
-            </AlertDialog.Root>
-
-            <AlertDialog.Root open={!!confirmImageDelete} onOpenChange={(open) => {
-                if (!open) {
-                    setConfirmImageDelete(null);
-                    setIsPollingPaused(false);
-                }
-            }}>
-                <AlertDialog.Portal>
-                    <AlertDialog.Backdrop className="dialog-backdrop" />
-                    <AlertDialog.Popup className="dialog-popup">
-                        <AlertDialog.Title className="dialog-title">Delete Image</AlertDialog.Title>
-                        <AlertDialog.Description className="dialog-description">
-                            Are you sure you want to delete <strong>{confirmImageDelete}</strong>? This action cannot be undone.
-                        </AlertDialog.Description>
-                        <div className="dialog-actions">
-                            <AlertDialog.Close className="btn btn-secondary" disabled={actionLoading === ("delete-image-" + confirmImageDelete)}>Cancel</AlertDialog.Close>
-                            <button
-                                className="btn btn-danger"
-                                onClick={confirmImageDeletion}
-                                disabled={actionLoading === ("delete-image-" + confirmImageDelete)}
-                            >
-                                {actionLoading === ("delete-image-" + confirmImageDelete) ? <RefreshCw size={16} className="spin" /> : "Delete"}
+                            <AlertDialog.Close className="btn btn-secondary">Cancel</AlertDialog.Close>
+                            <button className="btn btn-danger" onClick={confirmDelete} disabled={actionLoading?.includes("remove")}>
+                                {actionLoading?.includes("remove") ? <RefreshCw size={16} className="spin" /> : "Remove"}
                             </button>
                         </div>
                     </AlertDialog.Popup>

@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Docker Manager - Containers</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap"
+        rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#8b5cf6", "primary-hover": "#7c3aed",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#121212", "surface-dark": "#1e1e1e", "surface-border": "#333333", "text-secondary": "#a1a1aa",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #333333;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #4b5563;
+        }
+
+        @keyframes pulse-green {
+            0% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+            }
+        }
+
+        .status-pulse-green {
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        .status-pulse-red {
+            animation: pulse-red 2s infinite;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark font-display min-h-screen flex flex-col overflow-x-hidden text-slate-900 dark:text-slate-100">
+    <header
+        class="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-surface-border px-10 py-3 bg-white dark:bg-background-dark sticky top-0 z-50">
+        <div class="flex items-center gap-4 dark:text-white text-slate-900">
+            <div class="size-8 text-primary flex items-center justify-center">
+                <span class="material-symbols-outlined text-3xl">deployed_code</span>
+            </div>
+            <h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">Docker Manager</h2>
+        </div>
+        <div class="flex flex-1 justify-end gap-8">
+            <nav class="hidden md:flex items-center gap-9">
+                <a class="text-sm font-medium leading-normal hover:text-primary transition-colors"
+                    href="#">Dashboard</a>
+                <a class="text-sm font-medium leading-normal text-primary" href="#">Containers</a>
+                <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Images</a>
+                <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Volumes</a>
+                <a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Networks</a>
+            </nav>
+            <div class="flex items-center gap-4">
+                <button
+                    class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 px-4 bg-primary hover:bg-primary-hover text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors shadow-lg shadow-violet-900/20">
+                    <span class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px]">add</span>
+                        <span class="truncate">New Container</span>
+                    </span>
+                </button>
+                <div class="bg-center bg-no-repeat bg-cover rounded-full size-9 ring-2 ring-surface-border cursor-pointer"
+                    data-alt="User profile avatar"
+                    style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBUNbar0KRi2wwoj-G12zeDmUygKG1JDIZQEvok0pXeY7ATbGAa8vMRrf9BFWC8sCXKeQgGWTT6LAh7-YSso1o_t41sh55QYRMMVD68lsOwuPJ10FPZeBXDLOCnfaYGrxCffQHFzPlBuPVN0JUsC350XAFwm3qUGQqM6cCtr6vxJ2dZTYVQWWYwLujGf3wQCEDWHBj4E5UgJmyXR55UBodZT8Y2mZ9pkPbMsuV0WHoNYaL0fT7v_HWV9IJVEAbTQL_EPLDnRpE96vg");'>
+                </div>
+            </div>
+        </div>
+    </header>
+    <main class="flex-1 px-4 md:px-10 py-8 max-w-[1400px] mx-auto w-full">
+        <div class="flex flex-col gap-6 mb-8">
+            <div class="flex flex-wrap gap-2 items-center text-sm">
+                <a class="text-text-secondary hover:text-white transition-colors" href="#">Home</a>
+                <span class="text-text-secondary">/</span>
+                <a class="text-text-secondary hover:text-white transition-colors" href="#">Projects</a>
+                <span class="text-text-secondary">/</span>
+                <span class="text-white font-medium">web-app-prod</span>
+            </div>
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div class="flex flex-col gap-1">
+                    <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Containers
+                    </h1>
+                    <p class="text-slate-500 dark:text-text-secondary">Manage your running containers and view real-time
+                        resource usage.</p>
+                </div>
+                <button
+                    class="flex items-center gap-2 h-10 px-4 bg-surface-dark border border-surface-border hover:bg-surface-border text-white text-sm font-bold rounded-lg transition-all">
+                    <span class="material-symbols-outlined text-[20px]">rocket_launch</span>
+                    <span>Compose Up</span>
+                </button>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+            <div class="lg:col-span-5">
+                <div class="relative group">
+                    <div
+                        class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary group-focus-within:text-primary transition-colors">
+                        <span class="material-symbols-outlined">search</span>
+                    </div>
+                    <input
+                        class="block w-full pl-10 pr-3 py-2.5 bg-white dark:bg-surface-dark border border-slate-200 dark:border-surface-border rounded-lg leading-5 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-text-secondary focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition-all shadow-sm"
+                        placeholder="Search containers by name, id, or image..." type="text" />
+                </div>
+            </div>
+            <div class="lg:col-span-7 flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 lg:pb-0">
+                <button
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 text-sm font-medium hover:bg-primary/20 transition-colors whitespace-nowrap">
+                    All <span class="bg-primary text-white text-xs px-1.5 rounded-md py-0.5">12</span>
+                </button>
+                <button
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-dark border border-surface-border text-text-secondary text-sm font-medium hover:text-white hover:border-slate-500 transition-colors whitespace-nowrap">
+                    Running <span class="bg-surface-border text-white text-xs px-1.5 rounded-md py-0.5">8</span>
+                </button>
+                <button
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-dark border border-surface-border text-text-secondary text-sm font-medium hover:text-white hover:border-slate-500 transition-colors whitespace-nowrap">
+                    Exited <span class="bg-surface-border text-white text-xs px-1.5 rounded-md py-0.5">3</span>
+                </button>
+                <button
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-dark border border-surface-border text-text-secondary text-sm font-medium hover:text-white hover:border-slate-500 transition-colors whitespace-nowrap">
+                    Healthy <span class="bg-surface-border text-white text-xs px-1.5 rounded-md py-0.5">7</span>
+                </button>
+            </div>
+        </div>
+        <div
+            class="bg-white dark:bg-surface-dark border border-slate-200 dark:border-surface-border rounded-xl shadow-sm overflow-hidden">
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-200 dark:border-surface-border bg-slate-50 dark:bg-[#181818]">
+                            <th
+                                class="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary w-16">
+                                Status</th>
+                            <th
+                                class="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary">
+                                Name</th>
+                            <th
+                                class="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary hidden sm:table-cell">
+                                Image ID</th>
+                            <th
+                                class="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary hidden md:table-cell">
+                                Ports</th>
+                            <th
+                                class="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary w-48 hidden lg:table-cell">
+                                CPU</th>
+                            <th
+                                class="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary w-48 hidden lg:table-cell">
+                                Memory</th>
+                            <th
+                                class="py-4 px-6 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-text-secondary text-right">
+                                Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 dark:divide-surface-border">
+                        <tr class="group hover:bg-slate-50 dark:hover:bg-[#262626] transition-colors">
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <div
+                                    class="relative flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <div class="h-3 w-3 rounded-full bg-green-500 status-pulse-green"></div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6">
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-sm font-semibold text-slate-900 dark:text-white">api-gateway</span>
+                                    <span class="text-xs text-slate-500 dark:text-text-secondary">Up 2 days</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden sm:table-cell">
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        class="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">sha256:4a...8f</span>
+                                    <span class="text-xs text-slate-400">nginx:alpine</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden md:table-cell">
+                                <div class="flex gap-2">
+                                    <span
+                                        class="text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-surface-border px-2 py-1 rounded border border-slate-200 dark:border-neutral-700">80:80</span>
+                                    <span
+                                        class="text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-surface-border px-2 py-1 rounded border border-slate-200 dark:border-neutral-700">443:443</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden lg:table-cell">
+                                <div class="flex flex-col gap-1 w-full max-w-[120px]">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500">Usage</span>
+                                        <span class="font-medium text-green-400">12%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-surface-border rounded-full overflow-hidden">
+                                        <div class="h-full bg-green-500 rounded-full" style="width: 12%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden lg:table-cell">
+                                <div class="flex flex-col gap-1 w-full max-w-[120px]">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500">128MB / 1GB</span>
+                                        <span class="font-medium text-primary">12%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-surface-border rounded-full overflow-hidden">
+                                        <div class="h-full bg-primary rounded-full" style="width: 12%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 text-right">
+                                <div
+                                    class="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        title="Logs">
+                                        <span class="material-symbols-outlined text-[20px]">description</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        title="Terminal">
+                                        <span class="material-symbols-outlined text-[20px]">terminal</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-orange-400 transition-colors"
+                                        title="Restart">
+                                        <span class="material-symbols-outlined text-[20px]">replay</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-red-500/20 text-slate-500 dark:text-text-secondary hover:text-red-500 transition-colors"
+                                        title="Stop">
+                                        <span class="material-symbols-outlined text-[20px]">stop_circle</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="group hover:bg-slate-50 dark:hover:bg-[#262626] transition-colors">
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <div
+                                    class="relative flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <div class="h-3 w-3 rounded-full bg-green-500 status-pulse-green"></div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6">
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-sm font-semibold text-slate-900 dark:text-white">postgres-db</span>
+                                    <span class="text-xs text-slate-500 dark:text-text-secondary">Up 5 hours</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden sm:table-cell">
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        class="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">sha256:b2...1c</span>
+                                    <span class="text-xs text-slate-400">postgres:14</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden md:table-cell">
+                                <div class="flex gap-2">
+                                    <span
+                                        class="text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-surface-border px-2 py-1 rounded border border-slate-200 dark:border-neutral-700">5432:5432</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden lg:table-cell">
+                                <div class="flex flex-col gap-1 w-full max-w-[120px]">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500">Usage</span>
+                                        <span class="font-medium text-orange-400">65%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-surface-border rounded-full overflow-hidden">
+                                        <div class="h-full bg-orange-400 rounded-full" style="width: 65%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden lg:table-cell">
+                                <div class="flex flex-col gap-1 w-full max-w-[120px]">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500">800MB / 2GB</span>
+                                        <span class="font-medium text-primary">40%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-surface-border rounded-full overflow-hidden">
+                                        <div class="h-full bg-primary rounded-full" style="width: 40%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 text-right">
+                                <div
+                                    class="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        title="Logs">
+                                        <span class="material-symbols-outlined text-[20px]">description</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        title="Terminal">
+                                        <span class="material-symbols-outlined text-[20px]">terminal</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-orange-400 transition-colors"
+                                        title="Restart">
+                                        <span class="material-symbols-outlined text-[20px]">replay</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-red-500/20 text-slate-500 dark:text-text-secondary hover:text-red-500 transition-colors"
+                                        title="Stop">
+                                        <span class="material-symbols-outlined text-[20px]">stop_circle</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr
+                            class="group hover:bg-slate-50 dark:hover:bg-[#262626] transition-colors bg-slate-50/50 dark:bg-surface-dark/50">
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <div
+                                    class="relative flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <div class="h-3 w-3 rounded-full bg-slate-500"></div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6">
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-sm font-semibold text-slate-500 dark:text-slate-400">redis-cache</span>
+                                    <span class="text-xs text-slate-400 dark:text-slate-600">Exited (0) 10m ago</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden sm:table-cell">
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        class="font-mono text-xs text-slate-500 bg-slate-200 dark:bg-surface-border px-2 py-1 rounded">sha256:f1...9d</span>
+                                    <span class="text-xs text-slate-400">redis:alpine</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden md:table-cell">
+                                <div class="flex gap-2">
+                                    <span
+                                        class="text-xs font-medium text-slate-400 dark:text-slate-600 line-through">6379:6379</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden lg:table-cell">
+                                <div class="text-xs text-slate-400 dark:text-slate-600 italic">No usage data</div>
+                            </td>
+                            <td class="py-4 px-6 hidden lg:table-cell">
+                                <div class="text-xs text-slate-400 dark:text-slate-600 italic">No usage data</div>
+                            </td>
+                            <td class="py-4 px-6 text-right">
+                                <div
+                                    class="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        title="Logs">
+                                        <span class="material-symbols-outlined text-[20px]">description</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-green-500/20 text-slate-500 dark:text-text-secondary hover:text-green-500 transition-colors"
+                                        title="Start">
+                                        <span class="material-symbols-outlined text-[20px]">play_circle</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-red-500/20 text-slate-500 dark:text-text-secondary hover:text-red-500 transition-colors"
+                                        title="Remove">
+                                        <span class="material-symbols-outlined text-[20px]">delete</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr
+                            class="group hover:bg-slate-50 dark:hover:bg-[#262626] transition-colors border-l-4 border-l-red-500">
+                            <td class="py-4 px-6 whitespace-nowrap pl-5">
+                                <div
+                                    class="relative flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <div class="h-3 w-3 rounded-full bg-red-500 status-pulse-red"></div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6">
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-sm font-semibold text-slate-900 dark:text-white">worker-queue</span>
+                                    <span class="text-xs text-red-400">Restarting (1)</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden sm:table-cell">
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        class="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">sha256:e3...5a</span>
+                                    <span class="text-xs text-slate-400">node:18</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden md:table-cell">
+                                <span class="text-xs text-slate-400">-</span>
+                            </td>
+                            <td class="py-4 px-6 hidden lg:table-cell">
+                                <div class="flex flex-col gap-1 w-full max-w-[120px]">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500">Usage</span>
+                                        <span class="font-medium text-red-500">98%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-surface-border rounded-full overflow-hidden">
+                                        <div class="h-full bg-red-500 rounded-full" style="width: 98%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden lg:table-cell">
+                                <div class="flex flex-col gap-1 w-full max-w-[120px]">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500">450MB / 512MB</span>
+                                        <span class="font-medium text-red-500">89%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-surface-border rounded-full overflow-hidden">
+                                        <div class="h-full bg-red-500 rounded-full" style="width: 89%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 text-right">
+                                <div
+                                    class="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        title="Logs">
+                                        <span class="material-symbols-outlined text-[20px]">warning</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-orange-400 transition-colors"
+                                        title="Restart">
+                                        <span class="material-symbols-outlined text-[20px]">replay</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-red-500/20 text-slate-500 dark:text-text-secondary hover:text-red-500 transition-colors"
+                                        title="Stop">
+                                        <span class="material-symbols-outlined text-[20px]">stop_circle</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="group hover:bg-slate-50 dark:hover:bg-[#262626] transition-colors">
+                            <td class="py-4 px-6 whitespace-nowrap">
+                                <div
+                                    class="relative flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <div class="h-3 w-3 rounded-full bg-green-500 status-pulse-green"></div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6">
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-sm font-semibold text-slate-900 dark:text-white">frontend-react</span>
+                                    <span class="text-xs text-slate-500 dark:text-text-secondary">Up 2 days</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden sm:table-cell">
+                                <div class="flex items-center gap-2">
+                                    <span
+                                        class="font-mono text-xs text-primary bg-primary/10 px-2 py-1 rounded">sha256:7c...3b</span>
+                                    <span class="text-xs text-slate-400">node:18-alpine</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden md:table-cell">
+                                <div class="flex gap-2">
+                                    <span
+                                        class="text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-surface-border px-2 py-1 rounded border border-slate-200 dark:border-neutral-700">3000:3000</span>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden lg:table-cell">
+                                <div class="flex flex-col gap-1 w-full max-w-[120px]">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500">Usage</span>
+                                        <span class="font-medium text-green-400">2%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-surface-border rounded-full overflow-hidden">
+                                        <div class="h-full bg-green-500 rounded-full" style="width: 2%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 hidden lg:table-cell">
+                                <div class="flex flex-col gap-1 w-full max-w-[120px]">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-slate-500">240MB / 1GB</span>
+                                        <span class="font-medium text-primary">24%</span>
+                                    </div>
+                                    <div class="h-1.5 w-full bg-surface-border rounded-full overflow-hidden">
+                                        <div class="h-full bg-primary rounded-full" style="width: 24%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-4 px-6 text-right">
+                                <div
+                                    class="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        title="Logs">
+                                        <span class="material-symbols-outlined text-[20px]">description</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        title="Terminal">
+                                        <span class="material-symbols-outlined text-[20px]">terminal</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-surface-border text-slate-500 dark:text-text-secondary hover:text-orange-400 transition-colors"
+                                        title="Restart">
+                                        <span class="material-symbols-outlined text-[20px]">replay</span>
+                                    </button>
+                                    <button
+                                        class="p-1.5 rounded hover:bg-red-500/20 text-slate-500 dark:text-text-secondary hover:text-red-500 transition-colors"
+                                        title="Stop">
+                                        <span class="material-symbols-outlined text-[20px]">stop_circle</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div
+                class="px-6 py-4 border-t border-slate-200 dark:border-surface-border flex items-center justify-between bg-slate-50 dark:bg-[#181818]">
+                <div class="text-sm text-slate-500 dark:text-text-secondary">
+                    Showing <span class="font-medium text-slate-900 dark:text-white">1</span> to <span
+                        class="font-medium text-slate-900 dark:text-white">5</span> of <span
+                        class="font-medium text-slate-900 dark:text-white">12</span> results
+                </div>
+                <div class="flex gap-2">
+                    <button
+                        class="px-3 py-1 text-sm font-medium rounded border border-slate-200 dark:border-surface-border bg-white dark:bg-surface-dark text-slate-400 cursor-not-allowed">
+                        Previous
+                    </button>
+                    <button
+                        class="px-3 py-1 text-sm font-medium rounded border border-slate-200 dark:border-surface-border bg-white dark:bg-surface-dark text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-surface-border transition-colors">
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</body>
+
+</html>

@@ -6,7 +6,7 @@ import "../Dashboard.css"; // Reuse dashboard styles
 import { buildRunCommand, buildCreateCommand } from "../lib/commandBuilder";
 
 interface Props {
-    imageName: string;
+    imageName?: string;
     onClose: () => void;
     onCreate: (config: { image: string, command: string, runImmediately: boolean }) => void;
     isCreating: boolean;
@@ -17,6 +17,7 @@ interface EnvConfig { key: string; value: string; }
 interface VolConfig { host: string; container: string; }
 
 export default function CreateContainerModal({ imageName, onClose, onCreate, isCreating }: Props) {
+    const [customImage, setCustomImage] = useState("");
     const [command, setCommand] = useState("");
     const [cpus, setCpus] = useState<number | undefined>(undefined);
     const [memoryMB, setMemoryMB] = useState<number | undefined>(undefined);
@@ -27,12 +28,14 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
     const [runImmediately, setRunImmediately] = useState(true);
     const [networks, setNetworks] = useState<NetworkInfo[]>([]);
 
+    const effectiveImage = imageName || customImage;
+
     useEffect(() => {
         listNetworks().then(setNetworks);
     }, []);
 
     const config: ContainerConfig = {
-        image: imageName,
+        image: effectiveImage,
         command: command || undefined,
         cpus: cpus || undefined,
         memory: memoryMB ? `${memoryMB}M` : undefined,
@@ -47,7 +50,7 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
         : buildCreateCommand(config);
 
     const handleCreate = () => {
-        onCreate({ image: imageName, command: currentCommand, runImmediately });
+        onCreate({ image: effectiveImage, command: currentCommand, runImmediately });
     };
 
     const addPort = () => setPorts([...ports, { host: "", container: "" }]);
@@ -78,11 +81,25 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
         <div className="modal-backdrop flex-center animate-fade-in">
             <div className="modal-content premium-card">
                 <div className="modal-header flex-between mb-4">
-                    <h2 style={{ fontSize: "20px" }}>Create Container from {imageName}</h2>
+                    <h2 style={{ fontSize: "20px" }}>{imageName ? `Create Container from ${imageName}` : "Create New Container"}</h2>
                     <button className="btn-icon" onClick={onClose} disabled={isCreating}><X size={20} /></button>
                 </div>
 
                 <div className="modal-body" style={{ maxHeight: "60vh", overflowY: "auto", paddingRight: "8px" }}>
+                    {/* Image Selection (if not provided) */}
+                    {!imageName && (
+                        <section className="mb-4">
+                            <h3 style={{ fontSize: "16px", color: "var(--accent-primary)", marginBottom: "12px" }}>Image</h3>
+                            <div className="input-group">
+                                <label>Image Reference</label>
+                                <input
+                                    placeholder="e.g., redis:latest"
+                                    value={customImage}
+                                    onChange={e => setCustomImage(e.target.value)}
+                                />
+                            </div>
+                        </section>
+                    )}
 
                     {/* General */}
                     <section className="mb-4">
