@@ -1,6 +1,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-tertiary: #e2e8f0;
+
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+
+  --accent-primary: #8b5cf6;
+  --accent-hover: #7c3aed;
+
+  --status-running: #10b981;
+  --status-stopped: #ef4444;
+  --status-exited: #f59e0b;
+  --status-unknown: #6b7280;
+
+  --border-color: rgba(0, 0, 0, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 24px;
+}
+
+.dark {
   --bg-primary: #0a0a0b;
   --bg-secondary: #121214;
   --bg-tertiary: #1c1c1f;
@@ -8,20 +32,11 @@
   --text-primary: #ededef;
   --text-secondary: #a1a1aa;
 
-  --accent-primary: #0066ff;
-  --accent-hover: #3385ff;
-
-  --status-running: #10b981;
-  --status-stopped: #ef4444;
-  --status-exited: #f59e0b;
-  --status-unknown: #6b7280;
+  --accent-primary: #8b5cf6;
+  --accent-hover: #7c3aed;
 
   --border-color: rgba(255, 255, 255, 0.1);
   --glass-bg: rgba(255, 255, 255, 0.03);
-
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 24px;
 }
 
 * {

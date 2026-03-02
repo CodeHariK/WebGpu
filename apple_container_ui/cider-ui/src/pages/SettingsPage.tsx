@@ -22,6 +22,7 @@ import "../Dashboard.css";
 export default function SettingsPage() {
     const [refreshInterval, setRefreshInterval] = useState<number>(60000);
     const [saved, setSaved] = useState(false);
+    const [theme, setTheme] = useState<string>("dark");
 
     // System Properties State
     const [properties, setProperties] = useState<SystemProperty[]>([]);
@@ -38,6 +39,10 @@ export default function SettingsPage() {
         if (stored !== null) {
             setRefreshInterval(parseInt(stored, 10));
         }
+
+        const storedTheme = localStorage.getItem("theme") || "dark";
+        setTheme(storedTheme);
+
         loadProperties();
     }, []);
 
@@ -68,7 +73,7 @@ export default function SettingsPage() {
         try {
             await setSystemProperty(editingProp.ID, editValue);
             await loadProperties();
-            setEditingProp(null); // Keep this line to close the modal
+            setEditingProp(null);
         } catch (e: any) {
             alert(e.message || "Failed to save property");
         } finally {
@@ -86,6 +91,16 @@ export default function SettingsPage() {
             alert(e.message || "Failed to clear property");
         } finally {
             setIsLoadingProps(false);
+        }
+    };
+
+    const handleThemeChange = (newTheme: string) => {
+        setTheme(newTheme);
+        localStorage.setItem("theme", newTheme);
+        if (newTheme === "dark") {
+            document.documentElement.classList.add("dark");
+        } else {
+            document.documentElement.classList.remove("dark");
         }
     };
 
@@ -107,7 +122,36 @@ export default function SettingsPage() {
             </header>
 
             <main className="premium-card" style={{ padding: '24px' }}>
-                <h2 style={{ fontSize: '18px', marginBottom: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+                <h2 style={{ fontSize: '18px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', color: 'var(--text-primary)' }}>
+                    Appearance
+                </h2>
+
+                <div className="input-group" style={{ marginBottom: '32px' }}>
+                    <label style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>
+                        Interface Theme
+                    </label>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', opacity: 0.7, marginBottom: '16px' }}>
+                        Choose between a light or dark visual style for the dashboard.
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                        <button
+                            onClick={() => handleThemeChange("light")}
+                            className={`btn ${theme === "light" ? "btn-primary" : "btn-ghost"}`}
+                            style={{ flex: 1, border: theme === "light" ? 'none' : '1px solid var(--border-color)' }}
+                        >
+                            Light
+                        </button>
+                        <button
+                            onClick={() => handleThemeChange("dark")}
+                            className={`btn ${theme === "dark" ? "btn-primary" : "btn-ghost"}`}
+                            style={{ flex: 1, border: theme === "dark" ? 'none' : '1px solid var(--border-color)' }}
+                        >
+                            Dark
+                        </button>
+                    </div>
+                </div>
+
+                <h2 style={{ fontSize: '18px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', color: 'var(--text-primary)' }}>
                     Dashboard Preferences
                 </h2>
 
@@ -115,14 +159,13 @@ export default function SettingsPage() {
                     <label style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>
                         Auto-Refresh Interval
                     </label>
-                    <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '16px' }}>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', opacity: 0.7, marginBottom: '16px' }}>
                         How often the dashboard should poll the container daemon for realtime updates (stats, running containers, etc).
                     </p>
                     <select
-
                         value={refreshInterval}
                         onChange={e => setRefreshInterval(parseInt(e.target.value, 10))}
-                        style={{ maxWidth: '300px', width: '100%', padding: '10px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'white' }}
+                        style={{ maxWidth: '300px', width: '100%', padding: '10px 16px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                     >
                         <option value={0}>Disabled</option>
                         <option value={5000}>5 Seconds</option>
@@ -133,7 +176,7 @@ export default function SettingsPage() {
                     </select>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
                     <button className="btn btn-primary" onClick={handleSave} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                         <Save size={16} /> Save Settings
                     </button>
@@ -196,7 +239,7 @@ export default function SettingsPage() {
                                                     <Edit2 size={16} />
                                                 </button>
                                                 {p.Value && (
-                                                    <button className="btn-icon text-danger" onClick={() => handleClearProp(p.ID)} title="Clear (Revert to default)" style={{ background: 'transparent', border: 'none', color: 'var(--danger-color)', cursor: 'pointer' }}>
+                                                    <button className="btn-icon text-danger" onClick={() => handleClearProp(p.ID)} title="Clear (Revert to default)" style={{ background: 'transparent', border: 'none', color: 'var(--status-stopped)', cursor: 'pointer' }}>
                                                         <Trash2 size={16} />
                                                     </button>
                                                 )}
@@ -213,17 +256,17 @@ export default function SettingsPage() {
             {/* Edit Property Modal */}
             {editingProp && (
                 <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                    <div className="premium-card animate-scale-in" style={{ width: '90%', maxWidth: '450px', padding: '24px', background: 'var(--bg-card)', borderRadius: '12px' }}>
-                        <h2 className="modal-title" style={{ margin: '0 0 20px 0', fontSize: '20px' }}>Edit System Property</h2>
+                    <div className="premium-card animate-scale-in" style={{ width: '90%', maxWidth: '450px', padding: '24px', background: 'var(--bg-tertiary)', borderRadius: '12px' }}>
+                        <h2 className="modal-title" style={{ margin: '0 0 20px 0', fontSize: '20px', color: 'var(--text-primary)' }}>Edit System Property</h2>
                         <div style={{ marginBottom: "24px" }}>
                             <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginBottom: "12px", lineHeight: 1.5 }}>
                                 {editingProp.Description}
                             </p>
-                            <label style={{ display: "block", marginBottom: "12px", fontWeight: 500, fontSize: '15px' }}>
+                            <label style={{ display: "block", marginBottom: "12px", fontWeight: 500, fontSize: '15px', color: 'var(--text-primary)' }}>
                                 {editingProp.ID} <span style={{ opacity: 0.5, fontWeight: 'normal' }}>({editingProp.Type})</span>
                             </label>
                             {editingProp.Type === "Bool" ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                                     <input
                                         type="checkbox"
                                         id="prop-bool-input"
@@ -231,18 +274,17 @@ export default function SettingsPage() {
                                         onChange={(e) => setEditValue(e.target.checked ? "true" : "false")}
                                         style={{ width: '20px', height: '20px', cursor: 'pointer' }}
                                     />
-                                    <label htmlFor="prop-bool-input" style={{ cursor: 'pointer', fontSize: '14px' }}>
+                                    <label htmlFor="prop-bool-input" style={{ cursor: 'pointer', fontSize: '14px', color: 'var(--text-primary)' }}>
                                         {editValue === "true" ? "Enabled" : "Disabled"}
                                     </label>
                                 </div>
                             ) : (
                                 <input
                                     type="text"
-
                                     value={editValue}
                                     onChange={(e) => setEditValue(e.target.value)}
                                     autoFocus
-                                    style={{ width: '100%', padding: '10px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'white' }}
+                                    style={{ width: '100%', padding: '10px 16px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
                                 />
                             )}
                         </div>

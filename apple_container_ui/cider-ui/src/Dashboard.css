@@ -591,6 +591,25 @@ input:focus {
     --color-gray-950: oklch(12% 5% 264deg / 95%);
 
     @media (prefers-color-scheme: dark) {
+        :root:not(.light) {
+            --color-blue: oklch(69% 50% 264deg);
+            --color-red: oklch(80% 55% 31deg);
+
+            --color-gray-50: oklch(17% 0.25% 264deg);
+            --color-gray-100: oklch(28% 0.75% 264deg / 65%);
+            --color-gray-200: oklch(29% 0.75% 264deg / 80%);
+            --color-gray-300: oklch(35% 0.75% 264deg / 80%);
+            --color-gray-400: oklch(47% 0.875% 264deg / 80%);
+            --color-gray-500: oklch(64% 1% 264deg / 80%);
+            --color-gray-600: oklch(82% 1% 264deg / 80%);
+            --color-gray-700: oklch(92% 1.125% 264deg / 80%);
+            --color-gray-800: oklch(93% 0.875% 264deg / 85%);
+            --color-gray-900: oklch(95% 0.5% 264deg / 90%);
+            --color-gray-950: oklch(94% 0.375% 264deg / 95%);
+        }
+    }
+
+    .dark {
         --color-blue: oklch(69% 50% 264deg);
         --color-red: oklch(80% 55% 31deg);
 
@@ -651,11 +670,20 @@ h3 {
     font-weight: 600;
     margin: 0;
 }
+
 /* Status Pulse Animations */
 @keyframes pulse-green {
-    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
 }
 
 .status-pulse-green {
@@ -663,9 +691,17 @@ h3 {
 }
 
 @keyframes pulse-red {
-    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
 }
 
 .status-pulse-red {
@@ -696,6 +732,11 @@ h3 {
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
