@@ -1,0 +1,116 @@
+.Field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.Label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.Select {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 42px;
+    padding: 0 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.Select:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.Value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.SelectIcon {
+    display: flex;
+    align-items: center;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+}
+
+.Select[data-open] .SelectIcon {
+    transform: rotate(180deg);
+}
+
+.Positioner {
+    z-index: 3000;
+}
+
+.Popup {
+    min-width: var(--anchor-width);
+    background: var(--bg-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    animation: popup-fade-in 0.2s ease-out;
+}
+
+@keyframes popup-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.List {
+    padding: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.Item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    padding-left: 32px;
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s ease;
+    outline: none;
+}
+
+.Item:hover,
+.Item[data-highlighted] {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+}
+
+.Item[data-selected] {
+    color: var(--accent-primary);
+    background: rgba(0, 102, 255, 0.1);
+}
+
+.ItemIndicator {
+    position: absolute;
+    left: 10px;
+    display: flex;
+    align-items: center;
+    color: var(--accent-primary);
+}

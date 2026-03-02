@@ -205,7 +205,7 @@
     color: var(--text-secondary);
 }
 
-.premium-input {
+input {
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
@@ -217,7 +217,7 @@
     min-width: 200px;
 }
 
-.premium-input:focus {
+input:focus {
     border-color: var(--accent-primary);
     box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.2);
 }
@@ -412,4 +412,242 @@
         opacity: 1;
         transform: translate(-50%, -50%) scale(1);
     }
+}
+
+
+
+
+
+/* Backdrop covers the whole screen */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    z-index: 2000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* Popup centering logic */
+.modal-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2001;
+    outline: none;
+    animation: modalScaleIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalScaleIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -48%) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+
+
+/* Container for the Tab buttons */
+.tabs-list {
+    display: flex;
+    padding: 6px;
+    gap: 8px;
+    margin-bottom: 24px;
+    position: relative;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+/* Individual Tab Button */
+.tabs-tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+/* Hover & Active States */
+.tabs-tab:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.tabs-tab[data-selected] {
+    color: #fff;
+    background: var(--accent-primary);
+    /* Your blue color */
+}
+
+/* Optional: Animated Indicator Line */
+.tabs-indicator {
+    position: absolute;
+    bottom: 0;
+    height: 2px;
+    background-color: var(--accent-primary);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tabs-panel {
+    outline: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+.Button {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.5rem;
+    padding: 0 0.875rem;
+    margin: 0;
+    outline: 0;
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.375rem;
+    background-color: var(--color-gray-50);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.5rem;
+    color: var(--color-gray-900);
+    user-select: none;
+
+    @media (hover: hover) {
+        &:hover:not([data-disabled]) {
+            background-color: var(--color-gray-100);
+        }
+    }
+
+    &:active:not([data-disabled]) {
+        background-color: var(--color-gray-200);
+        box-shadow: inset 0 1px 3px var(--color-gray-200);
+        border-top-color: var(--color-gray-300);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-blue);
+        outline-offset: -1px;
+    }
+
+    &[data-disabled] {
+        color: var(--color-gray-500);
+    }
+}
+
+
+:root {
+    --color-blue: oklch(45% 50% 264deg);
+    --color-red: oklch(50% 55% 31deg);
+
+    --color-gray-50: oklch(98% 0.25% 264deg);
+    --color-gray-100: oklch(12% 9.5% 264deg / 5%);
+    --color-gray-200: oklch(12% 9% 264deg / 7%);
+    --color-gray-300: oklch(12% 8.5% 264deg / 17%);
+    --color-gray-400: oklch(12% 8% 264deg / 38%);
+    --color-gray-500: oklch(12% 7.5% 264deg / 50%);
+    --color-gray-600: oklch(12% 7% 264deg / 67%);
+    --color-gray-700: oklch(12% 6% 264deg / 77%);
+    --color-gray-800: oklch(12% 5% 264deg / 85%);
+    --color-gray-900: oklch(12% 5% 264deg / 90%);
+    --color-gray-950: oklch(12% 5% 264deg / 95%);
+
+    @media (prefers-color-scheme: dark) {
+        --color-blue: oklch(69% 50% 264deg);
+        --color-red: oklch(80% 55% 31deg);
+
+        --color-gray-50: oklch(17% 0.25% 264deg);
+        --color-gray-100: oklch(28% 0.75% 264deg / 65%);
+        --color-gray-200: oklch(29% 0.75% 264deg / 80%);
+        --color-gray-300: oklch(35% 0.75% 264deg / 80%);
+        --color-gray-400: oklch(47% 0.875% 264deg / 80%);
+        --color-gray-500: oklch(64% 1% 264deg / 80%);
+        --color-gray-600: oklch(82% 1% 264deg / 80%);
+        --color-gray-700: oklch(92% 1.125% 264deg / 80%);
+        --color-gray-800: oklch(93% 0.875% 264deg / 85%);
+        --color-gray-900: oklch(95% 0.5% 264deg / 90%);
+        --color-gray-950: oklch(94% 0.375% 264deg / 95%);
+    }
+}
+
+
+
+.w-full {
+    width: 100%;
+}
+
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+.flex-row {
+    display: flex;
+    flex-direction: row;
+}
+
+.gap-2 {
+    gap: 0.5rem;
+}
+
+.flex {
+    display: flex;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.mb-4 {
+    margin-bottom: 1rem;
+}
+
+h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
 }

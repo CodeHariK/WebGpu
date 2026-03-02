@@ -186,6 +186,9 @@ func runCli(args ...string) ([]byte, error) {
 		s := bufio.NewScanner(stderr)
 		for s.Scan() {
 			line := s.Text()
+			mu.Lock()
+			outBuf.WriteString(line + "\n")
+			mu.Unlock()
 			logActionExt(fullCmd, line, true, true)
 		}
 	}()
@@ -388,10 +391,9 @@ func handleCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := runCli(args[1:]...)
+	output, err := runCli(args[1:]...)
 	if err != nil {
-		// For DELETE images, we still might want graceful 204.
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, string(output), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -799,12 +801,6 @@ func handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	cmd.Wait()
 }
 
-// handleVolumes removed - replaced by inline mux handler
-
-// handleNetworks removed - replaced by inline mux handler
-
-// handleDns removed - replaced by inline mux handler
-
 func handleFindDockerfiles(w http.ResponseWriter, r *http.Request) {
 	baseDir := r.URL.Query().Get("baseDir")
 	if baseDir == "" {
@@ -836,7 +832,7 @@ func handleFindDockerfiles(w http.ResponseWriter, r *http.Request) {
 		}
 
 		name := info.Name()
-		if name == "Dockerfile" || name == "Containerfile" || strings.HasSuffix(name, ".Dockerfile") {
+		if strings.HasSuffix(name, ".Dockerfile") {
 			rel, _ := filepath.Rel(baseDir, path)
 			results = append(results, DockerfileInfo{
 				Path: path,

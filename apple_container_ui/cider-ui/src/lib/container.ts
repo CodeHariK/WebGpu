@@ -58,7 +58,7 @@ export interface ImageInfo {
     Tag: string;
     Size: string;
     CreatedAt: string;
-    Name?: string; // Compatibility
+    Name: string;
 }
 
 export interface BuilderStatus {

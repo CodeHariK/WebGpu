@@ -112,7 +112,7 @@ export default function RegistriesPage() {
                             <div className="input-group" style={{ flex: '1 1 200px' }}>
                                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>Registry Server</label>
                                 <input
-                                    className="premium-input"
+
                                     placeholder="e.g., docker.io or ghcr.io"
                                     value={server}
                                     style={{ width: '100%', padding: '10px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'white' }}
@@ -122,7 +122,7 @@ export default function RegistriesPage() {
                             <div className="input-group" style={{ flex: '1 1 200px' }}>
                                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>Username</label>
                                 <input
-                                    className="premium-input"
+
                                     placeholder="Username"
                                     value={username}
                                     style={{ width: '100%', padding: '10px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'white' }}
@@ -132,7 +132,7 @@ export default function RegistriesPage() {
                             <div className="input-group" style={{ flex: '1 1 200px' }}>
                                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>Password / Token</label>
                                 <input
-                                    className="premium-input"
+
                                     type="password"
                                     placeholder="Password"
                                     value={password}

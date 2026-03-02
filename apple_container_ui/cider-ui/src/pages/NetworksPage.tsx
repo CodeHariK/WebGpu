@@ -168,7 +168,7 @@ export default function NetworksPage() {
                             <div className="input-group" style={{ flex: 1 }}>
                                 <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>Network Name</label>
                                 <input
-                                    className="premium-input"
+
                                     placeholder="e.g., custom-bridge"
                                     value={newNetworkName}
                                     onChange={e => setNewNetworkName(e.target.value)}
@@ -268,7 +268,7 @@ export default function NetworksPage() {
                             <div className="input-group" style={{ flex: 1 }}>
                                 <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>Add DNS Domain</label>
                                 <input
-                                    className="premium-input"
+
                                     placeholder="e.g., containers.local"
                                     value={newDnsDomain}
                                     onChange={e => setNewDnsDomain(e.target.value)}

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
-import type { ContainerConfig } from "../lib/container";
+import { listNetworks, type NetworkInfo, type ContainerConfig } from "../lib/container";
+import BaseSelect from "./BaseSelect";
 import "../Dashboard.css"; // Reuse dashboard styles
 import { buildRunCommand, buildCreateCommand } from "../lib/commandBuilder";
 
@@ -18,18 +19,23 @@ interface VolConfig { host: string; container: string; }
 export default function CreateContainerModal({ imageName, onClose, onCreate, isCreating }: Props) {
     const [command, setCommand] = useState("");
     const [cpus, setCpus] = useState<number | undefined>(undefined);
-    const [memory, setMemory] = useState("");
+    const [memoryMB, setMemoryMB] = useState<number | undefined>(undefined);
     const [network, setNetwork] = useState("");
     const [ports, setPorts] = useState<PortConfig[]>([]);
     const [env, setEnv] = useState<EnvConfig[]>([]);
     const [volumes, setVolumes] = useState<VolConfig[]>([]);
     const [runImmediately, setRunImmediately] = useState(true);
+    const [networks, setNetworks] = useState<NetworkInfo[]>([]);
+
+    useEffect(() => {
+        listNetworks().then(setNetworks);
+    }, []);
 
     const config: ContainerConfig = {
         image: imageName,
         command: command || undefined,
         cpus: cpus || undefined,
-        memory: memory || undefined,
+        memory: memoryMB ? `${memoryMB}M` : undefined,
         network: network || undefined,
         ports: ports.filter(p => p.host && p.container).map(p => `${p.host}:${p.container}`),
         env: env.filter(e => e.key && e.value).map(e => `${e.key}=${e.value}`),
@@ -96,7 +102,7 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                         <div className="input-group mb-2">
                             <label>Command Override (Optional)</label>
                             <input
-                                className="premium-input"
+
                                 placeholder="e.g., tail -f /dev/null"
                                 value={command}
                                 onChange={e => setCommand(e.target.value)}
@@ -109,28 +115,32 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                                     type="number"
                                     step="0.1"
                                     min="0"
-                                    className="premium-input"
+
                                     placeholder="e.g., 2"
                                     value={cpus || ""}
                                     onChange={e => setCpus(parseFloat(e.target.value) || undefined)}
                                 />
                             </div>
                             <div className="input-group">
-                                <label>Memory Limit</label>
+                                <label>Memory Limit (MB)</label>
                                 <input
-                                    className="premium-input"
-                                    placeholder="e.g., 4G"
-                                    value={memory}
-                                    onChange={e => setMemory(e.target.value)}
+                                    type="number"
+                                    min="4"
+                                    placeholder="e.g., 512"
+                                    value={memoryMB || ""}
+                                    onChange={e => setMemoryMB(parseInt(e.target.value) || undefined)}
                                 />
                             </div>
                             <div className="input-group">
-                                <label>Network</label>
-                                <input
-                                    className="premium-input"
-                                    placeholder="e.g., bridge"
+                                <BaseSelect
+                                    label="Network"
                                     value={network}
-                                    onChange={e => setNetwork(e.target.value)}
+                                    onChange={setNetwork}
+                                    options={[
+                                        { label: "(Default)", value: "" },
+                                        ...networks.map(n => ({ label: n.id, value: n.id }))
+                                    ]}
+                                    placeholder="Select Network"
                                 />
                             </div>
                         </div>
@@ -146,9 +156,9 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                         </div>
                         {ports.map((port, idx) => (
                             <div key={idx} style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                                <input className="premium-input" placeholder="Host Port" value={port.host} onChange={e => updatePort(idx, "host", e.target.value)} style={{ flex: 1 }} />
+                                <input placeholder="Host Port" value={port.host} onChange={e => updatePort(idx, "host", e.target.value)} style={{ flex: 1 }} />
                                 <span className="flex-center" style={{ color: "var(--text-secondary)" }}>:</span>
-                                <input className="premium-input" placeholder="Container Port" value={port.container} onChange={e => updatePort(idx, "container", e.target.value)} style={{ flex: 1 }} />
+                                <input placeholder="Container Port" value={port.container} onChange={e => updatePort(idx, "container", e.target.value)} style={{ flex: 1 }} />
                                 <button className="btn-icon text-danger" onClick={() => removePort(idx)}><Trash2 size={16} /></button>
                             </div>
                         ))}
@@ -165,9 +175,9 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                         </div>
                         {env.map((e, idx) => (
                             <div key={idx} style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                                <input className="premium-input" placeholder="KEY" value={e.key} onChange={ev => updateEnv(idx, "key", ev.target.value)} style={{ flex: 1 }} />
+                                <input placeholder="KEY" value={e.key} onChange={ev => updateEnv(idx, "key", ev.target.value)} style={{ flex: 1 }} />
                                 <span className="flex-center" style={{ color: "var(--text-secondary)" }}>=</span>
-                                <input className="premium-input" placeholder="Value" value={e.value} onChange={ev => updateEnv(idx, "value", ev.target.value)} style={{ flex: 1 }} />
+                                <input placeholder="Value" value={e.value} onChange={ev => updateEnv(idx, "value", ev.target.value)} style={{ flex: 1 }} />
                                 <button className="btn-icon text-danger" onClick={() => removeEnv(idx)}><Trash2 size={16} /></button>
                             </div>
                         ))}
@@ -184,9 +194,9 @@ export default function CreateContainerModal({ imageName, onClose, onCreate, isC
                         </div>
                         {volumes.map((vol, idx) => (
                             <div key={idx} style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                                <input className="premium-input" placeholder="Host Path (/Users/)" value={vol.host} onChange={e => updateVol(idx, "host", e.target.value)} style={{ flex: 1 }} />
+                                <input placeholder="Host Path (/Users/)" value={vol.host} onChange={e => updateVol(idx, "host", e.target.value)} style={{ flex: 1 }} />
                                 <span className="flex-center" style={{ color: "var(--text-secondary)" }}>:</span>
-                                <input className="premium-input" placeholder="Container Path (/app)" value={vol.container} onChange={e => updateVol(idx, "container", e.target.value)} style={{ flex: 1 }} />
+                                <input placeholder="Container Path (/app)" value={vol.container} onChange={e => updateVol(idx, "container", e.target.value)} style={{ flex: 1 }} />
                                 <button className="btn-icon text-danger" onClick={() => removeVol(idx)}><Trash2 size={16} /></button>
                             </div>
                         ))}

@@ -106,7 +106,7 @@ export default function VolumesPage() {
                             <div className="input-group" style={{ flex: 1 }}>
                                 <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>Volume Name</label>
                                 <input
-                                    className="premium-input"
+
                                     placeholder="e.g., redis-data"
                                     value={newVolumeName}
                                     onChange={e => setNewVolumeName(e.target.value)}

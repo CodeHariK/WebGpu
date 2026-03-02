@@ -119,7 +119,7 @@ export default function SettingsPage() {
                         How often the dashboard should poll the container daemon for realtime updates (stats, running containers, etc).
                     </p>
                     <select
-                        className="premium-input"
+
                         value={refreshInterval}
                         onChange={e => setRefreshInterval(parseInt(e.target.value, 10))}
                         style={{ maxWidth: '300px', width: '100%', padding: '10px 16px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'white' }}
@@ -238,7 +238,7 @@ export default function SettingsPage() {
                             ) : (
                                 <input
                                     type="text"
-                                    className="premium-input"
+
                                     value={editValue}
                                     onChange={(e) => setEditValue(e.target.value)}
                                     autoFocus
