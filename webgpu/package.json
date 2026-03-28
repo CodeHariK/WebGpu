@@ -1,0 +1,28 @@
+{
+	"name": "webgpu",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc -b && vite build",
+		"preview": "vite preview",
+		"format": "biome format --write"
+	},
+	"dependencies": {
+		"markdown-it": "^14.1.1",
+		"solid-js": "^1.9.10",
+		"wgpu-matrix": "^3.4.0"
+	},
+	"devDependencies": {
+		"@types/markdown-it": "^14.1.2",
+		"@types/node": "^24.10.1",
+		"@webgpu/types": "^0.1.68",
+		"typescript": "~5.9.3",
+		"vite": "npm:rolldown-vite@7.2.5",
+		"vite-plugin-solid": "^2.11.10"
+	},
+	"overrides": {
+		"vite": "npm:rolldown-vite@7.2.5"
+	}
+}
