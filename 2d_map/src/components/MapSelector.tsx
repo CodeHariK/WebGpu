@@ -9,6 +9,12 @@ import Map4 from '../maps/Map4';
 import Map4Explanation from '../maps/Map4Explanation';
 import Map5 from '../maps/Map5';
 import Map5Explanation from '../maps/Map5Explanation';
+import Map6 from '../maps/Map6';
+import Map6Explanation from '../maps/Map6Explanation';
+import Map7 from '../maps/Map7';
+import Map7Explanation from '../maps/Map7Explanation';
+import Map8 from '../maps/Map8';
+import Map8Explanation from '../maps/Map8Explanation';
 
 import './MapSelector.css';
 
@@ -17,7 +23,7 @@ export default function MapSelector() {
         <div className="selector-container">
             <h1 className="selector-title">Generative Maps Showcase</h1>
 
-            <Tabs.Root defaultValue="map4" className="tabs-root">
+            <Tabs.Root defaultValue="map8" className="tabs-root">
                 <Tabs.List className="tabs-list">
                     <Tabs.Tab value="map1" className="tabs-tab">
                         Algorithmic Curves
@@ -33,6 +39,15 @@ export default function MapSelector() {
                     </Tabs.Tab>
                     <Tabs.Tab value="map5" className="tabs-tab">
                         Grid Tiling
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map6" className="tabs-tab">
+                        Plant Growth
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map7" className="tabs-tab">
+                        Procedural City
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map8" className="tabs-tab">
+                        Multi-Tree
                     </Tabs.Tab>
                     <Tabs.Indicator className="tabs-indicator" />
                 </Tabs.List>
@@ -88,6 +103,39 @@ export default function MapSelector() {
                         </div>
                         <div className="explanation-container">
                             <Map5Explanation />
+                        </div>
+                    </div>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="map6" className="tabs-panel">
+                    <div className="panel-layout">
+                        <div className="canvas-container">
+                            <Map6 width={800} height={800} />
+                        </div>
+                        <div className="explanation-container">
+                            <Map6Explanation />
+                        </div>
+                    </div>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="map7" className="tabs-panel">
+                    <div className="panel-layout">
+                        <div className="canvas-container">
+                            <Map7 width={800} height={800} />
+                        </div>
+                        <div className="explanation-container">
+                            <Map7Explanation />
+                        </div>
+                    </div>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="map8" className="tabs-panel">
+                    <div className="panel-layout">
+                        <div className="canvas-container">
+                            <Map8 width={800} height={800} />
+                        </div>
+                        <div className="explanation-container">
+                            <Map8Explanation />
                         </div>
                     </div>
                 </Tabs.Panel>
