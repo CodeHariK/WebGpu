@@ -4,10 +4,10 @@ import { createSignal, For } from "solid-js";
 import "./index.css";
 import Triangle from "./1.Triangle/triangle.tsx";
 import Cube from "./2.Cube/cube.tsx";
-import Markdown from "./Markdown";
-import coreConceptsMarkdown from "./docs/CommandEncoding.md?raw";
+import PlatformerDemo from "./3.Renderer/PlatformerDemo.tsx";
 
 const EXAMPLES = [
+
 	{
 		id: "triangle",
 		label: "Basic Triangle",
@@ -19,9 +19,9 @@ const EXAMPLES = [
 		component: Cube,
 	},
 	{
-		id: "core-concepts",
-		label: "WebGPU Core Concepts",
-		component: () => <Markdown content={coreConceptsMarkdown} />,
+		id: "renderer",
+		label: "Platformer Renderer",
+		component: PlatformerDemo,
 	},
 ];
 
@@ -31,7 +31,10 @@ function App() {
 	const activeExample = () =>
 		EXAMPLES.find((e) => e.id === activeTab()) || EXAMPLES[0];
 
-	const isDoc = () => activeTab() === "core-concepts";
+	const isDoc = () =>
+		activeTab() === "wgsl-syntax" ||
+		activeTab() === "wgpu-dev" ||
+		activeTab() === "wgpu-core";
 
 	return (
 		<div class="app-container">
