@@ -17,6 +17,27 @@ function mulberry32(a: number) {
 
 // --- HELPER FUNCTIONS FOR MANSION PROCESSING ---
 
+const Direction = { North: 0, East: 1, South: 2, West: 3 } as const;
+type Direction = (typeof Direction)[keyof typeof Direction];
+
+const GRID_SIZE = 20;
+const EPSILON = 1; // Tolerance for grid-aligned adjacency checks
+
+const ROOM_NAMES = [
+    'Entrance Hall', 'Dining Room', 'Gallery', 'Library', 'Kitchen',
+    'Save Room', 'Master BR', 'Attic', 'Basement', 'Laboratory',
+    'Corridor', 'Study', 'Greenhouse', 'Storage', 'Observatory', 'Salon'
+];
+
+const ZONE_COLORS = [
+    '#3b82f6', // Blue (Standard)
+    '#8b5cf6', // Violet (Upper Floor)
+    '#ec4899', // Pink (Gallery)
+    '#10b981', // Emerald (Garden)
+    '#f59e0b', // Amber (Laboratory)
+    '#ef4444'  // Crimson (Restricted)
+];
+
 /** Area in grid units (width) */
 const rm_gw = (r: Room) => Math.round(r.w / GRID_SIZE);
 /** Area in grid units (height) */
@@ -208,26 +229,9 @@ function generateDoorsForIslands(rooms: Room[]): Door[] {
 }
 
 type RoomStatus = 'unexplored' | 'clear' | 'locked';
-const Direction = { North: 0, East: 1, South: 2, West: 3 } as const;
-type Direction = (typeof Direction)[keyof typeof Direction];
 
-const GRID_SIZE = 20;
-const EPSILON = 1; // Tolerance for grid-aligned adjacency checks
 
-const ROOM_NAMES = [
-    'Entrance Hall', 'Dining Room', 'Gallery', 'Library', 'Kitchen',
-    'Save Room', 'Master BR', 'Attic', 'Basement', 'Laboratory',
-    'Corridor', 'Study', 'Greenhouse', 'Storage', 'Observatory', 'Salon'
-];
 
-const ZONE_COLORS = [
-    '#3b82f6', // Blue (Standard)
-    '#8b5cf6', // Violet (Upper Floor)
-    '#ec4899', // Pink (Gallery)
-    '#10b981', // Emerald (Garden)
-    '#f59e0b', // Amber (Laboratory)
-    '#ef4444'  // Crimson (Restricted)
-];
 
 
 
@@ -366,10 +370,10 @@ export default function Map9({ width = 800, height = 800 }: { width?: number, he
     /**
      * post-generation pipeline that organizes raw rooms into a coherent mansion layout.
      */
-    const processMansionData = useCallback((currentRooms: Room[]) => {
+    const processMansionData = useCallback((currentRooms: Room[], skipConsolidation: boolean = false) => {
         identifyIslands(currentRooms);
         assignIslandMetadata(currentRooms, seed);
-        consolidateTinyRooms(currentRooms);
+        if (!skipConsolidation) consolidateTinyRooms(currentRooms);
         refreshIslandLabels(currentRooms);
 
         const newDoors = generateDoorsForIslands(currentRooms);
@@ -406,7 +410,13 @@ export default function Map9({ width = 800, height = 800 }: { width?: number, he
                         });
                         for (const [color, count] of colorCounts.entries()) {
                             if (count >= 3) {
-                                newRooms.push(new Room(x, y, GRID_SIZE, GRID_SIZE, color));
+                                // Never pick corridor color for rooms
+                                let fillC = color;
+                                if (color === '#cbd5e1') {
+                                    const fillRng = mulberry32(seed + x + y);
+                                    fillC = ZONE_COLORS[Math.floor(fillRng() * ZONE_COLORS.length)];
+                                }
+                                newRooms.push(new Room(x, y, GRID_SIZE, GRID_SIZE, fillC));
                                 voidFilled = true;
                                 break;
                             }
@@ -442,30 +452,30 @@ export default function Map9({ width = 800, height = 800 }: { width?: number, he
 
                 // Check Vertical Danglers
                 if (Math.abs(r.w - GRID_SIZE) < EPSILON) {
-                    if (checkAir(r.x, r.y - GRID_SIZE, GRID_SIZE, GRID_SIZE, r) && 
-                        checkAir(r.x - GRID_SIZE, r.y, GRID_SIZE, GRID_SIZE, r) && 
+                    if (checkAir(r.x, r.y - GRID_SIZE, GRID_SIZE, GRID_SIZE, r) &&
+                        checkAir(r.x - GRID_SIZE, r.y, GRID_SIZE, GRID_SIZE, r) &&
                         checkAir(r.x + GRID_SIZE, r.y, GRID_SIZE, GRID_SIZE, r)) {
                         r.y += GRID_SIZE; r.h -= GRID_SIZE;
                         changed = true; overallChanged = true;
                     }
-                    else if (checkAir(r.x, r.y + r.h, GRID_SIZE, GRID_SIZE, r) && 
-                             checkAir(r.x - GRID_SIZE, r.y + r.h - GRID_SIZE, GRID_SIZE, GRID_SIZE, r) && 
-                             checkAir(r.x + GRID_SIZE, r.y + r.h - GRID_SIZE, GRID_SIZE, GRID_SIZE, r)) {
+                    else if (checkAir(r.x, r.y + r.h, GRID_SIZE, GRID_SIZE, r) &&
+                        checkAir(r.x - GRID_SIZE, r.y + r.h - GRID_SIZE, GRID_SIZE, GRID_SIZE, r) &&
+                        checkAir(r.x + GRID_SIZE, r.y + r.h - GRID_SIZE, GRID_SIZE, GRID_SIZE, r)) {
                         r.h -= GRID_SIZE;
                         changed = true; overallChanged = true;
                     }
                 }
                 // Check Horizontal Danglers
                 if (Math.abs(r.h - GRID_SIZE) < EPSILON) {
-                    if (checkAir(r.x - GRID_SIZE, r.y, GRID_SIZE, GRID_SIZE, r) && 
-                        checkAir(r.x, r.y - GRID_SIZE, GRID_SIZE, GRID_SIZE, r) && 
+                    if (checkAir(r.x - GRID_SIZE, r.y, GRID_SIZE, GRID_SIZE, r) &&
+                        checkAir(r.x, r.y - GRID_SIZE, GRID_SIZE, GRID_SIZE, r) &&
                         checkAir(r.x, r.y + GRID_SIZE, GRID_SIZE, GRID_SIZE, r)) {
                         r.x += GRID_SIZE; r.w -= GRID_SIZE;
                         changed = true; overallChanged = true;
                     }
-                    else if (checkAir(r.x + r.w, r.y, GRID_SIZE, GRID_SIZE, r) && 
-                             checkAir(r.x + r.w - GRID_SIZE, r.y - GRID_SIZE, GRID_SIZE, GRID_SIZE, r) && 
-                             checkAir(r.x + r.w - GRID_SIZE, r.y + GRID_SIZE, GRID_SIZE, GRID_SIZE, r)) {
+                    else if (checkAir(r.x + r.w, r.y, GRID_SIZE, GRID_SIZE, r) &&
+                        checkAir(r.x + r.w - GRID_SIZE, r.y - GRID_SIZE, GRID_SIZE, GRID_SIZE, r) &&
+                        checkAir(r.x + r.w - GRID_SIZE, r.y + GRID_SIZE, GRID_SIZE, GRID_SIZE, r)) {
                         r.w -= GRID_SIZE;
                         changed = true; overallChanged = true;
                     }
@@ -479,7 +489,7 @@ export default function Map9({ width = 800, height = 800 }: { width?: number, he
         }
 
         if (overallChanged) {
-            processMansionData(newRooms);
+            processMansionData(newRooms, true); // Skip consolidation to preserve colors/room-type
             setRooms(newRooms);
         }
     }, [rooms, processMansionData]);
@@ -597,9 +607,19 @@ export default function Map9({ width = 800, height = 800 }: { width?: number, he
         // --- STAGE 3: PROCEDURAL EXPANSION ---
         let attempts = 0;
         while (newRooms.length < targetStep && attempts < 5000) {
-            // A. Pick a random existing room to grow from
-            const parent = newRooms[Math.floor(rand() * newRooms.length)];
-            
+            // A. Weighted selection from ALL ROOMS (Corridors get 10x priority)
+            const calculateWeight = (r: Room) => (r.isCorridor ? 10 : 1) * (r.w * r.h);
+            const totalWeight = newRooms.reduce((sum, r) => sum + calculateWeight(r), 0);
+            let rVal = rand() * totalWeight;
+            let parent = newRooms[newRooms.length - 1]; // Fallback to last
+            for (const r of newRooms) {
+                rVal -= calculateWeight(r);
+                if (rVal <= 0) {
+                    parent = r;
+                    break;
+                }
+            }
+
             // B. Pick a random side (0: N, 1: E, 2: S, 3: W)
             const side = Math.floor(rand() * 4);
             // C. Determine room footprint (1 to 3 grid cells)
@@ -625,10 +645,8 @@ export default function Map9({ width = 800, height = 800 }: { width?: number, he
             const cand = { x: nx, y: ny, w: nw, h: nh };
             if (nx > 20 && nx + nw < width - 20 && ny > 20 && ny + nh < height - 20) {
                 if (!newRooms.some(r => rectRectOverlap(cand, r))) {
-                    // F. Assign zone: corridors always spawn a NEW colored zone
-                    const zoneColor = parent.isCorridor ? 
-                        ZONE_COLORS[Math.floor(rand() * ZONE_COLORS.length)] : 
-                        (rand() > 0.6 ? parent.zoneColor : ZONE_COLORS[Math.floor(rand() * ZONE_COLORS.length)]);
+                    // F. Assign zone color from standard pool only
+                    const zoneColor = ZONE_COLORS[Math.floor(rand() * ZONE_COLORS.length)];
                     newRooms.push(new Room(nx, ny, nw, nh, zoneColor));
                 }
             }
