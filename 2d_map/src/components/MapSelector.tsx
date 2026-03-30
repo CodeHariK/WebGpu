@@ -15,6 +15,8 @@ import Map7 from '../maps/Map7';
 import Map7Explanation from '../maps/Map7Explanation';
 import Map8 from '../maps/Map8';
 import Map8Explanation from '../maps/Map8Explanation';
+import Map9 from '../maps/Map9';
+import Map9Explanation from '../maps/Map9Explanation';
 
 import './MapSelector.css';
 
@@ -23,7 +25,7 @@ export default function MapSelector() {
         <div className="selector-container">
             <h1 className="selector-title">Generative Maps Showcase</h1>
 
-            <Tabs.Root defaultValue="map8" className="tabs-root">
+            <Tabs.Root defaultValue="map9" className="tabs-root">
                 <Tabs.List className="tabs-list">
                     <Tabs.Tab value="map1" className="tabs-tab">
                         Algorithmic Curves
@@ -48,6 +50,9 @@ export default function MapSelector() {
                     </Tabs.Tab>
                     <Tabs.Tab value="map8" className="tabs-tab">
                         Multi-Tree
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map9" className="tabs-tab">
+                        Mansion Layout
                     </Tabs.Tab>
                     <Tabs.Indicator className="tabs-indicator" />
                 </Tabs.List>
@@ -136,6 +141,17 @@ export default function MapSelector() {
                         </div>
                         <div className="explanation-container">
                             <Map8Explanation />
+                        </div>
+                    </div>
+                </Tabs.Panel>
+
+                <Tabs.Panel value="map9" className="tabs-panel">
+                    <div className="panel-layout">
+                        <div className="canvas-container">
+                            <Map9 width={800} height={800} />
+                        </div>
+                        <div className="explanation-container">
+                            <Map9Explanation />
                         </div>
                     </div>
                 </Tabs.Panel>
