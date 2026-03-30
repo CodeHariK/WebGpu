@@ -17,6 +17,14 @@ import Map8 from '../maps/Map8';
 import Map8Explanation from '../maps/Map8Explanation';
 import Map9 from '../maps/Map9';
 import Map9Explanation from '../maps/Map9Explanation';
+import Map10 from '../maps/Map10';
+import Map10Explanation from '../maps/Map10Explanation';
+import Map11 from '../maps/Map11';
+import Map11Explanation from '../maps/Map11Explanation';
+import Map12 from '../maps/Map12';
+import Map12Explanation from '../maps/Map12Explanation';
+import Map13 from '../maps/Map13';
+import Map13Explanation from '../maps/Map13Explanation';
 
 import './MapSelector.css';
 
@@ -25,7 +33,7 @@ export default function MapSelector() {
         <div className="selector-container">
             <h1 className="selector-title">Generative Maps Showcase</h1>
 
-            <Tabs.Root defaultValue="map9" className="tabs-root">
+            <Tabs.Root defaultValue="map13" className="tabs-root">
                 <Tabs.List className="tabs-list">
                     <Tabs.Tab value="map1" className="tabs-tab">
                         Algorithmic Curves
@@ -53,6 +61,18 @@ export default function MapSelector() {
                     </Tabs.Tab>
                     <Tabs.Tab value="map9" className="tabs-tab">
                         Mansion Layout
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map10" className="tabs-tab">
+                        Voronoi Territories
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map11" className="tabs-tab">
+                        Topographic Map
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map12" className="tabs-tab">
+                        Marching Squares
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map13" className="tabs-tab">
+                        Hex Growth
                     </Tabs.Tab>
                     <Tabs.Indicator className="tabs-indicator" />
                 </Tabs.List>
@@ -152,6 +172,46 @@ export default function MapSelector() {
                         </div>
                         <div className="explanation-container">
                             <Map9Explanation />
+                        </div>
+                    </div>
+                </Tabs.Panel>
+                <Tabs.Panel value="map10" className="tabs-panel">
+                    <div className="panel-layout">
+                        <div className="canvas-container">
+                            <Map10 width={800} height={800} />
+                        </div>
+                        <div className="explanation-container">
+                            <Map10Explanation />
+                        </div>
+                    </div>
+                </Tabs.Panel>
+                <Tabs.Panel value="map11" className="tabs-panel">
+                    <div className="panel-layout">
+                        <div className="canvas-container">
+                            <Map11 width={800} height={800} />
+                        </div>
+                        <div className="explanation-container">
+                            <Map11Explanation />
+                        </div>
+                    </div>
+                </Tabs.Panel>
+                <Tabs.Panel value="map12" className="tabs-panel">
+                    <div className="panel-layout">
+                        <div className="canvas-container">
+                            <Map12 width={800} height={800} />
+                        </div>
+                        <div className="explanation-container">
+                            <Map12Explanation />
+                        </div>
+                    </div>
+                </Tabs.Panel>
+                <Tabs.Panel value="map13" className="tabs-panel">
+                    <div className="panel-layout">
+                        <div className="canvas-container">
+                            <Map13 width={800} height={800} />
+                        </div>
+                        <div className="explanation-container">
+                            <Map13Explanation />
                         </div>
                     </div>
                 </Tabs.Panel>
