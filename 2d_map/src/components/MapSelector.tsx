@@ -25,6 +25,8 @@ import Map12 from '../maps/Map12';
 import Map12Explanation from '../maps/Map12Explanation';
 import Map13 from '../maps/Map13';
 import Map13Explanation from '../maps/Map13Explanation';
+import Map14 from '../maps/Map14';
+import Map14Explanation from '../maps/Map14Explanation';
 
 import './MapSelector.css';
 
@@ -33,7 +35,7 @@ export default function MapSelector() {
         <div className="selector-container">
             <h1 className="selector-title">Generative Maps Showcase</h1>
 
-            <Tabs.Root defaultValue="map13" className="tabs-root">
+            <Tabs.Root defaultValue="map14" className="tabs-root">
                 <Tabs.List className="tabs-list">
                     <Tabs.Tab value="map1" className="tabs-tab">
                         Algorithmic Curves
@@ -73,6 +75,9 @@ export default function MapSelector() {
                     </Tabs.Tab>
                     <Tabs.Tab value="map13" className="tabs-tab">
                         Hex Growth
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map14" className="tabs-tab">
+                        Hex Truchet
                     </Tabs.Tab>
                     <Tabs.Indicator className="tabs-indicator" />
                 </Tabs.List>
@@ -212,6 +217,16 @@ export default function MapSelector() {
                         </div>
                         <div className="explanation-container">
                             <Map13Explanation />
+                        </div>
+                    </div>
+                </Tabs.Panel>
+                <Tabs.Panel value="map14" className="tabs-panel">
+                    <div className="panel-layout">
+                        <div className="canvas-container">
+                            <Map14 width={800} height={800} />
+                        </div>
+                        <div className="explanation-container">
+                            <Map14Explanation />
                         </div>
                     </div>
                 </Tabs.Panel>
