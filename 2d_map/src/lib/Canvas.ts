@@ -91,6 +91,15 @@ export class Canvas {
         if (options?.stroke && options.stroke !== 'transparent') this.ctx.stroke();
     }
 
+    public quadBezier(p1: Vector2, cp: Vector2, p2: Vector2, options?: DrawOptions): void {
+        this.applyOptions(options);
+        this.ctx.beginPath();
+        this.ctx.moveTo(p1.x, p1.y);
+        this.ctx.quadraticCurveTo(cp.x, cp.y, p2.x, p2.y);
+        if (options?.fill) this.ctx.fill();
+        if (options?.stroke && options.stroke !== 'transparent') this.ctx.stroke();
+    }
+
     public rect(x: number, y: number, w: number, h: number, options?: DrawOptions): void {
         this.applyOptions(options);
         this.ctx.beginPath();

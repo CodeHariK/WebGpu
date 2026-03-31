@@ -2,6 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Canvas } from '../lib/Canvas';
 import { Vector2 } from '../lib/Vector2';
+import { createNoise2D } from 'simplex-noise';
+
+// Simple seeded random helper
+const seededRandom = (s: number) => {
+    let seed = s;
+    return () => {
+        seed = (seed * 9301 + 49297) % 233280;
+        return seed / 233280;
+    };
+};
 
 // --- HEX MATH ---
 interface Hex {
@@ -42,6 +52,8 @@ export default function Map13({ width = 800, height = 800 }: { width?: number, h
     const [gridSize, setGridSize] = useState(15);
     const [spawnCount, setSpawnCount] = useState(5);
     const [smoothness, setSmoothness] = useState(2);
+    const [noiseAmp, setNoiseAmp] = useState(6);
+    const [noiseScale, setNoiseScale] = useState(0.04);
     const [filledHexes, setFilledHexes] = useState<Set<string>>(new Set());
     const [renderTrigger, setRenderTrigger] = useState(0);
 
@@ -335,20 +347,31 @@ export default function Map13({ width = 800, height = 800 }: { width?: number, h
                     }
                 }
             }
+            if (loop.length > 2 && Vector2.dist(loop[0], loop[loop.length - 1]) < 0.1) {
+                loop.pop();
+            }
             loops.push(loop);
         }
 
         // 7. Render Unique Colors for Each Smoothed Periphery Loop
+        const noise2D = createNoise2D(seededRandom(seed));
         loops.forEach((loop, loopIdx) => {
-            const smoothed = chaikin(loop, smoothness);
+            // Apply Disturbance Before Smoothing
+            const disturbed = loop.map(p => {
+                const nx = noise2D(p.x * noiseScale, p.y * noiseScale);
+                const ny = noise2D(p.x * noiseScale + 13.37, p.y * noiseScale + 13.37);
+                return new Vector2(p.x + nx * noiseAmp, p.y + ny * noiseAmp);
+            });
+
+            const smoothed = chaikin(disturbed, smoothness);
             const loopColor = `hsl(${(loopIdx * 137.5) % 360}, 85%, 65%)`; // Distinct color per loop
             
-            canvas.linePath(smoothed, { stroke: loopColor, lineWidth: 2, alpha: 0.95 });
+            canvas.polygon(smoothed, { stroke: loopColor, lineWidth: 2, alpha: 0.95 });
             // Subtle glow
-            canvas.linePath(smoothed, { stroke: loopColor, lineWidth: 6, alpha: 0.15 });
+            canvas.polygon(smoothed, { stroke: loopColor, lineWidth: 6, alpha: 0.15 });
         });
 
-    }, [filledHexes, gridSize, renderTrigger, width, height, smoothness]);
+    }, [filledHexes, gridSize, renderTrigger, width, height, smoothness, noiseAmp, noiseScale, seed]);
 
     return (
         <div style={UI_STYLES.container}>
@@ -374,6 +397,16 @@ export default function Map13({ width = 800, height = 800 }: { width?: number, h
                 <div style={UI_STYLES.group}>
                     <label style={UI_STYLES.label}>SMOOTHNESS: {smoothness}</label>
                     <input type="range" min="0" max="5" value={smoothness} onChange={(e) => setSmoothness(parseInt(e.target.value))} style={UI_STYLES.slider} />
+                </div>
+
+                <div style={UI_STYLES.group}>
+                    <label style={UI_STYLES.label}>DISTURBANCE (AMP): {noiseAmp}</label>
+                    <input type="range" min="0" max="30" value={noiseAmp} onChange={(e) => setNoiseAmp(parseInt(e.target.value))} style={UI_STYLES.slider} />
+                </div>
+
+                <div style={UI_STYLES.group}>
+                    <label style={UI_STYLES.label}>NOISE SCALE: {noiseScale.toFixed(3)}</label>
+                    <input type="range" min="0.005" max="0.1" step="0.005" value={noiseScale} onChange={(e) => setNoiseScale(parseFloat(e.target.value))} style={UI_STYLES.slider} />
                 </div>
 
                 <div style={UI_STYLES.group}>
