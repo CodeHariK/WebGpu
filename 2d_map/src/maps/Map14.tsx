@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Vector2 } from '../lib/Vector2';
 import { Canvas } from '../lib/Canvas';
 import { TILE_REGISTRY, type TileConfig, getNeighborPos } from './Map14Logic';
@@ -10,7 +10,7 @@ const COLORS = {
     text: '#94a3b8'
 };
 
-const Map14: React.FC = () => {
+const Map14 = ({ width = 800, height = 800 }: { width?: number, height?: number }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [seed, setSeed] = useState(0);
@@ -159,7 +159,7 @@ const Map14: React.FC = () => {
 
     return (
         <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', background: COLORS.bg, fontFamily: 'Outfit, sans-serif' }}>
-            <canvas ref={canvasRef} width={window.innerWidth} height={window.innerHeight} />
+            <canvas ref={canvasRef} width={width} height={height} />
 
             <div style={{ position: 'absolute', top: 20, left: 20, display: 'flex', gap: 10, zIndex: 10 }}>
                 <button 
