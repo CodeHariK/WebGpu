@@ -7,6 +7,7 @@
 
 #include "minecraft/minecraft.h"
 #include "minecraft/wfc.h"
+#include "acnh/acnh.h"
 
 using namespace godot;
 
@@ -16,6 +17,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	}
 	GDREGISTER_CLASS(MinecraftNode);
 	GDREGISTER_CLASS(WFCGenerator3D);
+	GDREGISTER_CLASS(ACNHNode);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
