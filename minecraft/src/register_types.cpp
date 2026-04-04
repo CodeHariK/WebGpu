@@ -8,6 +8,7 @@
 #include "minecraft/minecraft.h"
 #include "minecraft/wfc.h"
 #include "acnh/acnh.h"
+#include "marching_cubes/mc.h"
 
 using namespace godot;
 
@@ -18,6 +19,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(MinecraftNode);
 	GDREGISTER_CLASS(WFCGenerator3D);
 	GDREGISTER_CLASS(ACNHNode);
+	GDREGISTER_CLASS(MCNode);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
