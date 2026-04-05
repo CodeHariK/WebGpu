@@ -1,23 +1,22 @@
 #ifndef CUI_H
 #define CUI_H
 
-#include <godot_cpp/classes/accept_dialog.hpp>
-#include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/control.hpp>
-#include <godot_cpp/classes/h_box_container.hpp>
-#include <godot_cpp/classes/label.hpp>
-#include <godot_cpp/classes/panel.hpp>
-#include <godot_cpp/classes/scroll_container.hpp>
-#include <godot_cpp/classes/v_box_container.hpp>
-#include <godot_cpp/classes/canvas_layer.hpp>
-#include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/core/class_db.hpp>
-#include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
+class AcceptDialog;
+class Button;
+class HBoxContainer;
+class Label;
+class Panel;
+class ScrollContainer;
+class VBoxContainer;
+class CanvasLayer;
+class Viewport;
 
 class CUI : public Control {
-	GDCLASS(CUI, Control);
+	GDCLASS(CUI, Control)
 
 protected:
 	static void _bind_methods() {}

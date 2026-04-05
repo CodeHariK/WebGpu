@@ -3,7 +3,18 @@
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 
-using namespace godot;
+#include <godot_cpp/classes/accept_dialog.hpp>
+#include <godot_cpp/classes/button.hpp>
+#include <godot_cpp/classes/h_box_container.hpp>
+#include <godot_cpp/classes/label.hpp>
+#include <godot_cpp/classes/panel.hpp>
+#include <godot_cpp/classes/scroll_container.hpp>
+#include <godot_cpp/classes/v_box_container.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
+
+#include "cui/cui.h"
+
+namespace godot {
 
 void MCNode::setup_ui() {
 	if (!ui_manager)
@@ -116,3 +127,5 @@ void MCNode::update_ui_counts() {
 	ui_manager->add_label(stats_vbox, "-----------------------");
 	ui_manager->add_label(stats_vbox, String("Cumulative: ") + String::num_int64(total));
 }
+
+} //namespace godot

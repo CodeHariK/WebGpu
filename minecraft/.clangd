@@ -1,9 +1,48 @@
 Diagnostics:
-  UnusedIncludes: Strict
-  MissingIncludes: Strict
-CompileCommandsDir: build
+  UnusedIncludes: None
+  MissingIncludes: None
+  ClangTidy:
+    Add: [
+      "performance-*",
+      "bugprone-*",
+      "readability-*",
+      "modernize-*",
+      "cppcoreguidelines-*",
+      "google-*",
+      "clang-analyzer-*",
+    ]
+    Remove: [
+      "readability-convert-member-functions-to-static",
+      "cppcoreguidelines-pro-type-vararg",
+      "cppcoreguidelines-pro-bounds-array-to-pointer-decay",
+      "modernize-use-trailing-return-type",
+      "readability-magic-numbers",
+      "cppcoreguidelines-avoid-magic-numbers",
+      "readability-identifier-length",
+      "readability-implicit-bool-conversion",
+      "cppcoreguidelines-owning-memory",
+      "bugprone-easily-swappable-parameters",
+      "modernize-loop-convert",
+      "modernize-use-auto",
+      "readability-isolate-declaration",
+      "cppcoreguidelines-avoid-c-arrays",
+      "modernize-avoid-c-arrays",
+      "readability-uppercase-literal-suffix",
+    ]
+    CheckOptions:
+      readability-identifier-naming.ParameterCase: camelCase
+      readability-identifier-naming.VariableCase: camelCase
+
 Index:
   Background: true
   Threads: 2
+
+InlayHints:
+  Designators: true
+  Enabled: true
+  ParameterNames: true
+  DeducedTypes: true
+
 CompileFlags:
-  Add: ["-std=c++17"]
+  CompilationDatabase: "."
+  Add: ["-std=c++17", "-Wall", "-Wextra", "-Wpedantic", "-Wshadow", "-Wnon-virtual-dtor"]

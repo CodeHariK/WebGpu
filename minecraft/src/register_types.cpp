@@ -6,11 +6,12 @@
 #include <godot_cpp/godot.hpp>
 
 #include "acnh/acnh.h"
+#include "cui/cui.h"
 #include "marching_cubes/mc.h"
 #include "minecraft/minecraft.h"
 #include "minecraft/wfc.h"
 
-using namespace godot;
+namespace godot {
 
 void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
@@ -40,3 +41,4 @@ GDExtensionBool GDE_EXPORT minecraft_library_init(GDExtensionInterfaceGetProcAdd
 	return init_obj.init();
 }
 }
+} //namespace godot

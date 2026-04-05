@@ -1,22 +1,19 @@
 #include "marching_cubes/mc.h"
-#include <algorithm>
-#include <godot_cpp/classes/canvas_layer.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/label3d.hpp>
+#include <godot_cpp/classes/mesh.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/packed_scene.hpp>
 #include <godot_cpp/classes/panel.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
-#include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
-#include <godot_cpp/variant/callable.hpp>
-#include <godot_cpp/variant/utility_functions.hpp>
-#include <vector>
 
-using namespace godot;
+#include "cui/cui.h"
+
+namespace godot {
 
 void MCNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mesh_library_path", "p_path"), &MCNode::set_mesh_library_path);
@@ -36,8 +33,7 @@ void MCNode::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "regenerate_mesh"), "set_regenerate_mesh", "get_regenerate_mesh");
 }
 
-MCNode::MCNode() {
-}
+MCNode::MCNode() = default;
 
 MCNode::~MCNode() {
 }
@@ -99,8 +95,9 @@ struct LoadMeta {
 		if (child) {
 			String p_bin = child->get_name();
 			for (int i = 0; i < p_bin.length(); i++) {
-				if (p_bin[i] == '1')
+				if (p_bin[i] == '1') {
 					ones_count++;
+				}
 			}
 		}
 	}
@@ -134,8 +131,9 @@ void MCNode::load_mesh_library() {
 		if (!mi) {
 			for (int j = 0; j < child->get_child_count(); j++) {
 				mi = Object::cast_to<MeshInstance3D>(child->get_child(j));
-				if (mi)
+				if (mi) {
 					break;
+				}
 			}
 		}
 
@@ -179,14 +177,14 @@ void MCNode::generate_variants() {
 		MeshConfig base_conf = mesh_library["10010000"];
 		Transform3D base_t = base_conf.transform;
 
-		apply_12_rotations(base_h_edge, base_t, "Edge");
+		apply_12_rotations(base_h_edge, base_h_edge, base_t, "Edge");
 	}
 	uint8_t base_h_diag = 0b10100000;
 	if (mesh_library.has("10100000")) {
 		MeshConfig base_conf = mesh_library["10100000"];
 		Transform3D base_t = base_conf.transform;
 
-		apply_12_rotations(base_h_diag, base_t, "Diag");
+		apply_12_rotations(base_h_diag, base_h_diag, base_t, "Diag");
 	}
 	uint8_t base_h_opp = 0b10000010;
 	if (mesh_library.has("10000010")) {
@@ -239,7 +237,7 @@ void MCNode::generate_variants() {
 		MeshConfig base_conf = mesh_library["10100101"];
 		Transform3D base_t = base_conf.transform;
 
-		apply_transform_sequence(base_h_tetra, base_t, { RX90 }, "Tetra Rx90");
+		apply_transform_sequence(base_h_tetra, base_h_tetra, base_t, { RX90 }, "Tetra Rx90");
 	}
 	uint8_t base_h_e4 = 0b11100100;
 	if (mesh_library.has("11100100")) {
@@ -253,7 +251,7 @@ void MCNode::generate_variants() {
 		MeshConfig base_conf = mesh_library["11101000"];
 		Transform3D base_t = base_conf.transform;
 
-		apply_12_rotations(base_h_e8, base_t, "E8");
+		apply_12_rotations(base_h_e8, base_h_e8, base_t, "E8");
 
 		// Add mirror variants
 		apply_12_mirror_rotations(base_h_e8, base_t, "E8 Sx");
@@ -295,14 +293,14 @@ void MCNode::generate_variants() {
 		MeshConfig base_conf = mesh_library["11110110"];
 		Transform3D base_t = base_conf.transform;
 
-		apply_12_rotations(base_h_edge_inv, base_t, "InvEdge");
+		apply_12_rotations(base_h_edge_inv, base_h_edge_inv, base_t, "InvEdge");
 	}
 	uint8_t base_h_inv_diag = 0b11111010;
 	if (mesh_library.has("11111010")) {
 		MeshConfig base_conf = mesh_library["11111010"];
 		Transform3D base_t = base_conf.transform;
 
-		apply_12_rotations(base_h_inv_diag, base_t, "InvDiag");
+		apply_12_rotations(base_h_inv_diag, base_h_inv_diag, base_t, "InvDiag");
 	}
 	uint8_t base_h_inv_opp = 0b11010111;
 	if (mesh_library.has("11010111")) {
@@ -322,174 +320,174 @@ void MCNode::generate_variants() {
 	}
 }
 
+void MCNode::apply_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, Vector3::Axis p_axis, const String &p_prefix, bool p_include_base) {
+	if (p_include_base) {
+		apply_transform_sequence(p_base_hash, p_variant_hash, p_base_t, {}, p_prefix);
+	}
+
+	MCTransform r90, r180, r270;
+	String axis_name;
+
+	switch (p_axis) {
+		case Vector3::AXIS_X:
+			r90 = RX90;
+			r180 = RX180;
+			r270 = RX270;
+			axis_name = " Rx";
+			break;
+		case Vector3::AXIS_Y:
+			r90 = RY90;
+			r180 = RY180;
+			r270 = RY270;
+			axis_name = " Ry";
+			break;
+		case Vector3::AXIS_Z:
+			r90 = RZ90;
+			r180 = RZ180;
+			r270 = RZ270;
+			axis_name = " Rz";
+			break;
+	}
+
+	apply_transform_sequence(p_base_hash, p_variant_hash, p_base_t, { r90 }, p_prefix + axis_name + "90");
+	apply_transform_sequence(p_base_hash, p_variant_hash, p_base_t, { r180 }, p_prefix + axis_name + "180");
+	apply_transform_sequence(p_base_hash, p_variant_hash, p_base_t, { r270 }, p_prefix + axis_name + "270");
+}
+
 void MCNode::apply_4_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	apply_transform_sequence(p_base_hash, p_base_t, { RY90 }, p_prefix + String(" Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RY180 }, p_prefix + String(" Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RY270 }, p_prefix + String(" Ry270"));
+	apply_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
 }
 
 void MCNode::apply_6_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90 }, p_prefix + String(" Rx90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180 }, p_prefix + String(" Rx180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX270 }, p_prefix + String(" Rx270"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90, RY90 }, p_prefix + String(" Rx90 Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90, RY270 }, p_prefix + String(" Rx90 Ry270"));
+	apply_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_X, p_prefix, false);
+
+	uint8_t h90 = p_base_hash;
+	Transform3D t90 = p_base_t;
+	apply_mct_transform(h90, t90, RX90);
+	apply_transform_sequence(p_base_hash, h90, t90, { RY90 }, p_prefix + String(" Rx90 Ry90"));
+	apply_transform_sequence(p_base_hash, h90, t90, { RY270 }, p_prefix + String(" Rx90 Ry270"));
 }
 
 void MCNode::apply_8_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	apply_transform_sequence(p_base_hash, p_base_t, { RY90 }, p_prefix + String(" Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RY180 }, p_prefix + String(" Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RY270 }, p_prefix + String(" Ry270"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX270 }, p_prefix + String(" Rx270"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX270, RY90 }, p_prefix + String(" Rx270 Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX270, RY180 }, p_prefix + String(" Rx270 Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX270, RY270 }, p_prefix + String(" Rx270 Ry270"));
+	apply_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
 
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180 }, p_prefix + String(" Rx180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180, RY90 }, p_prefix + String(" Rx180 Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180, RY180 }, p_prefix + String(" Rx180 Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180, RY270 }, p_prefix + String(" Rx180 Ry270"));
+	for (MCTransform base_rot : { RX270, RX180 }) {
+		uint8_t h = p_base_hash;
+		Transform3D t = p_base_t;
+		apply_mct_transform(h, t, base_rot);
+		String name = (base_rot == RX270) ? " Rx270" : " Rx180";
+		apply_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + name, true);
+	}
 }
 
-void MCNode::apply_12_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	apply_transform_sequence(p_base_hash, p_base_t, { RY90 }, p_prefix + String(" Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RY180 }, p_prefix + String(" Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RY270 }, p_prefix + String(" Ry270"));
+void MCNode::apply_12_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const String &p_prefix) {
+	apply_rotations(p_base_hash, p_variant_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
 
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180 }, p_prefix + String(" Rx180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180, RY90 }, p_prefix + String(" Rx180 Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180, RY180 }, p_prefix + String(" Rx180 Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180, RY270 }, p_prefix + String(" Rx180 Ry270"));
-
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90 }, p_prefix + String(" Rx90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90, RY90 }, p_prefix + String(" Rx90 Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90, RY180 }, p_prefix + String(" Rx90 Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90, RY270 }, p_prefix + String(" Rx90 Ry270"));
-
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ90 }, p_prefix + String(" Rz90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ90, RY90 }, p_prefix + String(" Rz90 Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ90, RY180 }, p_prefix + String(" Rz90 Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ90, RY270 }, p_prefix + String(" Rz90 Ry270"));
+	for (MCTransform axis_rot : { RX180, RX90, RZ90 }) {
+		uint8_t h = p_variant_hash;
+		Transform3D t = p_base_t;
+		apply_mct_transform(h, t, axis_rot);
+		String name = (axis_rot == RX180) ? " Rx180" : (axis_rot == RX90 ? " Rx90" : " Rz90");
+		apply_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + name, true);
+	}
 }
 
 void MCNode::apply_12_mirror_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	// uint8_t h = scale_x(p_base_hash);
-	// Transform3D t = p_base_t.scaled_local(Vector3(-1, 1, 1));
-	// apply_transform_sequence(h, t, {}, p_prefix);
-	// apply_12_rotations(h, t, p_prefix);
-
-	apply_transform_sequence(p_base_hash, p_base_t, { SX }, p_prefix);
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RY90 }, p_prefix + String(" Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RY180 }, p_prefix + String(" Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RY270 }, p_prefix + String(" Ry270"));
-
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RX180 }, p_prefix + String(" Rx180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RX180, RY90 }, p_prefix + String(" Rx180 Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RX180, RY180 }, p_prefix + String(" Rx180 Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RX180, RY270 }, p_prefix + String(" Rx180 Ry270"));
-
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RX90 }, p_prefix + String(" Rx90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RX90, RY90 }, p_prefix + String(" Rx90 Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RX90, RY180 }, p_prefix + String(" Rx90 Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RX90, RY270 }, p_prefix + String(" Rx90 Ry270"));
-
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RZ90 }, p_prefix + String(" Rz90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RZ90, RY90 }, p_prefix + String(" Rz90 Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RZ90, RY180 }, p_prefix + String(" Rz90 Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { SX, RZ90, RY270 }, p_prefix + String(" Rz90 Ry270"));
+	uint8_t h = p_base_hash;
+	Transform3D t = p_base_t;
+	apply_mct_transform(h, t, SX);
+	apply_transform_sequence(p_base_hash, h, t, {}, p_prefix);
+	apply_12_rotations(p_base_hash, h, t, p_prefix);
 }
 
 void MCNode::apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	apply_transform_sequence(p_base_hash, p_base_t, { RY90 }, p_prefix + String(" Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RY180 }, p_prefix + String(" Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RY270 }, p_prefix + String(" Ry270"));
+	apply_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
 
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180 }, p_prefix + String(" Rx180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180, RY90 }, p_prefix + String(" Rx180 Ry90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180, RY180 }, p_prefix + String(" Rx180 Ry180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX180, RY270 }, p_prefix + String(" Rx180 Ry270"));
+	// Rx180 -> Ry rotations
+	{
+		uint8_t h = p_base_hash;
+		Transform3D t = p_base_t;
+		apply_mct_transform(h, t, RX180);
+		apply_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + String(" Rx180"), true);
+	}
 
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90 }, p_prefix + String(" Rx90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90, RZ90 }, p_prefix + String(" Rx90 Rz90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90, RZ180 }, p_prefix + String(" Rx90 Rz180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX90, RZ270 }, p_prefix + String(" Rx90 Rz270"));
+	// Rx90/270 -> Rz rotations
+	for (MCTransform rx : { RX90, RX270 }) {
+		uint8_t h = p_base_hash;
+		Transform3D t = p_base_t;
+		apply_mct_transform(h, t, rx);
+		apply_rotations(p_base_hash, h, t, Vector3::AXIS_Z, p_prefix + String(rx == RX90 ? " Rx90" : " Rx270"), true);
+	}
 
-	apply_transform_sequence(p_base_hash, p_base_t, { RX270 }, p_prefix + String(" Rx270"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX270, RZ90 }, p_prefix + String(" Rx270 Rz90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX270, RZ180 }, p_prefix + String(" Rx270 Rz180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RX270, RZ270 }, p_prefix + String(" Rx270 Rz270"));
-
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ90 }, p_prefix + String(" RZ90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ90, RX90 }, p_prefix + String(" RZ90 Rx90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ90, RX180 }, p_prefix + String(" RZ90 Rx180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ90, RX270 }, p_prefix + String(" RZ90 Rx270"));
-
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ270 }, p_prefix + String(" RZ270"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ270, RX90 }, p_prefix + String(" RZ270 Rx90"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ270, RX180 }, p_prefix + String(" RZ270 Rx180"));
-	apply_transform_sequence(p_base_hash, p_base_t, { RZ270, RX270 }, p_prefix + String(" RZ270 Rx270"));
+	// Rz90/270 -> Rx rotations
+	for (MCTransform rz : { RZ90, RZ270 }) {
+		uint8_t h = p_base_hash;
+		Transform3D t = p_base_t;
+		apply_mct_transform(h, t, rz);
+		apply_rotations(p_base_hash, h, t, Vector3::AXIS_X, p_prefix + String(rz == RZ90 ? " Rz90" : " Rz270"), true);
+	}
 }
 
-void MCNode::apply_transform_sequence(uint8_t p_base_hash, const Transform3D &p_base_t, const std::vector<MCTransform> &p_sequence, const String &p_name) {
-	uint8_t h = p_base_hash;
-	Transform3D t = p_base_t;
-
+void MCNode::apply_mct_transform(uint8_t &p_hash, Transform3D &p_transform, MCTransform p_op) {
 	float p90 = Math_PI / 2.0;
 	float m90 = -Math_PI / 2.0;
 
+	switch (p_op) {
+		case RX90:
+			p_hash = rotate_x(p_hash);
+			p_transform = p_transform.rotated(Vector3(1, 0, 0), p90);
+			break;
+		case RX180:
+			p_hash = rotate_x(rotate_x(p_hash));
+			p_transform = p_transform.rotated(Vector3(1, 0, 0), Math_PI);
+			break;
+		case RX270:
+			p_hash = rotate_x(rotate_x(rotate_x(p_hash)));
+			p_transform = p_transform.rotated(Vector3(1, 0, 0), m90);
+			break;
+
+		case RY90:
+			p_hash = rotate_y(p_hash);
+			p_transform = p_transform.rotated(Vector3(0, 1, 0), p90);
+			break;
+		case RY180:
+			p_hash = rotate_y(rotate_y(p_hash));
+			p_transform = p_transform.rotated(Vector3(0, 1, 0), Math_PI);
+			break;
+		case RY270:
+			p_hash = rotate_y(rotate_y(rotate_y(p_hash)));
+			p_transform = p_transform.rotated(Vector3(0, 1, 0), m90);
+			break;
+
+		case RZ90:
+			p_hash = rotate_z(p_hash);
+			p_transform = p_transform.rotated(Vector3(0, 0, 1), p90);
+			break;
+		case RZ180:
+			p_hash = rotate_z(rotate_z(p_hash));
+			p_transform = p_transform.rotated(Vector3(0, 0, 1), Math_PI);
+			break;
+		case RZ270:
+			p_hash = rotate_z(rotate_z(rotate_z(p_hash)));
+			p_transform = p_transform.rotated(Vector3(0, 0, 1), m90);
+			break;
+
+		case SX:
+			p_hash = scale_x(p_hash);
+			p_transform = p_transform.scaled_local(Vector3(-1, 1, 1));
+			break;
+	}
+}
+
+void MCNode::apply_transform_sequence(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const std::vector<MCTransform> &p_sequence, const String &p_name) {
+	uint8_t h = p_variant_hash;
+	Transform3D t = p_base_t;
+
 	for (MCTransform op : p_sequence) {
-		switch (op) {
-			case RX90:
-				h = rotate_x(h);
-				t = t.rotated(Vector3(1, 0, 0), p90);
-				break;
-			case RX180:
-				h = rotate_x(rotate_x(h));
-				t = t.rotated(Vector3(1, 0, 0), Math_PI);
-				break;
-			case RX270:
-				h = rotate_x(rotate_x(rotate_x(h)));
-				t = t.rotated(Vector3(1, 0, 0), m90);
-				break;
-
-			case RY90:
-				h = rotate_y(h);
-				t = t.rotated(Vector3(0, 1, 0), p90);
-				break;
-			case RY180:
-				h = rotate_y(rotate_y(h));
-				t = t.rotated(Vector3(0, 1, 0), Math_PI);
-				break;
-			case RY270:
-				h = rotate_y(rotate_y(rotate_y(h)));
-				t = t.rotated(Vector3(0, 1, 0), m90);
-				break;
-
-			case RZ90:
-				h = rotate_z(h);
-				t = t.rotated(Vector3(0, 0, 1), p90);
-				break;
-			case RZ180:
-				h = rotate_z(rotate_z(h));
-				t = t.rotated(Vector3(0, 0, 1), Math_PI);
-				break;
-			case RZ270:
-				h = rotate_z(rotate_z(rotate_z(h)));
-				t = t.rotated(Vector3(0, 0, 1), m90);
-				break;
-
-			case SX:
-				h = scale_x(h);
-				t = t.scaled_local(Vector3(-1, 1, 1));
-				break;
-		}
+		apply_mct_transform(h, t, op);
 	}
 
 	String h_str = hash_to_binary(h);
-
-	if (h_str == "11010100") {
-		UtilityFunctions::print("\n:::::: ", p_base_hash, "\n", h, "\n", t, "\n");
-	}
 
 	if (!mesh_library.has(h_str)) {
 		MeshConfig config;
@@ -560,92 +558,46 @@ void MCNode::display_library() {
 }
 
 uint8_t MCNode::rotate_y(uint8_t p_hash) {
+	static const uint8_t swap_table[8] = { C4, C7, C6, C5, C0, C3, C2, C1 };
 	uint8_t next = 0;
-	if (is_c0(p_hash))
-		activate_c1(next);
-	if (is_c1(p_hash))
-		activate_c2(next);
-	if (is_c2(p_hash))
-		activate_c3(next);
-	if (is_c3(p_hash))
-		activate_c0(next);
-	if (is_c4(p_hash))
-		activate_c5(next);
-	if (is_c5(p_hash))
-		activate_c6(next);
-	if (is_c6(p_hash))
-		activate_c7(next);
-	if (is_c7(p_hash))
-		activate_c4(next);
+	for (int i = 7; i >= 0; i--) {
+		if ((p_hash >> i) & 1) {
+			next |= (1 << swap_table[i]);
+		}
+	}
 	return next;
 }
 
 uint8_t MCNode::rotate_x(uint8_t p_hash) {
+	static const uint8_t swap_table[8] = { C4, C5, C1, C0, C7, C6, C2, C3 };
 	uint8_t next = 0;
-	// Face x=0 (Corners 0,3,7,4) rotate CW: 0->3, 3->7, 7->4, 4->0
-	if (is_c0(p_hash))
-		activate_c3(next);
-	if (is_c3(p_hash))
-		activate_c7(next);
-	if (is_c7(p_hash))
-		activate_c4(next);
-	if (is_c4(p_hash))
-		activate_c0(next);
-
-	// Face x=1 (Corners 1,2,6,5) rotate CW: 1->2, 2->6, 6->5, 5->1
-	if (is_c1(p_hash))
-		activate_c2(next);
-	if (is_c2(p_hash))
-		activate_c6(next);
-	if (is_c6(p_hash))
-		activate_c5(next);
-	if (is_c5(p_hash))
-		activate_c1(next);
+	for (int i = 7; i >= 0; i--) {
+		if ((p_hash >> i) & 1) {
+			next |= (1 << swap_table[i]);
+		}
+	}
 	return next;
 }
 
 uint8_t MCNode::rotate_z(uint8_t p_hash) {
+	static const uint8_t swap_table[8] = { C3, C7, C4, C0, C2, C6, C5, C1 };
 	uint8_t next = 0;
-	// Face Z=0 (Corners 0,1,5,4)
-	if (is_c0(p_hash))
-		activate_c1(next);
-	if (is_c1(p_hash))
-		activate_c5(next);
-	if (is_c5(p_hash))
-		activate_c4(next);
-	if (is_c4(p_hash))
-		activate_c0(next);
-
-	// Face Z=1 (Corners 3,2,6,7)
-	if (is_c3(p_hash))
-		activate_c2(next);
-	if (is_c2(p_hash))
-		activate_c6(next);
-	if (is_c6(p_hash))
-		activate_c7(next);
-	if (is_c7(p_hash))
-		activate_c3(next);
+	for (int i = 7; i >= 0; i--) {
+		if ((p_hash >> i) & 1) {
+			next |= (1 << swap_table[i]);
+		}
+	}
 	return next;
 }
 
 uint8_t MCNode::scale_x(uint8_t p_hash) {
+	static const uint8_t swap_table[8] = { C6, C7, C4, C5, C2, C3, C0, C1 };
 	uint8_t next = 0;
-	if (is_c0(p_hash))
-		activate_c1(next);
-	if (is_c1(p_hash))
-		activate_c0(next);
-	if (is_c3(p_hash))
-		activate_c2(next);
-	if (is_c2(p_hash))
-		activate_c3(next);
-	if (is_c4(p_hash))
-		activate_c5(next);
-	if (is_c5(p_hash))
-		activate_c4(next);
-	if (is_c7(p_hash))
-		activate_c6(next);
-	if (is_c6(p_hash))
-		activate_c7(next);
+	for (int i = 7; i >= 0; i--) {
+		if ((p_hash >> i) & 1) {
+			next |= (1 << swap_table[i]);
+		}
+	}
 	return next;
 }
 
@@ -656,3 +608,5 @@ String MCNode::hash_to_binary(uint8_t p_hash) {
 	}
 	return s;
 }
+
+} //namespace godot
