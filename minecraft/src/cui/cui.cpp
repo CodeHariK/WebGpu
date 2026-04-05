@@ -2,14 +2,26 @@
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/theme.hpp>
 
-using namespace godot;
+#include <godot_cpp/classes/accept_dialog.hpp>
+#include <godot_cpp/classes/button.hpp>
+#include <godot_cpp/classes/canvas_layer.hpp>
+#include <godot_cpp/classes/h_box_container.hpp>
+#include <godot_cpp/classes/label.hpp>
+#include <godot_cpp/classes/panel.hpp>
+#include <godot_cpp/classes/scroll_container.hpp>
+#include <godot_cpp/classes/v_box_container.hpp>
+#include <godot_cpp/classes/viewport.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
+
+namespace godot {
 
 CUI::CUI() {}
 CUI::~CUI() {}
 
 CUI *CUI::create_on_new_layer(Node *p_owner_node) {
-	if (!p_owner_node)
+	if (!p_owner_node) {
 		return nullptr;
+	}
 
 	CanvasLayer *layer = memnew(CanvasLayer);
 	p_owner_node->get_viewport()->call_deferred("add_child", layer);
@@ -121,3 +133,5 @@ AcceptDialog *CUI::add_dialog(Node *p_parent, const String &p_name, const String
 	}
 	return dialog;
 }
+
+} // namespace godot

@@ -1,17 +1,22 @@
 #ifndef MCNODE_H
 #define MCNODE_H
 
-#include <godot_cpp/classes/mesh.hpp>
+#include <cstdint>
 #include <godot_cpp/classes/node3d.hpp>
-#include <godot_cpp/classes/packed_scene.hpp>
+#include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
 #include <vector>
 
-#include "cui/cui.h"
-
 namespace godot {
+class Mesh;
+class PackedScene;
+class InputEvent;
+class VBoxContainer;
+class Panel;
+class AcceptDialog;
+class CUI;
 
 struct MeshConfig {
 	Ref<Mesh> mesh;
@@ -19,7 +24,7 @@ struct MeshConfig {
 	String source_mesh; // Which base GLB mesh this came from
 };
 
-enum MCTransform {
+enum MCTransform : uint8_t {
 	RX90,
 	RX180,
 	RX270,
@@ -33,7 +38,7 @@ enum MCTransform {
 };
 
 class MCNode : public Node3D {
-	GDCLASS(MCNode, Node3D);
+	GDCLASS(MCNode, Node3D)
 
 private:
 	String mesh_library_path = "res://assets/MarchingCubes.glb";
@@ -73,15 +78,17 @@ public:
 	void _on_show_help();
 
 	// Enum-driven generation
-	void apply_transform_sequence(uint8_t p_base_hash, const Transform3D &p_base_t, const std::vector<MCTransform> &p_sequence, const String &p_name);
+	void apply_transform_sequence(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const std::vector<MCTransform> &p_sequence, const String &p_name);
 	void apply_4_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
 	void apply_6_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
 	void apply_8_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
-	void apply_12_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
+	void apply_12_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const String &p_prefix);
 	void apply_12_mirror_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
+	void apply_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, Vector3::Axis p_axis, const String &p_prefix, bool p_include_base);
 	void apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
 
 	// Hash transformations
+	static void apply_mct_transform(uint8_t &p_hash, Transform3D &p_transform, MCTransform p_op);
 	static uint8_t rotate_y(uint8_t p_hash);
 	static uint8_t rotate_x(uint8_t p_hash);
 	static uint8_t rotate_z(uint8_t p_hash);
@@ -90,23 +97,14 @@ public:
 	static String hash_to_binary(uint8_t p_hash);
 
 	// Corner Helpers
-	static inline bool is_c0(uint8_t h) { return h & (1 << 7); }
-	static inline bool is_c1(uint8_t h) { return h & (1 << 6); }
-	static inline bool is_c2(uint8_t h) { return h & (1 << 5); }
-	static inline bool is_c3(uint8_t h) { return h & (1 << 4); }
-	static inline bool is_c4(uint8_t h) { return h & (1 << 3); }
-	static inline bool is_c5(uint8_t h) { return h & (1 << 2); }
-	static inline bool is_c6(uint8_t h) { return h & (1 << 1); }
-	static inline bool is_c7(uint8_t h) { return h & (1 << 0); }
-
-	static inline void activate_c0(uint8_t &h) { h |= (1 << 7); }
-	static inline void activate_c1(uint8_t &h) { h |= (1 << 6); }
-	static inline void activate_c2(uint8_t &h) { h |= (1 << 5); }
-	static inline void activate_c3(uint8_t &h) { h |= (1 << 4); }
-	static inline void activate_c4(uint8_t &h) { h |= (1 << 3); }
-	static inline void activate_c5(uint8_t &h) { h |= (1 << 2); }
-	static inline void activate_c6(uint8_t &h) { h |= (1 << 1); }
-	static inline void activate_c7(uint8_t &h) { h |= (1 << 0); }
+	static const uint8_t C0 = 7;
+	static const uint8_t C1 = 6;
+	static const uint8_t C2 = 5;
+	static const uint8_t C3 = 4;
+	static const uint8_t C4 = 3;
+	static const uint8_t C5 = 2;
+	static const uint8_t C6 = 1;
+	static const uint8_t C7 = 0;
 };
 
 } // namespace godot
