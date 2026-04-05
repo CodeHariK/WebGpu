@@ -106,7 +106,12 @@ void MCNode::update_ui_counts() {
 	ui_manager->add_label(stats_vbox, "--- Sorted Variants ---");
 	for (const String &base_name : base_mesh_order) {
 		int count = counts.has(base_name) ? counts[base_name] : 0;
-		ui_manager->add_label(stats_vbox, base_name + String(": ") + String::num_int64(count));
+		int bit_count = 0;
+		for (int i = 0; i < base_name.length(); i++) {
+			if (base_name[i] == '1')
+				bit_count++;
+		}
+		ui_manager->add_label(stats_vbox, String::num_int64(bit_count) + " : " + base_name + String(": ") + String::num_int64(count));
 	}
 	ui_manager->add_label(stats_vbox, "-----------------------");
 	ui_manager->add_label(stats_vbox, String("Cumulative: ") + String::num_int64(total));
