@@ -74,6 +74,12 @@ public:
 
 	// Enum-driven generation
 	void apply_transform_sequence(uint8_t p_base_hash, const Transform3D &p_base_t, const std::vector<MCTransform> &p_sequence, const String &p_name);
+	void apply_4_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
+	void apply_6_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
+	void apply_8_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
+	void apply_12_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
+	void apply_12_mirror_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
+	void apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
 
 	// Hash transformations
 	static uint8_t rotate_y(uint8_t p_hash);
