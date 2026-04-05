@@ -1,4 +1,0 @@
-[gd_scene format=3 uid="uid://c5k8l6m4j7p3b"]
-
-[node name="MCPreview" type="MCNode"]
-mesh_library_path = "res://assets/MarchingCubes.glb"
