@@ -1,0 +1,62 @@
+time scons target=template_debug platform=macos
+scons: Reading SConscript files ...
+Auto-detected 8 CPU cores available for build parallelism. Using 7 cores by default. You can override it with the -j argument.
+Building for architecture universal on platform macos
+->  src/register_types.cpp
+->  src/marching_cubes/mc.cpp
+->  src/gen/doc_data.gen.cpp
+->  src/acnh/acnh.cpp
+->  src/minecraft/ui.cpp
+->  src/minecraft/voxel_terrain.cpp
+->  src/minecraft/help.cpp
+->  src/minecraft/test.cpp
+->  src/minecraft/raycast.cpp
+->  src/minecraft/minecraft.cpp
+->  src/minecraft/smooth_terrain.cpp
+scons: done reading SConscript files.
+scons: Building targets ...
+scons: `godot-cpp/bin/libgodot-cpp.macos.template_debug.universal.a' is up to date.
+scons: `bin/macos/libMinecraftExt.macos.template_debug.dylib' is up to date.
+scons: `project/bin/macos/libMinecraftExt.macos.template_debug.dylib' is up to date.
+scons: done building targets.
+godot --path project/ --scene scene/MarchingCubes/MARCHING_CUBES.tscn
+ERROR: Attempting to register documentation data when we already have some - discarding.
+Godot Engine v4.6.stable.official.89cea1439 - https://godotengine.org
+Metal 4.0 - Forward+ - Using Device #0: Apple - Apple M2 (Apple8)
+
+MCNode: Loaded mesh: 11111110
+MCNode: Loaded mesh: 11110000
+MCNode: Loaded mesh: 10000000
+MCNode: Loaded mesh: 10010000
+MCNode: Loaded mesh: 11100000
+MCNode: Loaded mesh: 11000001
+MCNode: Loaded mesh: 10100000
+MCNode: Loaded mesh: 10000010
+MCNode: Loaded mesh: 10000101
+MCNode: Loaded mesh: 11100001
+MCNode: Loaded mesh: 10100101
+MCNode: Loaded mesh: 11100100
+MCNode: Loaded mesh: 11101000
+MCNode: Loaded mesh: 10101010
+MCNode: Loaded mesh: 11110110
+MCNode: Loaded mesh: 11111010
+MCNode: Loaded mesh: 11010111
+MCNode: Loaded mesh: 11111111
+MCNode: Loaded mesh: 11110010
+MCNode: Loaded mesh: 11101010
+MCNode: Loaded mesh: 11011010
+MCNode: Finished loading library. Total items: 21
+Generated Variant Ry90: 01000000
+Generated Variant Ry180: 00100000
+Generated Variant Ry270: 00010000
+Generated Variant Rx270: 00001000
+Generated Variant Rx270 Ry90: 00000100
+Generated Variant Rx270 Ry180: 00000010
+Generated Variant Rx270 Ry270: 00000001
+Generated Variant Inv Ry90: 11110111
+Generated Variant Inv Ry180: 11111011
+Generated Variant Inv Ry270: 11111101
+Generated Variant Inv Rx180: 01111111
+Generated Variant Inv Rx180 Ry90: 10111111
+Generated Variant Inv Rx180 Ry180: 11011111
+Generated Variant Inv Rx180 Ry270: 11101111

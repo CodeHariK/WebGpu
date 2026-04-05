@@ -55,7 +55,7 @@ func _ready():
 	#camera.rotation.x = 0
 	#camera_x_pivot.rotation.y = 0
 
-func _input(event):
+func _unhandled_input(event):
 	if camera_type == CameraType.FLY:
 		process_fly_camera(event)
 	if camera_type == CameraType.TARGET:

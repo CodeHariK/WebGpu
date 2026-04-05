@@ -41,3 +41,7 @@ clean:
 	rm -f compile_commands.json
 
 .PHONY: all build inspect clean
+
+
+run_mc:
+	godot --path project/ --scene scene/MarchingCubes/MARCHING_CUBES.tscn

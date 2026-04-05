@@ -5,10 +5,10 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
-#include "minecraft/minecraft.h"
-#include "minecraft/wfc.h"
 #include "acnh/acnh.h"
 #include "marching_cubes/mc.h"
+#include "minecraft/minecraft.h"
+#include "minecraft/wfc.h"
 
 using namespace godot;
 
@@ -20,6 +20,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(WFCGenerator3D);
 	GDREGISTER_CLASS(ACNHNode);
 	GDREGISTER_CLASS(MCNode);
+	GDREGISTER_CLASS(CUI);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
