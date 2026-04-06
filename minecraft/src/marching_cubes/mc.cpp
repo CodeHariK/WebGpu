@@ -93,7 +93,7 @@ struct LoadMeta {
 	LoadMeta(Node *p_child, MeshInstance3D *p_mi) :
 			child(p_child), mi(p_mi) {
 		if (child) {
-			String p_bin = child->get_name();
+			String p_bin = child->get_name().substr(0, 8);
 			for (int i = 0; i < p_bin.length(); i++) {
 				if (p_bin[i] == '1') {
 					ones_count++;
@@ -151,10 +151,12 @@ void MCNode::load_mesh_library() {
 		MeshConfig config;
 		config.mesh = meta.mi->get_mesh();
 		config.transform = Transform3D(); // Identity for original GLB nodes
-		config.source_mesh = meta.child->get_name();
-		mesh_library[meta.child->get_name()] = config;
-		base_mesh_order.push_back(meta.child->get_name());
-		UtilityFunctions::print("MCNode: Loaded mesh: ", meta.child->get_name(), " (Corners: ", meta.ones_count, ")");
+
+		String truncated_name = meta.child->get_name().substr(0, 8);
+		config.source_mesh = truncated_name;
+		mesh_library[truncated_name] = config;
+		base_mesh_order.push_back(truncated_name);
+		UtilityFunctions::print("MCNode: Loaded mesh: ", truncated_name, " (Corners: ", meta.ones_count, ")");
 	}
 
 	UtilityFunctions::print("MCNode: Finished loading library. Total items: ", mesh_library.size());
