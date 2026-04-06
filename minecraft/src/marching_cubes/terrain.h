@@ -22,7 +22,9 @@ struct Chunk {
 	std::vector<uint8_t> corner_states; // Bit-packed states
 
 	bool get_corner_bit(int p_index) const {
-		if (corner_states.empty()) return false;
+		if (corner_states.empty()) {
+			return false;
+		}
 		return (corner_states[static_cast<size_t>(p_index / 8)] & (1 << (p_index % 8))) != 0;
 	}
 
@@ -32,6 +34,58 @@ struct Chunk {
 		} else {
 			corner_states[static_cast<size_t>(p_index / 8)] &= ~(1 << (p_index % 8));
 		}
+	}
+
+	bool get_corner(int x, int y, int z) const {
+		int nx = size_x + 1;
+		int nz = size_z + 1;
+		int index = (y * nx * nz) + (z * nx) + x;
+		return get_corner_bit(index);
+	}
+
+	void set_corner(int x, int y, int z, bool value) {
+		int nx = size_x + 1;
+		int nz = size_z + 1;
+		int index = (y * nx * nz) + (z * nx) + x;
+		set_corner_bit(index, value);
+	}
+
+	uint8_t get_cell_hash(int x, int y, int z) const {
+		uint8_t hash = 0;
+		// Mapping matches MCNode standards:
+		// c0: x, y, z+1
+		if (get_corner(x, y, z + 1)) {
+			hash |= (1 << 7);
+		}
+		// c1: x+1, y, z+1
+		if (get_corner(x + 1, y, z + 1)) {
+			hash |= (1 << 6);
+		}
+		// c2: x+1, y, z
+		if (get_corner(x + 1, y, z)) {
+			hash |= (1 << 5);
+		}
+		// c3: x, y, z
+		if (get_corner(x, y, z)) {
+			hash |= (1 << 4);
+		}
+		// c4: x, y+1, z+1
+		if (get_corner(x, y + 1, z + 1)) {
+			hash |= (1 << 3);
+		}
+		// c5: x+1, y+1, z+1
+		if (get_corner(x + 1, y + 1, z + 1)) {
+			hash |= (1 << 2);
+		}
+		// c6: x+1, y+1, z
+		if (get_corner(x + 1, y + 1, z)) {
+			hash |= (1 << 1);
+		}
+		// c7: x, y+1, z
+		if (get_corner(x, y + 1, z)) {
+			hash |= (1 << 0);
+		}
+		return hash;
 	}
 };
 
@@ -46,6 +100,7 @@ private:
 	Ref<FastNoiseLite> noise;
 	float noise_threshold = 0.0f;
 	bool trigger_generation = false;
+	bool show_debug_corners = true;
 	std::vector<Chunk> chunks;
 
 	void _clear_children();
@@ -67,25 +122,49 @@ public:
 	void _ready() override;
 
 	void set_terrain_size(const Vector3i &p_size);
-	Vector3i get_terrain_size() const { return terrain_size; }
+	Vector3i get_terrain_size() const {
+		return terrain_size;
+	}
 
 	void set_chunk_size(const Vector3i &p_size);
-	Vector3i get_chunk_size() const { return chunk_size; }
+	Vector3i get_chunk_size() const {
+		return chunk_size;
+	}
 
 	void set_noise(const Ref<FastNoiseLite> &p_noise);
 	Ref<FastNoiseLite> get_noise() const;
 
 	void set_noise_threshold(float p_threshold);
-	float get_noise_threshold() const { return noise_threshold; }
+	float get_noise_threshold() const {
+		return noise_threshold;
+	}
 
 	void set_trigger_generation(bool p_trigger);
-	bool get_trigger_generation() const { return false; }
+	bool get_trigger_generation() const {
+		return false;
+	}
+
+	void set_trigger_test_grid(bool p_trigger);
+	bool get_trigger_test_grid() const {
+		return false;
+	}
 
 	void set_use_marching_cubes(bool p_use);
-	bool get_use_marching_cubes() const { return use_marching_cubes; }
+	bool get_use_marching_cubes() const {
+		return use_marching_cubes;
+	}
 
 	void set_mc_node_path(const NodePath &p_path);
-	NodePath get_mc_node_path() const { return mc_node_path; }
+	NodePath get_mc_node_path() const {
+		return mc_node_path;
+	}
+
+	void set_show_debug_corners(bool p_show);
+	bool get_show_debug_corners() const {
+		return show_debug_corners;
+	}
+
+	void spawn_test_grid();
 };
 
 } // namespace godot
