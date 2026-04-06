@@ -4,8 +4,9 @@
 #include <godot_cpp/classes/fast_noise_lite.hpp>
 #include <godot_cpp/classes/geometry_instance3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
-#include <godot_cpp/classes/shader.hpp>
+#include <godot_cpp/classes/label3d.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -37,6 +38,10 @@ void MCTerrain::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_trigger_generation"), &MCTerrain::get_trigger_generation);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "trigger_generation"), "set_trigger_generation", "get_trigger_generation");
 
+	ClassDB::bind_method(D_METHOD("set_trigger_test_grid", "trigger"), &MCTerrain::set_trigger_test_grid);
+	ClassDB::bind_method(D_METHOD("get_trigger_test_grid"), &MCTerrain::get_trigger_test_grid);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "trigger_test_grid"), "set_trigger_test_grid", "get_trigger_test_grid");
+
 	ClassDB::bind_method(D_METHOD("set_use_marching_cubes", "use"), &MCTerrain::set_use_marching_cubes);
 	ClassDB::bind_method(D_METHOD("get_use_marching_cubes"), &MCTerrain::get_use_marching_cubes);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_marching_cubes"), "set_use_marching_cubes", "get_use_marching_cubes");
@@ -44,6 +49,12 @@ void MCTerrain::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mc_node_path", "path"), &MCTerrain::set_mc_node_path);
 	ClassDB::bind_method(D_METHOD("get_mc_node_path"), &MCTerrain::get_mc_node_path);
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "mc_node_path"), "set_mc_node_path", "get_mc_node_path");
+
+	ClassDB::bind_method(D_METHOD("set_show_debug_corners", "show"), &MCTerrain::set_show_debug_corners);
+	ClassDB::bind_method(D_METHOD("get_show_debug_corners"), &MCTerrain::get_show_debug_corners);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_debug_corners"), "set_show_debug_corners", "get_show_debug_corners");
+
+	ClassDB::bind_method(D_METHOD("spawn_test_grid"), &MCTerrain::spawn_test_grid);
 }
 
 MCTerrain::MCTerrain() {
@@ -111,6 +122,14 @@ void MCTerrain::set_mc_node_path(const NodePath &p_path) {
 	generate_with_noise();
 }
 
+void MCTerrain::set_show_debug_corners(bool p_show) {
+	if (show_debug_corners == p_show) {
+		return;
+	}
+	show_debug_corners = p_show;
+	generate_with_noise();
+}
+
 void MCTerrain::set_noise_threshold(float p_threshold) {
 	if (Math::is_equal_approx(noise_threshold, p_threshold)) {
 		return;
@@ -122,6 +141,12 @@ void MCTerrain::set_noise_threshold(float p_threshold) {
 void MCTerrain::set_trigger_generation(bool p_trigger) {
 	if (p_trigger) {
 		generate_with_noise();
+	}
+}
+
+void MCTerrain::set_trigger_test_grid(bool p_trigger) {
+	if (p_trigger) {
+		spawn_test_grid();
 	}
 }
 
@@ -194,7 +219,8 @@ void MCTerrain::initialize_terrain_with_noise(int p_chunks_x, int p_chunks_y, in
 		_sample_chunk_noise(chunk, noise, p_threshold);
 		if (mc_node) {
 			spawn_count += _spawn_marching_cubes(chunk, mc_node);
-		} else {
+		}
+		if (show_debug_corners) {
 			spawn_count += _spawn_debug_cubes(chunk, box_mesh);
 		}
 	}
@@ -207,13 +233,20 @@ int MCTerrain::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_bo
 	int nz = p_chunk.size_z + 1;
 	int count = 0;
 
-	for (int lz = 0; lz < nz; lz++) {
-		for (int ly = 0; ly < ny; ly++) {
+	Ref<StandardMaterial3D> mat_red;
+	mat_red.instantiate();
+	mat_red->set_albedo(Color(1, 0, 0));
+	mat_red->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+
+	Ref<StandardMaterial3D> mat_white;
+	mat_white.instantiate();
+	mat_white->set_albedo(Color(1, 1, 1));
+	mat_white->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+
+	for (int ly = 0; ly < ny; ly++) {
+		for (int lz = 0; lz < nz; lz++) {
 			for (int lx = 0; lx < nx; lx++) {
-				int index = (lz * nx * ny) + (ly * nx) + lx;
-				if (!p_chunk.get_corner_bit(index)) {
-					continue;
-				}
+				bool state = p_chunk.get_corner(lx, ly, lz);
 
 				Vector3 world_pos = Vector3(
 						static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx),
@@ -222,6 +255,7 @@ int MCTerrain::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_bo
 
 				MeshInstance3D *mi = memnew(MeshInstance3D);
 				mi->set_mesh(p_box_mesh);
+				mi->set_material_override(state ? mat_red : mat_white);
 				mi->set_position(world_pos);
 				mi->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
 				add_child(mi);
@@ -236,44 +270,14 @@ int MCTerrain::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_bo
 }
 
 int MCTerrain::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
-	int nx = p_chunk.size_x + 1;
-	int ny = p_chunk.size_y + 1;
-	int nz = p_chunk.size_z + 1;
 	int count = 0;
 
-	for (int lz = 0; lz < p_chunk.size_z; lz++) {
-		for (int ly = 0; ly < p_chunk.size_y; ly++) {
+	for (int ly = 0; ly < p_chunk.size_y; ly++) {
+		for (int lz = 0; lz < p_chunk.size_z; lz++) {
 			for (int lx = 0; lx < p_chunk.size_x; lx++) {
-				uint8_t hash = 0;
+				uint8_t hash = p_chunk.get_cell_hash(lx, ly, lz);
 
-				// Map 8 corners of the cell to the 8-bit hash
-				// Mapping follows the order used in MCNode library generation
-				if (p_chunk.get_corner_bit((lz * nx * ny) + (ly * nx) + lx)) {
-					hash |= (1 << 7); // C0
-				}
-				if (p_chunk.get_corner_bit((lz * nx * ny) + (ly * nx) + (lx + 1))) {
-					hash |= (1 << 6); // C1
-				}
-				if (p_chunk.get_corner_bit(((lz + 1) * nx * ny) + (ly * nx) + (lx + 1))) {
-					hash |= (1 << 5); // C2
-				}
-				if (p_chunk.get_corner_bit(((lz + 1) * nx * ny) + (ly * nx) + lx)) {
-					hash |= (1 << 4); // C3
-				}
-				if (p_chunk.get_corner_bit((lz * nx * ny) + ((ly + 1) * nx) + lx)) {
-					hash |= (1 << 3); // C4
-				}
-				if (p_chunk.get_corner_bit((lz * nx * ny) + ((ly + 1) * nx) + (lx + 1))) {
-					hash |= (1 << 2); // C5
-				}
-				if (p_chunk.get_corner_bit(((lz + 1) * nx * ny) + ((ly + 1) * nx) + (lx + 1))) {
-					hash |= (1 << 1); // C6
-				}
-				if (p_chunk.get_corner_bit(((lz + 1) * nx * ny) + ((ly + 1) * nx) + lx)) {
-					hash |= (1 << 0); // C7
-				}
-
-				if (hash == 0 || hash == 255) {
+				if (hash == 0) {
 					continue;
 				}
 
@@ -282,10 +286,11 @@ int MCTerrain::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
 					continue;
 				}
 
+				// Spawn at center of the 8 corners (cell center)
 				Vector3 world_pos = Vector3(
-						static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx),
-						static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly),
-						static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz));
+						static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx) + 0.5f,
+						static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly) + 0.5f,
+						static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz) + 0.5f);
 
 				MeshInstance3D *mi = memnew(MeshInstance3D);
 				mi->set_mesh(conf.mesh);
@@ -332,19 +337,108 @@ void MCTerrain::_sample_chunk_noise(Chunk &p_chunk, const Ref<FastNoiseLite> &p_
 	int ny = p_chunk.size_y + 1;
 	int nz = p_chunk.size_z + 1;
 
-	for (int lz = 0; lz < nz; lz++) {
-		for (int ly = 0; ly < ny; ly++) {
+	for (int ly = 0; ly < ny; ly++) {
+		for (int lz = 0; lz < nz; lz++) {
 			for (int lx = 0; lx < nx; lx++) {
 				float world_x = static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx);
 				float world_y = static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly);
 				float world_z = static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz);
 
 				float noise_val = p_noise->get_noise_3d(world_x, world_y, world_z);
-				int index = (lz * nx * ny) + (ly * nx) + lx;
-				p_chunk.set_corner_bit(index, noise_val > p_threshold);
+				p_chunk.set_corner(lx, ly, lz, noise_val > p_threshold);
 			}
 		}
 	}
+}
+
+void MCTerrain::spawn_test_grid() {
+	_clear_children();
+
+	MCNode *mc_node = nullptr;
+	if (!mc_node_path.is_empty()) {
+		mc_node = Object::cast_to<MCNode>(get_node_or_null(mc_node_path));
+	}
+
+	if (!mc_node) {
+		UtilityFunctions::print("MCTerrain: Cannot spawn test grid without valid MCNode.");
+		return;
+	}
+
+	float spacing = 3.0f;
+	Ref<BoxMesh> corner_mesh;
+	corner_mesh.instantiate();
+	corner_mesh->set_size(Vector3(0.1f, 0.1f, 0.1f));
+
+	Ref<StandardMaterial3D> mat_red;
+	mat_red.instantiate();
+	mat_red->set_albedo(Color(1, 0, 0));
+	mat_red->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+
+	Ref<StandardMaterial3D> mat_white;
+	mat_white.instantiate();
+	mat_white->set_albedo(Color(1, 1, 1));
+	mat_white->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+
+	for (int i = 0; i < 256; i++) {
+		int grid_x = i % 16;
+		int grid_z = i / 16;
+		Vector3 world_origin = Vector3(static_cast<float>(grid_x) * spacing, 0.0f, static_cast<float>(grid_z) * spacing);
+		uint8_t hash = static_cast<uint8_t>(i);
+
+		// 1. Spawn Mesh in Center
+		MeshConfig conf = mc_node->get_mesh_config(hash);
+		if (conf.mesh.is_valid()) {
+			MeshInstance3D *mi = memnew(MeshInstance3D);
+			mi->set_mesh(conf.mesh);
+			Transform3D t;
+			t.origin = world_origin + Vector3(0.5f, 0.5f, 0.5f); // Center of the 1x1x1 unit cell
+			mi->set_transform(t * conf.transform);
+			add_child(mi);
+			if (is_inside_tree()) {
+				mi->set_owner(get_owner() ? get_owner() : this);
+			}
+		}
+
+		// 2. Spawn Corner Debug Cubes (Always show, Red for 1, White for 0)
+		Vector3 corners[8] = {
+			Vector3(0, 0, 1), // C0
+			Vector3(1, 0, 1), // C1
+			Vector3(1, 0, 0), // C2
+			Vector3(0, 0, 0), // C3
+			Vector3(0, 1, 1), // C4
+			Vector3(1, 1, 1), // C5
+			Vector3(1, 1, 0), // C6
+			Vector3(0, 1, 0) // C7
+		};
+
+		for (int c = 0; c < 8; c++) {
+			bool state = (hash & (1 << (7 - c))) != 0;
+			MeshInstance3D *c_mi = memnew(MeshInstance3D);
+			c_mi->set_mesh(corner_mesh);
+			c_mi->set_material_override(state ? mat_red : mat_white);
+			c_mi->set_position(world_origin + corners[c]);
+			add_child(c_mi);
+			if (is_inside_tree()) {
+				c_mi->set_owner(get_owner() ? get_owner() : this);
+			}
+		}
+
+		// 3. Spawn Binary Hash Label
+		Label3D *label = memnew(Label3D);
+		String binary_str = "";
+		for (int b = 7; b >= 0; b--) {
+			binary_str += (hash & (1 << b)) ? "1" : "0";
+		}
+		label->set_text(binary_str);
+		label->set_position(world_origin + Vector3(0.5f, 1.3f, 0.5f));
+		label->set_font_size(32);
+		label->set_billboard_mode(BaseMaterial3D::BILLBOARD_ENABLED);
+		add_child(label);
+		if (is_inside_tree()) {
+			label->set_owner(get_owner() ? get_owner() : this);
+		}
+	}
+	UtilityFunctions::print("MCTerrain: Test grid spawned (256 variants with labels).");
 }
 
 } // namespace godot
