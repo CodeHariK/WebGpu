@@ -523,7 +523,7 @@ void MCNode::display_library() {
 		}
 
 		for (int col = 0; col < (int)variants.size(); col++) {
-			String variant_name = variants[col];
+			const String &variant_name = variants[col];
 			const MeshConfig &conf = mesh_library[variant_name];
 
 			MeshInstance3D *mi = memnew(MeshInstance3D);
@@ -542,8 +542,9 @@ void MCNode::display_library() {
 			Label3D *label = memnew(Label3D);
 			int bit_count = 0;
 			for (int i = 0; i < variant_name.length(); i++) {
-				if (variant_name[i] == '1')
+				if (variant_name[i] == '1') {
 					bit_count++;
+				}
 			}
 			label->set_text(String::num_int64(bit_count) + " : " + variant_name);
 			label->set_position(grid_t.origin + Vector3(0, 1.5f, -0.2f));
@@ -609,4 +610,12 @@ String MCNode::hash_to_binary(uint8_t p_hash) {
 	return s;
 }
 
-} //namespace godot
+MeshConfig MCNode::get_mesh_config(uint8_t p_hash) const {
+	String h_str = hash_to_binary(p_hash);
+	if (mesh_library.has(h_str)) {
+		return mesh_library[h_str];
+	}
+	return MeshConfig();
+}
+
+} // namespace godot

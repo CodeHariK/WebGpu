@@ -69,6 +69,7 @@ public:
 	void load_mesh_library();
 	void display_library();
 	void generate_variants();
+	MeshConfig get_mesh_config(uint8_t p_hash) const;
 
 	// UI
 	void setup_ui();

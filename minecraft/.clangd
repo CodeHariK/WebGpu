@@ -13,21 +13,23 @@ Diagnostics:
     ]
     Remove: [
       "readability-convert-member-functions-to-static",
-      "cppcoreguidelines-pro-type-vararg",
-      "cppcoreguidelines-pro-bounds-array-to-pointer-decay",
-      "modernize-use-trailing-return-type",
       "readability-magic-numbers",
-      "cppcoreguidelines-avoid-magic-numbers",
       "readability-identifier-length",
       "readability-implicit-bool-conversion",
-      "cppcoreguidelines-owning-memory",
-      "bugprone-easily-swappable-parameters",
+      "readability-isolate-declaration",
+      "readability-uppercase-literal-suffix",
+      "modernize-use-trailing-return-type",
       "modernize-loop-convert",
       "modernize-use-auto",
-      "readability-isolate-declaration",
-      "cppcoreguidelines-avoid-c-arrays",
       "modernize-avoid-c-arrays",
-      "readability-uppercase-literal-suffix",
+      "cppcoreguidelines-pro-type-vararg",
+      "cppcoreguidelines-pro-bounds-array-to-pointer-decay",
+      "cppcoreguidelines-avoid-magic-numbers",
+      "cppcoreguidelines-owning-memory",
+      "cppcoreguidelines-avoid-c-arrays",
+      "cppcoreguidelines-pro-bounds-constant-array-index",
+      "google-readability-casting",
+      "bugprone-easily-swappable-parameters",
     ]
     CheckOptions:
       readability-identifier-naming.ParameterCase: camelCase
