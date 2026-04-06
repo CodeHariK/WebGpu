@@ -8,6 +8,7 @@
 #include "acnh/acnh.h"
 #include "cui/cui.h"
 #include "marching_cubes/mc.h"
+#include "marching_cubes/terrain.h"
 #include "minecraft/minecraft.h"
 #include "minecraft/wfc.h"
 
@@ -21,6 +22,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(WFCGenerator3D);
 	GDREGISTER_CLASS(ACNHNode);
 	GDREGISTER_CLASS(MCNode);
+	GDREGISTER_CLASS(MCTerrain);
 	GDREGISTER_CLASS(CUI);
 }
 
