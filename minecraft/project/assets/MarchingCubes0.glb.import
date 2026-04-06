@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dfjwldefbrkqb"
-path="res://.godot/imported/MarchingCubes.glb-ac3882b907617e76fe92ec05fc1deec7.scn"
+uid="uid://cdya3b36rmql1"
+path="res://.godot/imported/MarchingCubes0.glb-6392365548e4f0e978621dbb46c61018.scn"
 
 [deps]
 
-source_file="res://assets/MarchingCubes.glb"
-dest_files=["res://.godot/imported/MarchingCubes.glb-ac3882b907617e76fe92ec05fc1deec7.scn"]
+source_file="res://assets/MarchingCubes0.glb"
+dest_files=["res://.godot/imported/MarchingCubes0.glb-6392365548e4f0e978621dbb46c61018.scn"]
 
 [params]
 
