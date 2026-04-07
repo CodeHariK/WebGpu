@@ -6,6 +6,7 @@
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
 #include <vector>
 
@@ -43,13 +44,8 @@ class MCNode : public Node3D {
 private:
 	String mesh_library_path = "res://assets/MarchingCubes.glb";
 	HashMap<String, MeshConfig> mesh_library;
-	CUI *ui_manager = nullptr;
-	VBoxContainer *stats_vbox = nullptr;
-	Panel *side_panel = nullptr;
-	AcceptDialog *help_dialog = nullptr;
 	std::vector<String> base_mesh_order;
 
-	bool regenerate_mesh = false;
 
 protected:
 	static void _bind_methods();
@@ -63,20 +59,13 @@ public:
 	void set_mesh_library_path(const String &p_path);
 	String get_mesh_library_path() const;
 
-	void set_regenerate_mesh(bool p_regenerate);
-	bool get_regenerate_mesh() const;
 
 	void load_mesh_library();
 	void display_library();
 	void generate_variants();
 	MeshConfig get_mesh_config(uint8_t p_hash) const;
-
-	// UI
-	void setup_ui();
-	void update_ui_counts();
-	void _on_toggle_ui();
-	void _on_gui_input(const Ref<InputEvent> &p_event);
-	void _on_show_help();
+	Dictionary get_variant_counts() const;
+	std::vector<String> get_base_mesh_order() const { return base_mesh_order; }
 
 	// Enum-driven generation
 	void apply_transform_sequence(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const std::vector<MCTransform> &p_sequence, const String &p_name);

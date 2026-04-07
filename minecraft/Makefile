@@ -7,10 +7,8 @@ LIB_NAME     := libMinecraftExt.$(PLATFORM).$(TARGET).dylib
 SCONS        := scons
 NM           := nm
 
-e:
-	godot -e --path project
 r:
-	godot --path project
+	godot -e --path project
 
 # Build the extension
 b:

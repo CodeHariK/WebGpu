@@ -19,18 +19,13 @@ void MCNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mesh_library_path", "p_path"), &MCNode::set_mesh_library_path);
 	ClassDB::bind_method(D_METHOD("get_mesh_library_path"), &MCNode::get_mesh_library_path);
 
-	ClassDB::bind_method(D_METHOD("set_regenerate_mesh", "p_regenerate"), &MCNode::set_regenerate_mesh);
-	ClassDB::bind_method(D_METHOD("get_regenerate_mesh"), &MCNode::get_regenerate_mesh);
 
 	ClassDB::bind_method(D_METHOD("load_mesh_library"), &MCNode::load_mesh_library);
 	ClassDB::bind_method(D_METHOD("display_library"), &MCNode::display_library);
 	ClassDB::bind_method(D_METHOD("generate_variants"), &MCNode::generate_variants);
-	ClassDB::bind_method(D_METHOD("_on_toggle_ui"), &MCNode::_on_toggle_ui);
-	ClassDB::bind_method(D_METHOD("_on_gui_input", "p_event"), &MCNode::_on_gui_input);
-	ClassDB::bind_method(D_METHOD("_on_show_help"), &MCNode::_on_show_help);
+	ClassDB::bind_method(D_METHOD("get_variant_counts"), &MCNode::get_variant_counts);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "mesh_library_path"), "set_mesh_library_path", "get_mesh_library_path");
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "regenerate_mesh"), "set_regenerate_mesh", "get_regenerate_mesh");
 }
 
 MCNode::MCNode() = default;
@@ -39,17 +34,11 @@ MCNode::~MCNode() {
 }
 
 void MCNode::_ready() {
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
 	load_mesh_library();
 	generate_variants();
-	// Finally update UI
-	if (!Engine::get_singleton()->is_editor_hint()) {
-		ui_manager = CUI::create_on_new_layer(this);
-		if (ui_manager) {
-			setup_ui();
-			UtilityFunctions::print("MCNode: UI initialized via CUI factory.");
-		}
-	}
-	update_ui_counts();
 	display_library();
 }
 
@@ -61,29 +50,6 @@ String MCNode::get_mesh_library_path() const {
 	return mesh_library_path;
 }
 
-void MCNode::set_regenerate_mesh(bool p_regenerate) {
-	if (p_regenerate) {
-		UtilityFunctions::print("MCNode: Regenerating meshes...");
-		load_mesh_library();
-		generate_variants();
-		display_library();
-	}
-	// Flag is always false in inspector after click
-	regenerate_mesh = false;
-
-	if (!Engine::get_singleton()->is_editor_hint()) {
-		if (!ui_manager) {
-			ui_manager = memnew(CUI);
-			add_child(ui_manager);
-			setup_ui();
-		}
-	}
-	notify_property_list_changed();
-}
-
-bool MCNode::get_regenerate_mesh() const {
-	return regenerate_mesh;
-}
 
 struct LoadMeta {
 	Node *child = nullptr;
@@ -618,6 +584,21 @@ MeshConfig MCNode::get_mesh_config(uint8_t p_hash) const {
 		return mesh_library[h_str];
 	}
 	return MeshConfig();
+}
+ 
+Dictionary MCNode::get_variant_counts() const {
+	Dictionary counts;
+	for (const KeyValue<String, MeshConfig> &E : mesh_library) {
+		String base_name = E.value.source_mesh;
+		if (base_name.is_empty())
+			continue;
+		if (!counts.has(base_name)) {
+			counts[base_name] = 0;
+		}
+		int current = counts[base_name];
+		counts[base_name] = current + 1;
+	}
+	return counts;
 }
 
 } // namespace godot
