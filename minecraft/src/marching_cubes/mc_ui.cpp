@@ -81,6 +81,13 @@ void MCManager::setup_ui() {
 	perf.meshes_label = ui.manager->add_label(ui.stats_vbox, "Engine Objects: 0");
 	perf.collision_label = ui.manager->add_label(ui.stats_vbox, "Collision Pairs: 0");
 	perf.memory_label = ui.manager->add_label(ui.stats_vbox, "Memory: 0 MB");
+
+	ui.manager->add_label(ui.stats_vbox, "--- DIAGNOSTICS ---");
+	Button *diag_btn = ui.manager->add_button(ui.stats_vbox, "Toggle Collision Debug", Callable(this, "_on_toggle_collision_debug"));
+	diag_btn->set_custom_minimum_size(Vector2(0, 30));
+	
+	Button *vis_btn = ui.manager->add_button(ui.stats_vbox, "Toggle Visual Corners", Callable(this, "_on_toggle_visual_corners"));
+	vis_btn->set_custom_minimum_size(Vector2(0, 30));
 	
 	ui.manager->add_label(ui.stats_vbox, "--- TERRAIN STATS ---");
 	terrain.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
@@ -165,15 +172,5 @@ void MCManager::update_ui() {
 	}
 }
 
-void MCManager::_process(double p_delta) {
-	if (Engine::get_singleton()->is_editor_hint())
-		return;
-
-	perf.update_timer += p_delta;
-	if (perf.update_timer >= 0.1) {
-		update_ui();
-		perf.update_timer = 0.0;
-	}
-}
 
 } //namespace godot

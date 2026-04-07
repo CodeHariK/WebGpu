@@ -14,6 +14,8 @@ class Panel;
 class AcceptDialog;
 class Label;
 class InputEvent;
+class MeshInstance3D;
+class StandardMaterial3D;
 
 class MCManager : public Node3D {
 	GDCLASS(MCManager, Node3D)
@@ -48,6 +50,8 @@ private:
 	MCUI ui;
 	TerrainStats terrain;
 	PerfStats perf;
+	MeshInstance3D *hover_preview = nullptr;
+	Ref<StandardMaterial3D> hover_mat;
 
 protected:
 	static void _bind_methods();
@@ -71,6 +75,9 @@ public:
 	void update_ui();
 	void _process(double p_delta) override;
 	void _on_toggle_ui();
+	void _on_toggle_collision_debug();
+	void _on_toggle_visual_corners();
+	void _input(const Ref<InputEvent> &p_event) override;
 	void _on_gui_input(const Ref<InputEvent> &p_event);
 	void _on_show_help();
 };
