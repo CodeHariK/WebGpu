@@ -87,6 +87,26 @@ struct Chunk {
 		}
 		return hash;
 	}
+
+	bool has_active_neighbor(int x, int y, int z) const {
+		if (x > 0 && get_corner(x - 1, y, z)) return true;
+		if (x < size_x && get_corner(x + 1, y, z)) return true;
+		if (y > 0 && get_corner(x, y - 1, z)) return true;
+		if (y < size_y && get_corner(x, y + 1, z)) return true;
+		if (z > 0 && get_corner(x, y, z - 1)) return true;
+		if (z < size_z && get_corner(x, y, z + 1)) return true;
+		return false;
+	}
+
+	bool has_inactive_neighbor(int x, int y, int z) const {
+		if (x > 0 && !get_corner(x - 1, y, z)) return true;
+		if (x < size_x && !get_corner(x + 1, y, z)) return true;
+		if (y > 0 && !get_corner(x, y - 1, z)) return true;
+		if (y < size_y && !get_corner(x, y + 1, z)) return true;
+		if (z > 0 && !get_corner(x, y, z - 1)) return true;
+		if (z < size_z && !get_corner(x, y, z + 1)) return true;
+		return false;
+	}
 };
 
 class MCTerrain : public Node3D {
@@ -103,8 +123,10 @@ private:
 	int total_mc_meshes = 0;
 	int total_debug_corners = 0;
 	int total_cells = 0;
+	Node3D *debug_corners_container = nullptr;
 
 	void _clear_children();
+	bool _is_boundary_corner(int gx, int gy, int gz, bool &r_required_state) const;
 	void _sample_chunk_noise(Chunk &p_chunk, const Ref<FastNoiseLite> &p_noise, float p_threshold) const;
 	int _spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_box_mesh);
 	int _spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node);
@@ -120,6 +142,8 @@ public:
 	void initialize_terrain(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z);
 	void initialize_terrain_with_noise(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, float p_threshold = 0.0);
 	void generate_with_noise();
+	void refresh_terrain();
+	void modify_corner(const Vector3i &p_grid_pos, bool p_active);
 	void _ready() override;
 
 	void set_terrain_size(const Vector3i &p_size);
@@ -140,6 +164,9 @@ public:
 		return noise_threshold;
 	}
 
+	void set_debug_corners_visible(bool p_visible);
+	bool is_debug_corners_visible() const;
+
 
 	void set_trigger_test_grid(bool p_trigger);
 	bool get_trigger_test_grid() const {
@@ -158,9 +185,7 @@ public:
 
 
 	void set_mc_node(MCNode *p_node);
-	MCNode *get_mc_node() const {
-		return mc_node;
-	}
+	MCNode *get_mc_node() const;
 
 	void set_show_debug_corners(bool p_show);
 	bool get_show_debug_corners() const {
