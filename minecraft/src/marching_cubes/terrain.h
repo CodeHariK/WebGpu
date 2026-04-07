@@ -95,16 +95,17 @@ class MCTerrain : public Node3D {
 private:
 	Vector3i terrain_size = Vector3i(1, 1, 1);
 	Vector3i chunk_size = Vector3i(16, 16, 16);
-	NodePath mc_node_path;
-	bool use_marching_cubes = false;
+	MCNode *mc_node = nullptr;
 	Ref<FastNoiseLite> noise;
 	float noise_threshold = 0.0f;
-	bool trigger_generation = false;
-	bool show_debug_corners = true;
+	bool show_debug_corners = false;
 	std::vector<Chunk> chunks;
+	int total_mc_meshes = 0;
+	int total_debug_corners = 0;
+	int total_cells = 0;
 
 	void _clear_children();
-	void _sample_chunk_noise(Chunk &p_chunk, const Ref<FastNoiseLite> &p_noise, float p_threshold);
+	void _sample_chunk_noise(Chunk &p_chunk, const Ref<FastNoiseLite> &p_noise, float p_threshold) const;
 	int _spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_box_mesh);
 	int _spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node);
 	void _on_noise_changed();
@@ -139,24 +140,26 @@ public:
 		return noise_threshold;
 	}
 
-	void set_trigger_generation(bool p_trigger);
-	bool get_trigger_generation() const {
-		return false;
-	}
 
 	void set_trigger_test_grid(bool p_trigger);
 	bool get_trigger_test_grid() const {
 		return false;
 	}
 
-	void set_use_marching_cubes(bool p_use);
-	bool get_use_marching_cubes() const {
-		return use_marching_cubes;
+	int get_total_mc_meshes() const {
+		return total_mc_meshes;
+	}
+	int get_total_debug_corners() const {
+		return total_debug_corners;
+	}
+	int get_total_cells() const {
+		return total_cells;
 	}
 
-	void set_mc_node_path(const NodePath &p_path);
-	NodePath get_mc_node_path() const {
-		return mc_node_path;
+
+	void set_mc_node(MCNode *p_node);
+	MCNode *get_mc_node() const {
+		return mc_node;
 	}
 
 	void set_show_debug_corners(bool p_show);

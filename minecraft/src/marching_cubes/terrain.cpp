@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/label3d.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
+#include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -15,8 +16,6 @@ void MCTerrain::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("initialize_terrain", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y", "chunk_size_z"), &MCTerrain::initialize_terrain);
 	ClassDB::bind_method(D_METHOD("initialize_terrain_with_noise", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y", "chunk_size_z", "threshold"), &MCTerrain::initialize_terrain_with_noise, DEFVAL(0.0));
 	ClassDB::bind_method(D_METHOD("generate_with_noise"), &MCTerrain::generate_with_noise);
-	ClassDB::bind_method(D_METHOD("_ready"), &MCTerrain::_ready);
-	ClassDB::bind_method(D_METHOD("_on_noise_changed"), &MCTerrain::_on_noise_changed);
 
 	ClassDB::bind_method(D_METHOD("set_terrain_size", "size"), &MCTerrain::set_terrain_size);
 	ClassDB::bind_method(D_METHOD("get_terrain_size"), &MCTerrain::get_terrain_size);
@@ -34,27 +33,16 @@ void MCTerrain::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_noise_threshold"), &MCTerrain::get_noise_threshold);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_threshold"), "set_noise_threshold", "get_noise_threshold");
 
-	ClassDB::bind_method(D_METHOD("set_trigger_generation", "trigger"), &MCTerrain::set_trigger_generation);
-	ClassDB::bind_method(D_METHOD("get_trigger_generation"), &MCTerrain::get_trigger_generation);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "trigger_generation"), "set_trigger_generation", "get_trigger_generation");
-
 	ClassDB::bind_method(D_METHOD("set_trigger_test_grid", "trigger"), &MCTerrain::set_trigger_test_grid);
 	ClassDB::bind_method(D_METHOD("get_trigger_test_grid"), &MCTerrain::get_trigger_test_grid);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "trigger_test_grid"), "set_trigger_test_grid", "get_trigger_test_grid");
-
-	ClassDB::bind_method(D_METHOD("set_use_marching_cubes", "use"), &MCTerrain::set_use_marching_cubes);
-	ClassDB::bind_method(D_METHOD("get_use_marching_cubes"), &MCTerrain::get_use_marching_cubes);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_marching_cubes"), "set_use_marching_cubes", "get_use_marching_cubes");
-
-	ClassDB::bind_method(D_METHOD("set_mc_node_path", "path"), &MCTerrain::set_mc_node_path);
-	ClassDB::bind_method(D_METHOD("get_mc_node_path"), &MCTerrain::get_mc_node_path);
-	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "mc_node_path"), "set_mc_node_path", "get_mc_node_path");
 
 	ClassDB::bind_method(D_METHOD("set_show_debug_corners", "show"), &MCTerrain::set_show_debug_corners);
 	ClassDB::bind_method(D_METHOD("get_show_debug_corners"), &MCTerrain::get_show_debug_corners);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_debug_corners"), "set_show_debug_corners", "get_show_debug_corners");
 
 	ClassDB::bind_method(D_METHOD("spawn_test_grid"), &MCTerrain::spawn_test_grid);
+	ClassDB::bind_method(D_METHOD("set_mc_node", "node"), &MCTerrain::set_mc_node);
 }
 
 MCTerrain::MCTerrain() {
@@ -106,20 +94,8 @@ Ref<FastNoiseLite> MCTerrain::get_noise() const {
 	return noise;
 }
 
-void MCTerrain::set_use_marching_cubes(bool p_use) {
-	if (use_marching_cubes == p_use) {
-		return;
-	}
-	use_marching_cubes = p_use;
-	generate_with_noise();
-}
-
-void MCTerrain::set_mc_node_path(const NodePath &p_path) {
-	if (mc_node_path == p_path) {
-		return;
-	}
-	mc_node_path = p_path;
-	generate_with_noise();
+void MCTerrain::set_mc_node(MCNode *p_node) {
+	mc_node = p_node;
 }
 
 void MCTerrain::set_show_debug_corners(bool p_show) {
@@ -136,12 +112,6 @@ void MCTerrain::set_noise_threshold(float p_threshold) {
 	}
 	noise_threshold = p_threshold;
 	generate_with_noise();
-}
-
-void MCTerrain::set_trigger_generation(bool p_trigger) {
-	if (p_trigger) {
-		generate_with_noise();
-	}
 }
 
 void MCTerrain::set_trigger_test_grid(bool p_trigger) {
@@ -184,13 +154,13 @@ void MCTerrain::initialize_terrain_with_noise(int p_chunks_x, int p_chunks_y, in
 
 	Ref<BoxMesh> box_mesh;
 	box_mesh.instantiate();
-	box_mesh->set_size(Vector3(0.2f, 0.2f, 0.2f)); // Slightly bigger for visibility
+	box_mesh->set_size(Vector3(0.2f, 0.2f, 0.2f));
 
 	Ref<Shader> shader;
 	shader.instantiate();
 	shader->set_code(
 			"shader_type spatial;\n"
-			"render_mode unshaded;\n" // Added unshaded for better performance
+			"render_mode unshaded;\n"
 			"void vertex() {}\n"
 			"void fragment() {\n"
 			"    ALBEDO = vec3(1.0, 1.0, 0.0);\n"
@@ -200,11 +170,6 @@ void MCTerrain::initialize_terrain_with_noise(int p_chunks_x, int p_chunks_y, in
 	material.instantiate();
 	material->set_shader(shader);
 	box_mesh->set_material(material);
-
-	MCNode *mc_node = nullptr;
-	if (use_marching_cubes && !mc_node_path.is_empty()) {
-		mc_node = Object::cast_to<MCNode>(get_node_or_null(mc_node_path));
-	}
 
 	initialize_terrain(p_chunks_x, p_chunks_y, p_chunks_z, p_chunk_size_x, p_chunk_size_y, p_chunk_size_z);
 
@@ -262,7 +227,7 @@ int MCTerrain::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_bo
 				if (is_inside_tree()) {
 					mi->set_owner(get_owner() ? get_owner() : this);
 				}
-				count++;
+				count++;	total_debug_corners++;
 			}
 		}
 	}
@@ -276,6 +241,7 @@ int MCTerrain::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
 		for (int lz = 0; lz < p_chunk.size_z; lz++) {
 			for (int lx = 0; lx < p_chunk.size_x; lx++) {
 				uint8_t hash = p_chunk.get_cell_hash(lx, ly, lz);
+				total_cells++;
 
 				if (hash == 0) {
 					continue;
@@ -302,7 +268,7 @@ int MCTerrain::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
 				if (is_inside_tree()) {
 					mi->set_owner(get_owner() ? get_owner() : this);
 				}
-				count++;
+				count++;	total_mc_meshes++;
 			}
 		}
 	}
@@ -310,12 +276,18 @@ int MCTerrain::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
 }
 
 void MCTerrain::generate_with_noise() {
+	if (Engine::get_singleton()->is_editor_hint() || !is_inside_tree()) {
+		return;
+	}
 	initialize_terrain_with_noise(terrain_size.x, terrain_size.y, terrain_size.z, chunk_size.x, chunk_size.y, chunk_size.z, noise_threshold);
 }
 
 void MCTerrain::_ready() {
-	UtilityFunctions::print("MCTerrain ready, generating...");
-	generate_with_noise();
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+	// Generation is now triggered by MCManager to ensure correct order
+	UtilityFunctions::print("MCTerrain: _ready() called, waiting for MCManager...");
 }
 
 void MCTerrain::_clear_children() {
@@ -326,13 +298,16 @@ void MCTerrain::_clear_children() {
 			child->queue_free();
 		}
 	}
+	total_mc_meshes = 0;
+	total_debug_corners = 0;
+	total_cells = 0;
 }
 
 void MCTerrain::_on_noise_changed() {
 	generate_with_noise();
 }
 
-void MCTerrain::_sample_chunk_noise(Chunk &p_chunk, const Ref<FastNoiseLite> &p_noise, float p_threshold) {
+void MCTerrain::_sample_chunk_noise(Chunk &p_chunk, const Ref<FastNoiseLite> &p_noise, float p_threshold) const {
 	int nx = p_chunk.size_x + 1;
 	int ny = p_chunk.size_y + 1;
 	int nz = p_chunk.size_z + 1;
@@ -340,6 +315,23 @@ void MCTerrain::_sample_chunk_noise(Chunk &p_chunk, const Ref<FastNoiseLite> &p_
 	for (int ly = 0; ly < ny; ly++) {
 		for (int lz = 0; lz < nz; lz++) {
 			for (int lx = 0; lx < nx; lx++) {
+				// Priority 1: Bottommost (Y=0 world-space) is always 1 (solid)
+				if (p_chunk.loc_y == 0 && ly == 0) {
+					p_chunk.set_corner(lx, ly, lz, true);
+					continue;
+				}
+
+				// Priority 2: Other world boundaries are always 0 (empty)
+				if ((p_chunk.loc_y == terrain_size.y - 1 && ly == p_chunk.size_y) ||
+						(p_chunk.loc_x == 0 && lx == 0) ||
+						(p_chunk.loc_x == terrain_size.x - 1 && lx == p_chunk.size_x) ||
+						(p_chunk.loc_z == 0 && lz == 0) ||
+						(p_chunk.loc_z == terrain_size.z - 1 && lz == p_chunk.size_z)) {
+					p_chunk.set_corner(lx, ly, lz, false);
+					continue;
+				}
+
+				// Standard noise sampling for internal corners
 				float world_x = static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx);
 				float world_y = static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly);
 				float world_z = static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz);
@@ -353,11 +345,6 @@ void MCTerrain::_sample_chunk_noise(Chunk &p_chunk, const Ref<FastNoiseLite> &p_
 
 void MCTerrain::spawn_test_grid() {
 	_clear_children();
-
-	MCNode *mc_node = nullptr;
-	if (!mc_node_path.is_empty()) {
-		mc_node = Object::cast_to<MCNode>(get_node_or_null(mc_node_path));
-	}
 
 	if (!mc_node) {
 		UtilityFunctions::print("MCTerrain: Cannot spawn test grid without valid MCNode.");
@@ -391,7 +378,7 @@ void MCTerrain::spawn_test_grid() {
 			MeshInstance3D *mi = memnew(MeshInstance3D);
 			mi->set_mesh(conf.mesh);
 			Transform3D t;
-			t.origin = world_origin + Vector3(0.5f, 0.5f, 0.5f); // Center of the 1x1x1 unit cell
+			t.origin = world_origin + Vector3(0.5f, 0.5f, 0.5f);
 			mi->set_transform(t * conf.transform);
 			add_child(mi);
 			if (is_inside_tree()) {
@@ -399,7 +386,7 @@ void MCTerrain::spawn_test_grid() {
 			}
 		}
 
-		// 2. Spawn Corner Debug Cubes (Always show, Red for 1, White for 0)
+		// 2. Spawn Corner Debug Cubes
 		Vector3 corners[8] = {
 			Vector3(0, 0, 1), // C0
 			Vector3(1, 0, 1), // C1
@@ -438,7 +425,7 @@ void MCTerrain::spawn_test_grid() {
 			label->set_owner(get_owner() ? get_owner() : this);
 		}
 	}
-	UtilityFunctions::print("MCTerrain: Test grid spawned (256 variants with labels).");
+	UtilityFunctions::print("MCTerrain: Test grid spawned.");
 }
 
 } // namespace godot
