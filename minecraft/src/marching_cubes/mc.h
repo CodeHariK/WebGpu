@@ -43,7 +43,9 @@ class MCNode : public Node3D {
 
 private:
 	String mesh_library_path = "res://assets/MarchingCubes.glb";
+	bool use_full_library = false;
 	HashMap<String, MeshConfig> mesh_library;
+
 	std::vector<String> base_mesh_order;
 
 
@@ -59,10 +61,17 @@ public:
 	void set_mesh_library_path(const String &p_path);
 	String get_mesh_library_path() const;
 
+	void set_use_full_library(bool p_use);
+	bool get_use_full_library() const;
+
+
 
 	void load_mesh_library();
 	void display_library();
 	void generate_variants();
+	void validate_full_library();
+	void print_library_hashes() const;
+
 	MeshConfig get_mesh_config(uint8_t p_hash) const;
 	Dictionary get_variant_counts() const;
 	std::vector<String> get_base_mesh_order() const { return base_mesh_order; }

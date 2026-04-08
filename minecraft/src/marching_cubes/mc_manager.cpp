@@ -1,27 +1,28 @@
 #include "mc_manager.h"
+#include "cui/cui.h"
 #include "mc.h"
-#include "terrain.h"
-#include <godot_cpp/classes/engine.hpp>
-#include <godot_cpp/classes/input_event.hpp>
-#include <godot_cpp/classes/input_event_mouse_button.hpp>
-#include <godot_cpp/classes/viewport.hpp>
-#include <godot_cpp/classes/camera3d.hpp>
-#include <godot_cpp/classes/world3d.hpp>
-#include <godot_cpp/classes/physics_direct_space_state3d.hpp>
-#include <godot_cpp/classes/physics_ray_query_parameters3d.hpp>
 #include "mc_raycast.h"
-#include <godot_cpp/classes/scene_tree.hpp>
-#include <godot_cpp/classes/v_box_container.hpp>
-#include <godot_cpp/classes/panel.hpp>
+#include "terrain.h"
 #include <godot_cpp/classes/accept_dialog.hpp>
+#include <godot_cpp/classes/box_mesh.hpp>
+#include <godot_cpp/classes/camera3d.hpp>
+#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/input.hpp>
+#include <godot_cpp/classes/input_event.hpp>
+#include <godot_cpp/classes/input_event_key.hpp>
+#include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/label.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
-#include <godot_cpp/classes/box_mesh.hpp>
+#include <godot_cpp/classes/panel.hpp>
+#include <godot_cpp/classes/physics_direct_space_state3d.hpp>
+#include <godot_cpp/classes/physics_ray_query_parameters3d.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
-#include <godot_cpp/classes/input.hpp>
-#include <godot_cpp/classes/input_event_key.hpp>
+#include <godot_cpp/classes/v_box_container.hpp>
+#include <godot_cpp/classes/viewport.hpp>
+#include <godot_cpp/classes/world3d.hpp>
+#include <godot_cpp/classes/quad_mesh.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include "cui/cui.h"
 
 namespace godot {
 
@@ -65,8 +66,9 @@ NodePath MCManager::get_mc_node_path() const {
 }
 
 void MCManager::_process(double p_delta) {
-	if (Engine::get_singleton()->is_editor_hint())
+	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
+	}
 
 	perf.update_timer += p_delta;
 	if (perf.update_timer >= 0.1) {
@@ -75,10 +77,15 @@ void MCManager::_process(double p_delta) {
 	}
 
 	// Hover Raycast
-	if (!hover_preview) return;
+	if (!hover_root) {
+		return;
+	}
+	hover_root->hide();
 
 	Viewport *viewport = get_viewport();
-	if (!viewport) return;
+	if (!viewport) {
+		return;
+	}
 
 	MCRaycastHit hit = raycast_from_mouse(this, viewport->get_mouse_position(), 512); // Layer 10
 	if (hit.is_hit) {
@@ -87,16 +94,16 @@ void MCManager::_process(double p_delta) {
 			Node *parent = collider_node->get_parent();
 			Node3D *parent_node = Object::cast_to<Node3D>(parent);
 			if (parent_node) {
-				Vector3 hit_pos = parent_node->get_position();
-				// Default to "Add" position using typed access
-				Vector3 target_pos = hit_pos + hit.normal;
-				hover_preview->set_position(target_pos);
-				hover_preview->show();
-				return;
+				Camera3D *camera = viewport->get_camera_3d();
+				if (camera) {
+					Vector3 hit_pos = parent_node->get_position();
+					_update_hover_preview(hit_pos, hit.normal, camera);
+					hover_root->show();
+					return;
+				}
 			}
 		}
 	}
-	hover_preview->hide();
 }
 
 NodePath MCManager::get_terrain_path() const {
@@ -142,15 +149,15 @@ void MCManager::initialize_all() {
 
 	if (mc_node && terrain_node) {
 		UtilityFunctions::print("MCManager: Found all nodes. Forcing sequential initialization...");
-		
+
 		// 1. Force MCNode to be ready (load library and variants)
 		mc_node->load_mesh_library();
 		mc_node->generate_variants();
-		
+
 		// 2. Link nodes and trigger Terrain generation
 		terrain_node->set_mc_node(mc_node);
 		terrain_node->generate_with_noise();
-		
+
 		// 3. Setup UI
 		ui.manager = CUI::create_on_new_layer(this);
 		if (ui.manager) {
@@ -159,25 +166,37 @@ void MCManager::initialize_all() {
 		}
 		update_ui();
 
-		// 4. Setup Hover Preview
-		if (!hover_preview) {
-			hover_preview = memnew(MeshInstance3D);
-			Ref<BoxMesh> box_mesh;
-			box_mesh.instantiate();
-			box_mesh->set_size(Vector3(1.05, 1.05, 1.05)); // Slightly larger than 1.0 corners to avoid Z-fighting
-			hover_preview->set_mesh(box_mesh);
-			
-			hover_mat.instantiate();
-			hover_mat->set_albedo(Color(1, 1, 0, 0.5)); // Semi-transparent yellow
-			hover_mat->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
-			hover_mat->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
-			hover_preview->set_material_override(hover_mat);
-			
-			add_child(hover_preview);
-			hover_preview->hide();
+		// 4. Setup Hover Preview (3-Quad System)
+		if (!hover_root) {
+			hover_root = memnew(Node3D);
+			add_child(hover_root);
+
+			// Materials
+			hover_mat_yellow.instantiate();
+			hover_mat_yellow->set_albedo(Color(1, 1, 0, 0.6));
+			hover_mat_yellow->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+			hover_mat_yellow->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+
+			hover_mat_white.instantiate();
+			hover_mat_white->set_albedo(Color(1, 1, 1, 0.4));
+			hover_mat_white->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+			hover_mat_white->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+
+			// Quads
+			Ref<QuadMesh> quad_mesh;
+			quad_mesh.instantiate();
+			quad_mesh->set_size(Vector2(1.01, 1.01)); // Slightly larger to cover corner sphere
+
+			for (int i = 0; i < 3; ++i) {
+				hover_quads[i] = memnew(MeshInstance3D);
+				hover_quads[i]->set_mesh(quad_mesh);
+				hover_root->add_child(hover_quads[i]);
+			}
+			hover_root->hide();
 		}
 
 		UtilityFunctions::print("MCManager: Sequential initialization complete.");
+		mc_node->print_library_hashes();
 	}
 }
 
@@ -200,23 +219,72 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 	MCRaycastHit hit = raycast_from_event(this, p_event, 512); // Layer 10
 	if (hit.is_hit) {
 		Node3D *collider_node = Object::cast_to<Node3D>(hit.collider);
-		if (!collider_node) return;
+		if (!collider_node) {
+			return;
+		}
 
 		// Debug corners are StaticBody3D children of MeshInstance3D
 		Node *parent = collider_node->get_parent();
 		Node3D *parent_node = Object::cast_to<Node3D>(parent);
-		if (!parent_node) return;
+		if (!parent_node) {
+			return;
+		}
 
 		Vector3 hit_pos = parent_node->get_position();
-		Vector3i grid_pos = Vector3i(Math::round(hit_pos.x), Math::round(hit_pos.y), Math::round(hit_pos.z));
+		Vector3i grid_pos = Vector3i(
+				static_cast<int32_t>(Math::round(hit_pos.x)),
+				static_cast<int32_t>(Math::round(hit_pos.y)),
+				static_cast<int32_t>(Math::round(hit_pos.z)));
 
 		if (button_index == MOUSE_BUTTON_LEFT) {
 			// Activate neighbor
 			Vector3i target_pos = grid_pos + Vector3i(Math::round(hit.normal.x), Math::round(hit.normal.y), Math::round(hit.normal.z));
 			terrain_node->modify_corner(target_pos, true);
 		} else if (button_index == MOUSE_BUTTON_RIGHT) {
-			// Deactivate current
+			// Deactivate current corner
 			terrain_node->modify_corner(grid_pos, false);
+		}
+	}
+}
+
+void MCManager::_update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_hit_normal, Camera3D *p_camera) {
+	if (!hover_root || !p_camera) {
+		return;
+	}
+
+	Vector3 cam_pos = p_camera->get_global_position();
+	Vector3 dir_to_cam = cam_pos - p_corner_pos;
+
+	// Visible normals (3 faces) based on camera position relative to corner
+	Vector3 normals[3] = {
+		Vector3(dir_to_cam.x >= 0 ? 1.0f : -1.0f, 0.0f, 0.0f),
+		Vector3(0.0f, dir_to_cam.y >= 0 ? 1.0f : -1.0f, 0.0f),
+		Vector3(0.0f, 0.0f, dir_to_cam.z >= 0 ? 1.0f : -1.0f)
+	};
+
+	hover_root->set_position(p_corner_pos);
+
+	for (int i = 0; i < 3; ++i) {
+		MeshInstance3D *quad = hover_quads[i];
+		Vector3 n = normals[i];
+
+		// Position quad on the face (0.505 offset to avoid internal Z-fighting)
+		quad->set_position(n * 0.505f);
+
+		// Orientation to face the normal
+		if (n.x != 0.0f) {
+			quad->set_rotation_degrees(Vector3(0.0f, n.x > 0.0f ? 90.0f : -90.0f, 0.0f));
+		} else if (n.y != 0.0f) {
+			quad->set_rotation_degrees(Vector3(n.y > 0.0f ? -90.0f : 90.0f, 0.0f, 0.0f));
+		} else {
+			quad->set_rotation_degrees(Vector3(0.0f, n.z > 0.0f ? 0.0f : 180.0f, 0.0f));
+		}
+
+		// Material logic: Highlight the currently hovered face
+		if (n.is_equal_approx(p_hit_normal)) {
+			quad->set_material_override(hover_mat_yellow);
+		} else {
+			quad->set_material_override(hover_mat_white);
 		}
 	}
 }

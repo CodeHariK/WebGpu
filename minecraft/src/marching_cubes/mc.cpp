@@ -24,8 +24,12 @@ void MCNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("display_library"), &MCNode::display_library);
 	ClassDB::bind_method(D_METHOD("generate_variants"), &MCNode::generate_variants);
 	ClassDB::bind_method(D_METHOD("get_variant_counts"), &MCNode::get_variant_counts);
+	ClassDB::bind_method(D_METHOD("print_library_hashes"), &MCNode::print_library_hashes);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "mesh_library_path"), "set_mesh_library_path", "get_mesh_library_path");
+	ClassDB::bind_method(D_METHOD("set_use_full_library", "p_use"), &MCNode::set_use_full_library);
+	ClassDB::bind_method(D_METHOD("get_use_full_library"), &MCNode::get_use_full_library);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_full_library"), "set_use_full_library", "get_use_full_library");
 }
 
 MCNode::MCNode() = default;
@@ -38,8 +42,20 @@ void MCNode::_ready() {
 		return;
 	}
 	load_mesh_library();
-	generate_variants();
+	if (use_full_library) {
+		validate_full_library();
+	} else {
+		generate_variants();
+	}
 	display_library();
+}
+
+void MCNode::set_use_full_library(bool p_use) {
+	use_full_library = p_use;
+}
+
+bool MCNode::get_use_full_library() const {
+	return use_full_library;
 }
 
 void MCNode::set_mesh_library_path(const String &p_path) {
@@ -285,6 +301,24 @@ void MCNode::generate_variants() {
 		Transform3D base_t = base_conf.transform;
 
 		apply_8_rotations(base_h_inv, base_t, "7Corner");
+	}
+}
+
+void MCNode::validate_full_library() {
+	UtilityFunctions::print("MCNode: Validating full 256-mesh library...");
+	int missing_count = 0;
+	for (int i = 0; i < 256; i++) {
+		String h_str = hash_to_binary((uint8_t)i);
+		if (!mesh_library.has(h_str)) {
+			UtilityFunctions::print("MCNode: Missing manual mesh for hash: ", h_str);
+			missing_count++;
+		}
+	}
+
+	if (missing_count == 0) {
+		UtilityFunctions::print("MCNode: Full library validation successful (all 256 meshes present).");
+	} else {
+		UtilityFunctions::print("MCNode: Full library validation failed. Missing ", missing_count, " meshes.");
 	}
 }
 
@@ -599,6 +633,19 @@ Dictionary MCNode::get_variant_counts() const {
 		counts[base_name] = current + 1;
 	}
 	return counts;
+}
+
+void MCNode::print_library_hashes() const {
+	UtilityFunctions::print("MCNode: --- Marching Cubes Config Table ---");
+	for (const String &base_hash : base_mesh_order) {
+		UtilityFunctions::print("Base Hash: ", base_hash);
+		for (const KeyValue<String, MeshConfig> &E : mesh_library) {
+			if (E.value.source_mesh == base_hash && E.key != base_hash) {
+				UtilityFunctions::print("  ", E.key);
+			}
+		}
+	}
+	UtilityFunctions::print("MCNode: Total table size: ", mesh_library.size());
 }
 
 } // namespace godot

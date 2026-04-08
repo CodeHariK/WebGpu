@@ -16,6 +16,8 @@ class Label;
 class InputEvent;
 class MeshInstance3D;
 class StandardMaterial3D;
+class Camera3D;
+class QuadMesh;
 
 class MCManager : public Node3D {
 	GDCLASS(MCManager, Node3D)
@@ -50,8 +52,10 @@ private:
 	MCUI ui;
 	TerrainStats terrain;
 	PerfStats perf;
-	MeshInstance3D *hover_preview = nullptr;
-	Ref<StandardMaterial3D> hover_mat;
+	Node3D *hover_root = nullptr;
+	MeshInstance3D *hover_quads[3] = {nullptr, nullptr, nullptr};
+	Ref<StandardMaterial3D> hover_mat_yellow;
+	Ref<StandardMaterial3D> hover_mat_white;
 
 protected:
 	static void _bind_methods();
@@ -80,6 +84,7 @@ public:
 	void _input(const Ref<InputEvent> &p_event) override;
 	void _on_gui_input(const Ref<InputEvent> &p_event);
 	void _on_show_help();
+	void _update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_hit_normal, Camera3D *p_camera);
 };
 
 } // namespace godot
