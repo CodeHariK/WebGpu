@@ -88,7 +88,9 @@ struct LoadMeta {
 };
 
 void MCNode::load_mesh_library() {
-	mesh_library.clear();
+	for (int i = 0; i < 256; i++) {
+		mesh_library[i] = MeshConfig();
+	}
 
 	Ref<PackedScene> scene = ResourceLoader::get_singleton()->load(mesh_library_path);
 	if (scene.is_null()) {
@@ -133,44 +135,58 @@ void MCNode::load_mesh_library() {
 		config.transform = Transform3D(); // Identity for original GLB nodes
 
 		String truncated_name = meta.child->get_name().substr(0, 8);
-		config.source_mesh = truncated_name;
-		mesh_library[truncated_name] = config;
-		base_mesh_order.push_back(truncated_name);
-		UtilityFunctions::print("MCNode: Loaded mesh: ", truncated_name, " (Corners: ", meta.ones_count, ")");
+		uint8_t h = binary_to_hash(truncated_name);
+		config.source_mesh = h;
+		mesh_library[h] = config;
+		base_mesh_order.push_back(h);
+		UtilityFunctions::print("MCNode: Loaded mesh: ", truncated_name, " (Hash: ", h, ", Corners: ", meta.ones_count, ")");
 	}
 
-	UtilityFunctions::print("MCNode: Finished loading library. Total items: ", mesh_library.size());
+	int loaded_count = 0;
+	for (int i = 0; i < 256; i++) {
+		if (mesh_library[i].mesh.is_valid()) {
+			loaded_count++;
+		}
+	}
+
+	UtilityFunctions::print("MCNode: Finished loading library. Total items: ", loaded_count);
 	inst->queue_free();
 }
 
 void MCNode::generate_variants() {
-	// 1 Corner
-	uint8_t base_h = 0b00000001;
-	if (mesh_library.has("00000001")) {
-		MeshConfig base_conf = mesh_library["00000001"];
-		Transform3D base_t = base_conf.transform;
-
-		apply_8_rotations(base_h, base_t, "1Corner");
+	// 1 Corner - 8 total
+	uint8_t h0 = 0b00000001; // C0 (Bottom)
+	if (mesh_library[h0].mesh.is_valid()) {
+		apply_4_axis_rotations(h0, h0, mesh_library[h0].transform, Vector3::AXIS_Y, "1Corner Bottom", true);
+	}
+	uint8_t h4 = 0b00010000; // C4 (Top)
+	if (mesh_library[h4].mesh.is_valid()) {
+		apply_4_axis_rotations(h4, h4, mesh_library[h4].transform, Vector3::AXIS_Y, "1Corner Top", true);
 	}
 
-	// 2 Corners
-	uint8_t base_h_edge = 0b00001001;
-	if (mesh_library.has("00001001")) {
-		MeshConfig base_conf = mesh_library["00001001"];
-		Transform3D base_t = base_conf.transform;
-
-		apply_12_rotations(base_h_edge, base_h_edge, base_t, "Edge");
+	// 2 Corners (Edge) - 12 total
+	uint8_t h_edge_bot = 0b00001001; // Bottom Edge
+	if (mesh_library[h_edge_bot].mesh.is_valid()) {
+		apply_4_axis_rotations(h_edge_bot, h_edge_bot, mesh_library[h_edge_bot].transform, Vector3::AXIS_Y, "Edge Bottom", true);
+	}
+	uint8_t h_edge_top = 0b10010000; // Top Edge
+	if (mesh_library[h_edge_top].mesh.is_valid()) {
+		apply_4_axis_rotations(h_edge_top, h_edge_top, mesh_library[h_edge_top].transform, Vector3::AXIS_Y, "Edge Top", true);
+	}
+	uint8_t h_edge_v = 0b00010001; // Vertical Edge
+	if (mesh_library[h_edge_v].mesh.is_valid()) {
+		apply_4_axis_rotations(h_edge_v, h_edge_v, mesh_library[h_edge_v].transform, Vector3::AXIS_Y, "Edge Vertical", true);
 	}
 	uint8_t base_h_diag = 0b00000101;
-	if (mesh_library.has("00000101")) {
-		MeshConfig base_conf = mesh_library["00000101"];
+	if (mesh_library[base_h_diag].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_diag];
 		Transform3D base_t = base_conf.transform;
 
 		apply_12_rotations(base_h_diag, base_h_diag, base_t, "Diag");
 	}
 	uint8_t base_h_opp = 0b01000001;
-	if (mesh_library.has("01000001")) {
-		MeshConfig base_conf = mesh_library["01000001"];
+	if (mesh_library[base_h_opp].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_opp];
 		Transform3D base_t = base_conf.transform;
 
 		apply_4_axis_rotations(base_h_opp, base_h_opp, base_t, Vector3::AXIS_Y, "Opp", false);
@@ -178,22 +194,22 @@ void MCNode::generate_variants() {
 
 	// 3 Corners
 	uint8_t base_h_v = 0b00000111;
-	if (mesh_library.has("00000111")) {
-		MeshConfig base_conf = mesh_library["00000111"];
+	if (mesh_library[base_h_v].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_v];
 		Transform3D base_t = base_conf.transform;
 
 		apply_24_rotations(base_h_v, base_t, "V");
 	}
 	uint8_t base_h_l = 0b01000101;
-	if (mesh_library.has("01000101")) {
-		MeshConfig base_conf = mesh_library["01000101"];
+	if (mesh_library[base_h_l].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_l];
 		Transform3D base_t = base_conf.transform;
 
 		apply_24_rotations(base_h_l, base_t, "L");
 	}
 	uint8_t base_h_tri = 0b10000101;
-	if (mesh_library.has("10000101")) {
-		MeshConfig base_conf = mesh_library["10000101"];
+	if (mesh_library[base_h_tri].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_tri];
 		Transform3D base_t = base_conf.transform;
 
 		apply_8_rotations(base_h_tri, base_t, "Tri");
@@ -201,36 +217,36 @@ void MCNode::generate_variants() {
 
 	// 4 Corners
 	uint8_t base_h_slab = 0b00001111;
-	if (mesh_library.has("00001111")) {
-		MeshConfig base_conf = mesh_library["00001111"];
+	if (mesh_library[base_h_slab].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_slab];
 		Transform3D base_t = base_conf.transform;
 
 		apply_6_rotations(base_h_slab, base_t, "Slab");
 	}
 	uint8_t base_h_e1 = 0b10000111;
-	if (mesh_library.has("10000111")) {
-		MeshConfig base_conf = mesh_library["10000111"];
+	if (mesh_library[base_h_e1].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_e1];
 		Transform3D base_t = base_conf.transform;
 
 		apply_24_rotations(base_h_e1, base_t, "E1");
 	}
 	uint8_t base_h_tetra = 0b10100101;
-	if (mesh_library.has("10100101")) {
-		MeshConfig base_conf = mesh_library["10100101"];
+	if (mesh_library[base_h_tetra].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_tetra];
 		Transform3D base_t = base_conf.transform;
 
 		apply_transform_sequence(base_h_tetra, base_h_tetra, base_t, { RX90 }, "Tetra Rx90");
 	}
 	uint8_t base_h_e4 = 0b00100111;
-	if (mesh_library.has("00100111")) {
-		MeshConfig base_conf = mesh_library["00100111"];
+	if (mesh_library[base_h_e4].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_e4];
 		Transform3D base_t = base_conf.transform;
 
 		apply_8_rotations(base_h_e4, base_t, "E4");
 	}
 	uint8_t base_h_e8 = 0b00010111;
-	if (mesh_library.has("00010111")) {
-		MeshConfig base_conf = mesh_library["00010111"];
+	if (mesh_library[base_h_e8].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_e8];
 		Transform3D base_t = base_conf.transform;
 
 		apply_12_rotations(base_h_e8, base_h_e8, base_t, "E8");
@@ -239,8 +255,8 @@ void MCNode::generate_variants() {
 		apply_12_mirror_rotations(base_h_e8, base_t, "E8 Sx");
 	}
 	uint8_t base_h_opp_edges = 0b01010101;
-	if (mesh_library.has("01010101")) {
-		MeshConfig base_conf = mesh_library["01010101"];
+	if (mesh_library[base_h_opp_edges].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_opp_edges];
 		Transform3D base_t = base_conf.transform;
 
 		apply_6_rotations(base_h_opp_edges, base_t, "OppEdges");
@@ -248,22 +264,22 @@ void MCNode::generate_variants() {
 
 	// 5 Corners
 	uint8_t base_h_v_inv = 0b01001111;
-	if (mesh_library.has("01001111")) {
-		MeshConfig base_conf = mesh_library["01001111"];
+	if (mesh_library[base_h_v_inv].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_v_inv];
 		Transform3D base_t = base_conf.transform;
 
 		apply_24_rotations(base_h_v_inv, base_t, "InvV");
 	}
 	uint8_t base_h_ea = 0b01010111;
-	if (mesh_library.has("01010111")) {
-		MeshConfig base_conf = mesh_library["01010111"];
+	if (mesh_library[base_h_ea].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_ea];
 		Transform3D base_t = base_conf.transform;
 
 		apply_24_rotations(base_h_ea, base_t, "InvV2");
 	}
 	uint8_t base_h_da = 0b01011011;
-	if (mesh_library.has("01011011")) {
-		MeshConfig base_conf = mesh_library["01011011"];
+	if (mesh_library[base_h_da].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_da];
 		Transform3D base_t = base_conf.transform;
 
 		apply_8_rotations(base_h_da, base_t, "InvTri");
@@ -271,34 +287,35 @@ void MCNode::generate_variants() {
 
 	// 6 Corners
 	uint8_t base_h_edge_inv = 0b01101111;
-	if (mesh_library.has("01101111")) {
-		MeshConfig base_conf = mesh_library["01101111"];
+	if (mesh_library[base_h_edge_inv].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_edge_inv];
 		Transform3D base_t = base_conf.transform;
 
 		apply_12_rotations(base_h_edge_inv, base_h_edge_inv, base_t, "InvEdge");
 	}
 	uint8_t base_h_inv_diag = 0b01011111;
-	if (mesh_library.has("01011111")) {
-		MeshConfig base_conf = mesh_library["01011111"];
+	if (mesh_library[base_h_inv_diag].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_inv_diag];
 		Transform3D base_t = base_conf.transform;
 
 		apply_12_rotations(base_h_inv_diag, base_h_inv_diag, base_t, "InvDiag");
 	}
 	uint8_t base_h_inv_opp = 0b11101011;
-	if (mesh_library.has("11101011")) {
-		MeshConfig base_conf = mesh_library["11101011"];
+	if (mesh_library[base_h_inv_opp].mesh.is_valid()) {
+		MeshConfig base_conf = mesh_library[base_h_inv_opp];
 		Transform3D base_t = base_conf.transform;
 
 		apply_4_axis_rotations(base_h_inv_opp, base_h_inv_opp, base_t, Vector3::AXIS_Y, "InvOpp", false);
 	}
 
-	// 7 Corners
-	uint8_t base_h_inv = 0b01111111;
-	if (mesh_library.has("01111111")) {
-		MeshConfig base_conf = mesh_library["01111111"];
-		Transform3D base_t = base_conf.transform;
-
-		apply_8_rotations(base_h_inv, base_t, "7Corner");
+	// 7 Corners - 8 total
+	uint8_t h_inv_top = 0b11101111; // Inv C4 (Missing Top)
+	if (mesh_library[h_inv_top].mesh.is_valid()) {
+		apply_4_axis_rotations(h_inv_top, h_inv_top, mesh_library[h_inv_top].transform, Vector3::AXIS_Y, "7Corner Top", true);
+	}
+	uint8_t h_inv_bot = 0b11111110; // Inv C0 (Missing Bottom)
+	if (mesh_library[h_inv_bot].mesh.is_valid()) {
+		apply_4_axis_rotations(h_inv_bot, h_inv_bot, mesh_library[h_inv_bot].transform, Vector3::AXIS_Y, "7Corner Bottom", true);
 	}
 }
 
@@ -306,9 +323,8 @@ void MCNode::validate_full_library() {
 	UtilityFunctions::print("MCNode: Validating full 256-mesh library...");
 	int missing_count = 0;
 	for (int i = 0; i < 256; i++) {
-		String h_str = hash_to_binary((uint8_t)i);
-		if (!mesh_library.has(h_str)) {
-			UtilityFunctions::print("MCNode: Missing manual mesh for hash: ", h_str);
+		if (!mesh_library[i].mesh.is_valid()) {
+			UtilityFunctions::print("MCNode: Missing mesh for hash: ", hash_to_binary((uint8_t)i));
 			missing_count++;
 		}
 	}
@@ -485,12 +501,12 @@ void MCNode::apply_transform_sequence(uint8_t p_base_hash, uint8_t p_variant_has
 
 	String h_str = hash_to_binary(h);
 
-	if (!mesh_library.has(h_str)) {
+	if (!mesh_library[h].mesh.is_valid()) {
 		MeshConfig config;
-		config.mesh = mesh_library[hash_to_binary(p_base_hash)].mesh;
+		config.mesh = mesh_library[p_base_hash].mesh;
 		config.transform = t;
-		config.source_mesh = hash_to_binary(p_base_hash);
-		mesh_library[h_str] = config;
+		config.source_mesh = p_base_hash;
+		mesh_library[h] = config;
 		UtilityFunctions::print("Generated Variant ", p_name, ": ", h_str);
 	} else {
 		UtilityFunctions::print("Rejected Variant ", p_name, ": ", h_str);
@@ -508,23 +524,31 @@ void MCNode::display_library() {
 
 	// 1. Arrange Rows (Base meshes along Z based on master sorted order)
 	for (int row = 0; row < (int)base_mesh_order.size(); row++) {
-		String base_name = base_mesh_order[row];
+		uint8_t base_h = base_mesh_order[row];
 
 		// 2. Find all variants for this row
-		std::vector<String> variants;
-		for (const KeyValue<String, MeshConfig> &E : mesh_library) {
-			if (E.value.source_mesh == base_name) {
-				variants.push_back(E.key);
+		std::vector<uint8_t> variants;
+		if (mesh_library[base_h].mesh.is_valid()) {
+			variants.push_back(base_h);
+		}
+
+		for (int i = 0; i < 256; i++) {
+			if (i == base_h) {
+				continue;
+			}
+			if (mesh_library[i].mesh.is_valid() && mesh_library[i].source_mesh == base_h) {
+				variants.push_back((uint8_t)i);
 			}
 		}
 
 		for (int col = 0; col < (int)variants.size(); col++) {
-			const String &variant_name = variants[col];
-			const MeshConfig &conf = mesh_library[variant_name];
+			uint8_t variant_h = variants[col];
+			const MeshConfig &conf = mesh_library[variant_h];
 
 			MeshInstance3D *mi = memnew(MeshInstance3D);
 			mi->set_mesh(conf.mesh);
-			mi->set_name(variant_name);
+			String h_str = hash_to_binary(variant_h);
+			mi->set_name(h_str);
 
 			Transform3D grid_t;
 			grid_t.origin = Vector3(col * spacing, 0, row * spacing);
@@ -537,12 +561,12 @@ void MCNode::display_library() {
 
 			Label3D *label = memnew(Label3D);
 			int bit_count = 0;
-			for (int i = 0; i < variant_name.length(); i++) {
-				if (variant_name[i] == '1') {
+			for (int i = 0; i < 8; i++) {
+				if ((variant_h >> i) & 1) {
 					bit_count++;
 				}
 			}
-			label->set_text(String::num_int64(bit_count) + " : " + variant_name);
+			label->set_text(String::num_int64(bit_count) + " : " + h_str);
 			label->set_position(grid_t.origin + Vector3(0, 1.5f, -0.2f));
 			label->set_billboard_mode(BaseMaterial3D::BILLBOARD_ENABLED);
 			label->set_font_size(24);
@@ -598,6 +622,16 @@ uint8_t MCNode::scale_x(uint8_t p_hash) {
 	return next;
 }
 
+uint8_t MCNode::binary_to_hash(const String &p_bin) {
+	uint8_t h = 0;
+	for (int i = 0; i < 8; i++) {
+		if (p_bin[7 - i] == '1') {
+			h |= (1 << i);
+		}
+	}
+	return h;
+}
+
 String MCNode::hash_to_binary(uint8_t p_hash) {
 	String s = "";
 	for (int i = 7; i >= 0; i--) {
@@ -607,40 +641,43 @@ String MCNode::hash_to_binary(uint8_t p_hash) {
 }
 
 MeshConfig MCNode::get_mesh_config(uint8_t p_hash) const {
-	String h_str = hash_to_binary(p_hash);
-	if (mesh_library.has(h_str)) {
-		return mesh_library[h_str];
-	}
-	return MeshConfig();
+	return mesh_library[p_hash];
 }
 
 Dictionary MCNode::get_variant_counts() const {
 	Dictionary counts;
-	for (const KeyValue<String, MeshConfig> &E : mesh_library) {
-		String base_name = E.value.source_mesh;
-		if (base_name.is_empty()) {
+	for (int i = 0; i < 256; i++) {
+		if (!mesh_library[i].mesh.is_valid()) {
 			continue;
 		}
-		if (!counts.has(base_name)) {
-			counts[base_name] = 0;
+		String base_hash_str = hash_to_binary(mesh_library[i].source_mesh);
+		if (!counts.has(base_hash_str)) {
+			counts[base_hash_str] = 0;
 		}
-		int current = counts[base_name];
-		counts[base_name] = current + 1;
+		int current = counts[base_hash_str];
+		counts[base_hash_str] = current + 1;
 	}
 	return counts;
 }
 
 void MCNode::print_library_hashes() const {
 	UtilityFunctions::print("MCNode: --- Marching Cubes Config Table ---");
-	for (const String &base_hash : base_mesh_order) {
-		UtilityFunctions::print("Base Hash: ", base_hash);
-		for (const KeyValue<String, MeshConfig> &E : mesh_library) {
-			if (E.value.source_mesh == base_hash && E.key != base_hash) {
-				UtilityFunctions::print("  ", E.key);
+	for (uint8_t base_h : base_mesh_order) {
+		String base_h_str = hash_to_binary(base_h);
+		UtilityFunctions::print("Base Hash: ", base_h_str);
+		for (int i = 0; i < 256; i++) {
+			if (mesh_library[i].mesh.is_valid() && mesh_library[i].source_mesh == base_h && i != base_h) {
+				UtilityFunctions::print("  ", hash_to_binary((uint8_t)i));
 			}
 		}
 	}
-	UtilityFunctions::print("MCNode: Total table size: ", mesh_library.size());
+	int total_count = 0;
+	for (int i = 0; i < 256; i++) {
+		if (mesh_library[i].mesh.is_valid()) {
+			total_count++;
+		}
+	}
+	UtilityFunctions::print("MCNode: Total table size: ", total_count);
 }
 
 } // namespace godot
