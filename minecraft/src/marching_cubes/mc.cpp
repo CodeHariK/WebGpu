@@ -19,7 +19,6 @@ void MCNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mesh_library_path", "p_path"), &MCNode::set_mesh_library_path);
 	ClassDB::bind_method(D_METHOD("get_mesh_library_path"), &MCNode::get_mesh_library_path);
 
-
 	ClassDB::bind_method(D_METHOD("load_mesh_library"), &MCNode::load_mesh_library);
 	ClassDB::bind_method(D_METHOD("display_library"), &MCNode::display_library);
 	ClassDB::bind_method(D_METHOD("generate_variants"), &MCNode::generate_variants);
@@ -65,7 +64,6 @@ void MCNode::set_mesh_library_path(const String &p_path) {
 String MCNode::get_mesh_library_path() const {
 	return mesh_library_path;
 }
-
 
 struct LoadMeta {
 	Node *child = nullptr;
@@ -147,71 +145,71 @@ void MCNode::load_mesh_library() {
 
 void MCNode::generate_variants() {
 	// 1 Corner
-	uint8_t base_h = 0b10000000;
-	if (mesh_library.has("10000000")) {
-		MeshConfig base_conf = mesh_library["10000000"];
+	uint8_t base_h = 0b00000001;
+	if (mesh_library.has("00000001")) {
+		MeshConfig base_conf = mesh_library["00000001"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_8_rotations(base_h, base_t, "1Corner");
 	}
 
 	// 2 Corners
-	uint8_t base_h_edge = 0b10010000;
-	if (mesh_library.has("10010000")) {
-		MeshConfig base_conf = mesh_library["10010000"];
+	uint8_t base_h_edge = 0b00001001;
+	if (mesh_library.has("00001001")) {
+		MeshConfig base_conf = mesh_library["00001001"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_12_rotations(base_h_edge, base_h_edge, base_t, "Edge");
 	}
-	uint8_t base_h_diag = 0b10100000;
-	if (mesh_library.has("10100000")) {
-		MeshConfig base_conf = mesh_library["10100000"];
+	uint8_t base_h_diag = 0b00000101;
+	if (mesh_library.has("00000101")) {
+		MeshConfig base_conf = mesh_library["00000101"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_12_rotations(base_h_diag, base_h_diag, base_t, "Diag");
 	}
-	uint8_t base_h_opp = 0b10000010;
-	if (mesh_library.has("10000010")) {
-		MeshConfig base_conf = mesh_library["10000010"];
+	uint8_t base_h_opp = 0b01000001;
+	if (mesh_library.has("01000001")) {
+		MeshConfig base_conf = mesh_library["01000001"];
 		Transform3D base_t = base_conf.transform;
 
-		apply_4_rotations(base_h_opp, base_t, "Opp");
+		apply_4_axis_rotations(base_h_opp, base_h_opp, base_t, Vector3::AXIS_Y, "Opp", false);
 	}
 
 	// 3 Corners
-	uint8_t base_h_v = 0b11100000;
-	if (mesh_library.has("11100000")) {
-		MeshConfig base_conf = mesh_library["11100000"];
+	uint8_t base_h_v = 0b00000111;
+	if (mesh_library.has("00000111")) {
+		MeshConfig base_conf = mesh_library["00000111"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_24_rotations(base_h_v, base_t, "V");
 	}
-	uint8_t base_h_l = 0b10100010;
-	if (mesh_library.has("10100010")) {
-		MeshConfig base_conf = mesh_library["10100010"];
+	uint8_t base_h_l = 0b01000101;
+	if (mesh_library.has("01000101")) {
+		MeshConfig base_conf = mesh_library["01000101"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_24_rotations(base_h_l, base_t, "L");
 	}
-	uint8_t base_h_tri = 0b10100001;
-	if (mesh_library.has("10100001")) {
-		MeshConfig base_conf = mesh_library["10100001"];
+	uint8_t base_h_tri = 0b10000101;
+	if (mesh_library.has("10000101")) {
+		MeshConfig base_conf = mesh_library["10000101"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_8_rotations(base_h_tri, base_t, "Tri");
 	}
 
 	// 4 Corners
-	uint8_t base_h_slab = 0b11110000;
-	if (mesh_library.has("11110000")) {
-		MeshConfig base_conf = mesh_library["11110000"];
+	uint8_t base_h_slab = 0b00001111;
+	if (mesh_library.has("00001111")) {
+		MeshConfig base_conf = mesh_library["00001111"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_6_rotations(base_h_slab, base_t, "Slab");
 	}
-	uint8_t base_h_e1 = 0b11100001;
-	if (mesh_library.has("11100001")) {
-		MeshConfig base_conf = mesh_library["11100001"];
+	uint8_t base_h_e1 = 0b10000111;
+	if (mesh_library.has("10000111")) {
+		MeshConfig base_conf = mesh_library["10000111"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_24_rotations(base_h_e1, base_t, "E1");
@@ -223,16 +221,16 @@ void MCNode::generate_variants() {
 
 		apply_transform_sequence(base_h_tetra, base_h_tetra, base_t, { RX90 }, "Tetra Rx90");
 	}
-	uint8_t base_h_e4 = 0b11100100;
-	if (mesh_library.has("11100100")) {
-		MeshConfig base_conf = mesh_library["11100100"];
+	uint8_t base_h_e4 = 0b00100111;
+	if (mesh_library.has("00100111")) {
+		MeshConfig base_conf = mesh_library["00100111"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_8_rotations(base_h_e4, base_t, "E4");
 	}
-	uint8_t base_h_e8 = 0b11101000;
-	if (mesh_library.has("11101000")) {
-		MeshConfig base_conf = mesh_library["11101000"];
+	uint8_t base_h_e8 = 0b00010111;
+	if (mesh_library.has("00010111")) {
+		MeshConfig base_conf = mesh_library["00010111"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_12_rotations(base_h_e8, base_h_e8, base_t, "E8");
@@ -240,64 +238,64 @@ void MCNode::generate_variants() {
 		// Add mirror variants
 		apply_12_mirror_rotations(base_h_e8, base_t, "E8 Sx");
 	}
-	uint8_t base_h_opp_edges = 0b10101010;
-	if (mesh_library.has("10101010")) {
-		MeshConfig base_conf = mesh_library["10101010"];
+	uint8_t base_h_opp_edges = 0b01010101;
+	if (mesh_library.has("01010101")) {
+		MeshConfig base_conf = mesh_library["01010101"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_6_rotations(base_h_opp_edges, base_t, "OppEdges");
 	}
 
 	// 5 Corners
-	uint8_t base_h_v_inv = 0b11110010;
-	if (mesh_library.has("11110010")) {
-		MeshConfig base_conf = mesh_library["11110010"];
+	uint8_t base_h_v_inv = 0b01001111;
+	if (mesh_library.has("01001111")) {
+		MeshConfig base_conf = mesh_library["01001111"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_24_rotations(base_h_v_inv, base_t, "InvV");
 	}
-	uint8_t base_h_ea = 0b11101010;
-	if (mesh_library.has("11101010")) {
-		MeshConfig base_conf = mesh_library["11101010"];
+	uint8_t base_h_ea = 0b01010111;
+	if (mesh_library.has("01010111")) {
+		MeshConfig base_conf = mesh_library["01010111"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_24_rotations(base_h_ea, base_t, "InvV2");
 	}
-	uint8_t base_h_da = 0b11011010;
-	if (mesh_library.has("11011010")) {
-		MeshConfig base_conf = mesh_library["11011010"];
+	uint8_t base_h_da = 0b01011011;
+	if (mesh_library.has("01011011")) {
+		MeshConfig base_conf = mesh_library["01011011"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_8_rotations(base_h_da, base_t, "InvTri");
 	}
 
 	// 6 Corners
-	uint8_t base_h_edge_inv = 0b11110110;
-	if (mesh_library.has("11110110")) {
-		MeshConfig base_conf = mesh_library["11110110"];
+	uint8_t base_h_edge_inv = 0b01101111;
+	if (mesh_library.has("01101111")) {
+		MeshConfig base_conf = mesh_library["01101111"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_12_rotations(base_h_edge_inv, base_h_edge_inv, base_t, "InvEdge");
 	}
-	uint8_t base_h_inv_diag = 0b11111010;
-	if (mesh_library.has("11111010")) {
-		MeshConfig base_conf = mesh_library["11111010"];
+	uint8_t base_h_inv_diag = 0b01011111;
+	if (mesh_library.has("01011111")) {
+		MeshConfig base_conf = mesh_library["01011111"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_12_rotations(base_h_inv_diag, base_h_inv_diag, base_t, "InvDiag");
 	}
-	uint8_t base_h_inv_opp = 0b11010111;
-	if (mesh_library.has("11010111")) {
-		MeshConfig base_conf = mesh_library["11010111"];
+	uint8_t base_h_inv_opp = 0b11101011;
+	if (mesh_library.has("11101011")) {
+		MeshConfig base_conf = mesh_library["11101011"];
 		Transform3D base_t = base_conf.transform;
 
-		apply_4_rotations(base_h_inv_opp, base_t, "InvOpp");
+		apply_4_axis_rotations(base_h_inv_opp, base_h_inv_opp, base_t, Vector3::AXIS_Y, "InvOpp", false);
 	}
 
 	// 7 Corners
-	uint8_t base_h_inv = 0b11111110;
-	if (mesh_library.has("11111110")) {
-		MeshConfig base_conf = mesh_library["11111110"];
+	uint8_t base_h_inv = 0b01111111;
+	if (mesh_library.has("01111111")) {
+		MeshConfig base_conf = mesh_library["01111111"];
 		Transform3D base_t = base_conf.transform;
 
 		apply_8_rotations(base_h_inv, base_t, "7Corner");
@@ -322,7 +320,7 @@ void MCNode::validate_full_library() {
 	}
 }
 
-void MCNode::apply_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, Vector3::Axis p_axis, const String &p_prefix, bool p_include_base) {
+void MCNode::apply_4_axis_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, Vector3::Axis p_axis, const String &p_prefix, bool p_include_base) {
 	if (p_include_base) {
 		apply_transform_sequence(p_base_hash, p_variant_hash, p_base_t, {}, p_prefix);
 	}
@@ -356,12 +354,8 @@ void MCNode::apply_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const 
 	apply_transform_sequence(p_base_hash, p_variant_hash, p_base_t, { r270 }, p_prefix + axis_name + "270");
 }
 
-void MCNode::apply_4_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	apply_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
-}
-
 void MCNode::apply_6_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	apply_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_X, p_prefix, false);
+	apply_4_axis_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_X, p_prefix, false);
 
 	uint8_t h90 = p_base_hash;
 	Transform3D t90 = p_base_t;
@@ -371,26 +365,26 @@ void MCNode::apply_6_rotations(uint8_t p_base_hash, const Transform3D &p_base_t,
 }
 
 void MCNode::apply_8_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	apply_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
+	apply_4_axis_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
 
 	for (MCTransform base_rot : { RX270, RX180 }) {
 		uint8_t h = p_base_hash;
 		Transform3D t = p_base_t;
 		apply_mct_transform(h, t, base_rot);
 		String name = (base_rot == RX270) ? " Rx270" : " Rx180";
-		apply_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + name, true);
+		apply_4_axis_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + name, true);
 	}
 }
 
 void MCNode::apply_12_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	apply_rotations(p_base_hash, p_variant_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
+	apply_4_axis_rotations(p_base_hash, p_variant_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
 
 	for (MCTransform axis_rot : { RX180, RX90, RZ90 }) {
 		uint8_t h = p_variant_hash;
 		Transform3D t = p_base_t;
 		apply_mct_transform(h, t, axis_rot);
 		String name = (axis_rot == RX180) ? " Rx180" : (axis_rot == RX90 ? " Rx90" : " Rz90");
-		apply_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + name, true);
+		apply_4_axis_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + name, true);
 	}
 }
 
@@ -403,14 +397,14 @@ void MCNode::apply_12_mirror_rotations(uint8_t p_base_hash, const Transform3D &p
 }
 
 void MCNode::apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
-	apply_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
+	apply_4_axis_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
 
 	// Rx180 -> Ry rotations
 	{
 		uint8_t h = p_base_hash;
 		Transform3D t = p_base_t;
 		apply_mct_transform(h, t, RX180);
-		apply_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + String(" Rx180"), true);
+		apply_4_axis_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + String(" Rx180"), true);
 	}
 
 	// Rx90/270 -> Rz rotations
@@ -418,7 +412,7 @@ void MCNode::apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t
 		uint8_t h = p_base_hash;
 		Transform3D t = p_base_t;
 		apply_mct_transform(h, t, rx);
-		apply_rotations(p_base_hash, h, t, Vector3::AXIS_Z, p_prefix + String(rx == RX90 ? " Rx90" : " Rx270"), true);
+		apply_4_axis_rotations(p_base_hash, h, t, Vector3::AXIS_Z, p_prefix + String(rx == RX90 ? " Rx90" : " Rx270"), true);
 	}
 
 	// Rz90/270 -> Rx rotations
@@ -426,7 +420,7 @@ void MCNode::apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t
 		uint8_t h = p_base_hash;
 		Transform3D t = p_base_t;
 		apply_mct_transform(h, t, rz);
-		apply_rotations(p_base_hash, h, t, Vector3::AXIS_X, p_prefix + String(rz == RZ90 ? " Rz90" : " Rz270"), true);
+		apply_4_axis_rotations(p_base_hash, h, t, Vector3::AXIS_X, p_prefix + String(rz == RZ90 ? " Rz90" : " Rz270"), true);
 	}
 }
 
@@ -561,7 +555,7 @@ void MCNode::display_library() {
 }
 
 uint8_t MCNode::rotate_y(uint8_t p_hash) {
-	static const uint8_t swap_table[8] = { C4, C7, C6, C5, C0, C3, C2, C1 };
+	static const uint8_t swap_table[8] = { C1, C2, C3, C0, C5, C6, C7, C4 };
 	uint8_t next = 0;
 	for (int i = 7; i >= 0; i--) {
 		if ((p_hash >> i) & 1) {
@@ -572,7 +566,7 @@ uint8_t MCNode::rotate_y(uint8_t p_hash) {
 }
 
 uint8_t MCNode::rotate_x(uint8_t p_hash) {
-	static const uint8_t swap_table[8] = { C4, C5, C1, C0, C7, C6, C2, C3 };
+	static const uint8_t swap_table[8] = { C3, C2, C6, C7, C0, C1, C5, C4 };
 	uint8_t next = 0;
 	for (int i = 7; i >= 0; i--) {
 		if ((p_hash >> i) & 1) {
@@ -583,7 +577,7 @@ uint8_t MCNode::rotate_x(uint8_t p_hash) {
 }
 
 uint8_t MCNode::rotate_z(uint8_t p_hash) {
-	static const uint8_t swap_table[8] = { C3, C7, C4, C0, C2, C6, C5, C1 };
+	static const uint8_t swap_table[8] = { C1, C5, C6, C2, C0, C4, C7, C3 };
 	uint8_t next = 0;
 	for (int i = 7; i >= 0; i--) {
 		if ((p_hash >> i) & 1) {
@@ -594,7 +588,7 @@ uint8_t MCNode::rotate_z(uint8_t p_hash) {
 }
 
 uint8_t MCNode::scale_x(uint8_t p_hash) {
-	static const uint8_t swap_table[8] = { C6, C7, C4, C5, C2, C3, C0, C1 };
+	static const uint8_t swap_table[8] = { C1, C0, C3, C2, C5, C4, C7, C6 };
 	uint8_t next = 0;
 	for (int i = 7; i >= 0; i--) {
 		if ((p_hash >> i) & 1) {
@@ -619,13 +613,14 @@ MeshConfig MCNode::get_mesh_config(uint8_t p_hash) const {
 	}
 	return MeshConfig();
 }
- 
+
 Dictionary MCNode::get_variant_counts() const {
 	Dictionary counts;
 	for (const KeyValue<String, MeshConfig> &E : mesh_library) {
 		String base_name = E.value.source_mesh;
-		if (base_name.is_empty())
+		if (base_name.is_empty()) {
 			continue;
+		}
 		if (!counts.has(base_name)) {
 			counts[base_name] = 0;
 		}
