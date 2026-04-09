@@ -152,18 +152,19 @@ void MCManager::update_ui() {
 			}
 
 			Dictionary counts = mc_node->get_variant_counts();
-			std::vector<String> base_order = mc_node->get_base_mesh_order();
+			std::vector<uint8_t> base_order = mc_node->get_base_mesh_order();
 			int total = 0;
 			Array keys = counts.keys();
 			for (int i = 0; i < keys.size(); i++) {
 				total += (int)counts[keys[i]];
 			}
 
-			for (const String &base_name : base_order) {
+			for (uint8_t base_h : base_order) {
+				String base_name = MCNode::hash_to_binary(base_h);
 				int count = counts.has(base_name) ? (int)counts[base_name] : 0;
 				int bit_count = 0;
-				for (int i = 0; i < base_name.length(); i++) {
-					if (base_name[i] == '1') bit_count++;
+				for (int i = 0; i < 8; i++) {
+					if ((base_h >> i) & 1) bit_count++;
 				}
 				ui.manager->add_label(ui.variant_stats_vbox, String::num_int64(bit_count) + " : " + base_name + " : " + String::num_int64(count));
 			}
