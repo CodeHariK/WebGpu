@@ -43,16 +43,17 @@ size = Vector3(100, 1, 100)
 material = SubResource("StandardMaterial3D_lrsvk")
 
 [node name="MCTerrain" type="MCTerrain" parent="." unique_id=139198405]
+terrain_size = Vector3i(2, 2, 2)
 chunk_size = Vector3i(3, 3, 3)
 noise = SubResource("FastNoiseLite_lrsvk")
 show_debug_corners = true
 
 [node name="MCManager" type="MCManager" parent="." unique_id=387674285]
-mc_node_path = NodePath("../MCNode2")
+mc_node_path = NodePath("../MCNode")
 terrain_path = NodePath("../MCTerrain")
 
 [node name="MCNode" type="MCNode" parent="." unique_id=430891780]
-visible = false
+mesh_library_path = "res://assets/MC_CIRCLE_16.glb"
 
 [node name="MCNode2" type="MCNode" parent="." unique_id=1228323093]
 mesh_library_path = "res://assets/House.glb"

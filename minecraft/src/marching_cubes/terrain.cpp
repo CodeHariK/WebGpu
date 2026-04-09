@@ -499,18 +499,18 @@ void MCTerrain::spawn_test_grid() {
 
 		// 2. Spawn Corner Debug Cubes
 		Vector3 corners[8] = {
-			Vector3(0, 0, 1), // C0
-			Vector3(1, 0, 1), // C1
-			Vector3(1, 0, 0), // C2
-			Vector3(0, 0, 0), // C3
-			Vector3(0, 1, 1), // C4
-			Vector3(1, 1, 1), // C5
-			Vector3(1, 1, 0), // C6
-			Vector3(0, 1, 0) // C7
+			Vector3(0, 0, 1), // C0 (BLN)
+			Vector3(1, 0, 1), // C1 (BRN)
+			Vector3(1, 0, 0), // C2 (BRF)
+			Vector3(0, 0, 0), // C3 (BLF)
+			Vector3(0, 1, 1), // C4 (TLN)
+			Vector3(1, 1, 1), // C5 (TRN)
+			Vector3(1, 1, 0), // C6 (TRF)
+			Vector3(0, 1, 0)  // C7 (TLF)
 		};
 
 		for (int c = 0; c < 8; c++) {
-			bool state = (hash & (1 << (7 - c))) != 0;
+			bool state = (hash & (1 << c)) != 0;
 			MeshInstance3D *c_mi = memnew(MeshInstance3D);
 			c_mi->set_mesh(corner_mesh);
 			c_mi->set_material_override(state ? mat_red : mat_white);

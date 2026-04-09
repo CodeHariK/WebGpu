@@ -48,7 +48,6 @@ private:
 
 	std::vector<String> base_mesh_order;
 
-
 protected:
 	static void _bind_methods();
 
@@ -64,8 +63,6 @@ public:
 	void set_use_full_library(bool p_use);
 	bool get_use_full_library() const;
 
-
-
 	void load_mesh_library();
 	void display_library();
 	void generate_variants();
@@ -78,12 +75,11 @@ public:
 
 	// Enum-driven generation
 	void apply_transform_sequence(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const std::vector<MCTransform> &p_sequence, const String &p_name);
-	void apply_4_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
 	void apply_6_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
 	void apply_8_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
 	void apply_12_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const String &p_prefix);
 	void apply_12_mirror_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
-	void apply_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, Vector3::Axis p_axis, const String &p_prefix, bool p_include_base);
+	void apply_4_axis_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, Vector3::Axis p_axis, const String &p_prefix, bool p_include_base);
 	void apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
 
 	// Hash transformations
@@ -95,15 +91,15 @@ public:
 
 	static String hash_to_binary(uint8_t p_hash);
 
-	// Corner Helpers
-	static const uint8_t C0 = 7;
-	static const uint8_t C1 = 6;
-	static const uint8_t C2 = 5;
-	static const uint8_t C3 = 4;
-	static const uint8_t C4 = 3;
-	static const uint8_t C5 = 2;
-	static const uint8_t C6 = 1;
-	static const uint8_t C7 = 0;
+	// Corner Helpers (Synced: Ci = Bit i)
+	static const uint8_t C0 = 0;
+	static const uint8_t C1 = 1;
+	static const uint8_t C2 = 2;
+	static const uint8_t C3 = 3;
+	static const uint8_t C4 = 4;
+	static const uint8_t C5 = 5;
+	static const uint8_t C6 = 6;
+	static const uint8_t C7 = 7;
 };
 
 } // namespace godot

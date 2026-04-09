@@ -52,38 +52,37 @@ struct Chunk {
 
 	uint8_t get_cell_hash(int x, int y, int z) const {
 		uint8_t hash = 0;
-		// Mapping matches MCNode standards:
-		// c0: x, y, z+1
+		// c0: x, y, z+1 (LSB)
 		if (get_corner(x, y, z + 1)) {
-			hash |= (1 << 7);
+			hash |= (1 << 0);
 		}
 		// c1: x+1, y, z+1
 		if (get_corner(x + 1, y, z + 1)) {
-			hash |= (1 << 6);
+			hash |= (1 << 1);
 		}
 		// c2: x+1, y, z
 		if (get_corner(x + 1, y, z)) {
-			hash |= (1 << 5);
+			hash |= (1 << 2);
 		}
 		// c3: x, y, z
 		if (get_corner(x, y, z)) {
-			hash |= (1 << 4);
+			hash |= (1 << 3);
 		}
 		// c4: x, y+1, z+1
 		if (get_corner(x, y + 1, z + 1)) {
-			hash |= (1 << 3);
+			hash |= (1 << 4);
 		}
 		// c5: x+1, y+1, z+1
 		if (get_corner(x + 1, y + 1, z + 1)) {
-			hash |= (1 << 2);
+			hash |= (1 << 5);
 		}
 		// c6: x+1, y+1, z
 		if (get_corner(x + 1, y + 1, z)) {
-			hash |= (1 << 1);
+			hash |= (1 << 6);
 		}
-		// c7: x, y+1, z
+		// c7: x, y+1, z (MSB)
 		if (get_corner(x, y + 1, z)) {
-			hash |= (1 << 0);
+			hash |= (1 << 7);
 		}
 		return hash;
 	}
