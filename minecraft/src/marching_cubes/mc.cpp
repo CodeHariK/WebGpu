@@ -69,16 +69,25 @@ struct LoadMeta {
 	Node *child = nullptr;
 	MeshInstance3D *mi = nullptr;
 	int ones_count = 0;
+	bool is_valid = true;
 
 	LoadMeta(Node *p_child, MeshInstance3D *p_mi) :
 			child(p_child), mi(p_mi) {
 		if (child) {
 			String p_bin = child->get_name().substr(0, 8);
+			if (p_bin.length() < 8) {
+				is_valid = false;
+				return;
+			}
 			for (int i = 0; i < p_bin.length(); i++) {
 				if (p_bin[i] == '1') {
 					ones_count++;
+				} else if (p_bin[i] != '0') {
+					is_valid = false;
 				}
 			}
+		} else {
+			is_valid = false;
 		}
 	}
 
@@ -120,7 +129,12 @@ void MCNode::load_mesh_library() {
 		}
 
 		if (mi && mi->get_mesh().is_valid()) {
-			candidates.push_back(LoadMeta(child, mi));
+			LoadMeta meta(child, mi);
+			if (meta.is_valid) {
+				candidates.push_back(meta);
+			} else {
+				UtilityFunctions::print("MCNode: Skipping mesh with invalid name: ", child->get_name());
+			}
 		}
 	}
 
@@ -167,7 +181,7 @@ void MCNode::generate_variants() {
 			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner2Edge", true);
 		}
 	}
-	for (uint8_t h : { 0b00000101, 0b10100000, 0b00011000, 0b10000001 }) {
+	for (uint8_t h : { 0b00000101, 0b01010000, 0b00011000, 0b10000001 }) {
 		if (mesh_library[h].mesh.is_valid()) {
 			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner2Diag", true);
 		}
@@ -179,12 +193,19 @@ void MCNode::generate_variants() {
 	}
 
 	// 3 Corners
-	uint8_t base_h_v = 0b00000111;
+	for (uint8_t h : { 0b00000111, 0b11010000 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner3Face", false);
+		}
+	}
+	for (uint8_t h : { 0b10001001, 0b00011001 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner3Face", false);
+		}
+	}
+	uint8_t base_h_v = 0b10001001;
 	if (mesh_library[base_h_v].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_v];
-		Transform3D base_t = base_conf.transform;
-
-		apply_24_rotations(base_h_v, base_t, "V");
+		apply_24_rotations(base_h_v, mesh_library[base_h_v].transform, "Corner3Face");
 	}
 	uint8_t base_h_l = 0b01000101;
 	if (mesh_library[base_h_l].mesh.is_valid()) {
@@ -202,12 +223,10 @@ void MCNode::generate_variants() {
 	}
 
 	// 4 Corners
-	uint8_t base_h_slab = 0b00001111;
-	if (mesh_library[base_h_slab].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_slab];
-		Transform3D base_t = base_conf.transform;
-
-		apply_6_rotations(base_h_slab, base_t, "Slab");
+	for (uint8_t h : { 0b00001111, 0b11110000, 0b10011001 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "4CornerFace", false);
+		}
 	}
 	uint8_t base_h_e1 = 0b10000111;
 	if (mesh_library[base_h_e1].mesh.is_valid()) {
