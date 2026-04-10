@@ -10,6 +10,11 @@ NM           := nm
 r:
 	godot -e --path project
 
+reimport:
+	godot --headless --editor --quit --path project
+
+brr: b reimport run_mc
+
 # Build the extension
 b:
 	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
@@ -38,7 +43,7 @@ clean:
 	$(SCONS) -c
 	rm -f compile_commands.json
 
-.PHONY: all build inspect clean
+.PHONY: all build inspect clean reimport brr
 
 
 run_mc:
