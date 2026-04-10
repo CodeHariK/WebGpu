@@ -57,6 +57,12 @@ private:
 	Ref<StandardMaterial3D> hover_mat_yellow;
 	Ref<StandardMaterial3D> hover_mat_white;
 
+	// Debug Cursor
+	Vector3i debug_cursor_pos;
+	MeshInstance3D *debug_cursor_node = nullptr;
+	Ref<StandardMaterial3D> debug_cursor_mat;
+	Label *debug_cursor_label = nullptr;
+
 protected:
 	static void _bind_methods();
 

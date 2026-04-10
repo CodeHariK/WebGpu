@@ -154,42 +154,28 @@ void MCNode::load_mesh_library() {
 }
 
 void MCNode::generate_variants() {
-	// 1 Corner - 8 total
-	uint8_t h0 = 0b00000001; // C0 (Bottom)
-	if (mesh_library[h0].mesh.is_valid()) {
-		apply_4_axis_rotations(h0, h0, mesh_library[h0].transform, Vector3::AXIS_Y, "1Corner Bottom", true);
-	}
-	uint8_t h4 = 0b00010000; // C4 (Top)
-	if (mesh_library[h4].mesh.is_valid()) {
-		apply_4_axis_rotations(h4, h4, mesh_library[h4].transform, Vector3::AXIS_Y, "1Corner Top", true);
+	// 1 Corner - 8 total (2 base meshes x 4 Y-rotations)
+	for (uint8_t h : { 0b00000001, 0b00010000 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "1Corner", true);
+		}
 	}
 
-	// 2 Corners (Edge) - 12 total
-	uint8_t h_edge_bot = 0b00001001; // Bottom Edge
-	if (mesh_library[h_edge_bot].mesh.is_valid()) {
-		apply_4_axis_rotations(h_edge_bot, h_edge_bot, mesh_library[h_edge_bot].transform, Vector3::AXIS_Y, "Edge Bottom", true);
+	// 2 Corners (Edge) - 12 total (3 base meshes x 4 Y-rotations)
+	for (uint8_t h : { 0b00001001, 0b10010000, 0b00010001 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner2Edge", true);
+		}
 	}
-	uint8_t h_edge_top = 0b10010000; // Top Edge
-	if (mesh_library[h_edge_top].mesh.is_valid()) {
-		apply_4_axis_rotations(h_edge_top, h_edge_top, mesh_library[h_edge_top].transform, Vector3::AXIS_Y, "Edge Top", true);
+	for (uint8_t h : { 0b00000101, 0b10100000, 0b00011000, 0b10000001 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner2Diag", true);
+		}
 	}
-	uint8_t h_edge_v = 0b00010001; // Vertical Edge
-	if (mesh_library[h_edge_v].mesh.is_valid()) {
-		apply_4_axis_rotations(h_edge_v, h_edge_v, mesh_library[h_edge_v].transform, Vector3::AXIS_Y, "Edge Vertical", true);
-	}
-	uint8_t base_h_diag = 0b00000101;
-	if (mesh_library[base_h_diag].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_diag];
-		Transform3D base_t = base_conf.transform;
-
-		apply_12_rotations(base_h_diag, base_h_diag, base_t, "Diag");
-	}
-	uint8_t base_h_opp = 0b01000001;
-	if (mesh_library[base_h_opp].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_opp];
-		Transform3D base_t = base_conf.transform;
-
-		apply_4_axis_rotations(base_h_opp, base_h_opp, base_t, Vector3::AXIS_Y, "Opp", false);
+	for (uint8_t h : { 0b01000001 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner2Opp", false);
+		}
 	}
 
 	// 3 Corners
@@ -286,36 +272,27 @@ void MCNode::generate_variants() {
 	}
 
 	// 6 Corners
-	uint8_t base_h_edge_inv = 0b01101111;
-	if (mesh_library[base_h_edge_inv].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_edge_inv];
-		Transform3D base_t = base_conf.transform;
-
-		apply_12_rotations(base_h_edge_inv, base_h_edge_inv, base_t, "InvEdge");
+	for (uint8_t h : { 0b11001111, 0b11110110, 0b11101110 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner6Edge", true);
+		}
 	}
-	uint8_t base_h_inv_diag = 0b01011111;
-	if (mesh_library[base_h_inv_diag].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_inv_diag];
-		Transform3D base_t = base_conf.transform;
-
-		apply_12_rotations(base_h_inv_diag, base_h_inv_diag, base_t, "InvDiag");
+	for (uint8_t h : { 0b01011111, 0b11111010, 0b11100111, 0b01111110 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner6Diag", true);
+		}
 	}
-	uint8_t base_h_inv_opp = 0b11101011;
-	if (mesh_library[base_h_inv_opp].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_inv_opp];
-		Transform3D base_t = base_conf.transform;
-
-		apply_4_axis_rotations(base_h_inv_opp, base_h_inv_opp, base_t, Vector3::AXIS_Y, "InvOpp", false);
+	for (uint8_t h : { 0b11101011 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "InvOpp", false);
+		}
 	}
 
 	// 7 Corners - 8 total
-	uint8_t h_inv_top = 0b11101111; // Inv C4 (Missing Top)
-	if (mesh_library[h_inv_top].mesh.is_valid()) {
-		apply_4_axis_rotations(h_inv_top, h_inv_top, mesh_library[h_inv_top].transform, Vector3::AXIS_Y, "7Corner Top", true);
-	}
-	uint8_t h_inv_bot = 0b11111110; // Inv C0 (Missing Bottom)
-	if (mesh_library[h_inv_bot].mesh.is_valid()) {
-		apply_4_axis_rotations(h_inv_bot, h_inv_bot, mesh_library[h_inv_bot].transform, Vector3::AXIS_Y, "7Corner Bottom", true);
+	for (uint8_t h : { 0b11101111, 0b11111110 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "7Corner", true);
+		}
 	}
 }
 

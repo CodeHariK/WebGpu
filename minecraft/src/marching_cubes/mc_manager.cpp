@@ -76,6 +76,11 @@ void MCManager::_process(double p_delta) {
 		update_ui();
 	}
 
+	// Update Debug Cursor
+	if (debug_cursor_node) {
+		debug_cursor_node->set_position(Vector3(debug_cursor_pos.x + 0.5f, debug_cursor_pos.y + 0.5f, debug_cursor_pos.z + 0.5f));
+	}
+
 	// Hover Raycast
 	if (!hover_root) {
 		return;
@@ -195,12 +200,65 @@ void MCManager::initialize_all() {
 			hover_root->hide();
 		}
 
+		// 5. Setup Debug Cursor
+		if (!debug_cursor_node) {
+			debug_cursor_node = memnew(MeshInstance3D);
+			add_child(debug_cursor_node);
+
+			Ref<BoxMesh> box;
+			box.instantiate();
+			box->set_size(Vector3(1.05f, 1.05f, 1.05f));
+			debug_cursor_node->set_mesh(box);
+
+			debug_cursor_mat.instantiate();
+			debug_cursor_mat->set_albedo(Color(0.0f, 1.0f, 0.0f, 0.4f)); // Green transparent
+			debug_cursor_mat->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+			debug_cursor_mat->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+			debug_cursor_node->set_material_override(debug_cursor_mat);
+
+			debug_cursor_pos = Vector3i(0, 0, 0); // Start at origin
+		}
+
 		UtilityFunctions::print("MCManager: Sequential initialization complete.");
 		mc_node->print_library_hashes();
 	}
 }
 
 void MCManager::_input(const Ref<InputEvent> &p_event) {
+	// 1. Debug Cursor Keys (Handle FIRST to avoid early returns)
+	Ref<InputEventKey> key_event = p_event;
+	if (key_event.is_valid() && key_event->is_pressed()) {
+		Key scancode = key_event->get_keycode();
+		Vector3i delta(0, 0, 0);
+
+		if (scancode == KEY_A) delta.x = -1;
+		else if (scancode == KEY_D) delta.x = 1;
+		else if (scancode == KEY_W) delta.z = -1;
+		else if (scancode == KEY_S) delta.z = 1;
+		else if (scancode == KEY_Q) delta.y = -1;
+		else if (scancode == KEY_E) delta.y = 1;
+
+		if (delta != Vector3i(0, 0, 0)) {
+			UtilityFunctions::print("MCManager: WASDQE Key Pressed - Delta: ", delta);
+			debug_cursor_pos += delta;
+			
+			// Clamp to terrain size
+			MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+			if (terrain_node) {
+				Vector3i t_size = terrain_node->get_terrain_size();
+				Vector3i c_size = terrain_node->get_chunk_size();
+				Vector3i max_pos = Vector3i(t_size.x * c_size.x - 1, t_size.y * c_size.y - 1, t_size.z * c_size.z - 1);
+				debug_cursor_pos.x = Math::clamp(debug_cursor_pos.x, 0, max_pos.x);
+				debug_cursor_pos.y = Math::clamp(debug_cursor_pos.y, 0, max_pos.y);
+				debug_cursor_pos.z = Math::clamp(debug_cursor_pos.z, 0, max_pos.z);
+			}
+			update_ui();
+			get_viewport()->set_input_as_handled();
+			return; // Handled
+		}
+	}
+
+	// 2. Mouse Events
 	Ref<InputEventMouseButton> mouse_event = p_event;
 	if (mouse_event.is_null() || !mouse_event->is_pressed()) {
 		return;
