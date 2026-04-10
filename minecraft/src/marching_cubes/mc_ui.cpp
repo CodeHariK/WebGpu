@@ -57,7 +57,7 @@ void MCManager::setup_ui() {
 			"- Transformations are applied via bitwise-mapped rotation matrices.\n"
 			"- Current UI tracks real-time performance and generation stats.\n\n"
 			"Controls:\n"
-			"- WASD: Fly Camera\n"
+			"- WASDQE: Move Debug Cursor (Green Cube)\n"
 			"- Mouse Wheel: Zoom (works when NOT hovering UI)\n"
 			"- Stats Button: Toggle sidebar visibility");
 	ui.help_dialog->set_min_size(Vector2(400, 300));
@@ -91,7 +91,8 @@ void MCManager::setup_ui() {
 	
 	ui.manager->add_label(ui.stats_vbox, "--- TERRAIN STATS ---");
 	terrain.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
-	
+	debug_cursor_label = ui.manager->add_label(ui.stats_vbox, "Cursor: (0,0,0) Hash: 00000000");
+
 	ui.manager->add_label(ui.stats_vbox, "--- MESH VARIANTS ---");
 	ui.variant_stats_vbox = ui.manager->add_vbox(ui.stats_vbox, "VariantStats");
 }
@@ -138,6 +139,14 @@ void MCManager::update_ui() {
 		terrain.stats_label->set_text("MC Meshes: " + String::num_int64(terrain_node->get_total_mc_meshes()) + 
 								 "\nMC Cells: " + String::num_int64(terrain_node->get_total_cells()) +
 								 "\nDebug Corners: " + String::num_int64(terrain_node->get_total_debug_corners()));
+		
+		if (debug_cursor_label) {
+			uint8_t hash = terrain_node->get_cell_hash_at_global_coord(debug_cursor_pos);
+			String h_str = MCNode::hash_to_binary(hash);
+			debug_cursor_label->set_text("Cursor: (" + String::num_int64(debug_cursor_pos.x) + "," + 
+										String::num_int64(debug_cursor_pos.y) + "," + 
+										String::num_int64(debug_cursor_pos.z) + ") Hash: " + h_str);
+		}
 	}
 
 	// Update variant counts if side panel is visible

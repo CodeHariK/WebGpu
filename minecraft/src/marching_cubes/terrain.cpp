@@ -1,18 +1,18 @@
 #include "marching_cubes/terrain.h"
 #include "marching_cubes/mc.h"
 #include <godot_cpp/classes/box_mesh.hpp>
+#include <godot_cpp/classes/box_shape3d.hpp>
+#include <godot_cpp/classes/collision_shape3d.hpp>
+#include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/fast_noise_lite.hpp>
 #include <godot_cpp/classes/geometry_instance3d.hpp>
-#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/label3d.hpp>
-#include <godot_cpp/classes/shader_material.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
-#include <godot_cpp/classes/v_box_container.hpp>
-#include <godot_cpp/classes/static_body3d.hpp>
-#include <godot_cpp/classes/collision_shape3d.hpp>
-#include <godot_cpp/classes/box_shape3d.hpp>
+#include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
-#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/static_body3d.hpp>
+#include <godot_cpp/classes/v_box_container.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -184,7 +184,7 @@ void MCTerrain::generate_with_noise() {
 
 void MCTerrain::refresh_terrain() {
 	_clear_children();
-	
+
 	Ref<BoxMesh> box_mesh;
 	box_mesh.instantiate();
 	box_mesh->set_size(Vector3(0.1, 0.1, 0.1));
@@ -229,9 +229,8 @@ void MCTerrain::modify_corner(const Vector3i &p_grid_pos, bool p_active) {
 		int end_z = start_z + chunk.size_z;
 
 		if (gx >= start_x && gx <= end_x &&
-			gy >= start_y && gy <= end_y &&
-			gz >= start_z && gz <= end_z) {
-			
+				gy >= start_y && gy <= end_y &&
+				gz >= start_z && gz <= end_z) {
 			chunk.set_corner(gx - start_x, gy - start_y, gz - start_z, p_active);
 			modified = true;
 		}
@@ -278,7 +277,7 @@ int MCTerrain::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_bo
 				mi->set_mesh(p_box_mesh);
 				mi->set_position(world_pos);
 				debug_corners_container->add_child(mi);
-				
+
 				bool has_active = p_chunk.has_active_neighbor(lx, ly, lz);
 				bool has_inactive = p_chunk.has_inactive_neighbor(lx, ly, lz);
 
@@ -288,7 +287,7 @@ int MCTerrain::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_bo
 					if (has_inactive) {
 						StaticBody3D *sb = memnew(StaticBody3D);
 						sb->set_collision_layer(512); // Layer 10
-						sb->set_collision_mask(0);    // Doesn't need to detect anything
+						sb->set_collision_mask(0); // Doesn't need to detect anything
 						mi->add_child(sb);
 						CollisionShape3D *cs = memnew(CollisionShape3D);
 						sb->add_child(cs);
@@ -303,7 +302,8 @@ int MCTerrain::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_bo
 					mi->set_material_override(mat_white);
 				}
 
-				count++;	total_debug_corners++;
+				count++;
+				total_debug_corners++;
 			}
 		}
 	}
@@ -344,7 +344,8 @@ int MCTerrain::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
 				if (is_inside_tree()) {
 					mi->set_owner(get_owner() ? get_owner() : this);
 				}
-				count++;	total_mc_meshes++;
+				count++;
+				total_mc_meshes++;
 			}
 		}
 	}
@@ -352,6 +353,28 @@ int MCTerrain::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
 }
 
 // generate_with_noise moved up
+
+uint8_t MCTerrain::get_cell_hash_at_global_coord(const Vector3i &p_pos) const {
+	int gx = p_pos.x;
+	int gy = p_pos.y;
+	int gz = p_pos.z;
+
+	for (const Chunk &chunk : chunks) {
+		int start_x = chunk.loc_x * chunk.size_x;
+		int end_x = start_x + chunk.size_x;
+		int start_y = chunk.loc_y * chunk.size_y;
+		int end_y = start_y + chunk.size_y;
+		int start_z = chunk.loc_z * chunk.size_z;
+		int end_z = start_z + chunk.size_z;
+
+		if (gx >= start_x && gx < end_x &&
+			gy >= start_y && gy < end_y &&
+			gz >= start_z && gz < end_z) {
+			return chunk.get_cell_hash(gx - start_x, gy - start_y, gz - start_z);
+		}
+	}
+	return 0;
+}
 
 void MCTerrain::_ready() {
 	if (Engine::get_singleton()->is_editor_hint()) {
@@ -506,7 +529,7 @@ void MCTerrain::spawn_test_grid() {
 			Vector3(0, 1, 1), // C4 (TLN)
 			Vector3(1, 1, 1), // C5 (TRN)
 			Vector3(1, 1, 0), // C6 (TRF)
-			Vector3(0, 1, 0)  // C7 (TLF)
+			Vector3(0, 1, 0) // C7 (TLF)
 		};
 
 		for (int c = 0; c < 8; c++) {
