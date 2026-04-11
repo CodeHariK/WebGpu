@@ -193,33 +193,20 @@ void MCNode::generate_variants() {
 	}
 
 	// 3 Corners
-	for (uint8_t h : { 0b00000111, 0b11010000 }) {
+	for (uint8_t h : { 0b00000111, 0b11010000, 0b10001001, 0b00011001, 0b11000100, 0b11001000 }) {
 		if (mesh_library[h].mesh.is_valid()) {
 			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner3Face", false);
 		}
 	}
-	for (uint8_t h : { 0b10001001, 0b00011001 }) {
+	for (uint8_t h : { 0b00010110, 0b01010100, 0b01100001, 0b01101000, 0b10000110, 0b01000101 }) {
 		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner3Face", false);
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner3L", false);
 		}
 	}
-	uint8_t base_h_v = 0b10001001;
-	if (mesh_library[base_h_v].mesh.is_valid()) {
-		apply_24_rotations(base_h_v, mesh_library[base_h_v].transform, "Corner3Face");
-	}
-	uint8_t base_h_l = 0b01000101;
-	if (mesh_library[base_h_l].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_l];
-		Transform3D base_t = base_conf.transform;
-
-		apply_24_rotations(base_h_l, base_t, "L");
-	}
-	uint8_t base_h_tri = 0b10000101;
-	if (mesh_library[base_h_tri].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_tri];
-		Transform3D base_t = base_conf.transform;
-
-		apply_8_rotations(base_h_tri, base_t, "Tri");
+	for (uint8_t h : { 0b10000101, 0b01010010 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner3Tri", false);
+		}
 	}
 
 	// 4 Corners
@@ -259,12 +246,10 @@ void MCNode::generate_variants() {
 		// Add mirror variants
 		apply_12_mirror_rotations(base_h_e8, base_t, "E8 Sx");
 	}
-	uint8_t base_h_opp_edges = 0b01010101;
-	if (mesh_library[base_h_opp_edges].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_opp_edges];
-		Transform3D base_t = base_conf.transform;
-
-		apply_6_rotations(base_h_opp_edges, base_t, "OppEdges");
+	for (uint8_t h : { 0b01010101, 0b01101001 }) {
+		if (mesh_library[h].mesh.is_valid()) {
+			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner4OppEdges", false);
+		}
 	}
 
 	// 5 Corners
