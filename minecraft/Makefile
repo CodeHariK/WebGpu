@@ -19,9 +19,7 @@ brr: b reimport run_mc
 b:
 	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
 
-br:
-	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
-	godot --path project
+br: b run_mc
 
 world_blender:
 	cp ../world_blender/example/Voxel.glb project/assets/

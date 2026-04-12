@@ -144,6 +144,8 @@ public:
 	void refresh_terrain();
 	void modify_corner(const Vector3i &p_grid_pos, bool p_active);
 	uint8_t get_cell_hash_at_global_coord(const Vector3i &p_pos) const;
+	void save_terrain(const String &p_path);
+	void load_terrain(const String &p_path);
 	void _ready() override;
 
 	void set_terrain_size(const Vector3i &p_size);

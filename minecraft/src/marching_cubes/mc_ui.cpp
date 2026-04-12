@@ -93,6 +93,12 @@ void MCManager::setup_ui() {
 	terrain.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
 	debug_cursor_label = ui.manager->add_label(ui.stats_vbox, "Cursor: (0,0,0) Hash: 00000000");
 
+	Button *save_btn = ui.manager->add_button(ui.stats_vbox, "Save State", Callable(this, "_on_save_terrain"));
+	save_btn->set_custom_minimum_size(Vector2(0, 30));
+
+	Button *load_btn = ui.manager->add_button(ui.stats_vbox, "Load State", Callable(this, "_on_load_terrain"));
+	load_btn->set_custom_minimum_size(Vector2(0, 30));
+
 	ui.manager->add_label(ui.stats_vbox, "--- MESH VARIANTS ---");
 	ui.variant_stats_vbox = ui.manager->add_vbox(ui.stats_vbox, "VariantStats");
 }

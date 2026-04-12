@@ -38,12 +38,19 @@ enum MCTransform : uint8_t {
 	SX
 };
 
+enum MCImportMode : uint8_t {
+	IMPORT_21_BASEMESH,
+	IMPORT_68_BASEMESH,
+	IMPORT_COMPLETE
+};
+
 class MCNode : public Node3D {
 	GDCLASS(MCNode, Node3D)
 
 private:
 	String mesh_library_path = "res://assets/MarchingCubes.glb";
-	bool use_full_library = false;
+	MCImportMode import_mode = IMPORT_68_BASEMESH;
+	bool is_initialized = false;
 	MeshConfig mesh_library[256];
 
 	std::vector<uint8_t> base_mesh_order;
@@ -62,12 +69,15 @@ public:
 	void set_mesh_library_path(const String &p_path);
 	String get_mesh_library_path() const;
 
-	void set_use_full_library(bool p_use);
-	bool get_use_full_library() const;
+	void set_import_mode(MCImportMode p_mode);
+	MCImportMode get_import_mode() const;
+
+	void initialize_library();
 
 	void load_mesh_library();
 	void display_library();
-	void generate_variants();
+	void generate_variants_by_21_basemesh();
+	void generate_variants_by_4Y_rotation();
 	void validate_full_library();
 	void print_library_hashes() const;
 
@@ -105,5 +115,7 @@ public:
 };
 
 } // namespace godot
+
+VARIANT_ENUM_CAST(godot::MCImportMode);
 
 #endif // MCNODE_H

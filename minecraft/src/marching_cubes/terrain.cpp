@@ -13,6 +13,7 @@
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/classes/static_body3d.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -51,6 +52,9 @@ void MCTerrain::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("spawn_test_grid"), &MCTerrain::spawn_test_grid);
 	ClassDB::bind_method(D_METHOD("set_mc_node", "node"), &MCTerrain::set_mc_node);
 	ClassDB::bind_method(D_METHOD("get_mc_node"), &MCTerrain::get_mc_node);
+
+	ClassDB::bind_method(D_METHOD("save_terrain", "path"), &MCTerrain::save_terrain);
+	ClassDB::bind_method(D_METHOD("load_terrain", "path"), &MCTerrain::load_terrain);
 }
 
 MCTerrain::MCTerrain() {
@@ -374,6 +378,90 @@ uint8_t MCTerrain::get_cell_hash_at_global_coord(const Vector3i &p_pos) const {
 		}
 	}
 	return 0;
+}
+	
+void MCTerrain::save_terrain(const String &p_path) {
+	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::WRITE);
+	if (f.is_null()) {
+		UtilityFunctions::print("MCTerrain: Failed to open file for writing: ", p_path);
+		return;
+	}
+
+	// 1. Header
+	f->store_32(0x4D435452); // Magic: 'MCTR'
+	f->store_32(1); // Version
+
+	// 2. Metadata
+	f->store_32(terrain_size.x);
+	f->store_32(terrain_size.y);
+	f->store_32(terrain_size.z);
+	f->store_32(chunk_size.x);
+	f->store_32(chunk_size.y);
+	f->store_32(chunk_size.z);
+
+	// 3. Chunk Data
+	f->store_32(static_cast<uint32_t>(chunks.size()));
+	for (const Chunk &chunk : chunks) {
+		f->store_32(static_cast<uint32_t>(chunk.corner_states.size()));
+		PackedByteArray arr;
+		arr.resize(static_cast<int64_t>(chunk.corner_states.size()));
+		for (size_t i = 0; i < chunk.corner_states.size(); i++) {
+			arr[static_cast<int>(i)] = chunk.corner_states[i];
+		}
+		f->store_buffer(arr);
+	}
+
+	UtilityFunctions::print("MCTerrain: Saved state to ", p_path);
+}
+
+void MCTerrain::load_terrain(const String &p_path) {
+	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
+	if (f.is_null()) {
+		UtilityFunctions::print("MCTerrain: Failed to open file for reading: ", p_path);
+		return;
+	}
+
+	// 1. Header
+	uint32_t magic = f->get_32();
+	if (magic != 0x4D435452) {
+		UtilityFunctions::print("MCTerrain: Invalid magic number in file: ", p_path);
+		return;
+	}
+	uint32_t version = f->get_32();
+
+	// 2. Metadata
+	int32_t tx = f->get_32();
+	int32_t ty = f->get_32();
+	int32_t tz = f->get_32();
+	int32_t cx = f->get_32();
+	int32_t cy = f->get_32();
+	int32_t cz = f->get_32();
+
+	// If size changed, re-initialize
+	if (terrain_size != Vector3i(tx, ty, tz) || chunk_size != Vector3i(cx, cy, cz)) {
+		initialize_terrain(tx, ty, tz, cx, cy, cz);
+	}
+
+	// 3. Chunk Data
+	uint32_t num_chunks = f->get_32();
+	if (num_chunks != chunks.size()) {
+		UtilityFunctions::print("MCTerrain: Chunk count mismatch in file.");
+		return;
+	}
+
+	for (uint32_t i = 0; i < num_chunks; i++) {
+		uint32_t data_size = f->get_32();
+		PackedByteArray arr = f->get_buffer(data_size);
+		
+		Chunk &chunk = chunks[i];
+		chunk.corner_states.resize(data_size);
+		for (uint32_t j = 0; j < data_size; j++) {
+			chunk.corner_states[j] = arr[j];
+		}
+	}
+
+	UtilityFunctions::print("MCTerrain: Loaded state from ", p_path);
+	refresh_terrain();
 }
 
 void MCTerrain::_ready() {
