@@ -90,6 +90,8 @@ public:
 	void _input(const Ref<InputEvent> &p_event) override;
 	void _on_gui_input(const Ref<InputEvent> &p_event);
 	void _on_show_help();
+	void _on_save_terrain();
+	void _on_load_terrain();
 	void _update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_hit_normal, Camera3D *p_camera);
 };
 

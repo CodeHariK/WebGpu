@@ -16,12 +16,12 @@
 #include <godot_cpp/classes/panel.hpp>
 #include <godot_cpp/classes/physics_direct_space_state3d.hpp>
 #include <godot_cpp/classes/physics_ray_query_parameters3d.hpp>
+#include <godot_cpp/classes/quad_mesh.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/classes/world3d.hpp>
-#include <godot_cpp/classes/quad_mesh.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -41,6 +41,8 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_toggle_visual_corners"), &MCManager::_on_toggle_visual_corners);
 	ClassDB::bind_method(D_METHOD("_on_gui_input", "p_event"), &MCManager::_on_gui_input);
 	ClassDB::bind_method(D_METHOD("_on_show_help"), &MCManager::_on_show_help);
+	ClassDB::bind_method(D_METHOD("_on_save_terrain"), &MCManager::_on_save_terrain);
+	ClassDB::bind_method(D_METHOD("_on_load_terrain"), &MCManager::_on_load_terrain);
 }
 
 MCManager::MCManager() {}
@@ -155,9 +157,8 @@ void MCManager::initialize_all() {
 	if (mc_node && terrain_node) {
 		UtilityFunctions::print("MCManager: Found all nodes. Forcing sequential initialization...");
 
-		// 1. Force MCNode to be ready (load library and variants)
-		mc_node->load_mesh_library();
-		mc_node->generate_variants();
+		// 1. Force MCNode to be ready (load library and variants based on its import_mode)
+		mc_node->initialize_library();
 
 		// 2. Link nodes and trigger Terrain generation
 		terrain_node->set_mc_node(mc_node);
@@ -231,17 +232,23 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 		Key scancode = key_event->get_keycode();
 		Vector3i delta(0, 0, 0);
 
-		if (scancode == KEY_A) delta.x = -1;
-		else if (scancode == KEY_D) delta.x = 1;
-		else if (scancode == KEY_W) delta.z = -1;
-		else if (scancode == KEY_S) delta.z = 1;
-		else if (scancode == KEY_Q) delta.y = -1;
-		else if (scancode == KEY_E) delta.y = 1;
+		if (scancode == KEY_A)
+			delta.x = -1;
+		else if (scancode == KEY_D)
+			delta.x = 1;
+		else if (scancode == KEY_W)
+			delta.z = -1;
+		else if (scancode == KEY_S)
+			delta.z = 1;
+		else if (scancode == KEY_Q)
+			delta.y = -1;
+		else if (scancode == KEY_E)
+			delta.y = 1;
 
 		if (delta != Vector3i(0, 0, 0)) {
 			UtilityFunctions::print("MCManager: WASDQE Key Pressed - Delta: ", delta);
 			debug_cursor_pos += delta;
-			
+
 			// Clamp to terrain size
 			MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
 			if (terrain_node) {
@@ -344,6 +351,20 @@ void MCManager::_update_hover_preview(const Vector3 &p_corner_pos, const Vector3
 		} else {
 			quad->set_material_override(hover_mat_white);
 		}
+	}
+}
+
+void MCManager::_on_save_terrain() {
+	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+	if (terrain_node) {
+		terrain_node->save_terrain("user://terrain.mct");
+	}
+}
+
+void MCManager::_on_load_terrain() {
+	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+	if (terrain_node) {
+		terrain_node->load_terrain("user://terrain.mct");
 	}
 }
 
