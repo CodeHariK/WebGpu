@@ -26,6 +26,7 @@ void MCNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("generate_variants"), &MCNode::generate_variants_by_4Y_rotation);
 	ClassDB::bind_method(D_METHOD("get_variant_counts"), &MCNode::get_variant_counts);
 	ClassDB::bind_method(D_METHOD("print_library_hashes"), &MCNode::print_library_hashes);
+	ClassDB::bind_method(D_METHOD("print_Y_rotation_library"), &MCNode::print_Y_rotation_library);
 
 	ClassDB::bind_method(D_METHOD("set_import_mode", "p_mode"), &MCNode::set_import_mode);
 	ClassDB::bind_method(D_METHOD("get_import_mode"), &MCNode::get_import_mode);
@@ -365,7 +366,7 @@ void MCNode::generate_variants_by_4Y_rotation() {
 	}
 
 	// 3 Corners
-	for (uint8_t h : { 0b00000111, 0b11010000, 0b10001001, 0b00011001, 0b11000100, 0b11001000 }) {
+	for (uint8_t h : { 0b00001101, 0b11010000, 0b10001001, 0b00011001, 0b11000100, 0b00110010 }) {
 		if (mesh_library[h].mesh.is_valid()) {
 			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner3Face", false);
 		}
@@ -814,6 +815,37 @@ void MCNode::print_library_hashes() const {
 		}
 	}
 	UtilityFunctions::print("MCNode: Total table size: ", total_count);
+}
+
+void MCNode::print_Y_rotation_library() const {
+	String Yrotation_output = "Y Rotation : [";
+
+	for (size_t b = 0; b < base_mesh_order.size(); b++) {
+		uint8_t base_h = base_mesh_order[b];
+		String sub_array = "[";
+
+		// Add the base hash as the first element
+		sub_array += "'" + hash_to_binary(base_h) + "'";
+
+		// Find all other hashes that point to this base mesh
+		for (int i = 0; i < 256; i++) {
+			if (mesh_library[i].mesh.is_valid() && mesh_library[i].source_mesh == base_h && i != base_h) {
+				sub_array += ", '" + hash_to_binary(i) + "'";
+			}
+		}
+		sub_array += "]";
+
+		Yrotation_output += sub_array;
+
+		// Add comma between sub-arrays, but not after the last one
+		if (b < base_mesh_order.size() - 1) {
+			Yrotation_output += ", ";
+		}
+	}
+
+	Yrotation_output += "]";
+
+	UtilityFunctions::print(Yrotation_output);
 }
 
 } // namespace godot

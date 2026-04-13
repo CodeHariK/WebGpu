@@ -1,85 +1,126 @@
+
 import bpy
 
-unique_names = ['11110110', '11111010', '11111110', '11010111', '11011010',
-                '11101010', '11110010', '11100001', '10100101', '10101010',
-                '10100010', '10100001', '10100000', '11100000', '10000010',
-                '10000000', '11101000', '11100100', '11111111', '11110000',
-                '10010000']
+# Bit swap mapping (index-based: 0 = LSB, 7 = MSB)
+swap_map = {
+    4: 7,  # 16 -> 128
+    7: 6,  # 128 -> 64
+    6: 5,  # 64 -> 32
+    5: 4,  # 32 -> 16
+    0: 3,  # 1 -> 8
+    3: 2,  # 8 -> 4
+    2: 1,  # 4 -> 2
+    1: 0   # 2 -> 1
+}
 
-# ✅ Use directly
-unique_binary = set(unique_names)
-
-def to_8bit_binary(n):
-    return format(n, '08b')
-
-def permute_bits(x):
-    mapping = [4, 7, 6, 5, 0, 3, 2, 1]
-    result = 0
-    for out_pos, in_pos in enumerate(mapping):
-        bit = (x >> in_pos) & 1
-        result |= bit << out_pos
-    return result
-
-def get_number(name):
-    try:
-        return int(name.split('.')[0])
-    except:
-        return 0
-
-def goop():
-    collection_name = "Filtered_Duplicates"
-
-    if collection_name in bpy.data.collections:
-        new_col = bpy.data.collections[collection_name]
-    else:
-        new_col = bpy.data.collections.new(collection_name)
-        bpy.context.scene.collection.children.link(new_col)
-
-    selected_objs = bpy.context.selected_objects
-    selected_objs.sort(key=lambda obj: obj.name)
-
-    for index, obj in enumerate(selected_objs):
-        num = get_number(obj.name)
-
-        binary_str = to_8bit_binary(num)
-        permuted_num = permute_bits(num)
-        permuted_str = to_8bit_binary(permuted_num)
-
-        obj.name = f"{permuted_str}_{binary_str}"
-
-        obj.show_name = True
-
-        # ✅ FILTER
-        first_part = obj.name.split('_')[0]
-
-        if first_part in unique_binary:
-            dup = obj.copy()
-            dup.data = obj.data.copy()
-            dup.name = first_part
-            new_col.objects.link(dup)
-            
-    # --- Arrange duplicates in X axis ---
-    gap = 2.0
-
-    objs = list(new_col.objects)
-    objs.sort(key=lambda o: o.name)  # optional: keep order clean
-
-    for i, obj in enumerate(objs):
-        obj.location.x = i * gap
-        obj.location.y = 0
-        obj.location.z = 0
-
-def rev_name(suffix):
-    for obj in bpy.context.selected_objects:
-        original_name = obj.name
-        
-        # Take first 8 characters
-        substr = original_name[:8]
-        
-        # Reverse the substring
-        reversed_substr = substr[::-1]
-        
-        # Assign new name
-        obj.name = reversed_substr + suffix
+def swap_bits(bin_str):
+    bits = list(bin_str[::-1])  # reverse for LSB index
+    new_bits = bits.copy()
     
-rev_name('_circle')
+    for src, dst in swap_map.items():
+        new_bits[dst] = bits[src]
+    
+    return ''.join(new_bits[::-1])
+
+# Store renamed results
+renamed = []
+
+for obj in bpy.context.selected_objects:
+    try:
+        num = int(obj.name)
+        if 1 <= num <= 255:
+            bin_str = format(num, '08b')
+            swapped = swap_bits(bin_str)
+            obj.name = swapped
+            renamed.append(swapped)
+    except:
+        continue
+
+# spacing controls
+x_spacing = 2.0
+y_spacing = 2.0
+
+# your groups (FULL list — keep exactly as you gave)
+groups = [['00010000', '00100000', '01000000', '10000000'],
+['00000001', '00000010', '00000100', '00001000'],
+['01000001', '00010100', '00101000', '10000010'],
+['00001001', '00000011', '00000110', '00001100'],
+['10010000', '00110000', '01100000', '11000000'],
+['00010001', '00100010', '01000100', '10001000'],
+['00000101', '00001010'],
+['01010000', '10100000'],
+['00011000', '00100001', '01000010', '10000100'],
+['10000001', '00010010', '00100100', '01001000'],
+['10001001', '00010011', '00100110', '01001100'],
+['11010000', '01110000', '10110000', '11100000'],
+['00001101', '00000111', '00001011', '00001110'],
+['11000100', '00110001', '01100010', '10011000'],
+['00011001', '00100011', '01000110', '10001100'],
+['00110010', '01100100', '10010001', '11001000'],
+['10000101', '00011010', '00100101', '01001010'],
+['01010010', '01011000', '10100001', '10100100'],
+['01000101', '00010101', '00101010', '10001010'],
+['01010100', '01010001', '10100010', '10101000'],
+['01100001', '00111000', '10010100', '11000010'],
+['00010110', '00101100', '01001001', '10000011'],
+['10000110', '00011100', '00101001', '01000011'],
+['01101000', '00110100', '10010010', '11000001'],
+['00101011', '00011101', '01000111', '10001110'],
+['11110000'],
+['10011001', '00110011', '01100110', '11001100'],
+['01010101', '10101010'],
+['01101001', '00111100', '10010110', '11000011'],
+['00100111', '00011011', '01001110', '10001101'],
+['11100100', '01110010', '10110001', '11011000'],
+['00010111', '00101110', '01001101', '10001011'],
+['00111001', '01100011', '10011100', '11000110'],
+['10110010', '01110100', '11010001', '11101000'],
+['00001111'],
+['00110110', '01101100', '10010011', '11001001'],
+['01110001', '10111000', '11010100', '11100010'],
+['10100101', '01011010'],
+['10000111', '00011110', '00101101', '01001011'],
+['01011100', '01010011', '10100110', '10101001'],
+['11100001', '01111000', '10110100', '11010010'],
+['00111010', '01100101', '10010101', '11001010'],
+['01011001', '01010110', '10100011', '10101100'],
+['01101010', '00110101', '10011010', '11000101'],
+['01001111', '00011111', '00101111', '10001111'],
+['01011011', '01011110', '10100111', '10101101'],
+['10110101', '01111010', '11011010', '11100101'],
+['11110001', '11110010', '11110100', '11111000'],
+['01101110', '00110111', '10011011', '11001101'],
+['11100110', '01110011', '10111001', '11011100'],
+['01100111', '00111011', '10011101', '11001110'],
+['01110110', '10110011', '11011001', '11101100'],
+['01010111', '01011101', '10101011', '10101110'],
+['11101010', '01110101', '10111010', '11010101'],
+['11100011', '01111001', '10111100', '11010110'],
+['00111110', '01101101', '10010111', '11001011'],
+['11000111', '00111101', '01101011', '10011110'],
+['01111100', '10110110', '11010011', '11101001'],
+['11101011', '01111101', '10111110', '11010111'],
+['11111010', '11110101'],
+['01011111', '10101111'],
+['01111110', '10110111', '11011011', '11101101'],
+['11100111', '01111011', '10111101', '11011110'],
+['11001111', '00111111', '01101111', '10011111'],
+['11101110', '01110111', '10111011', '11011101'],
+['11110110', '11110011', '11111001', '11111100'],
+['11101111', '01111111', '10111111', '11011111'],
+['11111110', '11110111', '11111011', '11111101']]
+
+# map objects by name for fast lookup
+obj_dict = {obj.name: obj for obj in bpy.data.objects}
+
+# arrange
+for row_idx, group in enumerate(groups):
+    x = 0
+    y = -row_idx * y_spacing  # next row
+    
+    for name in group:
+        obj = obj_dict.get(name)
+        if obj:
+            obj.location.x = x
+            obj.location.y = y
+            x += x_spacing 

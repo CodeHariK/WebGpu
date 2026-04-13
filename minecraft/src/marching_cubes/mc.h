@@ -79,7 +79,9 @@ public:
 	void generate_variants_by_21_basemesh();
 	void generate_variants_by_4Y_rotation();
 	void validate_full_library();
+
 	void print_library_hashes() const;
+	void print_Y_rotation_library() const;
 
 	MeshConfig get_mesh_config(uint8_t p_hash) const;
 	Dictionary get_variant_counts() const;
