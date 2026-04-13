@@ -221,7 +221,9 @@ void MCManager::initialize_all() {
 		}
 
 		UtilityFunctions::print("MCManager: Sequential initialization complete.");
-		mc_node->print_library_hashes();
+
+		// mc_node->print_library_hashes();
+		// mc_node->print_Y_rotation_library();
 	}
 }
 
