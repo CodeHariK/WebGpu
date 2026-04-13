@@ -53,7 +53,8 @@ mc_node_path = NodePath("../MCNode")
 terrain_path = NodePath("../MCTerrain")
 
 [node name="MCNode" type="MCNode" parent="." unique_id=430891780]
-mesh_library_path = "res://assets/MarchingCubesMerged.glb"
+mesh_library_path = "res://assets/House.glb"
+import_mode = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.115, 0, 0)
 
 [node name="MCNode2" type="MCNode" parent="." unique_id=1228323093]
