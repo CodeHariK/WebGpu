@@ -60,6 +60,7 @@ private:
 	Ref<StandardMaterial3D> hover_mat_yellow;
 	Ref<StandardMaterial3D> hover_mat_white;
 	Ref<StandardMaterial3D> hover_mat_red;
+	Ref<StandardMaterial3D> hover_mat_cyan; // For multi-selection
 
 	enum InteractionMode : uint8_t {
 		MODE_TERRAIN,
@@ -67,16 +68,25 @@ private:
 		MODE_DRAG_OBJECT,
 	};
 
+	struct SelectedObject {
+		MeshInstance3D *node = nullptr;
+		Vector3i original_grid_pos;
+		Vector3i size;
+		Vector3i relative_offset; // Offset from the "pivot" object being dragged
+	};
+
 	// Placement State
 	InteractionMode interaction_mode = MODE_TERRAIN;
 	Vector3i current_placement_size = Vector3i(1, 1, 1);
 
+	// Multi-Selection State
+	std::vector<MeshInstance3D *> selected_nodes;
+
 	// Dragging State
 	bool is_dragging = false;
-	MeshInstance3D *drag_node = nullptr;
-	Vector3i drag_original_pos;
-	Vector3i drag_size;
+	std::vector<SelectedObject> drag_group;
 	bool drag_valid = false;
+
 	// Selection Inspection
 	bool is_locked = false;
 	Vector3i locked_grid_pos;

@@ -11,6 +11,7 @@
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/quad_mesh.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -98,6 +99,11 @@ void MCManager::_initialize_previews() {
 		hover_mat_red->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
 		hover_mat_red->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
 
+		hover_mat_cyan.instantiate();
+		hover_mat_cyan->set_albedo(Color(0, 1, 1, 0.6));
+		hover_mat_cyan->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+		hover_mat_cyan->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+
 		// Quads
 		Ref<QuadMesh> quad_mesh;
 		quad_mesh.instantiate();
@@ -149,15 +155,22 @@ void MCManager::_update_hover_raycast() {
 	}
 
 	TypedArray<RID> exclude;
-	if (is_dragging && drag_node) {
-		// Collect RIDs of collision objects under drag_node
-		TypedArray<Node> children = drag_node->get_children();
-		for (int i = 0; i < children.size(); i++) {
-			CollisionObject3D *co = Object::cast_to<CollisionObject3D>(children[i]);
-			if (co) {
-				exclude.push_back(co->get_rid());
+	if (is_dragging && !drag_group.empty()) {
+		// Collect RIDs of collision objects under all nodes in drag_group
+		for (const auto &obj : drag_group) {
+			if (!obj.node) continue;
+			TypedArray<Node> children = obj.node->get_children();
+			for (int j = 0; j < children.size(); j++) {
+				CollisionObject3D *co = Object::cast_to<CollisionObject3D>(children[j]);
+				if (co) {
+					exclude.push_back(co->get_rid());
+				}
 			}
 		}
+	} else if (!selected_nodes.empty()) {
+		// Also exclude selected nodes from raycast if needed? 
+		// Actually, we want to click on them to start dragging or toggle selection.
+		// So DO NOT exclude selected_nodes unless dragging.
 	}
 
 	uint32_t mask = LAYER_OBJECTS | LAYER_CORNERS;
@@ -176,13 +189,19 @@ void MCManager::_update_hover_raycast() {
 					bool is_blocked = false;
 
 					// 2. Check Terrain
-					Vector3i check_size = is_dragging ? drag_size : current_placement_size;
+					Vector3i check_size = current_placement_size;
+					if (is_dragging && !drag_group.empty()) {
+						check_size = drag_group[0].size; // Use primary member size for general raycast feedback
+					}
+					
 					if (terrain_node->is_area_blocked_by_terrain(grid_pos, check_size)) {
 						is_blocked = true;
 					}
 
-					// 3. Check Objects
+					// 3. Check Objects (for the primary placement/drag object)
+					// Note: Detailed group validation is done below
 					if (!is_blocked) {
+						Vector3i check_size = is_dragging ? (drag_group.empty() ? current_placement_size : drag_group[0].size) : current_placement_size;
 						AABB volume = AABB(Vector3(grid_pos), Vector3(check_size));
 						if (terrain_node->is_area_blocked_by_objects(volume)) {
 							is_blocked = true;
@@ -190,14 +209,37 @@ void MCManager::_update_hover_raycast() {
 					}
 
 					// Determine mode-based visualization
-					if (is_dragging && drag_node && interaction_mode == MODE_DRAG_OBJECT) {
-						// DRAGGING LOGIC
-						drag_node->set_position(Vector3(grid_pos) + (Vector3(drag_size) * 0.5f));
-						drag_node->set_material_override(is_blocked ? hover_mat_red : nullptr);
-						drag_valid = !is_blocked;
+					if (is_dragging && !drag_group.empty() && interaction_mode == MODE_DRAG_OBJECT) {
+						// MULTI-DRAGGING LOGIC
+						bool group_blocked = false;
+						
+						// 1. Calculate and apply positions, then check global validity
+						for (auto &obj : drag_group) {
+							Vector3i target_pos = grid_pos + obj.relative_offset;
+							obj.node->set_position(Vector3(target_pos) + (Vector3(obj.size) * 0.5f));
+							
+							// Check if this member is blocked
+							if (terrain_node->is_area_blocked_by_terrain(target_pos, obj.size) ||
+								terrain_node->is_area_blocked_by_objects(AABB(Vector3(target_pos), Vector3(obj.size)))) {
+								group_blocked = true;
+							}
+						}
+						
+						// 2. Apply visual feedback to all objects in group
+						for (auto &obj : drag_group) {
+							obj.node->set_material_override(group_blocked ? hover_mat_red : nullptr);
+						}
+						
+						drag_valid = !group_blocked;
 					} else if (interaction_mode == MODE_PLACE_OBJECT) {
 						// PLACE PREVIEW ONLY
 						_update_hover_box(grid_pos, is_blocked);
+					} else if (interaction_mode == MODE_DRAG_OBJECT) {
+						// Not dragging, just hovering. Show selection highlights.
+						// We'll handle selection highlights in a separate pass below or here.
+						for (MeshInstance3D *node : selected_nodes) {
+							if (node) node->set_material_override(hover_mat_cyan);
+						}
 					} else if (interaction_mode == MODE_TERRAIN) {
 						if (is_locked) {
 							// Shift to dual grid center (0.5 offset)

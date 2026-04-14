@@ -3,6 +3,8 @@
 #include "mc_physics.h"
 #include "terrain.h"
 #include "utils/raycast/mc_raycast.h"
+#include <godot_cpp/classes/material.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
 
 #include <godot_cpp/classes/collision_object3d.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
@@ -10,6 +12,8 @@
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <algorithm>
+#include <vector>
 
 namespace godot {
 
@@ -80,13 +84,15 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 	}
 
 	TypedArray<RID> exclude;
-	if (is_dragging && drag_node) {
-		// Find StaticBody3D child (there should only be one)
-		TypedArray<Node> children = drag_node->get_children();
-		for (int i = 0; i < children.size(); i++) {
-			CollisionObject3D *co = Object::cast_to<CollisionObject3D>(children[i]);
-			if (co) {
-				exclude.push_back(co->get_rid());
+	if (is_dragging && !drag_group.empty()) {
+		for (const auto &obj : drag_group) {
+			if (!obj.node) continue;
+			TypedArray<Node> children = obj.node->get_children();
+			for (int i = 0; i < children.size(); i++) {
+				CollisionObject3D *co = Object::cast_to<CollisionObject3D>(children[i]);
+				if (co) {
+					exclude.push_back(co->get_rid());
+				}
 			}
 		}
 	}
@@ -145,15 +151,76 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 					UtilityFunctions::print("MCManager: Cannot place object, area blocked.");
 				}
 			} else if (interaction_mode == MODE_DRAG_OBJECT) {
-				// 2. DRAG OBJECT MODE (PICK UP)
-				if (target_object_node && !is_dragging) {
-					const PlacedObject *obj = terrain_node->get_placed_object(target_object_node);
-					if (obj) {
-						is_dragging = true;
-						drag_node = Object::cast_to<MeshInstance3D>(target_object_node);
-						drag_original_pos = obj->grid_pos;
-						drag_size = obj->size;
-						terrain_node->detach_placed_object(target_object_node);
+				// 2. DRAG OBJECT MODE (PICK UP & SELECTION)
+				if (!is_dragging) {
+					MeshInstance3D *clicked_mi = target_object_node ? Object::cast_to<MeshInstance3D>(target_object_node) : nullptr;
+					bool shift = mouse_event->is_shift_pressed();
+
+					if (clicked_mi) {
+						auto it = std::find(selected_nodes.begin(), selected_nodes.end(), clicked_mi);
+						bool is_already_selected = (it != selected_nodes.end());
+
+						if (shift) {
+							// Toggle selection
+							if (is_already_selected) {
+								clicked_mi->set_material_override(nullptr);
+								selected_nodes.erase(it);
+							} else {
+								selected_nodes.push_back(clicked_mi);
+								clicked_mi->set_material_override(hover_mat_cyan);
+							}
+						} else {
+							// Normal click
+							if (is_already_selected) {
+								// Start dragging existing selection
+								is_dragging = true;
+								drag_group.clear();
+								const PlacedObject *pivot_obj = terrain_node->get_placed_object(clicked_mi);
+								if (pivot_obj) {
+									Vector3i pivot_pos = pivot_obj->grid_pos;
+									for (MeshInstance3D *node : selected_nodes) {
+										const PlacedObject *obj = terrain_node->get_placed_object(node);
+										if (obj) {
+											SelectedObject so;
+											so.node = node;
+											so.original_grid_pos = obj->grid_pos;
+											so.size = obj->size;
+											so.relative_offset = obj->grid_pos - pivot_pos;
+											drag_group.push_back(so);
+											terrain_node->detach_placed_object(node);
+										}
+									}
+								}
+							} else {
+								// Clear old selection and select this one to drag
+								for (MeshInstance3D *node : selected_nodes) {
+									if (node) node->set_material_override(nullptr);
+								}
+								selected_nodes.clear();
+								selected_nodes.push_back(clicked_mi);
+								clicked_mi->set_material_override(hover_mat_cyan);
+
+								// Immediately start drag
+								is_dragging = true;
+								drag_group.clear();
+								const PlacedObject *obj = terrain_node->get_placed_object(clicked_mi);
+								if (obj) {
+									SelectedObject so;
+									so.node = clicked_mi;
+									so.original_grid_pos = obj->grid_pos;
+									so.size = obj->size;
+									so.relative_offset = Vector3i(0, 0, 0);
+									drag_group.push_back(so);
+									terrain_node->detach_placed_object(clicked_mi);
+								}
+							}
+						}
+					} else if (!shift) {
+						// Clicked empty space without shift: Clear selection
+						for (MeshInstance3D *node : selected_nodes) {
+							if (node) node->set_material_override(nullptr);
+						}
+						selected_nodes.clear();
 					}
 				}
 			} else if (interaction_mode == MODE_TERRAIN) {
@@ -164,11 +231,21 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 		} else if (button_index == MOUSE_BUTTON_RIGHT) {
 			if (interaction_mode == MODE_PLACE_OBJECT || interaction_mode == MODE_DRAG_OBJECT) {
 				if (target_object_node) {
-					// SAFETY: If we are deleting the object we are currently dragging, cancel drag first
-					if (is_dragging && drag_node == target_object_node) {
-						is_dragging = false;
-						drag_node = nullptr;
-						UtilityFunctions::print("MCManager: Drag cancelled due to deletion.");
+					MeshInstance3D *target_mi = Object::cast_to<MeshInstance3D>(target_object_node);
+					// SAFETY: If we are deleting objects we are currently dragging/selecting, clean up
+					if (is_dragging) {
+						for (const auto &obj : drag_group) {
+							if (obj.node == target_mi) {
+								is_dragging = false;
+								drag_group.clear();
+								UtilityFunctions::print("MCManager: Multi-drag cancelled due to deletion.");
+								break;
+							}
+						}
+					}
+					auto it = std::find(selected_nodes.begin(), selected_nodes.end(), target_mi);
+					if (it != selected_nodes.end()) {
+						selected_nodes.erase(it);
 					}
 					terrain_node->remove_placed_object(target_object_node);
 				}
@@ -182,39 +259,48 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 	// Handle Drag Release (anywhere) - Now tied to LEFT MOUSE
 	if (is_dragging && button_index == MOUSE_BUTTON_LEFT && !mouse_event->is_pressed()) {
 		if (drag_valid) {
-			// Finalize placement at new position
-			terrain_node->add_placed_object(Vector3i((drag_node->get_position() - Vector3(drag_size) * 0.5f).round()), drag_size);
-			drag_node->queue_free();
+			// Finalize placement for all objects in group
+			for (const auto &obj : drag_group) {
+				Vector3 target_visual_pos = obj.node->get_position();
+				Vector3i final_grid_pos = Vector3i((target_visual_pos - Vector3(obj.size) * 0.5f).round());
+				terrain_node->add_placed_object(final_grid_pos, obj.size);
+				obj.node->queue_free();
+			}
 		} else {
-			// Revert to original position
-			terrain_node->add_placed_object(drag_original_pos, drag_size);
-			drag_node->queue_free();
+			// Revert all to original positions
+			for (const auto &obj : drag_group) {
+				terrain_node->add_placed_object(obj.original_grid_pos, obj.size);
+				obj.node->queue_free();
+			}
 		}
+		
+		// Clear transient drag state, but KEEP persistent selection if you want
+		// Most users expect selection to stay after drag.
 		is_dragging = false;
-		drag_node = nullptr;
+		drag_group.clear();
+		selected_nodes.clear(); // Actually, clearing selection for now to make highlights reset
 	}
 }
 
 void MCManager::cancel_drag() {
-	if (!is_dragging || !drag_node) {
-		is_dragging = false; // Reset anyway
-		drag_node = nullptr;
+	if (!is_dragging) {
+		is_dragging = false;
+		drag_group.clear();
 		return;
 	}
 
 	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
 	if (terrain_node) {
-		// Revert to original position and add back to spatial
-		terrain_node->add_placed_object(drag_original_pos, drag_size);
-		UtilityFunctions::print("MCManager: Drag cancelled, object restored to original position.");
-	}
-
-	if (drag_node) {
-		drag_node->queue_free();
+		for (const auto &obj : drag_group) {
+			terrain_node->add_placed_object(obj.original_grid_pos, obj.size);
+			if (obj.node) obj.node->queue_free();
+		}
+		UtilityFunctions::print("MCManager: Multi-drag cancelled, all objects restored.");
 	}
 
 	is_dragging = false;
-	drag_node = nullptr;
+	drag_group.clear();
+	selected_nodes.clear();
 }
 
 } // namespace godot
