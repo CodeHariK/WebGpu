@@ -4,14 +4,15 @@ PLATFORM     := macos
 OUTPUT_DIR   := project/bin/$(PLATFORM)
 LIB_NAME     := libMinecraftExt.$(PLATFORM).$(TARGET).dylib
 
-SCONS        := scons
+SCONS        := /opt/homebrew/bin/scons
+GODOT        := /Applications/Godot.app/Contents/MacOS/Godot
 NM           := nm
 
 r:
-	godot -e --path project
+	$(GODOT) -e --path project
 
 reimport:
-	godot --headless --editor --quit --path project
+	$(GODOT) --headless --editor --quit --path project
 
 brr: b reimport run_mc
 
@@ -45,4 +46,4 @@ clean:
 
 
 run_mc:
-	godot --path project/ --scene scene/MarchingCubes/MARCHING_CUBES.tscn
+	$(GODOT) --path project/ --scene scene/MarchingCubes/MARCHING_CUBES.tscn

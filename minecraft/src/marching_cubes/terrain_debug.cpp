@@ -1,5 +1,6 @@
 #include "mc.h"
 #include "terrain.h"
+#include "mc_physics.h"
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
@@ -41,7 +42,7 @@ void MCTerrain::set_corner_collision_enabled(bool p_enabled) {
 		return;
 	}
 
-	uint32_t layer = p_enabled ? 32 : 0; // Layer 6 is Bit 32
+	uint32_t layer = p_enabled ? LAYER_CORNERS : 0;
 
 	TypedArray<Node> children = debug_corners_container->get_children();
 	for (int i = 0; i < children.size(); i++) {
@@ -53,7 +54,7 @@ void MCTerrain::set_corner_collision_enabled(bool p_enabled) {
 		TypedArray<Node> sub_children = child->get_children();
 		for (int j = 0; j < sub_children.size(); j++) {
 			StaticBody3D *sb = Object::cast_to<StaticBody3D>(sub_children[j]);
-			if (sb && (sb->get_collision_layer() == 32 || sb->get_collision_layer() == 0)) {
+			if (sb && (sb->get_collision_layer() == LAYER_CORNERS || sb->get_collision_layer() == 0)) {
 				sb->set_collision_layer(layer);
 			}
 		}
@@ -112,16 +113,10 @@ int MCTerrain::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_bo
 					mi->set_material_override(mat_red);
 
 					if (has_inactive) {
-						StaticBody3D *sb = memnew(StaticBody3D);
-						sb->set_collision_layer(32); // Layer 6
-						sb->set_collision_mask(0);
-						mi->add_child(sb);
-						CollisionShape3D *cs = memnew(CollisionShape3D);
-						sb->add_child(cs);
-						Ref<BoxShape3D> shape;
-						shape.instantiate();
-						shape->set_size(Vector3(1.0, 1.0, 1.0));
-						cs->set_shape(shape);
+						MCPhysics::create_static_box_collider(
+								mi,
+								LAYER_CORNERS,
+								Vector3(1.0, 1.0, 1.0));
 					}
 				} else if (has_active) {
 					mi->set_material_override(mat_blue);
