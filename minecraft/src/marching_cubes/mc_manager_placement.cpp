@@ -1,5 +1,6 @@
-#include "mc_manager.h"
 #include "mc.h"
+#include "mc_manager.h"
+#include "mc_physics.h"
 #include "terrain.h"
 #include "utils/raycast/mc_raycast.h"
 
@@ -13,6 +14,34 @@
 namespace godot {
 
 void MCManager::_input(const Ref<InputEvent> &p_event) {
+	// 1. Keyboard Events
+	Ref<InputEventKey> key_event = p_event;
+	if (key_event.is_valid() && key_event->is_pressed()) {
+		if (interaction_mode == MODE_TERRAIN && is_locked) {
+			Key keycode = key_event->get_keycode();
+			bool handled = true;
+			if (keycode == KEY_W)
+				locked_grid_pos.z -= 1;
+			else if (keycode == KEY_S)
+				locked_grid_pos.z += 1;
+			else if (keycode == KEY_A)
+				locked_grid_pos.x -= 1;
+			else if (keycode == KEY_D)
+				locked_grid_pos.x += 1;
+			else if (keycode == KEY_Q)
+				locked_grid_pos.y -= 1;
+			else if (keycode == KEY_E)
+				locked_grid_pos.y += 1;
+			else
+				handled = false;
+
+			if (handled) {
+				update_ui();
+				return;
+			}
+		}
+	}
+
 	// 2. Mouse Events
 	Ref<InputEventMouseButton> mouse_event = p_event;
 	if (mouse_event.is_null()) {
@@ -32,6 +61,20 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 	}
 
 	int button_index = mouse_event->get_button_index();
+
+	if (button_index == MOUSE_BUTTON_RIGHT && mouse_event->is_pressed() && mouse_event->is_command_or_control_pressed()) {
+		if (interaction_mode == MODE_TERRAIN) {
+			is_locked = !is_locked;
+			UtilityFunctions::print("MCManager: Hash Investigation Locked: ", is_locked);
+			return;
+		}
+	}
+
+	if (interaction_mode == MODE_TERRAIN && is_locked) {
+		// Strictly for inspection while locked
+		return;
+	}
+
 	if (button_index != MOUSE_BUTTON_LEFT && button_index != MOUSE_BUTTON_RIGHT) {
 		return;
 	}
@@ -48,7 +91,7 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 		}
 	}
 
-	uint32_t mask = 40; // Default: Layer 4 (Objects) | Layer 6 (Corners)
+	uint32_t mask = LAYER_OBJECTS | LAYER_CORNERS;
 
 	MCRaycastHit hit = raycast_from_event(this, p_event, mask, 512, exclude);
 	if (hit.is_hit) {
@@ -62,7 +105,7 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 
 		// Identify if we hit a placed object (Layer 4)
 		CollisionObject3D *co = Object::cast_to<CollisionObject3D>(collider_node);
-		if (co && co->get_collision_layer() & 8) {
+		if (co && co->get_collision_layer() & LAYER_OBJECTS) {
 			target_object_node = Object::cast_to<MeshInstance3D>(collider_node->get_parent());
 		}
 

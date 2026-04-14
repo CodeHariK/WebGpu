@@ -90,6 +90,9 @@ void MCManager::setup_ui() {
 	ui.manager->add_label(ui.stats_vbox, "--- TERRAIN STATS ---");
 	terrain.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
 
+	ui.manager->add_label(ui.stats_vbox, "--- HASH INSPECTION ---");
+	ui.hash_label = ui.manager->add_label(ui.stats_vbox, "Hash: N/A\nPos: (0, 0, 0)\nLocked: No");
+
 
 
 	Button *save_btn = ui.manager->add_button(ui.stats_vbox, "Save State", Callable(this, "_on_save_terrain"));
@@ -119,6 +122,7 @@ void MCManager::_on_toggle_placement_mode() {
 		interaction_mode = MODE_DRAG_OBJECT;
 	} else {
 		interaction_mode = MODE_TERRAIN;
+		is_locked = false; // Reset lock when entering mode
 	}
 
 	String mode_name = "Terrain";
@@ -179,6 +183,22 @@ void MCManager::update_ui() {
 		terrain.stats_label->set_text("MC Meshes: " + String::num_int64(terrain_node->get_total_mc_meshes()) + 
 								 "\nMC Cells: " + String::num_int64(terrain_node->get_total_cells()) +
 								 "\nDebug Corners: " + String::num_int64(terrain_node->get_total_debug_corners()));
+	}
+
+	if (ui.hash_label) {
+		if (interaction_mode == MODE_TERRAIN) {
+			uint8_t h = _get_cell_hash(locked_grid_pos);
+			String bin = MCNode::hash_to_binary(h);
+			Vector3 display_pos = Vector3(locked_grid_pos);
+			if (is_locked) {
+				display_pos += Vector3(0.5, 0.5, 0.5);
+			}
+			ui.hash_label->set_text("Hash: " + bin + " (" + String::num_int64(h) + ")" +
+									 "\nPos: " + String(display_pos) +
+									 "\nLocked: " + (is_locked ? "Yes" : "No"));
+		} else {
+			ui.hash_label->set_text("Hash: N/A\nPos: N/A\nLocked: N/A");
+		}
 	}
 
 	// Update variant counts if side panel is visible

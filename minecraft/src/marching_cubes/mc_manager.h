@@ -30,6 +30,7 @@ public:
 		VBoxContainer *variant_stats_vbox = nullptr;
 		Panel *side_panel = nullptr;
 		AcceptDialog *help_dialog = nullptr;
+		Label *hash_label = nullptr;
 	};
 
 	struct TerrainStats {
@@ -77,6 +78,8 @@ private:
 	Vector3i drag_size;
 	bool drag_valid = false;
 	// Selection Inspection
+	bool is_locked = false;
+	Vector3i locked_grid_pos;
 
 protected:
 	static void _bind_methods();
@@ -113,6 +116,7 @@ public:
 	void _initialize_previews();
 	void _update_hover_box(const Vector3i &p_grid_pos, bool p_is_blocked);
 	void _update_hover_raycast();
+	uint8_t _get_cell_hash(const Vector3i &p_grid_pos);
 };
 
 } // namespace godot

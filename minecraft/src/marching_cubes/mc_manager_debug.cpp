@@ -1,5 +1,6 @@
-#include "mc_manager.h"
 #include "mc.h"
+#include "mc_manager.h"
+#include "mc_physics.h"
 #include "terrain.h"
 #include "utils/raycast/mc_raycast.h"
 
@@ -122,7 +123,6 @@ void MCManager::_initialize_previews() {
 	}
 }
 
-
 void MCManager::_update_hover_box(const Vector3i &p_grid_pos, bool p_is_blocked) {
 	if (!hover_box_node)
 		return;
@@ -160,7 +160,7 @@ void MCManager::_update_hover_raycast() {
 		}
 	}
 
-	uint32_t mask = 40; // Default: Layer 4 (Objects) | Layer 6 (Corners)
+	uint32_t mask = LAYER_OBJECTS | LAYER_CORNERS;
 
 	MCRaycastHit hit = raycast_from_mouse(this, viewport->get_mouse_position(), mask, 1000.0f, exclude);
 	if (hit.is_hit) {
@@ -170,28 +170,18 @@ void MCManager::_update_hover_raycast() {
 			if (camera) {
 				MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
 				if (terrain_node) {
-					// 1. Calculate grid_pos based on layer hit
-					Vector3i grid_pos;
-					CollisionObject3D *co = Object::cast_to<CollisionObject3D>(hit.collider);
-					uint32_t hit_layer = co ? co->get_collision_layer() : 0;
-
-					if (hit_layer == 64) {
-						// Hit a Cell (Layer 7): Position is floor of hit point
-						grid_pos = Vector3i(hit.position.floor());
-					} else {
-						// Hit an Object or Corner: Use normal offset for snapping
-						grid_pos = Vector3i((hit.position + hit.normal * 0.5f).floor());
-					}
+					// 1. Calculate grid_pos based on hit
+					Vector3i grid_pos = Vector3i((hit.position + hit.normal * 0.5f).floor());
 
 					bool is_blocked = false;
 
-					// 1. Check Terrain
+					// 2. Check Terrain
 					Vector3i check_size = is_dragging ? drag_size : current_placement_size;
 					if (terrain_node->is_area_blocked_by_terrain(grid_pos, check_size)) {
 						is_blocked = true;
 					}
 
-					// 2. Check Objects
+					// 3. Check Objects
 					if (!is_blocked) {
 						AABB volume = AABB(Vector3(grid_pos), Vector3(check_size));
 						if (terrain_node->is_area_blocked_by_objects(volume)) {
@@ -203,25 +193,51 @@ void MCManager::_update_hover_raycast() {
 					if (is_dragging && drag_node && interaction_mode == MODE_DRAG_OBJECT) {
 						// DRAGGING LOGIC
 						drag_node->set_position(Vector3(grid_pos) + (Vector3(drag_size) * 0.5f));
-						drag_node->set_material_override(is_blocked ? hover_mat_red : nullptr); // Revert to light blue or use red if blocked
+						drag_node->set_material_override(is_blocked ? hover_mat_red : nullptr);
 						drag_valid = !is_blocked;
 					} else if (interaction_mode == MODE_PLACE_OBJECT) {
 						// PLACE PREVIEW ONLY
 						_update_hover_box(grid_pos, is_blocked);
-					} else {
-						// TERRAIN MODE
-						Node *parent = collider_node->get_parent();
-						Node3D *parent_node = Object::cast_to<Node3D>(parent);
-						if (parent_node) {
-							Vector3 final_pos = parent_node->get_position();
-							_update_hover_preview(final_pos, hit.normal, camera);
+					} else if (interaction_mode == MODE_TERRAIN) {
+						if (is_locked) {
+							// Shift to dual grid center (0.5 offset)
+							_update_hover_preview(Vector3(locked_grid_pos) + Vector3(0.5, 0.5, 0.5), hit.normal, camera);
 							hover_root->show();
+						} else {
+							// Update locked_grid_pos for UI even when not locked
+							Node *parent = collider_node->get_parent();
+							Node3D *parent_node = Object::cast_to<Node3D>(parent);
+							if (parent_node) {
+								Vector3 final_pos = parent_node->get_position();
+								locked_grid_pos = Vector3i(final_pos.round());
+								_update_hover_preview(final_pos, hit.normal, camera);
+								hover_root->show();
+							}
 						}
 					}
 				}
 			}
 		}
+	} else if (interaction_mode == MODE_TERRAIN && is_locked) {
+		// When locked, keep showing the quads even if mouse is away
+		Viewport *viewport = get_viewport();
+		if (viewport) {
+			Camera3D *camera = viewport->get_camera_3d();
+			if (camera) {
+				// Use zero normal (no specific face highlight) when mouse is away
+				_update_hover_preview(Vector3(locked_grid_pos) + Vector3(0.5, 0.5, 0.5), Vector3(0, 0, 0), camera);
+				hover_root->show();
+			}
+		}
 	}
+}
+
+uint8_t MCManager::_get_cell_hash(const Vector3i &p_grid_pos) {
+	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+	if (terrain_node) {
+		return terrain_node->get_cell_hash_at_global_coord(p_grid_pos);
+	}
+	return 0;
 }
 
 } // namespace godot

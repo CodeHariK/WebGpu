@@ -1,4 +1,5 @@
 #include "terrain.h"
+#include "mc_physics.h"
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
@@ -67,17 +68,10 @@ void MCTerrain::add_placed_object(const Vector3i &p_dual_grid_pos, const Vector3
 	mi->set_name("PlacedObject_" + String::num_int64(p_dual_grid_pos.x) + "_" + String::num_int64(p_dual_grid_pos.y));
 	
 	// Collision instantiation
-	StaticBody3D *sb = memnew(StaticBody3D);
-	sb->set_collision_layer(8); // Layer 4
-	sb->set_collision_mask(8); // Mask 4
-	mi->add_child(sb);
-	
-	CollisionShape3D *cs = memnew(CollisionShape3D);
-	Ref<BoxShape3D> shape;
-	shape.instantiate();
-	shape->set_size(Vector3(p_size));
-	cs->set_shape(shape);
-	sb->add_child(cs);
+	StaticBody3D *sb = MCPhysics::create_static_box_collider(
+			mi,
+			LAYER_OBJECTS,
+			Vector3(p_size));
 
 	obj.visual_node = mi;
 	spatial.add_object(obj);
