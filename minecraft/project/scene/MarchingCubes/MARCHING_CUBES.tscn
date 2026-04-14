@@ -28,7 +28,6 @@ environment = SubResource("Environment_1uetc")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1279058429]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 77.21952, 0)
-shadow_enabled = true
 
 [node name="Camera_X_Pivot" parent="." unique_id=670858255 instance=ExtResource("1_d0u8f")]
 transform = Transform3D(1, 0, 0, 0, 0.64821297, 0.7614591, 0, -0.7614591, 0.64821297, 5.246605, 4.9337234, 13.155472)
@@ -44,17 +43,15 @@ material = SubResource("StandardMaterial3D_lrsvk")
 
 [node name="MCTerrain" type="MCTerrain" parent="." unique_id=139198405]
 terrain_size = Vector3i(2, 2, 2)
-chunk_size = Vector3i(3, 3, 3)
+chunk_size = Vector3i(4, 3, 4)
 noise = SubResource("FastNoiseLite_lrsvk")
-show_debug_corners = true
 
 [node name="MCManager" type="MCManager" parent="." unique_id=387674285]
 mc_node_path = NodePath("../MCNode")
 terrain_path = NodePath("../MCTerrain")
 
 [node name="MCNode" type="MCNode" parent="." unique_id=430891780]
-mesh_library_path = "res://assets/House.glb"
-import_mode = 2
+mesh_library_path = "res://assets/MarchingCubesMerged.glb"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.115, 0, 0)
 
 [node name="MCNode2" type="MCNode" parent="." unique_id=1228323093]

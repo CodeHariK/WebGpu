@@ -1,9 +1,10 @@
 #ifndef MC_TERRAIN_H
 #define MC_TERRAIN_H
 
+#include "marching_cubes/mc_spatial.h"
+#include <cstdint>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
-#include <cstdint>
 #include <vector>
 
 namespace godot {
@@ -88,22 +89,34 @@ struct Chunk {
 	}
 
 	bool has_active_neighbor(int x, int y, int z) const {
-		if (x > 0 && get_corner(x - 1, y, z)) return true;
-		if (x < size_x && get_corner(x + 1, y, z)) return true;
-		if (y > 0 && get_corner(x, y - 1, z)) return true;
-		if (y < size_y && get_corner(x, y + 1, z)) return true;
-		if (z > 0 && get_corner(x, y, z - 1)) return true;
-		if (z < size_z && get_corner(x, y, z + 1)) return true;
+		if (x > 0 && get_corner(x - 1, y, z))
+			return true;
+		if (x < size_x && get_corner(x + 1, y, z))
+			return true;
+		if (y > 0 && get_corner(x, y - 1, z))
+			return true;
+		if (y < size_y && get_corner(x, y + 1, z))
+			return true;
+		if (z > 0 && get_corner(x, y, z - 1))
+			return true;
+		if (z < size_z && get_corner(x, y, z + 1))
+			return true;
 		return false;
 	}
 
 	bool has_inactive_neighbor(int x, int y, int z) const {
-		if (x > 0 && !get_corner(x - 1, y, z)) return true;
-		if (x < size_x && !get_corner(x + 1, y, z)) return true;
-		if (y > 0 && !get_corner(x, y - 1, z)) return true;
-		if (y < size_y && !get_corner(x, y + 1, z)) return true;
-		if (z > 0 && !get_corner(x, y, z - 1)) return true;
-		if (z < size_z && !get_corner(x, y, z + 1)) return true;
+		if (x > 0 && !get_corner(x - 1, y, z))
+			return true;
+		if (x < size_x && !get_corner(x + 1, y, z))
+			return true;
+		if (y > 0 && !get_corner(x, y - 1, z))
+			return true;
+		if (y < size_y && !get_corner(x, y + 1, z))
+			return true;
+		if (z > 0 && !get_corner(x, y, z - 1))
+			return true;
+		if (z < size_z && !get_corner(x, y, z + 1))
+			return true;
 		return false;
 	}
 };
@@ -119,6 +132,7 @@ private:
 	float noise_threshold = 0.0f;
 	bool show_debug_corners = false;
 	std::vector<Chunk> chunks;
+	MCSpatial spatial;
 	int total_mc_meshes = 0;
 	int total_debug_corners = 0;
 	int total_cells = 0;
@@ -143,6 +157,14 @@ public:
 	void generate_with_noise();
 	void refresh_terrain();
 	void modify_corner(const Vector3i &p_grid_pos, bool p_active);
+	bool is_corner_active(const Vector3i &p_grid_pos) const;
+	bool is_area_blocked_by_terrain(const Vector3i &p_dual_grid_pos, const Vector3i &p_size) const;
+	bool is_area_blocked_by_objects(const AABB &p_aabb) const;
+	void add_placed_object(const Vector3i &p_dual_grid_pos, const Vector3i &p_size);
+	void remove_placed_object(Node *p_node);
+	void detach_placed_object(Node *p_node);
+	const PlacedObject *get_placed_object(Node *p_node) const;
+
 	uint8_t get_cell_hash_at_global_coord(const Vector3i &p_pos) const;
 	void save_terrain(const String &p_path);
 	void load_terrain(const String &p_path);
@@ -168,12 +190,7 @@ public:
 
 	void set_debug_corners_visible(bool p_visible);
 	bool is_debug_corners_visible() const;
-
-
-	void set_trigger_test_grid(bool p_trigger);
-	bool get_trigger_test_grid() const {
-		return false;
-	}
+	void set_corner_collision_enabled(bool p_enabled);
 
 	int get_total_mc_meshes() const {
 		return total_mc_meshes;
@@ -185,16 +202,11 @@ public:
 		return total_cells;
 	}
 
-
 	void set_mc_node(MCNode *p_node);
 	MCNode *get_mc_node() const;
 
 	void set_show_debug_corners(bool p_show);
-	bool get_show_debug_corners() const {
-		return show_debug_corners;
-	}
-
-	void spawn_test_grid();
+	bool get_show_debug_corners() const;
 };
 
 } // namespace godot

@@ -91,6 +91,14 @@ void MinecraftNode::_process(double delta) {
 				// Add collision to a nearby part that doesn't have it
 				if (part_data.mesh) {
 					part_data.mesh->create_trimesh_collision();
+					// Set terrain mesh to Layer 5 to avoid interaction conflict (jitter)
+					for (int i = 0; i < part_data.mesh->get_child_count(); ++i) {
+						if (StaticBody3D *body = Object::cast_to<StaticBody3D>(part_data.mesh->get_child(i))) {
+							body->set_collision_layer(16);
+							body->set_collision_mask(0);
+							break;
+						}
+					}
 					part_data.has_collision = true;
 				}
 			} else if (!should_have_collision && part_data.has_collision) {
