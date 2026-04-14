@@ -11,6 +11,7 @@
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/h_box_container.hpp>
 #include <godot_cpp/classes/label.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/panel.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
@@ -56,9 +57,6 @@ void MCManager::setup_ui() {
 			"- 21 base meshes generate all 256 variants via rotations/reflections.\n"
 			"- Transformations are applied via bitwise-mapped rotation matrices.\n"
 			"- Current UI tracks real-time performance and generation stats.\n\n"
-			"Controls:\n"
-			"- WASDQE: Move Debug Cursor (Green Cube)\n"
-			"- Mouse Wheel: Zoom (works when NOT hovering UI)\n"
 			"- Stats Button: Toggle sidebar visibility");
 	ui.help_dialog->set_min_size(Vector2(400, 300));
 
@@ -91,7 +89,8 @@ void MCManager::setup_ui() {
 	
 	ui.manager->add_label(ui.stats_vbox, "--- TERRAIN STATS ---");
 	terrain.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
-	debug_cursor_label = ui.manager->add_label(ui.stats_vbox, "Cursor: (0,0,0) Hash: 00000000");
+
+
 
 	Button *save_btn = ui.manager->add_button(ui.stats_vbox, "Save State", Callable(this, "_on_save_terrain"));
 	save_btn->set_custom_minimum_size(Vector2(0, 30));
@@ -99,8 +98,43 @@ void MCManager::setup_ui() {
 	Button *load_btn = ui.manager->add_button(ui.stats_vbox, "Load State", Callable(this, "_on_load_terrain"));
 	load_btn->set_custom_minimum_size(Vector2(0, 30));
 
+	ui.manager->add_label(ui.stats_vbox, "--- PLACEMENT ---");
+	Button *mode_btn = ui.manager->add_button(ui.stats_vbox, "Mode: Terrain", Callable(this, "_on_toggle_placement_mode"));
+	mode_btn->set_name("PlacementModeButton"); // For easy lookup if needed
+	mode_btn->set_custom_minimum_size(Vector2(0, 30));
+
 	ui.manager->add_label(ui.stats_vbox, "--- MESH VARIANTS ---");
 	ui.variant_stats_vbox = ui.manager->add_vbox(ui.stats_vbox, "VariantStats");
+}
+
+void MCManager::_on_toggle_placement_mode() {
+	cancel_drag(); // Finalize/Revert any active drag before switching modes
+
+	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+
+	// Cycle through modes: Terrain -> Place Object -> Drag Object
+	if (interaction_mode == MODE_TERRAIN) {
+		interaction_mode = MODE_PLACE_OBJECT;
+	} else if (interaction_mode == MODE_PLACE_OBJECT) {
+		interaction_mode = MODE_DRAG_OBJECT;
+	} else {
+		interaction_mode = MODE_TERRAIN;
+	}
+
+	String mode_name = "Terrain";
+	if (interaction_mode == MODE_PLACE_OBJECT) mode_name = "Place Object";
+	else if (interaction_mode == MODE_DRAG_OBJECT) mode_name = "Drag Object";
+
+	UtilityFunctions::print("MCManager: Interaction mode toggled to ", mode_name);
+	
+	// Update button text
+	if (ui.stats_vbox) {
+		Button *btn = Object::cast_to<Button>(ui.stats_vbox->get_node_or_null("PlacementModeButton"));
+		if (btn) {
+			btn->set_text("Mode: " + mode_name);
+		}
+	}
+	update_ui();
 }
 
 void MCManager::_on_toggle_ui() {
@@ -145,14 +179,6 @@ void MCManager::update_ui() {
 		terrain.stats_label->set_text("MC Meshes: " + String::num_int64(terrain_node->get_total_mc_meshes()) + 
 								 "\nMC Cells: " + String::num_int64(terrain_node->get_total_cells()) +
 								 "\nDebug Corners: " + String::num_int64(terrain_node->get_total_debug_corners()));
-		
-		if (debug_cursor_label) {
-			uint8_t hash = terrain_node->get_cell_hash_at_global_coord(debug_cursor_pos);
-			String h_str = MCNode::hash_to_binary(hash);
-			debug_cursor_label->set_text("Cursor: (" + String::num_int64(debug_cursor_pos.x) + "," + 
-										String::num_int64(debug_cursor_pos.y) + "," + 
-										String::num_int64(debug_cursor_pos.z) + ") Hash: " + h_str);
-		}
 	}
 
 	// Update variant counts if side panel is visible

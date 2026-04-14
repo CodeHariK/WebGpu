@@ -5,15 +5,14 @@
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/fast_noise_lite.hpp>
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/geometry_instance3d.hpp>
-#include <godot_cpp/classes/label3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/classes/static_body3d.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
-#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -41,15 +40,10 @@ void MCTerrain::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_noise_threshold"), &MCTerrain::get_noise_threshold);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "noise_threshold"), "set_noise_threshold", "get_noise_threshold");
 
-	ClassDB::bind_method(D_METHOD("set_trigger_test_grid", "trigger"), &MCTerrain::set_trigger_test_grid);
-	ClassDB::bind_method(D_METHOD("get_trigger_test_grid"), &MCTerrain::get_trigger_test_grid);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "trigger_test_grid"), "set_trigger_test_grid", "get_trigger_test_grid");
-
 	ClassDB::bind_method(D_METHOD("set_show_debug_corners", "show"), &MCTerrain::set_show_debug_corners);
 	ClassDB::bind_method(D_METHOD("get_show_debug_corners"), &MCTerrain::get_show_debug_corners);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_debug_corners"), "set_show_debug_corners", "get_show_debug_corners");
 
-	ClassDB::bind_method(D_METHOD("spawn_test_grid"), &MCTerrain::spawn_test_grid);
 	ClassDB::bind_method(D_METHOD("set_mc_node", "node"), &MCTerrain::set_mc_node);
 	ClassDB::bind_method(D_METHOD("get_mc_node"), &MCTerrain::get_mc_node);
 
@@ -114,26 +108,12 @@ MCNode *MCTerrain::get_mc_node() const {
 	return mc_node;
 }
 
-void MCTerrain::set_show_debug_corners(bool p_show) {
-	if (show_debug_corners == p_show) {
-		return;
-	}
-	show_debug_corners = p_show;
-	generate_with_noise();
-}
-
 void MCTerrain::set_noise_threshold(float p_threshold) {
 	if (Math::is_equal_approx(noise_threshold, p_threshold)) {
 		return;
 	}
 	noise_threshold = p_threshold;
 	generate_with_noise();
-}
-
-void MCTerrain::set_trigger_test_grid(bool p_trigger) {
-	if (p_trigger) {
-		spawn_test_grid();
-	}
 }
 
 void MCTerrain::initialize_terrain(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z) {
@@ -199,14 +179,17 @@ void MCTerrain::refresh_terrain() {
 		if (mc_node) {
 			spawn_count += _spawn_marching_cubes(chunk, mc_node);
 		}
-		if (show_debug_corners) {
-			if (!debug_corners_container) {
-				debug_corners_container = memnew(Node3D);
-				debug_corners_container->set_name("DebugCorners");
-				add_child(debug_corners_container);
-			}
-			spawn_count += _spawn_debug_cubes(chunk, box_mesh);
+
+		if (!debug_corners_container) {
+			debug_corners_container = memnew(Node3D);
+			debug_corners_container->set_name("DebugCorners");
+			add_child(debug_corners_container);
 		}
+		spawn_count += _spawn_debug_cubes(chunk, box_mesh);
+	}
+
+	if (debug_corners_container) {
+		debug_corners_container->set_visible(show_debug_corners);
 	}
 	UtilityFunctions::print("Terrain Refresh: ", spawn_count, " visual nodes spawned.");
 }
@@ -246,74 +229,6 @@ void MCTerrain::modify_corner(const Vector3i &p_grid_pos, bool p_active) {
 	}
 }
 
-int MCTerrain::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_box_mesh) {
-	int nx = p_chunk.size_x + 1;
-	int ny = p_chunk.size_y + 1;
-	int nz = p_chunk.size_z + 1;
-	int count = 0;
-
-	Ref<StandardMaterial3D> mat_red;
-	mat_red.instantiate();
-	mat_red->set_albedo(Color(1, 0, 0));
-	mat_red->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
-
-	Ref<StandardMaterial3D> mat_white;
-	mat_white.instantiate();
-	mat_white->set_albedo(Color(1, 1, 1));
-	mat_white->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
-
-	Ref<StandardMaterial3D> mat_blue;
-	mat_blue.instantiate();
-	mat_blue->set_albedo(Color(0, 0, 1));
-	mat_blue->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
-
-	for (int ly = 0; ly < ny; ly++) {
-		for (int lz = 0; lz < nz; lz++) {
-			for (int lx = 0; lx < nx; lx++) {
-				bool state = p_chunk.get_corner(lx, ly, lz);
-
-				Vector3 world_pos = Vector3(
-						static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx),
-						static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly),
-						static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz));
-
-				MeshInstance3D *mi = memnew(MeshInstance3D);
-				mi->set_mesh(p_box_mesh);
-				mi->set_position(world_pos);
-				debug_corners_container->add_child(mi);
-
-				bool has_active = p_chunk.has_active_neighbor(lx, ly, lz);
-				bool has_inactive = p_chunk.has_inactive_neighbor(lx, ly, lz);
-
-				if (state) {
-					mi->set_material_override(mat_red);
-
-					if (has_inactive) {
-						StaticBody3D *sb = memnew(StaticBody3D);
-						sb->set_collision_layer(512); // Layer 10
-						sb->set_collision_mask(0); // Doesn't need to detect anything
-						mi->add_child(sb);
-						CollisionShape3D *cs = memnew(CollisionShape3D);
-						sb->add_child(cs);
-						Ref<BoxShape3D> shape;
-						shape.instantiate();
-						shape->set_size(Vector3(1.0, 1.0, 1.0));
-						cs->set_shape(shape);
-					}
-				} else if (has_active) {
-					mi->set_material_override(mat_blue);
-				} else {
-					mi->set_material_override(mat_white);
-				}
-
-				count++;
-				total_debug_corners++;
-			}
-		}
-	}
-	return count;
-}
-
 int MCTerrain::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
 	int count = 0;
 
@@ -345,6 +260,7 @@ int MCTerrain::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
 				mi->set_transform(cell_t * conf.transform);
 				mi->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
 				add_child(mi);
+
 				if (is_inside_tree()) {
 					mi->set_owner(get_owner() ? get_owner() : this);
 				}
@@ -372,14 +288,14 @@ uint8_t MCTerrain::get_cell_hash_at_global_coord(const Vector3i &p_pos) const {
 		int end_z = start_z + chunk.size_z;
 
 		if (gx >= start_x && gx < end_x &&
-			gy >= start_y && gy < end_y &&
-			gz >= start_z && gz < end_z) {
+				gy >= start_y && gy < end_y &&
+				gz >= start_z && gz < end_z) {
 			return chunk.get_cell_hash(gx - start_x, gy - start_y, gz - start_z);
 		}
 	}
 	return 0;
 }
-	
+
 void MCTerrain::save_terrain(const String &p_path) {
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::WRITE);
 	if (f.is_null()) {
@@ -452,7 +368,7 @@ void MCTerrain::load_terrain(const String &p_path) {
 	for (uint32_t i = 0; i < num_chunks; i++) {
 		uint32_t data_size = f->get_32();
 		PackedByteArray arr = f->get_buffer(data_size);
-		
+
 		Chunk &chunk = chunks[i];
 		chunk.corner_states.resize(data_size);
 		for (uint32_t j = 0; j < data_size; j++) {
@@ -496,19 +412,6 @@ void MCTerrain::_clear_children() {
 	total_cells = 0;
 }
 
-void MCTerrain::set_debug_corners_visible(bool p_visible) {
-	if (debug_corners_container) {
-		debug_corners_container->set_visible(p_visible);
-	}
-}
-
-bool MCTerrain::is_debug_corners_visible() const {
-	if (debug_corners_container) {
-		return debug_corners_container->is_visible();
-	}
-	return false;
-}
-
 void MCTerrain::_on_noise_changed() {
 	generate_with_noise();
 }
@@ -531,9 +434,8 @@ void MCTerrain::_sample_chunk_noise(Chunk &p_chunk, const Ref<FastNoiseLite> &p_
 					continue;
 				}
 
-				// Standard noise sampling for internal corners
-				float noise_val = p_noise->get_noise_3d(static_cast<float>(gx), static_cast<float>(gy), static_cast<float>(gz));
-				p_chunk.set_corner(lx, ly, lz, noise_val > p_threshold);
+				// Standard internal corners are now always empty (false) by default
+				p_chunk.set_corner(lx, ly, lz, false);
 			}
 		}
 	}
@@ -563,88 +465,6 @@ bool MCTerrain::_is_boundary_corner(int gx, int gy, int gz, bool &r_required_sta
 	}
 
 	return false;
-}
-
-void MCTerrain::spawn_test_grid() {
-	_clear_children();
-
-	if (!mc_node) {
-		UtilityFunctions::print("MCTerrain: Cannot spawn test grid without valid MCNode.");
-		return;
-	}
-
-	float spacing = 3.0f;
-	Ref<BoxMesh> corner_mesh;
-	corner_mesh.instantiate();
-	corner_mesh->set_size(Vector3(0.1f, 0.1f, 0.1f));
-
-	Ref<StandardMaterial3D> mat_red;
-	mat_red.instantiate();
-	mat_red->set_albedo(Color(1, 0, 0));
-	mat_red->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
-
-	Ref<StandardMaterial3D> mat_white;
-	mat_white.instantiate();
-	mat_white->set_albedo(Color(1, 1, 1));
-	mat_white->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
-
-	for (int i = 0; i < 256; i++) {
-		int grid_x = i % 16;
-		int grid_z = i / 16;
-		Vector3 world_origin = Vector3(static_cast<float>(grid_x) * spacing, 0.0f, static_cast<float>(grid_z) * spacing);
-		uint8_t hash = static_cast<uint8_t>(i);
-
-		// 1. Spawn Mesh in Center
-		MeshConfig conf = mc_node->get_mesh_config(hash);
-		if (conf.mesh.is_valid()) {
-			MeshInstance3D *mi = memnew(MeshInstance3D);
-			mi->set_mesh(conf.mesh);
-			Transform3D t;
-			t.origin = world_origin + Vector3(0.5f, 0.5f, 0.5f);
-			mi->set_transform(t * conf.transform);
-			add_child(mi);
-			if (is_inside_tree()) {
-				mi->set_owner(get_owner() ? get_owner() : this);
-			}
-		}
-
-		// 2. Spawn Corner Debug Cubes
-		Vector3 corners[8] = {
-			Vector3(0, 0, 1), // C0 (BLN)
-			Vector3(1, 0, 1), // C1 (BRN)
-			Vector3(1, 0, 0), // C2 (BRF)
-			Vector3(0, 0, 0), // C3 (BLF)
-			Vector3(0, 1, 1), // C4 (TLN)
-			Vector3(1, 1, 1), // C5 (TRN)
-			Vector3(1, 1, 0), // C6 (TRF)
-			Vector3(0, 1, 0) // C7 (TLF)
-		};
-
-		for (int c = 0; c < 8; c++) {
-			bool state = (hash & (1 << c)) != 0;
-			MeshInstance3D *c_mi = memnew(MeshInstance3D);
-			c_mi->set_mesh(corner_mesh);
-			c_mi->set_material_override(state ? mat_red : mat_white);
-			c_mi->set_position(world_origin + corners[c]);
-			add_child(c_mi);
-			if (is_inside_tree()) {
-				c_mi->set_owner(get_owner() ? get_owner() : this);
-			}
-		}
-
-		// 3. Spawn Binary Hash Label
-		Label3D *label = memnew(Label3D);
-		String binary_str = "";
-		for (int b = 7; b >= 0; b--) {
-			binary_str += (hash & (1 << b)) ? "1" : "0";
-		}
-		label->set_text(binary_str);
-		label->set_position(world_origin + Vector3(0.5f, 1.3f, 0.5f));
-		label->set_font_size(32);
-		label->set_billboard_mode(BaseMaterial3D::BILLBOARD_ENABLED);
-		add_child(label);
-	}
-	UtilityFunctions::print("MCTerrain: Test grid spawned.");
 }
 
 } // namespace godot

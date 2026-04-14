@@ -10,7 +10,7 @@
 
 namespace godot {
 
-MCRaycastHit raycast_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos, uint32_t p_mask, float p_dist) {
+MCRaycastHit raycast_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos, uint32_t p_mask, float p_dist, const TypedArray<RID> &p_exclude) {
 	MCRaycastHit hit;
 
 	if (!p_context || !p_context->is_inside_tree()) {
@@ -41,6 +41,9 @@ MCRaycastHit raycast_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos, u
 	}
 
 	Ref<PhysicsRayQueryParameters3D> query = PhysicsRayQueryParameters3D::create(from, to, p_mask);
+	if (p_exclude.size() > 0) {
+		query->set_exclude(p_exclude);
+	}
 	Dictionary dc_hit = space_state->intersect_ray(query);
 
 	if (!dc_hit.is_empty()) {
@@ -55,13 +58,13 @@ MCRaycastHit raycast_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos, u
 	return hit;
 }
 
-MCRaycastHit raycast_from_event(Node3D *p_context, const Ref<InputEvent> &p_event, uint32_t p_mask, float p_dist) {
+MCRaycastHit raycast_from_event(Node3D *p_context, const Ref<InputEvent> &p_event, uint32_t p_mask, float p_dist, const TypedArray<RID> &p_exclude) {
 	Ref<InputEventMouse> mouse_event = p_event;
 	if (mouse_event.is_null()) {
 		return MCRaycastHit();
 	}
 
-	return raycast_from_mouse(p_context, mouse_event->get_position(), p_mask, p_dist);
+	return raycast_from_mouse(p_context, mouse_event->get_position(), p_mask, p_dist, p_exclude);
 }
 
 } // namespace godot

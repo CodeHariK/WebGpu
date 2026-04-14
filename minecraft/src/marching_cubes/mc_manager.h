@@ -1,6 +1,7 @@
 #ifndef MC_MANAGER_H
 #define MC_MANAGER_H
 
+#include <cstdint>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/node_path.hpp>
 
@@ -48,20 +49,34 @@ public:
 
 private:
 	NodePath mc_node_path;
-	
+
 	MCUI ui;
 	TerrainStats terrain;
 	PerfStats perf;
 	Node3D *hover_root = nullptr;
-	MeshInstance3D *hover_quads[3] = {nullptr, nullptr, nullptr};
+	MeshInstance3D *hover_quads[3] = { nullptr, nullptr, nullptr };
+	MeshInstance3D *hover_box_node = nullptr; // For AxBxC preview
 	Ref<StandardMaterial3D> hover_mat_yellow;
 	Ref<StandardMaterial3D> hover_mat_white;
+	Ref<StandardMaterial3D> hover_mat_red;
 
-	// Debug Cursor
-	Vector3i debug_cursor_pos;
-	MeshInstance3D *debug_cursor_node = nullptr;
-	Ref<StandardMaterial3D> debug_cursor_mat;
-	Label *debug_cursor_label = nullptr;
+	enum InteractionMode : uint8_t {
+		MODE_TERRAIN,
+		MODE_PLACE_OBJECT,
+		MODE_DRAG_OBJECT,
+	};
+
+	// Placement State
+	InteractionMode interaction_mode = MODE_TERRAIN;
+	Vector3i current_placement_size = Vector3i(1, 1, 1);
+
+	// Dragging State
+	bool is_dragging = false;
+	MeshInstance3D *drag_node = nullptr;
+	Vector3i drag_original_pos;
+	Vector3i drag_size;
+	bool drag_valid = false;
+	// Selection Inspection
 
 protected:
 	static void _bind_methods();
@@ -90,9 +105,14 @@ public:
 	void _input(const Ref<InputEvent> &p_event) override;
 	void _on_gui_input(const Ref<InputEvent> &p_event);
 	void _on_show_help();
+	void _on_toggle_placement_mode();
+	void cancel_drag();
 	void _on_save_terrain();
 	void _on_load_terrain();
 	void _update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_hit_normal, Camera3D *p_camera);
+	void _initialize_previews();
+	void _update_hover_box(const Vector3i &p_grid_pos, bool p_is_blocked);
+	void _update_hover_raycast();
 };
 
 } // namespace godot
