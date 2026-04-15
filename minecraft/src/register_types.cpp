@@ -5,13 +5,13 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
-#include "acnh/acnh.h"
+#include "camera/camera.h"
 #include "cui/cui.h"
 #include "marching_cubes/mc.h"
 #include "marching_cubes/mc_grid.h"
 #include "marching_cubes/mc_manager.h"
-#include "minecraft/minecraft.h"
-#include "minecraft/wfc.h"
+#include "terrain/minecraft.h"
+#include "terrain/wfc.h"
 
 namespace godot {
 
@@ -21,11 +21,13 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	}
 	GDREGISTER_CLASS(MinecraftNode);
 	GDREGISTER_CLASS(WFCGenerator3D);
-	GDREGISTER_CLASS(ACNHNode);
+
 	GDREGISTER_CLASS(MCNode);
 	GDREGISTER_CLASS(MCManager);
 	GDREGISTER_CLASS(MCGrid);
+
 	GDREGISTER_CLASS(CUI);
+	GDREGISTER_CLASS(MCCamera);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
