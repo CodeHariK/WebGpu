@@ -5,6 +5,9 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/node_path.hpp>
 
+#include <godot_cpp/classes/material.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
+
 namespace godot {
 
 class MCNode;
@@ -16,7 +19,6 @@ class AcceptDialog;
 class Label;
 class InputEvent;
 class MeshInstance3D;
-class StandardMaterial3D;
 class Camera3D;
 class QuadMesh;
 
@@ -88,7 +90,6 @@ private:
 	bool drag_valid = false;
 
 	// Selection Inspection
-	bool is_locked = false;
 	Vector3i locked_grid_pos;
 
 protected:

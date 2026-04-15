@@ -13,6 +13,7 @@
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
+#include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -57,10 +58,8 @@ void MCManager::_update_hover_preview(const Vector3 &p_corner_pos, const Vector3
 		MeshInstance3D *quad = hover_quads[i];
 		Vector3 n = normals[i];
 
-		// Position quad on the face (0.505 offset to avoid internal Z-fighting)
 		quad->set_position(n * 0.505f);
 
-		// Orientation to face the normal
 		if (n.x != 0.0f) {
 			quad->set_rotation_degrees(Vector3(0.0f, n.x > 0.0f ? 90.0f : -90.0f, 0.0f));
 		} else if (n.y != 0.0f) {
@@ -69,7 +68,6 @@ void MCManager::_update_hover_preview(const Vector3 &p_corner_pos, const Vector3
 			quad->set_rotation_degrees(Vector3(0.0f, n.z > 0.0f ? 0.0f : 180.0f, 0.0f));
 		}
 
-		// Material logic: Highlight the currently hovered face
 		if (n.is_equal_approx(p_hit_normal)) {
 			quad->set_material_override(hover_mat_yellow);
 		} else {
@@ -79,14 +77,12 @@ void MCManager::_update_hover_preview(const Vector3 &p_corner_pos, const Vector3
 }
 
 void MCManager::_initialize_previews() {
-	// 4. Setup Hover Preview (3-Quad System)
 	if (!hover_root) {
 		hover_root = memnew(Node3D);
 		add_child(hover_root);
 
-		// Materials
 		hover_mat_yellow.instantiate();
-		hover_mat_yellow->set_albedo(Color(1, 1, 0, 0.4)); // Translucent yellow
+		hover_mat_yellow->set_albedo(Color(1, 1, 0, 0.4));
 		hover_mat_yellow->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
 		hover_mat_yellow->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
 
@@ -104,7 +100,6 @@ void MCManager::_initialize_previews() {
 		hover_mat_cyan->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
 		hover_mat_cyan->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
 
-		// Quads
 		Ref<QuadMesh> quad_mesh;
 		quad_mesh.instantiate();
 		quad_mesh->set_size(Vector2(1.01, 1.01));
@@ -117,7 +112,6 @@ void MCManager::_initialize_previews() {
 		hover_root->hide();
 	}
 
-	// 6. Setup Hover Box (AxBxC Preview)
 	if (!hover_box_node) {
 		hover_box_node = memnew(MeshInstance3D);
 		Ref<BoxMesh> box;
@@ -156,7 +150,6 @@ void MCManager::_update_hover_raycast() {
 
 	TypedArray<RID> exclude;
 	if (is_dragging && !drag_group.empty()) {
-		// Collect RIDs of collision objects under all nodes in drag_group
 		for (const auto &obj : drag_group) {
 			if (!obj.node) continue;
 			TypedArray<Node> children = obj.node->get_children();
@@ -167,13 +160,14 @@ void MCManager::_update_hover_raycast() {
 				}
 			}
 		}
-	} else if (!selected_nodes.empty()) {
-		// Also exclude selected nodes from raycast if needed? 
-		// Actually, we want to click on them to start dragging or toggle selection.
-		// So DO NOT exclude selected_nodes unless dragging.
 	}
 
+	bool ctrl_held = Input::get_singleton()->is_key_pressed(KEY_CTRL) || Input::get_singleton()->is_key_pressed(KEY_META);
+
 	uint32_t mask = LAYER_OBJECTS | LAYER_CORNERS;
+	if (ctrl_held && interaction_mode == MODE_TERRAIN) {
+		mask |= LAYER_TERRAIN;
+	}
 
 	MCRaycastHit hit = raycast_from_mouse(this, viewport->get_mouse_position(), mask, 1000.0f, exclude);
 	if (hit.is_hit) {
@@ -183,70 +177,58 @@ void MCManager::_update_hover_raycast() {
 			if (camera) {
 				MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
 				if (terrain_node) {
-					// 1. Calculate grid_pos based on hit
 					Vector3i grid_pos = Vector3i((hit.position + hit.normal * 0.5f).floor());
+
+					if (ctrl_held && interaction_mode == MODE_TERRAIN) {
+						grid_pos = Vector3i((hit.position - hit.normal * 0.05f).floor());
+						locked_grid_pos = grid_pos;
+						update_ui();
+					}
 
 					bool is_blocked = false;
 
-					// 2. Check Terrain
 					Vector3i check_size = current_placement_size;
 					if (is_dragging && !drag_group.empty()) {
-						check_size = drag_group[0].size; // Use primary member size for general raycast feedback
+						check_size = drag_group[0].size;
 					}
 					
 					if (terrain_node->is_area_blocked_by_terrain(grid_pos, check_size)) {
 						is_blocked = true;
 					}
 
-					// 3. Check Objects (for the primary placement/drag object)
-					// Note: Detailed group validation is done below
 					if (!is_blocked) {
-						Vector3i check_size = is_dragging ? (drag_group.empty() ? current_placement_size : drag_group[0].size) : current_placement_size;
-						AABB volume = AABB(Vector3(grid_pos), Vector3(check_size));
+						Vector3i check_size_obj = is_dragging ? (drag_group.empty() ? current_placement_size : drag_group[0].size) : current_placement_size;
+						AABB volume = AABB(Vector3(grid_pos), Vector3(check_size_obj));
 						if (terrain_node->is_area_blocked_by_objects(volume)) {
 							is_blocked = true;
 						}
 					}
 
-					// Determine mode-based visualization
 					if (is_dragging && !drag_group.empty() && interaction_mode == MODE_DRAG_OBJECT) {
-						// MULTI-DRAGGING LOGIC
 						bool group_blocked = false;
-						
-						// 1. Calculate and apply positions, then check global validity
 						for (auto &obj : drag_group) {
 							Vector3i target_pos = grid_pos + obj.relative_offset;
 							obj.node->set_position(Vector3(target_pos) + (Vector3(obj.size) * 0.5f));
-							
-							// Check if this member is blocked
 							if (terrain_node->is_area_blocked_by_terrain(target_pos, obj.size) ||
 								terrain_node->is_area_blocked_by_objects(AABB(Vector3(target_pos), Vector3(obj.size)))) {
 								group_blocked = true;
 							}
 						}
-						
-						// 2. Apply visual feedback to all objects in group
 						for (auto &obj : drag_group) {
 							obj.node->set_material_override(group_blocked ? hover_mat_red : nullptr);
 						}
-						
 						drag_valid = !group_blocked;
 					} else if (interaction_mode == MODE_PLACE_OBJECT) {
-						// PLACE PREVIEW ONLY
 						_update_hover_box(grid_pos, is_blocked);
 					} else if (interaction_mode == MODE_DRAG_OBJECT) {
-						// Not dragging, just hovering. Show selection highlights.
-						// We'll handle selection highlights in a separate pass below or here.
 						for (MeshInstance3D *node : selected_nodes) {
 							if (node) node->set_material_override(hover_mat_cyan);
 						}
 					} else if (interaction_mode == MODE_TERRAIN) {
-						if (is_locked) {
-							// Shift to dual grid center (0.5 offset)
+						if (ctrl_held) {
 							_update_hover_preview(Vector3(locked_grid_pos) + Vector3(0.5, 0.5, 0.5), hit.normal, camera);
 							hover_root->show();
 						} else {
-							// Update locked_grid_pos for UI even when not locked
 							Node *parent = collider_node->get_parent();
 							Node3D *parent_node = Object::cast_to<Node3D>(parent);
 							if (parent_node) {
@@ -258,17 +240,6 @@ void MCManager::_update_hover_raycast() {
 						}
 					}
 				}
-			}
-		}
-	} else if (interaction_mode == MODE_TERRAIN && is_locked) {
-		// When locked, keep showing the quads even if mouse is away
-		Viewport *viewport = get_viewport();
-		if (viewport) {
-			Camera3D *camera = viewport->get_camera_3d();
-			if (camera) {
-				// Use zero normal (no specific face highlight) when mouse is away
-				_update_hover_preview(Vector3(locked_grid_pos) + Vector3(0.5, 0.5, 0.5), Vector3(0, 0, 0), camera);
-				hover_root->show();
 			}
 		}
 	}
