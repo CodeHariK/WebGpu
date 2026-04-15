@@ -1,7 +1,7 @@
 #include "mc_manager.h"
 #include "cui/cui.h"
 #include "mc.h"
-#include "terrain.h"
+#include "mc_grid.h"
 #include <godot_cpp/classes/accept_dialog.hpp>
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/camera3d.hpp>
@@ -98,13 +98,13 @@ void MCManager::initialize_all() {
 	}
 
 	MCNode *mc_node = Object::cast_to<MCNode>(get_node_or_null(mc_node_path));
-	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 
 	if (!mc_node) {
 		UtilityFunctions::print("MCManager Error: MCNode not found at ", mc_node_path);
 	}
 	if (!terrain_node) {
-		UtilityFunctions::print("MCManager Error: MCTerrain not found at ", terrain.path);
+		UtilityFunctions::print("MCManager Error: MCGrid not found at ", terrain.path);
 	}
 
 	if (mc_node && terrain_node) {
@@ -115,7 +115,8 @@ void MCManager::initialize_all() {
 
 		// 2. Link nodes and trigger Terrain generation
 		terrain_node->set_mc_node(mc_node);
-		terrain_node->generate_with_noise();
+		terrain_node->initialize_grid(terrain_node->get_grid_size().x, terrain_node->get_grid_size().y, terrain_node->get_grid_size().z,
+				terrain_node->get_chunk_size().x, terrain_node->get_chunk_size().y, terrain_node->get_chunk_size().z);
 
 		// 3. Setup UI
 		ui.manager = CUI::create_on_new_layer(this);
@@ -133,16 +134,16 @@ void MCManager::initialize_all() {
 }
 
 void MCManager::_on_save_terrain() {
-	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (terrain_node) {
-		terrain_node->save_terrain("user://terrain.mct");
+		terrain_node->save_grid("user://terrain.mct");
 	}
 }
 
 void MCManager::_on_load_terrain() {
-	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (terrain_node) {
-		terrain_node->load_terrain("user://terrain.mct");
+		terrain_node->load_grid("user://terrain.mct");
 	}
 }
 

@@ -1,18 +1,18 @@
 #include "mc.h"
+#include "mc_grid.h"
 #include "mc_manager.h"
 #include "mc_physics.h"
-#include "terrain.h"
 #include "utils/raycast/mc_raycast.h"
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 
+#include <algorithm>
 #include <godot_cpp/classes/collision_object3d.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include <algorithm>
 #include <vector>
 
 namespace godot {
@@ -34,14 +34,12 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 		}
 	}
 
-	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (!terrain_node) {
 		return;
 	}
 
 	int button_index = mouse_event->get_button_index();
-
-
 
 	if (button_index != MOUSE_BUTTON_LEFT && button_index != MOUSE_BUTTON_RIGHT) {
 		return;
@@ -50,7 +48,8 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 	TypedArray<RID> exclude;
 	if (is_dragging && !drag_group.empty()) {
 		for (const auto &obj : drag_group) {
-			if (!obj.node) continue;
+			if (!obj.node)
+				continue;
 			TypedArray<Node> children = obj.node->get_children();
 			for (int i = 0; i < children.size(); i++) {
 				CollisionObject3D *co = Object::cast_to<CollisionObject3D>(children[i]);
@@ -101,7 +100,7 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 				// 1. PLACE OBJECT MODE
 				Vector3i place_pos = Vector3i((hit.position + hit.normal * 0.5f).floor());
 
-				bool blocked = terrain_node->is_area_blocked_by_terrain(place_pos, current_placement_size);
+				bool blocked = terrain_node->is_area_blocked_by_grid(place_pos, current_placement_size);
 				if (!blocked) {
 					AABB volume = AABB(Vector3(place_pos), Vector3(current_placement_size));
 					if (terrain_node->is_area_blocked_by_objects(volume)) {
@@ -158,7 +157,8 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 							} else {
 								// Clear old selection and select this one to drag
 								for (MeshInstance3D *node : selected_nodes) {
-									if (node) node->set_material_override(nullptr);
+									if (node)
+										node->set_material_override(nullptr);
 								}
 								selected_nodes.clear();
 								selected_nodes.push_back(clicked_mi);
@@ -182,7 +182,8 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 					} else if (!shift) {
 						// Clicked empty space without shift: Clear selection
 						for (MeshInstance3D *node : selected_nodes) {
-							if (node) node->set_material_override(nullptr);
+							if (node)
+								node->set_material_override(nullptr);
 						}
 						selected_nodes.clear();
 					}
@@ -237,7 +238,7 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 				obj.node->queue_free();
 			}
 		}
-		
+
 		// Clear transient drag state, but KEEP persistent selection if you want
 		// Most users expect selection to stay after drag.
 		is_dragging = false;
@@ -253,11 +254,12 @@ void MCManager::cancel_drag() {
 		return;
 	}
 
-	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (terrain_node) {
 		for (const auto &obj : drag_group) {
 			terrain_node->add_placed_object(obj.original_grid_pos, obj.size);
-			if (obj.node) obj.node->queue_free();
+			if (obj.node)
+				obj.node->queue_free();
 		}
 		UtilityFunctions::print("MCManager: Multi-drag cancelled, all objects restored.");
 	}

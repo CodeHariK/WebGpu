@@ -1,17 +1,21 @@
-#ifndef MC_TERRAIN_H
-#define MC_TERRAIN_H
+#ifndef MC_GRID_H
+#define MC_GRID_H
 
 #include "marching_cubes/mc_spatial.h"
+#include "utils/encoding/rle.h"
 #include <cstdint>
 #include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
 #include <vector>
 
 namespace godot {
 
-class FastNoiseLite;
+class Camera3D;
 class BoxMesh;
 class MCNode;
+class MeshInstance3D;
+class StandardMaterial3D;
 
 struct Chunk {
 	int size_x = 0;
@@ -119,17 +123,21 @@ struct Chunk {
 			return true;
 		return false;
 	}
+
+	std::vector<MeshInstance3D*> cell_visuals;
+	std::vector<MeshInstance3D*> debug_visuals;
+
+	PackedByteArray serialize_rle() const;
+	void deserialize_rle(const PackedByteArray &p_data);
 };
 
-class MCTerrain : public Node3D {
-	GDCLASS(MCTerrain, Node3D)
+class MCGrid : public Node3D {
+	GDCLASS(MCGrid, Node3D)
 
 private:
-	Vector3i terrain_size = Vector3i(1, 1, 1);
+	Vector3i grid_size = Vector3i(1, 1, 1);
 	Vector3i chunk_size = Vector3i(16, 16, 16);
 	MCNode *mc_node = nullptr;
-	Ref<FastNoiseLite> noise;
-	float noise_threshold = 0.0f;
 	bool show_debug_corners = false;
 	std::vector<Chunk> chunks;
 	MCSpatial spatial;
@@ -138,27 +146,41 @@ private:
 	int total_cells = 0;
 	Node3D *debug_corners_container = nullptr;
 
+	Ref<BoxMesh> _debug_box_mesh;
+	Ref<StandardMaterial3D> _debug_mat_blue;
+	Ref<StandardMaterial3D> _debug_mat_red;
+	Node3D *hover_root = nullptr;
+	MeshInstance3D *hover_quads[3] = { nullptr, nullptr, nullptr };
+	Ref<StandardMaterial3D> hover_mat_yellow;
+	Ref<StandardMaterial3D> hover_mat_white;
+
+	int _get_chunk_index(int x, int y, int z) const {
+		return (y * grid_size.x * grid_size.z) + (z * grid_size.x) + x;
+	}
+
+	void _update_visual_at(int gx, int gy, int gz);
+	void _update_debug_at(int gx, int gy, int gz);
+
 	void _clear_children();
 	bool _is_boundary_corner(int gx, int gy, int gz, bool &r_required_state) const;
-	void _sample_chunk_noise(Chunk &p_chunk, const Ref<FastNoiseLite> &p_noise, float p_threshold) const;
+	void _initialize_boundaries(Chunk &p_chunk) const;
 	int _spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_box_mesh);
 	int _spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node);
-	void _on_noise_changed();
+
+	void _initialize_hover_previews();
 
 protected:
 	static void _bind_methods();
 
 public:
-	MCTerrain();
-	~MCTerrain() override;
+	MCGrid();
+	~MCGrid() override;
 
-	void initialize_terrain(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z);
-	void initialize_terrain_with_noise(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, float p_threshold = 0.0);
-	void generate_with_noise();
-	void refresh_terrain();
+	void initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z);
+	void refresh_grid();
 	void modify_corner(const Vector3i &p_grid_pos, bool p_active);
 	bool is_corner_active(const Vector3i &p_grid_pos) const;
-	bool is_area_blocked_by_terrain(const Vector3i &p_dual_grid_pos, const Vector3i &p_size) const;
+	bool is_area_blocked_by_grid(const Vector3i &p_dual_grid_pos, const Vector3i &p_size) const;
 	bool is_area_blocked_by_objects(const AABB &p_aabb) const;
 	void add_placed_object(const Vector3i &p_dual_grid_pos, const Vector3i &p_size);
 	void remove_placed_object(Node *p_node);
@@ -166,26 +188,21 @@ public:
 	const PlacedObject *get_placed_object(Node *p_node) const;
 
 	uint8_t get_cell_hash_at_global_coord(const Vector3i &p_pos) const;
-	void save_terrain(const String &p_path);
-	void load_terrain(const String &p_path);
+	void save_grid(const String &p_path);
+	void load_grid(const String &p_path);
+
+	void update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_hit_normal, Camera3D *p_camera);
+	void hide_hover_preview();
 	void _ready() override;
 
-	void set_terrain_size(const Vector3i &p_size);
-	Vector3i get_terrain_size() const {
-		return terrain_size;
+	void set_grid_size(const Vector3i &p_size);
+	Vector3i get_grid_size() const {
+		return grid_size;
 	}
 
 	void set_chunk_size(const Vector3i &p_size);
 	Vector3i get_chunk_size() const {
 		return chunk_size;
-	}
-
-	void set_noise(const Ref<FastNoiseLite> &p_noise);
-	Ref<FastNoiseLite> get_noise() const;
-
-	void set_noise_threshold(float p_threshold);
-	float get_noise_threshold() const {
-		return noise_threshold;
 	}
 
 	void set_debug_corners_visible(bool p_visible);
@@ -211,4 +228,4 @@ public:
 
 } // namespace godot
 
-#endif // MC_TERRAIN_H
+#endif // MC_GRID_H
