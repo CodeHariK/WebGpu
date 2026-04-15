@@ -20,31 +20,6 @@ namespace godot {
 void MCManager::_input(const Ref<InputEvent> &p_event) {
 	// 1. Keyboard Events
 	Ref<InputEventKey> key_event = p_event;
-	if (key_event.is_valid() && key_event->is_pressed()) {
-		if (interaction_mode == MODE_TERRAIN && is_locked) {
-			Key keycode = key_event->get_keycode();
-			bool handled = true;
-			if (keycode == KEY_W)
-				locked_grid_pos.z -= 1;
-			else if (keycode == KEY_S)
-				locked_grid_pos.z += 1;
-			else if (keycode == KEY_A)
-				locked_grid_pos.x -= 1;
-			else if (keycode == KEY_D)
-				locked_grid_pos.x += 1;
-			else if (keycode == KEY_Q)
-				locked_grid_pos.y -= 1;
-			else if (keycode == KEY_E)
-				locked_grid_pos.y += 1;
-			else
-				handled = false;
-
-			if (handled) {
-				update_ui();
-				return;
-			}
-		}
-	}
 
 	// 2. Mouse Events
 	Ref<InputEventMouseButton> mouse_event = p_event;
@@ -66,18 +41,7 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 
 	int button_index = mouse_event->get_button_index();
 
-	if (button_index == MOUSE_BUTTON_RIGHT && mouse_event->is_pressed() && mouse_event->is_command_or_control_pressed()) {
-		if (interaction_mode == MODE_TERRAIN) {
-			is_locked = !is_locked;
-			UtilityFunctions::print("MCManager: Hash Investigation Locked: ", is_locked);
-			return;
-		}
-	}
 
-	if (interaction_mode == MODE_TERRAIN && is_locked) {
-		// Strictly for inspection while locked
-		return;
-	}
 
 	if (button_index != MOUSE_BUTTON_LEFT && button_index != MOUSE_BUTTON_RIGHT) {
 		return;
