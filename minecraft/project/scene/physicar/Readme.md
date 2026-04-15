@@ -646,32 +646,32 @@ Inside a loop/circular ramp, override gravity to point toward the loop center:
 # The Area3D stores the loop center position and axis
 
 func _on_loop_zone_body_entered(body):
-    in_loop = true
-    loop_center = loop_area.global_position
-    loop_axis = loop_area.global_transform.basis.z  # axis of rotation
+	in_loop = true
+	loop_center = loop_area.global_position
+	loop_axis = loop_area.global_transform.basis.z  # axis of rotation
 
 func process_loop_physics(delta):
-    if in_loop:
-        # Centripetal force toward loop center
-        var to_center = (loop_center - global_position).normalized()
-        var centripetal_force = mass * (linear_velocity.length() ** 2) / loop_radius
-        
-        # Override gravity: point toward center instead of world down
-        gravity_scale = 0  # disable world gravity
-        apply_central_force(to_center * centripetal_force)
-        
-        # Minimum speed to complete loop (arcade assist)
-        var min_loop_speed = sqrt(loop_radius * 9.8)  # real physics minimum
-        if linear_velocity.length() < min_loop_speed * 1.2:
-            # Arcade assist: boost speed to prevent embarrassing fall
-            linear_velocity = linear_velocity.normalized() * min_loop_speed * 1.3
-        
-        # Align car up-vector to point away from center (feet on track)
-        var away_from_center = -to_center
-        var target_up = away_from_center
-        var current_up = global_transform.basis.y
-        var correction = current_up.cross(target_up) * 5.0  # alignment torque
-        apply_torque(correction)
+	if in_loop:
+		# Centripetal force toward loop center
+		var to_center = (loop_center - global_position).normalized()
+		var centripetal_force = mass * (linear_velocity.length() ** 2) / loop_radius
+		
+		# Override gravity: point toward center instead of world down
+		gravity_scale = 0  # disable world gravity
+		apply_central_force(to_center * centripetal_force)
+		
+		# Minimum speed to complete loop (arcade assist)
+		var min_loop_speed = sqrt(loop_radius * 9.8)  # real physics minimum
+		if linear_velocity.length() < min_loop_speed * 1.2:
+			# Arcade assist: boost speed to prevent embarrassing fall
+			linear_velocity = linear_velocity.normalized() * min_loop_speed * 1.3
+		
+		# Align car up-vector to point away from center (feet on track)
+		var away_from_center = -to_center
+		var target_up = away_from_center
+		var current_up = global_transform.basis.y
+		var correction = current_up.cross(target_up) * 5.0  # alignment torque
+		apply_torque(correction)
 ```
 
 ### 9.3 Ramp Launch — Automatic X-Axis Front Flips
@@ -773,24 +773,24 @@ The car doesn't _target_ a specific number of flips. It spins continuously at a 
 
 ```gdscript
 func process_landing_alignment(delta):
-    if trick_state != "landing":
-        return
-    
-    # Current car down direction vs world down
-    var car_down = -global_transform.basis.y
-    var world_down = Vector3.DOWN
-    
-    # Compute error angles: how tilted is the car?
-    var angle_x = atan2(-car_down.z, -car_down.y)  # pitch error
-    var angle_z = atan2(-car_down.x, -car_down.y)  # roll error
-    
-    # Apply corrective torque (quadratic for snappy response)
-    var torque_x = -angle_x * abs(angle_x) * LANDING_ALIGN_STRENGTH
-    var torque_z =  angle_z * abs(angle_z) * LANDING_ALIGN_STRENGTH
-    apply_torque_impulse(Vector3(torque_x, 0, torque_z))
-    
-    # Dampen angular velocity to settle flat
-    angular_velocity *= LANDING_DAMPING
+	if trick_state != "landing":
+		return
+	
+	# Current car down direction vs world down
+	var car_down = -global_transform.basis.y
+	var world_down = Vector3.DOWN
+	
+	# Compute error angles: how tilted is the car?
+	var angle_x = atan2(-car_down.z, -car_down.y)  # pitch error
+	var angle_z = atan2(-car_down.x, -car_down.y)  # roll error
+	
+	# Apply corrective torque (quadratic for snappy response)
+	var torque_x = -angle_x * abs(angle_x) * LANDING_ALIGN_STRENGTH
+	var torque_z =  angle_z * abs(angle_z) * LANDING_ALIGN_STRENGTH
+	apply_torque_impulse(Vector3(torque_x, 0, torque_z))
+	
+	# Dampen angular velocity to settle flat
+	angular_velocity *= LANDING_DAMPING
 ```
 
 #### Key Implementation Notes
@@ -1027,52 +1027,52 @@ const PREDICTION_DRAG: float = 0.01           # simplified air drag
 
 # --- Predict landing position by simulating ballistic arc ---
 func predict_landing_position() -> Dictionary:
-    if not airborne:
-        return {}
-    
-    var sim_pos = global_position
-    var sim_vel = linear_velocity
-    var gravity_vec = Vector3.DOWN * 9.8 * gravity_scale
-    
-    # Account for glider if deployed
-    var has_glider = glider_deployed
-    
-    for step in PREDICTION_MAX_STEPS:
-        # Apply gravity
-        sim_vel += gravity_vec * PREDICTION_TIMESTEP
-        
-        # Apply simplified air drag
-        sim_vel *= (1.0 - PREDICTION_DRAG * PREDICTION_TIMESTEP)
-        
-        # If glider is deployed, apply simplified lift
-        if has_glider:
-            var speed = sim_vel.length()
-            var lift = Vector3.UP * glider_lift_coefficient * speed * 0.3
-            sim_vel += lift * PREDICTION_TIMESTEP
-        
-        # Step position forward
-        sim_pos += sim_vel * PREDICTION_TIMESTEP
-        
-        # Raycast downward from simulated position to check ground
-        var space = get_world_3d().direct_space_state
-        var ray = PhysicsRayQueryParameters3D.new()
-        ray.from = sim_pos
-        ray.to = sim_pos + Vector3.DOWN * 2.0
-        ray.exclude = [self]
-        var hit = space.intersect_ray(ray)
-        
-        if hit and sim_pos.y <= hit.position.y + 1.0:
-            var time_to_impact = step * PREDICTION_TIMESTEP
-            var impact_speed = sim_vel.length()
-            return {
-                "position": hit.position,
-                "normal": hit.normal,
-                "time": time_to_impact,
-                "impact_speed": impact_speed,
-                "quality": evaluate_landing_quality(hit.position, hit.normal)
-            }
-    
-    return {}  # can't predict landing within max lookahead
+	if not airborne:
+		return {}
+	
+	var sim_pos = global_position
+	var sim_vel = linear_velocity
+	var gravity_vec = Vector3.DOWN * 9.8 * gravity_scale
+	
+	# Account for glider if deployed
+	var has_glider = glider_deployed
+	
+	for step in PREDICTION_MAX_STEPS:
+		# Apply gravity
+		sim_vel += gravity_vec * PREDICTION_TIMESTEP
+		
+		# Apply simplified air drag
+		sim_vel *= (1.0 - PREDICTION_DRAG * PREDICTION_TIMESTEP)
+		
+		# If glider is deployed, apply simplified lift
+		if has_glider:
+			var speed = sim_vel.length()
+			var lift = Vector3.UP * glider_lift_coefficient * speed * 0.3
+			sim_vel += lift * PREDICTION_TIMESTEP
+		
+		# Step position forward
+		sim_pos += sim_vel * PREDICTION_TIMESTEP
+		
+		# Raycast downward from simulated position to check ground
+		var space = get_world_3d().direct_space_state
+		var ray = PhysicsRayQueryParameters3D.new()
+		ray.from = sim_pos
+		ray.to = sim_pos + Vector3.DOWN * 2.0
+		ray.exclude = [self]
+		var hit = space.intersect_ray(ray)
+		
+		if hit and sim_pos.y <= hit.position.y + 1.0:
+			var time_to_impact = step * PREDICTION_TIMESTEP
+			var impact_speed = sim_vel.length()
+			return {
+				"position": hit.position,
+				"normal": hit.normal,
+				"time": time_to_impact,
+				"impact_speed": impact_speed,
+				"quality": evaluate_landing_quality(hit.position, hit.normal)
+			}
+	
+	return {}  # can't predict landing within max lookahead
 ```
 
 #### 10.2 Landing Quality Evaluation
@@ -1089,17 +1089,17 @@ func evaluate_landing_quality(pos: Vector3, normal: Vector3) -> LandingQuality:
     # Check if landing on a boost pad, hazard, or normal surface
     var surface = get_surface_type_at(pos)
     
-    # Check if there's a designated "landing zone" nearby
-    var on_landing_zone = is_near_landing_zone(pos)
-    
-    if on_landing_zone and flatness > 0.95:
-        return LandingQuality.PERFECT    # bullseye!
-    elif flatness > 0.85 and surface != SurfaceType.OIL_SLICK:
-        return LandingQuality.GOOD       # clean landing
-    elif flatness > 0.6:
-        return LandingQuality.ROUGH      # bumpy but survivable
-    else:
-        return LandingQuality.DANGER     # steep slope or hazard
+	# Check if there's a designated "landing zone" nearby
+	var on_landing_zone = is_near_landing_zone(pos)
+	
+	if on_landing_zone and flatness > 0.95:
+		return LandingQuality.PERFECT    # bullseye!
+	elif flatness > 0.85 and surface != SurfaceType.OIL_SLICK:
+		return LandingQuality.GOOD       # clean landing
+	elif flatness > 0.6:
+		return LandingQuality.ROUGH      # bumpy but survivable
+	else:
+		return LandingQuality.DANGER     # steep slope or hazard
 ```
 
 #### 10.3 Visual Reticle Rendering
@@ -1110,56 +1110,56 @@ var landing_reticle: Decal3D
 var reticle_ring: MeshInstance3D  # outer ring pulse animation
 
 const RETICLE_COLORS = {
-    LandingQuality.PERFECT: Color(0.2, 1.0, 0.4, 0.9),   # green + glow
-    LandingQuality.GOOD:    Color(1.0, 1.0, 0.3, 0.7),   # yellow
-    LandingQuality.ROUGH:   Color(1.0, 0.5, 0.1, 0.6),   # orange
-    LandingQuality.DANGER:  Color(1.0, 0.1, 0.1, 0.8),   # red + pulse
+	LandingQuality.PERFECT: Color(0.2, 1.0, 0.4, 0.9),   # green + glow
+	LandingQuality.GOOD:    Color(1.0, 1.0, 0.3, 0.7),   # yellow
+	LandingQuality.ROUGH:   Color(1.0, 0.5, 0.1, 0.6),   # orange
+	LandingQuality.DANGER:  Color(1.0, 0.1, 0.1, 0.8),   # red + pulse
 }
 
 func update_landing_reticle(delta):
-    if not airborne:
-        landing_reticle.visible = false
-        return
-    
-    var prediction = predict_landing_position()
-    if prediction.is_empty():
-        landing_reticle.visible = false
-        return
-    
-    landing_reticle.visible = true
-    
-    # Position reticle at predicted landing point
-    landing_reticle.global_position = prediction.position + prediction.normal * 0.05
-    
-    # Align reticle to ground normal
-    var up = prediction.normal
-    var right = up.cross(Vector3.FORWARD).normalized()
-    var forward = right.cross(up).normalized()
-    landing_reticle.global_transform.basis = Basis(right, up, forward)
-    
-    # Scale reticle: grows as car descends (closer to impact)
-    var time_factor = clamp(1.0 - prediction.time / 3.0, 0.3, 1.0)
-    var reticle_scale = lerp(2.5, 1.0, time_factor)  # shrinks to bullseye
-    landing_reticle.scale = Vector3.ONE * reticle_scale
-    
-    # Color based on landing quality
-    var quality = prediction.quality
-    var target_color = RETICLE_COLORS[quality]
-    landing_reticle.modulate = landing_reticle.modulate.lerp(target_color, 8.0 * delta)
-    
-    # Pulse animation when close to landing
-    if prediction.time < 0.5:
-        var pulse = 1.0 + sin(Time.get_ticks_msec() * 0.02) * 0.15
-        landing_reticle.scale *= pulse
-    
-    # PERFECT landing zone: add particle ring effect
-    if quality == LandingQuality.PERFECT:
-        reticle_ring.visible = true
-        reticle_ring.global_position = prediction.position
-        # Rotating ring animation
-        reticle_ring.rotate_y(3.0 * delta)
-    else:
-        reticle_ring.visible = false
+	if not airborne:
+		landing_reticle.visible = false
+		return
+	
+	var prediction = predict_landing_position()
+	if prediction.is_empty():
+		landing_reticle.visible = false
+		return
+	
+	landing_reticle.visible = true
+	
+	# Position reticle at predicted landing point
+	landing_reticle.global_position = prediction.position + prediction.normal * 0.05
+	
+	# Align reticle to ground normal
+	var up = prediction.normal
+	var right = up.cross(Vector3.FORWARD).normalized()
+	var forward = right.cross(up).normalized()
+	landing_reticle.global_transform.basis = Basis(right, up, forward)
+	
+	# Scale reticle: grows as car descends (closer to impact)
+	var time_factor = clamp(1.0 - prediction.time / 3.0, 0.3, 1.0)
+	var reticle_scale = lerp(2.5, 1.0, time_factor)  # shrinks to bullseye
+	landing_reticle.scale = Vector3.ONE * reticle_scale
+	
+	# Color based on landing quality
+	var quality = prediction.quality
+	var target_color = RETICLE_COLORS[quality]
+	landing_reticle.modulate = landing_reticle.modulate.lerp(target_color, 8.0 * delta)
+	
+	# Pulse animation when close to landing
+	if prediction.time < 0.5:
+		var pulse = 1.0 + sin(Time.get_ticks_msec() * 0.02) * 0.15
+		landing_reticle.scale *= pulse
+	
+	# PERFECT landing zone: add particle ring effect
+	if quality == LandingQuality.PERFECT:
+		reticle_ring.visible = true
+		reticle_ring.global_position = prediction.position
+		# Rotating ring animation
+		reticle_ring.rotate_y(3.0 * delta)
+	else:
+		reticle_ring.visible = false
 ```
 
 #### 10.4 Trajectory Trail (Optional — Hot Wheels Style)
@@ -1171,30 +1171,30 @@ var trajectory_points: PackedVector3Array
 const TRAIL_DOT_COUNT: int = 20
 
 func update_trajectory_trail():
-    if not airborne:
-        trajectory_line.visible = false
-        return
-    
-    trajectory_points.clear()
-    var sim_pos = global_position
-    var sim_vel = linear_velocity
-    var gravity_vec = Vector3.DOWN * 9.8 * gravity_scale
-    var step_interval = max(1, PREDICTION_MAX_STEPS / TRAIL_DOT_COUNT)
-    
-    for step in PREDICTION_MAX_STEPS:
-        sim_vel += gravity_vec * PREDICTION_TIMESTEP
-        sim_vel *= (1.0 - PREDICTION_DRAG * PREDICTION_TIMESTEP)
-        sim_pos += sim_vel * PREDICTION_TIMESTEP
-        
-        if step % step_interval == 0:
-            trajectory_points.append(sim_pos)
-        
-        # Stop at ground
-        if sim_pos.y < 0:  # simplified; use raycast for accuracy
-            break
-    
-    trajectory_line.visible = true
-    trajectory_line.points = trajectory_points
+	if not airborne:
+		trajectory_line.visible = false
+		return
+	
+	trajectory_points.clear()
+	var sim_pos = global_position
+	var sim_vel = linear_velocity
+	var gravity_vec = Vector3.DOWN * 9.8 * gravity_scale
+	var step_interval = max(1, PREDICTION_MAX_STEPS / TRAIL_DOT_COUNT)
+	
+	for step in PREDICTION_MAX_STEPS:
+		sim_vel += gravity_vec * PREDICTION_TIMESTEP
+		sim_vel *= (1.0 - PREDICTION_DRAG * PREDICTION_TIMESTEP)
+		sim_pos += sim_vel * PREDICTION_TIMESTEP
+		
+		if step % step_interval == 0:
+			trajectory_points.append(sim_pos)
+		
+		# Stop at ground
+		if sim_pos.y < 0:  # simplified; use raycast for accuracy
+			break
+	
+	trajectory_line.visible = true
+	trajectory_line.points = trajectory_points
 ```
 
 #### 10.5 Perfect Landing Bonus
@@ -1203,22 +1203,22 @@ Landing on a **designated landing zone** (marked area on the track after ramps) 
 
 ```gdscript
 func on_landing(impact_velocity: float):
-    # ... existing landing logic (squash, particles, shake) ...
-    
-    # Check for perfect landing bonus
-    var landing_pos = global_position
-    if is_near_landing_zone(landing_pos):
-        var flatness = get_ground_normal().dot(Vector3.UP)
-        if flatness > 0.95:
-            # PERFECT LANDING!
-            award_points("Perfect Landing!", 200)
-            nitro_current += 30.0
-            spawn_perfect_landing_vfx()  # golden shockwave ring
-            play_sound("perfect_landing")  # satisfying chime
-            camera_slow_mo(0.3, 0.5)  # brief slow-motion for drama
-        elif flatness > 0.8:
-            award_points("Clean Landing", 75)
-            nitro_current += 10.0
+	# ... existing landing logic (squash, particles, shake) ...
+	
+	# Check for perfect landing bonus
+	var landing_pos = global_position
+	if is_near_landing_zone(landing_pos):
+		var flatness = get_ground_normal().dot(Vector3.UP)
+		if flatness > 0.95:
+			# PERFECT LANDING!
+			award_points("Perfect Landing!", 200)
+			nitro_current += 30.0
+			spawn_perfect_landing_vfx()  # golden shockwave ring
+			play_sound("perfect_landing")  # satisfying chime
+			camera_slow_mo(0.3, 0.5)  # brief slow-motion for drama
+		elif flatness > 0.8:
+			award_points("Clean Landing", 75)
+			nitro_current += 10.0
 ```
 
 ---
@@ -1517,21 +1517,21 @@ Points aren't just cosmetic — they unlock rewards during the race:
 ```gdscript
 # Score milestone rewards (checked after each bank)
 const SCORE_MILESTONES = {
-    1000:  {"reward": "nitro_refill",    "amount": 25,  "announce": "Nitro Boost!"},
-    3000:  {"reward": "speed_bonus",     "amount": 1.05, "announce": "Speed Up!"},
-    5000:  {"reward": "nitro_refill",    "amount": 50,  "announce": "Nitro Surge!"},
-    8000:  {"reward": "double_jump",     "amount": 1,   "announce": "Extra Jump!"},
-    12000: {"reward": "nitro_max_up",    "amount": 25,  "announce": "Nitro Tank+!"},
-    20000: {"reward": "star_power",      "amount": 5.0, "announce": "STAR POWER!"},
+	1000:  {"reward": "nitro_refill",    "amount": 25,  "announce": "Nitro Boost!"},
+	3000:  {"reward": "speed_bonus",     "amount": 1.05, "announce": "Speed Up!"},
+	5000:  {"reward": "nitro_refill",    "amount": 50,  "announce": "Nitro Surge!"},
+	8000:  {"reward": "double_jump",     "amount": 1,   "announce": "Extra Jump!"},
+	12000: {"reward": "nitro_max_up",    "amount": 25,  "announce": "Nitro Tank+!"},
+	20000: {"reward": "star_power",      "amount": 5.0, "announce": "STAR POWER!"},
 }
 
 func check_score_milestones():
-    for threshold in SCORE_MILESTONES:
-        if total_score >= threshold and not milestones_claimed.has(threshold):
-            milestones_claimed.append(threshold)
-            var reward = SCORE_MILESTONES[threshold]
-            apply_reward(reward)
-            show_milestone_announcement(reward.announce)
+	for threshold in SCORE_MILESTONES:
+		if total_score >= threshold and not milestones_claimed.has(threshold):
+			milestones_claimed.append(threshold)
+			var reward = SCORE_MILESTONES[threshold]
+			apply_reward(reward)
+			show_milestone_announcement(reward.announce)
 ```
 
 ---
@@ -1545,16 +1545,16 @@ var air_jumps_remaining = 1  # reset on ground contact
 var air_jump_force = 8.0     # impulse multiplier
 
 func try_air_jump():
-    if airborne and air_jumps_remaining > 0:
-        air_jumps_remaining -= 1
-        
-        # Upward impulse
-        linear_velocity.y = max(linear_velocity.y, 0)  # cancel downward velocity first
-        apply_central_impulse(Vector3.UP * air_jump_force * mass)
-        
-        # VFX: burst ring particles downward, shockwave shader
-        spawn_air_jump_vfx()
-        # SFX: whoosh + boing
+	if airborne and air_jumps_remaining > 0:
+		air_jumps_remaining -= 1
+		
+		# Upward impulse
+		linear_velocity.y = max(linear_velocity.y, 0)  # cancel downward velocity first
+		apply_central_impulse(Vector3.UP * air_jump_force * mass)
+		
+		# VFX: burst ring particles downward, shockwave shader
+		spawn_air_jump_vfx()
+		# SFX: whoosh + boing
 ```
 
 ### 10.2 Glider / Paraglider
@@ -1568,58 +1568,58 @@ var glider_drag_coefficient = 0.3
 var glider_control_authority = 2.0  # pitch/yaw sensitivity while gliding
 
 func process_glider(delta):
-    if not glider_deployed or not airborne:
-        return
-    
-    var air_velocity = linear_velocity
-    var speed = air_velocity.length()
-    var forward = -global_transform.basis.z
-    var up = global_transform.basis.y
-    
-    # Lift: perpendicular to velocity, proportional to speed²
-    var lift_dir = air_velocity.cross(global_transform.basis.x).normalized()
-    if lift_dir.dot(Vector3.UP) < 0:
-        lift_dir = -lift_dir  # always lift upward-ish
-    var lift_force = lift_dir * glider_lift_coefficient * speed * speed * 0.5
-    
-    # Drag: opposite to velocity, proportional to speed²
-    var drag_force = -air_velocity.normalized() * glider_drag_coefficient * speed * speed * 0.5
-    
-    # Reduce gravity while gliding
-    gravity_scale = 0.3  # floaty!
-    
-    apply_central_force(lift_force + drag_force)
-    
-    # Pitch and yaw control
-    var pitch_input = Input.get_axis("accelerate", "brake")
-    var yaw_input = Input.get_axis("steer_left", "steer_right")
-    apply_torque(global_transform.basis * Vector3(
-        pitch_input * glider_control_authority,
-        yaw_input * glider_control_authority * 0.5,
-        -yaw_input * glider_control_authority * 0.3  # slight roll with yaw
-    ))
+	if not glider_deployed or not airborne:
+		return
+	
+	var air_velocity = linear_velocity
+	var speed = air_velocity.length()
+	var forward = -global_transform.basis.z
+	var up = global_transform.basis.y
+	
+	# Lift: perpendicular to velocity, proportional to speed²
+	var lift_dir = air_velocity.cross(global_transform.basis.x).normalized()
+	if lift_dir.dot(Vector3.UP) < 0:
+		lift_dir = -lift_dir  # always lift upward-ish
+	var lift_force = lift_dir * glider_lift_coefficient * speed * speed * 0.5
+	
+	# Drag: opposite to velocity, proportional to speed²
+	var drag_force = -air_velocity.normalized() * glider_drag_coefficient * speed * speed * 0.5
+	
+	# Reduce gravity while gliding
+	gravity_scale = 0.3  # floaty!
+	
+	apply_central_force(lift_force + drag_force)
+	
+	# Pitch and yaw control
+	var pitch_input = Input.get_axis("accelerate", "brake")
+	var yaw_input = Input.get_axis("steer_left", "steer_right")
+	apply_torque(global_transform.basis * Vector3(
+		pitch_input * glider_control_authority,
+		yaw_input * glider_control_authority * 0.5,
+		-yaw_input * glider_control_authority * 0.3  # slight roll with yaw
+	))
 
 func deploy_glider():
-    if airborne and not glider_deployed:
-        glider_deployed = true
-        glider_mesh.visible = true
-        # Animation: glider unfolds with squash-stretch
-        # Sound: fabric whoosh
-        
+	if airborne and not glider_deployed:
+		glider_deployed = true
+		glider_mesh.visible = true
+		# Animation: glider unfolds with squash-stretch
+		# Sound: fabric whoosh
+		
 func retract_glider():
-    glider_deployed = false
-    glider_mesh.visible = false
-    gravity_scale = 1.0
+	glider_deployed = false
+	glider_mesh.visible = false
+	gravity_scale = 1.0
 ```
 
 ### 10.3 Ground Pound (Air → Slam Down)
 
 ```gdscript
 func ground_pound():
-    if airborne:
-        linear_velocity = Vector3(linear_velocity.x * 0.3, -ground_pound_speed, linear_velocity.z * 0.3)
-        retract_glider()
-        # On impact: big shockwave, damages nearby racers, huge bounce
+	if airborne:
+		linear_velocity = Vector3(linear_velocity.x * 0.3, -ground_pound_speed, linear_velocity.z * 0.3)
+		retract_glider()
+		# On impact: big shockwave, damages nearby racers, huge bounce
 ```
 
 ---
@@ -1747,38 +1747,38 @@ Every truck has a visible driver with exaggerated expressions. The driver is the
 
 ```gdscript
 enum DriverExpression {
-    HAPPY,          # normal driving, slight smile
-    GRINNING,       # drifting or boosting — ear-to-ear grin
-    SCREAMING,      # big air, high speed — mouth wide open, arms up
-    TERRIFIED,      # falling, about to crash — eyes huge, gripping wheel
-    DIZZY,          # after 3+ spins — spiral eyes, tongue out
-    ANGRY,          # got hit by item — fist shaking, red face
-    LAUGHING,       # hit someone else with item — pointing and cackling
-    CRYING,         # fell to last place — tears streaming sideways
-    SLEEPING,       # idle for 5+ seconds — snoring with ZZZ bubbles
-    CELEBRATING,    # finished a mega combo — arms in the air, party hat appears
-    COOL,           # wearing sunglasses after a perfect landing
-    SHOCKED,        # someone just passed you — jaw drops to the floor (literally stretches down)
+	HAPPY,          # normal driving, slight smile
+	GRINNING,       # drifting or boosting — ear-to-ear grin
+	SCREAMING,      # big air, high speed — mouth wide open, arms up
+	TERRIFIED,      # falling, about to crash — eyes huge, gripping wheel
+	DIZZY,          # after 3+ spins — spiral eyes, tongue out
+	ANGRY,          # got hit by item — fist shaking, red face
+	LAUGHING,       # hit someone else with item — pointing and cackling
+	CRYING,         # fell to last place — tears streaming sideways
+	SLEEPING,       # idle for 5+ seconds — snoring with ZZZ bubbles
+	CELEBRATING,    # finished a mega combo — arms in the air, party hat appears
+	COOL,           # wearing sunglasses after a perfect landing
+	SHOCKED,        # someone just passed you — jaw drops to the floor (literally stretches down)
 }
 
 var expression_timer: float = 0.0
 var current_expression: DriverExpression = DriverExpression.HAPPY
 
 func update_driver_expression():
-    if airborne and linear_velocity.y > 5.0:
-        set_expression(DriverExpression.SCREAMING, 999.0)  # until landing
-    elif just_got_hit:
-        set_expression(DriverExpression.ANGRY, 3.0)
-    elif just_hit_someone:
-        set_expression(DriverExpression.LAUGHING, 2.5)
-    elif combo_count >= 3:
-        set_expression(DriverExpression.CELEBRATING, 2.0)
-    elif drifting:
-        set_expression(DriverExpression.GRINNING, 0.5)
-    elif position == last_place:
-        set_expression(DriverExpression.CRYING, 999.0)
-    elif idle_time > 5.0:
-        set_expression(DriverExpression.SLEEPING, 999.0)
+	if airborne and linear_velocity.y > 5.0:
+		set_expression(DriverExpression.SCREAMING, 999.0)  # until landing
+	elif just_got_hit:
+		set_expression(DriverExpression.ANGRY, 3.0)
+	elif just_hit_someone:
+		set_expression(DriverExpression.LAUGHING, 2.5)
+	elif combo_count >= 3:
+		set_expression(DriverExpression.CELEBRATING, 2.0)
+	elif drifting:
+		set_expression(DriverExpression.GRINNING, 0.5)
+	elif position == last_place:
+		set_expression(DriverExpression.CRYING, 999.0)
+	elif idle_time > 5.0:
+		set_expression(DriverExpression.SLEEPING, 999.0)
 ```
 
 ### 14.2 Taunt System
@@ -1786,13 +1786,13 @@ func update_driver_expression():
 ```gdscript
 # Player can taunt with a dedicated button. Taunts are silly and harmless.
 var taunt_list = [
-    {"name": "Honk Honk",    "anim": "horn_squeeze",    "sound": "cartoon_honk"},
-    {"name": "Raspberry",    "anim": "tongue_out",      "sound": "pbbbbbt"},
-    {"name": "Victory Dance", "anim": "truck_shimmy",    "sound": "party_horn"},
-    {"name": "Flex",         "anim": "suspension_bounce", "sound": "boing_boing"},
-    {"name": "Clown Horn",   "anim": "horn_bulb",       "sound": "awooga"},
-    {"name": "Spin Wheels",  "anim": "burnout",         "sound": "tire_screech"},
-    {"name": "Bye Bye!",     "anim": "wave",            "sound": "cheerful_bye"},
+	{"name": "Honk Honk",    "anim": "horn_squeeze",    "sound": "cartoon_honk"},
+	{"name": "Raspberry",    "anim": "tongue_out",      "sound": "pbbbbbt"},
+	{"name": "Victory Dance", "anim": "truck_shimmy",    "sound": "party_horn"},
+	{"name": "Flex",         "anim": "suspension_bounce", "sound": "boing_boing"},
+	{"name": "Clown Horn",   "anim": "horn_bulb",       "sound": "awooga"},
+	{"name": "Spin Wheels",  "anim": "burnout",         "sound": "tire_screech"},
+	{"name": "Bye Bye!",     "anim": "wave",            "sound": "cheerful_bye"},
 ]
 
 # Special contextual taunts:
@@ -1808,17 +1808,17 @@ var taunt_list = [
 PODIUM CELEBRATIONS:
 
   1st Place: Confetti cannon, fireworks, truck does donuts, driver crowd-surfs
-             on tiny crowd NPCs, golden trophy descends from sky on a parachute
+			 on tiny crowd NPCs, golden trophy descends from sky on a parachute
 
   2nd Place: Silver confetti, driver claps politely, truck bounces happily,
-             a slightly smaller trophy appears
+			 a slightly smaller trophy appears
 
   3rd Place: Bronze confetti, driver does a thumbs up, truck does a little hop,
-             trophy pops out of a jack-in-the-box
+			 trophy pops out of a jack-in-the-box
 
   Last Place: Sad trombone, truck deflates like a balloon (squash animation),
-              driver pulls a paper bag over their head, a tiny rain cloud
-              appears directly above the truck
+			  driver pulls a paper bag over their head, a tiny rain cloud
+			  appears directly above the truck
 ```
 
 ### 14.4 Race Start Shenanigans
@@ -1851,17 +1851,17 @@ enum ItemRarity { COMMON, UNCOMMON, RARE, LEGENDARY }
 # Last place: powerful offensive + catch-up items (golden mushroom, swap-a-roo, mega horn)
 
 func get_item_from_box(player_position: int, total_racers: int) -> Item:
-    var position_ratio = float(player_position) / float(total_racers)
-    # 0.0 = 1st place, 1.0 = last place
-    
-    if position_ratio < 0.3:  # front of pack
-        return pick_weighted([banana, shield, single_mushroom, stink_bomb])
-    elif position_ratio < 0.7:  # middle
-        return pick_weighted([pie, boxing_glove, rubber_ducky, triple_banana,
-                              sticky_goo, mushroom, tickle_feather])
-    else:  # back of pack (catch-up items!)
-        return pick_weighted([golden_mushroom, giant_anvil, mega_horn,
-                              swap_a_roo, chicken_curse, bubble_trap, giant_banana])
+	var position_ratio = float(player_position) / float(total_racers)
+	# 0.0 = 1st place, 1.0 = last place
+	
+	if position_ratio < 0.3:  # front of pack
+		return pick_weighted([banana, shield, single_mushroom, stink_bomb])
+	elif position_ratio < 0.7:  # middle
+		return pick_weighted([pie, boxing_glove, rubber_ducky, triple_banana,
+							  sticky_goo, mushroom, tickle_feather])
+	else:  # back of pack (catch-up items!)
+		return pick_weighted([golden_mushroom, giant_anvil, mega_horn,
+							  swap_a_roo, chicken_curse, bubble_trap, giant_banana])
 ```
 
 ### 15.2 Complete Item Catalog

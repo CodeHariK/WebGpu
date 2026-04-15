@@ -1,7 +1,5 @@
 [gd_scene format=3 uid="uid://bja4gpy0fyjx6"]
 
-[ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="1_d0u8f"]
-
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ih7r4"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
 ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -20,17 +18,14 @@ albedo_color = Color(0.1640338, 0.07760636, 0.3213228, 1)
 
 [node name="MARCHING_CUBES" type="Node3D" unique_id=1611744576]
 
+[node name="MCCamera" type="MCCamera" parent="." unique_id=1727777838]
+transform = Transform3D(1, 0, 0, 0, 0.64821297, 0.7614591, 0, -0.7614591, 0.64821297, 5.246605, 4.9337234, 13.155472)
+
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=854339463]
 environment = SubResource("Environment_1uetc")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1279058429]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 77.21952, 0)
-
-[node name="Camera_X_Pivot" parent="." unique_id=670858255 instance=ExtResource("1_d0u8f")]
-transform = Transform3D(1, 0, 0, 0, 0.64821297, 0.7614591, 0, -0.7614591, 0.64821297, 5.246605, 4.9337234, 13.155472)
-pan_speed = 0.045
-zoom_speed = 0.985
-orbit_speed = 0.56
 
 [node name="GroundPlane" type="CSGBox3D" parent="." unique_id=2047678999]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)

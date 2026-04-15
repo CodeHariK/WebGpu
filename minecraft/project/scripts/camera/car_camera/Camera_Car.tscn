@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://4ago17lb6gln"]
+[gd_scene format=3 uid="uid://4ago17lb6gln"]
 
 [ext_resource type="Script" uid="uid://dtsty1vomihd6" path="res://scripts/camera/car_camera/camera_car.gd" id="1_6rk2m"]
 
@@ -10,18 +10,18 @@ inner_radius = 2.273
 outer_radius = 2.625
 rings = 6
 
-[node name="Camera_Car" type="Node3D"]
+[node name="Camera_Car" type="Node3D" unique_id=750868839]
 script = ExtResource("1_6rk2m")
 
-[node name="CarCamera3D" type="Camera3D" parent="."]
+[node name="CarCamera3D" type="Camera3D" parent="." unique_id=65287166]
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="CarCamera3D"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CarCamera3D" unique_id=973191758]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -7.4459167)
 visible = false
 mesh = SubResource("BoxMesh_6rk2m")
 skeleton = NodePath("../..")
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="CarCamera3D/MeshInstance3D"]
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="CarCamera3D/MeshInstance3D" unique_id=249336607]
 transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 4.695697)
 mesh = SubResource("TorusMesh_ty7nd")
 skeleton = NodePath("../../..")

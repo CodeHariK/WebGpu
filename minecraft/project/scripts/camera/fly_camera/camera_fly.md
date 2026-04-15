@@ -55,9 +55,9 @@ var current_distance := 6.0
 var rotation_velocity := Vector2.ZERO
 
 func _physics_process(delta):
-    _apply_input(delta)           # read mouse + gamepad into desired values
-    _resolve_collision(delta)     # raycast from target/pivot to desired camera pos
-    _apply_smoothing(delta)       # smooth position & rotation (lerp / damp)
+	_apply_input(delta)           # read mouse + gamepad into desired values
+	_resolve_collision(delta)     # raycast from target/pivot to desired camera pos
+	_apply_smoothing(delta)       # smooth position & rotation (lerp / damp)
 ```
 - Use PhysicsDirectSpaceState.intersect_ray to clamp `desired_distance` and then smooth `current_distance = lerp(current_distance, desired_distance, 1 - exp(-smooth_speed * delta))`.
 - Smooth rotation with slerp/quaternion or exponential smoothing; move heavy logic from _input to _process/_physics_process for consistent behavior.
@@ -86,4 +86,3 @@ Tell me which of these to do now and I’ll update `camera_fly.gd` with a focuse
 - Smooth follow + damping  
 - Controller & input polish  
 - Full cinematic state machine
-
