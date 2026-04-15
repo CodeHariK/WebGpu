@@ -18,9 +18,6 @@ glow_enabled = true
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lrsvk"]
 albedo_color = Color(0.1640338, 0.07760636, 0.3213228, 1)
 
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_lrsvk"]
-frequency = 0.0418
-
 [node name="MARCHING_CUBES" type="Node3D" unique_id=1611744576]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=854339463]
@@ -41,14 +38,13 @@ use_collision = true
 size = Vector3(100, 1, 100)
 material = SubResource("StandardMaterial3D_lrsvk")
 
-[node name="MCTerrain" type="MCTerrain" parent="." unique_id=139198405]
-terrain_size = Vector3i(2, 2, 2)
+[node name="MCGrid" type="MCGrid" parent="." unique_id=139198405]
+grid_size = Vector3i(2, 2, 2)
 chunk_size = Vector3i(4, 3, 4)
-noise = SubResource("FastNoiseLite_lrsvk")
 
 [node name="MCManager" type="MCManager" parent="." unique_id=387674285]
 mc_node_path = NodePath("../MCNode")
-terrain_path = NodePath("../MCTerrain")
+terrain_path = NodePath("../MCGrid")
 
 [node name="MCNode" type="MCNode" parent="." unique_id=430891780]
 mesh_library_path = "res://assets/MarchingCubesMerged.glb"

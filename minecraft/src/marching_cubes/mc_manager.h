@@ -11,7 +11,7 @@
 namespace godot {
 
 class MCNode;
-class MCTerrain;
+class MCGrid;
 class CUI;
 class VBoxContainer;
 class Panel;
@@ -56,11 +56,8 @@ private:
 	MCUI ui;
 	TerrainStats terrain;
 	PerfStats perf;
-	Node3D *hover_root = nullptr;
-	MeshInstance3D *hover_quads[3] = { nullptr, nullptr, nullptr };
 	MeshInstance3D *hover_box_node = nullptr; // For AxBxC preview
 	Ref<StandardMaterial3D> hover_mat_yellow;
-	Ref<StandardMaterial3D> hover_mat_white;
 	Ref<StandardMaterial3D> hover_mat_red;
 	Ref<StandardMaterial3D> hover_mat_cyan; // For multi-selection
 
@@ -123,7 +120,6 @@ public:
 	void cancel_drag();
 	void _on_save_terrain();
 	void _on_load_terrain();
-	void _update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_hit_normal, Camera3D *p_camera);
 	void _initialize_previews();
 	void _update_hover_box(const Vector3i &p_grid_pos, bool p_is_blocked);
 	void _update_hover_raycast();

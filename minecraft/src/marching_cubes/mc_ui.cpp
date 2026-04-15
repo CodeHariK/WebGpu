@@ -1,11 +1,11 @@
-#include "marching_cubes/mc.h"
-#include "marching_cubes/terrain.h"
-#include "marching_cubes/mc_manager.h"
+#include "mc.h"
+#include "mc_grid.h"
+#include "mc_manager.h"
+#include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
-#include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/classes/performance.hpp>
-#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/viewport.hpp>
 
 #include <godot_cpp/classes/accept_dialog.hpp>
 #include <godot_cpp/classes/button.hpp>
@@ -83,17 +83,15 @@ void MCManager::setup_ui() {
 	ui.manager->add_label(ui.stats_vbox, "--- DIAGNOSTICS ---");
 	Button *diag_btn = ui.manager->add_button(ui.stats_vbox, "Toggle Collision Debug", Callable(this, "_on_toggle_collision_debug"));
 	diag_btn->set_custom_minimum_size(Vector2(0, 30));
-	
+
 	Button *vis_btn = ui.manager->add_button(ui.stats_vbox, "Toggle Visual Corners", Callable(this, "_on_toggle_visual_corners"));
 	vis_btn->set_custom_minimum_size(Vector2(0, 30));
-	
+
 	ui.manager->add_label(ui.stats_vbox, "--- TERRAIN STATS ---");
 	terrain.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
 
 	ui.manager->add_label(ui.stats_vbox, "--- HASH INSPECTION ---");
 	ui.hash_label = ui.manager->add_label(ui.stats_vbox, "Hash: N/A\nPos: (0, 0, 0)");
-
-
 
 	Button *save_btn = ui.manager->add_button(ui.stats_vbox, "Save State", Callable(this, "_on_save_terrain"));
 	save_btn->set_custom_minimum_size(Vector2(0, 30));
@@ -113,7 +111,7 @@ void MCManager::setup_ui() {
 void MCManager::_on_toggle_placement_mode() {
 	cancel_drag(); // Finalize/Revert any active drag before switching modes
 
-	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 
 	// Cycle through modes: Terrain -> Place Object -> Drag Object
 	if (interaction_mode == MODE_TERRAIN) {
@@ -125,11 +123,13 @@ void MCManager::_on_toggle_placement_mode() {
 	}
 
 	String mode_name = "Terrain";
-	if (interaction_mode == MODE_PLACE_OBJECT) mode_name = "Place Object";
-	else if (interaction_mode == MODE_DRAG_OBJECT) mode_name = "Drag Object";
+	if (interaction_mode == MODE_PLACE_OBJECT)
+		mode_name = "Place Object";
+	else if (interaction_mode == MODE_DRAG_OBJECT)
+		mode_name = "Drag Object";
 
 	UtilityFunctions::print("MCManager: Interaction mode toggled to ", mode_name);
-	
+
 	// Update button text
 	if (ui.stats_vbox) {
 		Button *btn = Object::cast_to<Button>(ui.stats_vbox->get_node_or_null("PlacementModeButton"));
@@ -170,18 +170,23 @@ void MCManager::update_ui() {
 		return;
 
 	Performance *perf_singleton = Performance::get_singleton();
-	
-	if (perf.fps_label) perf.fps_label->set_text("FPS: " + String::num(perf_singleton->get_monitor(Performance::TIME_FPS), 1));
-	if (perf.draw_calls_label) perf.draw_calls_label->set_text("Draw Calls: " + String::num_int64((int64_t)perf_singleton->get_monitor(Performance::RENDER_TOTAL_DRAW_CALLS_IN_FRAME)));
-	if (perf.meshes_label) perf.meshes_label->set_text("Engine Objects: " + String::num_int64((int64_t)perf_singleton->get_monitor(Performance::RENDER_TOTAL_OBJECTS_IN_FRAME)));
-	if (perf.collision_label) perf.collision_label->set_text("Collision Pairs: " + String::num_int64((int64_t)perf_singleton->get_monitor(Performance::PHYSICS_3D_COLLISION_PAIRS)));
-	if (perf.memory_label) perf.memory_label->set_text("Static Memory: " + String::num(perf_singleton->get_monitor(Performance::MEMORY_STATIC) / 1024.0 / 1024.0, 2) + " MB");
 
-	MCTerrain *terrain_node = Object::cast_to<MCTerrain>(get_node_or_null(terrain.path));
+	if (perf.fps_label)
+		perf.fps_label->set_text("FPS: " + String::num(perf_singleton->get_monitor(Performance::TIME_FPS), 1));
+	if (perf.draw_calls_label)
+		perf.draw_calls_label->set_text("Draw Calls: " + String::num_int64((int64_t)perf_singleton->get_monitor(Performance::RENDER_TOTAL_DRAW_CALLS_IN_FRAME)));
+	if (perf.meshes_label)
+		perf.meshes_label->set_text("Engine Objects: " + String::num_int64((int64_t)perf_singleton->get_monitor(Performance::RENDER_TOTAL_OBJECTS_IN_FRAME)));
+	if (perf.collision_label)
+		perf.collision_label->set_text("Collision Pairs: " + String::num_int64((int64_t)perf_singleton->get_monitor(Performance::PHYSICS_3D_COLLISION_PAIRS)));
+	if (perf.memory_label)
+		perf.memory_label->set_text("Static Memory: " + String::num(perf_singleton->get_monitor(Performance::MEMORY_STATIC) / 1024.0 / 1024.0, 2) + " MB");
+
+	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (terrain_node && terrain.stats_label) {
-		terrain.stats_label->set_text("MC Meshes: " + String::num_int64(terrain_node->get_total_mc_meshes()) + 
-								 "\nMC Cells: " + String::num_int64(terrain_node->get_total_cells()) +
-								 "\nDebug Corners: " + String::num_int64(terrain_node->get_total_debug_corners()));
+		terrain.stats_label->set_text("MC Meshes: " + String::num_int64(terrain_node->get_total_mc_meshes()) +
+				"\nMC Cells: " + String::num_int64(terrain_node->get_total_cells()) +
+				"\nDebug Corners: " + String::num_int64(terrain_node->get_total_debug_corners()));
 	}
 
 	if (ui.hash_label) {
@@ -190,7 +195,7 @@ void MCManager::update_ui() {
 			String bin = MCNode::hash_to_binary(h);
 			Vector3 display_pos = Vector3(locked_grid_pos);
 			ui.hash_label->set_text("Hash: " + bin + " (" + String::num_int64(h) + ")" +
-									 "\nPos: " + String(display_pos));
+					"\nPos: " + String(display_pos));
 		} else {
 			ui.hash_label->set_text("Hash: N/A\nPos: N/A");
 		}
@@ -220,7 +225,8 @@ void MCManager::update_ui() {
 				int count = counts.has(base_name) ? (int)counts[base_name] : 0;
 				int bit_count = 0;
 				for (int i = 0; i < 8; i++) {
-					if ((base_h >> i) & 1) bit_count++;
+					if ((base_h >> i) & 1)
+						bit_count++;
 				}
 				ui.manager->add_label(ui.variant_stats_vbox, String::num_int64(bit_count) + " : " + base_name + " : " + String::num_int64(count));
 			}
@@ -228,6 +234,5 @@ void MCManager::update_ui() {
 		}
 	}
 }
-
 
 } //namespace godot
