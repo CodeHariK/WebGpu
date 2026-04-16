@@ -15,32 +15,6 @@
 
 namespace godot {
 
-void MCCamera::SpringState::step(float p_delta, float p_frequency, float p_damping, float p_response) {
-	if (p_delta <= 0.0f) return;
-
-	float k1 = p_damping / (Math_PI * p_frequency);
-	float k2 = 1.0f / (pow(2.0f * Math_PI * p_frequency, 2.0f));
-	float k3 = p_response * p_damping / (2.0f * Math_PI * p_frequency);
-
-	// Estimate velocity
-	Vector3 x_prime = (target - current) / p_delta; // This is a simplification; for better results, track prev target
-
-	current += velocity * p_delta;
-	velocity += p_delta * (target + k3 * x_prime - current - k1 * velocity) / k2;
-}
-
-void MCCamera::FloatSpring::step(float p_delta, float p_frequency, float p_damping, float p_response) {
-	if (p_delta <= 0.0f) return;
-
-	float k1 = p_damping / (Math_PI * p_frequency);
-	float k2 = 1.0f / (pow(2.0f * Math_PI * p_frequency, 2.0f));
-	float k3 = p_response * p_damping / (2.0f * Math_PI * p_frequency);
-
-	float x_prime = (target - current) / p_delta;
-
-	current += velocity * p_delta;
-	velocity += p_delta * (target + k3 * x_prime - current - k1 * velocity) / k2;
-}
 
 void MCCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &MCCamera::set_mode);
@@ -91,17 +65,10 @@ void MCCamera::_ready() {
 	_update_follow_node();
 
 	// Initialize springs to current state
-	pos_spring.current = get_global_position();
-	pos_spring.target = pos_spring.current;
-
-	yaw_spring.current = get_rotation().y;
-	yaw_spring.target = yaw_spring.current;
-
-	pitch_spring.current = get_rotation().x;
-	pitch_spring.target = pitch_spring.current;
-
-	dist_spring.current = target_distance;
-	dist_spring.target = target_distance;
+	pos_spring.reset(get_global_position());
+	yaw_spring.reset(get_rotation().y);
+	pitch_spring.reset(get_rotation().x);
+	dist_spring.reset(target_distance);
 }
 
 void MCCamera::_physics_process(double p_delta) {
