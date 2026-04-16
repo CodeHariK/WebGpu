@@ -6,6 +6,7 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/node_path.hpp>
 #include <godot_cpp/variant/vector3.hpp>
+#include "../utils/spring_dynamics.h"
 
 namespace godot {
 
@@ -20,21 +21,6 @@ public:
 		MODE_ORBIT
 	};
 
-	struct SpringState {
-		Vector3 current;
-		Vector3 velocity;
-		Vector3 target;
-
-		void step(float p_delta, float p_frequency, float p_damping, float p_response);
-	};
-
-	struct FloatSpring {
-		float current = 0.0f;
-		float velocity = 0.0f;
-		float target = 0.0f;
-
-		void step(float p_delta, float p_frequency, float p_damping, float p_response);
-	};
 
 private:
 	// Mode & Targeting
@@ -52,10 +38,10 @@ private:
 	float response = 0.0f;
 
 	// States for smoothing
-	SpringState pos_spring;
-	FloatSpring dist_spring;
-	FloatSpring yaw_spring;
-	FloatSpring pitch_spring;
+	SpringDynamics<Vector3> pos_spring;
+	SpringDynamics<float> dist_spring;
+	SpringDynamics<float> yaw_spring;
+	SpringDynamics<float> pitch_spring;
 
 	// Interaction / Orbit
 	float target_distance = 10.0f;
