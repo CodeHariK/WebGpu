@@ -1,23 +1,149 @@
-[gd_scene format=3 uid="uid://davrfhlxg2n4w"]
+[gd_scene format=3 uid="uid://7tydct12v868"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_60gta"]
-sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
-ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+[ext_resource type="PackedScene" uid="uid://dgc80t2uwu4cb" path="res://assets/vehicle_env/ramp.glb" id="2_1dqdu"]
+[ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="2_mxckk"]
 
-[sub_resource type="Sky" id="Sky_g837f"]
-sky_material = SubResource("ProceduralSkyMaterial_60gta")
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_8x1io"]
+sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
+ground_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
 
-[sub_resource type="Environment" id="Environment_mxckk"]
+[sub_resource type="Sky" id="Sky_kkwn3"]
+sky_material = SubResource("ProceduralSkyMaterial_8x1io")
+
+[sub_resource type="Environment" id="Environment_rafu7"]
 background_mode = 2
-sky = SubResource("Sky_g837f")
+sky = SubResource("Sky_kkwn3")
 tonemap_mode = 2
 glow_enabled = true
 
-[node name="Octocar" type="Node3D" unique_id=754027011]
+[sub_resource type="WheelConfig" id="WheelConfig_1dqdu"]
+hardpoint_offset = Vector3(1, 0, 1.5)
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1369913697]
-environment = SubResource("Environment_mxckk")
+[sub_resource type="WheelConfig" id="WheelConfig_4kplg"]
+hardpoint_offset = Vector3(-1, 0, 1.5)
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=104549916]
-transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+[sub_resource type="WheelConfig" id="WheelConfig_nxv8y"]
+hardpoint_offset = Vector3(1, 0, -1.5)
+
+[sub_resource type="WheelConfig" id="WheelConfig_ogdk4"]
+hardpoint_offset = Vector3(-1, 0, -1.5)
+
+[sub_resource type="VehicleConfig" id="VehicleConfig_3f0it"]
+max_accel_force = 16000.0
+wheel_configs = Array[WheelConfig]([SubResource("WheelConfig_1dqdu"), SubResource("WheelConfig_4kplg"), SubResource("WheelConfig_nxv8y"), SubResource("WheelConfig_ogdk4")])
+
+[sub_resource type="PhysicsMaterial" id="PhysicsMaterial_rafu7"]
+
+[sub_resource type="Curve3D" id="Curve3D_rafu7"]
+closed = true
+_data = {
+"points": PackedVector3Array(-31.300629, 0, 32.35571, 31.300629, 0, -32.35571, -22.33019, 0, -28.7138, -43.25818, 0, 31.65232, 43.25818, 0, -31.65232, -47.652054, 0, -69.51013, -27.432022, 0, -28.838783, 27.432022, 0, 28.838783, 59.965843, 0, -71.97198, -24.2668, 0, -24.970163, 24.2668, 0, 24.970163, 68.75814, 0, -18.163027, 20.749847, 0, -20.398151, -20.749847, 0, 20.398151, 69.46154, 0, 71.51854, 22.508316, 0, 5.2753906, -22.508316, 0, -5.2753906, -16.703115, 0, 78.20071, 10.199081, 0, 40.796333, -10.199081, 0, -40.796333, -63.126526, 0, 13.840981),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0)
+}
+point_count = 7
+
+[node name="Vehicle" type="Node3D" unique_id=42757262]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=277216433]
+environment = SubResource("Environment_rafu7")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=380239171]
+transform = Transform3D(-0.866025, -0.480631, 0.137819, 0, 0.275637, 0.961262, -0.5, 0.832477, -0.238709, 0, 0, 0)
+light_energy = 0.25
 shadow_enabled = true
+
+[node name="CarRigidBody3D" type="ArcadeVehicle" parent="." unique_id=451100269]
+config = SubResource("VehicleConfig_3f0it")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.23, 9.576)
+physics_material_override = SubResource("PhysicsMaterial_rafu7")
+
+[node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=555641220]
+use_collision = true
+size = Vector3(1000, 1, 1000)
+material = ExtResource("2_mxckk")
+
+[node name="CSGCylinder3D2" type="CSGCylinder3D" parent="CSGBox3D" unique_id=586875202]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -25.010454)
+use_collision = true
+radius = 0.548
+height = 21.6875
+
+[node name="CSGCylinder3D3" type="CSGCylinder3D" parent="CSGBox3D" unique_id=1151633904]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -28.348787)
+use_collision = true
+radius = 0.548
+height = 21.6875
+
+[node name="CSGCylinder3D4" type="CSGCylinder3D" parent="CSGBox3D" unique_id=782860183]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -32.0292)
+use_collision = true
+radius = 0.548
+height = 21.6875
+
+[node name="CSGCylinder3D5" type="CSGCylinder3D" parent="CSGBox3D" unique_id=129290321]
+transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 42.79835, 0.3488059, -35.537086)
+use_collision = true
+radius = 0.548
+height = 21.6875
+
+[node name="CSGBox3D6" type="CSGBox3D" parent="CSGBox3D" unique_id=1581271548]
+transform = Transform3D(1, 0, 0, 0, 0.96814764, -0.25038, 0, 0.25038, 0.96814764, 10.887694, 1.9056063, -7.0338497)
+use_collision = true
+size = Vector3(18.671509, 1, 31.149704)
+
+[node name="CSGCylinder3D" type="CSGCylinder3D" parent="CSGBox3D" unique_id=805996741]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.131958, 11.269211, -53.630283)
+use_collision = true
+radius = 6.011
+height = 34.756
+
+[node name="CSGBox3D2" type="CSGBox3D" parent="CSGBox3D" unique_id=1012352653]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6711769, 8.674805, 499.26956)
+use_collision = true
+size = Vector3(1111, 20, 1)
+
+[node name="CSGBox3D4" type="CSGBox3D" parent="CSGBox3D" unique_id=981062904]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 489.20087, 6.7751884, 3.9732132)
+use_collision = true
+size = Vector3(1111, 20, 1)
+
+[node name="CSGBox3D3" type="CSGBox3D" parent="CSGBox3D" unique_id=1369420351]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, -495.93942, 8.824875, 0.81622696)
+use_collision = true
+size = Vector3(1111, 20, 1)
+
+[node name="CSGBox3D5" type="CSGBox3D" parent="CSGBox3D" unique_id=1174621346]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.99295425, 8.674805, -499.03317)
+use_collision = true
+size = Vector3(1111, 20, 1)
+
+[node name="CSGPolygon3D" type="CSGPolygon3D" parent="CSGBox3D" unique_id=2054379186]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.619602, -10.454519, 0)
+use_collision = true
+polygon = PackedVector2Array(0, 2, 5, 4, 10, 2, 10, 0, 0, 0)
+mode = 2
+path_node = NodePath("../Path3D")
+path_interval_type = 0
+path_interval = 1.0
+path_simplify_angle = 0.0
+path_rotation = 2
+path_rotation_accurate = false
+path_local = false
+path_continuous_u = true
+path_u_distance = 1.0
+path_joined = false
+
+[node name="Path3D" type="Path3D" parent="CSGBox3D" unique_id=1278453140]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.994751, 0)
+curve = SubResource("Curve3D_rafu7")
+
+[node name="MCCamera" type="MCCamera" parent="." unique_id=2019730342]
+mode = 1
+follow_target_path = NodePath("../CarRigidBody3D")
+transform = Transform3D(1, 0, 0, 0, 0.8347999, 0.55055356, 0, -0.55055356, 0.8347999, 0, 7.7511787, 15.159767)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=492701466]
+transform = Transform3D(-5.5960283, 0, 10.7958355, 0, 12.16, 0, -10.7958355, 0, -5.5960283, 52.2871, 0.09, 20.524)
+skeleton = NodePath("../CarRigidBody3D")
+
+[node name="Sketchfab_Scene" parent="MeshInstance3D" unique_id=477593070 instance=ExtResource("2_1dqdu")]

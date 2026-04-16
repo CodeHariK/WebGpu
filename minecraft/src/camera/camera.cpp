@@ -10,6 +10,7 @@
 #include <godot_cpp/classes/world3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include "../utils/raycast/mc_raycast.h"
 
 #include <cmath>
 
@@ -82,6 +83,23 @@ void MCCamera::_physics_process(double p_delta) {
 	}
 
 	// 2. Handle Rotation (Inputs modify yaw/pitch targets)
+	if (mode == MODE_CAR && follow_target_node) {
+		bool is_mmb = Input::get_singleton()->is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE);
+		if (!is_mmb) {
+			// Auto-Chase: align with target's rotation perfectly
+			float target_yaw = follow_target_node->get_global_rotation().y;
+			float target_pitch = -0.15f; // Slightly overhead look
+
+			// Handle angle wrapping for smooth interpolation
+			float diff = target_yaw - yaw;
+			while (diff > Math_PI) diff -= Math_TAU;
+			while (diff < -Math_PI) diff += Math_TAU;
+			yaw += diff; // Update the persistent 'yaw' state so manual orbit starts from here
+
+			pitch = target_pitch;
+		}
+	}
+
 	yaw_spring.target = yaw;
 	pitch_spring.target = pitch;
 
@@ -185,27 +203,15 @@ Vector3 MCCamera::_calculate_ideal_position() {
 }
 
 float MCCamera::_solve_collision(const Vector3 &p_from, const Vector3 &p_to) {
-	Ref<World3D> world = get_world_3d();
-	if (world.is_null()) return target_distance;
-
-	PhysicsDirectSpaceState3D *space = world->get_direct_space_state();
-	if (!space) return target_distance;
-
-	Ref<PhysicsRayQueryParameters3D> query = PhysicsRayQueryParameters3D::create(p_from, p_to, collision_mask);
-	
-	// Exclude the target itself if it has collision
 	TypedArray<RID> exclude;
 	if (follow_target_node) {
-		// Check for collision object
 		CollisionObject3D *co = Object::cast_to<CollisionObject3D>(follow_target_node);
 		if (co) exclude.push_back(co->get_rid());
 	}
-	query->set_exclude(exclude);
 
-	Dictionary result = space->intersect_ray(query);
-	if (!result.is_empty()) {
-		Vector3 hit_pos = result["position"];
-		float hit_dist = p_from.distance_to(hit_pos);
+	MCRaycastHit hit = raycast_3d(this, p_from, p_to, collision_mask, exclude);
+	if (hit.is_hit) {
+		float hit_dist = p_from.distance_to(hit.position);
 		return MAX(min_distance, hit_dist - collision_margin);
 	}
 

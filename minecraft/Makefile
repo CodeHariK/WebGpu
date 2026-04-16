@@ -47,3 +47,6 @@ clean:
 
 run_mc:
 	$(GODOT) --path project/ --scene scene/MarchingCubes/MARCHING_CUBES.tscn
+
+run_octo:
+	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn
