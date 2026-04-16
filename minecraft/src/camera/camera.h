@@ -1,12 +1,12 @@
 #ifndef MCCAMERA_H
 #define MCCAMERA_H
 
+#include "../utils/spring/spring_dynamics.h"
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/node_path.hpp>
 #include <godot_cpp/variant/vector3.hpp>
-#include "../utils/spring_dynamics.h"
 
 namespace godot {
 
@@ -20,7 +20,6 @@ public:
 		MODE_CHARACTER,
 		MODE_ORBIT
 	};
-
 
 private:
 	// Mode & Targeting
