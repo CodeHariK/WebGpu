@@ -21,32 +21,18 @@ void CharGroundedState::physics_update(float delta) {
 		return;
 	}
 
-	// Handle Jump input (Space)
-	Input *input = Input::get_singleton();
-	GameManager *gm = GameManager::get_singleton();
+	// Handle Jump input (Space) via ActionState
+	if (!character->get_player_input()) return;
 
-	if (gm && gm->get_active_target() != character) {
-		character->input_dir = Vector3();
-		return;
-	}
+	const ActionState &state = character->get_player_input()->get_state();
 
-	if (input->is_physical_key_pressed(KEY_SPACE)) {
+	if (state.jump_just_pressed) {
 		character->change_state(character->jump_state);
 		return;
 	}
 
-	// Basic Horizontal Movement Input (Raw Physical Keys)
-	Vector3 raw_input;
-	if (input->is_physical_key_pressed(KEY_W))
-		raw_input.z -= 1.0f;
-	if (input->is_physical_key_pressed(KEY_S))
-		raw_input.z += 1.0f;
-	if (input->is_physical_key_pressed(KEY_A))
-		raw_input.x -= 1.0f;
-	if (input->is_physical_key_pressed(KEY_D))
-		raw_input.x += 1.0f;
-
-	character->input_dir = raw_input.normalized();
+	// Basic Horizontal Movement Input (ActionState Axis)
+	character->input_dir = Vector3(state.move_axis.x, 0, state.move_axis.y);
 
 	// State transition logic based on input
 	if (character->input_dir.length() > 0.01f) {
@@ -72,32 +58,18 @@ void CharAirborneState::physics_update(float delta) {
 		return;
 	}
 
-	// Air Control input (Raw Physical Keys)
-	Input *input = Input::get_singleton();
-	GameManager *gm = GameManager::get_singleton();
+	// Dropkick and Move input via ActionState
+	if (!character->get_player_input()) return;
 
-	if (gm && gm->get_active_target() != character) {
-		character->input_dir = Vector3();
-		return;
-	}
+	const ActionState &state = character->get_player_input()->get_state();
 
 	// Trigger Dropkick
-	if (input->is_mouse_button_pressed(MOUSE_BUTTON_LEFT)) {
+	if (state.kick_just_pressed) {
 		character->change_state(character->dropkick_state);
 		return;
 	}
 
-	Vector3 raw_input;
-	if (input->is_physical_key_pressed(KEY_W))
-		raw_input.z -= 1.0f;
-	if (input->is_physical_key_pressed(KEY_S))
-		raw_input.z += 1.0f;
-	if (input->is_physical_key_pressed(KEY_A))
-		raw_input.x -= 1.0f;
-	if (input->is_physical_key_pressed(KEY_D))
-		raw_input.x += 1.0f;
-
-	character->input_dir = raw_input.normalized();
+	character->input_dir = Vector3(state.move_axis.x, 0, state.move_axis.y);
 }
 
 // --- IDLE STATE ---
@@ -160,7 +132,7 @@ void CharDropkickState::enter() {
 	if (!character)
 		return;
 
-	GameManager *gm = GameManager::get_singleton();
+	GameManager *gm = character->get_game_manager();
 	if (!gm || !gm->get_camera()) {
 		has_target = false;
 		character->change_state(character->fall_state);

@@ -7,7 +7,8 @@
 #include <godot_cpp/variant/vector3.hpp>
 
 namespace godot {
-
+ 
+class GameManager;
 class CharacterState;
 class CharGroundedState;
 class CharAirborneState;
@@ -16,6 +17,7 @@ class CharMoveState;
 class CharJumpState;
 class CharFallState;
 class CharDropkickState;
+class PlayerInput;
 
 /**
  * A responsive physics-based character controller using a floating capsule approach.
@@ -24,6 +26,8 @@ class PhysicsCharacter3D : public RigidBody3D {
 	GDCLASS(PhysicsCharacter3D, RigidBody3D)
 
 private:
+	GameManager *game_manager = nullptr;
+	PlayerInput *player_input = nullptr;
 	// Configuration (Exposed to Godot)
 	float ride_height = 1.0f;         // Distance from center to ground
 	float spring_stiffness = 600.0f; // PD controller stiffness
@@ -105,6 +109,11 @@ public:
 
 	void set_kick_impact_force(float p_val) { kick_impact_force = p_val; }
 	float get_kick_impact_force() const { return kick_impact_force; }
+
+	void set_game_manager(GameManager *p_gm) { game_manager = p_gm; }
+	GameManager *get_game_manager() const { return game_manager; }
+	void set_player_input(PlayerInput *p_input) { player_input = p_input; }
+	PlayerInput *get_player_input() const { return player_input; }
 };
 
 } // namespace godot

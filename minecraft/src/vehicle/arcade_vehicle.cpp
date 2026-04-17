@@ -1,5 +1,6 @@
 #include "arcade_vehicle.h"
 #include "../game_manager/game_manager.h"
+#include "../game_manager/player_input.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "ai/vehicle_states.h"
 #include "godot_cpp/classes/csg_box3d.hpp"
@@ -250,11 +251,10 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	}
 
 	// Trigger stunt
-	Input *input = Input::get_singleton();
-	GameManager *gm = GameManager::get_singleton();
-	bool is_active = (gm && gm->get_active_target() == this);
+	bool is_active = (game_manager && game_manager->get_active_target() == this);
+	const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
 
-	if (is_active && is_on_ramp && input->is_physical_key_pressed(KEY_SPACE) && forward_speed > 10.0f) {
+	if (is_active && is_on_ramp && input_state && input_state->jump && forward_speed > 10.0f) {
 		stunt_requested = true;
 	}
 
@@ -296,24 +296,19 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 }
 
 void ArcadeVehicle::_process_inputs() {
-	Input *input = Input::get_singleton();
-	GameManager *gm = GameManager::get_singleton();
+	bool is_active = (game_manager && game_manager->get_active_target() == this);
+	const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
 
-	if (gm && gm->get_active_target() != this) {
+	if (is_active && input_state) {
+		current_input.throttle = input_state->throttle;
+		current_input.brake = input_state->brake;
+		current_input.steer = input_state->steering;
+	} else {
+		// Zero out inputs if not active
 		current_input.throttle = 0.0f;
 		current_input.brake = 0.0f;
 		current_input.steer = 0.0f;
-		return;
 	}
-
-	current_input.throttle = input->is_physical_key_pressed(KEY_W) ? 1.0f : 0.0f;
-	current_input.brake = input->is_physical_key_pressed(KEY_S) ? 1.0f : 0.0f;
-
-	current_input.steer = 0.0f;
-	if (input->is_physical_key_pressed(KEY_A))
-		current_input.steer += 1.0f;
-	if (input->is_physical_key_pressed(KEY_D))
-		current_input.steer -= 1.0f;
 }
 
 void ArcadeVehicle::_apply_acceleration(float delta) {

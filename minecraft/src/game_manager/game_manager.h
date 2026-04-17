@@ -5,6 +5,7 @@
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/variant/string.hpp>
+#include "player_input.h"
 
 namespace godot {
 
@@ -12,6 +13,7 @@ class MCManager;
 class ArcadeVehicle;
 class PhysicsCharacter3D;
 class MCCamera;
+class PlayerInput;
 
 class GameManager : public Node {
 	GDCLASS(GameManager, Node)
@@ -23,6 +25,7 @@ private:
 	MCManager *mc_manager = nullptr;
 
 	MCCamera *main_camera = nullptr;
+	PlayerInput *player_input = nullptr;
 
 	ArcadeVehicle *vehicle = nullptr;
 	PhysicsCharacter3D *character = nullptr;
@@ -53,9 +56,12 @@ public:
 	void register_camera(MCCamera *p_camera);
 	MCCamera *get_camera() const;
 
+	PlayerInput *get_player_input() const { return player_input; }
+
 	void set_active_target(Node *p_target);
 	Node *get_active_target() const;
 
+	void _physics_process(double delta) override;
 	void _input(const Ref<InputEvent> &p_event) override;
 
 	// Global Persistence logic

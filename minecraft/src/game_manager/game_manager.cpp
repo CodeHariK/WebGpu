@@ -31,9 +31,14 @@ GameManager::GameManager() {
 	if (singleton == nullptr) {
 		singleton = this;
 	}
+	player_input = memnew(PlayerInput);
 }
 
 GameManager::~GameManager() {
+	if (player_input) {
+		memdelete(player_input);
+		player_input = nullptr;
+	}
 	if (singleton == this) {
 		singleton = nullptr;
 	}
@@ -71,6 +76,12 @@ MCManager *GameManager::get_mc_manager() const {
 
 void GameManager::register_vehicle(ArcadeVehicle *p_vehicle) {
 	vehicle = p_vehicle;
+	if (vehicle) {
+		vehicle->set_game_manager(this);
+		if (player_input) {
+			vehicle->set_player_input(player_input);
+		}
+	}
 	UtilityFunctions::print("GameManager: Registered ArcadeVehicle.");
 }
 
@@ -80,6 +91,12 @@ ArcadeVehicle *GameManager::get_vehicle() const {
 
 void GameManager::register_character(PhysicsCharacter3D *p_character) {
 	character = p_character;
+	if (character) {
+		character->set_game_manager(this);
+		if (player_input) {
+			character->set_player_input(player_input);
+		}
+	}
 	UtilityFunctions::print("GameManager: Registered PhysicsCharacter3D.");
 	if (active_target == nullptr) {
 		set_active_target(character);
@@ -124,17 +141,21 @@ Node *GameManager::get_active_target() const {
 	return active_target;
 }
 
-void GameManager::_input(const Ref<InputEvent> &p_event) {
-	// Simple TAB toggle for testing
-	Ref<InputEventKey> key = p_event;
-	if (key.is_valid() && key->is_pressed() && !key->is_echo()) {
-		if (key->get_keycode() == KEY_TAB) {
+void GameManager::_physics_process(double delta) {
+	if (Engine::get_singleton()->is_editor_hint())
+		return;
+
+	if (player_input) {
+		player_input->update();
+
+		// Handle target switching (TAB) via Action State
+		const ActionState &state = player_input->get_state();
+		if (state.swap_target_just_pressed) {
 			if (active_target == character && vehicle != nullptr) {
 				set_active_target(vehicle);
 			} else if (active_target == vehicle && character != nullptr) {
 				set_active_target(character);
 			} else if (active_target == nullptr) {
-				// Fallback
 				if (character)
 					set_active_target(character);
 				else if (vehicle)
@@ -142,6 +163,9 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 			}
 		}
 	}
+}
+
+void GameManager::_input(const Ref<InputEvent> &p_event) {
 }
 
 void GameManager::save_game(const String &p_slot_name) {
