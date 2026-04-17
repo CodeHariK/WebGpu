@@ -1,4 +1,5 @@
 #include "camera.h"
+#include "../game_manager/game_manager.h"
 
 #include "../utils/raycast/mc_raycast.h"
 #include <godot_cpp/classes/collision_object3d.hpp>
@@ -85,6 +86,11 @@ void MCCamera::_ready() {
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
 	_update_follow_node();
+
+	GameManager *gm = GameManager::get_singleton();
+	if (gm) {
+		gm->register_camera(this);
+	}
 
 	// Initialize springs to current state
 	pos_spring.reset(get_global_position());
@@ -342,5 +348,14 @@ void MCCamera::set_follow_offset(const Vector3 &p_offset) {
 }
 
 NodePath MCCamera::get_follow_target_path() const { return follow_target_path; }
+
+void MCCamera::set_follow_target_node(Node3D *p_node) {
+	follow_target_node = p_node;
+	if (follow_target_node) {
+		follow_target_path = follow_target_node->get_path();
+	} else {
+		follow_target_path = NodePath();
+	}
+}
 
 } // namespace godot

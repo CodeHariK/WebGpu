@@ -1,4 +1,4 @@
-#include "arcade_vehicle.h"
+#include "../arcade_vehicle.h"
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {

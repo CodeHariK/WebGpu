@@ -12,6 +12,8 @@ namespace godot {
 
 class MCCamera : public Camera3D {
 	GDCLASS(MCCamera, Camera3D)
+	
+	friend class GameManager;
 
 public:
 	enum CameraMode {
@@ -86,6 +88,9 @@ public:
 
 	void set_follow_target_path(const NodePath &p_path);
 	NodePath get_follow_target_path() const;
+
+	void set_follow_target_node(Node3D *p_node);
+	Node3D *get_follow_target_node() const { return follow_target_node; }
 
 	void set_frequency(float p_freq) { frequency = p_freq; }
 	float get_frequency() const { return frequency; }

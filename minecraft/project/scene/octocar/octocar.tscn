@@ -1,6 +1,6 @@
 [gd_scene format=4 uid="uid://7tydct12v868"]
 
-[ext_resource type="PackedScene" uid="uid://bgq4dpehnmquk" path="res://scene/vehicle/suv.glb" id="1_1dqdu"]
+[ext_resource type="PackedScene" uid="uid://bgq4dpehnmquk" path="res://assets/vehicle_env/suv.glb" id="1_1dqdu"]
 [ext_resource type="Texture2D" uid="uid://cx407p0hadgy3" path="res://assets/vehicle_env/ramp_0.png" id="2_1dqdu"]
 [ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="2_mxckk"]
 
@@ -102,7 +102,7 @@ config = SubResource("VehicleConfig_3f0it")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.23, 9.576)
 physics_material_override = SubResource("PhysicsMaterial_rafu7")
 
-[node name="suv2" parent="CarRigidBody3D" unique_id=215635070 instance=ExtResource("1_1dqdu")]
+[node name="suv2" parent="CarRigidBody3D" unique_id=1444790978 instance=ExtResource("1_1dqdu")]
 
 [node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=555641220]
 use_collision = true
@@ -186,7 +186,7 @@ curve = SubResource("Curve3D_rafu7")
 
 [node name="MCCamera" type="MCCamera" parent="." unique_id=2019730342]
 mode = 1
-follow_target_path = NodePath("../CarRigidBody3D")
+follow_target_path = NodePath("../PhysicsCharacter3D")
 follow_offset = Vector3(0, 4.185, 10.225)
 transform = Transform3D(1, 0, 0, 0, 0.8347999, 0.55055356, 0, -0.55055356, 0.8347999, 0, 7.7511787, 15.159767)
 
@@ -199,3 +199,13 @@ skeleton = NodePath("")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=489536148]
 shape = SubResource("ConcavePolygonShape3D_mxckk")
+
+[node name="GameManager" type="GameManager" parent="." unique_id=542871028]
+
+[node name="PhysicsCharacter3D" type="PhysicsCharacter3D" parent="." unique_id=1355132004]
+ride_height = 2.0
+spring_stiffness = 1200.0
+spring_damping = 400.0
+jump_impulse = 1200.0
+kick_max_distance = 120.0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.8402767, 3.0714903, 2.846653)

@@ -120,6 +120,8 @@ public:
 	void cancel_drag();
 	void _on_save_terrain();
 	void _on_load_terrain();
+	void save_terrain(const String &p_path);
+	void load_terrain(const String &p_path);
 	void _initialize_previews();
 	void _update_hover_box(const Vector3i &p_grid_pos, bool p_is_blocked);
 	void _update_hover_raycast();
