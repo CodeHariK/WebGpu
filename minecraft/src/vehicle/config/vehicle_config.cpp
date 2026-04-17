@@ -64,6 +64,38 @@ void VehicleConfig::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_velocity_alignment"), &VehicleConfig::get_velocity_alignment);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "velocity_alignment"), "set_velocity_alignment", "get_velocity_alignment");
 
+	ClassDB::bind_method(D_METHOD("set_stunt_com_offset", "offset"), &VehicleConfig::set_stunt_com_offset);
+	ClassDB::bind_method(D_METHOD("get_stunt_com_offset"), &VehicleConfig::get_stunt_com_offset);
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "stunt_com_offset"), "set_stunt_com_offset", "get_stunt_com_offset");
+
+	ClassDB::bind_method(D_METHOD("set_stunt_torque_strength", "strength"), &VehicleConfig::set_stunt_torque_strength);
+	ClassDB::bind_method(D_METHOD("get_stunt_torque_strength"), &VehicleConfig::get_stunt_torque_strength);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "stunt_torque_strength"), "set_stunt_torque_strength", "get_stunt_torque_strength");
+
+	ClassDB::bind_method(D_METHOD("set_stunt_com_interpolation_speed", "speed"), &VehicleConfig::set_stunt_com_interpolation_speed);
+	ClassDB::bind_method(D_METHOD("get_stunt_com_interpolation_speed"), &VehicleConfig::get_stunt_com_interpolation_speed);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "stunt_com_interpolation_speed"), "set_stunt_com_interpolation_speed", "get_stunt_com_interpolation_speed");
+
+	ClassDB::bind_method(D_METHOD("set_ramp_detection_threshold", "threshold"), &VehicleConfig::set_ramp_detection_threshold);
+	ClassDB::bind_method(D_METHOD("get_ramp_detection_threshold"), &VehicleConfig::get_ramp_detection_threshold);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "ramp_detection_threshold"), "set_ramp_detection_threshold", "get_ramp_detection_threshold");
+
+	ClassDB::bind_method(D_METHOD("set_stunt_recovery_height", "height"), &VehicleConfig::set_stunt_recovery_height);
+	ClassDB::bind_method(D_METHOD("get_stunt_recovery_height"), &VehicleConfig::get_stunt_recovery_height);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "stunt_recovery_height"), "set_stunt_recovery_height", "get_stunt_recovery_height");
+
+	ClassDB::bind_method(D_METHOD("set_show_debug_velocity", "show"), &VehicleConfig::set_show_debug_velocity);
+	ClassDB::bind_method(D_METHOD("get_show_debug_velocity"), &VehicleConfig::get_show_debug_velocity);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_debug_velocity"), "set_show_debug_velocity", "get_show_debug_velocity");
+
+	ClassDB::bind_method(D_METHOD("set_debug_velocity_scale", "scale"), &VehicleConfig::set_debug_velocity_scale);
+	ClassDB::bind_method(D_METHOD("get_debug_velocity_scale"), &VehicleConfig::get_debug_velocity_scale);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "debug_velocity_scale"), "set_debug_velocity_scale", "get_debug_velocity_scale");
+
+	ClassDB::bind_method(D_METHOD("set_debug_velocity_width", "width"), &VehicleConfig::set_debug_velocity_width);
+	ClassDB::bind_method(D_METHOD("get_debug_velocity_width"), &VehicleConfig::get_debug_velocity_width);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "debug_velocity_width"), "set_debug_velocity_width", "get_debug_velocity_width");
+
 	ClassDB::bind_method(D_METHOD("set_wheel_configs", "configs"), &VehicleConfig::set_wheel_configs);
 	ClassDB::bind_method(D_METHOD("get_wheel_configs"), &VehicleConfig::get_wheel_configs);
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "wheel_configs", PROPERTY_HINT_ARRAY_TYPE, "WheelConfig"), "set_wheel_configs", "get_wheel_configs");
@@ -151,6 +183,30 @@ float VehicleConfig::get_angular_damping() const { return angular_damping; }
 
 void VehicleConfig::set_velocity_alignment(float p_val) { velocity_alignment = p_val; }
 float VehicleConfig::get_velocity_alignment() const { return velocity_alignment; }
+
+void VehicleConfig::set_stunt_com_offset(const Vector3 &p_offset) { stunt_com_offset = p_offset; }
+Vector3 VehicleConfig::get_stunt_com_offset() const { return stunt_com_offset; }
+
+void VehicleConfig::set_stunt_torque_strength(float p_val) { stunt_torque_strength = p_val; }
+float VehicleConfig::get_stunt_torque_strength() const { return stunt_torque_strength; }
+
+void VehicleConfig::set_stunt_com_interpolation_speed(float p_val) { stunt_com_interpolation_speed = p_val; }
+float VehicleConfig::get_stunt_com_interpolation_speed() const { return stunt_com_interpolation_speed; }
+
+void VehicleConfig::set_ramp_detection_threshold(float p_val) { ramp_detection_threshold = p_val; }
+float VehicleConfig::get_ramp_detection_threshold() const { return ramp_detection_threshold; }
+
+void VehicleConfig::set_stunt_recovery_height(float p_val) { stunt_recovery_height = p_val; }
+float VehicleConfig::get_stunt_recovery_height() const { return stunt_recovery_height; }
+
+void VehicleConfig::set_show_debug_velocity(bool p_val) { show_debug_velocity = p_val; }
+bool VehicleConfig::get_show_debug_velocity() const { return show_debug_velocity; }
+
+void VehicleConfig::set_debug_velocity_scale(float p_val) { debug_velocity_scale = p_val; }
+float VehicleConfig::get_debug_velocity_scale() const { return debug_velocity_scale; }
+
+void VehicleConfig::set_debug_velocity_width(float p_val) { debug_velocity_width = p_val; }
+float VehicleConfig::get_debug_velocity_width() const { return debug_velocity_width; }
 
 void VehicleConfig::set_wheel_configs(const TypedArray<WheelConfig> &p_configs) {
 	wheel_configs = p_configs;

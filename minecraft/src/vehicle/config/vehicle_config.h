@@ -29,7 +29,17 @@ private:
 	float downforce = 2000.0f;
 	float angular_damping = 5.0f;
 	float velocity_alignment = 2.0f;
-	
+
+	// Stunt properties
+	Vector3 stunt_com_offset = Vector3(0.0f, 0.0f, 0.0f);
+	float stunt_torque_strength = 8000.0f;
+	float stunt_com_interpolation_speed = 5.0f;
+	float ramp_detection_threshold = 0.9f;
+	float stunt_recovery_height = 2.0f;
+	bool show_debug_velocity = false;
+	float debug_velocity_scale = 0.5f;
+	float debug_velocity_width = 0.3f;
+
 	TypedArray<WheelConfig> wheel_configs;
 
 protected:
@@ -83,6 +93,30 @@ public:
 
 	void set_velocity_alignment(float p_val);
 	float get_velocity_alignment() const;
+
+	void set_stunt_com_offset(const Vector3 &p_offset);
+	Vector3 get_stunt_com_offset() const;
+
+	void set_stunt_torque_strength(float p_val);
+	float get_stunt_torque_strength() const;
+
+	void set_stunt_com_interpolation_speed(float p_val);
+	float get_stunt_com_interpolation_speed() const;
+
+	void set_ramp_detection_threshold(float p_val);
+	float get_ramp_detection_threshold() const;
+
+	void set_stunt_recovery_height(float p_val);
+	float get_stunt_recovery_height() const;
+
+	void set_show_debug_velocity(bool p_val);
+	bool get_show_debug_velocity() const;
+
+	void set_debug_velocity_scale(float p_val);
+	float get_debug_velocity_scale() const;
+
+	void set_debug_velocity_width(float p_val);
+	float get_debug_velocity_width() const;
 
 	void set_wheel_configs(const TypedArray<WheelConfig> &p_configs);
 	TypedArray<WheelConfig> get_wheel_configs() const;

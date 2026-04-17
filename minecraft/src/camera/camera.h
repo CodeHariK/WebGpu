@@ -43,6 +43,7 @@ private:
 	SpringDynamics<float> pitch_spring;
 
 	// Interaction / Orbit
+	Vector3 follow_offset = Vector3(0, 2, 8);
 	float target_distance = 10.0f;
 	float min_distance = 2.0f;
 	float max_distance = 50.0f;
@@ -56,9 +57,17 @@ private:
 	uint32_t collision_mask = 1;
 	float collision_margin = 0.2f;
 
+	// Stability Lock (from user suggestion)
+	bool stability_lock_enabled = true;
+	float stability_threshold = 2.0f;
+
 	void _update_follow_node();
 	Vector3 _calculate_ideal_position();
 	float _solve_collision(const Vector3 &p_from, const Vector3 &p_to);
+
+	void _process_fly_mode(float p_delta);
+	void _process_car_mode(float p_delta);
+	void _process_follow_modes(float p_delta);
 
 protected:
 	static void _bind_methods();
@@ -90,8 +99,24 @@ public:
 	void set_zoom_speed(float p_speed) { zoom_speed = p_speed; }
 	float get_zoom_speed() const { return zoom_speed; }
 
+	void set_follow_offset(const Vector3 &p_offset);
+	Vector3 get_follow_offset() const { return follow_offset; }
+
+	void set_min_distance(float p_dist) { min_distance = p_dist; }
+	float get_min_distance() const { return min_distance; }
+
+	void set_max_distance(float p_dist) { max_distance = p_dist; }
+	float get_max_distance() const { return max_distance; }
+
 	void set_collision_enabled(bool p_enabled) { collision_enabled = p_enabled; }
 	bool is_collision_enabled() const { return collision_enabled; }
+
+	void set_stability_lock_enabled(bool p_enabled) { stability_lock_enabled = p_enabled; }
+	bool is_stability_lock_enabled() const { return stability_lock_enabled; }
+
+	void set_stability_threshold(float p_threshold) { stability_threshold = p_threshold; }
+	float get_stability_threshold() const { return stability_threshold; }
+
 };
 
 } // namespace godot

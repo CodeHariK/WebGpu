@@ -12,10 +12,10 @@
 #include "marching_cubes/mc_manager.h"
 #include "terrain/minecraft.h"
 #include "terrain/wfc.h"
-#include "vehicle/wheel_config.h"
-#include "vehicle/vehicle_config.h"
+#include "vehicle/config/wheel_config.h"
+#include "vehicle/config/vehicle_config.h"
 #include "vehicle/arcade_vehicle.h"
-#include "vehicle/vehicle_prop.h"
+#include "debug_draw/debug_quad.h"
 
 
 namespace godot {
@@ -37,7 +37,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(WheelConfig);
 	GDREGISTER_CLASS(VehicleConfig);
 	GDREGISTER_CLASS(ArcadeVehicle);
-	GDREGISTER_CLASS(VehicleProp);
+	GDREGISTER_CLASS(DebugLineQuad);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
