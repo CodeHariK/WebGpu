@@ -1,6 +1,7 @@
 #include "arcade_vehicle.h"
-#include "ai/vehicle_states.h"
+#include "../game_manager/game_manager.h"
 #include "../utils/raycast/mc_raycast.h"
+#include "ai/vehicle_states.h"
 #include "godot_cpp/classes/csg_box3d.hpp"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/global_constants.hpp>
@@ -24,10 +25,14 @@ ArcadeVehicle::ArcadeVehicle() {
 }
 
 ArcadeVehicle::~ArcadeVehicle() {
-	if (grounded_state) delete grounded_state;
-	if (airborne_state) delete airborne_state;
-	if (driving_state) delete driving_state;
-	if (stunt_state) delete stunt_state;
+	if (grounded_state)
+		delete grounded_state;
+	if (airborne_state)
+		delete airborne_state;
+	if (driving_state)
+		delete driving_state;
+	if (stunt_state)
+		delete stunt_state;
 }
 
 void ArcadeVehicle::_ready() {
@@ -44,14 +49,22 @@ void ArcadeVehicle::_ready() {
 	current_state->enter();
 
 	_setup_vehicle();
+
+	GameManager *gm = GameManager::get_singleton();
+	if (gm) {
+		gm->register_vehicle(this);
+	}
 }
 
-void ArcadeVehicle::change_state(VehicleState* new_state) {
-	if (current_state == new_state) return;
-	
-	if (current_state) current_state->exit();
+void ArcadeVehicle::change_state(VehicleState *new_state) {
+	if (current_state == new_state)
+		return;
+
+	if (current_state)
+		current_state->exit();
 	current_state = new_state;
-	if (current_state) current_state->enter();
+	if (current_state)
+		current_state->enter();
 }
 
 void ArcadeVehicle::_setup_vehicle() {
@@ -163,7 +176,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	TypedArray<WheelConfig> wconfigs = config->get_wheel_configs();
 	int active_wheel_count = 0;
 	int grounded_wheels = 0;
-	
+
 	Vector3 avg_normal = Vector3(0, 0, 0);
 	is_on_ramp = false;
 
@@ -238,7 +251,10 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 
 	// Trigger stunt
 	Input *input = Input::get_singleton();
-	if (is_on_ramp && input->is_physical_key_pressed(KEY_SPACE) && forward_speed > 10.0f) {
+	GameManager *gm = GameManager::get_singleton();
+	bool is_active = (gm && gm->get_active_target() == this);
+
+	if (is_active && is_on_ramp && input->is_physical_key_pressed(KEY_SPACE) && forward_speed > 10.0f) {
 		stunt_requested = true;
 	}
 
@@ -281,6 +297,14 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 
 void ArcadeVehicle::_process_inputs() {
 	Input *input = Input::get_singleton();
+	GameManager *gm = GameManager::get_singleton();
+
+	if (gm && gm->get_active_target() != this) {
+		current_input.throttle = 0.0f;
+		current_input.brake = 0.0f;
+		current_input.steer = 0.0f;
+		return;
+	}
 
 	current_input.throttle = input->is_physical_key_pressed(KEY_W) ? 1.0f : 0.0f;
 	current_input.brake = input->is_physical_key_pressed(KEY_S) ? 1.0f : 0.0f;

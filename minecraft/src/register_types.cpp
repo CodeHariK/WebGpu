@@ -16,6 +16,8 @@
 #include "vehicle/config/vehicle_config.h"
 #include "vehicle/arcade_vehicle.h"
 #include "debug_draw/debug_quad.h"
+#include "game_manager/game_manager.h"
+#include "character/physics_character.h"
 
 
 namespace godot {
@@ -38,6 +40,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(VehicleConfig);
 	GDREGISTER_CLASS(ArcadeVehicle);
 	GDREGISTER_CLASS(DebugLineQuad);
+	GDREGISTER_CLASS(GameManager);
+	GDREGISTER_CLASS(PhysicsCharacter3D);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

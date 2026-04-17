@@ -1,0 +1,68 @@
+#ifndef GAME_MANAGER_H
+#define GAME_MANAGER_H
+
+#include <godot_cpp/classes/input_event.hpp>
+#include <godot_cpp/classes/input_event_key.hpp>
+#include <godot_cpp/classes/node.hpp>
+#include <godot_cpp/variant/string.hpp>
+
+namespace godot {
+
+class MCManager;
+class ArcadeVehicle;
+class PhysicsCharacter3D;
+class MCCamera;
+
+class GameManager : public Node {
+	GDCLASS(GameManager, Node)
+
+private:
+	static GameManager *singleton;
+
+	// Tracked managers
+	MCManager *mc_manager = nullptr;
+
+	MCCamera *main_camera = nullptr;
+
+	ArcadeVehicle *vehicle = nullptr;
+	PhysicsCharacter3D *character = nullptr;
+	Node *active_target = nullptr;
+
+protected:
+	static void _bind_methods();
+
+public:
+	GameManager();
+	~GameManager();
+
+	static GameManager *get_singleton();
+
+	void _enter_tree() override;
+	void _exit_tree() override;
+
+	// Registry methods
+	void register_mc_manager(MCManager *p_manager);
+	MCManager *get_mc_manager() const;
+
+	void register_vehicle(ArcadeVehicle *p_vehicle);
+	ArcadeVehicle *get_vehicle() const;
+
+	void register_character(PhysicsCharacter3D *p_character);
+	PhysicsCharacter3D *get_character() const;
+
+	void register_camera(MCCamera *p_camera);
+	MCCamera *get_camera() const;
+
+	void set_active_target(Node *p_target);
+	Node *get_active_target() const;
+
+	void _input(const Ref<InputEvent> &p_event) override;
+
+	// Global Persistence logic
+	void save_game(const String &p_slot_name);
+	void load_game(const String &p_slot_name);
+};
+
+} // namespace godot
+
+#endif // GAME_MANAGER_H

@@ -1,5 +1,6 @@
 #include "mc_manager.h"
 #include "cui/cui.h"
+#include "../game_manager/game_manager.h"
 #include "mc.h"
 #include "mc_grid.h"
 #include <godot_cpp/classes/accept_dialog.hpp>
@@ -128,22 +129,36 @@ void MCManager::initialize_all() {
 
 		// 4-7. Setup Previews and Debug Cursor
 		_initialize_previews();
+		
+		// Register with GameManager
+		GameManager *gm = GameManager::get_singleton();
+		if (gm) {
+			gm->register_mc_manager(this);
+		}
 
 		UtilityFunctions::print("MCManager: Sequential initialization complete.");
 	}
 }
 
+void MCManager::_on_load_terrain() {
+	load_terrain("user://terrain.mct");
+}
+
 void MCManager::_on_save_terrain() {
+	save_terrain("user://terrain.mct");
+}
+
+void MCManager::save_terrain(const String &p_path) {
 	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (terrain_node) {
-		terrain_node->save_grid("user://terrain.mct");
+		terrain_node->save_grid(p_path);
 	}
 }
 
-void MCManager::_on_load_terrain() {
+void MCManager::load_terrain(const String &p_path) {
 	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (terrain_node) {
-		terrain_node->load_grid("user://terrain.mct");
+		terrain_node->load_grid(p_path);
 	}
 }
 
