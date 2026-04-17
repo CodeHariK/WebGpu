@@ -1,4 +1,5 @@
 #include "arcade_vehicle.h"
+#include "ai/vehicle_states.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "godot_cpp/classes/csg_box3d.hpp"
 #include <godot_cpp/classes/engine.hpp>
@@ -23,13 +24,34 @@ ArcadeVehicle::ArcadeVehicle() {
 }
 
 ArcadeVehicle::~ArcadeVehicle() {
+	if (grounded_state) delete grounded_state;
+	if (airborne_state) delete airborne_state;
+	if (driving_state) delete driving_state;
+	if (stunt_state) delete stunt_state;
 }
 
 void ArcadeVehicle::_ready() {
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
 
+	// 1. Setup HSM
+	grounded_state = new GroundedState(this, nullptr);
+	airborne_state = new AirborneState(this, nullptr);
+	driving_state = new DrivingState(this, grounded_state);
+	stunt_state = new StuntState(this, airborne_state);
+
+	current_state = driving_state;
+	current_state->enter();
+
 	_setup_vehicle();
+}
+
+void ArcadeVehicle::change_state(VehicleState* new_state) {
+	if (current_state == new_state) return;
+	
+	if (current_state) current_state->exit();
+	current_state = new_state;
+	if (current_state) current_state->enter();
 }
 
 void ArcadeVehicle::_setup_vehicle() {
@@ -41,7 +63,8 @@ void ArcadeVehicle::_setup_vehicle() {
 	// 1. Setup physics properties
 	set_mass(config->get_mass());
 	set_center_of_mass_mode(RigidBody3D::CENTER_OF_MASS_MODE_CUSTOM);
-	set_center_of_mass(config->get_center_of_mass_offset());
+	current_com_offset = config->get_center_of_mass_offset();
+	set_center_of_mass(current_com_offset);
 
 	// 2. Clear old children if any
 	if (chassis_collider) {
@@ -140,6 +163,9 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	TypedArray<WheelConfig> wconfigs = config->get_wheel_configs();
 	int active_wheel_count = 0;
 	int grounded_wheels = 0;
+	
+	Vector3 avg_normal = Vector3(0, 0, 0);
+	is_on_ramp = false;
 
 	for (int i = 0; i < wconfigs.size(); i++) {
 		Ref<WheelConfig> wc = wconfigs[i];
@@ -177,6 +203,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 				visual->set_global_position(hit.position + hit.normal * wc->get_radius());
 			}
 			grounded_wheels++;
+			avg_normal += hit.normal;
 		} else {
 			// Wheel is fully extended
 			if (debug_visuals_enabled) {
@@ -187,14 +214,69 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		active_wheel_count++;
 	}
 
-	// 3. Process Physics layers if enough chassis grip
-	if (grounded_wheels >= 2) {
-		_process_inputs();
-		_apply_acceleration(delta);
-		_apply_steering(delta);
-		_apply_lateral_friction(delta);
-		_apply_stability(delta);
+	// 3. State Transitions & Logic
+	Vector3 forward_dir = -trans.basis.get_column(2).normalized();
+	float forward_speed = get_linear_velocity().dot(forward_dir);
+
+	if (grounded_wheels > 0) {
+		avg_normal /= (float)grounded_wheels;
+		if (avg_normal.y < config->get_ramp_detection_threshold()) {
+			is_on_ramp = true;
+		}
+
+		if (grounded_wheels >= 2) {
+			change_state(driving_state);
+			in_stunt_rotation = false;
+			stunt_requested = false;
+		}
+	} else {
+		// In the air
+		if (!in_stunt_rotation) {
+			change_state(airborne_state);
+		}
 	}
+
+	// Trigger stunt
+	Input *input = Input::get_singleton();
+	if (is_on_ramp && input->is_physical_key_pressed(KEY_SPACE) && forward_speed > 10.0f) {
+		stunt_requested = true;
+	}
+
+	if (stunt_requested && grounded_wheels == 0) {
+		change_state(stunt_state);
+		in_stunt_rotation = true;
+	}
+
+	// Early Recovery Check
+	if (in_stunt_rotation) {
+		float recovery_ray_dist = 5.0f;
+		TypedArray<RID> exclude;
+		exclude.push_back(get_rid());
+		MCRaycastHit recovery_hit = raycast_3d(this, trans.origin, trans.origin + Vector3(0, -recovery_ray_dist, 0), 0xFFFFFFFF, exclude);
+		if (recovery_hit.is_hit) {
+			float dist = trans.origin.distance_to(recovery_hit.position);
+			if (dist < config->get_stunt_recovery_height()) {
+				in_stunt_rotation = false;
+				stunt_requested = false;
+				change_state(airborne_state);
+			}
+		}
+	}
+
+	// 4. Delegate to HSM
+	if (current_state) {
+		current_state->physics_update(delta);
+	}
+
+	// 5. COM Interpolation (Shared logic)
+	Vector3 target_com = config->get_center_of_mass_offset();
+	if (in_stunt_rotation || (stunt_requested && grounded_wheels > 0)) {
+		target_com = config->get_stunt_com_offset();
+	}
+	current_com_offset = current_com_offset.lerp(target_com, config->get_stunt_com_interpolation_speed() * delta);
+	set_center_of_mass(current_com_offset);
+
+	_update_debug_arrows();
 }
 
 void ArcadeVehicle::_process_inputs() {
