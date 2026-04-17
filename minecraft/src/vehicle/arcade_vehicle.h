@@ -11,16 +11,20 @@
 
 namespace godot {
 
+class GameManager;
 class VehicleState;
 class GroundedState;
 class AirborneState;
 class DrivingState;
 class StuntState;
+class PlayerInput;
 
 class ArcadeVehicle : public RigidBody3D {
 	GDCLASS(ArcadeVehicle, RigidBody3D)
 
 private:
+	GameManager *game_manager = nullptr;
+	PlayerInput *player_input = nullptr;
 	Ref<VehicleConfig> config;
 	bool debug_visuals_enabled = true;
 
@@ -93,6 +97,9 @@ public:
 	// Accessors for states
 	VehicleInputState& get_input() { return current_input; }
 	Ref<VehicleConfig> get_vehicle_config() { return config; }
+
+	void set_game_manager(GameManager *p_gm) { game_manager = p_gm; }
+	void set_player_input(PlayerInput *p_input) { player_input = p_input; }
 };
 
 } // namespace godot

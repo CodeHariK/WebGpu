@@ -17,6 +17,7 @@
 #include "vehicle/arcade_vehicle.h"
 #include "debug_draw/debug_quad.h"
 #include "game_manager/game_manager.h"
+#include "game_manager/player_input.h"
 #include "character/physics_character.h"
 
 
@@ -41,6 +42,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(ArcadeVehicle);
 	GDREGISTER_CLASS(DebugLineQuad);
 	GDREGISTER_CLASS(GameManager);
+	GDREGISTER_CLASS(PlayerInput);
 	GDREGISTER_CLASS(PhysicsCharacter3D);
 }
 
