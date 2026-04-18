@@ -2,6 +2,8 @@
 #define MCCAMERA_H
 
 #include "../utils/spring/spring_dynamics.h"
+#include "modes/camera_mode.h"
+#include "../utils/raycast/mc_raycast.h"
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/node3d.hpp>
@@ -9,23 +11,31 @@
 #include <godot_cpp/variant/vector3.hpp>
 
 namespace godot {
+class PlayerInput;
+class GameManager;
 
 class MCCamera : public Camera3D {
 	GDCLASS(MCCamera, Camera3D)
-	
+
 	friend class GameManager;
 
+	friend class CameraMode;
+	friend class MCFlyCameraMode;
+	friend class MCCarCameraMode;
+	friend class MCTPSCameraMode;
+
 public:
-	enum CameraMode {
+	enum CameraState {
 		MODE_FLY,
 		MODE_CAR,
-		MODE_CHARACTER,
-		MODE_ORBIT
+		MODE_TPS
 	};
 
 private:
 	// Mode & Targeting
-	CameraMode mode = MODE_FLY;
+	CameraState mode = MODE_FLY;
+	CameraMode *current_mode_instance = nullptr;
+
 	NodePath follow_target_path;
 	Node3D *follow_target_node = nullptr;
 
@@ -63,13 +73,11 @@ private:
 	bool stability_lock_enabled = true;
 	float stability_threshold = 2.0f;
 
+	PlayerInput *player_input = nullptr;
+
 	void _update_follow_node();
 	Vector3 _calculate_ideal_position();
 	float _solve_collision(const Vector3 &p_from, const Vector3 &p_to);
-
-	void _process_fly_mode(float p_delta);
-	void _process_car_mode(float p_delta);
-	void _process_follow_modes(float p_delta);
 
 protected:
 	static void _bind_methods();
@@ -80,17 +88,22 @@ public:
 
 	void _ready() override;
 	void _physics_process(double p_delta) override;
-	void _unhandled_input(const Ref<InputEvent> &p_event) override;
 
 	// Getters/Setters
-	void set_mode(CameraMode p_mode);
-	CameraMode get_mode() const;
+	void set_mode(CameraState p_mode);
+	CameraState get_mode() const;
+
+	float get_yaw() const { return yaw; }
+	float get_pitch() const { return pitch; }
 
 	void set_follow_target_path(const NodePath &p_path);
 	NodePath get_follow_target_path() const;
 
 	void set_follow_target_node(Node3D *p_node);
 	Node3D *get_follow_target_node() const { return follow_target_node; }
+
+	void set_player_input(PlayerInput *p_input) { player_input = p_input; }
+	PlayerInput *get_player_input() const { return player_input; }
 
 	void set_frequency(float p_freq) { frequency = p_freq; }
 	float get_frequency() const { return frequency; }
@@ -122,10 +135,12 @@ public:
 	void set_stability_threshold(float p_threshold) { stability_threshold = p_threshold; }
 	float get_stability_threshold() const { return stability_threshold; }
 
+	// Raycasting
+	MCRaycastHit get_center_raycast_hit(uint32_t p_mask = 0xFFFFFFFF, float p_dist = 1000.0f);
 };
 
 } // namespace godot
 
-VARIANT_ENUM_CAST(godot::MCCamera::CameraMode);
+VARIANT_ENUM_CAST(godot::MCCamera::CameraState);
 
 #endif // MCCAMERA_H

@@ -1,16 +1,16 @@
 #include "camera.h"
 #include "../game_manager/game_manager.h"
+#include "../game_manager/player_input.h"
+
+#include "modes/fly_mode.h"
+#include "modes/car_mode.h"
+#include "modes/tps_mode.h"
 
 #include "../utils/raycast/mc_raycast.h"
 #include <godot_cpp/classes/collision_object3d.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
-#include <godot_cpp/classes/input_event_mouse_button.hpp>
-#include <godot_cpp/classes/input_event_mouse_motion.hpp>
-#include <godot_cpp/classes/physics_direct_space_state3d.hpp>
-#include <godot_cpp/classes/physics_ray_query_parameters3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
-#include <godot_cpp/classes/world3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -21,7 +21,7 @@ namespace godot {
 void MCCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mode", "mode"), &MCCamera::set_mode);
 	ClassDB::bind_method(D_METHOD("get_mode"), &MCCamera::get_mode);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Fly,Car,Character,Orbit"), "set_mode", "get_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "mode", PROPERTY_HINT_ENUM, "Fly,Car,TPS"), "set_mode", "get_mode");
 
 	ClassDB::bind_method(D_METHOD("set_follow_target_path", "path"), &MCCamera::set_follow_target_path);
 	ClassDB::bind_method(D_METHOD("get_follow_target_path"), &MCCamera::get_follow_target_path);
@@ -69,18 +69,20 @@ void MCCamera::_bind_methods() {
 
 	BIND_ENUM_CONSTANT(MODE_FLY);
 	BIND_ENUM_CONSTANT(MODE_CAR);
-	BIND_ENUM_CONSTANT(MODE_CHARACTER);
-	BIND_ENUM_CONSTANT(MODE_ORBIT);
+	BIND_ENUM_CONSTANT(MODE_TPS);
 }
 
 MCCamera::MCCamera() {
-	// Defaults
 	frequency = 3.0f;
 	damping = 1.0f;
 	response = 0.0f;
 }
 
-MCCamera::~MCCamera() {}
+MCCamera::~MCCamera() {
+	if (current_mode_instance) {
+		delete current_mode_instance;
+	}
+}
 
 void MCCamera::_ready() {
 	if (Engine::get_singleton()->is_editor_hint())
@@ -92,7 +94,7 @@ void MCCamera::_ready() {
 		gm->register_camera(this);
 	}
 
-	// Initialize springs to current state
+	// Initialize springs
 	pos_spring.reset(get_global_position());
 	yaw_spring.reset(get_rotation().y);
 	pitch_spring.reset(get_rotation().x);
@@ -101,182 +103,58 @@ void MCCamera::_ready() {
 		target_distance = follow_offset.length();
 	}
 	dist_spring.reset(target_distance);
+
+	// Set initial mode
+	set_mode(mode);
 }
 
 void MCCamera::_physics_process(double p_delta) {
-	if (Engine::get_singleton()->is_editor_hint())
+	if (Engine::get_singleton()->is_editor_hint() || !current_mode_instance)
 		return;
+
 	float delta = static_cast<float>(p_delta);
 
 	if (follow_target_node == nullptr) {
 		_update_follow_node();
 	}
 
+	// Delegate to current mode
+	current_mode_instance->update(this, delta);
+}
+
+void MCCamera::set_mode(CameraState p_mode) {
+	if (current_mode_instance && mode == p_mode) {
+		return;
+	}
+
+	// Exit current mode
+	if (current_mode_instance) {
+		current_mode_instance->exit(this);
+		delete current_mode_instance;
+		current_mode_instance = nullptr;
+	}
+
+	mode = p_mode;
+
+	// Enter new mode
 	switch (mode) {
 		case MODE_FLY:
-			_process_fly_mode(delta);
+			current_mode_instance = new MCFlyCameraMode();
 			break;
 		case MODE_CAR:
-			_process_car_mode(delta);
-			_process_follow_modes(delta);
+			current_mode_instance = new MCCarCameraMode();
 			break;
-		case MODE_CHARACTER:
-		case MODE_ORBIT:
-			_process_follow_modes(delta);
+		case MODE_TPS:
+			current_mode_instance = new MCTPSCameraMode();
 			break;
 	}
-}
 
-void MCCamera::_process_fly_mode(float p_delta) {
-	// Free look update
-	yaw_spring.target = yaw;
-	pitch_spring.target = pitch;
-
-	yaw_spring.step(p_delta, frequency * 2.0f, damping, response);
-	pitch_spring.step(p_delta, frequency * 2.0f, damping, response);
-
-	// Position update
-	Vector3 ideal_pos = _calculate_ideal_position();
-	pos_spring.target = ideal_pos;
-	pos_spring.step(p_delta, frequency, damping, response);
-
-	set_global_position(pos_spring.current);
-	set_rotation(Vector3(pitch_spring.current, yaw_spring.current, 0));
-}
-
-void MCCamera::_process_car_mode(float p_delta) {
-	bool is_mmb = Input::get_singleton()->is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE);
-	if (is_mmb)
-		return;
-
-	// 1. Calculate the ideal FOLLOW state (where we WANT to be)
-	float target_yaw = 0.0f;
-
-	RigidBody3D *rb = Object::cast_to<RigidBody3D>(follow_target_node);
-	if (rb) {
-		Vector3 linear_vel = rb->get_linear_velocity();
-		Vector3 horizontal_vel = Vector3(linear_vel.x, 0, linear_vel.z);
-
-		Vector3 target_forward = -follow_target_node->get_global_transform().basis.get_column(2).normalized();
-		float forward_dot_vel = (horizontal_vel.length_squared() > 0.01f) ? horizontal_vel.normalized().dot(target_forward) : 1.0f;
-
-		if (horizontal_vel.length_squared() > 1.0f && forward_dot_vel > 0.0f) {
-			target_yaw = Math::atan2(-horizontal_vel.x, -horizontal_vel.z);
-		} else {
-			target_yaw = follow_target_node->get_global_rotation().y;
-		}
-	} else {
-		target_yaw = (follow_target_node) ? follow_target_node->get_global_rotation().y : yaw;
-	}
-
-	// Ideal Pitch to look at target center
-	float h_dist = Vector2(follow_offset.x, follow_offset.z).length();
-	float target_pitch = (h_dist > 0.01f) ? -Math::atan2(follow_offset.y, h_dist) : pitch;
-
-	// 2. Calculate the dynamic Stability benchmark
-	Basis ideal_basis = Basis::from_euler(Vector3(target_pitch, target_yaw, 0));
-	Vector3 base_dir = follow_offset.length_squared() > 0.001f ? follow_offset.normalized() : Vector3(0, 0, 1);
-	Vector3 ideal_rel_pos = ideal_basis.xform(base_dir * target_distance);
-	float ideal_y_diff = ideal_rel_pos.y;
-
-	// 3. Stability Check
-	bool lock_orientation = false;
-	if (stability_lock_enabled && follow_target_node) {
-		float current_y_diff = get_global_position().y - follow_target_node->get_global_position().y;
-		if (std::abs(current_y_diff - ideal_y_diff) > stability_threshold) {
-			lock_orientation = true;
-		}
-	}
-
-	if (!lock_orientation) {
-		// Snap: Update yaw/pitch targets
-		float diff = target_yaw - yaw;
-		while (diff > Math_PI)
-			diff -= Math_TAU;
-		while (diff < -Math_PI)
-			diff += Math_TAU;
-		yaw += diff;
-		pitch = target_pitch;
+	if (current_mode_instance) {
+		current_mode_instance->enter(this);
 	}
 }
 
-void MCCamera::_process_follow_modes(float p_delta) {
-	// 1. Handle Orientation
-	yaw_spring.target = yaw;
-	pitch_spring.target = pitch;
-
-	yaw_spring.step(p_delta, frequency * 2.0f, damping, response);
-	pitch_spring.step(p_delta, frequency * 2.0f, damping, response);
-
-	// 2. Handle Position & Collision
-	Vector3 ideal_pos = _calculate_ideal_position();
-	Vector3 pivot = (follow_target_node) ? follow_target_node->get_global_position() : get_global_position();
-
-	float actual_dist = target_distance;
-	if (collision_enabled && follow_target_node) {
-		actual_dist = _solve_collision(pivot, ideal_pos);
-	}
-
-	dist_spring.target = actual_dist;
-	dist_spring.step(p_delta, frequency * 1.5f, damping, response);
-
-	// Final Follow Placement
-	Basis rot_basis = Basis::from_euler(Vector3(pitch_spring.current, yaw_spring.current, 0));
-	Vector3 base_dir = follow_offset.length_squared() > 0.001f ? follow_offset.normalized() : Vector3(0, 0, 1);
-	Vector3 offset = rot_basis.xform(base_dir * dist_spring.current);
-
-	set_global_position(pivot + offset);
-	set_rotation(Vector3(pitch_spring.current, yaw_spring.current, 0));
-}
-
-void MCCamera::_unhandled_input(const Ref<InputEvent> &p_event) {
-	Ref<InputEventMouseMotion> mm = p_event;
-	if (mm.is_valid()) {
-		bool is_mmb = Input::get_singleton()->is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE);
-
-		if (mode == MODE_FLY) {
-			if (is_mmb) {
-				if (Input::get_singleton()->is_key_pressed(KEY_SHIFT)) {
-					// Panning
-					Transform3D t = get_global_transform();
-					Vector3 right = t.basis.get_column(0);
-					Vector3 up = t.basis.get_column(1);
-					pos_spring.target += right * (-mm->get_relative().x * pan_speed) + up * (mm->get_relative().y * pan_speed);
-				} else {
-					// Orbiting (Free look in Fly mode)
-					yaw -= mm->get_relative().x * orbit_sensitivity;
-					pitch -= mm->get_relative().y * orbit_sensitivity;
-					pitch = CLAMP(pitch, -Math_PI * 0.49f, Math_PI * 0.49f);
-				}
-			}
-		} else if (mode == MODE_ORBIT || is_mmb) {
-			yaw -= mm->get_relative().x * orbit_sensitivity;
-			pitch -= mm->get_relative().y * orbit_sensitivity;
-			pitch = CLAMP(pitch, -Math_PI * 0.49f, Math_PI * 0.49f);
-		}
-	}
-
-	Ref<InputEventMouseButton> mb = p_event;
-	if (mb.is_valid()) {
-		if (mb->get_button_index() == MOUSE_BUTTON_WHEEL_UP) {
-			if (mode == MODE_FLY) {
-				Transform3D t = get_global_transform();
-				Vector3 forward = -t.basis.get_column(2);
-				pos_spring.target += forward * zoom_speed;
-			} else {
-				target_distance = CLAMP(target_distance - zoom_speed, min_distance, max_distance);
-			}
-		} else if (mb->get_button_index() == MOUSE_BUTTON_WHEEL_DOWN) {
-			if (mode == MODE_FLY) {
-				Transform3D t = get_global_transform();
-				Vector3 forward = -t.basis.get_column(2);
-				pos_spring.target -= forward * zoom_speed;
-			} else {
-				target_distance = CLAMP(target_distance + zoom_speed, min_distance, max_distance);
-			}
-		}
-	}
-}
+MCCamera::CameraState MCCamera::get_mode() const { return mode; }
 
 void MCCamera::_update_follow_node() {
 	if (follow_target_path.is_empty()) {
@@ -296,8 +174,6 @@ Vector3 MCCamera::_calculate_ideal_position() {
 
 	Vector3 target_origin = follow_target_node->get_global_position();
 	Basis rot_basis = Basis::from_euler(Vector3(pitch, yaw, 0));
-
-	// Default base vector (Back direction)
 	Vector3 base_dir = follow_offset.length_squared() > 0.001f ? follow_offset.normalized() : Vector3(0, 0, 1);
 	return target_origin + rot_basis.xform(base_dir * target_distance);
 }
@@ -312,26 +188,13 @@ float MCCamera::_solve_collision(const Vector3 &p_from, const Vector3 &p_to) {
 	}
 
 	float baseline_dist = p_from.distance_to(p_to);
-
 	MCRaycastHit hit = raycast_3d(this, p_from, p_to, collision_mask, exclude);
 	if (hit.is_hit) {
 		float hit_dist = p_from.distance_to(hit.position);
 		return MAX(min_distance, hit_dist - collision_margin);
 	}
-
 	return baseline_dist;
 }
-
-void MCCamera::set_mode(CameraMode p_mode) {
-	mode = p_mode;
-	if (mode == MODE_FLY) {
-		Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
-	} else {
-		Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
-	}
-}
-
-MCCamera::CameraMode MCCamera::get_mode() const { return mode; }
 
 void MCCamera::set_follow_target_path(const NodePath &p_path) {
 	follow_target_path = p_path;
@@ -341,7 +204,6 @@ void MCCamera::set_follow_target_path(const NodePath &p_path) {
 void MCCamera::set_follow_offset(const Vector3 &p_offset) {
 	follow_offset = p_offset;
 	target_distance = follow_offset.length();
-	// Automatically expand max_distance if offset is larger
 	if (target_distance > max_distance) {
 		max_distance = target_distance * 1.5f;
 	}
@@ -356,6 +218,19 @@ void MCCamera::set_follow_target_node(Node3D *p_node) {
 	} else {
 		follow_target_path = NodePath();
 	}
+}
+
+MCRaycastHit MCCamera::get_center_raycast_hit(uint32_t p_mask, float p_dist) {
+	Vector3 from = get_global_position();
+	Vector3 to = from - get_global_transform().basis.get_column(2).normalized() * p_dist;
+	
+	TypedArray<RID> exclude;
+	if (follow_target_node) {
+		CollisionObject3D *co = Object::cast_to<CollisionObject3D>(follow_target_node);
+		if (co) exclude.push_back(co->get_rid());
+	}
+	
+	return raycast_3d(this, from, to, p_mask, exclude);
 }
 
 } // namespace godot

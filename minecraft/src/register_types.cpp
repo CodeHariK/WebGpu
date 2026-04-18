@@ -6,20 +6,20 @@
 #include <godot_cpp/godot.hpp>
 
 #include "camera/camera.h"
+#include "character/physics_character.h"
 #include "cui/cui.h"
-#include "marching_cubes/mc.h"
-#include "marching_cubes/mc_grid.h"
-#include "marching_cubes/mc_manager.h"
-#include "terrain/minecraft.h"
-#include "terrain/wfc.h"
-#include "vehicle/config/wheel_config.h"
-#include "vehicle/config/vehicle_config.h"
-#include "vehicle/arcade_vehicle.h"
 #include "debug_draw/debug_quad.h"
 #include "game_manager/game_manager.h"
 #include "game_manager/player_input.h"
-#include "character/physics_character.h"
-
+#include "marching_cubes/mc.h"
+#include "marching_cubes/mc_grid.h"
+#include "marching_cubes/mc_manager.h"
+#include "player/celeste_controller.h"
+#include "terrain/minecraft.h"
+#include "terrain/wfc.h"
+#include "vehicle/arcade_vehicle.h"
+#include "vehicle/config/vehicle_config.h"
+#include "vehicle/config/wheel_config.h"
 
 namespace godot {
 
@@ -35,15 +35,20 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(MCGrid);
 
 	GDREGISTER_CLASS(CUI);
+
 	GDREGISTER_CLASS(MCCamera);
 
 	GDREGISTER_CLASS(WheelConfig);
 	GDREGISTER_CLASS(VehicleConfig);
 	GDREGISTER_CLASS(ArcadeVehicle);
+
 	GDREGISTER_CLASS(DebugLineQuad);
+
 	GDREGISTER_CLASS(GameManager);
 	GDREGISTER_CLASS(PlayerInput);
+
 	GDREGISTER_CLASS(PhysicsCharacter3D);
+	GDREGISTER_CLASS(CelesteController);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

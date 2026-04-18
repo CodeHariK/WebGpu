@@ -254,7 +254,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	bool is_active = (game_manager && game_manager->get_active_target() == this);
 	const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
 
-	if (is_active && is_on_ramp && input_state && input_state->jump && forward_speed > 10.0f) {
+	if (is_active && is_on_ramp && input_state && input_state->character.jump && forward_speed > 10.0f) {
 		stunt_requested = true;
 	}
 
@@ -300,9 +300,9 @@ void ArcadeVehicle::_process_inputs() {
 	const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
 
 	if (is_active && input_state) {
-		current_input.throttle = input_state->throttle;
-		current_input.brake = input_state->brake;
-		current_input.steer = input_state->steering;
+		current_input.throttle = input_state->vehicle.throttle;
+		current_input.brake = input_state->vehicle.brake;
+		current_input.steer = input_state->vehicle.steering;
 	} else {
 		// Zero out inputs if not active
 		current_input.throttle = 0.0f;

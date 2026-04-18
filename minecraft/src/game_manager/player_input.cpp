@@ -1,5 +1,8 @@
 #include "player_input.h"
 #include <godot_cpp/classes/input.hpp>
+#include <godot_cpp/classes/input_event_mouse_motion.hpp>
+#include <godot_cpp/classes/input_event_mouse_button.hpp>
+#include <godot_cpp/classes/input_event_key.hpp>
 
 namespace godot {
 
@@ -28,37 +31,64 @@ void PlayerInput::update() {
 	Input *input = Input::get_singleton();
 	if (!input) return;
 
-	// 1. Movement Axis (Normalized)
-	current_state.move_axis = Vector2(0, 0);
-	if (input->is_physical_key_pressed(KEY_D)) current_state.move_axis.x += 1.0f;
-	if (input->is_physical_key_pressed(KEY_A)) current_state.move_axis.x -= 1.0f;
-	if (input->is_physical_key_pressed(KEY_S)) current_state.move_axis.y += 1.0f;
-	if (input->is_physical_key_pressed(KEY_W)) current_state.move_axis.y -= 1.0f;
+	// 1. Swap accumulated deltas to current state
+	current_state.camera.look_delta = accumulated_look;
+	current_state.camera.zoom_delta = accumulated_zoom;
 	
-	if (current_state.move_axis.length() > 1.0f) {
-		current_state.move_axis = current_state.move_axis.normalized();
+	// Sync event-tracked button states to the active state for this frame
+	current_state.camera.is_orbiting = is_mb_middle_down;
+	current_state.camera.is_panning = is_mb_middle_down && is_shift_down;
+
+	// Clear accumulated for next frame
+	accumulated_look = Vector2(0, 0);
+	accumulated_zoom = 0.0f;
+
+	// 2. Character Axis (Using Godot's get_vector for built-in normalization and deadzones)
+	current_state.character.move_axis = input->get_vector("move_left", "move_right", "move_forward", "move_backward");
+
+	// 3. Actions (State)
+	current_state.character.jump = input->is_action_pressed("jump");
+	current_state.character.kick = input->is_action_pressed("kick");
+	current_state.character.grab = input->is_action_pressed("grab");
+	current_state.system.swap_target = input->is_action_pressed("swap_target");
+
+	// 4. Just Pressed Logic (Native Godot)
+	current_state.character.jump_just_pressed = input->is_action_just_pressed("jump");
+	current_state.character.kick_just_pressed = input->is_action_just_pressed("kick");
+	current_state.character.grab_just_pressed = input->is_action_just_pressed("grab");
+	current_state.system.swap_target_just_pressed = input->is_action_just_pressed("swap_target");
+	
+	// 5. Vehicle Specifics
+	// Throttle/Brake derived from forward/backward actions
+	current_state.vehicle.throttle = input->get_action_strength("move_forward");
+	current_state.vehicle.brake = input->get_action_strength("move_backward");
+	current_state.vehicle.steering = input->get_action_strength("move_right") - input->get_action_strength("move_left");
+	current_state.vehicle.handbrake = input->is_action_pressed("handbrake");
+}
+
+void PlayerInput::handle_input(const Ref<InputEvent> &p_event) {
+	Ref<InputEventMouseMotion> mm = p_event;
+	if (mm.is_valid()) {
+		accumulated_look += mm->get_relative();
 	}
 
-	// 2. Actions (State)
-	current_state.jump = input->is_physical_key_pressed(KEY_SPACE);
-	current_state.kick = input->is_mouse_button_pressed(MOUSE_BUTTON_LEFT);
-	current_state.swap_target = input->is_physical_key_pressed(KEY_TAB);
+	Ref<InputEventMouseButton> mb = p_event;
+	if (mb.is_valid()) {
+		if (mb->get_button_index() == MOUSE_BUTTON_WHEEL_UP) {
+			accumulated_zoom += 1.0f;
+		} else if (mb->get_button_index() == MOUSE_BUTTON_WHEEL_DOWN) {
+			accumulated_zoom -= 1.0f;
+		} else if (mb->get_button_index() == MOUSE_BUTTON_MIDDLE) {
+			is_mb_middle_down = mb->is_pressed();
+		}
+	}
 
-	// 3. Just Pressed Logic
-	current_state.jump_just_pressed = (current_state.jump && !prev_jump);
-	current_state.kick_just_pressed = (current_state.kick && !prev_kick);
-	current_state.swap_target_just_pressed = (current_state.swap_target && !prev_swap);
-	
-	// 4. Vehicle Specifics
-	current_state.throttle = current_state.move_axis.y < 0 ? -current_state.move_axis.y : 0.0f;
-	current_state.brake = current_state.move_axis.y > 0 ? current_state.move_axis.y : 0.0f;
-	current_state.steering = current_state.move_axis.x;
-	current_state.handbrake = input->is_physical_key_pressed(KEY_SHIFT);
-
-	// Update previous states
-	prev_jump = current_state.jump;
-	prev_kick = current_state.kick;
-	prev_swap = current_state.swap_target;
+	Ref<InputEventKey> k = p_event;
+	if (k.is_valid()) {
+		if (k->get_keycode() == KEY_SHIFT) {
+			is_shift_down = k->is_pressed();
+		}
+	}
 }
 
 } // namespace godot

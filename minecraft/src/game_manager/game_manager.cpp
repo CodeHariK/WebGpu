@@ -1,10 +1,13 @@
 #include "game_manager.h"
 #include "../character/physics_character.h"
+#include "../player/celeste_controller.h"
 #include "../marching_cubes/mc_manager.h"
 #include "../vehicle/arcade_vehicle.h"
 #include "../camera/camera.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
+#include <godot_cpp/classes/input_event.hpp>
+#include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -23,6 +26,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_active_target"), &GameManager::get_active_target);
 	ClassDB::bind_method(D_METHOD("register_vehicle", "p_vehicle"), &GameManager::register_vehicle);
 	ClassDB::bind_method(D_METHOD("register_character", "p_character"), &GameManager::register_character);
+	ClassDB::bind_method(D_METHOD("register_celeste_controller", "p_character"), &GameManager::register_celeste_controller);
 	ClassDB::bind_method(D_METHOD("register_camera", "p_camera"), &GameManager::register_camera);
 }
 
@@ -107,8 +111,27 @@ PhysicsCharacter3D *GameManager::get_character() const {
 	return character;
 }
 
+void GameManager::register_celeste_controller(Node *p_character) {
+	celeste_character = Object::cast_to<CelesteController>(p_character);
+	if (celeste_character) {
+		// Note: CelesteController doesn't currently use GameManager/PlayerInput setters
+		// but we might want them later for consistency.
+		UtilityFunctions::print("GameManager: Registered CelesteController.");
+		if (active_target == nullptr) {
+			set_active_target(celeste_character);
+		}
+	}
+}
+
+Node *GameManager::get_celeste_controller() const {
+	return celeste_character;
+}
+
 void GameManager::register_camera(MCCamera *p_camera) {
 	main_camera = p_camera;
+	if (main_camera && player_input) {
+		main_camera->set_player_input(player_input);
+	}
 	UtilityFunctions::print("GameManager: Registered MCCamera.");
 }
 
@@ -129,8 +152,8 @@ void GameManager::set_active_target(Node *p_target) {
 				// Auto-switch camera mode
 				if (Object::cast_to<ArcadeVehicle>(active_target)) {
 					main_camera->set_mode(MCCamera::MODE_CAR);
-				} else if (Object::cast_to<PhysicsCharacter3D>(active_target)) {
-					main_camera->set_mode(MCCamera::MODE_CHARACTER);
+				} else if (Object::cast_to<PhysicsCharacter3D>(active_target) || Object::cast_to<CelesteController>(active_target)) {
+					main_camera->set_mode(MCCamera::MODE_TPS);
 				}
 			}
 		}
@@ -148,24 +171,67 @@ void GameManager::_physics_process(double delta) {
 	if (player_input) {
 		player_input->update();
 
-		// Handle target switching (TAB) via Action State
-		const ActionState &state = player_input->get_state();
-		if (state.swap_target_just_pressed) {
-			if (active_target == character && vehicle != nullptr) {
-				set_active_target(vehicle);
-			} else if (active_target == vehicle && character != nullptr) {
-				set_active_target(character);
-			} else if (active_target == nullptr) {
-				if (character)
-					set_active_target(character);
-				else if (vehicle)
-					set_active_target(vehicle);
+		// Cursor management (Escape to show/hide)
+		Input *input = Input::get_singleton();
+		if (input->is_action_just_pressed("ui_cancel")) {
+			if (input->get_mouse_mode() == Input::MOUSE_MODE_CAPTURED) {
+				input->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
+			} else {
+				input->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
 			}
 		}
+
+		// Handle target switching (TAB) via Action State
+		const ActionState &state = player_input->get_state();
+		if (state.system.swap_target_just_pressed) {
+			// Create a list of available targets to cycle through
+			std::vector<Node *> valid_targets;
+			if (character)
+				valid_targets.push_back(character);
+			if (vehicle)
+				valid_targets.push_back(vehicle);
+			if (celeste_character)
+				valid_targets.push_back(celeste_character);
+
+			if (valid_targets.empty())
+				return;
+
+			// Find current index
+			int current_index = -1;
+			for (int i = 0; i < valid_targets.size(); ++i) {
+				if (valid_targets[i] == active_target) {
+					current_index = i;
+					break;
+				}
+			}
+
+			// Cycle to next
+			int next_index = (current_index + 1) % valid_targets.size();
+			set_active_target(valid_targets[next_index]);
+		}
+
+		// Reset deltas at the end of the physics frame
+		// Wait, better to let the consumers (like camera) handle it if needed, 
+		// but since multiple systems might read it, we reset it at the end of GameManager's process.
+		// NOTE: This assumes GameManager runs before other systems or we reset at the start of next update.
 	}
 }
 
 void GameManager::_input(const Ref<InputEvent> &p_event) {
+	if (player_input) {
+		player_input->handle_input(p_event);
+	}
+
+	// Recapture mouse on left click (Exclude Fly mode which needs visible cursor for raycasting)
+	Ref<InputEventMouseButton> mb = p_event;
+	if (mb.is_valid() && mb->is_pressed() && mb->get_button_index() == MOUSE_BUTTON_LEFT) {
+		Input *input = Input::get_singleton();
+		if (main_camera && main_camera->get_mode() != MCCamera::MODE_FLY) {
+			if (input->get_mouse_mode() == Input::MOUSE_MODE_VISIBLE) {
+				input->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
+			}
+		}
+	}
 }
 
 void GameManager::save_game(const String &p_slot_name) {
