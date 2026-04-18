@@ -1,11 +1,11 @@
 #ifndef GAME_MANAGER_H
 #define GAME_MANAGER_H
 
+#include "player_input.h"
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/variant/string.hpp>
-#include "player_input.h"
 
 namespace godot {
 
@@ -13,7 +13,7 @@ class MCManager;
 class ArcadeVehicle;
 class PhysicsCharacter3D;
 class CelesteController;
-class MCCamera;
+class GameCamera;
 class PlayerInput;
 
 class GameManager : public Node {
@@ -25,7 +25,7 @@ private:
 	// Tracked managers
 	MCManager *mc_manager = nullptr;
 
-	MCCamera *main_camera = nullptr;
+	GameCamera *main_camera = nullptr;
 	PlayerInput *player_input = nullptr;
 
 	ArcadeVehicle *vehicle = nullptr;
@@ -58,8 +58,8 @@ public:
 	void register_celeste_controller(Node *p_character);
 	Node *get_celeste_controller() const;
 
-	void register_camera(MCCamera *p_camera);
-	MCCamera *get_camera() const;
+	void register_camera(GameCamera *p_camera);
+	GameCamera *get_camera() const;
 
 	PlayerInput *get_player_input() const { return player_input; }
 

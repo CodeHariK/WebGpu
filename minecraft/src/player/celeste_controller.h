@@ -31,11 +31,18 @@ private:
 	// Feel/Assistance
 	float coyote_time_duration = 0.15f;
 	float jump_buffer_duration = 0.15f;
+	float max_fall_speed = 15.0f;
 
 	// Wall Interaction
 	float wall_jump_force = 12.0f;
 	float wall_slide_speed = 2.5f;
 	float wall_jump_lock_duration = 0.2f; // Time player loses horizontal control after a kick
+
+	// Hover Spring Settings
+	float ride_height = 1.2f;
+	float spring_stiffness = 250.0f;
+	float spring_damping = 25.0f;
+	bool is_hovering = false;
 
 	// Calculated Values
 	float jump_velocity = 0.0f;
@@ -116,6 +123,19 @@ public:
 
 	void set_jump_buffer_duration(float p_val) { jump_buffer_duration = p_val; }
 	float get_jump_buffer_duration() const { return jump_buffer_duration; }
+
+	void set_max_fall_speed(float p_val) { max_fall_speed = p_val; }
+	float get_max_fall_speed() const { return max_fall_speed; }
+
+	// Hover Setters
+	void set_ride_height(float p_val) { ride_height = p_val; }
+	float get_ride_height() const { return ride_height; }
+
+	void set_spring_stiffness(float p_val) { spring_stiffness = p_val; }
+	float get_spring_stiffness() const { return spring_stiffness; }
+
+	void set_spring_damping(float p_val) { spring_damping = p_val; }
+	float get_spring_damping() const { return spring_damping; }
 };
 
 } // namespace godot

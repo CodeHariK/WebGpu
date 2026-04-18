@@ -36,7 +36,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(CUI);
 
-	GDREGISTER_CLASS(MCCamera);
+	GDREGISTER_CLASS(GameCamera);
 
 	GDREGISTER_CLASS(WheelConfig);
 	GDREGISTER_CLASS(VehicleConfig);

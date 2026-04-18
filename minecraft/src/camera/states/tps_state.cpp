@@ -1,17 +1,17 @@
-#include "tps_mode.h"
-#include "../camera.h"
+#include "tps_state.h"
 #include "../../game_manager/player_input.h"
+#include "../camera.h"
 #include <godot_cpp/classes/input.hpp>
 
 namespace godot {
 
-void MCTPSCameraMode::enter(MCCamera *p_camera) {
+void CameraStateTPS::enter(GameCamera *p_camera) {
 	Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
 }
 
-void MCTPSCameraMode::update(MCCamera *p_camera, float p_delta) {
-	if (p_camera->player_input) {
-		const ActionState &state = p_camera->player_input->get_state();
+void CameraStateTPS::update(GameCamera *p_camera, float p_delta) {
+	if (p_camera->get_player_input()) {
+		const ActionState &state = p_camera->get_player_input()->get_state();
 
 		// 1. Update Rotation (TPS captures mouse, so we always look)
 		p_camera->yaw -= state.camera.look_delta.x * p_camera->orbit_sensitivity;
@@ -27,11 +27,11 @@ void MCTPSCameraMode::update(MCCamera *p_camera, float p_delta) {
 	// 3. Spring Smoothing for Rotation
 	p_camera->yaw_spring.target = p_camera->yaw;
 	p_camera->pitch_spring.target = p_camera->pitch;
-	p_camera->yaw_spring.step(p_delta, p_camera->frequency * 2.0f, p_camera->damping, p_camera->response);
-	p_camera->pitch_spring.step(p_delta, p_camera->frequency * 2.0f, p_camera->damping, p_camera->response);
+	p_camera->yaw_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
+	p_camera->pitch_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
 
 	// 4. Position Calculation
-	Vector3 pivot = (p_camera->follow_target_node) ? p_camera->follow_target_node->get_global_position() : p_camera->get_global_position();
+	Vector3 pivot = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_position() : p_camera->get_global_position();
 	
 	// Apply rotation to the offset
 	Basis rot_basis = Basis::from_euler(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
@@ -42,7 +42,7 @@ void MCTPSCameraMode::update(MCCamera *p_camera, float p_delta) {
 
 	// 5. Collision Solving
 	float dist_multiplier = 1.0f;
-	if (p_camera->collision_enabled && p_camera->follow_target_node) {
+	if (p_camera->is_collision_enabled() && p_camera->get_follow_target_node()) {
 		// We solve collision relative to the pivot
 		float actual_dist = p_camera->_solve_collision(pivot, target_pos);
 		dist_multiplier = actual_dist / local_offset.length();
@@ -50,7 +50,7 @@ void MCTPSCameraMode::update(MCCamera *p_camera, float p_delta) {
 	
 	// Smooth the distance factor
 	p_camera->dist_spring.target = dist_multiplier;
-	p_camera->dist_spring.step(p_delta, p_camera->frequency * 1.5f, p_camera->damping, p_camera->response);
+	p_camera->dist_spring.step(p_delta, p_camera->get_frequency() * 1.5f, p_camera->get_damping(), p_camera->response);
 
 	// Final Position
 	Vector3 final_offset = rot_basis.xform(local_offset * p_camera->dist_spring.current);

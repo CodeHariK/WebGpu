@@ -1,18 +1,18 @@
-#include "fly_mode.h"
-#include "../camera.h"
+#include "fly_state.h"
 #include "../../game_manager/player_input.h"
+#include "../camera.h"
 #include <godot_cpp/classes/input.hpp>
 
 namespace godot {
 
-void MCFlyCameraMode::enter(MCCamera *p_camera) {
+void CameraStateFly::enter(GameCamera *p_camera) {
 	Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
 }
 
-void MCFlyCameraMode::update(MCCamera *p_camera, float p_delta) {
-	if (p_camera->player_input) {
-		const ActionState &state = p_camera->player_input->get_state();
-		
+void CameraStateFly::update(GameCamera *p_camera, float p_delta) {
+	if (p_camera->get_player_input()) {
+		const ActionState &state = p_camera->get_player_input()->get_state();
+
 		if (state.camera.is_orbiting) {
 			if (state.camera.is_panning) {
 				// Panning logic: translate instead of rotate
