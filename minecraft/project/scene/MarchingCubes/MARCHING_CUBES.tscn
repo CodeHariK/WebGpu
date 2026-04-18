@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://bja4gpy0fyjx6"]
+[gd_scene format=3]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ih7r4"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -48,3 +48,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.115, 0, 0)
 [node name="MCNode2" type="MCNode" parent="." unique_id=1228323093]
 mesh_library_path = "res://assets/House.glb"
 visible = false
+
+[node name="GameManager" type="GameManager" parent="." unique_id=514503315]

@@ -176,7 +176,7 @@ public:
 	MCGrid();
 	~MCGrid() override;
 
-	void initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z);
+	void initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, bool p_refresh = true);
 	void refresh_grid();
 	void modify_corner(const Vector3i &p_grid_pos, bool p_active);
 	bool is_corner_active(const Vector3i &p_grid_pos) const;

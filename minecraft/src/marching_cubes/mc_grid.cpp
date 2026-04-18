@@ -78,7 +78,7 @@ void MCGrid::_ready() {
 	UtilityFunctions::print("MCGrid: _ready() called, waiting for MCManager...");
 }
 
-void MCGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z) {
+void MCGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, bool p_refresh) {
 	grid_size = Vector3i(p_chunks_x, p_chunks_y, p_chunks_z);
 	chunk_size = Vector3i(p_chunk_size_x, p_chunk_size_y, p_chunk_size_z);
 
@@ -114,7 +114,12 @@ void MCGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int
 	for (Chunk &chunk : chunks) {
 		_initialize_boundaries(chunk);
 	}
-	refresh_grid();
+
+	spatial.clear();
+
+	if (p_refresh) {
+		refresh_grid();
+	}
 }
 
 void MCGrid::refresh_grid() {
@@ -196,7 +201,8 @@ void MCGrid::_clear_children() {
 	TypedArray<Node> children = get_children();
 	for (int i = 0; i < children.size(); i++) {
 		Node *child = Object::cast_to<Node>(children[i]);
-		if (child && child != debug_corners_container) {
+		if (child && child != debug_corners_container && child != hover_root) {
+			remove_child(child);
 			child->queue_free();
 		}
 	}
@@ -206,6 +212,7 @@ void MCGrid::_clear_children() {
 		for (int i = 0; i < debug_children.size(); i++) {
 			Node *child = Object::cast_to<Node>(debug_children[i]);
 			if (child) {
+				debug_corners_container->remove_child(child);
 				child->queue_free();
 			}
 		}

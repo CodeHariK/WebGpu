@@ -77,7 +77,7 @@ void MCGrid::load_grid(const String &p_path) {
 
 	// If size changed, re-initialize
 	if (grid_size != Vector3i(tx, ty, tz) || chunk_size != Vector3i(cx, cy, cz)) {
-		initialize_grid(tx, ty, tz, cx, cy, cz);
+		initialize_grid(tx, ty, tz, cx, cy, cz, false);
 	}
 
 	// 3. Chunk Data
