@@ -1,14 +1,14 @@
 #include "game_manager.h"
-#include "../character/physics_character.h"
-#include "../player/celeste_controller.h"
-#include "../marching_cubes/mc_manager.h"
-#include "../vehicle/arcade_vehicle.h"
 #include "../camera/camera.h"
+#include "../character/physics_character.h"
+#include "../marching_cubes/mc_manager.h"
+#include "../player/celeste_controller.h"
+#include "../vehicle/arcade_vehicle.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/input_event.hpp>
-#include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
+#include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -127,15 +127,15 @@ Node *GameManager::get_celeste_controller() const {
 	return celeste_character;
 }
 
-void GameManager::register_camera(MCCamera *p_camera) {
+void GameManager::register_camera(GameCamera *p_camera) {
 	main_camera = p_camera;
 	if (main_camera && player_input) {
 		main_camera->set_player_input(player_input);
 	}
-	UtilityFunctions::print("GameManager: Registered MCCamera.");
+	UtilityFunctions::print("GameManager: Registered GameCamera.");
 }
 
-MCCamera *GameManager::get_camera() const {
+GameCamera *GameManager::get_camera() const {
 	return main_camera;
 }
 
@@ -151,9 +151,9 @@ void GameManager::set_active_target(Node *p_target) {
 
 				// Auto-switch camera mode
 				if (Object::cast_to<ArcadeVehicle>(active_target)) {
-					main_camera->set_mode(MCCamera::MODE_CAR);
+					main_camera->set_camera_mode(GameCamera::MODE_CAR);
 				} else if (Object::cast_to<PhysicsCharacter3D>(active_target) || Object::cast_to<CelesteController>(active_target)) {
-					main_camera->set_mode(MCCamera::MODE_TPS);
+					main_camera->set_camera_mode(GameCamera::MODE_TPS);
 				}
 			}
 		}
@@ -211,7 +211,7 @@ void GameManager::_physics_process(double delta) {
 		}
 
 		// Reset deltas at the end of the physics frame
-		// Wait, better to let the consumers (like camera) handle it if needed, 
+		// Wait, better to let the consumers (like camera) handle it if needed,
 		// but since multiple systems might read it, we reset it at the end of GameManager's process.
 		// NOTE: This assumes GameManager runs before other systems or we reset at the start of next update.
 	}
@@ -226,7 +226,7 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> mb = p_event;
 	if (mb.is_valid() && mb->is_pressed() && mb->get_button_index() == MOUSE_BUTTON_LEFT) {
 		Input *input = Input::get_singleton();
-		if (main_camera && main_camera->get_mode() != MCCamera::MODE_FLY) {
+		if (main_camera && main_camera->get_camera_mode() != GameCamera::MODE_FLY) {
 			if (input->get_mouse_mode() == Input::MOUSE_MODE_VISIBLE) {
 				input->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
 			}

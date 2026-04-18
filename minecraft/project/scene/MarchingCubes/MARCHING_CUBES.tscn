@@ -1,4 +1,4 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cbjbi6l0rjljo"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ih7r4"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -18,7 +18,7 @@ albedo_color = Color(0.1640338, 0.07760636, 0.3213228, 1)
 
 [node name="MARCHING_CUBES" type="Node3D" unique_id=1611744576]
 
-[node name="MCCamera" type="MCCamera" parent="." unique_id=1727777838]
+[node name="GameCamera" type="GameCamera" parent="." unique_id=2143811702]
 transform = Transform3D(1, 0, 0, 0, 0.64821297, 0.7614591, 0, -0.7614591, 0.64821297, 5.246605, 4.9337234, 13.155472)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=854339463]

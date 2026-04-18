@@ -191,8 +191,7 @@ path_joined = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.994751, 0)
 curve = SubResource("Curve3D_rafu7")
 
-[node name="MCCamera" type="MCCamera" parent="." unique_id=2019730342]
-mode = 1
+[node name="GameCamera" type="GameCamera" parent="." unique_id=975855693]
 follow_target_path = NodePath("../PhysicsCharacter3D")
 follow_offset = Vector3(0, 4.185, 10.225)
 transform = Transform3D(1, 0, 0, 0, 0.8347999, 0.55055356, 0, -0.55055356, 0.8347999, 0, 7.7511787, 15.159767)
@@ -210,6 +209,9 @@ shape = SubResource("ConcavePolygonShape3D_mxckk")
 [node name="GameManager" type="GameManager" parent="." unique_id=542871028]
 
 [node name="CelesteController" type="CelesteController" parent="." unique_id=1758102786]
+jump_height = 10.0
+jump_time_to_peak = 0.4
+jump_time_to_descent = 0.1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.800528, 3.0714903, 2.846653)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController" unique_id=1101944800]

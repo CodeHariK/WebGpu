@@ -1,9 +1,9 @@
-#ifndef MCCAMERA_H
-#define MCCAMERA_H
+#ifndef GAME_CAMERA_H
+#define GAME_CAMERA_H
 
-#include "../utils/spring/spring_dynamics.h"
-#include "modes/camera_mode.h"
 #include "../utils/raycast/mc_raycast.h"
+#include "../utils/spring/spring_dynamics.h"
+#include "camera_state.h"
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/node3d.hpp>
@@ -14,27 +14,27 @@ namespace godot {
 class PlayerInput;
 class GameManager;
 
-class MCCamera : public Camera3D {
-	GDCLASS(MCCamera, Camera3D)
+class GameCamera : public Camera3D {
+	GDCLASS(GameCamera, Camera3D)
 
 	friend class GameManager;
 
 	friend class CameraMode;
-	friend class MCFlyCameraMode;
-	friend class MCCarCameraMode;
-	friend class MCTPSCameraMode;
+	friend class CameraStateFly;
+	friend class CameraStateCar;
+	friend class CameraStateTPS;
 
 public:
-	enum CameraState {
+	enum Mode {
 		MODE_FLY,
 		MODE_CAR,
 		MODE_TPS
 	};
 
 private:
-	// Mode & Targeting
-	CameraState mode = MODE_FLY;
-	CameraMode *current_mode_instance = nullptr;
+	// State & Targeting
+	Mode camera_mode = MODE_FLY;
+	CameraState *current_mode_instance = nullptr;
 
 	NodePath follow_target_path;
 	Node3D *follow_target_node = nullptr;
@@ -83,15 +83,15 @@ protected:
 	static void _bind_methods();
 
 public:
-	MCCamera();
-	~MCCamera();
+	GameCamera();
+	~GameCamera();
 
 	void _ready() override;
 	void _physics_process(double p_delta) override;
 
 	// Getters/Setters
-	void set_mode(CameraState p_mode);
-	CameraState get_mode() const;
+	void set_camera_mode(Mode p_mode);
+	Mode get_camera_mode() const;
 
 	float get_yaw() const { return yaw; }
 	float get_pitch() const { return pitch; }
@@ -141,6 +141,6 @@ public:
 
 } // namespace godot
 
-VARIANT_ENUM_CAST(godot::MCCamera::CameraState);
+VARIANT_ENUM_CAST(godot::GameCamera::Mode);
 
-#endif // MCCAMERA_H
+#endif // GAME_CAMERA_H

@@ -1,13 +1,13 @@
 #include "combat_states.h"
-#include "airborne_states.h"
+#include "../../../camera/camera.h"
 #include "../../../game_manager/game_manager.h"
 #include "../../../game_manager/player_input.h"
+#include "../../../utils/raycast/mc_raycast.h"
 #include "../../physics_character.h"
+#include "airborne_states.h"
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include "../../../camera/camera.h"
-#include "../../../utils/raycast/mc_raycast.h"
 
 namespace godot {
 
@@ -24,7 +24,7 @@ void CharDropkickState::enter() {
 		return;
 	}
 
-	MCCamera *cam = gm->get_camera();
+	GameCamera *cam = gm->get_camera();
 	Vector3 cam_pos = cam->get_global_position();
 	Vector3 cam_forward = -cam->get_global_transform().basis.get_column(2).normalized();
 
@@ -87,7 +87,8 @@ void CharDropkickState::physics_update(float delta) {
 // --- GRAB STATE ---
 
 void CharGrabState::enter() {
-	if (!character) return;
+	if (!character)
+		return;
 
 	GameManager *gm = character->get_game_manager();
 	if (!gm || !gm->get_camera()) {
@@ -95,7 +96,7 @@ void CharGrabState::enter() {
 		return;
 	}
 
-	MCCamera *cam = gm->get_camera();
+	GameCamera *cam = gm->get_camera();
 	Vector3 cam_pos = cam->get_global_position();
 	Vector3 cam_forward = -cam->get_global_transform().basis.get_column(2).normalized();
 
@@ -109,11 +110,11 @@ void CharGrabState::enter() {
 		RigidBody3D *rb = Object::cast_to<RigidBody3D>(hit.collider);
 		if (rb && rb != character) {
 			character->grabbed_body = rb;
-			
+
 			// Freeze physics while carrying
 			rb->set_freeze_enabled(true);
 			rb->set_freeze_mode(RigidBody3D::FREEZE_MODE_STATIC);
-			
+
 			UtilityFunctions::print("Character: GRABBED ", rb->get_name());
 			return;
 		}
@@ -145,13 +146,13 @@ void CharGrabState::physics_update(float delta) {
 	Vector3 up = char_t.basis.get_column(1).normalized();
 
 	// Relative hold point
-	Vector3 hold_pos = char_t.origin + 
-	                  (up * character->hold_offset.y) + 
-	                  (forward * character->hold_offset.z);
+	Vector3 hold_pos = char_t.origin +
+			(up * character->hold_offset.y) +
+			(forward * character->hold_offset.z);
 
 	// Smoothly move the grabbed body (or just snap for Hulk feel)
 	character->grabbed_body->set_global_position(hold_pos);
-	
+
 	// Keep the same rotation as the player or just keep it flat
 	character->grabbed_body->set_global_rotation(char_t.basis.get_euler_normalized());
 
@@ -165,7 +166,7 @@ void CharGrabState::physics_update(float delta) {
 	// THROW logic
 	if (state.character.grab_just_pressed || state.character.kick_just_pressed) {
 		UtilityFunctions::print("Character: THROW!");
-		
+
 		GameManager *gm = character->get_game_manager();
 		Vector3 throw_dir = forward;
 		if (gm && gm->get_camera()) {
@@ -174,11 +175,11 @@ void CharGrabState::physics_update(float delta) {
 
 		RigidBody3D *rb = character->grabbed_body;
 		rb->set_freeze_enabled(false);
-		
+
 		// Apply massive impulse + upward arc
 		Vector3 impulse = (throw_dir * character->throw_force) + (Vector3(0, 1, 0) * character->throw_upward_bias);
 		rb->set_linear_velocity(impulse);
-		
+
 		// Add some random rotation for flavor
 		rb->set_angular_velocity(Vector3(UtilityFunctions::randf_range(-5, 5), UtilityFunctions::randf_range(-5, 5), UtilityFunctions::randf_range(-5, 5)));
 

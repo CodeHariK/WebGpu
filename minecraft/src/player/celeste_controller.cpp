@@ -1,10 +1,11 @@
 #include "celeste_controller.h"
+#include "../camera/camera.h"
 #include "../game_manager/game_manager.h"
 #include "../game_manager/player_input.h"
-#include "../camera/camera.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include "../utils/raycast/mc_raycast.h"
 
 namespace godot {
 
@@ -70,9 +71,38 @@ void CelesteController::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_jump_buffer_duration", "p_val"), &CelesteController::set_jump_buffer_duration);
 	ClassDB::bind_method(D_METHOD("get_jump_buffer_duration"), &CelesteController::get_jump_buffer_duration);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "jump_buffer_duration"), "set_jump_buffer_duration", "get_jump_buffer_duration");
+
+	ClassDB::bind_method(D_METHOD("set_max_fall_speed", "p_val"), &CelesteController::set_max_fall_speed);
+	ClassDB::bind_method(D_METHOD("get_max_fall_speed"), &CelesteController::get_max_fall_speed);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_fall_speed"), "set_max_fall_speed", "get_max_fall_speed");
+
+	ClassDB::bind_method(D_METHOD("set_ride_height", "p_val"), &CelesteController::set_ride_height);
+	ClassDB::bind_method(D_METHOD("get_ride_height"), &CelesteController::get_ride_height);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "ride_height"), "set_ride_height", "get_ride_height");
+
+	ClassDB::bind_method(D_METHOD("set_spring_stiffness", "p_val"), &CelesteController::set_spring_stiffness);
+	ClassDB::bind_method(D_METHOD("get_spring_stiffness"), &CelesteController::get_spring_stiffness);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "spring_stiffness"), "set_spring_stiffness", "get_spring_stiffness");
+
+	ClassDB::bind_method(D_METHOD("set_spring_damping", "p_val"), &CelesteController::set_spring_damping);
+	ClassDB::bind_method(D_METHOD("get_spring_damping"), &CelesteController::get_spring_damping);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "spring_damping"), "set_spring_damping", "get_spring_damping");
 }
 
 CelesteController::CelesteController() {
+	max_speed = 10.0f;
+	acceleration = 80.0f;
+	friction = 60.0f;
+	air_resistance = 40.0f; // More air control for floatiness
+
+	jump_height = 4.5f; // Higher jump
+	jump_time_to_peak = 0.6f; // Slower ascent
+	jump_time_to_descent = 0.55f; // Slower descent
+
+	apex_gravity_multiplier = 0.15f; // extreme hang time
+	apex_threshold = 3.5f; // wider float window
+	max_fall_speed = 15.0f;
+
 	_update_jump_math();
 }
 
@@ -115,8 +145,8 @@ void CelesteController::_physics_process(double delta) {
 	Transform3D transform = get_global_transform();
 
 	// Align with camera if in TPS mode
-	MCCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
-	if (cam && cam->get_mode() == MCCamera::MODE_TPS) {
+	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
+	if (cam && cam->get_camera_mode() == GameCamera::MODE_TPS) {
 		set_rotation(Vector3(0, cam->get_yaw(), 0));
 		transform = get_global_transform(); // Refresh transform for movement calculation
 	}
@@ -159,8 +189,15 @@ void CelesteController::_physics_process(double delta) {
 
 	// 3. Vertical Movement (Gravity & Jump Logic)
 
-	// Coyote Time Handling
-	if (is_on_floor()) {
+	// Coyote Time Handling (Enhanced with Hover support)
+	// Cast for hover spring
+	float cast_dist = ride_height * 1.5f;
+	float radius = 0.45f;
+	MCRaycastHit hover_hit = spherecast_3d(this, get_global_position(), Vector3(0, -1, 0), cast_dist, radius);
+	
+	is_hovering = hover_hit.is_hit;
+	
+	if (is_on_floor() || is_hovering) {
 		coyote_timer = coyote_time_duration;
 		is_jumping = false;
 	} else {
@@ -178,20 +215,21 @@ void CelesteController::_physics_process(double delta) {
 	bool on_wall = is_on_wall() && !is_on_floor();
 	Vector3 wall_normal = get_wall_normal();
 
-	// EXECUTE JUMP (Ground or Coyote)
+	// EXECUTE JUMP (Ground, Coyote, or Hover)
 	if (jump_buffer_timer > 0.0f && coyote_timer > 0.0f && !is_jumping) {
 		velocity.y = jump_velocity;
 		is_jumping = true;
+		is_hovering = false; // Break hover on jump
 		jump_buffer_timer = 0.0f;
 		coyote_timer = 0.0f;
-		UtilityFunctions::print("CelesteController: Ground Jump!");
+		UtilityFunctions::print("CelesteController: Float Jump!");
 	}
 	// EXECUTE JUMP (Wall)
 	else if (jump_buffer_timer > 0.0f && on_wall) {
 		velocity.y = jump_velocity;
 		velocity.x = wall_normal.x * wall_jump_force;
 		velocity.z = wall_normal.z * wall_jump_force;
-		
+
 		wall_jump_lock_timer = wall_jump_lock_duration;
 		jump_buffer_timer = 0.0f;
 		is_jumping = true;
@@ -207,10 +245,28 @@ void CelesteController::_physics_process(double delta) {
 	if (on_wall && velocity.y < 0.0f && move_dir.dot(-wall_normal) > 0.1f) {
 		velocity.y = Math::max(velocity.y, -wall_slide_speed);
 	} else {
-		// Apply Gravity (with Apex modifier)
-		float gravity_mult = is_apex ? apex_gravity_multiplier : 1.0f;
-		float current_gravity = (velocity.y > 0.0f) ? jump_gravity : fall_gravity;
-		velocity.y -= current_gravity * gravity_mult * f_delta;
+		// Apply Hover Spring OR Gravity
+		if (is_hovering && !is_jumping) {
+			float dist_to_ground = (get_global_position() - hover_hit.position).length();
+			float error = ride_height - dist_to_ground;
+			
+			// PD Controller: acceleration = stiffness * error - damping * current_velocity
+			float hooke_law = error * spring_stiffness;
+			float damping_force = velocity.y * spring_damping;
+			float spring_accel = hooke_law - damping_force;
+			
+			velocity.y += spring_accel * f_delta;
+		} else {
+			// Apply Gravity (with Apex modifier)
+			float gravity_mult = is_apex ? apex_gravity_multiplier : 1.0f;
+			float current_gravity = (velocity.y > 0.0f) ? jump_gravity : fall_gravity;
+			velocity.y -= current_gravity * gravity_mult * f_delta;
+
+			// Capping fall speed for floatiness
+			if (velocity.y < -max_fall_speed) {
+				velocity.y = -max_fall_speed;
+			}
+		}
 	}
 
 	// 4. Final Application
