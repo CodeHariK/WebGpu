@@ -42,11 +42,14 @@ void CameraStateFly::update(GameCamera *p_camera, float p_delta) {
 	p_camera->pitch_spring.step(p_delta, p_camera->frequency * 2.0f, p_camera->damping, p_camera->response);
 
 	// Position physics update
-	Vector3 ideal_pos = p_camera->_calculate_ideal_position();
-	p_camera->pos_spring.target = ideal_pos;
-	p_camera->pos_spring.step(p_delta, p_camera->frequency, p_camera->damping, p_camera->response);
-
-	p_camera->set_global_position(p_camera->pos_spring.current);
+	Vector3 target_pos = p_camera->pos_spring.target;
+	if (p_camera->is_pos_smoothing_enabled()) {
+		p_camera->pos_spring.step(p_delta, p_camera->get_frequency(), p_camera->get_damping(), p_camera->response);
+		p_camera->set_global_position(p_camera->pos_spring.current);
+	} else {
+		p_camera->set_global_position(target_pos);
+	}
+	
 	p_camera->set_rotation(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
 }
 

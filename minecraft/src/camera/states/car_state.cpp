@@ -47,26 +47,8 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 			float h_dist = Vector2(p_camera->follow_offset.x, p_camera->follow_offset.z).length();
 			float target_pitch = (h_dist > 0.01f) ? -Math::atan2(p_camera->follow_offset.y, h_dist) : p_camera->pitch;
 
-			// Stability lock logic
-			bool lock_orientation = false;
-			if (p_camera->is_stability_lock_enabled() && p_camera->get_follow_target_node()) {
-				Basis ideal_basis = Basis::from_euler(Vector3(target_pitch, target_yaw, 0));
-				Vector3 base_dir = p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset.normalized() : Vector3(0, 0, 1);
-				float ideal_y_diff = ideal_basis.xform(base_dir * p_camera->target_distance).y;
-				float current_y_diff = p_camera->get_global_position().y - p_camera->get_follow_target_node()->get_global_position().y;
-				
-				if (std::abs(current_y_diff - ideal_y_diff) > p_camera->get_stability_threshold()) {
-					lock_orientation = true;
-				}
-			}
-
-			if (!lock_orientation) {
-				float diff = target_yaw - p_camera->yaw;
-				while (diff > Math_PI) diff -= Math_TAU;
-				while (diff < -Math_PI) diff += Math_TAU;
-				p_camera->yaw += diff;
-				p_camera->pitch = target_pitch;
-			}
+			p_camera->yaw = target_yaw;
+			p_camera->pitch = target_pitch;
 		}
 	}
 
@@ -76,8 +58,9 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 	p_camera->yaw_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
 	p_camera->pitch_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
 
-	Vector3 ideal_pos = p_camera->_calculate_ideal_position();
+	// Final Ideal Position Calculation
 	Vector3 pivot = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_position() : p_camera->get_global_position();
+	Vector3 ideal_pos = p_camera->_calculate_ideal_position();
 
 	float actual_dist = p_camera->target_distance;
 	if (p_camera->is_collision_enabled() && p_camera->get_follow_target_node()) {
@@ -89,9 +72,16 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 
 	Basis rot_basis = Basis::from_euler(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
 	Vector3 base_dir = p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset.normalized() : Vector3(0, 0, 1);
-	Vector3 offset = rot_basis.xform(base_dir * p_camera->dist_spring.current);
+	Vector3 spring_target_pos = pivot + rot_basis.xform(base_dir * p_camera->dist_spring.current);
 
-	p_camera->set_global_position(pivot + offset);
+	// 6. Final Movement Smoothing
+	p_camera->pos_spring.target = spring_target_pos;
+	if (p_camera->is_pos_smoothing_enabled()) {
+		p_camera->pos_spring.step(p_delta, p_camera->get_frequency(), p_camera->get_damping(), p_camera->response);
+		p_camera->set_global_position(p_camera->pos_spring.current);
+	} else {
+		p_camera->set_global_position(spring_target_pos);
+	}
 	p_camera->set_rotation(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
 }
 

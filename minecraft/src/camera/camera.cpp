@@ -28,6 +28,10 @@ void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_follow_target_path"), &GameCamera::get_follow_target_path);
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "follow_target_path"), "set_follow_target_path", "get_follow_target_path");
 
+	ClassDB::bind_method(D_METHOD("set_pos_smoothing_enabled", "enabled"), &GameCamera::set_pos_smoothing_enabled);
+	ClassDB::bind_method(D_METHOD("is_pos_smoothing_enabled"), &GameCamera::is_pos_smoothing_enabled);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "pos_smoothing_enabled"), "set_pos_smoothing_enabled", "is_pos_smoothing_enabled");
+
 	ClassDB::bind_method(D_METHOD("set_frequency", "frequency"), &GameCamera::set_frequency);
 	ClassDB::bind_method(D_METHOD("get_frequency"), &GameCamera::get_frequency);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "frequency"), "set_frequency", "get_frequency");
@@ -43,6 +47,10 @@ void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_zoom_speed", "speed"), &GameCamera::set_zoom_speed);
 	ClassDB::bind_method(D_METHOD("get_zoom_speed"), &GameCamera::get_zoom_speed);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "zoom_speed"), "set_zoom_speed", "get_zoom_speed");
+
+	ClassDB::bind_method(D_METHOD("set_orbit_sensitivity", "sensitivity"), &GameCamera::set_orbit_sensitivity);
+	ClassDB::bind_method(D_METHOD("get_orbit_sensitivity"), &GameCamera::get_orbit_sensitivity);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "orbit_sensitivity"), "set_orbit_sensitivity", "get_orbit_sensitivity");
 
 	ClassDB::bind_method(D_METHOD("set_collision_enabled", "enabled"), &GameCamera::set_collision_enabled);
 	ClassDB::bind_method(D_METHOD("is_collision_enabled"), &GameCamera::is_collision_enabled);
@@ -60,13 +68,9 @@ void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_max_distance"), &GameCamera::get_max_distance);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_distance"), "set_max_distance", "get_max_distance");
 
-	ClassDB::bind_method(D_METHOD("set_stability_lock_enabled", "enabled"), &GameCamera::set_stability_lock_enabled);
-	ClassDB::bind_method(D_METHOD("is_stability_lock_enabled"), &GameCamera::is_stability_lock_enabled);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "stability_lock_enabled"), "set_stability_lock_enabled", "is_stability_lock_enabled");
-
-	ClassDB::bind_method(D_METHOD("set_stability_threshold", "threshold"), &GameCamera::set_stability_threshold);
-	ClassDB::bind_method(D_METHOD("get_stability_threshold"), &GameCamera::get_stability_threshold);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "stability_threshold"), "set_stability_threshold", "get_stability_threshold");
+	ClassDB::bind_method(D_METHOD("set_collision_enabled", "enabled"), &GameCamera::set_collision_enabled);
+	ClassDB::bind_method(D_METHOD("is_collision_enabled"), &GameCamera::is_collision_enabled);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "collision_enabled"), "set_collision_enabled", "is_collision_enabled");
 
 	BIND_ENUM_CONSTANT(MODE_FLY);
 	BIND_ENUM_CONSTANT(MODE_CAR);

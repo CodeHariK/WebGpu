@@ -19,6 +19,7 @@ albedo_color = Color(0.1640338, 0.07760636, 0.3213228, 1)
 [node name="MARCHING_CUBES" type="Node3D" unique_id=1611744576]
 
 [node name="GameCamera" type="GameCamera" parent="." unique_id=2143811702]
+pos_smoothing_enabled = false
 transform = Transform3D(1, 0, 0, 0, 0.64821297, 0.7614591, 0, -0.7614591, 0.64821297, 5.246605, 4.9337234, 13.155472)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=854339463]

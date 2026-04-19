@@ -195,6 +195,7 @@ curve = SubResource("Curve3D_rafu7")
 [node name="GameCamera" type="GameCamera" parent="." unique_id=975855693]
 camera_mode = 2
 follow_target_path = NodePath("../CelesteController")
+pos_smoothing_enabled = false
 follow_offset = Vector3(0, 4.185, 10.225)
 transform = Transform3D(1, 0, 0, 0, 0.8347999, 0.55055356, 0, -0.55055356, 0.8347999, 0, 7.7511787, 15.159767)
 
