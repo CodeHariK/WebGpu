@@ -1,0 +1,106 @@
+#include "grounded_states.h"
+#include "../../camera/camera.h"
+#include "../../game_manager/game_manager.h"
+#include "../../game_manager/player_input.h"
+#include "../celeste_controller.h"
+#include "airborne_states.h"
+#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
+
+namespace godot {
+
+// --- GROUNDED STATE (Parent) ---
+
+void CelesteGroundedState::physics_update(float delta) {
+	if (!controller)
+		return;
+
+	PlayerInput *input = PlayerInput::get_singleton();
+	if (!input)
+		return;
+	const ActionState &state = input->get_state();
+
+	// Transition to Airborne if not on floor
+	if (!controller->is_on_floor()) {
+		controller->change_state(controller->fall_state);
+		return;
+	}
+
+	// Jump Input
+	if (state.character.jump_just_pressed) {
+		Vector3 vel = controller->get_velocity();
+		vel.y = controller->jump_velocity;
+		controller->set_velocity(vel);
+		controller->is_jumping = true;
+		controller->change_state(controller->jump_state);
+		return;
+	}
+}
+
+// --- IDLE STATE ---
+
+void CelesteIdleState::enter() {
+	// Optional: Animation trigger
+}
+
+void CelesteIdleState::physics_update(float delta) {
+	CelesteGroundedState::physics_update(delta);
+	if (controller->current_state != this)
+		return;
+
+	// Apply Friction
+	Vector3 vel = controller->get_velocity();
+	vel.x = Math::move_toward(vel.x, 0.0f, controller->friction * delta);
+	vel.z = Math::move_toward(vel.z, 0.0f, controller->friction * delta);
+	controller->set_velocity(vel);
+
+	// Transition to Move if input detected
+	PlayerInput *input = PlayerInput::get_singleton();
+	if (input && input->get_state().character.move_axis.length() > 0.1f) {
+		controller->change_state(controller->move_state);
+	}
+}
+
+// --- MOVE STATE ---
+
+void CelesteMoveState::enter() {
+	// Optional: Animation trigger
+}
+
+void CelesteMoveState::physics_update(float delta) {
+	CelesteGroundedState::physics_update(delta);
+	if (controller->current_state != this)
+		return;
+
+	PlayerInput *input = PlayerInput::get_singleton();
+	if (!input)
+		return;
+	const ActionState &state = input->get_state();
+
+	// Calculate target direction relative to camera
+	Transform3D transform = controller->get_global_transform();
+	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
+	if (cam && cam->get_camera_mode() == GameCamera::MODE_TPS) {
+		controller->set_rotation(Vector3(0, cam->get_yaw(), 0));
+		transform = controller->get_global_transform();
+	}
+
+	Vector3 forward = -transform.basis.get_column(2).normalized();
+	Vector3 right = transform.basis.get_column(0).normalized();
+	Vector3 move_dir = (forward * -state.character.move_axis.y + right * state.character.move_axis.x);
+	if (move_dir.length() > 1.0f)
+		move_dir.normalize();
+
+	if (move_dir.length() < 0.1f) {
+		controller->change_state(controller->idle_state);
+		return;
+	}
+
+	Vector3 target_horizontal_vel = move_dir * controller->max_speed;
+	Vector3 vel = controller->get_velocity();
+	vel.x = Math::move_toward(vel.x, target_horizontal_vel.x, controller->acceleration * delta);
+	vel.z = Math::move_toward(vel.z, target_horizontal_vel.z, controller->acceleration * delta);
+	controller->set_velocity(vel);
+}
+
+} // namespace godot

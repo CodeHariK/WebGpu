@@ -2,9 +2,9 @@
 #include "../debug_draw/debug_quad.h"
 #include "../game_manager/game_manager.h"
 #include "../utils/raycast/mc_raycast.h"
-#include "ai/states/airborne_states.h"
-#include "ai/states/combat_states.h"
-#include "ai/states/grounded_states.h"
+#include "states/airborne_states.h"
+#include "states/combat_states.h"
+#include "states/grounded_states.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>

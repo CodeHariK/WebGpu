@@ -1,7 +1,7 @@
 #ifndef CHARACTER_GROUNDED_STATES_H
 #define CHARACTER_GROUNDED_STATES_H
 
-#include "../character_state.h"
+#include "../physics_character_state.h"
 
 namespace godot {
 

@@ -1,8 +1,8 @@
 #include "grounded_states.h"
+#include "../../game_manager/player_input.h"
+#include "../physics_character.h"
 #include "airborne_states.h"
 #include "combat_states.h"
-#include "../../physics_character.h"
-#include "../../../game_manager/player_input.h"
 #include <godot_cpp/classes/rigid_body3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -21,7 +21,8 @@ void CharGroundedState::physics_update(float delta) {
 	}
 
 	// Handle Jump input (Space) via ActionState
-	if (!character->get_player_input()) return;
+	if (!character->get_player_input())
+		return;
 
 	const ActionState &state = character->get_player_input()->get_state();
 
