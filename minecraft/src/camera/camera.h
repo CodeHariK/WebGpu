@@ -45,7 +45,9 @@ private:
 	float yaw = 0.0f;
 	float pitch = 0.0f;
 
-	// Spring Parameters
+	// Smoothing Toggles
+	bool pos_smoothing_enabled = true;
+
 	float frequency = 2.0f;
 	float damping = 1.0f;
 	float response = 0.0f;
@@ -70,10 +72,6 @@ private:
 	bool collision_enabled = true;
 	uint32_t collision_mask = 1;
 	float collision_margin = 0.2f;
-
-	// Stability Lock (from user suggestion)
-	bool stability_lock_enabled = true;
-	float stability_threshold = 2.0f;
 
 	PlayerInput *player_input = nullptr;
 
@@ -119,6 +117,9 @@ public:
 	void set_zoom_speed(float p_speed) { zoom_speed = p_speed; }
 	float get_zoom_speed() const { return zoom_speed; }
 
+	void set_orbit_sensitivity(float p_sensitivity) { orbit_sensitivity = p_sensitivity; }
+	float get_orbit_sensitivity() const { return orbit_sensitivity; }
+
 	void set_follow_offset(const Vector3 &p_offset);
 	Vector3 get_follow_offset() const { return follow_offset; }
 
@@ -131,11 +132,8 @@ public:
 	void set_collision_enabled(bool p_enabled) { collision_enabled = p_enabled; }
 	bool is_collision_enabled() const { return collision_enabled; }
 
-	void set_stability_lock_enabled(bool p_enabled) { stability_lock_enabled = p_enabled; }
-	bool is_stability_lock_enabled() const { return stability_lock_enabled; }
-
-	void set_stability_threshold(float p_threshold) { stability_threshold = p_threshold; }
-	float get_stability_threshold() const { return stability_threshold; }
+	void set_pos_smoothing_enabled(bool p_enabled) { pos_smoothing_enabled = p_enabled; }
+	bool is_pos_smoothing_enabled() const { return pos_smoothing_enabled; }
 
 	// Raycasting
 	MCRaycastHit get_center_raycast_hit(uint32_t p_mask = 0xFFFFFFFF, float p_dist = 1000.0f);

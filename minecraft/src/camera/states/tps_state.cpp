@@ -52,10 +52,18 @@ void CameraStateTPS::update(GameCamera *p_camera, float p_delta) {
 	p_camera->dist_spring.target = dist_multiplier;
 	p_camera->dist_spring.step(p_delta, p_camera->get_frequency() * 1.5f, p_camera->get_damping(), p_camera->response);
 
-	// Final Position
-	Vector3 final_offset = rot_basis.xform(local_offset * p_camera->dist_spring.current);
+	// Final Ideal Position (where the camera wants to be)
+	Vector3 ideal_pos = pivot + rot_basis.xform(local_offset * p_camera->dist_spring.current);
 	
-	p_camera->set_global_position(pivot + final_offset);
+	// 6. Movement Smoothing
+	p_camera->pos_spring.target = ideal_pos;
+	if (p_camera->is_pos_smoothing_enabled()) {
+		p_camera->pos_spring.step(p_delta, p_camera->get_frequency(), p_camera->get_damping(), p_camera->response);
+		p_camera->set_global_position(p_camera->pos_spring.current);
+	} else {
+		p_camera->set_global_position(ideal_pos);
+	}
+
 	p_camera->set_rotation(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
 }
 
