@@ -80,13 +80,26 @@ void CelesteMoveState::physics_update(float delta) {
 	// Calculate target direction relative to camera
 	Transform3D transform = controller->get_global_transform();
 	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
-	if (cam && cam->get_camera_mode() == GameCamera::MODE_TPS) {
-		controller->set_rotation(Vector3(0, cam->get_yaw(), 0));
+
+	bool rotate_to_move = false;
+	if (cam) {
+		if (cam->get_camera_mode() == GameCamera::MODE_TPS) {
+			controller->set_rotation(Vector3(0, cam->get_yaw(), 0));
+		} else if (cam->get_camera_mode() == GameCamera::MODE_FIXED) {
+			rotate_to_move = true;
+		}
 		transform = controller->get_global_transform();
 	}
 
 	Vector3 forward = -transform.basis.get_column(2).normalized();
 	Vector3 right = transform.basis.get_column(0).normalized();
+
+	// If in FIXED mode, we use world axes (camera is fixed)
+	if (rotate_to_move) {
+		forward = Vector3(0, 0, -1);
+		right = Vector3(1, 0, 0);
+	}
+
 	Vector3 move_dir = (forward * -state.character.move_axis.y + right * state.character.move_axis.x);
 	if (move_dir.length() > 1.0f)
 		move_dir.normalize();
@@ -94,6 +107,14 @@ void CelesteMoveState::physics_update(float delta) {
 	if (move_dir.length() < 0.1f) {
 		controller->change_state(controller->idle_state);
 		return;
+	}
+
+	// Character Rotation for FIXED mode
+	if (rotate_to_move) {
+		float target_angle = Math::atan2(-move_dir.x, -move_dir.z);
+		float current_angle = controller->get_rotation().y;
+		float new_angle = Math::lerp_angle(current_angle, target_angle, delta * 20.0f);
+		controller->set_rotation(Vector3(0, new_angle, 0));
 	}
 
 	Vector3 target_horizontal_vel = move_dir * controller->max_speed;

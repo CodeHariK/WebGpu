@@ -24,6 +24,10 @@ void CelesteController::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_friction"), &CelesteController::get_friction);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "friction"), "set_friction", "get_friction");
 
+	ClassDB::bind_method(D_METHOD("set_air_resistance", "p_val"), &CelesteController::set_air_resistance);
+	ClassDB::bind_method(D_METHOD("get_air_resistance"), &CelesteController::get_air_resistance);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "air_resistance"), "set_air_resistance", "get_air_resistance");
+
 	ClassDB::bind_method(D_METHOD("set_jump_height", "p_val"), &CelesteController::set_jump_height);
 	ClassDB::bind_method(D_METHOD("get_jump_height"), &CelesteController::get_jump_height);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "jump_height"), "set_jump_height", "get_jump_height");

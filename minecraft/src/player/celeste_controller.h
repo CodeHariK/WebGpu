@@ -30,6 +30,7 @@ private:
 	float max_speed = 10.0f;
 	float acceleration = 80.0f;
 	float friction = 60.0f;
+	float air_resistance = 20.0f;
 
 	// Jump Math (Kinematic)
 	float jump_height = 2.5f;
@@ -75,6 +76,9 @@ public:
 
 	void set_friction(float p_val) { friction = p_val; }
 	float get_friction() const { return friction; }
+
+	void set_air_resistance(float p_val) { air_resistance = p_val; }
+	float get_air_resistance() const { return air_resistance; }
 
 	void set_jump_height(float p_val) {
 		jump_height = p_val;

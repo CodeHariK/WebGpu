@@ -352,7 +352,8 @@ void ArcadeVehicle::_apply_steering(float delta) {
 
 	if (abs(current_forward_speed) > 1.0f && abs(steer_angle) > 0.01f) {
 		float dir_sign = (current_forward_speed > 0.0f) ? 1.0f : -1.0f;
-		float steering_torque = steer_angle * config->get_mass() * 5.0f * dir_sign;
+		// Positive steer turns Right (CW), which is Negative Y rotation in Godot
+		float steering_torque = -steer_angle * config->get_mass() * 5.0f * dir_sign;
 
 		apply_torque(up_dir * steering_torque);
 	}

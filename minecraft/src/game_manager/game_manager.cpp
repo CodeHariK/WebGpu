@@ -153,7 +153,10 @@ void GameManager::set_active_target(Node *p_target) {
 				if (Object::cast_to<ArcadeVehicle>(active_target)) {
 					main_camera->set_camera_mode(GameCamera::MODE_CAR);
 				} else if (Object::cast_to<PhysicsCharacter3D>(active_target) || Object::cast_to<CelesteController>(active_target)) {
-					main_camera->set_camera_mode(GameCamera::MODE_TPS);
+					// Only auto-switch to TPS if we aren't already in a character-friendly mode like FIXED
+					if (main_camera->get_camera_mode() != GameCamera::MODE_FIXED) {
+						main_camera->set_camera_mode(GameCamera::MODE_TPS);
+					}
 				}
 			}
 		}
@@ -226,7 +229,7 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> mb = p_event;
 	if (mb.is_valid() && mb->is_pressed() && mb->get_button_index() == MOUSE_BUTTON_LEFT) {
 		Input *input = Input::get_singleton();
-		if (main_camera && main_camera->get_camera_mode() != GameCamera::MODE_FLY) {
+		if (main_camera && main_camera->get_camera_mode() != GameCamera::MODE_FLY && main_camera->get_camera_mode() != GameCamera::MODE_FIXED) {
 			if (input->get_mouse_mode() == Input::MOUSE_MODE_VISIBLE) {
 				input->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
 			}
