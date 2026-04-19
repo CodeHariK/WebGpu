@@ -23,12 +23,14 @@ class GameCamera : public Camera3D {
 	friend class CameraStateFly;
 	friend class CameraStateCar;
 	friend class CameraStateTPS;
+	friend class CameraStateFixed;
 
 public:
 	enum Mode {
 		MODE_FLY,
 		MODE_CAR,
-		MODE_TPS
+		MODE_TPS,
+		MODE_FIXED
 	};
 
 private:

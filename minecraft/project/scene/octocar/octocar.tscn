@@ -31,6 +31,7 @@ hardpoint_offset = Vector3(-1, 0, -1.5)
 
 [sub_resource type="VehicleConfig" id="VehicleConfig_3f0it"]
 max_accel_force = 16000.0
+max_steer_angle_deg = 75.0
 show_debug_velocity = true
 wheel_configs = Array[WheelConfig]([SubResource("WheelConfig_1dqdu"), SubResource("WheelConfig_4kplg"), SubResource("WheelConfig_nxv8y"), SubResource("WheelConfig_ogdk4")])
 
@@ -192,7 +193,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.994751, 0)
 curve = SubResource("Curve3D_rafu7")
 
 [node name="GameCamera" type="GameCamera" parent="." unique_id=975855693]
-follow_target_path = NodePath("../PhysicsCharacter3D")
+camera_mode = 2
+follow_target_path = NodePath("../CelesteController")
 follow_offset = Vector3(0, 4.185, 10.225)
 transform = Transform3D(1, 0, 0, 0, 0.8347999, 0.55055356, 0, -0.55055356, 0.8347999, 0, 7.7511787, 15.159767)
 
@@ -218,7 +220,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.800528, 3.0714903, 2.84665
 mesh = SubResource("CapsuleMesh_1dqdu")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController/MeshInstance3D" unique_id=317883139]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.71504164, -0.5979552)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.71504164, -0.70530033)
 mesh = SubResource("BoxMesh_1dqdu")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CelesteController" unique_id=29480069]
@@ -236,9 +238,10 @@ mass = 100.0
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PhysicsCharacter3D" unique_id=1236943969]
 mesh = SubResource("CapsuleMesh_1dqdu")
 
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="PhysicsCharacter3D/MeshInstance3D" unique_id=940327765]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.71504164, -0.70530033)
+mesh = SubResource("BoxMesh_1dqdu")
+skeleton = NodePath("../..")
+
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PhysicsCharacter3D" unique_id=1289767880]
 shape = SubResource("CapsuleShape3D_4kplg")
-
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="PhysicsCharacter3D" unique_id=940327765]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.71504164, -0.5979552)
-mesh = SubResource("BoxMesh_1dqdu")

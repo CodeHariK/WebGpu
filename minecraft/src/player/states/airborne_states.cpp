@@ -1,4 +1,6 @@
 #include "airborne_states.h"
+#include "../../camera/camera.h"
+#include "../../game_manager/game_manager.h"
 #include "../../game_manager/player_input.h"
 #include "../celeste_controller.h"
 #include "grounded_states.h"
@@ -35,18 +37,47 @@ void CelesteAirborneState::physics_update(float delta) {
 	v.y -= current_gravity * delta;
 
 	// Horizontal Air Control
+	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
 	Transform3D transform = controller->get_global_transform();
+
+	bool rotate_to_move = false;
+	if (cam && cam->get_camera_mode() == GameCamera::MODE_FIXED) {
+		rotate_to_move = true;
+	}
+
 	Vector3 forward = -transform.basis.get_column(2).normalized();
 	Vector3 right = transform.basis.get_column(0).normalized();
+
+	if (rotate_to_move) {
+		forward = Vector3(0, 0, -1);
+		right = Vector3(1, 0, 0);
+	}
+
 	Vector3 move_dir = (forward * -state.character.move_axis.y + right * state.character.move_axis.x);
 	if (move_dir.length() > 1.0f)
 		move_dir.normalize();
+
+	// Character Rotation for FIXED mode
+	if (rotate_to_move && move_dir.length() > 0.1f) {
+		float target_angle = Math::atan2(-move_dir.x, -move_dir.z);
+		float current_angle = controller->get_rotation().y;
+		float new_angle = Math::lerp_angle(current_angle, target_angle, delta * 20.0f);
+		controller->set_rotation(Vector3(0, new_angle, 0));
+	}
 
 	float accel = controller->acceleration;
 	Vector3 target_vel = move_dir * controller->max_speed;
 
 	v.x = Math::move_toward(v.x, target_vel.x, accel * delta);
 	v.z = Math::move_toward(v.z, target_vel.z, accel * delta);
+
+	// Apply Horizontal Air Resistance (Drag) - Only if falling naturally, not from a jump
+	if (controller->current_state == (CelesteState *)controller->fall_state && !controller->is_jumping) {
+		float drag = 1.0f - (controller->air_resistance * delta);
+		v.x *= Math::max(0.0f, drag);
+		v.z *= Math::max(0.0f, drag);
+	}
+
 	controller->set_velocity(v);
 }
 

@@ -5,6 +5,7 @@
 #include "states/car_state.h"
 #include "states/fly_state.h"
 #include "states/tps_state.h"
+#include "states/fixed_state.h"
 
 #include "../utils/raycast/mc_raycast.h"
 #include <godot_cpp/classes/collision_object3d.hpp>
@@ -21,7 +22,7 @@ namespace godot {
 void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_camera_mode", "mode"), &GameCamera::set_camera_mode);
 	ClassDB::bind_method(D_METHOD("get_camera_mode"), &GameCamera::get_camera_mode);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "camera_mode", PROPERTY_HINT_ENUM, "Fly,Car,TPS"), "set_camera_mode", "get_camera_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "camera_mode", PROPERTY_HINT_ENUM, "Fly,Car,TPS,Fixed"), "set_camera_mode", "get_camera_mode");
 
 	ClassDB::bind_method(D_METHOD("set_follow_target_path", "path"), &GameCamera::set_follow_target_path);
 	ClassDB::bind_method(D_METHOD("get_follow_target_path"), &GameCamera::get_follow_target_path);
@@ -70,6 +71,7 @@ void GameCamera::_bind_methods() {
 	BIND_ENUM_CONSTANT(MODE_FLY);
 	BIND_ENUM_CONSTANT(MODE_CAR);
 	BIND_ENUM_CONSTANT(MODE_TPS);
+	BIND_ENUM_CONSTANT(MODE_FIXED);
 }
 
 GameCamera::GameCamera() {
@@ -146,6 +148,9 @@ void GameCamera::set_camera_mode(Mode p_mode) {
 			break;
 		case MODE_TPS:
 			current_mode_instance = new CameraStateTPS();
+			break;
+		case MODE_FIXED:
+			current_mode_instance = new CameraStateFixed();
 			break;
 	}
 
