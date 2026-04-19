@@ -209,9 +209,9 @@ shape = SubResource("ConcavePolygonShape3D_mxckk")
 [node name="GameManager" type="GameManager" parent="." unique_id=542871028]
 
 [node name="CelesteController" type="CelesteController" parent="." unique_id=1758102786]
+max_speed = 20.0
 jump_height = 10.0
-jump_time_to_peak = 0.4
-jump_time_to_descent = 0.1
+jump_time_to_descent = 0.6
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.800528, 3.0714903, 2.846653)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController" unique_id=1101944800]
@@ -231,6 +231,7 @@ acceleration = 10000.0
 jump_impulse = 5000.0
 kick_max_distance = 120.0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.8402767, 3.0714903, 2.846653)
+mass = 100.0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="PhysicsCharacter3D" unique_id=1236943969]
 mesh = SubResource("CapsuleMesh_1dqdu")

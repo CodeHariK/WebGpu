@@ -1,7 +1,7 @@
 #ifndef CHARACTER_COMBAT_STATES_H
 #define CHARACTER_COMBAT_STATES_H
 
-#include "../character_state.h"
+#include "../physics_character_state.h"
 #include <godot_cpp/variant/vector3.hpp>
 
 namespace godot {

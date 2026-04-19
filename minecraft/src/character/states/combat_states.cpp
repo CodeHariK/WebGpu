@@ -1,9 +1,9 @@
 #include "combat_states.h"
-#include "../../../camera/camera.h"
-#include "../../../game_manager/game_manager.h"
-#include "../../../game_manager/player_input.h"
-#include "../../../utils/raycast/mc_raycast.h"
-#include "../../physics_character.h"
+#include "../../camera/camera.h"
+#include "../../game_manager/game_manager.h"
+#include "../../game_manager/player_input.h"
+#include "../../utils/raycast/mc_raycast.h"
+#include "../physics_character.h"
 #include "airborne_states.h"
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
