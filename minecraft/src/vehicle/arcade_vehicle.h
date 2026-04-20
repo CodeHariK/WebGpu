@@ -1,7 +1,6 @@
 #ifndef ARCADE_VEHICLE_H
 #define ARCADE_VEHICLE_H
 
-#include "../debug_draw/debug_quad.h"
 #include "config/vehicle_config.h"
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
@@ -48,9 +47,6 @@ private:
 	bool stunt_requested = false;
 	bool in_stunt_rotation = false;
 
-	DebugLineQuad *vel_x_arrow = nullptr;
-	DebugLineQuad *vel_y_arrow = nullptr;
-	DebugLineQuad *vel_z_arrow = nullptr;
 
 	void _setup_vehicle();
 	void _update_visuals();

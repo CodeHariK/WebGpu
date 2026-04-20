@@ -3,6 +3,7 @@
 #include "../character/physics_character.h"
 #include "../marching_cubes/mc_manager.h"
 #include "../player/celeste_controller.h"
+#include "../debug_draw/debug_manager.h"
 #include "../vehicle/arcade_vehicle.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
@@ -28,6 +29,7 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("register_character", "p_character"), &GameManager::register_character);
 	ClassDB::bind_method(D_METHOD("register_celeste_controller", "p_character"), &GameManager::register_celeste_controller);
 	ClassDB::bind_method(D_METHOD("register_camera", "p_camera"), &GameManager::register_camera);
+	ClassDB::bind_method(D_METHOD("get_debug_manager"), &GameManager::get_debug_manager);
 }
 
 GameManager::GameManager() {
@@ -36,6 +38,8 @@ GameManager::GameManager() {
 		singleton = this;
 	}
 	player_input = memnew(PlayerInput);
+	debug_manager = memnew(DebugManager);
+	debug_manager->set_name("DebugManager");
 }
 
 GameManager::~GameManager() {
@@ -60,6 +64,9 @@ void GameManager::_enter_tree() {
 	}
 
 	singleton = this;
+	if (debug_manager && !debug_manager->is_inside_tree()) {
+		add_child(debug_manager);
+	}
 	UtilityFunctions::print("GameManager: Singleton initialized and ready.");
 }
 

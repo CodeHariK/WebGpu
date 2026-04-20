@@ -1,5 +1,5 @@
 #include "physics_character.h"
-#include "../debug_draw/debug_quad.h"
+#include "../debug_draw/debug_manager.h"
 #include "../game_manager/game_manager.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "states/airborne_states.h"
@@ -119,19 +119,6 @@ void PhysicsCharacter3D::_setup_character() {
 	if (gm) {
 		gm->register_character(this);
 	}
-
-	// 4. Setup Debug Ray
-	ray_debug = memnew(DebugLineQuad);
-	ray_debug->set_name("RayDebug");
-	add_child(ray_debug);
-	ray_debug->set_visible(false);
-
-	// 5. Setup Ground Debug
-	ground_debug = memnew(DebugLineQuad);
-	ground_debug->set_name("GroundDebug");
-	add_child(ground_debug);
-	ground_debug->set_color(Color(1, 0, 1, 0.5f)); // Magenta
-	ground_debug->set_as_top_level(true);
 }
 
 void PhysicsCharacter3D::_physics_process(double delta) {
@@ -150,15 +137,6 @@ void PhysicsCharacter3D::_physics_process(double delta) {
 
 	// 3. Apply floating spring force if grounded
 	_apply_hover_spring(f_delta);
-
-	// 4. Update Ray Debug Timer
-	if (ray_debug_timer > 0) {
-		ray_debug_timer -= f_delta;
-		if (ray_debug_timer <= 0) {
-			if (ray_debug)
-				ray_debug->set_visible(false);
-		}
-	}
 }
 
 void PhysicsCharacter3D::_handle_ground_detection(float delta) {
@@ -169,20 +147,22 @@ void PhysicsCharacter3D::_handle_ground_detection(float delta) {
 	MCRaycastHit hit = spherecast_3d(this, get_global_position(), Vector3(0, -1, 0), cast_dist, radius);
 
 	is_grounded = hit.is_hit;
+	String base_id = "char_" + get_name() + "_";
+	DebugManager *dm = DebugManager::get_singleton();
+
 	if (is_grounded) {
 		dist_to_ground = (get_global_position() - hit.position).length();
 		ground_normal = hit.normal;
 
-		if (ground_debug) {
-			ground_debug->set_line(get_global_position(), hit.position, 0.02f);
-			ground_debug->set_visible(true);
+		if (dm) {
+			dm->draw_line(base_id + "ground", get_global_position(), hit.position, 0.02f, Color(1, 0, 1, 0.5f));
 		}
 	} else {
 		dist_to_ground = cast_dist;
 		ground_normal = Vector3(0, 1, 0);
 
-		if (ground_debug) {
-			ground_debug->set_visible(false);
+		if (dm) {
+			dm->clear_line(base_id + "ground");
 		}
 	}
 }
@@ -216,22 +196,11 @@ void PhysicsCharacter3D::change_state(CharacterState *p_new_state) {
 }
 
 void PhysicsCharacter3D::draw_debug_ray(const Vector3 &p_start, const Vector3 &p_end, const Color &p_color, float p_duration) {
-	if (!ray_debug)
-		return;
-
-	// Note: DebugLineQuad uses world space internally via set_line if added to root,
-	// but if it's a child of character, we need to handle its transform.
-	// Actually DebugLineQuad's internal _update_geometry sets its transform to world space if it's placed correctly.
-	// But since it's a child of the character, we should use local coordinates OR set_as_top_level.
-
-	if (!ray_debug->is_set_as_top_level()) {
-		ray_debug->set_as_top_level(true);
+	DebugManager *dm = DebugManager::get_singleton();
+	if (dm) {
+		String ray_id = "char_" + get_name() + "_ray";
+		dm->draw_line(ray_id, p_start, p_end, 0.05f, p_color, p_duration);
 	}
-
-	ray_debug->set_line(p_start, p_end, 0.05f);
-	ray_debug->set_color(p_color);
-	ray_debug->set_visible(true);
-	ray_debug_timer = p_duration;
 }
 
 } // namespace godot

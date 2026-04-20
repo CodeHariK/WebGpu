@@ -8,6 +8,7 @@
 #include "camera/camera.h"
 #include "character/physics_character.h"
 #include "cui/cui.h"
+#include "debug_draw/debug_manager.h"
 #include "debug_draw/debug_quad.h"
 #include "game_manager/game_manager.h"
 #include "game_manager/player_input.h"
@@ -43,6 +44,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(ArcadeVehicle);
 
 	GDREGISTER_CLASS(DebugLineQuad);
+	GDREGISTER_CLASS(DebugManager);
 
 	GDREGISTER_CLASS(GameManager);
 	GDREGISTER_CLASS(PlayerInput);
