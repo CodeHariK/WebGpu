@@ -1,3 +1,4 @@
+#include "debug_draw/debug_manager.h"
 #include "../arcade_vehicle.h"
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -6,34 +7,17 @@ namespace godot {
 void ArcadeVehicle::_update_debug_arrows() {
 	bool show = config.is_valid() && config->get_show_debug_velocity();
 
-	// 1. Initialization
-	if (show && vel_x_arrow == nullptr) {
-		vel_x_arrow = memnew(DebugLineQuad);
-		vel_x_arrow->set_name("DebugVelX");
-		add_child(vel_x_arrow);
-		vel_x_arrow->set_color(Color(1, 0, 0)); // Red
+	String base_id = "veh_" + get_name() + "_";
 
-		vel_y_arrow = memnew(DebugLineQuad);
-		vel_y_arrow->set_name("DebugVelY");
-		add_child(vel_y_arrow);
-		vel_y_arrow->set_color(Color(0, 1, 0)); // Green
-
-		vel_z_arrow = memnew(DebugLineQuad);
-		vel_z_arrow->set_name("DebugVelZ");
-		add_child(vel_z_arrow);
-		vel_z_arrow->set_color(Color(0, 0, 1)); // Blue
-	}
-
-	// 2. Visibility Toggle
-	if (vel_x_arrow)
-		vel_x_arrow->set_visible(show);
-	if (vel_y_arrow)
-		vel_y_arrow->set_visible(show);
-	if (vel_z_arrow)
-		vel_z_arrow->set_visible(show);
-
-	if (!show)
+	if (!show) {
+		DebugManager *dm = DebugManager::get_singleton();
+		if (dm) {
+			dm->clear_line(base_id + "vel_x");
+			dm->clear_line(base_id + "vel_y");
+			dm->clear_line(base_id + "vel_z");
+		}
 		return;
+	}
 
 	// 3. Update Geometry
 	Vector3 global_vel = get_linear_velocity();
@@ -44,17 +28,23 @@ void ArcadeVehicle::_update_debug_arrows() {
 	float thickness = config->get_debug_velocity_width();
 
 	// Origins for arrows (slight vertical offset to not be inside chassis)
-	Vector3 origin = Vector3(0, 0.5f, 0);
+	Vector3 origin = get_global_transform().xform(Vector3(0, 0.5f, 0));
 
-	// Update each arrow
+	DebugManager *dm = DebugManager::get_singleton();
+	if (!dm) return;
+
+	// Update each arrow using world space coordinates
 	// X-axis (Red)
-	vel_x_arrow->set_line(origin, origin + Vector3(local_vel.x * scale, 0, 0), thickness);
+	Vector3 x_end = get_global_transform().xform(Vector3(0, 0.5f, 0) + Vector3(local_vel.x * scale, 0, 0));
+	dm->draw_line(base_id + "vel_x", origin, x_end, thickness, Color(1, 0, 0));
 
 	// Y-axis (Green)
-	vel_y_arrow->set_line(origin, origin + Vector3(0, local_vel.y * scale, 0), thickness);
+	Vector3 y_end = get_global_transform().xform(Vector3(0, 0.5f, 0) + Vector3(0, local_vel.y * scale, 0));
+	dm->draw_line(base_id + "vel_y", origin, y_end, thickness, Color(0, 1, 0));
 
 	// Z-axis (Blue) - usually forward/backward
-	vel_z_arrow->set_line(origin, origin + Vector3(0, 0, local_vel.z * scale), thickness);
+	Vector3 z_end = get_global_transform().xform(Vector3(0, 0.5f, 0) + Vector3(0, 0, local_vel.z * scale));
+	dm->draw_line(base_id + "vel_z", origin, z_end, thickness, Color(0, 0, 1));
 }
 
 } // namespace godot

@@ -12,7 +12,6 @@ class GameManager;
 class CharacterState;
 class CharGroundedState;
 class CharAirborneState;
-class DebugLineQuad;
 class CharacterState;
 class PlayerInput;
 
@@ -65,10 +64,6 @@ private:
 	CharacterState *dropkick_state = nullptr;
 	CharacterState *grab_state = nullptr;
 
-	DebugLineQuad *ray_debug = nullptr;
-	float ray_debug_timer = 0.0f;
-
-	DebugLineQuad *ground_debug = nullptr;
 
 	friend class CharacterState;
 	friend class CharGroundedState;
