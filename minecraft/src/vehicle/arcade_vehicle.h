@@ -80,6 +80,7 @@ public:
 	~ArcadeVehicle();
 
 	void _ready() override;
+	void _exit_tree() override;
 	void _physics_process(double p_delta) override;
 
 	void change_state(VehicleState* new_state);

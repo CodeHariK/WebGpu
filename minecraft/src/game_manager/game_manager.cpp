@@ -33,13 +33,7 @@ void GameManager::_bind_methods() {
 }
 
 GameManager::GameManager() {
-	// Pre-initialization: don't overwrite if we already have one
-	if (singleton == nullptr) {
-		singleton = this;
-	}
-	player_input = memnew(PlayerInput);
-	debug_manager = memnew(DebugManager);
-	debug_manager->set_name("DebugManager");
+	// Don't initialize subsystems here; wait until _enter_tree to ensure we are the singleton.
 }
 
 GameManager::~GameManager() {
@@ -58,21 +52,34 @@ GameManager *GameManager::get_singleton() {
 
 void GameManager::_enter_tree() {
 	if (singleton != nullptr && singleton != this) {
-		UtilityFunctions::printerr("GameManager Error: Multiple instances of GameManager detected! Only one singleton is allowed. Removing extra instance.");
+		UtilityFunctions::printerr("GameManager Error: Multiple instances detected! Removing extra instance.");
 		queue_free();
 		return;
 	}
 
 	singleton = this;
-	if (debug_manager && !debug_manager->is_inside_tree()) {
+
+	// Lazy Initializion of subsystems only for the true singleton
+	if (!player_input) {
+		player_input = memnew(PlayerInput);
+	}
+
+	if (!debug_manager) {
+		debug_manager = memnew(DebugManager);
+		debug_manager->set_name("DebugManager");
+	}
+
+	if (debug_manager && debug_manager->get_parent() == nullptr) {
 		add_child(debug_manager);
 	}
+
 	UtilityFunctions::print("GameManager: Singleton initialized and ready.");
 }
 
 void GameManager::_exit_tree() {
 	if (singleton == this) {
 		singleton = nullptr;
+		UtilityFunctions::print("GameManager: Singleton cleared on exit tree.");
 	}
 }
 
@@ -119,10 +126,15 @@ PhysicsCharacter3D *GameManager::get_character() const {
 }
 
 void GameManager::register_celeste_controller(Node *p_character) {
+	if (p_character == nullptr) {
+		if (active_target == celeste_character) {
+			active_target = nullptr;
+		}
+		celeste_character = nullptr;
+		return;
+	}
 	celeste_character = Object::cast_to<CelesteController>(p_character);
 	if (celeste_character) {
-		// Note: CelesteController doesn't currently use GameManager/PlayerInput setters
-		// but we might want them later for consistency.
 		UtilityFunctions::print("GameManager: Registered CelesteController.");
 		if (active_target == nullptr) {
 			set_active_target(celeste_character);
@@ -135,6 +147,10 @@ Node *GameManager::get_celeste_controller() const {
 }
 
 void GameManager::register_camera(GameCamera *p_camera) {
+	if (p_camera == nullptr) {
+		main_camera = nullptr;
+		return;
+	}
 	main_camera = p_camera;
 	if (main_camera && player_input) {
 		main_camera->set_player_input(player_input);
@@ -228,6 +244,10 @@ void GameManager::_physics_process(double delta) {
 }
 
 void GameManager::_input(const Ref<InputEvent> &p_event) {
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+
 	if (player_input) {
 		player_input->handle_input(p_event);
 	}

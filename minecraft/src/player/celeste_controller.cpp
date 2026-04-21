@@ -1,5 +1,6 @@
 #include "celeste_controller.h"
 #include "../camera/camera.h"
+#include "../debug_draw/debug_manager.h"
 #include "../game_manager/game_manager.h"
 #include "../game_manager/player_input.h"
 #include "../utils/raycast/mc_raycast.h"
@@ -93,6 +94,13 @@ void CelesteController::_ready() {
 	}
 }
 
+void CelesteController::_exit_tree() {
+	GameManager *gm = GameManager::get_singleton();
+	if (gm && gm->get_celeste_controller() == this) {
+		gm->register_celeste_controller(nullptr);
+	}
+}
+
 void CelesteController::change_state(CelesteState *p_new_state) {
 	if (current_state == p_new_state)
 		return;
@@ -106,6 +114,11 @@ void CelesteController::change_state(CelesteState *p_new_state) {
 void CelesteController::_physics_process(double delta) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
+	}
+
+	// Debug visualization of state
+	if (current_state) {
+		DebugManager::get_singleton()->draw_text("player_state", current_state->get_name(), get_global_position() + Vector3(0, 2.0f, 0), 0.05f, Color(0, 1, 0));
 	}
 
 	float f_delta = (float)delta;

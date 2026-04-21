@@ -57,6 +57,13 @@ void ArcadeVehicle::_ready() {
 	}
 }
 
+void ArcadeVehicle::_exit_tree() {
+	GameManager *gm = GameManager::get_singleton();
+	if (gm && gm->get_vehicle() == this) {
+		gm->register_vehicle(nullptr);
+	}
+}
+
 void ArcadeVehicle::change_state(VehicleState *new_state) {
 	if (current_state == new_state)
 		return;

@@ -87,6 +87,7 @@ public:
 	~GameCamera();
 
 	void _ready() override;
+	void _exit_tree() override;
 	void _physics_process(double p_delta) override;
 
 	// Getters/Setters
