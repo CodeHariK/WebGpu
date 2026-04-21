@@ -63,6 +63,7 @@ public:
 	~CelesteController();
 
 	void _ready() override;
+	void _exit_tree() override;
 	void _physics_process(double delta) override;
 
 	void change_state(CelesteState *p_new_state);

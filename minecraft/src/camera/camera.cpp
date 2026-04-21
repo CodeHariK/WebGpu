@@ -114,6 +114,13 @@ void GameCamera::_ready() {
 	set_camera_mode(camera_mode);
 }
 
+void GameCamera::_exit_tree() {
+	GameManager *gm = GameManager::get_singleton();
+	if (gm && gm->get_camera() == this) {
+		gm->register_camera(nullptr);
+	}
+}
+
 void GameCamera::_physics_process(double p_delta) {
 	if (Engine::get_singleton()->is_editor_hint() || !current_mode_instance)
 		return;
@@ -133,9 +140,13 @@ void GameCamera::set_camera_mode(Mode p_mode) {
 		return;
 	}
 
+	bool is_editor = Engine::get_singleton()->is_editor_hint();
+
 	// Exit current mode
 	if (current_mode_instance) {
-		current_mode_instance->exit(this);
+		if (!is_editor) {
+			current_mode_instance->exit(this);
+		}
 		delete current_mode_instance;
 		current_mode_instance = nullptr;
 	}
@@ -158,7 +169,7 @@ void GameCamera::set_camera_mode(Mode p_mode) {
 			break;
 	}
 
-	if (current_mode_instance) {
+	if (current_mode_instance && !is_editor) {
 		current_mode_instance->enter(this);
 	}
 }

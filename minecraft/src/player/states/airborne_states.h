@@ -8,12 +8,14 @@ namespace godot {
 class CelesteAirborneState : public CelesteState {
 public:
 	using CelesteState::CelesteState;
+	String get_name() const override { return "Airborne"; }
 	void physics_update(float delta) override;
 };
 
 class CelesteJumpState : public CelesteAirborneState {
 public:
 	using CelesteAirborneState::CelesteAirborneState;
+	String get_name() const override { return "Jump"; }
 	void enter() override;
 	void physics_update(float delta) override;
 };
@@ -21,6 +23,7 @@ public:
 class CelesteFallState : public CelesteAirborneState {
 public:
 	using CelesteAirborneState::CelesteAirborneState;
+	String get_name() const override { return "Fall"; }
 	void enter() override;
 	void physics_update(float delta) override;
 };
