@@ -45,9 +45,13 @@
 * Spaceship
 
 ## Enemies
-* Skeleton
+* Skeleton : [Character Modeling, Skeleton with the Skin Modifier in Blender](https://www.youtube.com/watch?v=g4_hQBKLiQI&list=PLzg4_2BrWAVyf8LKdr2XtEw2BCDvbEnuk&index=6)
 * Charging rhino (Lego Batman)
-* 
+* Earth Stomper (Jumps and create shockwaves when landing)
+* Tree Monkey (Throwing coconuts)
+* Flying bat
+* Ghost (Flying, Disappear and Reappear, Can go through walls)
+* Aliens Gangsters [Fast Character Modeling 5 Base Meshes in Blender](https://www.youtube.com/watch?v=8VzyqU908OA&list=PLzg4_2BrWAVyf8LKdr2XtEw2BCDvbEnuk&index=8)
 
 ## Robots
 * Spiders
