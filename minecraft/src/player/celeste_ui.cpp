@@ -49,6 +49,12 @@ void CelesteUI::setup(CelesteController *p_controller, CUI *p_ui_root) {
 	_add_variable_slider(controller_tab, "Time to Peak", "jump_time_to_peak", 0.1f, 1.0f, 0.01f);
 	_add_variable_slider(controller_tab, "Time to Descent", "jump_time_to_descent", 0.1f, 1.0f, 0.01f);
 	_add_variable_slider(controller_tab, "Max Fall Speed", "max_fall_velocity", 5.0f, 100.0f, 0.5f);
+	_add_variable_slider(controller_tab, "Coyote Time", "coyote_time", 0.0f, 0.5f, 0.01f);
+	_add_variable_slider(controller_tab, "Jump Buffer", "jump_buffer", 0.0f, 0.5f, 0.01f);
+	_add_variable_slider(controller_tab, "Double Jump Power", "double_jump_mult", 0.1f, 2.0f, 0.1f);
+	_add_variable_slider(controller_tab, "Dash Speed", "dash_speed", 5.0f, 100.0f, 1.0f);
+	_add_variable_slider(controller_tab, "Dash Duration", "dash_duration", 0.05f, 0.5f, 0.01f);
+	_add_variable_slider(controller_tab, "Dash Cooldown", "dash_cooldown", 0.1f, 1.0f, 0.05f);
 
 	HBoxContainer *btn_box = ui_root->add_hbox(controller_tab, "ButtonBox");
 	ui_root->add_button(btn_box, "Save Settings", Callable(controller, "save_settings"));

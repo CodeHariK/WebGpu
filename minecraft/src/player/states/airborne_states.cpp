@@ -3,6 +3,7 @@
 #include "../../game_manager/game_manager.h"
 #include "../../game_manager/player_input.h"
 #include "../celeste_controller.h"
+#include "dash_states.h"
 #include "grounded_states.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -27,6 +28,32 @@ void CelesteAirborneState::physics_update(float delta) {
 		} else {
 			controller->change_state(controller->idle_state);
 		}
+		return;
+	}
+
+	// Coyote Time Jump
+	if (state.character.jump_just_pressed && controller->coyote_timer > 0.0f) {
+		Vector3 vel = controller->get_velocity();
+		vel.y = controller->_jump_velocity0;
+		controller->set_velocity(vel);
+		controller->is_jumping = true;
+		
+		// Consume coyote timer
+		controller->coyote_timer = 0.0f;
+		
+		controller->change_state(controller->jump_state);
+		return;
+	}
+
+	// Dash Transition
+	if (state.character.dash_just_pressed && controller->can_dash && controller->dash_cooldown_timer <= 0.0f) {
+		controller->change_state(controller->dash_state);
+		return;
+	}
+
+	// Double Jump
+	if (state.character.jump_just_pressed && controller->can_double_jump && !controller->has_double_jumped) {
+		controller->change_state(controller->double_jump_state);
 		return;
 	}
 
@@ -120,6 +147,27 @@ void CelesteFallState::enter() {
 
 void CelesteFallState::physics_update(float delta) {
 	CelesteAirborneState::physics_update(delta);
+}
+
+// --- DOUBLE JUMP STATE ---
+
+void CelesteDoubleJumpState::enter() {
+	Vector3 vel = controller->get_velocity();
+	vel.y = controller->_jump_velocity0 * controller->double_jump_multiplier;
+	controller->set_velocity(vel);
+	controller->is_jumping = true;
+	controller->has_double_jumped = true;
+}
+
+void CelesteDoubleJumpState::physics_update(float delta) {
+	CelesteAirborneState::physics_update(delta);
+	if (controller->current_state != this)
+		return;
+
+	Vector3 v = controller->get_velocity();
+	if (v.y <= 0.0f) {
+		controller->change_state(controller->fall_state);
+	}
 }
 
 } // namespace godot

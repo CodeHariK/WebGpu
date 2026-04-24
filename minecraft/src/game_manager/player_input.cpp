@@ -3,6 +3,7 @@
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/input_event_mouse_motion.hpp>
+#include <godot_cpp/classes/input_map.hpp>
 #include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -61,12 +62,14 @@ void PlayerInput::update() {
 	current_state.character.jump = input->is_action_pressed("jump");
 	current_state.character.kick = input->is_action_pressed("kick");
 	current_state.character.grab = input->is_action_pressed("grab");
+	current_state.character.dash = input->is_action_pressed("dash");
 	current_state.system.swap_target = input->is_action_pressed("swap_target");
 
 	// 4. Just Pressed Logic (Native Godot)
 	current_state.character.jump_just_pressed = input->is_action_just_pressed("jump");
 	current_state.character.kick_just_pressed = input->is_action_just_pressed("kick");
 	current_state.character.grab_just_pressed = input->is_action_just_pressed("grab");
+	current_state.character.dash_just_pressed = input->is_action_just_pressed("dash");
 	current_state.system.swap_target_just_pressed = input->is_action_just_pressed("swap_target");
 
 	// 5. Vehicle Specifics

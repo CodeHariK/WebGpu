@@ -29,6 +29,8 @@ struct CharacterInput {
 	bool kick_just_pressed = false;
 	bool grab = false;
 	bool grab_just_pressed = false;
+	bool dash = false;
+	bool dash_just_pressed = false;
 };
 
 struct SystemInput {

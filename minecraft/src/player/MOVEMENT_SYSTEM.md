@@ -24,9 +24,11 @@ To achieve the high-fidelity feel of modern platformers, we prioritize **player 
 | Mechanic | Status | Description |
 | :--- | :---: | :--- |
 | **Variable Jump** | [x] | Height depends on button hold duration (Kinematic jump math). |
-| **Coyote Time** | [ ] | ~5-10 frames of jump availability after leaving a ledge. |
-| **Jump Buffering** | [ ] | Storing a jump input if pressed slightly before hitting the ground. |
-| **Double Jump** | [ ] | Mid-air vertical boost (Hollow Knight / Hat in Time style). |
+| **Coyote Time** | [x] | ~5-10 frames of jump availability after leaving a ledge. |
+| **Jump Buffering** | [x] | Storing a jump input if pressed slightly before hitting the ground. |
+| **Double Jump** | [x] | Mid-air vertical boost (Hollow Knight / Hat in Time style). |
+| **Dash (Ground/Air)** | [x] | Directional burst of speed; resets on ground (Celeste style). |
+| **Super Jump** | [x] | Jumping during a dash carries momentum (Hyper/Super Jump). |
 | **Dive** | [ ] | Lunging forward in mid-air (Hat in Time style). |
 | **Dive-Flip** | [ ] | Jumping immediately upon landing from a dive for a high boost. |
 | **Air Drift** | [x] | Fine-tuned horizontal control while falling for precise landing. |

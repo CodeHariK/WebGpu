@@ -35,6 +35,7 @@ class CelesteController : public CharacterBody3D {
 	friend class CelesteFloatState;
 	friend class CelesteLedgeClimbState;
 	friend class CelesteLedgeJumpState;
+	friend class CelesteDashState;
 
 private:
 	// Movement Settings (Celeste-style)
@@ -48,10 +49,17 @@ private:
 	float jump_height = 2.5f;
 	float jump_time_to_peak = 0.4f;
 	float jump_time_to_descent = 0.2f;
+	float coyote_time_max = 0.15f;
+	float jump_buffer_max = 0.1f;
 
 	// Calculated Values
 	float _jump_velocity0 = 0.0f;
 	float _jump_gravity = 0.0f;
+
+	// Dash parameters
+	float dash_speed = 30.0f;
+	float dash_duration = 0.15f;
+	float dash_cooldown = 0.3f;
 
 	// Fall Math (Kinematic)
 	float max_fall_velocity = 20.0f;
@@ -59,6 +67,19 @@ private:
 
 	// Runtime State
 	bool is_jumping = false;
+	bool can_double_jump = true;
+	bool has_double_jumped = false;
+	float double_jump_multiplier = 0.8f;
+	float coyote_timer = 0.0f;
+	float jump_buffer_timer = 0.0f;
+
+	// Dash state
+	float dash_timer = 0.0f;
+	float dash_cooldown_timer = 0.0f;
+	bool can_dash = true;
+	bool is_dashing = false;
+	Vector3 dash_direction;
+
 	void _update_jump_math();
 
 	// HSM States
@@ -73,6 +94,7 @@ private:
 	CelesteFloatState *float_state = nullptr;
 	CelesteLedgeClimbState *ledge_climb_state = nullptr;
 	CelesteLedgeJumpState *ledge_jump_state = nullptr;
+	class CelesteDashState *dash_state = nullptr;
 
 protected:
 	static void _bind_methods();

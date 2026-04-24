@@ -32,6 +32,8 @@ class CelesteDoubleJumpState : public CelesteAirborneState {
 public:
 	using CelesteAirborneState::CelesteAirborneState;
 	String get_name() const override { return "DoubleJump"; }
+	void enter() override;
+	void physics_update(float delta) override;
 };
 
 class CelesteFloatState : public CelesteAirborneState {
