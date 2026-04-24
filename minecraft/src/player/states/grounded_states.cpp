@@ -4,6 +4,7 @@
 #include "../../game_manager/player_input.h"
 #include "../celeste_controller.h"
 #include "airborne_states.h"
+#include "dash_states.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -26,13 +27,22 @@ void CelesteGroundedState::physics_update(float delta) {
 		return;
 	}
 
-	// Jump Input
-	if (state.character.jump_just_pressed) {
+	// Jump Input (Direct or Buffered)
+	if (state.character.jump_just_pressed || controller->jump_buffer_timer > 0.0f) {
 		Vector3 vel = controller->get_velocity();
 		vel.y = controller->_jump_velocity0;
 		controller->set_velocity(vel);
 		controller->is_jumping = true;
+
+		// Consume buffer
+		controller->jump_buffer_timer = 0.0f;
 		controller->change_state(controller->jump_state);
+		return;
+	}
+
+	// Dash Input
+	if (state.character.dash_just_pressed && controller->can_dash && controller->dash_cooldown_timer <= 0.0f) {
+		controller->change_state(controller->dash_state);
 		return;
 	}
 }

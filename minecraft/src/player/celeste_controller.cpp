@@ -7,6 +7,7 @@
 #include "celeste_ui.h"
 #include "cui/cui.h"
 #include "states/airborne_states.h"
+#include "states/dash_states.h"
 #include "states/grounded_states.h"
 #include "states/ledge_states.h"
 #include <godot_cpp/classes/config_file.hpp>
@@ -51,6 +52,7 @@ CelesteController::~CelesteController() {
 	delete float_state;
 	delete ledge_climb_state;
 	delete ledge_jump_state;
+	delete dash_state;
 }
 
 void CelesteController::_update_jump_math() {
@@ -78,6 +80,7 @@ void CelesteController::_ready() {
 	float_state = new CelesteFloatState(this, airborne_state);
 	ledge_climb_state = new CelesteLedgeClimbState(this, nullptr);
 	ledge_jump_state = new CelesteLedgeJumpState(this, nullptr);
+	dash_state = new CelesteDashState(this, airborne_state);
 
 	current_state = fall_state;
 	current_state->enter();
@@ -97,6 +100,12 @@ void CelesteController::_ready() {
 	ui_vars["jump_time_to_peak"] = &jump_time_to_peak;
 	ui_vars["jump_time_to_descent"] = &jump_time_to_descent;
 	ui_vars["max_fall_velocity"] = &max_fall_velocity;
+	ui_vars["coyote_time"] = &coyote_time_max;
+	ui_vars["jump_buffer"] = &jump_buffer_max;
+	ui_vars["double_jump_mult"] = &double_jump_multiplier;
+	ui_vars["dash_speed"] = &dash_speed;
+	ui_vars["dash_duration"] = &dash_duration;
+	ui_vars["dash_cooldown"] = &dash_cooldown;
 
 	// Setup UI
 	ui_root = CUI::create_on_new_layer(this);
@@ -134,9 +143,28 @@ void CelesteController::_physics_process(double delta) {
 
 	const ActionState &state = input->get_state();
 
+	// Update Coyote Timer
+	if (is_on_floor()) {
+		coyote_timer = coyote_time_max;
+	} else {
+		coyote_timer -= f_delta;
+	}
+
+	// Update Jump Buffer Timer
+	if (state.character.jump_just_pressed) {
+		jump_buffer_timer = jump_buffer_max;
+	} else {
+		jump_buffer_timer -= f_delta;
+	}
+
 	if (is_on_floor()) {
 		is_jumping = false;
+		has_double_jumped = false;
+		can_dash = true;
 	}
+
+	// Update Timers
+	dash_cooldown_timer -= f_delta;
 
 	// 1. Execute State Logic
 	if (current_state) {

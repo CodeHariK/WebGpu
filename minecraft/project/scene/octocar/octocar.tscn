@@ -212,9 +212,6 @@ shape = SubResource("ConcavePolygonShape3D_mxckk")
 [node name="GameManager" type="GameManager" parent="." unique_id=542871028]
 
 [node name="CelesteController" type="CelesteController" parent="." unique_id=1758102786]
-max_speed = 20.0
-jump_height = 10.0
-jump_time_to_descent = 0.6
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.800528, 3.0714903, 2.846653)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController" unique_id=1101944800]
