@@ -31,6 +31,7 @@ struct CharacterInput {
 	bool grab_just_pressed = false;
 	bool dash = false;
 	bool dash_just_pressed = false;
+	bool glide = false;
 };
 
 struct SystemInput {
@@ -90,6 +91,7 @@ public:
 	bool is_jumping() const { return current_state.character.jump; }
 	bool is_jump_just_pressed() const { return current_state.character.jump_just_pressed; }
 	bool is_kicking() const { return current_state.character.kick; }
+	bool is_gliding() const { return current_state.character.glide; }
 
 	float get_movement_strength(float p_sprint_multiplier) const;
 };

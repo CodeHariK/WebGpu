@@ -49,10 +49,10 @@ CelesteController::~CelesteController() {
 	delete grounded_state;
 	delete airborne_state;
 	delete double_jump_state;
-	delete float_state;
 	delete ledge_climb_state;
 	delete ledge_jump_state;
 	delete dash_state;
+	delete glide_state;
 }
 
 void CelesteController::_update_jump_math() {
@@ -77,10 +77,10 @@ void CelesteController::_ready() {
 	jump_state = new CelesteJumpState(this, airborne_state);
 	fall_state = new CelesteFallState(this, airborne_state);
 	double_jump_state = new CelesteDoubleJumpState(this, airborne_state);
-	float_state = new CelesteFloatState(this, airborne_state);
 	ledge_climb_state = new CelesteLedgeClimbState(this, nullptr);
 	ledge_jump_state = new CelesteLedgeJumpState(this, nullptr);
 	dash_state = new CelesteDashState(this, airborne_state);
+	glide_state = new CelesteGlideState(this, airborne_state);
 
 	current_state = fall_state;
 	current_state->enter();
@@ -106,6 +106,7 @@ void CelesteController::_ready() {
 	ui_vars["dash_speed"] = &dash_speed;
 	ui_vars["dash_duration"] = &dash_duration;
 	ui_vars["dash_cooldown"] = &dash_cooldown;
+	ui_vars["glide_fall_speed"] = &glide_fall_speed;
 
 	// Setup UI
 	ui_root = CUI::create_on_new_layer(this);
