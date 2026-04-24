@@ -26,6 +26,18 @@ PlayerInput::PlayerInput() {
 	} else {
 		_current_strength_handler = &PlayerInput::_get_strength_desktop;
 	}
+
+	// Setup default actions
+	InputMap *im = InputMap::get_singleton();
+	if (im) {
+		if (!im->has_action("glide")) {
+			im->add_action("glide");
+			Ref<InputEventKey> k;
+			k.instantiate();
+			k->set_keycode(KEY_SHIFT);
+			im->action_add_event("glide", k);
+		}
+	}
 }
 
 PlayerInput::~PlayerInput() {
@@ -63,6 +75,7 @@ void PlayerInput::update() {
 	current_state.character.kick = input->is_action_pressed("kick");
 	current_state.character.grab = input->is_action_pressed("grab");
 	current_state.character.dash = input->is_action_pressed("dash");
+	current_state.character.glide = input->is_action_pressed("glide");
 	current_state.system.swap_target = input->is_action_pressed("swap_target");
 
 	// 4. Just Pressed Logic (Native Godot)

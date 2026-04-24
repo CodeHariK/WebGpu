@@ -115,6 +115,12 @@ void CelesteAirborneState::physics_update(float delta) {
 		v.z *= Math::max(0.0f, drag);
 	}
 
+	// Glide Transition
+	if (state.character.glide && v.y < 0.0f) {
+		controller->change_state(controller->glide_state);
+		return;
+	}
+
 	controller->set_velocity(v);
 }
 
@@ -168,6 +174,65 @@ void CelesteDoubleJumpState::physics_update(float delta) {
 	if (v.y <= 0.0f) {
 		controller->change_state(controller->fall_state);
 	}
+}
+
+// --- GLIDE STATE ---
+
+void CelesteGlideState::enter() {
+	// Optional: SFX or animation
+}
+
+void CelesteGlideState::physics_update(float delta) {
+	if (!controller) return;
+
+	PlayerInput *input = PlayerInput::get_singleton();
+	if (!input || !input->get_state().character.glide) {
+		controller->change_state(controller->fall_state);
+		return;
+	}
+
+	const ActionState &state = input->get_state();
+
+	// Transition to Grounded if floor touched
+	if (controller->is_on_floor()) {
+		if (state.character.move_axis.length() > 0.1f) {
+			controller->change_state(controller->move_state);
+		} else {
+			controller->change_state(controller->idle_state);
+		}
+		return;
+	}
+
+	// 1. Handle Horizontal Steering (Camera Relative)
+	Vector3 v = controller->get_velocity();
+	
+	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
+	if (cam && cam->get_camera_mode() == GameCamera::MODE_TPS) {
+		controller->set_rotation(Vector3(0, cam->get_yaw(), 0));
+	}
+
+	Transform3D transform = controller->get_global_transform();
+	Vector3 forward = -transform.basis.get_column(2).normalized();
+	Vector3 right = transform.basis.get_column(0).normalized();
+
+	Vector3 move_dir = (forward * -state.character.move_axis.y + right * state.character.move_axis.x);
+	if (move_dir.length() > 1.0f)
+		move_dir.normalize();
+
+	float accel = controller->acceleration * controller->glide_accel_mult;
+	float input_strength = input->get_movement_strength(controller->sprint_multiplier);
+	Vector3 target_vel = move_dir * (controller->max_speed * input_strength);
+	
+	v.x = Math::move_toward(v.x, target_vel.x, accel * delta);
+	v.z = Math::move_toward(v.z, target_vel.z, accel * delta);
+
+	// 2. Apply Gravity and Clamp Vertical Velocity for gliding
+	v.y -= controller->_fall_gravity * delta;
+	if (v.y < -controller->glide_fall_speed) {
+		v.y = -controller->glide_fall_speed;
+	}
+
+	controller->set_velocity(v);
 }
 
 } // namespace godot

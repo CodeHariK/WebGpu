@@ -36,6 +36,7 @@ class CelesteController : public CharacterBody3D {
 	friend class CelesteLedgeClimbState;
 	friend class CelesteLedgeJumpState;
 	friend class CelesteDashState;
+	friend class CelesteGlideState;
 
 private:
 	// Movement Settings (Celeste-style)
@@ -60,6 +61,8 @@ private:
 	float dash_speed = 30.0f;
 	float dash_duration = 0.15f;
 	float dash_cooldown = 0.3f;
+	float glide_fall_speed = 2.0f;
+	float glide_accel_mult = 1.2f;
 
 	// Fall Math (Kinematic)
 	float max_fall_velocity = 20.0f;
@@ -91,10 +94,10 @@ private:
 	CelesteJumpState *jump_state = nullptr;
 	CelesteFallState *fall_state = nullptr;
 	CelesteDoubleJumpState *double_jump_state = nullptr;
-	CelesteFloatState *float_state = nullptr;
 	CelesteLedgeClimbState *ledge_climb_state = nullptr;
 	CelesteLedgeJumpState *ledge_jump_state = nullptr;
 	class CelesteDashState *dash_state = nullptr;
+	class CelesteGlideState *glide_state = nullptr;
 
 protected:
 	static void _bind_methods();
