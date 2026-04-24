@@ -6,9 +6,11 @@
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/canvas_layer.hpp>
 #include <godot_cpp/classes/h_box_container.hpp>
+#include <godot_cpp/classes/h_slider.hpp>
 #include <godot_cpp/classes/label.hpp>
 #include <godot_cpp/classes/panel.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
+#include <godot_cpp/classes/tab_container.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -70,6 +72,7 @@ Button *CUI::add_button(Node *p_parent, const String &p_text, const Callable &p_
 	if (p_callback.is_valid()) {
 		button->connect("pressed", p_callback);
 	}
+	button->set_focus_mode(Control::FOCUS_NONE);
 	return button;
 }
 
@@ -119,6 +122,36 @@ Label *CUI::add_label(Node *p_parent, const String &p_text) {
 		add_child(label);
 	}
 	return label;
+}
+
+HSlider *CUI::add_hslider(Node *p_parent, float p_min, float p_max, float p_step, float p_value, const Callable &p_callback) {
+	HSlider *slider = memnew(HSlider);
+	slider->set_min(p_min);
+	slider->set_max(p_max);
+	slider->set_step(p_step);
+	slider->set_value(p_value);
+	slider->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+	if (p_parent) {
+		p_parent->add_child(slider);
+	} else {
+		add_child(slider);
+	}
+	if (p_callback.is_valid()) {
+		slider->connect("value_changed", p_callback);
+	}
+	return slider;
+}
+
+TabContainer *CUI::add_tab_container(Node *p_parent, const String &p_name) {
+	TabContainer *tabs = memnew(TabContainer);
+	tabs->set_name(p_name);
+	if (p_parent) {
+		p_parent->add_child(tabs);
+	} else {
+		add_child(tabs);
+	}
+	tabs->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	return tabs;
 }
 
 AcceptDialog *CUI::add_dialog(Node *p_parent, const String &p_name, const String &p_text) {

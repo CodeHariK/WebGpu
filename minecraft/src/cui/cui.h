@@ -12,7 +12,9 @@ class Label;
 class Panel;
 class ScrollContainer;
 class VBoxContainer;
+class TabContainer;
 class CanvasLayer;
+class HSlider;
 class Viewport;
 
 class CUI : public Control {
@@ -35,6 +37,8 @@ public:
 	ScrollContainer *add_scroll(Node *p_parent, const String &p_name);
 	VBoxContainer *add_vbox(Node *p_parent, const String &p_name);
 	Label *add_label(Node *p_parent, const String &p_text);
+	HSlider *add_hslider(Node *p_parent, float p_min, float p_max, float p_step, float p_value, const Callable &p_callback);
+	TabContainer *add_tab_container(Node *p_parent, const String &p_name);
 	AcceptDialog *add_dialog(Node *p_parent, const String &p_name, const String &p_text);
 };
 

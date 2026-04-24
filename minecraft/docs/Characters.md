@@ -15,6 +15,7 @@
 * Dash Jump
 * Double Dash
 * Roll
+* MickeyMouse Paint brush spin attack
 
 ## Items
 * Camera (Stun)
@@ -67,3 +68,4 @@
 * Crocodiles
 * Ducks
 * Sharks
+* TRex
