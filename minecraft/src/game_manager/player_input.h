@@ -61,6 +61,13 @@ private:
 	// Event-tracked states for camera synchronization
 	bool is_mb_middle_down = false;
 	bool is_shift_down = false;
+	
+	// Platform-specific strength handlers
+	typedef float (PlayerInput::*StrengthHandler)(float) const;
+	StrengthHandler _current_strength_handler = nullptr;
+
+	float _get_strength_desktop(float p_sprint_multiplier) const;
+	float _get_strength_mobile(float p_sprint_multiplier) const;
 
 protected:
 	static void _bind_methods();
@@ -81,6 +88,8 @@ public:
 	bool is_jumping() const { return current_state.character.jump; }
 	bool is_jump_just_pressed() const { return current_state.character.jump_just_pressed; }
 	bool is_kicking() const { return current_state.character.kick; }
+
+	float get_movement_strength(float p_sprint_multiplier) const;
 };
 
 } // namespace godot

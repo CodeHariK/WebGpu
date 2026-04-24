@@ -1,12 +1,13 @@
 #ifndef CELESTE_UI_H
 #define CELESTE_UI_H
 
-#include <godot_cpp/variant/string.hpp>
+#include <godot_cpp/templates/vector.hpp>
 
 namespace godot {
 
 class CelesteController;
 class CUI;
+class CUILineGraph;
 class Node;
 class Panel;
 
@@ -15,6 +16,7 @@ private:
 	CUI *ui_root = nullptr;
 	CelesteController *controller = nullptr;
 	Panel *main_panel = nullptr;
+	CUILineGraph *velocity_graph = nullptr;
 
 	void _add_variable_slider(Node *p_parent, const String &p_label, const String &p_property, float p_min, float p_max, float p_step);
 
@@ -24,6 +26,7 @@ public:
 
 	void setup(CelesteController *p_controller, CUI *p_ui_root);
 	void toggle_visibility();
+	void update_graph(float p_val);
 	bool is_visible() const;
 };
 

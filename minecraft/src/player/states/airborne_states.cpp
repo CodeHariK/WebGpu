@@ -32,9 +32,12 @@ void CelesteAirborneState::physics_update(float delta) {
 
 	// Apply Gravity
 	Vector3 v = controller->get_velocity();
-	float current_gravity = (v.y > 0.0f) ? controller->jump_gravity : controller->fall_gravity;
+	float current_gravity = (v.y > 0.0f) ? controller->_jump_gravity : controller->_fall_gravity;
 
 	v.y -= current_gravity * delta;
+	if (v.y < -controller->max_fall_velocity) {
+		v.y = -controller->max_fall_velocity;
+	}
 
 	// Horizontal Air Control
 	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
@@ -71,8 +74,10 @@ void CelesteAirborneState::physics_update(float delta) {
 	}
 
 	float accel = controller->acceleration;
-	Vector3 target_vel = move_dir * controller->max_speed;
+	float input_strength = input->get_movement_strength(controller->sprint_multiplier);
 
+	Vector3 target_vel = move_dir * (controller->max_speed * input_strength);
+	
 	v.x = Math::move_toward(v.x, target_vel.x, accel * delta);
 	v.z = Math::move_toward(v.z, target_vel.z, accel * delta);
 

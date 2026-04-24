@@ -1,8 +1,10 @@
 #include "player_input.h"
 #include <godot_cpp/classes/input.hpp>
-#include <godot_cpp/classes/input_event_mouse_motion.hpp>
-#include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
+#include <godot_cpp/classes/input_event_mouse_button.hpp>
+#include <godot_cpp/classes/input_event_mouse_motion.hpp>
+#include <godot_cpp/classes/os.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
 
@@ -14,6 +16,14 @@ void PlayerInput::_bind_methods() {
 PlayerInput::PlayerInput() {
 	if (singleton == nullptr) {
 		singleton = this;
+	}
+	is_shift_down = false;
+	is_mb_middle_down = false;
+
+	if (OS::get_singleton()->has_feature("mobile")) {
+		_current_strength_handler = &PlayerInput::_get_strength_mobile;
+	} else {
+		_current_strength_handler = &PlayerInput::_get_strength_desktop;
 	}
 }
 
@@ -29,12 +39,13 @@ PlayerInput *PlayerInput::get_singleton() {
 
 void PlayerInput::update() {
 	Input *input = Input::get_singleton();
-	if (!input) return;
+	if (!input)
+		return;
 
 	// 1. Swap accumulated deltas to current state
 	current_state.camera.look_delta = accumulated_look;
 	current_state.camera.zoom_delta = accumulated_zoom;
-	
+
 	// Sync event-tracked button states to the active state for this frame
 	current_state.camera.is_orbiting = is_mb_middle_down;
 	current_state.camera.is_panning = is_mb_middle_down && is_shift_down;
@@ -57,7 +68,7 @@ void PlayerInput::update() {
 	current_state.character.kick_just_pressed = input->is_action_just_pressed("kick");
 	current_state.character.grab_just_pressed = input->is_action_just_pressed("grab");
 	current_state.system.swap_target_just_pressed = input->is_action_just_pressed("swap_target");
-	
+
 	// 5. Vehicle Specifics
 	// Throttle/Brake derived from forward/backward actions
 	current_state.vehicle.throttle = input->get_action_strength("move_forward");
@@ -89,6 +100,31 @@ void PlayerInput::handle_input(const Ref<InputEvent> &p_event) {
 			is_shift_down = k->is_pressed();
 		}
 	}
+}
+
+float PlayerInput::get_movement_strength(float p_sprint_multiplier) const {
+	if (_current_strength_handler) {
+		return (this->*_current_strength_handler)(p_sprint_multiplier);
+	}
+	return current_state.character.move_axis.length();
+}
+
+float PlayerInput::_get_strength_desktop(float p_sprint_multiplier) const {
+	float raw_strength = current_state.character.move_axis.length();
+	if (is_shift_down) {
+		return raw_strength * p_sprint_multiplier;
+	}
+	return raw_strength;
+}
+
+float PlayerInput::_get_strength_mobile(float p_sprint_multiplier) const {
+	float raw_strength = current_state.character.move_axis.length();
+	// Mobile Logic: Auto-sprint past 0.9
+	if (raw_strength > 0.9f) {
+		float overdrive = (raw_strength - 0.9f) / 0.1f;
+		return 1.0f + (overdrive * (p_sprint_multiplier - 1.0f));
+	}
+	return raw_strength;
 }
 
 } // namespace godot
