@@ -54,6 +54,12 @@ void CelesteIdleState::physics_update(float delta) {
 	vel.z = Math::move_toward(vel.z, 0.0f, controller->friction * delta);
 	controller->set_velocity(vel);
 
+	// TPS Rotation
+	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
+	if (cam && cam->get_camera_mode() == GameCamera::MODE_TPS) {
+		controller->set_rotation(Vector3(0, cam->get_yaw(), 0));
+	}
+
 	// Transition to Move if input detected
 	PlayerInput *input = PlayerInput::get_singleton();
 	if (input && input->get_state().character.move_axis.length() > 0.1f) {

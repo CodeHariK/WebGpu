@@ -38,12 +38,17 @@ void CelesteAirborneState::physics_update(float delta) {
 
 	// Horizontal Air Control
 	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
-	Transform3D transform = controller->get_global_transform();
 
 	bool rotate_to_move = false;
-	if (cam && cam->get_camera_mode() == GameCamera::MODE_FIXED) {
-		rotate_to_move = true;
+	if (cam) {
+		if (cam->get_camera_mode() == GameCamera::MODE_TPS) {
+			controller->set_rotation(Vector3(0, cam->get_yaw(), 0));
+		} else if (cam->get_camera_mode() == GameCamera::MODE_FIXED) {
+			rotate_to_move = true;
+		}
 	}
+
+	Transform3D transform = controller->get_global_transform();
 
 	Vector3 forward = -transform.basis.get_column(2).normalized();
 	Vector3 right = transform.basis.get_column(0).normalized();

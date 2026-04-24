@@ -251,8 +251,15 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 	if (player_input) {
 		player_input->handle_input(p_event);
 	}
+}
+
+void GameManager::_unhandled_input(const Ref<InputEvent> &p_event) {
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
 
 	// Recapture mouse on left click (Exclude Fly mode which needs visible cursor for raycasting)
+	// Moved to _unhandled_input so UI clicks don't trigger capture
 	Ref<InputEventMouseButton> mb = p_event;
 	if (mb.is_valid() && mb->is_pressed() && mb->get_button_index() == MOUSE_BUTTON_LEFT) {
 		Input *input = Input::get_singleton();

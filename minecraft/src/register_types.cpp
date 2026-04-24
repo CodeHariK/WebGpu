@@ -16,6 +16,7 @@
 #include "marching_cubes/mc_grid.h"
 #include "marching_cubes/mc_manager.h"
 #include "player/celeste_controller.h"
+#include "player/celeste_ui.h"
 #include "terrain/minecraft.h"
 #include "terrain/wfc.h"
 #include "vehicle/arcade_vehicle.h"
