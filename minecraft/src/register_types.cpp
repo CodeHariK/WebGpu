@@ -8,6 +8,7 @@
 #include "camera/camera.h"
 #include "character/physics_character.h"
 #include "cui/cui.h"
+#include "cui/cui_line_graph.h"
 #include "debug_draw/debug_manager.h"
 #include "debug_draw/debug_quad.h"
 #include "game_manager/game_manager.h"
@@ -37,6 +38,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(MCGrid);
 
 	GDREGISTER_CLASS(CUI);
+	GDREGISTER_CLASS(CUILineGraph);
 
 	GDREGISTER_CLASS(GameCamera);
 

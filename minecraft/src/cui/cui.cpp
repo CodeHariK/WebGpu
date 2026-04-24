@@ -1,4 +1,5 @@
 #include "cui.h"
+#include "cui_line_graph.h"
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/theme.hpp>
 
@@ -19,6 +20,10 @@ namespace godot {
 
 CUI::CUI() {}
 CUI::~CUI() {}
+
+void CUI::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("_on_slider_value_changed", "p_value", "p_label"), &CUI::_on_slider_value_changed);
+}
 
 CUI *CUI::create_on_new_layer(Node *p_owner_node) {
 	if (!p_owner_node) {
@@ -47,6 +52,27 @@ void CUI::_ready() {
 	}
 }
 
+Control *CUI::get_element(const String &p_name) const {
+	if (elements.has(p_name)) {
+		return elements[p_name];
+	}
+	return nullptr;
+}
+
+void CUI::set_text(const String &p_name, const String &p_text) {
+	Label *label = Object::cast_to<Label>(get_element(p_name));
+	if (label) {
+		label->set_text(p_text);
+	}
+}
+
+void CUI::set_value(const String &p_name, float p_value) {
+	HSlider *slider = Object::cast_to<HSlider>(get_element(p_name));
+	if (slider) {
+		slider->set_value(p_value);
+	}
+}
+
 Panel *CUI::add_panel(Node *p_parent, const String &p_name, LayoutPreset p_preset, const Vector2 &p_min_size) {
 	Panel *panel = memnew(Panel);
 	panel->set_name(p_name);
@@ -58,10 +84,11 @@ Panel *CUI::add_panel(Node *p_parent, const String &p_name, LayoutPreset p_prese
 	panel->set_anchors_and_offsets_preset(p_preset);
 	panel->set_custom_minimum_size(p_min_size);
 	panel->set_mouse_filter(Control::MOUSE_FILTER_STOP);
+	elements[p_name] = panel;
 	return panel;
 }
 
-Button *CUI::add_button(Node *p_parent, const String &p_text, const Callable &p_callback) {
+Button *CUI::add_button(Node *p_parent, const String &p_text, const Callable &p_callback, const String &p_name) {
 	Button *button = memnew(Button);
 	button->set_text(p_text);
 	if (p_parent) {
@@ -73,6 +100,10 @@ Button *CUI::add_button(Node *p_parent, const String &p_text, const Callable &p_
 		button->connect("pressed", p_callback);
 	}
 	button->set_focus_mode(Control::FOCUS_NONE);
+	if (!p_name.is_empty()) {
+		button->set_name(p_name);
+		elements[p_name] = button;
+	}
 	return button;
 }
 
@@ -85,6 +116,7 @@ HBoxContainer *CUI::add_hbox(Node *p_parent, const String &p_name) {
 		add_child(hbox);
 	}
 	hbox->set_mouse_filter(Control::MOUSE_FILTER_STOP);
+	elements[p_name] = hbox;
 	return hbox;
 }
 
@@ -110,10 +142,11 @@ VBoxContainer *CUI::add_vbox(Node *p_parent, const String &p_name) {
 		add_child(vbox);
 	}
 	vbox->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	elements[p_name] = vbox;
 	return vbox;
 }
 
-Label *CUI::add_label(Node *p_parent, const String &p_text) {
+Label *CUI::add_label(Node *p_parent, const String &p_text, const String &p_name) {
 	Label *label = memnew(Label);
 	label->set_text(p_text);
 	if (p_parent) {
@@ -121,10 +154,14 @@ Label *CUI::add_label(Node *p_parent, const String &p_text) {
 	} else {
 		add_child(label);
 	}
+	if (!p_name.is_empty()) {
+		label->set_name(p_name);
+		elements[p_name] = label;
+	}
 	return label;
 }
 
-HSlider *CUI::add_hslider(Node *p_parent, float p_min, float p_max, float p_step, float p_value, const Callable &p_callback) {
+HSlider *CUI::add_hslider(Node *p_parent, float p_min, float p_max, float p_step, float p_value, const Callable &p_callback, const String &p_name) {
 	HSlider *slider = memnew(HSlider);
 	slider->set_min(p_min);
 	slider->set_max(p_max);
@@ -139,7 +176,38 @@ HSlider *CUI::add_hslider(Node *p_parent, float p_min, float p_max, float p_step
 	if (p_callback.is_valid()) {
 		slider->connect("value_changed", p_callback);
 	}
+
+	if (!p_name.is_empty()) {
+		slider->set_name(p_name);
+		elements[p_name] = slider;
+	}
+
+	// Automated value label
+	Label *val_label = add_label(p_parent, String::num_real(p_value));
+	val_label->set_custom_minimum_size(Vector2(50, 0));
+	slider->connect("value_changed", Callable(this, "_on_slider_value_changed").bind(val_label));
+
+	if (!p_name.is_empty()) {
+		val_label->set_name(p_name + String("_val"));
+		elements[p_name + String("_val")] = val_label;
+	}
+
 	return slider;
+}
+
+void CUI::_on_slider_value_changed(double p_value, Label *p_label) {
+	if (p_label) {
+		p_label->set_text(String::num_real(p_value));
+	}
+}
+
+CUILineGraph *CUI::add_graph(Node *p_parent, const String &p_name) {
+	CUILineGraph *graph = memnew(CUILineGraph);
+	graph->set_name(p_name);
+	if (p_parent) {
+		p_parent->add_child(graph);
+	}
+	return graph;
 }
 
 TabContainer *CUI::add_tab_container(Node *p_parent, const String &p_name) {

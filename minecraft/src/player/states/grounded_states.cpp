@@ -29,7 +29,7 @@ void CelesteGroundedState::physics_update(float delta) {
 	// Jump Input
 	if (state.character.jump_just_pressed) {
 		Vector3 vel = controller->get_velocity();
-		vel.y = controller->jump_velocity;
+		vel.y = controller->_jump_velocity0;
 		controller->set_velocity(vel);
 		controller->is_jumping = true;
 		controller->change_state(controller->jump_state);
@@ -123,7 +123,9 @@ void CelesteMoveState::physics_update(float delta) {
 		controller->set_rotation(Vector3(0, new_angle, 0));
 	}
 
-	Vector3 target_horizontal_vel = move_dir * controller->max_speed;
+	float input_strength = input->get_movement_strength(controller->sprint_multiplier);
+
+	Vector3 target_horizontal_vel = move_dir * (controller->max_speed * input_strength);
 	Vector3 vel = controller->get_velocity();
 	vel.x = Math::move_toward(vel.x, target_horizontal_vel.x, controller->acceleration * delta);
 	vel.z = Math::move_toward(vel.z, target_horizontal_vel.z, controller->acceleration * delta);

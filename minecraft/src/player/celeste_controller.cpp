@@ -21,6 +21,7 @@ void CelesteController::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("save_settings"), &CelesteController::save_settings);
 	ClassDB::bind_method(D_METHOD("load_settings"), &CelesteController::load_settings);
 	ClassDB::bind_method(D_METHOD("_on_ui_slider_value_changed", "value", "property"), &CelesteController::_on_ui_slider_value_changed);
+	ClassDB::bind_method(D_METHOD("get_speed_percent"), &CelesteController::get_speed_percent);
 }
 
 CelesteController::CelesteController() {
@@ -53,9 +54,9 @@ CelesteController::~CelesteController() {
 }
 
 void CelesteController::_update_jump_math() {
-	jump_velocity = (2.0f * jump_height) / jump_time_to_peak;
-	jump_gravity = (2.0f * jump_height) / (jump_time_to_peak * jump_time_to_peak);
-	fall_gravity = (2.0f * jump_height) / (jump_time_to_descent * jump_time_to_descent);
+	_jump_velocity0 = (2.0f * jump_height) / jump_time_to_peak;
+	_jump_gravity = (2.0f * jump_height) / (jump_time_to_peak * jump_time_to_peak);
+	_fall_gravity = (2.0f * jump_height) / (jump_time_to_descent * jump_time_to_descent);
 }
 
 void CelesteController::_ready() {
@@ -90,10 +91,12 @@ void CelesteController::_ready() {
 	ui_vars["max_speed"] = &max_speed;
 	ui_vars["acceleration"] = &acceleration;
 	ui_vars["friction"] = &friction;
+	ui_vars["sprint_multiplier"] = &sprint_multiplier;
 	ui_vars["air_resistance"] = &air_resistance;
 	ui_vars["jump_height"] = &jump_height;
 	ui_vars["jump_time_to_peak"] = &jump_time_to_peak;
 	ui_vars["jump_time_to_descent"] = &jump_time_to_descent;
+	ui_vars["max_fall_velocity"] = &max_fall_velocity;
 
 	// Setup UI
 	ui_root = CUI::create_on_new_layer(this);
@@ -148,6 +151,10 @@ void CelesteController::_physics_process(double delta) {
 		String id = "state_" + get_name();
 		DebugManager::get_singleton()->draw_text(id, current_state->get_name(), get_global_position() + Vector3(0, 2.2f, 0), 0.001f, Color(0, 1, 0));
 	}
+
+	if (ui_helper) {
+		ui_helper->update_graph(get_velocity().length());
+	}
 }
 
 void CelesteController::_on_ui_slider_value_changed(double p_value, String p_property) {
@@ -159,6 +166,14 @@ void CelesteController::_on_ui_slider_value_changed(double p_value, String p_pro
 			_update_jump_math();
 		}
 	}
+}
+
+float CelesteController::get_speed_percent() const {
+	if (max_speed <= 0.001f)
+		return 0.0f;
+	Vector3 h_vel = get_velocity();
+	h_vel.y = 0.0f;
+	return h_vel.length() / max_speed;
 }
 
 void CelesteController::_on_ui_toggle() {
@@ -174,11 +189,12 @@ void CelesteController::save_settings() {
 	config->set_value("Celeste", "max_speed", max_speed);
 	config->set_value("Celeste", "acceleration", acceleration);
 	config->set_value("Celeste", "friction", friction);
+	config->set_value("Celeste", "sprint_multiplier", sprint_multiplier);
 	config->set_value("Celeste", "air_resistance", air_resistance);
 	config->set_value("Celeste", "jump_height", jump_height);
 	config->set_value("Celeste", "jump_time_to_peak", jump_time_to_peak);
-	config->set_value("Celeste", "jump_time_to_descent", jump_time_to_descent);
-
+	config->set_value("celeste_physics", "jump_time_to_descent", jump_time_to_descent);
+	config->set_value("celeste_physics", "max_fall_velocity", max_fall_velocity);
 	config->save("user://celeste_settings.cfg");
 	UtilityFunctions::print("CelesteController: Settings saved to user://celeste_settings.cfg");
 }
@@ -194,12 +210,20 @@ void CelesteController::load_settings() {
 	max_speed = config->get_value("Celeste", "max_speed", 10.0f);
 	acceleration = config->get_value("Celeste", "acceleration", 80.0f);
 	friction = config->get_value("Celeste", "friction", 60.0f);
+	sprint_multiplier = config->get_value("Celeste", "sprint_multiplier", 1.5f);
 	air_resistance = config->get_value("Celeste", "air_resistance", 20.0f);
 	jump_height = config->get_value("Celeste", "jump_height", 2.5f);
 	jump_time_to_peak = config->get_value("Celeste", "jump_time_to_peak", 0.4f);
-	jump_time_to_descent = config->get_value("Celeste", "jump_time_to_descent", 0.35f);
+	jump_time_to_descent = config->get_value("celeste_physics", "jump_time_to_descent", 0.2f);
+	max_fall_velocity = config->get_value("celeste_physics", "max_fall_velocity", 20.0f);
 
 	_update_jump_math();
+	
+	if (ui_root) {
+		for (auto const& [name, ptr] : ui_vars) {
+			ui_root->set_value(name, *ptr);
+		}
+	}
 
 	UtilityFunctions::print("CelesteController: Settings loaded from user://celeste_settings.cfg");
 }

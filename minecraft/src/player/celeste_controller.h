@@ -42,19 +42,20 @@ private:
 	float acceleration = 80.0f;
 	float friction = 60.0f;
 	float air_resistance = 20.0f;
+	float sprint_multiplier = 1.5f;
 
 	// Jump Math (Kinematic)
 	float jump_height = 2.5f;
 	float jump_time_to_peak = 0.4f;
-	float jump_time_to_descent = 0.35f;
+	float jump_time_to_descent = 0.2f;
 
 	// Calculated Values
-	float jump_velocity = 0.0f;
-	float jump_gravity = 0.0f;
+	float _jump_velocity0 = 0.0f;
+	float _jump_gravity = 0.0f;
 
 	// Fall Math (Kinematic)
-	float fall_velocity = 0.0f;
-	float fall_gravity = 0.0f;
+	float max_fall_velocity = 20.0f;
+	float _fall_gravity = 0.0f;
 
 	// Runtime State
 	bool is_jumping = false;
@@ -81,11 +82,11 @@ public:
 	~CelesteController();
 
 	void _ready() override;
+	float get_speed_percent() const;
 	void _exit_tree() override;
 	void _physics_process(double delta) override;
 
 	void change_state(CelesteState *p_new_state);
-
 
 	// UI Logic
 	void _on_ui_slider_value_changed(double p_value, String p_property);
@@ -93,7 +94,8 @@ public:
 	void save_settings();
 	void load_settings();
 	float get_ui_var(const String &p_name) const {
-		if (ui_vars.count(p_name)) return *ui_vars.at(p_name);
+		if (ui_vars.count(p_name))
+			return *ui_vars.at(p_name);
 		return 0.0f;
 	}
 

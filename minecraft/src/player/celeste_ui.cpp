@@ -1,5 +1,6 @@
 #include "celeste_ui.h"
 #include "../cui/cui.h"
+#include "../cui/cui_line_graph.h"
 #include "celeste_controller.h"
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/h_box_container.hpp>
@@ -41,11 +42,13 @@ void CelesteUI::setup(CelesteController *p_controller, CUI *p_ui_root) {
 
 	_add_variable_slider(controller_tab, "Max Speed", "max_speed", 1.0f, 50.0f, 0.1f);
 	_add_variable_slider(controller_tab, "Acceleration", "acceleration", 1.0f, 200.0f, 1.0f);
+	_add_variable_slider(controller_tab, "Sprint Multiplier", "sprint_multiplier", 1.0f, 3.0f, 0.1f);
 	_add_variable_slider(controller_tab, "Friction", "friction", 1.0f, 200.0f, 1.0f);
 	_add_variable_slider(controller_tab, "Air Resistance", "air_resistance", 0.0f, 100.0f, 0.5f);
 	_add_variable_slider(controller_tab, "Jump Height", "jump_height", 0.5f, 10.0f, 0.1f);
 	_add_variable_slider(controller_tab, "Time to Peak", "jump_time_to_peak", 0.1f, 1.0f, 0.01f);
 	_add_variable_slider(controller_tab, "Time to Descent", "jump_time_to_descent", 0.1f, 1.0f, 0.01f);
+	_add_variable_slider(controller_tab, "Max Fall Speed", "max_fall_velocity", 5.0f, 100.0f, 0.5f);
 
 	HBoxContainer *btn_box = ui_root->add_hbox(controller_tab, "ButtonBox");
 	ui_root->add_button(btn_box, "Save Settings", Callable(controller, "save_settings"));
@@ -55,6 +58,13 @@ void CelesteUI::setup(CelesteController *p_controller, CUI *p_ui_root) {
 	VBoxContainer *info_tab = ui_root->add_vbox(tabs, "Info");
 	ui_root->add_label(info_tab, "Celeste Controller UI v1.1");
 	ui_root->add_label(info_tab, "Refactored to regular C++ class.");
+
+	ui_root->add_label(info_tab, "Real-time Velocity:");
+	velocity_graph = ui_root->add_graph(info_tab, "VelocityGraph");
+	if (velocity_graph) {
+		velocity_graph->set_range(0, 30);
+		velocity_graph->set_max_points(120);
+	}
 }
 
 void CelesteUI::_add_variable_slider(Node *p_parent, const String &p_label, const String &p_property, float p_min, float p_max, float p_step) {
@@ -66,7 +76,8 @@ void CelesteUI::_add_variable_slider(Node *p_parent, const String &p_label, cons
 	float current_val = controller->get_ui_var(p_property);
 
 	ui_root->add_hslider(hbox, p_min, p_max, p_step, current_val,
-			Callable(controller, "_on_ui_slider_value_changed").bind(p_property));
+			Callable(controller, "_on_ui_slider_value_changed").bind(p_property),
+			p_property);
 }
 
 void CelesteUI::toggle_visibility() {
@@ -78,6 +89,12 @@ void CelesteUI::toggle_visibility() {
 		if (is_visible) {
 			input->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
 		}
+	}
+}
+
+void CelesteUI::update_graph(float p_val) {
+	if (velocity_graph) {
+		velocity_graph->add_value(p_val);
 	}
 }
 
