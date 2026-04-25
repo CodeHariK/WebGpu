@@ -21,11 +21,15 @@ void CelesteGroundedState::physics_update(float delta) {
 		return;
 	const ActionState &state = input->get_state();
 
-	// Transition to Airborne if not on floor
-	if (!controller->is_on_floor()) {
+	// Transition to Airborne if no longer hovering
+	if (!controller->is_hovering) {
 		controller->change_state(controller->fall_state);
 		return;
 	}
+
+	// Reset movement resources when grounded (hovering)
+	controller->can_dash = true;
+	controller->can_double_jump = true;
 
 	// Jump Input (Direct or Buffered)
 	if (state.character.jump_just_pressed || controller->jump_buffer_timer > 0.0f) {

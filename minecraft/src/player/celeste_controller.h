@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/character_body3d.hpp>
 #include <godot_cpp/variant/vector3.hpp>
 #include <map>
+#include <vector>
 
 namespace godot {
 
@@ -29,7 +30,6 @@ class CelesteController : public CharacterBody3D {
 	friend class CelesteJumpState;
 	friend class CelesteFallState;
 	friend class CelesteDoubleJumpState;
-	friend class CelesteFloatState;
 	friend class CelesteDashState;
 
 private:
@@ -60,6 +60,10 @@ private:
 	float max_fall_velocity = 20.0f;
 	float _fall_gravity = 0.0f;
 
+	float ride_height = 2.0f;
+	float spring_stiffness = 200.0f;
+	float spring_damping = 10.0f;
+
 	// Floor Snapping
 	float floor_snap_length = 0.5f;
 	bool floor_constant_speed = true;
@@ -67,10 +71,11 @@ private:
 	// Runtime State
 	bool is_jumping = false;
 	bool can_double_jump = true;
-	bool has_double_jumped = false;
 	float double_jump_multiplier = 0.8f;
 	float coyote_timer = 0.0f;
 	float jump_buffer_timer = 0.0f;
+	bool is_hovering = false;
+	float last_spring_error = 0.0f;
 
 	// Dash state
 	float dash_timer = 0.0f;
@@ -78,6 +83,12 @@ private:
 	bool can_dash = true;
 	bool is_dashing = false;
 	Vector3 dash_direction;
+
+	// Trajectory Tracking
+	std::vector<Vector3> trajectory_points;
+	float trajectory_timer = 0.0f;
+	float trajectory_interval = 0.1f;
+	int max_trajectory_points = 200;
 
 	void _update_jump_math();
 
