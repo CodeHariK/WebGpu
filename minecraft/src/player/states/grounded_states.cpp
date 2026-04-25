@@ -5,6 +5,7 @@
 #include "../celeste_controller.h"
 #include "airborne_states.h"
 #include "dash_states.h"
+#include "combat_states.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -47,6 +48,12 @@ void CelesteGroundedState::physics_update(float delta) {
 	// Dash Input
 	if (state.character.dash_just_pressed && controller->can_dash && controller->dash_cooldown_timer <= 0.0f) {
 		controller->change_state(controller->dash_state);
+		return;
+	}
+
+	// Kick Input
+	if (state.character.kick_just_pressed) {
+		controller->change_state(controller->jumpkick_state);
 		return;
 	}
 }

@@ -18,6 +18,7 @@ class CelesteJumpState;
 class CelesteFallState;
 class CelesteUI;
 class CelesteDoubleJumpState;
+class CelesteJumpKickState;
 
 class CelesteController : public CharacterBody3D {
 	GDCLASS(CelesteController, CharacterBody3D)
@@ -31,6 +32,7 @@ class CelesteController : public CharacterBody3D {
 	friend class CelesteFallState;
 	friend class CelesteDoubleJumpState;
 	friend class CelesteDashState;
+	friend class CelesteJumpKickState;
 
 private:
 	// Movement Settings (Celeste-style)
@@ -60,13 +62,14 @@ private:
 	float max_fall_velocity = 20.0f;
 	float _fall_gravity = 0.0f;
 
+	// Melee Parameters
+	float melee_range = 15.0f;
+	float melee_lunge_speed = 50.0f;
+	uint32_t melee_target_layer = 4; // Layer 3 (bit 2)
+
 	float ride_height = 2.0f;
 	float spring_stiffness = 200.0f;
 	float spring_damping = 10.0f;
-
-	// Floor Snapping
-	float floor_snap_length = 0.5f;
-	bool floor_constant_speed = true;
 
 	// Runtime State
 	bool is_jumping = false;
@@ -91,6 +94,7 @@ private:
 	int max_trajectory_points = 200;
 
 	void _update_jump_math();
+	Node3D *_find_melee_target();
 
 	// HSM States
 	CelesteState *current_state = nullptr;
@@ -102,6 +106,7 @@ private:
 	CelesteFallState *fall_state = nullptr;
 	CelesteDoubleJumpState *double_jump_state = nullptr;
 	class CelesteDashState *dash_state = nullptr;
+	CelesteJumpKickState *jumpkick_state = nullptr;
 
 protected:
 	static void _bind_methods();
@@ -133,6 +138,9 @@ private:
 	CUI *ui_root = nullptr;
 	std::map<String, float *> ui_vars;
 	std::map<String, bool *> ui_bools;
+
+	void debug_draw_trajectory(float p_delta);
+	void debug_draw_label();
 };
 
 } // namespace godot

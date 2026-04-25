@@ -16,11 +16,14 @@ reimport:
 
 brr: b reimport run_mc
 
-# Build the extension
-b:
-	time $(SCONS) target=$(TARGET) platform=$(PLATFORM)
 
-br: b run_mc
+# Explicit Debug Build
+debug:
+	time $(SCONS) target=template_debug platform=$(PLATFORM)
+
+# Explicit Release Build
+release:
+	time $(SCONS) target=template_release platform=$(PLATFORM)
 
 world_blender:
 	cp ../world_blender/example/Voxel.glb project/assets/

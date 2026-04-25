@@ -1,16 +1,23 @@
 #include "celeste_controller.h"
 #include "../camera/camera.h"
 #include "../debug_draw/debug_manager.h"
+#include "../enemy/enemy_manager.h"
 #include "../game_manager/game_manager.h"
 #include "../game_manager/player_input.h"
 #include "../utils/raycast/mc_raycast.h"
+#include "celeste_state.h"
 #include "celeste_ui.h"
 #include "cui/cui.h"
 #include "states/airborne_states.h"
+#include "states/combat_states.h"
 #include "states/dash_states.h"
 #include "states/grounded_states.h"
 #include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/physics_direct_space_state3d.hpp>
+#include <godot_cpp/classes/physics_shape_query_parameters3d.hpp>
+#include <godot_cpp/classes/sphere_shape3d.hpp>
+#include <godot_cpp/classes/world3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -49,6 +56,7 @@ CelesteController::~CelesteController() {
 	delete airborne_state;
 	delete double_jump_state;
 	delete dash_state;
+	delete jumpkick_state;
 }
 
 void CelesteController::_update_jump_math() {
@@ -74,6 +82,7 @@ void CelesteController::_ready() {
 	fall_state = new CelesteFallState(this, airborne_state);
 	double_jump_state = new CelesteDoubleJumpState(this, airborne_state);
 	dash_state = new CelesteDashState(this, airborne_state);
+	jumpkick_state = new CelesteJumpKickState(this, nullptr);
 
 	current_state = fall_state;
 	current_state->enter();
@@ -98,12 +107,12 @@ void CelesteController::_ready() {
 	ui_vars["double_jump_mult"] = &double_jump_multiplier;
 	ui_vars["dash_speed"] = &dash_speed;
 	ui_vars["dash_duration"] = &dash_duration;
+	ui_vars["melee_range"] = &melee_range;
+	ui_vars["melee_speed"] = &melee_lunge_speed;
 
 	ui_vars["ride_height"] = &ride_height;
 	ui_vars["spring_stiffness"] = &spring_stiffness;
 	ui_vars["spring_damping"] = &spring_damping;
-
-	ui_vars["floor_snap"] = &floor_snap_length;
 
 	// Setup UI
 	ui_root = CUI::create_on_new_layer(this);
@@ -112,8 +121,8 @@ void CelesteController::_ready() {
 	load_settings();
 
 	// Apply floor snapping defaults
-	set_floor_snap_length(floor_snap_length);
-	set_floor_constant_speed_enabled(floor_constant_speed);
+	set_floor_snap_length(0.0f);
+	set_floor_constant_speed_enabled(true);
 }
 
 void CelesteController::_exit_tree() {
@@ -176,7 +185,10 @@ void CelesteController::_physics_process(double delta) {
 	// 2. Hover Spring Logic (PD Controller)
 	is_hovering = false;
 	last_spring_error = 0.0f;
-	DebugManager *dm = DebugManager::get_singleton();
+
+#if DEBUG
+	DebugManager::get_singleton()->clear_line("hover_ray");
+#endif
 
 	if (!is_jumping) {
 		Vector3 ray_origin = get_global_position() + Vector3(0, 0.2f, 0);
@@ -202,64 +214,23 @@ void CelesteController::_physics_process(double delta) {
 			set_velocity(vel);
 			set_floor_snap_length(0.0f);
 
-			if (dm) {
-				dm->draw_line("hover_ray", ray_origin, hit.position, 0.05f, Color(1, 0, 1, 0.8f), 0.1f);
-			}
-		} else {
-			set_floor_snap_length(floor_snap_length);
-			if (dm)
-				dm->clear_line("hover_ray");
+#if DEBUG
+			DebugManager::get_singleton()->draw_line("hover_ray", ray_origin, hit.position, 0.05f, Color(1, 0, 1, 0.8f), 0.1f);
+#endif
 		}
-	} else {
-		set_floor_snap_length(0.0f);
-		if (dm)
-			dm->clear_line("hover_ray");
 	}
 
 	// 3. Apply Movement
 	move_and_slide();
 
-	// Debug visualization of state and velocity
-	if (current_state) {
-		String id = "state_" + get_name();
-		Vector3 v = get_velocity();
-		float speed = v.length();
-		float h_speed = Vector3(v.x, 0, v.z).length();
-
-		String label_text = String(current_state->get_name()) +
-				"\nVel: (" + String::num(v.x, 1) + ", " + String::num(v.y, 1) + ", " + String::num(v.z, 1) + ")" +
-				"\nSpeed: " + String::num(speed, 1) + " (H: " + String::num(h_speed, 1) + ")" +
-				"\nHover: " + (is_hovering ? "YES" : "NO") + " Err: " + String::num(last_spring_error, 2);
-
-		DebugManager::get_singleton()->draw_text(id, label_text, get_global_position() + Vector3(0, 2.5f, 0), 0.001f, Color(0, 1, 0));
-	}
-
 	if (ui_helper) {
 		ui_helper->update_graph(get_velocity().length());
 	}
 
-	{
-		// 3. Trajectory Tracking
-		trajectory_timer += f_delta;
-		if (trajectory_timer >= trajectory_interval) {
-			trajectory_timer = 0.0f;
-			trajectory_points.push_back(get_global_position());
-			if (trajectory_points.size() > max_trajectory_points) {
-				trajectory_points.erase(trajectory_points.begin());
-			}
-		}
-
-		// Draw Trajectory
-		DebugManager *dm = DebugManager::get_singleton();
-		if (dm && trajectory_points.size() > 1) {
-			for (size_t i = 0; i < trajectory_points.size() - 1; ++i) {
-				String traj_id = "traj_" + String::num_int64(i);
-				dm->draw_line(traj_id, trajectory_points[i], trajectory_points[i + 1], 0.2f, Color(0.2f, 0.8f, 1.0f, 0.6f), 0.1f);
-			}
-			// Connection to current position
-			dm->draw_line("traj_head", trajectory_points.back(), get_global_position(), 0.02f, Color(1, 1, 0, 0.8f), 0.1f);
-		}
-	}
+#if DEBUG
+	debug_draw_label();
+	debug_draw_trajectory(f_delta);
+#endif
 }
 
 void CelesteController::_on_ui_slider_value_changed(double p_value, String p_property) {
@@ -269,10 +240,6 @@ void CelesteController::_on_ui_slider_value_changed(double p_value, String p_pro
 		// Re-calculate math if jump parameters changed
 		if (p_property == "jump_height" || p_property == "jump_time_to_peak" || p_property == "jump_time_to_descent") {
 			_update_jump_math();
-		}
-
-		if (p_property == "floor_snap") {
-			set_floor_snap_length((float)p_value);
 		}
 	}
 }
@@ -304,7 +271,6 @@ void CelesteController::save_settings() {
 	config->set_value("Celeste", "jump_time_to_peak", jump_time_to_peak);
 	config->set_value("celeste_physics", "jump_time_to_descent", jump_time_to_descent);
 	config->set_value("celeste_physics", "max_fall_velocity", max_fall_velocity);
-	config->set_value("celeste_physics", "floor_snap_length", floor_snap_length);
 	config->save("user://celeste_settings.cfg");
 	UtilityFunctions::print("CelesteController: Settings saved to user://celeste_settings.cfg");
 }
@@ -326,11 +292,9 @@ void CelesteController::load_settings() {
 	jump_time_to_peak = config->get_value("Celeste", "jump_time_to_peak", 0.4f);
 	jump_time_to_descent = config->get_value("celeste_physics", "jump_time_to_descent", 0.2f);
 	max_fall_velocity = config->get_value("celeste_physics", "max_fall_velocity", 20.0f);
-	floor_snap_length = config->get_value("celeste_physics", "floor_snap_length", 0.5f);
-
 	_update_jump_math();
-	set_floor_snap_length(floor_snap_length);
-	set_floor_constant_speed_enabled(floor_constant_speed);
+	set_floor_snap_length(0.0f);
+	set_floor_constant_speed_enabled(true);
 
 	if (ui_root) {
 		for (auto const &[name, ptr] : ui_vars) {
@@ -339,6 +303,32 @@ void CelesteController::load_settings() {
 	}
 
 	UtilityFunctions::print("CelesteController: Settings loaded from user://celeste_settings.cfg");
+}
+
+Node3D *CelesteController::_find_melee_target() {
+	EnemyManager *em = EnemyManager::get_singleton();
+	if (!em)
+		return nullptr;
+
+	PlayerInput *input = PlayerInput::get_singleton();
+	Vector3 input_dir = Vector3(0, 0, 0);
+	if (input) {
+		Vector2 axis = input->get_move_axis();
+		if (axis.length() > 0.1f) {
+			Node3D *cam = GameManager::get_singleton()->get_camera();
+			if (cam) {
+				Vector3 fwd = cam->get_global_transform().basis.get_column(2).normalized();
+				fwd.y = 0;
+				fwd.normalize();
+				Vector3 right = cam->get_global_transform().basis.get_column(0).normalized();
+				right.y = 0;
+				right.normalize();
+				input_dir = (fwd * axis.y + right * axis.x).normalized();
+			}
+		}
+	}
+
+	return em->get_best_target(get_global_position(), input_dir, melee_range);
 }
 
 } // namespace godot

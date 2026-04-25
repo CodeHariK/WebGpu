@@ -5,6 +5,7 @@
 #include "../celeste_controller.h"
 #include "dash_states.h"
 #include "grounded_states.h"
+#include "combat_states.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -54,6 +55,12 @@ void CelesteAirborneState::physics_update(float delta) {
 	// Double Jump
 	if (state.character.jump_just_pressed && controller->can_double_jump) {
 		controller->change_state(controller->double_jump_state);
+		return;
+	}
+
+	// Kick Input
+	if (state.character.kick_just_pressed) {
+		controller->change_state(controller->jumpkick_state);
 		return;
 	}
 

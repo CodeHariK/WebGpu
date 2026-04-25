@@ -11,6 +11,8 @@
 #include "cui/cui_line_graph.h"
 #include "debug_draw/debug_manager.h"
 #include "debug_draw/debug_quad.h"
+#include "enemy/enemy_base.h"
+#include "enemy/enemy_manager.h"
 #include "game_manager/game_manager.h"
 #include "game_manager/player_input.h"
 #include "marching_cubes/mc.h"
@@ -52,6 +54,9 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(PhysicsCharacter3D);
 	GDREGISTER_CLASS(CelesteController);
+
+	GDREGISTER_CLASS(EnemyManager);
+	GDREGISTER_CLASS(EnemyBase);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

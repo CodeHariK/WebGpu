@@ -1,9 +1,10 @@
 #include "game_manager.h"
 #include "../camera/camera.h"
 #include "../character/physics_character.h"
+#include "../debug_draw/debug_manager.h"
+#include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
 #include "../player/celeste_controller.h"
-#include "../debug_draw/debug_manager.h"
 #include "../vehicle/arcade_vehicle.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
@@ -41,6 +42,10 @@ GameManager::~GameManager() {
 		memdelete(player_input);
 		player_input = nullptr;
 	}
+	if (enemy_manager) {
+		memdelete(enemy_manager);
+		enemy_manager = nullptr;
+	}
 	if (singleton == this) {
 		singleton = nullptr;
 	}
@@ -67,6 +72,10 @@ void GameManager::_enter_tree() {
 	if (!debug_manager) {
 		debug_manager = memnew(DebugManager);
 		debug_manager->set_name("DebugManager");
+	}
+
+	if (!enemy_manager) {
+		enemy_manager = memnew(EnemyManager);
 	}
 
 	if (debug_manager && debug_manager->get_parent() == nullptr) {
