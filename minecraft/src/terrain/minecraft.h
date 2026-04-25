@@ -114,9 +114,6 @@ protected:
 		ClassDB::bind_method(D_METHOD("ui_on_terrain_slider_change", "value"), &MinecraftNode::ui_on_terrain_slider_change);
 		ClassDB::bind_method(D_METHOD("ui_on_header_mouse_entered"), &MinecraftNode::ui_on_header_mouse_entered);
 		ClassDB::bind_method(D_METHOD("ui_on_header_mouse_exited"), &MinecraftNode::ui_on_header_mouse_exited);
-
-		ClassDB::bind_method(D_METHOD("delaunator_test"), &MinecraftNode::DelaunatorTest);
-		ClassDB::bind_method(D_METHOD("voronoi_test"), &MinecraftNode::VoronoiTest);
 	}
 
 public:
@@ -131,9 +128,6 @@ public:
 	void ui_on_header_mouse_entered();
 	void ui_on_header_mouse_exited();
 	void ui_on_terrain_slider_change(double value);
-
-	godot::Dictionary DelaunatorTest();
-	godot::Array VoronoiTest();
 
 	void set_generate_on_ready(bool p_enable) {
 		generate_on_ready = p_enable;
