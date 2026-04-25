@@ -19,7 +19,6 @@
 #include "player/celeste_controller.h"
 #include "player/celeste_ui.h"
 #include "terrain/minecraft.h"
-#include "terrain/wfc.h"
 #include "vehicle/arcade_vehicle.h"
 #include "vehicle/config/vehicle_config.h"
 #include "vehicle/config/wheel_config.h"
@@ -31,7 +30,6 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 		return;
 	}
 	GDREGISTER_CLASS(MinecraftNode);
-	GDREGISTER_CLASS(WFCGenerator3D);
 
 	GDREGISTER_CLASS(MCNode);
 	GDREGISTER_CLASS(MCManager);
