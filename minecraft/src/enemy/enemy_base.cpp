@@ -30,4 +30,20 @@ void EnemyBase::_exit_tree() {
 	}
 }
 
+void EnemyBase::take_damage(float p_amount) {
+	if (is_dead)
+		return;
+	health -= p_amount;
+	if (health <= 0) {
+		die();
+	}
+}
+
+void EnemyBase::die() {
+	if (is_dead)
+		return;
+	is_dead = true;
+	queue_free();
+}
+
 } // namespace godot

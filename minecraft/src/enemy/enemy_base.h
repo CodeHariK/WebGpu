@@ -14,6 +14,10 @@ private:
 
 protected:
 	static void _bind_methods();
+	
+	float health = 3.0f;
+	float max_health = 3.0f;
+	bool is_dead = false;
 
 public:
 	EnemyBase();
@@ -22,8 +26,14 @@ public:
 	void _ready() override;
 	void _exit_tree() override;
 
+	virtual void take_damage(float p_amount);
+	virtual void die();
+
 	void set_enemy_kind(const String &p_kind) { enemy_kind = p_kind; }
 	String get_enemy_kind() const { return enemy_kind; }
+
+	float get_health() const { return health; }
+	bool get_is_dead() const { return is_dead; }
 };
 
 } // namespace godot

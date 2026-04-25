@@ -3,6 +3,7 @@
 #include "../../game_manager/player_input.h"
 #include "airborne_states.h"
 #include "grounded_states.h"
+#include "../../enemy/enemy_base.h"
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -39,6 +40,11 @@ void CelesteJumpKickState::physics_update(float delta) {
 			controller->can_dash = true;
 			controller->can_double_jump = true;
 			UtilityFunctions::print("JumpKick: Hit target!");
+
+			EnemyBase *eb = Object::cast_to<EnemyBase>(target);
+			if (eb) {
+				eb->take_damage(1.0f);
+			}
 		}
 
 		if (controller->is_hovering) {

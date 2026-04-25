@@ -6,24 +6,34 @@
 #include <godot_cpp/godot.hpp>
 
 #include "camera/camera.h"
+
 #include "character/physics_character.h"
+
 #include "cui/cui.h"
 #include "cui/cui_line_graph.h"
+
 #include "debug_draw/debug_manager.h"
 #include "debug_draw/debug_quad.h"
-#include "enemy/enemy_base.h"
-#include "enemy/enemy_manager.h"
+
 #include "game_manager/game_manager.h"
 #include "game_manager/player_input.h"
+
 #include "marching_cubes/mc.h"
 #include "marching_cubes/mc_grid.h"
 #include "marching_cubes/mc_manager.h"
+
 #include "player/celeste_controller.h"
 #include "player/celeste_ui.h"
+
 #include "terrain/minecraft.h"
+
 #include "vehicle/arcade_vehicle.h"
 #include "vehicle/config/vehicle_config.h"
 #include "vehicle/config/wheel_config.h"
+
+#include "enemy/enemy_base.h"
+#include "enemy/enemy_manager.h"
+#include "enemy/ground/turret/turret_enemy.h"
 
 namespace godot {
 
@@ -57,6 +67,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(EnemyManager);
 	GDREGISTER_CLASS(EnemyBase);
+	GDREGISTER_CLASS(TurretEnemy);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
