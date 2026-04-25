@@ -36,13 +36,6 @@ public:
 	void physics_update(float delta) override;
 };
 
-class CelesteGlideState : public CelesteAirborneState {
-public:
-	using CelesteAirborneState::CelesteAirborneState;
-	String get_name() const override { return "Glide"; }
-	void enter() override;
-	void physics_update(float delta) override;
-};
 
 } // namespace godot
 

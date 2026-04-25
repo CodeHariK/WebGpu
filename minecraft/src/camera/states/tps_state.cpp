@@ -32,10 +32,10 @@ void CameraStateTPS::update(GameCamera *p_camera, float p_delta) {
 
 	// 4. Position Calculation
 	Vector3 pivot = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_position() : p_camera->get_global_position();
-	
+
 	// Apply rotation to the offset
 	Basis rot_basis = Basis::from_euler(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
-	
+
 	// Default Offset if none specified: slightly right and back
 	Vector3 local_offset = p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset : Vector3(0.5f, 1.5f, 3.0f);
 	Vector3 target_pos = pivot + rot_basis.xform(local_offset);
@@ -47,14 +47,14 @@ void CameraStateTPS::update(GameCamera *p_camera, float p_delta) {
 		float actual_dist = p_camera->_solve_collision(pivot, target_pos);
 		dist_multiplier = actual_dist / local_offset.length();
 	}
-	
+
 	// Smooth the distance factor
 	p_camera->dist_spring.target = dist_multiplier;
 	p_camera->dist_spring.step(p_delta, p_camera->get_frequency() * 1.5f, p_camera->get_damping(), p_camera->response);
 
 	// Final Ideal Position (where the camera wants to be)
 	Vector3 ideal_pos = pivot + rot_basis.xform(local_offset * p_camera->dist_spring.current);
-	
+
 	// 6. Movement Smoothing
 	p_camera->pos_spring.target = ideal_pos;
 	if (p_camera->is_pos_smoothing_enabled()) {
