@@ -21,8 +21,8 @@ void CelesteAirborneState::physics_update(float delta) {
 		return;
 	const ActionState &state = input->get_state();
 
-	// Transition to Grounded if floor touched
-	if (controller->is_on_floor()) {
+	// Transition to Grounded if hovering above ground
+	if (controller->is_hovering) {
 		if (state.character.move_axis.length() > 0.1f) {
 			controller->change_state(controller->move_state);
 		} else {
@@ -52,7 +52,7 @@ void CelesteAirborneState::physics_update(float delta) {
 	}
 
 	// Double Jump
-	if (state.character.jump_just_pressed && controller->can_double_jump && !controller->has_double_jumped) {
+	if (state.character.jump_just_pressed && controller->can_double_jump) {
 		controller->change_state(controller->double_jump_state);
 		return;
 	}
@@ -90,7 +90,7 @@ void CelesteAirborneState::physics_update(float delta) {
 		Vector3 wall_jump_vel = (wall_normal * controller->max_speed) + (Vector3(0, 1, 0) * controller->_jump_velocity0);
 		controller->set_velocity(wall_jump_vel);
 		controller->is_jumping = true;
-		controller->has_double_jumped = false; // Reset double jump on wall jump
+		controller->can_double_jump = true; // Reset double jump on wall jump
 		controller->change_state(controller->jump_state);
 		return;
 	}
@@ -155,7 +155,7 @@ void CelesteJumpState::physics_update(float delta) {
 // --- FALL STATE ---
 
 void CelesteFallState::enter() {
-	// Optional: Animation trigger
+	controller->is_jumping = false;
 }
 
 void CelesteFallState::physics_update(float delta) {
@@ -169,7 +169,7 @@ void CelesteDoubleJumpState::enter() {
 	vel.y = controller->_jump_velocity0 * controller->double_jump_multiplier;
 	controller->set_velocity(vel);
 	controller->is_jumping = true;
-	controller->has_double_jumped = true;
+	controller->can_double_jump = false;
 }
 
 void CelesteDoubleJumpState::physics_update(float delta) {

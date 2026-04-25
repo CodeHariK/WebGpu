@@ -56,7 +56,7 @@ void CelesteDashState::physics_update(float delta) {
 
 	if (controller->dash_timer <= 0.0f) {
 		controller->is_dashing = false;
-		if (controller->is_on_floor()) {
+		if (controller->is_hovering) {
 			controller->change_state(controller->idle_state);
 		} else {
 			controller->change_state(controller->fall_state);

@@ -55,6 +55,9 @@ void CelesteUI::setup(CelesteController *p_controller, CUI *p_ui_root) {
 	_add_variable_slider(controller_tab, "Dash Speed", "dash_speed", 5.0f, 100.0f, 1.0f);
 	_add_variable_slider(controller_tab, "Dash Duration", "dash_duration", 0.05f, 0.5f, 0.01f);
 	_add_variable_slider(controller_tab, "Dash Cooldown", "dash_cooldown", 0.1f, 1.0f, 0.05f);
+	_add_variable_slider(controller_tab, "Ride Height", "ride_height", 0.1f, 2.0f, 0.05f);
+	_add_variable_slider(controller_tab, "Spring Stiffness", "spring_stiffness", 10.0f, 1000.0f, 10.0f);
+	_add_variable_slider(controller_tab, "Spring Damping", "spring_damping", 1.0f, 50.0f, 1.0f);
 	_add_variable_slider(controller_tab, "Floor Snap", "floor_snap", 0.0f, 2.0f, 0.05f);
 
 	HBoxContainer *btn_box = ui_root->add_hbox(controller_tab, "ButtonBox");

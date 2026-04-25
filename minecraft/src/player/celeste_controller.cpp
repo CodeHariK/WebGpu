@@ -98,6 +98,11 @@ void CelesteController::_ready() {
 	ui_vars["double_jump_mult"] = &double_jump_multiplier;
 	ui_vars["dash_speed"] = &dash_speed;
 	ui_vars["dash_duration"] = &dash_duration;
+
+	ui_vars["ride_height"] = &ride_height;
+	ui_vars["spring_stiffness"] = &spring_stiffness;
+	ui_vars["spring_damping"] = &spring_damping;
+
 	ui_vars["floor_snap"] = &floor_snap_length;
 
 	// Setup UI
@@ -154,10 +159,10 @@ void CelesteController::_physics_process(double delta) {
 		jump_buffer_timer -= f_delta;
 	}
 
-	if (is_on_floor()) {
+	if (is_hovering) {
 		is_jumping = false;
-		has_double_jumped = false;
 		can_dash = true;
+		can_double_jump = true;
 	}
 
 	// Update Timers
@@ -168,7 +173,50 @@ void CelesteController::_physics_process(double delta) {
 		current_state->physics_update(f_delta);
 	}
 
-	// 2. Apply Movement
+	// 2. Hover Spring Logic (PD Controller)
+	is_hovering = false;
+	last_spring_error = 0.0f;
+	DebugManager *dm = DebugManager::get_singleton();
+
+	if (!is_jumping) {
+		Vector3 ray_origin = get_global_position() + Vector3(0, 0.2f, 0);
+		// Increase ray length to catch ground earlier
+		Vector3 ray_dir = Vector3(0, -(ride_height + 1.8f), 0);
+
+		TypedArray<RID> exclude;
+		exclude.append(get_rid());
+		MCRaycastHit hit = raycast_3d(this, ray_origin, ray_origin + ray_dir, 1, exclude);
+
+		if (hit.is_hit) {
+			is_hovering = true;
+			float dist = (ray_origin - hit.position).length() - 0.2f;
+			float error = ride_height - dist;
+			last_spring_error = error;
+
+			Vector3 vel = get_velocity();
+
+			// PD Controller: Force = Stiffness * error - Damping * velocity
+			float spring_force = (error * spring_stiffness) - (vel.y * spring_damping);
+			vel.y += spring_force * f_delta;
+
+			set_velocity(vel);
+			set_floor_snap_length(0.0f);
+
+			if (dm) {
+				dm->draw_line("hover_ray", ray_origin, hit.position, 0.05f, Color(1, 0, 1, 0.8f), 0.1f);
+			}
+		} else {
+			set_floor_snap_length(floor_snap_length);
+			if (dm)
+				dm->clear_line("hover_ray");
+		}
+	} else {
+		set_floor_snap_length(0.0f);
+		if (dm)
+			dm->clear_line("hover_ray");
+	}
+
+	// 3. Apply Movement
 	move_and_slide();
 
 	// Debug visualization of state and velocity
@@ -180,13 +228,37 @@ void CelesteController::_physics_process(double delta) {
 
 		String label_text = String(current_state->get_name()) +
 				"\nVel: (" + String::num(v.x, 1) + ", " + String::num(v.y, 1) + ", " + String::num(v.z, 1) + ")" +
-				"\nSpeed: " + String::num(speed, 1) + " (H: " + String::num(h_speed, 1) + ")";
+				"\nSpeed: " + String::num(speed, 1) + " (H: " + String::num(h_speed, 1) + ")" +
+				"\nHover: " + (is_hovering ? "YES" : "NO") + " Err: " + String::num(last_spring_error, 2);
 
 		DebugManager::get_singleton()->draw_text(id, label_text, get_global_position() + Vector3(0, 2.5f, 0), 0.001f, Color(0, 1, 0));
 	}
 
 	if (ui_helper) {
 		ui_helper->update_graph(get_velocity().length());
+	}
+
+	{
+		// 3. Trajectory Tracking
+		trajectory_timer += f_delta;
+		if (trajectory_timer >= trajectory_interval) {
+			trajectory_timer = 0.0f;
+			trajectory_points.push_back(get_global_position());
+			if (trajectory_points.size() > max_trajectory_points) {
+				trajectory_points.erase(trajectory_points.begin());
+			}
+		}
+
+		// Draw Trajectory
+		DebugManager *dm = DebugManager::get_singleton();
+		if (dm && trajectory_points.size() > 1) {
+			for (size_t i = 0; i < trajectory_points.size() - 1; ++i) {
+				String traj_id = "traj_" + String::num_int64(i);
+				dm->draw_line(traj_id, trajectory_points[i], trajectory_points[i + 1], 0.2f, Color(0.2f, 0.8f, 1.0f, 0.6f), 0.1f);
+			}
+			// Connection to current position
+			dm->draw_line("traj_head", trajectory_points.back(), get_global_position(), 0.02f, Color(1, 1, 0, 0.8f), 0.1f);
+		}
 	}
 }
 
