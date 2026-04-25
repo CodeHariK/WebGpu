@@ -16,6 +16,7 @@ class CelesteController;
 class GameCamera;
 class PlayerInput;
 class DebugManager;
+class EnemyManager;
 
 class GameManager : public Node {
 	GDCLASS(GameManager, Node)
@@ -29,6 +30,7 @@ private:
 	GameCamera *main_camera = nullptr;
 	PlayerInput *player_input = nullptr;
 	DebugManager *debug_manager = nullptr;
+	EnemyManager *enemy_manager = nullptr;
 
 	ArcadeVehicle *vehicle = nullptr;
 	PhysicsCharacter3D *character = nullptr;
@@ -65,6 +67,7 @@ public:
 
 	PlayerInput *get_player_input() const { return player_input; }
 	DebugManager *get_debug_manager() const { return debug_manager; }
+	EnemyManager *get_enemy_manager() const { return enemy_manager; }
 
 	void set_active_target(Node *p_target);
 	Node *get_active_target() const;
