@@ -15,7 +15,11 @@ EnemyBase::EnemyBase() {}
 EnemyBase::~EnemyBase() {}
 
 void EnemyBase::_ready() {
-	if (Engine::get_singleton()->is_editor_hint()) return;
+	if (Engine::get_singleton()->is_editor_hint()) {
+		set_physics_process(false);
+		set_process(false);
+		return;
+	}
 
 	EnemyManager *em = EnemyManager::get_singleton();
 	if (em) {

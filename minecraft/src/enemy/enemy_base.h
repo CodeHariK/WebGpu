@@ -29,6 +29,7 @@ public:
 	virtual void take_damage(float p_amount);
 	virtual void die();
 	virtual void shoot() {}
+	virtual void melee_attack() {}
 
 	void set_enemy_kind(const String &p_kind) { enemy_kind = p_kind; }
 	String get_enemy_kind() const { return enemy_kind; }

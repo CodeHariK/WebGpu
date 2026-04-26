@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://bgq4dpehnmquk" path="res://assets/vehicle_env/suv.glb" id="1_1dqdu"]
 [ext_resource type="Texture2D" uid="uid://cx407p0hadgy3" path="res://assets/vehicle_env/ramp_0.png" id="2_1dqdu"]
 [ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="2_mxckk"]
+[ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/terrain/mat_terrain.tres" id="4_4kplg"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_8x1io"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -95,9 +96,13 @@ size = Vector3(0.285, 0.205, 1.05)
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_4kplg"]
 
-[sub_resource type="BoxMesh" id="BoxMesh_4kplg"]
+[sub_resource type="BoxMesh" id="BoxMesh_nxv8y"]
+material = ExtResource("4_4kplg")
+size = Vector3(0.5, 1, 0.5)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_nxv8y"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_4kplg"]
 
 [node name="Vehicle" type="Node3D" unique_id=42757262]
 
@@ -300,32 +305,42 @@ skeleton = NodePath("../..")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PhysicsCharacter3D" unique_id=1289767880]
 shape = SubResource("CapsuleShape3D_4kplg")
 
-[node name="Node" type="Node" parent="." unique_id=302777879]
+[node name="PatrolMelee" type="Node" parent="." unique_id=378742939]
 
-[node name="TurretEnemy" type="TurretEnemy" parent="Node" unique_id=1886300453]
+[node name="PatrolMeleeEnemy" type="PatrolMeleeEnemy" parent="PatrolMelee" unique_id=399507160]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -51.95135, 0.9997423, -5.168113)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="PatrolMelee/PatrolMeleeEnemy" unique_id=1097958749]
+mesh = SubResource("BoxMesh_nxv8y")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="PatrolMelee/PatrolMeleeEnemy" unique_id=1571380230]
+shape = SubResource("BoxShape3D_nxv8y")
+
+[node name="TurretEnemy" type="Node" parent="." unique_id=302777879]
+
+[node name="TurretEnemy" type="TurretEnemy" parent="TurretEnemy" unique_id=1886300453]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 1, 5)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node/TurretEnemy" unique_id=966155893]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="TurretEnemy/TurretEnemy" unique_id=966155893]
 mesh = SubResource("BoxMesh_4kplg")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node/TurretEnemy" unique_id=942602990]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TurretEnemy/TurretEnemy" unique_id=942602990]
 shape = SubResource("BoxShape3D_nxv8y")
 
-[node name="TurretEnemy2" type="TurretEnemy" parent="Node" unique_id=491154638]
+[node name="TurretEnemy2" type="TurretEnemy" parent="TurretEnemy" unique_id=491154638]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 1, -3)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node/TurretEnemy2" unique_id=1939317403]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="TurretEnemy/TurretEnemy2" unique_id=1939317403]
 mesh = SubResource("BoxMesh_4kplg")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node/TurretEnemy2" unique_id=1486102393]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TurretEnemy/TurretEnemy2" unique_id=1486102393]
 shape = SubResource("BoxShape3D_nxv8y")
 
-[node name="TurretEnemy3" type="TurretEnemy" parent="Node" unique_id=766097080]
+[node name="TurretEnemy3" type="TurretEnemy" parent="TurretEnemy" unique_id=766097080]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 8, -3)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Node/TurretEnemy3" unique_id=312488676]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="TurretEnemy/TurretEnemy3" unique_id=312488676]
 mesh = SubResource("BoxMesh_4kplg")
-skeleton = NodePath("../../TurretEnemy3")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Node/TurretEnemy3" unique_id=1313426362]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TurretEnemy/TurretEnemy3" unique_id=1313426362]
 shape = SubResource("BoxShape3D_nxv8y")

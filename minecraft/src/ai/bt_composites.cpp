@@ -126,4 +126,62 @@ BTTask::Status BTRandomSequence::_tick(Node *p_actor, const Ref<Blackboard> &p_b
 	return SUCCESS;
 }
 
+// BTReactiveSelector implementation
+BTTask::Status BTReactiveSelector::_tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) {
+	for (int i = 0; i < children.size(); i++) {
+		Status status = children.write[i]->execute(p_actor, p_blackboard);
+
+		if (status == RUNNING) {
+			if (current_child_index != i) {
+				if (current_child_index < children.size() && children.write[current_child_index]->get_status() == RUNNING) {
+					children.write[current_child_index]->abort(p_actor, p_blackboard);
+				}
+				current_child_index = i;
+			}
+			return RUNNING;
+		}
+
+		if (status == SUCCESS) {
+			if (current_child_index != i) {
+				if (current_child_index < children.size() && children.write[current_child_index]->get_status() == RUNNING) {
+					children.write[current_child_index]->abort(p_actor, p_blackboard);
+				}
+				current_child_index = i;
+			}
+			return SUCCESS;
+		}
+	}
+
+	return FAILURE;
+}
+
+// BTReactiveSequence implementation
+BTTask::Status BTReactiveSequence::_tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) {
+	for (int i = 0; i < children.size(); i++) {
+		Status status = children.write[i]->execute(p_actor, p_blackboard);
+
+		if (status == RUNNING) {
+			if (current_child_index != i) {
+				if (current_child_index < children.size() && children.write[current_child_index]->get_status() == RUNNING) {
+					children.write[current_child_index]->abort(p_actor, p_blackboard);
+				}
+				current_child_index = i;
+			}
+			return RUNNING;
+		}
+
+		if (status == FAILURE) {
+			if (current_child_index != i) {
+				if (current_child_index < children.size() && children.write[current_child_index]->get_status() == RUNNING) {
+					children.write[current_child_index]->abort(p_actor, p_blackboard);
+				}
+				current_child_index = i;
+			}
+			return FAILURE;
+		}
+	}
+
+	return SUCCESS;
+}
+
 } // namespace godot
