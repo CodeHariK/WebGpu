@@ -2,6 +2,7 @@
 #include "../../../game_manager/game_manager.h"
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <godot_cpp/classes/engine.hpp>
 #include "../../../ai/bt_composites.h"
 #include "../../../ai/bt_leaves.h"
 
@@ -18,25 +19,11 @@ TurretEnemy::TurretEnemy() {
 	// Setup Behavior Tree
 	blackboard.instantiate();
 	
-	Ref<BTSequence> seq;
-	seq.instantiate();
+	Ref<BTIsInRange> in_range = BTIsInRange::create(detection_range);
+	Ref<BTActionShoot> shoot_act = BTActionShoot::create();
+	Ref<BTWait> wait_act = BTWait::create(shoot_interval);
 
-	Ref<BTIsInRange> in_range;
-	in_range.instantiate();
-	in_range->set_range(detection_range);
-
-	Ref<BTActionShoot> shoot_act;
-	shoot_act.instantiate();
-
-	Ref<BTWait> wait_act;
-	wait_act.instantiate();
-	wait_act->set_duration(shoot_interval);
-
-	seq->add_child(in_range);
-	seq->add_child(shoot_act);
-	seq->add_child(wait_act);
-
-	bt_root = seq;
+	bt_root = BTSequence::create({in_range, shoot_act, wait_act});
 }
 
 TurretEnemy::~TurretEnemy() {}

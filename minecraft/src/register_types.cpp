@@ -34,6 +34,7 @@
 #include "enemy/enemy_base.h"
 #include "enemy/enemy_manager.h"
 #include "enemy/ground/turret/turret_enemy.h"
+#include "enemy/ground/patrol_melee/patrol_melee_enemy.h"
 
 #include "ai/blackboard.h"
 #include "ai/bt_composites.h"
@@ -75,6 +76,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(EnemyManager);
 	GDREGISTER_CLASS(EnemyBase);
 	GDREGISTER_CLASS(TurretEnemy);
+	GDREGISTER_CLASS(PatrolMeleeEnemy);
 
 	GDREGISTER_CLASS(Blackboard);
 	GDREGISTER_CLASS(BTTask);
@@ -83,9 +85,14 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(BTSelector);
 	GDREGISTER_CLASS(BTRandomSelector);
 	GDREGISTER_CLASS(BTRandomSequence);
+	GDREGISTER_CLASS(BTReactiveSelector);
+	GDREGISTER_CLASS(BTReactiveSequence);
 	GDREGISTER_CLASS(BTWait);
 	GDREGISTER_CLASS(BTIsInRange);
 	GDREGISTER_CLASS(BTActionShoot);
+	GDREGISTER_CLASS(BTActionApproach);
+	GDREGISTER_CLASS(BTPatrol);
+	GDREGISTER_CLASS(BTActionMelee);
 	GDREGISTER_CLASS(BTDecorator);
 	GDREGISTER_CLASS(BTInverter);
 	GDREGISTER_CLASS(BTForceSuccess);
