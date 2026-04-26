@@ -1,0 +1,94 @@
+#ifndef BT_COMPOSITES_H
+#define BT_COMPOSITES_H
+
+#include "bt_task.h"
+#include <godot_cpp/templates/vector.hpp>
+
+namespace godot {
+
+class BTComposite : public BTTask {
+	GDCLASS(BTComposite, BTTask)
+
+protected:
+	Vector<Ref<BTTask>> children;
+	int current_child_index = 0;
+
+	static void _bind_methods();
+
+public:
+	BTComposite();
+	~BTComposite();
+
+	void add_child(const Ref<BTTask> &p_child);
+	void remove_child(const Ref<BTTask> &p_child);
+	void clear_children();
+	
+	virtual void abort(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+		if (get_status() == RUNNING) {
+			if (current_child_index >= 0 && current_child_index < children.size()) {
+				children.write[current_child_index]->abort(p_actor, p_blackboard);
+			}
+		}
+		BTTask::abort(p_actor, p_blackboard);
+	}
+};
+
+class BTSequence : public BTComposite {
+	GDCLASS(BTSequence, BTComposite)
+
+protected:
+	static void _bind_methods() {}
+
+public:
+	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+		current_child_index = 0;
+	}
+
+	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+};
+
+class BTSelector : public BTComposite {
+	GDCLASS(BTSelector, BTComposite)
+
+protected:
+	static void _bind_methods() {}
+
+public:
+	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+		current_child_index = 0;
+	}
+
+	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+};
+
+class BTRandomSelector : public BTComposite {
+	GDCLASS(BTRandomSelector, BTComposite)
+
+private:
+	Vector<int> indices;
+
+protected:
+	static void _bind_methods() {}
+
+public:
+	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+};
+
+class BTRandomSequence : public BTComposite {
+	GDCLASS(BTRandomSequence, BTComposite)
+
+private:
+	Vector<int> indices;
+
+protected:
+	static void _bind_methods() {}
+
+public:
+	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+};
+
+} // namespace godot
+
+#endif // BT_COMPOSITES_H

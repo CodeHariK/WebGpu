@@ -1,0 +1,129 @@
+#include "bt_composites.h"
+#include <godot_cpp/variant/utility_functions.hpp>
+
+namespace godot {
+
+void BTComposite::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("add_child", "child"), &BTComposite::add_child);
+	ClassDB::bind_method(D_METHOD("remove_child", "child"), &BTComposite::remove_child);
+	ClassDB::bind_method(D_METHOD("clear_children"), &BTComposite::clear_children);
+}
+
+BTComposite::BTComposite() {}
+BTComposite::~BTComposite() {}
+
+void BTComposite::add_child(const Ref<BTTask> &p_child) {
+	children.push_back(p_child);
+}
+
+void BTComposite::remove_child(const Ref<BTTask> &p_child) {
+	children.erase(p_child);
+}
+
+void BTComposite::clear_children() {
+	children.clear();
+}
+
+// BTSequence implementation
+BTTask::Status BTSequence::_tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) {
+	for (; current_child_index < children.size(); current_child_index++) {
+		Status status = children.write[current_child_index]->execute(p_actor, p_blackboard);
+
+		if (status == RUNNING) {
+			return RUNNING;
+		}
+
+		if (status == FAILURE) {
+			return FAILURE;
+		}
+	}
+
+	return SUCCESS;
+}
+
+// BTSelector implementation
+BTTask::Status BTSelector::_tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) {
+	for (; current_child_index < children.size(); current_child_index++) {
+		Status status = children.write[current_child_index]->execute(p_actor, p_blackboard);
+
+		if (status == RUNNING) {
+			return RUNNING;
+		}
+
+		if (status == SUCCESS) {
+			return SUCCESS;
+		}
+	}
+
+	return FAILURE;
+}
+
+// BTRandomSelector implementation
+void BTRandomSelector::_enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) {
+	current_child_index = 0;
+	if (indices.size() != children.size()) {
+		indices.resize(children.size());
+	}
+	for (int i = 0; i < children.size(); i++) {
+		indices.write[i] = i;
+	}
+	// Shuffle
+	for (int i = indices.size() - 1; i > 0; i--) {
+		int j = UtilityFunctions::randi() % (i + 1);
+		int temp = indices[i];
+		indices.write[i] = indices[j];
+		indices.write[j] = temp;
+	}
+}
+
+BTTask::Status BTRandomSelector::_tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) {
+	for (; current_child_index < indices.size(); current_child_index++) {
+		Status status = children.write[indices[current_child_index]]->execute(p_actor, p_blackboard);
+
+		if (status == RUNNING) {
+			return RUNNING;
+		}
+
+		if (status == SUCCESS) {
+			return SUCCESS;
+		}
+	}
+
+	return FAILURE;
+}
+
+// BTRandomSequence implementation
+void BTRandomSequence::_enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) {
+	current_child_index = 0;
+	if (indices.size() != children.size()) {
+		indices.resize(children.size());
+	}
+	for (int i = 0; i < children.size(); i++) {
+		indices.write[i] = i;
+	}
+	// Shuffle
+	for (int i = indices.size() - 1; i > 0; i--) {
+		int j = UtilityFunctions::randi() % (i + 1);
+		int temp = indices[i];
+		indices.write[i] = indices[j];
+		indices.write[j] = temp;
+	}
+}
+
+BTTask::Status BTRandomSequence::_tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) {
+	for (; current_child_index < indices.size(); current_child_index++) {
+		Status status = children.write[indices[current_child_index]]->execute(p_actor, p_blackboard);
+
+		if (status == RUNNING) {
+			return RUNNING;
+		}
+
+		if (status == FAILURE) {
+			return FAILURE;
+		}
+	}
+
+	return SUCCESS;
+}
+
+} // namespace godot
