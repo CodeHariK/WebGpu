@@ -25,18 +25,18 @@ public:
 	void clear_children();
 
 	void add_children(std::initializer_list<Ref<BTTask>> p_children) {
-		for (const Ref<BTTask>& child : p_children) {
+		for (const Ref<BTTask> &child : p_children) {
 			add_child(child);
 		}
 	}
-	
-	virtual void abort(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+
+	virtual void abort(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		if (get_status() == RUNNING) {
 			if (current_child_index >= 0 && current_child_index < children.size()) {
-				children.write[current_child_index]->abort(p_actor, p_blackboard);
+				children.write[current_child_index]->abort(p_actor, p_btstore);
 			}
 		}
-		BTTask::abort(p_actor, p_blackboard);
+		BTTask::abort(p_actor, p_btstore);
 	}
 };
 
@@ -54,11 +54,11 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		current_child_index = 0;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
 };
 
 class BTSelector : public BTComposite {
@@ -75,11 +75,11 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		current_child_index = 0;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
 };
 
 class BTRandomSelector : public BTComposite {
@@ -99,8 +99,8 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
 };
 
 class BTRandomSequence : public BTComposite {
@@ -120,8 +120,8 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
 };
 
 class BTReactiveSelector : public BTComposite {
@@ -138,11 +138,11 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		current_child_index = 0;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
 };
 
 class BTReactiveSequence : public BTComposite {
@@ -159,11 +159,11 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		current_child_index = 0;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override;
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
 };
 
 } // namespace godot

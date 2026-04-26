@@ -1,9 +1,9 @@
 #ifndef TURRET_ENEMY_H
 #define TURRET_ENEMY_H
 
-#include "../../enemy_base.h"
+#include "../../../ai/bt_store.h"
 #include "../../../ai/bt_task.h"
-#include "../../../ai/blackboard.h"
+#include "../../enemy_base.h"
 
 namespace godot {
 
@@ -15,7 +15,7 @@ private:
 	float detection_range = 25.0f;
 
 	Ref<BTTask> bt_root;
-	Ref<Blackboard> blackboard;
+	Ref<BTStore> btstore;
 
 protected:
 	static void _bind_methods();

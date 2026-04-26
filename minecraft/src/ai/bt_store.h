@@ -1,14 +1,14 @@
-#ifndef BLACKBOARD_H
-#define BLACKBOARD_H
+#ifndef BTSTORE_H
+#define BTSTORE_H
 
-#include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 
 namespace godot {
 
-class Blackboard : public RefCounted {
-	GDCLASS(Blackboard, RefCounted)
+class BTStore : public RefCounted {
+	GDCLASS(BTStore, RefCounted)
 
 private:
 	Dictionary data;
@@ -17,8 +17,8 @@ protected:
 	static void _bind_methods();
 
 public:
-	Blackboard();
-	~Blackboard();
+	BTStore();
+	~BTStore();
 
 	void set_value(const String &p_key, const Variant &p_value);
 	Variant get_value(const String &p_key, const Variant &p_default = Variant()) const;
@@ -29,4 +29,4 @@ public:
 
 } // namespace godot
 
-#endif // BLACKBOARD_H
+#endif // BTSTORE_H

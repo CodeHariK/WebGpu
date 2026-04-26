@@ -1,9 +1,9 @@
 #ifndef BT_PLAYER_H
 #define BT_PLAYER_H
 
-#include <godot_cpp/classes/node.hpp>
+#include "bt_store.h"
 #include "bt_task.h"
-#include "blackboard.h"
+#include <godot_cpp/classes/node.hpp>
 
 namespace godot {
 
@@ -12,7 +12,7 @@ class BTPlayer : public Node {
 
 private:
 	Ref<BTTask> bt_tree;
-	Ref<Blackboard> blackboard;
+	Ref<BTStore> btstore;
 	Node *agent = nullptr;
 	bool active = true;
 
@@ -26,8 +26,8 @@ public:
 	void set_bt_tree(const Ref<BTTask> &p_tree);
 	Ref<BTTask> get_bt_tree() const;
 
-	void set_blackboard(const Ref<Blackboard> &p_blackboard);
-	Ref<Blackboard> get_blackboard() const;
+	void set_btstore(const Ref<BTStore> &p_btstore);
+	Ref<BTStore> get_btstore() const;
 
 	void set_agent(Node *p_agent);
 	Node *get_agent() const;

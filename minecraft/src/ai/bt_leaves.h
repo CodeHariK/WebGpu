@@ -1,10 +1,10 @@
 #ifndef BT_LEAVES_H
 #define BT_LEAVES_H
 
-#include "bt_task.h"
 #include "../enemy/enemy_base.h"
-#include <godot_cpp/variant/utility_functions.hpp>
+#include "bt_task.h"
 #include <godot_cpp/core/math.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
 
@@ -34,11 +34,11 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override { 
-		elapsed = 0.0f; 
+	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+		elapsed = 0.0f;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		elapsed += p_actor->get_process_delta_time();
 		if (elapsed >= duration) {
 			return SUCCESS;
@@ -72,13 +72,15 @@ public:
 		return node;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		Node3D *actor3d = Object::cast_to<Node3D>(p_actor);
-		if (!actor3d) return FAILURE;
+		if (!actor3d)
+			return FAILURE;
 
-		// Try to get target from blackboard
-		Node3D *target = Object::cast_to<Node3D>(p_blackboard->get_value("target"));
-		if (!target) return FAILURE;
+		// Try to get target from btstore
+		Node3D *target = Object::cast_to<Node3D>(p_btstore->get_value("target"));
+		if (!target)
+			return FAILURE;
 
 		float dist = actor3d->get_global_position().distance_to(target->get_global_position());
 		return (dist <= range) ? SUCCESS : FAILURE;
@@ -99,7 +101,7 @@ public:
 		return node;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		EnemyBase *enemy = Object::cast_to<EnemyBase>(p_actor);
 		if (enemy) {
 			enemy->shoot();
@@ -142,16 +144,18 @@ public:
 		return node;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		CharacterBody3D *actor3d = Object::cast_to<CharacterBody3D>(p_actor);
-		if (!actor3d) return FAILURE;
+		if (!actor3d)
+			return FAILURE;
 
-		Node3D *target = Object::cast_to<Node3D>(p_blackboard->get_value("target"));
-		if (!target) return FAILURE;
+		Node3D *target = Object::cast_to<Node3D>(p_btstore->get_value("target"));
+		if (!target)
+			return FAILURE;
 
 		Vector3 pos = actor3d->get_global_position();
 		Vector3 target_pos = target->get_global_position();
-		
+
 		// 2D distance for stopping
 		Vector3 pos_2d = Vector3(pos.x, 0, pos.z);
 		Vector3 target_2d = Vector3(target_pos.x, 0, target_pos.z);
@@ -159,7 +163,8 @@ public:
 
 		if (dist <= stop_distance) {
 			Vector3 vel = actor3d->get_velocity();
-			vel.x = 0; vel.z = 0;
+			vel.x = 0;
+			vel.z = 0;
 			actor3d->set_velocity(vel);
 			return SUCCESS;
 		}
@@ -211,7 +216,7 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		CharacterBody3D *actor3d = Object::cast_to<CharacterBody3D>(p_actor);
 		if (actor3d && !home_set) {
 			home_pos = actor3d->get_global_position();
@@ -219,9 +224,10 @@ public:
 		}
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		CharacterBody3D *actor3d = Object::cast_to<CharacterBody3D>(p_actor);
-		if (!actor3d) return FAILURE;
+		if (!actor3d)
+			return FAILURE;
 
 		if (!has_target) {
 			float angle = UtilityFunctions::randf_range(0, Math_TAU);
@@ -238,7 +244,8 @@ public:
 		if (dist <= 0.5f) {
 			has_target = false;
 			Vector3 vel = actor3d->get_velocity();
-			vel.x = 0; vel.z = 0;
+			vel.x = 0;
+			vel.z = 0;
 			actor3d->set_velocity(vel);
 			return SUCCESS;
 		}
@@ -267,7 +274,7 @@ public:
 		return node;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) override {
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
 		EnemyBase *enemy = Object::cast_to<EnemyBase>(p_actor);
 		if (enemy) {
 			enemy->melee_attack();

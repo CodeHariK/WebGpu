@@ -1,9 +1,9 @@
 #ifndef PATROL_MELEE_ENEMY_H
 #define PATROL_MELEE_ENEMY_H
 
-#include "../../enemy_base.h"
+#include "../../../ai/bt_store.h"
 #include "../../../ai/bt_task.h"
-#include "../../../ai/blackboard.h"
+#include "../../enemy_base.h"
 
 namespace godot {
 
@@ -17,7 +17,7 @@ private:
 	float melee_range = 1.5f;
 
 	Ref<BTTask> bt_root;
-	Ref<Blackboard> blackboard;
+	Ref<BTStore> btstore;
 
 protected:
 	static void _bind_methods();
