@@ -35,6 +35,13 @@
 #include "enemy/enemy_manager.h"
 #include "enemy/ground/turret/turret_enemy.h"
 
+#include "ai/blackboard.h"
+#include "ai/bt_composites.h"
+#include "ai/bt_leaves.h"
+#include "ai/bt_task.h"
+#include "ai/bt_decorators.h"
+#include "ai/bt_player.h"
+
 namespace godot {
 
 void initialize_gdextension_types(ModuleInitializationLevel p_level) {
@@ -68,6 +75,30 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(EnemyManager);
 	GDREGISTER_CLASS(EnemyBase);
 	GDREGISTER_CLASS(TurretEnemy);
+
+	GDREGISTER_CLASS(Blackboard);
+	GDREGISTER_CLASS(BTTask);
+	GDREGISTER_CLASS(BTComposite);
+	GDREGISTER_CLASS(BTSequence);
+	GDREGISTER_CLASS(BTSelector);
+	GDREGISTER_CLASS(BTRandomSelector);
+	GDREGISTER_CLASS(BTRandomSequence);
+	GDREGISTER_CLASS(BTWait);
+	GDREGISTER_CLASS(BTIsInRange);
+	GDREGISTER_CLASS(BTActionShoot);
+	GDREGISTER_CLASS(BTDecorator);
+	GDREGISTER_CLASS(BTInverter);
+	GDREGISTER_CLASS(BTForceSuccess);
+	GDREGISTER_CLASS(BTForceFailure);
+	GDREGISTER_CLASS(BTProbability);
+	GDREGISTER_CLASS(BTRepeat);
+	GDREGISTER_CLASS(BTRepeatUntilSuccess);
+	GDREGISTER_CLASS(BTRepeatUntilFailure);
+	GDREGISTER_CLASS(BTDelay);
+	GDREGISTER_CLASS(BTCooldown);
+	GDREGISTER_CLASS(BTRunLimit);
+	GDREGISTER_CLASS(BTTimeLimit);
+	GDREGISTER_CLASS(BTPlayer);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

@@ -14,8 +14,7 @@ r:
 reimport:
 	$(GODOT) --headless --editor --quit --path project
 
-brr: b reimport run_mc
-
+mcr: reimport run_mc
 
 # Explicit Debug Build
 debug:

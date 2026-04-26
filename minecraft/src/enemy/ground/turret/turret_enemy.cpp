@@ -2,6 +2,8 @@
 #include "../../../game_manager/game_manager.h"
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include "../../../ai/bt_composites.h"
+#include "../../../ai/bt_leaves.h"
 
 namespace godot {
 
@@ -12,6 +14,29 @@ TurretEnemy::TurretEnemy() {
 	set_enemy_kind("Turret");
 	health = 2.0f;
 	max_health = 2.0f;
+
+	// Setup Behavior Tree
+	blackboard.instantiate();
+	
+	Ref<BTSequence> seq;
+	seq.instantiate();
+
+	Ref<BTIsInRange> in_range;
+	in_range.instantiate();
+	in_range->set_range(detection_range);
+
+	Ref<BTActionShoot> shoot_act;
+	shoot_act.instantiate();
+
+	Ref<BTWait> wait_act;
+	wait_act.instantiate();
+	wait_act->set_duration(shoot_interval);
+
+	seq->add_child(in_range);
+	seq->add_child(shoot_act);
+	seq->add_child(wait_act);
+
+	bt_root = seq;
 }
 
 TurretEnemy::~TurretEnemy() {}
@@ -21,18 +46,12 @@ void TurretEnemy::_physics_process(double delta) {
 		return;
 
 	Node3D *player = Object::cast_to<Node3D>(GameManager::get_singleton()->get_active_target());
-	if (!player)
-		return;
+	if (player) {
+		blackboard->set_value("target", player);
+	}
 
-	Vector3 to_player = player->get_global_position() - get_global_position();
-	float dist = to_player.length();
-
-	if (dist < detection_range) {
-		shoot_timer += (float)delta;
-		if (shoot_timer >= shoot_interval) {
-			shoot_timer = 0.0f;
-			shoot();
-		}
+	if (bt_root.is_valid()) {
+		bt_root->execute(this, blackboard);
 	}
 }
 
