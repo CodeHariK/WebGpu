@@ -1,10 +1,10 @@
 #ifndef BT_TASK_H
 #define BT_TASK_H
 
-#include <godot_cpp/core/class_db.hpp>
-#include <godot_cpp/classes/ref_counted.hpp>
+#include "bt_store.h"
 #include <godot_cpp/classes/node.hpp>
-#include "blackboard.h"
+#include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/core/class_db.hpp>
 
 namespace godot {
 
@@ -25,20 +25,20 @@ private:
 protected:
 	static void _bind_methods();
 
-	virtual void _enter(Node *p_actor, const Ref<Blackboard> &p_blackboard) {}
-	virtual Status _tick(Node *p_actor, const Ref<Blackboard> &p_blackboard) { return SUCCESS; }
-	virtual void _exit(Node *p_actor, const Ref<Blackboard> &p_blackboard) {}
+	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) {}
+	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) { return SUCCESS; }
+	virtual void _exit(Node *p_actor, const Ref<BTStore> &p_btstore) {}
 
 public:
 	BTTask();
 	virtual ~BTTask();
 
-	Status execute(Node *p_actor, const Ref<Blackboard> &p_blackboard);
-	
+	Status execute(Node *p_actor, const Ref<BTStore> &p_btstore);
+
 	Status get_status() const { return status; }
 	void set_status(Status p_status) { status = p_status; }
 
-	virtual void abort(Node *p_actor, const Ref<Blackboard> &p_blackboard);
+	virtual void abort(Node *p_actor, const Ref<BTStore> &p_btstore);
 };
 
 } // namespace godot

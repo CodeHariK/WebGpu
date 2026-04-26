@@ -33,15 +33,15 @@
 
 #include "enemy/enemy_base.h"
 #include "enemy/enemy_manager.h"
-#include "enemy/ground/turret/turret_enemy.h"
 #include "enemy/ground/patrol_melee/patrol_melee_enemy.h"
+#include "enemy/ground/turret/turret_enemy.h"
 
-#include "ai/blackboard.h"
 #include "ai/bt_composites.h"
-#include "ai/bt_leaves.h"
-#include "ai/bt_task.h"
 #include "ai/bt_decorators.h"
+#include "ai/bt_leaves.h"
 #include "ai/bt_player.h"
+#include "ai/bt_store.h"
+#include "ai/bt_task.h"
 
 namespace godot {
 
@@ -78,7 +78,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(TurretEnemy);
 	GDREGISTER_CLASS(PatrolMeleeEnemy);
 
-	GDREGISTER_CLASS(Blackboard);
+	GDREGISTER_CLASS(BTStore);
 	GDREGISTER_CLASS(BTTask);
 	GDREGISTER_CLASS(BTComposite);
 	GDREGISTER_CLASS(BTSequence);

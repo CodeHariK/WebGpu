@@ -5,12 +5,12 @@ This walkthrough documents the transition of the AI system to a robust, task-bas
 ## Key Architecture Changes
 - **Task Lifecycle**: Every node (now called `BTTask`) has explicit `_enter`, `_tick`, and `_exit` methods. This ensures clean state management and allows for complex behaviors (like starting/stopping animations).
 - **Execution Flow**: The `execute()` method on `BTTask` handles the transition between lifecycle states, ensuring `_enter` is called when a task starts and `_exit` when it finishes.
-- **Blackboard Integration**: A centralized `Blackboard` allows nodes to share data (e.g., the current target), making the AI more reactive to its environment.
+- **BTStore Integration**: A centralized `BTStore` allows nodes to share data (e.g., the current target), making the AI more reactive to its environment.
 
 ## Implemented Components
 - **`BTTask`**: Base class for all nodes. Defines the core lifecycle (`_enter`, `_tick`, `_exit`) and execution logic.
 - **`BTComposite`**: Base class for branches. It holds and manages an array of multiple child nodes, providing methods to add, remove, and clear children. 
-- **`Blackboard`**: State management container.
+- **`BTStore`**: State management container.
 - **`BTPlayer`**: A dedicated `Node` class that manages the execution of a Behavior Tree on an agent, abstracting the execution logic out of individual actors.
 
 ### Control Flow
