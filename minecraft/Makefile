@@ -52,3 +52,6 @@ run_mc:
 
 run_octo:
 	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn
+
+run_tennis:
+	$(GODOT) --path project/ --scene scene/tennis/tennis_prototype.tscn
