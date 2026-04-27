@@ -28,6 +28,8 @@
 * Dagger (Melee Attack, Fast Attack)
 * Magic (Open Portals, Stun, Freeze)
 
+* Teleportation portal
+
 ## Collectibles
 * Coins
 * Hearts

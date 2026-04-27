@@ -61,9 +61,6 @@ private:
 	CharacterState *move_state = nullptr;
 	CharacterState *jump_state = nullptr;
 	CharacterState *fall_state = nullptr;
-	CharacterState *dropkick_state = nullptr;
-	CharacterState *grab_state = nullptr;
-
 
 	friend class CharacterState;
 	friend class CharGroundedState;

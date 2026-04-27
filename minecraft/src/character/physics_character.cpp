@@ -3,7 +3,6 @@
 #include "../game_manager/game_manager.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "states/airborne_states.h"
-#include "states/combat_states.h"
 #include "states/grounded_states.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -85,8 +84,6 @@ PhysicsCharacter3D::~PhysicsCharacter3D() {
 	delete fall_state;
 	delete grounded_state;
 	delete airborne_state;
-	delete dropkick_state;
-	delete grab_state;
 }
 
 void PhysicsCharacter3D::_ready() {
@@ -106,8 +103,6 @@ void PhysicsCharacter3D::_setup_character() {
 	move_state = new CharMoveState(this, grounded_state);
 	jump_state = new CharJumpState(this, airborne_state);
 	fall_state = new CharFallState(this, airborne_state);
-	dropkick_state = new CharDropkickState(this, nullptr);
-	grab_state = new CharGrabState(this, nullptr);
 
 	current_state = fall_state;
 	current_state->enter();
