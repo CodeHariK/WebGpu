@@ -2,7 +2,6 @@
 #include "../../game_manager/player_input.h"
 #include "../physics_character.h"
 #include "airborne_states.h"
-#include "combat_states.h"
 #include <godot_cpp/classes/rigid_body3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -28,11 +27,6 @@ void CharGroundedState::physics_update(float delta) {
 
 	if (state.character.jump_just_pressed) {
 		character->change_state(character->jump_state);
-		return;
-	}
-
-	if (state.character.grab_just_pressed) {
-		character->change_state(character->grab_state);
 		return;
 	}
 

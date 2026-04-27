@@ -1,8 +1,4 @@
-[gd_scene load_steps=21 format=4 uid="uid://cmm7jo8hxwx66"]
-
-[ext_resource type="Script" uid="uid://doowj3paflsjb" path="res://scene/spider/spider_controller.gd" id="1_60ywu"]
-[ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="1_tdyyp"]
-[ext_resource type="Script" uid="uid://df7j0ab7lmhoy" path="res://addons/libik/script/pole_bone_constraint.gd" id="2_xsdk6"]
+[gd_scene format=4 uid="uid://cmm7jo8hxwx66"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_feuli"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -196,32 +192,26 @@ _data = {
 }
 point_count = 2
 
-[node name="SpiderWorld" type="Node3D"]
+[node name="SpiderWorld" type="Node3D" unique_id=24408384]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=741279304]
 environment = SubResource("Environment_qeai8")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=75462494]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
 shadow_enabled = true
 
-[node name="Camera_X_Pivot" parent="." instance=ExtResource("1_tdyyp")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2371032, 4.482495)
-
-[node name="SpiderCharacterBody3D" type="CharacterBody3D" parent="."]
+[node name="SpiderCharacterBody3D" type="CharacterBody3D" parent="." unique_id=1865320241]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.16348791, 0)
-script = ExtResource("1_60ywu")
-ROTATE_HEAD = true
-HEAD_UP_DIS = -0.64
 
-[node name="Camera3D" type="Camera3D" parent="SpiderCharacterBody3D"]
+[node name="Camera3D" type="Camera3D" parent="SpiderCharacterBody3D" unique_id=991775966]
 transform = Transform3D(1, 0, 0, 0, 0.8927903, 0.4504725, 0, -0.4504725, 0.8927903, 0, 1.8952411, 2.8335395)
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SpiderCharacterBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SpiderCharacterBody3D" unique_id=1245048348]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2406807, 0)
 shape = SubResource("SphereShape3D_qeai8")
 
-[node name="SpiderSkeleton" type="Skeleton3D" parent="SpiderCharacterBody3D"]
+[node name="SpiderSkeleton" type="Skeleton3D" parent="SpiderCharacterBody3D" unique_id=498764660]
 bones/0/name = "Body_2"
 bones/0/parent = -1
 bones/0/rest = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
@@ -370,135 +360,80 @@ bones/20/position = Vector3(-1.094304e-08, 0.63111436, 4.656613e-09)
 bones/20/rotation = Quaternion(-0.003358473, -0.025515141, -0.024487015, 0.99936885)
 bones/20/scale = Vector3(0.9999999, 1, 1)
 
-[node name="RayCast3D_FR" type="RayCast3D" parent="SpiderCharacterBody3D/SpiderSkeleton"]
+[node name="RayCast3D_FR" type="RayCast3D" parent="SpiderCharacterBody3D/SpiderSkeleton" unique_id=692047356]
 transform = Transform3D(0.2269144, -0.040011138, 0.23041497, 0.056584287, 0.32090545, 0, -0.2269144, 0.040011138, 0.23041497, 0.8, 0.76399994, -0.8)
 target_position = Vector3(0, -6, 0)
 
-[node name="RayCast3D_FL" type="RayCast3D" parent="SpiderCharacterBody3D/SpiderSkeleton"]
+[node name="RayCast3D_FL" type="RayCast3D" parent="SpiderCharacterBody3D/SpiderSkeleton" unique_id=37312569]
 transform = Transform3D(0.2269144, 0.040011138, -0.23041497, -0.056584287, 0.32090545, 0, 0.2269144, 0.040011138, 0.23041497, -0.8, 0.76399994, -0.8)
 target_position = Vector3(0, -6, 0)
 
-[node name="RayCast3D_BR" type="RayCast3D" parent="SpiderCharacterBody3D/SpiderSkeleton"]
+[node name="RayCast3D_BR" type="RayCast3D" parent="SpiderCharacterBody3D/SpiderSkeleton" unique_id=758697890]
 transform = Transform3D(0.2269144, -0.040011138, -0.23041497, 0.056584287, 0.32090545, 0, 0.2269144, -0.040011138, 0.23041497, 0.8, 0.76399994, 0.8)
 target_position = Vector3(0, -6, 0)
 
-[node name="RayCast3D_BL" type="RayCast3D" parent="SpiderCharacterBody3D/SpiderSkeleton"]
+[node name="RayCast3D_BL" type="RayCast3D" parent="SpiderCharacterBody3D/SpiderSkeleton" unique_id=1348569347]
 transform = Transform3D(0.2269144, 0.040011138, 0.23041497, -0.056584287, 0.32090545, 0, -0.2269144, -0.040011138, 0.23041497, -0.8, 0.76399994, 0.8)
 target_position = Vector3(0, -6, 0)
 
-[node name="HeadBone" type="BoneAttachment3D" parent="SpiderCharacterBody3D/SpiderSkeleton"]
+[node name="HeadBone" type="BoneAttachment3D" parent="SpiderCharacterBody3D/SpiderSkeleton" unique_id=1454943051]
 visible = false
 bone_name = "Body_2"
 bone_idx = 0
 override_pose = true
 
-[node name="Head" type="MeshInstance3D" parent="SpiderCharacterBody3D/SpiderSkeleton/HeadBone"]
+[node name="Head" type="MeshInstance3D" parent="SpiderCharacterBody3D/SpiderSkeleton/HeadBone" unique_id=791379620]
 transform = Transform3D(0.32585603, 0, 0, 0, 0.32585603, 0, 0, 0, 0.32585603, 0, 0, 0)
 material_override = SubResource("StandardMaterial3D_xsdk6")
 mesh = SubResource("ArrayMesh_ba4dd")
 skeleton = NodePath("")
 
-[node name="Cylinder" type="MeshInstance3D" parent="SpiderCharacterBody3D/SpiderSkeleton/HeadBone"]
+[node name="Cylinder" type="MeshInstance3D" parent="SpiderCharacterBody3D/SpiderSkeleton/HeadBone" unique_id=857323797]
 transform = Transform3D(0.32585603, 0, 0, 0, 0, -0.32585603, 0, 0.32585603, 0, 0, 0.10101537, -0.34866592)
 mesh = SubResource("ArrayMesh_vy7gu")
 skeleton = NodePath("")
 
-[node name="Leg" type="MeshInstance3D" parent="SpiderCharacterBody3D/SpiderSkeleton"]
+[node name="Leg" type="MeshInstance3D" parent="SpiderCharacterBody3D/SpiderSkeleton" unique_id=1367127442]
 visible = false
 material_override = SubResource("StandardMaterial3D_qeai8")
 mesh = SubResource("ArrayMesh_7ig2y")
 skin = SubResource("Skin_swqky")
 
-[node name="GodotIK" type="GodotIK" parent="SpiderCharacterBody3D/SpiderSkeleton"]
-transform = Transform3D(0.32585603, 0, 0, 0, 0.32585603, 0, 0, 0, 0.32585603, 0, 0, 0)
-
-[node name="GodotIKEffector_FR" type="GodotIKEffector" parent="SpiderCharacterBody3D/SpiderSkeleton/GodotIK"]
-bone_name = "Foot IKFrontRight"
-bone_idx = 10
-chain_length = 4
-transform = Transform3D(0.9999999, 0, 0, 0, 0.9999999, 0, 0, 0, 0.9999999, 3, -2, -3)
-
-[node name="PoleBoneConstraint4" type="GodotIKConstraint" parent="SpiderCharacterBody3D/SpiderSkeleton/GodotIK/GodotIKEffector_FR"]
-bone_name = "leg2FrontRight"
-bone_idx = 8
-script = ExtResource("2_xsdk6")
-pole_direction = Vector3(0, 0.5, 0)
-metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
-
-[node name="GodotIKEffector_FL" type="GodotIKEffector" parent="SpiderCharacterBody3D/SpiderSkeleton/GodotIK"]
-bone_name = "Foot IKFrontLeft"
-bone_idx = 15
-chain_length = 4
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, -2, -3)
-
-[node name="PoleBoneConstraint3" type="GodotIKConstraint" parent="SpiderCharacterBody3D/SpiderSkeleton/GodotIK/GodotIKEffector_FL"]
-bone_name = "leg2FrontLeft"
-bone_idx = 13
-script = ExtResource("2_xsdk6")
-pole_direction = Vector3(0, 0.5, 0)
-metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
-
-[node name="GodotIKEffector_BL" type="GodotIKEffector" parent="SpiderCharacterBody3D/SpiderSkeleton/GodotIK"]
-bone_name = "Foot IKBackLeft"
-bone_idx = 20
-chain_length = 4
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, -2, 3)
-
-[node name="PoleBoneConstraint2" type="GodotIKConstraint" parent="SpiderCharacterBody3D/SpiderSkeleton/GodotIK/GodotIKEffector_BL"]
-bone_name = "leg2BackLeft"
-bone_idx = 18
-script = ExtResource("2_xsdk6")
-pole_direction = Vector3(0, 0.5, 0)
-metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
-
-[node name="GodotIKEffector_BR" type="GodotIKEffector" parent="SpiderCharacterBody3D/SpiderSkeleton/GodotIK"]
-bone_name = "Foot IKBackRight"
-bone_idx = 5
-chain_length = 4
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, -2, 3)
-
-[node name="PoleBoneConstraint" type="GodotIKConstraint" parent="SpiderCharacterBody3D/SpiderSkeleton/GodotIK/GodotIKEffector_BR"]
-bone_name = "leg2BackRight"
-bone_idx = 3
-script = ExtResource("2_xsdk6")
-pole_direction = Vector3(0, 0.5, 0)
-metadata/_custom_type_script = "uid://df7j0ab7lmhoy"
-
-[node name="CSGBox3D" type="CSGBox3D" parent="SpiderCharacterBody3D"]
+[node name="CSGBox3D" type="CSGBox3D" parent="SpiderCharacterBody3D" unique_id=395626350]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0048515797, 0.13501981, -0.24488086)
 size = Vector3(0.7714844, 0.08617401, 1.1682224)
 
-[node name="CSGBox3D2" type="CSGBox3D" parent="SpiderCharacterBody3D"]
+[node name="CSGBox3D2" type="CSGBox3D" parent="SpiderCharacterBody3D" unique_id=675434757]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.002235651, 0.18330052, -0.9359102)
 size = Vector3(0.21130371, 0.18273544, 0.47738886)
 
-[node name="CSGBox3D2" type="CSGBox3D" parent="."]
+[node name="CSGBox3D2" type="CSGBox3D" parent="." unique_id=887790163]
 transform = Transform3D(-0.0062502213, 0.00864004, -0.9999433, 0.81022596, 0.5861181, -6.5122103e-09, 0.58608466, -0.81017995, -0.01066377, -7.138451, 0.29527956, -7.373236)
 use_collision = true
 size = Vector3(0.31219482, 4.6870728, 6.529297)
 
-[node name="CSGBox3D3" type="CSGBox3D" parent="."]
+[node name="CSGBox3D3" type="CSGBox3D" parent="." unique_id=1683060701]
 transform = Transform3D(-0.008928046, 0.0058314465, -0.9999432, 0.5468475, 0.83723253, 0, 0.837185, -0.54681647, -0.010663763, -0.34475988, 0.29527956, -7.300786)
 use_collision = true
 size = Vector3(0.31219482, 4.6870728, 6.529297)
 
-[node name="CSGBox3D4" type="CSGBox3D" parent="."]
+[node name="CSGBox3D4" type="CSGBox3D" parent="." unique_id=1201950337]
 transform = Transform3D(-0.01047384, 0.0020036744, -0.9999431, 0.18789555, 0.9821892, -1.5651963e-10, 0.98213345, -0.1878849, -0.010663763, 7.0236564, 0.29527956, -7.222206)
 use_collision = true
 size = Vector3(0.31219482, 4.6870728, 6.529297)
 
-[node name="CSGBox3D" type="CSGBox3D" parent="."]
+[node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=570189119]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
 material_override = SubResource("StandardMaterial3D_feuli")
 use_collision = true
 size = Vector3(50, 0.25, 50)
 
-[node name="Path3D" type="Path3D" parent="."]
+[node name="Path3D" type="Path3D" parent="." unique_id=146696673]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.9449973, 2.2258759, 1.4682487)
 curve = SubResource("Curve3D_tdyyp")
 debug_custom_color = Color(0.11064782, 0.024028026, 0.11679994, 1)
 
-[node name="CSGPolygon3D" type="CSGPolygon3D" parent="Path3D"]
+[node name="CSGPolygon3D" type="CSGPolygon3D" parent="Path3D" unique_id=135694993]
 use_collision = true
 polygon = PackedVector2Array(0, 0, 0, 5, 1, 5, 1, 0)
 mode = 2

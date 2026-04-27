@@ -1,7 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://b66h2wk0ipjc6"]
-
-[ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="1_ljn4m"]
-[ext_resource type="Script" uid="uid://14a4yteqr787" path="res://scene/spider/sphere_controller.gd" id="2_p87as"]
+[gd_scene format=3 uid="uid://b66h2wk0ipjc6"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_p87as"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -36,66 +33,59 @@ _data = {
 }
 point_count = 2
 
-[node name="SphereWorld" type="Node3D"]
+[node name="SphereWorld" type="Node3D" unique_id=926771522]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1876248345]
 environment = SubResource("Environment_eg6xo")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=957097286]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
 shadow_enabled = true
 
-[node name="Fly_Camera" parent="." node_paths=PackedStringArray("target") instance=ExtResource("1_ljn4m")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2371032, 4.482495)
-camera_type = 1
-target = NodePath("../SphereCharacterBody3D")
-camera_offset = Vector3(0, 1, 0)
-
-[node name="SphereCharacterBody3D" type="CharacterBody3D" parent="."]
+[node name="SphereCharacterBody3D" type="CharacterBody3D" parent="." unique_id=199035050]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2884329, 0)
-script = ExtResource("2_p87as")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="SphereCharacterBody3D"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="SphereCharacterBody3D" unique_id=625887187]
 shape = SubResource("SphereShape3D_iqhql")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="SphereCharacterBody3D"]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="SphereCharacterBody3D" unique_id=1022875574]
 mesh = SubResource("SphereMesh_aq6ea")
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="SphereCharacterBody3D"]
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="SphereCharacterBody3D" unique_id=2117025016]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2816531, -0.5706471)
 mesh = SubResource("BoxMesh_p87as")
 
-[node name="MeshInstance3D3" type="MeshInstance3D" parent="SphereCharacterBody3D"]
+[node name="MeshInstance3D3" type="MeshInstance3D" parent="SphereCharacterBody3D" unique_id=956200393]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.64602137, 0)
 mesh = SubResource("BoxMesh_eg6xo")
 
-[node name="CSGBox3D2" type="CSGBox3D" parent="."]
+[node name="CSGBox3D2" type="CSGBox3D" parent="." unique_id=501629936]
 transform = Transform3D(-0.0062502213, 0.00864004, -0.9999433, 0.81022596, 0.5861181, -6.5122103e-09, 0.58608466, -0.81017995, -0.01066377, -7.138451, 0.29527956, -7.373236)
 use_collision = true
 size = Vector3(0.31219482, 4.6870728, 6.529297)
 
-[node name="CSGBox3D3" type="CSGBox3D" parent="."]
+[node name="CSGBox3D3" type="CSGBox3D" parent="." unique_id=1640395471]
 transform = Transform3D(-0.008928046, 0.0058314465, -0.9999432, 0.5468475, 0.83723253, 0, 0.837185, -0.54681647, -0.010663763, -0.34475988, 0.29527956, -7.300786)
 use_collision = true
 size = Vector3(0.31219482, 4.6870728, 6.529297)
 
-[node name="CSGBox3D4" type="CSGBox3D" parent="."]
+[node name="CSGBox3D4" type="CSGBox3D" parent="." unique_id=511275925]
 transform = Transform3D(-0.01047384, 0.0020036744, -0.9999431, 0.18789555, 0.9821892, -1.5651963e-10, 0.98213345, -0.1878849, -0.010663763, 7.0236564, 0.29527956, -7.222206)
 use_collision = true
 size = Vector3(0.31219482, 4.6870728, 6.529297)
 
-[node name="CSGBox3D" type="CSGBox3D" parent="."]
+[node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=1444493627]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
 material_override = SubResource("StandardMaterial3D_tauih")
 use_collision = true
 size = Vector3(50, 0.25, 50)
 
-[node name="Path3D" type="Path3D" parent="."]
+[node name="Path3D" type="Path3D" parent="." unique_id=2051628613]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.9449973, 2.2258759, 1.4682487)
 curve = SubResource("Curve3D_crmss")
 debug_custom_color = Color(0.11064782, 0.024028026, 0.11679994, 1)
 
-[node name="CSGPolygon3D" type="CSGPolygon3D" parent="Path3D"]
+[node name="CSGPolygon3D" type="CSGPolygon3D" parent="Path3D" unique_id=1594129569]
 use_collision = true
 polygon = PackedVector2Array(0, 0, 0, 5, 1, 5, 1, 0)
 mode = 2
@@ -109,3 +99,5 @@ path_local = false
 path_continuous_u = true
 path_u_distance = 1.0
 path_joined = false
+
+[node name="GameCamera" type="GameCamera" parent="." unique_id=2093930450]

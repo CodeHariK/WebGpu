@@ -1,7 +1,6 @@
 #include "airborne_states.h"
 #include "../../game_manager/player_input.h"
 #include "../physics_character.h"
-#include "combat_states.h"
 #include "grounded_states.h"
 #include <godot_cpp/classes/rigid_body3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -25,12 +24,6 @@ void CharAirborneState::physics_update(float delta) {
 		return;
 
 	const ActionState &state = character->get_player_input()->get_state();
-
-	// Trigger Dropkick
-	if (state.character.kick_just_pressed) {
-		character->change_state(character->dropkick_state);
-		return;
-	}
 
 	character->input_dir = Vector3(state.character.move_axis.x, 0, state.character.move_axis.y);
 }
