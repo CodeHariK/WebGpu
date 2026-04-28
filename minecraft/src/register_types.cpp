@@ -43,11 +43,6 @@
 #include "ai/bt_store.h"
 #include "ai/bt_task.h"
 
-#include "minigames/tennis/tennis_ball.h"
-#include "minigames/tennis/tennis_player.h"
-#include "minigames/tennis/tennis_ai.h"
-#include "minigames/tennis/tennis_game_manager.h"
-
 namespace godot {
 
 void initialize_gdextension_types(ModuleInitializationLevel p_level) {
@@ -111,11 +106,6 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(BTRunLimit);
 	GDREGISTER_CLASS(BTTimeLimit);
 	GDREGISTER_CLASS(BTPlayer);
-
-	GDREGISTER_CLASS(TennisBall);
-	GDREGISTER_CLASS(TennisPlayer);
-	GDREGISTER_CLASS(TennisAI);
-	GDREGISTER_CLASS(TennisGameManager);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

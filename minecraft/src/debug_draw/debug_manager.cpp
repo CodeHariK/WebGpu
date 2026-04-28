@@ -175,6 +175,51 @@ void DebugManager::clear_all() {
 		}
 	}
 	texts.clear();
+
+	for (auto &E : trajectories) {
+		Trajectory &traj = E.value;
+		for (size_t i = 0; i < traj.points.size(); ++i) {
+			clear_line(E.key + String("_") + String::num_int64(i));
+		}
+	}
+	trajectories.clear();
+}
+
+void DebugManager::draw_trajectory(const String &p_id, const Vector3 &p_point, float p_delta, float p_interval, int p_max_points, const Color &p_color) {
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+
+	if (!trajectories.has(p_id)) {
+		trajectories[p_id] = Trajectory();
+	}
+
+	Trajectory &traj = trajectories[p_id];
+	traj.timer += p_delta;
+
+	if (traj.timer >= p_interval) {
+		traj.timer = 0.0f;
+		traj.points.push_back(p_point);
+		if (traj.points.size() > (size_t)p_max_points) {
+			traj.points.erase(traj.points.begin());
+		}
+	}
+
+	if (traj.points.size() > 1) {
+		for (size_t i = 0; i < traj.points.size() - 1; ++i) {
+			draw_line(p_id + String("_") + String::num_int64(i), traj.points[i], traj.points[i + 1], 0.1f, p_color, 0.15f);
+		}
+	}
+}
+
+void DebugManager::clear_trajectory(const String &p_id) {
+	if (trajectories.has(p_id)) {
+		Trajectory &traj = trajectories[p_id];
+		for (size_t i = 0; i < traj.points.size(); ++i) {
+			clear_line(p_id + String("_") + String::num_int64(i));
+		}
+		trajectories.erase(p_id);
+	}
 }
 
 } // namespace godot

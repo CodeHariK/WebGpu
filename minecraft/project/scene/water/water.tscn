@@ -1,7 +1,6 @@
-[gd_scene load_steps=9 format=3 uid="uid://cyokmyntxp6qu"]
+[gd_scene format=3 uid="uid://cyokmyntxp6qu"]
 
 [ext_resource type="Material" uid="uid://dpkrgxjk4fplo" path="res://scene/water/water_mat.tres" id="2_5ku62"]
-[ext_resource type="PackedScene" uid="uid://nhdecubqhuf8" path="res://scripts/camera/fly_camera/Camera_Fly.tscn" id="2_unv2e"]
 [ext_resource type="Script" uid="uid://b0yw3slyls5ce" path="res://scene/water/water.gd" id="3_5ku62"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_unv2e"]
@@ -28,32 +27,34 @@ size = Vector2(10, 10)
 subdivide_width = 40
 subdivide_depth = 40
 
-[node name="Water" type="Node3D"]
+[node name="Water" type="Node3D" unique_id=405820154]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1032543336]
 environment = SubResource("Environment_gm5yi")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=335729707]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 1.9875665, 6.885133, -3.442566)
 shadow_enabled = true
 directional_shadow_max_distance = 1.0
 
-[node name="Camera_Fly" parent="." instance=ExtResource("2_unv2e")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.7953768, 5.1449046)
-
-[node name="Water" type="MeshInstance3D" parent="."]
+[node name="Water" type="MeshInstance3D" parent="." unique_id=1928380158]
 mesh = SubResource("PlaneMesh_qr07x")
 script = ExtResource("3_5ku62")
 
-[node name="Water2" type="MeshInstance3D" parent="Water"]
+[node name="Water2" type="MeshInstance3D" parent="Water" unique_id=1396049388]
+visible = false
 mesh = SubResource("PlaneMesh_gm5yi")
 skeleton = NodePath("../..")
 
-[node name="Water2" type="MeshInstance3D" parent="."]
+[node name="Water2" type="MeshInstance3D" parent="." unique_id=446246442]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, 0)
 mesh = SubResource("PlaneMesh_qr07x")
 script = ExtResource("3_5ku62")
 
-[node name="Water2" type="MeshInstance3D" parent="Water2"]
+[node name="Water2" type="MeshInstance3D" parent="Water2" unique_id=314230358]
 mesh = SubResource("PlaneMesh_gm5yi")
 skeleton = NodePath("../..")
+
+[node name="GameCamera" type="GameCamera" parent="." unique_id=1649174809]
+
+[node name="GameManager" type="GameManager" parent="." unique_id=1720285865]
