@@ -42,6 +42,8 @@
 #include "ai/bt_player.h"
 #include "ai/bt_store.h"
 #include "ai/bt_task.h"
+#include "road/road_generator.h"
+#include "road/transform_gizmo.h"
 
 namespace godot {
 
@@ -106,6 +108,10 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(BTRunLimit);
 	GDREGISTER_CLASS(BTTimeLimit);
 	GDREGISTER_CLASS(BTPlayer);
+
+	GDREGISTER_CLASS(RoadGenerator);
+
+	GDREGISTER_CLASS(TransformGizmo);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

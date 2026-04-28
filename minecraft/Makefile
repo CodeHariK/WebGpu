@@ -55,3 +55,8 @@ run_octo:
 
 run_tennis:
 	$(GODOT) --path project/ --scene scene/tennis/tennis.tscn
+
+run_road:
+	$(GODOT) --path project/ --scene scene/road/road.tscn
+run_gizmo:
+	$(GODOT) --path project/ --scene scene/road/gizmo.tscn
