@@ -7,6 +7,7 @@
 #include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/vector3.hpp>
+#include <vector>
 
 namespace godot {
 
@@ -28,8 +29,14 @@ private:
 		float duration = -1.0f;
 	};
 
+	struct Trajectory {
+		std::vector<Vector3> points;
+		float timer = 0.0f;
+	};
+
 	HashMap<String, DebugLine> lines;
 	HashMap<String, DebugText> texts;
+	HashMap<String, Trajectory> trajectories;
 
 protected:
 	static void _bind_methods();
@@ -49,6 +56,9 @@ public:
 
 	void draw_text(const String &p_id, const String &p_text, const Vector3 &p_pos, float p_size = 0.05f, const Color &p_color = Color(1, 1, 1), float p_duration = -1.0f);
 	void clear_text(const String &p_id);
+
+	void draw_trajectory(const String &p_id, const Vector3 &p_point, float p_delta, float p_interval = 0.1f, int p_max_points = 200, const Color &p_color = Color(1, 1, 1));
+	void clear_trajectory(const String &p_id);
 
 	void clear_all();
 };

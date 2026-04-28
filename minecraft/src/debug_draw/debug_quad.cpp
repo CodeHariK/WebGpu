@@ -45,7 +45,7 @@ void DebugLineQuad::_ready() {
 	// Default Shader (flat color)
 	Ref<Shader> default_shader;
 	default_shader.instantiate();
-	default_shader->set_code("shader_type spatial; render_mode unshaded, cull_disabled; uniform vec4 color: source_color; void fragment() { ALBEDO = color.rgb; ALPHA = color.a; }");
+	default_shader->set_code("shader_type spatial; render_mode unshaded, cull_disabled, depth_test_disabled; uniform vec4 color: source_color; void fragment() { ALBEDO = color.rgb; ALPHA = color.a; }");
 	shader_material->set_shader(default_shader);
 	shader_material->set_shader_parameter("color", color);
 

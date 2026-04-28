@@ -87,12 +87,6 @@ private:
 	bool is_dashing = false;
 	Vector3 dash_direction;
 
-	// Trajectory Tracking
-	std::vector<Vector3> trajectory_points;
-	float trajectory_timer = 0.0f;
-	float trajectory_interval = 0.1f;
-	int max_trajectory_points = 200;
-
 	void _update_jump_math();
 	Node3D *_find_melee_target();
 
