@@ -229,7 +229,7 @@ void CelesteController::_physics_process(double delta) {
 
 #if DEBUG
 	debug_draw_label();
-	debug_draw_trajectory(f_delta);
+	// debug_draw_trajectory(f_delta);
 #endif
 }
 

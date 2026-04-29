@@ -45,6 +45,16 @@
 #include "road/road_generator.h"
 #include "road/transform_gizmo.h"
 
+#include "interaction/interactable.h"
+#include "interaction/interactor.h"
+#include "interaction/physics_pusher.h"
+#include "interaction/spring_bop.h"
+#include "interaction/spring_door.h"
+
+#include "minigames/overcooked/ingredient.h"
+#include "minigames/overcooked/counter_station.h"
+#include "minigames/overcooked/cutting_station.h"
+
 namespace godot {
 
 void initialize_gdextension_types(ModuleInitializationLevel p_level) {
@@ -112,6 +122,16 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(RoadGenerator);
 
 	GDREGISTER_CLASS(TransformGizmo);
+
+	GDREGISTER_CLASS(Interactable);
+	GDREGISTER_CLASS(Interactor);
+	GDREGISTER_CLASS(PhysicsPusher);
+	GDREGISTER_CLASS(SpringDoor);
+	GDREGISTER_CLASS(SpringBop);
+
+	GDREGISTER_CLASS(Ingredient);
+	GDREGISTER_CLASS(CounterStation);
+	GDREGISTER_CLASS(CuttingStation);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

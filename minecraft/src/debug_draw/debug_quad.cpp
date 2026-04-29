@@ -31,7 +31,8 @@ DebugLineQuad::~DebugLineQuad() {
 }
 
 void DebugLineQuad::_ready() {
-	if (Engine::get_singleton()->is_editor_hint()) return;
+	if (Engine::get_singleton()->is_editor_hint())
+		return;
 
 	// Setup Mesh
 	quad_mesh.instantiate();
@@ -113,8 +114,6 @@ void DebugLineQuad::_update_geometry() {
 	// We want the quad's X-axis to represent thickness.
 	// We want the quad's Z-axis to be the 'normal' (standard for QuadMesh).
 
-	Transform3D trans;
-	
 	// Create a basis where Y is the direction of the line
 	Vector3 y_axis = center_to_end;
 	Vector3 x_axis;
@@ -127,6 +126,7 @@ void DebugLineQuad::_update_geometry() {
 	}
 	z_axis = x_axis.cross(y_axis).normalized();
 
+	Transform3D trans;
 	trans.basis.set_column(0, x_axis * thickness);
 	trans.basis.set_column(1, y_axis * length);
 	trans.basis.set_column(2, z_axis);
