@@ -25,9 +25,10 @@ public:
 	~Interactor();
 
 	void _ready() override;
+	void _physics_process(double delta) override;
 
 	void grab_or_drop();
-	void interact();
+	void interact(Node3D *p_actor = nullptr);
 
 	void set_interaction_range(float p_range);
 	float get_interaction_range() const;

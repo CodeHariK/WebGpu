@@ -5,6 +5,7 @@
 #include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
 #include "../player/celeste_controller.h"
+#include "../minigames/overcooked/overcooked_manager.h"
 #include "../vehicle/arcade_vehicle.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
@@ -46,6 +47,10 @@ GameManager::~GameManager() {
 		memdelete(enemy_manager);
 		enemy_manager = nullptr;
 	}
+	if (overcooked_manager) {
+		memdelete(overcooked_manager);
+		overcooked_manager = nullptr;
+	}
 	if (singleton == this) {
 		singleton = nullptr;
 	}
@@ -80,6 +85,10 @@ void GameManager::_enter_tree() {
 
 	if (debug_manager && debug_manager->get_parent() == nullptr) {
 		add_child(debug_manager);
+	}
+
+	if (!overcooked_manager) {
+		overcooked_manager = memnew(OvercookedManager);
 	}
 
 	UtilityFunctions::print("GameManager: Singleton initialized and ready.");

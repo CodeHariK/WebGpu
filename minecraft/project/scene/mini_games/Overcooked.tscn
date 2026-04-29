@@ -1,73 +1,115 @@
-[gd_scene format=3 uid="uid://dtgin0hhp22ah"]
+[gd_scene format=3 uid="uid://c3m7x8v2k1l2"]
 
-[ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="1_wmt2g"]
-
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4dd0a"]
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_gg8kj"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
 ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
 
-[sub_resource type="Sky" id="Sky_e5evq"]
-sky_material = SubResource("ProceduralSkyMaterial_4dd0a")
+[sub_resource type="Sky" id="Sky_wmt2g"]
+sky_material = SubResource("ProceduralSkyMaterial_gg8kj")
 
-[sub_resource type="Environment" id="Environment_gs0m1"]
+[sub_resource type="Environment" id="Environment_4dd0a"]
 background_mode = 2
-sky = SubResource("Sky_e5evq")
+sky = SubResource("Sky_wmt2g")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_wmt2g"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+albedo_color = Color(0.2, 0.2, 0.2, 1)
 
-[sub_resource type="BoxMesh" id="BoxMesh_4dd0a"]
-size = Vector3(0.285, 0.205, 1.05)
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+material = SubResource("StandardMaterial3D_floor")
+size = Vector2(20, 20)
 
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_e5evq"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_e5evq"]
+size = Vector3(20, 0.1, 20)
 
-[node name="Overcooked" type="Node3D" unique_id=1758860073]
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=834013651]
-environment = SubResource("Environment_gs0m1")
+[sub_resource type="BoxMesh" id="BoxMesh_visor"]
+size = Vector3(0.6, 0.3, 0.4)
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1106068342]
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tomato"]
+albedo_color = Color(0.8, 0.1, 0.1, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_tomato_raw"]
+material = SubResource("StandardMaterial3D_tomato")
+size = Vector3(0.5, 0.5, 0.5)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_tomato"]
+radius = 0.3
+
+[node name="Overcooked" type="Node3D" unique_id=275254068]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=442809831]
+environment = SubResource("Environment_4dd0a")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=602998654]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
 shadow_enabled = true
 
-[node name="GameManager" type="GameManager" parent="." unique_id=570668378]
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1554106728]
 
-[node name="GameCamera" type="GameCamera" parent="." unique_id=1654008157]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=1196599303]
+mesh = SubResource("PlaneMesh_floor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor" unique_id=726376859]
+shape = SubResource("BoxShape3D_e5evq")
+
+[node name="CelesteController" type="CelesteController" parent="." unique_id=551363176]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController" unique_id=1294972387]
+mesh = SubResource("CapsuleMesh_player")
+
+[node name="Visor" type="MeshInstance3D" parent="CelesteController/MeshInstance3D" unique_id=473911390]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -0.4)
+mesh = SubResource("BoxMesh_visor")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CelesteController" unique_id=58718812]
+shape = SubResource("CapsuleShape3D_player")
+
+[node name="Interactor" type="Interactor" parent="CelesteController" unique_id=1029549046]
+interaction_range = 3.0
+
+[node name="CuttingStation" type="CuttingStation" parent="." unique_id=1329370560]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -5)
+
+[node name="Visual" type="CSGBox3D" parent="CuttingStation" unique_id=1400219306]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+use_collision = true
+size = Vector3(1.5, 2, 1.5)
+material = SubResource("StandardMaterial3D_floor")
+
+[node name="CounterStation" type="CounterStation" parent="." unique_id=1855831296]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, -5)
+
+[node name="Visual" type="CSGBox3D" parent="CounterStation" unique_id=1334906296]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+use_collision = true
+size = Vector3(1.5, 2, 1.5)
+material = SubResource("StandardMaterial3D_floor")
+
+[node name="Tomato" type="Ingredient" parent="." unique_id=1252549558]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 2.2, -5)
+
+[node name="Raw" type="MeshInstance3D" parent="Tomato" unique_id=149369914]
+mesh = SubResource("BoxMesh_tomato_raw")
+
+[node name="Chopped" type="CSGCylinder3D" parent="Tomato" unique_id=21699050]
+visible = false
+radius = 0.3
+height = 0.1
+sides = 12
+material = SubResource("StandardMaterial3D_tomato")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Tomato" unique_id=929814761]
+shape = SubResource("SphereShape3D_tomato")
+
+[node name="GameCamera" type="GameCamera" parent="." unique_id=154741485]
 camera_mode = 2
+follow_target_path = NodePath("../CelesteController")
 pos_smoothing_enabled = false
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 5, 8)
 
-[node name="Ground" type="CSGBox3D" parent="." unique_id=1867232697]
-use_collision = true
-size = Vector3(100, 0.5, 100)
-material = ExtResource("1_wmt2g")
-
-[node name="CelesteController" type="CelesteController" parent="." unique_id=791177418]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.8005276, 3.0714903, 2.846653)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController" unique_id=597402839]
-mesh = SubResource("CapsuleMesh_wmt2g")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController/MeshInstance3D" unique_id=359273058]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.71504164, -0.70530033)
-mesh = SubResource("BoxMesh_4dd0a")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="CelesteController" unique_id=1802880561]
-shape = SubResource("CapsuleShape3D_e5evq")
-
-[node name="PhysicsPusher" type="PhysicsPusher" parent="CelesteController" unique_id=407894481]
-
-[node name="CuttingStation" type="CuttingStation" parent="." unique_id=809438796]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, -7)
-
-[node name="CSGBox3D" type="CSGBox3D" parent="CuttingStation" unique_id=660328086]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-use_collision = true
-
-[node name="CounterStation" type="CounterStation" parent="." unique_id=458638533]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, -7)
-
-[node name="CSGCylinder3D" type="CSGCylinder3D" parent="CounterStation" unique_id=420937462]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-use_collision = true
+[node name="GameManager" type="GameManager" parent="." unique_id=898432918]

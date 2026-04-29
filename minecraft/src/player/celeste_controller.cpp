@@ -75,7 +75,6 @@ void CelesteController::_ready() {
 	// Initialize HSM States
 	grounded_state = new CelesteGroundedState(this, nullptr);
 	airborne_state = new CelesteAirborneState(this, nullptr);
-
 	idle_state = new CelesteIdleState(this, grounded_state);
 	move_state = new CelesteMoveState(this, grounded_state);
 	jump_state = new CelesteJumpState(this, airborne_state);

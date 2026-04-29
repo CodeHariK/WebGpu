@@ -17,6 +17,7 @@ class GameCamera;
 class PlayerInput;
 class DebugManager;
 class EnemyManager;
+class OvercookedManager;
 
 class GameManager : public Node {
 	GDCLASS(GameManager, Node)
@@ -31,6 +32,7 @@ private:
 	PlayerInput *player_input = nullptr;
 	DebugManager *debug_manager = nullptr;
 	EnemyManager *enemy_manager = nullptr;
+	OvercookedManager *overcooked_manager = nullptr;
 
 	ArcadeVehicle *vehicle = nullptr;
 	PhysicsCharacter3D *character = nullptr;

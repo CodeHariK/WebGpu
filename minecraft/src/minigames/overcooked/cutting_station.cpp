@@ -10,7 +10,9 @@ void CuttingStation::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "chop_speed"), "set_chop_speed", "get_chop_speed");
 }
 
-CuttingStation::CuttingStation() {}
+CuttingStation::CuttingStation() {
+	station_name = "Cutting Board";
+}
 CuttingStation::~CuttingStation() {}
 
 void CuttingStation::interact(Node3D *p_actor) {

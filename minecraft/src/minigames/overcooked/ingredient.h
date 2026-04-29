@@ -28,6 +28,8 @@ public:
 	~Ingredient();
 
 	void _ready() override;
+	void _exit_tree() override;
+	void _process(double delta) override;
 
 	void set_state(State p_state);
 	State get_state() const;

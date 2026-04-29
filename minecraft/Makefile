@@ -60,3 +60,5 @@ run_road:
 	$(GODOT) --path project/ --scene scene/road/road.tscn
 run_gizmo:
 	$(GODOT) --path project/ --scene scene/road/gizmo.tscn
+run_oc:
+	$(GODOT) --path project/ --scene scene/mini_games/Overcooked.tscn
