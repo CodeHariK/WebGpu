@@ -86,8 +86,6 @@ private:
 
 	void minHeapTest();
 
-	void raycast();
-
 protected:
 	static void _bind_methods() {
 		ClassDB::bind_method(D_METHOD("set_generate_on_ready", "enable"), &MinecraftNode::set_generate_on_ready);

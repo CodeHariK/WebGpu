@@ -14,6 +14,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include "../debug_draw/debug_manager.h"
+#include "../utils/raycast/mc_raycast.h"
 
 namespace godot {
 
@@ -97,19 +98,9 @@ void TransformGizmo::_input(const Ref<InputEvent> &event) {
 
 	Ref<InputEventMouseMotion> mm = event;
 	if (mm.is_valid() && manipulation_mode != NONE) {
-		Viewport *vp = get_viewport();
-		if (!vp)
-			return;
-		Camera3D *camera = vp->get_camera_3d();
-		if (!camera)
-			return;
-
-		Vector2 mouse_pos = mm->get_position();
-		Vector3 ray_origin = camera->project_ray_origin(mouse_pos);
-		Vector3 ray_dir = camera->project_ray_normal(mouse_pos);
-
+		MCRay ray = get_ray_from_mouse(this, mm->get_position());
 		Vector3 intersection_point;
-		if (drag_plane.intersects_ray(ray_origin, ray_dir, &intersection_point)) {
+		if (drag_plane.intersects_ray(ray.origin, ray.normal, &intersection_point)) {
 			Transform3D new_transform = _calculate_new_transform(intersection_point);
 			DebugManager::get_singleton()->draw_line("gizmo", get_global_transform().origin, intersection_point, .05f, Color(1, 1, 0));
 			set_gizmo_transform(new_transform);
@@ -232,10 +223,19 @@ void TransformGizmo::_on_gizmo_input_start(Node *p_camera, Ref<InputEvent> p_eve
 
 		if (mode == MOVE_OR_SCALE) {
 			Vector3 camera_forward = -camera->get_global_transform().basis.get_column(2);
-			plane_normal = drag_axis.cross(camera_forward).cross(drag_axis).normalized();
 
-			if (plane_normal.is_zero_approx()) {
-				plane_normal = drag_axis.cross(camera->get_global_transform().basis.get_column(0)).cross(drag_axis).normalized();
+			// Find the two candidate axes (the ones we are NOT dragging)
+			Vector3 other1, other2;
+
+			int de = name.contains("X") ? 0 : (name.contains("Y") ? 1 : 2);
+			other1 = global_basis.get_column((1 + de) % 3); // Y
+			other2 = global_basis.get_column((2 + de) % 3); // Z
+
+			// Snap the normal to the axis most aligned with the camera
+			if (Math::abs(camera_forward.dot(other1)) > Math::abs(camera_forward.dot(other2))) {
+				plane_normal = other1;
+			} else {
+				plane_normal = other2;
 			}
 
 			Vector3 click_offset_vec = position - get_global_transform().origin;
@@ -250,23 +250,15 @@ void TransformGizmo::_on_gizmo_input_start(Node *p_camera, Ref<InputEvent> p_eve
 		}
 
 		drag_plane = Plane(plane_normal, get_global_transform().origin);
+		MCRay ray = get_ray_from_mouse(this, mb->get_position());
 		Vector3 intersection_point;
-		if (drag_plane.intersects_ray(camera->project_ray_origin(mb->get_position()), camera->project_ray_normal(mb->get_position()), &intersection_point)) {
+		if (drag_plane.intersects_ray(ray.origin, ray.normal, &intersection_point)) {
 			drag_start_position = intersection_point;
 			drag_start_transform = get_global_transform();
 			drag_start_vector = (drag_start_position - get_global_transform().origin).normalized();
 
-			Vector3 perp = drag_axis;
-			if (manipulation_mode == MOVE) {
-				if (drag_axis.is_equal_approx(global_basis.get_column(1))) {
-					perp = global_basis.get_column(0);
-				} else {
-					perp = global_basis.get_column(1);
-				}
-			}
-
 			if (grid_mesh_instance) {
-				grid_mesh_instance->set_global_transform(Transform3D(Basis::looking_at(perp), get_global_transform().origin));
+				grid_mesh_instance->set_global_transform(Transform3D(Basis::looking_at(plane_normal), get_global_transform().origin));
 				grid_mesh_instance->set_visible(true);
 			}
 		}

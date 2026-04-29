@@ -12,25 +12,35 @@
 
 namespace godot {
 
-MCRaycastHit raycast_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos, uint32_t p_mask, float p_dist, const TypedArray<RID> &p_exclude) {
+MCRay get_ray_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos) {
+	MCRay ray;
 	if (!p_context || !p_context->is_inside_tree()) {
-		return MCRaycastHit();
+		return ray;
 	}
 
 	Viewport *viewport = p_context->get_viewport();
 	if (!viewport) {
-		return MCRaycastHit();
+		return ray;
 	}
 
 	Camera3D *camera = viewport->get_camera_3d();
 	if (!camera) {
+		return ray;
+	}
+
+	ray.origin = camera->project_ray_origin(p_mouse_pos);
+	ray.normal = camera->project_ray_normal(p_mouse_pos);
+	return ray;
+}
+
+MCRaycastHit raycast_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos, uint32_t p_mask, float p_dist, const TypedArray<RID> &p_exclude) {
+	MCRay ray = get_ray_from_mouse(p_context, p_mouse_pos);
+	if (ray.normal.is_zero_approx()) {
 		return MCRaycastHit();
 	}
 
-	Vector3 from = camera->project_ray_origin(p_mouse_pos);
-	Vector3 to = from + camera->project_ray_normal(p_mouse_pos) * p_dist;
-
-	return raycast_3d(p_context, from, to, p_mask, p_exclude);
+	Vector3 to = ray.origin + ray.normal * p_dist;
+	return raycast_3d(p_context, ray.origin, to, p_mask, p_exclude);
 }
 
 MCRaycastHit raycast_3d(Node3D *p_context, const Vector3 &p_from, const Vector3 &p_to, uint32_t p_mask, const TypedArray<RID> &p_exclude) {
