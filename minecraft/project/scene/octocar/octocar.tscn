@@ -263,7 +263,6 @@ radius = 3.0
 height = 9.8445
 
 [node name="GameCamera" type="GameCamera" parent="." unique_id=975855693]
-camera_mode = 2
 follow_target_path = NodePath("../CelesteController")
 pos_smoothing_enabled = false
 follow_offset = Vector3(0, 3, 10)

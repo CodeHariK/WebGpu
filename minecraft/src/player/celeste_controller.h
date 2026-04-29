@@ -139,6 +139,8 @@ private:
 	void debug_draw_trajectory(float p_delta);
 	void debug_draw_label();
 	void debug_draw_bottom();
+
+	Vector3 _collide_and_slide(const Vector3 &p_velocity, const Vector3 &p_normal);
 };
 
 } // namespace godot
