@@ -1,12 +1,12 @@
 #ifndef CUTTING_STATION_H
 #define CUTTING_STATION_H
 
-#include "counter_station.h"
+#include "oc_station.h"
 
 namespace godot {
 
-class CuttingStation : public CounterStation {
-	GDCLASS(CuttingStation, CounterStation)
+class OCCuttingStation : public OCStation {
+	GDCLASS(OCCuttingStation, OCStation)
 
 private:
 	float chop_speed = 0.25f; // Each interact press adds 25%
@@ -15,8 +15,8 @@ protected:
 	static void _bind_methods();
 
 public:
-	CuttingStation();
-	~CuttingStation();
+	OCCuttingStation();
+	~OCCuttingStation();
 
 	void interact(Node3D *p_actor) override;
 

@@ -1,33 +1,33 @@
-#include "counter_station.h"
+#include "oc_station.h"
 #include "../../debug_draw/debug_manager.h"
-#include "overcooked_manager.h"
+#include "oc_manager.h"
 #include <godot_cpp/classes/marker3d.hpp>
 
 namespace godot {
 
-void CounterStation::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_station_name", "name"), &CounterStation::set_station_name);
-	ClassDB::bind_method(D_METHOD("get_station_name"), &CounterStation::get_station_name);
+void OCStation::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_station_name", "name"), &OCStation::set_station_name);
+	ClassDB::bind_method(D_METHOD("get_station_name"), &OCStation::get_station_name);
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "station_name"), "set_station_name", "get_station_name");
-	ClassDB::bind_method(D_METHOD("place_item", "item"), &CounterStation::place_item);
-	ClassDB::bind_method(D_METHOD("take_item"), &CounterStation::take_item);
-	ClassDB::bind_method(D_METHOD("has_item"), &CounterStation::has_item);
+	ClassDB::bind_method(D_METHOD("place_item", "item"), &OCStation::place_item);
+	ClassDB::bind_method(D_METHOD("take_item"), &OCStation::take_item);
+	ClassDB::bind_method(D_METHOD("has_item"), &OCStation::has_item);
 }
 
-CounterStation::CounterStation() {
+OCStation::OCStation() {
 	set_is_interactable(true);
 }
 
-CounterStation::~CounterStation() {}
+OCStation::~OCStation() {}
 
-void CounterStation::_exit_tree() {
+void OCStation::_exit_tree() {
 	OvercookedManager *om = OvercookedManager::get_singleton();
 	if (om) {
 		om->unregister_station(this);
 	}
 }
 
-void CounterStation::_ready() {
+void OCStation::_ready() {
 	Interactable::_ready();
 
 	OvercookedManager *om = OvercookedManager::get_singleton();
@@ -49,31 +49,31 @@ void CounterStation::_ready() {
 	}
 }
 
-void CounterStation::_process(double delta) {
+void OCStation::_process(double delta) {
 	DebugManager *dm = DebugManager::get_singleton();
 	if (dm) {
 		String label = station_name;
 		if (held_item) {
-			label += "\n(" + held_item->get_name() + ")";
+			label += " (" + held_item->get_name() + ")";
 		}
 		dm->draw_text("station_" + get_name(), label, get_global_position() + Vector3(0, 3.0f, 0), 0.001f, Color(1, 1, 1));
 	}
 }
 
-void CounterStation::interact(Node3D *p_actor) {
-	// Base counters don't do much on interact (use)
+void OCStation::interact(Node3D *p_actor) {
+	// Base stations don't do much on interact (use)
 	// Subclasses like CuttingStation will override this
 }
 
-void CounterStation::pickup(Node3D *p_actor) {
-	// We don't actually pick up the counter itself
+void OCStation::pickup(Node3D *p_actor) {
+	// We don't actually pick up the station itself
 }
 
-bool CounterStation::can_place_item(Interactable *item) {
+bool OCStation::can_place_item(Interactable *item) {
 	return held_item == nullptr && item != nullptr;
 }
 
-void CounterStation::place_item(Interactable *item) {
+void OCStation::place_item(Interactable *item) {
 	if (!item)
 		return;
 
@@ -86,7 +86,7 @@ void CounterStation::place_item(Interactable *item) {
 	held_item->set_is_picked_up(true);
 }
 
-Interactable *CounterStation::take_item() {
+Interactable *OCStation::take_item() {
 	if (!held_item)
 		return nullptr;
 
@@ -98,7 +98,7 @@ Interactable *CounterStation::take_item() {
 	return item;
 }
 
-void CounterStation::set_station_name(const String &p_name) { station_name = p_name; }
-String CounterStation::get_station_name() const { return station_name; }
+void OCStation::set_station_name(const String &p_name) { station_name = p_name; }
+String OCStation::get_station_name() const { return station_name; }
 
 } // namespace godot

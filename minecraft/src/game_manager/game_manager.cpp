@@ -5,7 +5,6 @@
 #include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
 #include "../player/celeste_controller.h"
-#include "../minigames/overcooked/overcooked_manager.h"
 #include "../vehicle/arcade_vehicle.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
@@ -13,6 +12,8 @@
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+
+#include "../minigames/overcooked/oc_manager.h"
 
 namespace godot {
 

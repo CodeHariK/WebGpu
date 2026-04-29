@@ -109,7 +109,6 @@ void CelesteController::_ready() {
 	ui_vars["melee_range"] = &melee_range;
 	ui_vars["melee_speed"] = &melee_lunge_speed;
 
-	ui_vars["ride_height"] = &ride_height;
 	ui_vars["spring_stiffness"] = &spring_stiffness;
 	ui_vars["spring_damping"] = &spring_damping;
 
@@ -187,15 +186,40 @@ void CelesteController::_physics_process(double delta) {
 
 #if DEBUG
 	DebugManager::get_singleton()->clear_line("hover_ray");
+	DebugManager::get_singleton()->clear_line("forward_ray");
 #endif
 
 	if (!is_jumping) {
-		Vector3 ray_origin = get_global_position() + Vector3(0, 0.2f, 0);
-		// Increase ray length to catch ground earlier
-		Vector3 ray_dir = Vector3(0, -(ride_height + 1.8f), 0);
+		Vector3 bottom = get_global_position() - Vector3(0, half_height, 0);
+
+		// Forward raycast to detect obstacles
+		Vector3 forward = -get_global_transform().basis.get_column(2).normalized();
+		Vector3 f_start = bottom + Vector3(0, 0.2f, 0);
+		Vector3 f_end = f_start + forward * 1.5f;
 
 		TypedArray<RID> exclude;
 		exclude.append(get_rid());
+
+		MCRaycastHit f_hit = raycast_3d(this, f_start, f_end, 1, exclude);
+
+		// Simple hit check (jitter version)
+		bool is_obstacle = f_hit.is_hit;
+
+		// Gradual ride_height adjustment
+		float target_height = is_obstacle ? max_ride_height : min_ride_height;
+		ride_height = Math::move_toward(ride_height, target_height, f_delta * ride_height_speed);
+
+#if DEBUG
+		DebugManager::get_singleton()->clear_line("forward_ray");
+		if (is_obstacle) {
+			DebugManager::get_singleton()->draw_line("forward_ray", f_start, f_hit.position, 0.1f, Color(1, 1, 0), 0.1f);
+		}
+#endif
+
+		Vector3 ray_origin = bottom + Vector3(0, 0.2f, 0);
+		// Increase ray length to catch ground earlier
+		Vector3 ray_dir = Vector3(0, -(ride_height + 1.0f), 0);
+
 		MCRaycastHit hit = raycast_3d(this, ray_origin, ray_origin + ray_dir, 1, exclude);
 
 		if (hit.is_hit) {
@@ -225,10 +249,10 @@ void CelesteController::_physics_process(double delta) {
 	if (ui_helper) {
 		ui_helper->update_graph(get_velocity().length());
 	}
-
 #if DEBUG
 	debug_draw_label();
-	// debug_draw_trajectory(f_delta);
+	debug_draw_trajectory(delta);
+	debug_draw_bottom();
 #endif
 }
 

@@ -7,16 +7,16 @@
 
 namespace godot {
 
-class CounterStation;
-class Ingredient;
+class OCStation;
+class OCIngredient;
 
 class OvercookedManager : public Node {
 	GDCLASS(OvercookedManager, Node)
 
 private:
 	static OvercookedManager *singleton;
-	std::vector<CounterStation *> stations;
-	std::vector<Ingredient *> ingredients;
+	std::vector<OCStation *> stations;
+	std::vector<OCIngredient *> ingredients;
 
 protected:
 	static void _bind_methods();
@@ -27,14 +27,14 @@ public:
 
 	static OvercookedManager *get_singleton();
 
-	void register_station(CounterStation *p_station);
-	void unregister_station(CounterStation *p_station);
+	void register_station(OCStation *p_station);
+	void unregister_station(OCStation *p_station);
 
-	void register_ingredient(Ingredient *p_ing);
-	void unregister_ingredient(Ingredient *p_ing);
+	void register_ingredient(OCIngredient *p_ing);
+	void unregister_ingredient(OCIngredient *p_ing);
 
-	CounterStation *get_closest_station(const Vector3 &p_from, float p_max_dist);
-	Ingredient *get_closest_ingredient(const Vector3 &p_from, float p_max_dist);
+	OCStation *get_closest_station(const Vector3 &p_from, float p_max_dist);
+	OCIngredient *get_closest_ingredient(const Vector3 &p_from, float p_max_dist);
 };
 
 } // namespace godot

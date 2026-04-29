@@ -5,19 +5,9 @@
 #include <godot_cpp/variant/vector3.hpp>
 #include <cstdint>
 
-namespace godot {
+#include "../game_manager/game_constants.h"
 
-/**
- * @brief Centralized collision layers for the Marching Cubes project.
- * Layers are defined as bits (1 << (layer_number - 1)).
- */
-enum MCCollisionLayer : uint32_t {
-    LAYER_NONE     = 0,
-    LAYER_TERRAIN  = 1,          // Layer 1
-    LAYER_OBJECTS  = 1 << 3,     // Layer 4 (8)
-    LAYER_CORNERS  = 1 << 5,     // Layer 6 (32)
-    LAYER_CELLS    = 1 << 6      // Layer 7 (64) - Debug/Dual Grid
-};
+namespace godot {
 
 /**
  * @brief Utility class for physics operations.

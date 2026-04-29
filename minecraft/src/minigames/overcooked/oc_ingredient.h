@@ -2,11 +2,12 @@
 #define INGREDIENT_H
 
 #include "../../interaction/interactable.h"
+#include "oc_manager.h"
 
 namespace godot {
 
-class Ingredient : public Interactable {
-	GDCLASS(Ingredient, Interactable)
+class OCIngredient : public Interactable {
+	GDCLASS(OCIngredient, Interactable)
 
 public:
 	enum State {
@@ -22,14 +23,17 @@ private:
 
 protected:
 	static void _bind_methods();
+	OvercookedManager *om = nullptr;
 
 public:
-	Ingredient();
-	~Ingredient();
+	OCIngredient();
+	~OCIngredient();
 
 	void _ready() override;
 	void _exit_tree() override;
 	void _process(double delta) override;
+
+	void drop(Node3D *p_actor) override;
 
 	void set_state(State p_state);
 	State get_state() const;
@@ -42,6 +46,6 @@ public:
 
 } // namespace godot
 
-VARIANT_ENUM_CAST(Ingredient::State);
+VARIANT_ENUM_CAST(OCIngredient::State);
 
 #endif // INGREDIENT_H

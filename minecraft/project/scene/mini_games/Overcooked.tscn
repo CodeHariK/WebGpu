@@ -59,6 +59,7 @@ shape = SubResource("BoxShape3D_e5evq")
 
 [node name="CelesteController" type="CelesteController" parent="." unique_id=551363176]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+ride_height = 1.2
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController" unique_id=1294972387]
 mesh = SubResource("CapsuleMesh_player")
@@ -70,10 +71,10 @@ mesh = SubResource("BoxMesh_visor")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CelesteController" unique_id=58718812]
 shape = SubResource("CapsuleShape3D_player")
 
-[node name="Interactor" type="Interactor" parent="CelesteController" unique_id=1029549046]
-interaction_range = 3.0
+[node name="Interactor" type="OCInteractor" parent="CelesteController" unique_id=1029549046]
+interaction_range = 5.0
 
-[node name="CuttingStation" type="CuttingStation" parent="." unique_id=1329370560]
+[node name="CuttingStation" type="OCCuttingStation" parent="." unique_id=577233456]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -5)
 
 [node name="Visual" type="CSGBox3D" parent="CuttingStation" unique_id=1400219306]
@@ -82,7 +83,7 @@ use_collision = true
 size = Vector3(1.5, 2, 1.5)
 material = SubResource("StandardMaterial3D_floor")
 
-[node name="CounterStation" type="CounterStation" parent="." unique_id=1855831296]
+[node name="CounterStation" type="OCStation" parent="." unique_id=1855831296]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, -5)
 
 [node name="Visual" type="CSGBox3D" parent="CounterStation" unique_id=1334906296]
@@ -91,7 +92,7 @@ use_collision = true
 size = Vector3(1.5, 2, 1.5)
 material = SubResource("StandardMaterial3D_floor")
 
-[node name="Tomato" type="Ingredient" parent="." unique_id=1252549558]
+[node name="Tomato" type="OCIngredient" parent="." unique_id=313202823]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 2.2, -5)
 
 [node name="Raw" type="MeshInstance3D" parent="Tomato" unique_id=149369914]
