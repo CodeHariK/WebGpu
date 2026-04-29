@@ -46,15 +46,15 @@
 #include "road/transform_gizmo.h"
 
 #include "interaction/interactable.h"
-#include "interaction/interactor.h"
 #include "interaction/physics_pusher.h"
 #include "interaction/spring_bop.h"
 #include "interaction/spring_door.h"
 
-#include "minigames/overcooked/ingredient.h"
-#include "minigames/overcooked/counter_station.h"
-#include "minigames/overcooked/cutting_station.h"
-#include "minigames/overcooked/overcooked_manager.h"
+#include "minigames/overcooked/oc_cutting_station.h"
+#include "minigames/overcooked/oc_ingredient.h"
+#include "minigames/overcooked/oc_interactor.h"
+#include "minigames/overcooked/oc_manager.h"
+#include "minigames/overcooked/oc_station.h"
 
 namespace godot {
 
@@ -125,14 +125,14 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(TransformGizmo);
 
 	GDREGISTER_CLASS(Interactable);
-	GDREGISTER_CLASS(Interactor);
 	GDREGISTER_CLASS(PhysicsPusher);
 	GDREGISTER_CLASS(SpringDoor);
 	GDREGISTER_CLASS(SpringBop);
 
-	GDREGISTER_CLASS(Ingredient);
-	GDREGISTER_CLASS(CounterStation);
-	GDREGISTER_CLASS(CuttingStation);
+	GDREGISTER_CLASS(OCIngredient);
+	GDREGISTER_CLASS(OCStation);
+	GDREGISTER_CLASS(OCCuttingStation);
+	GDREGISTER_CLASS(OCInteractor);
 	GDREGISTER_CLASS(OvercookedManager);
 }
 

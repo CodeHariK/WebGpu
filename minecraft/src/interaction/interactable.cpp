@@ -3,10 +3,6 @@
 namespace godot {
 
 void Interactable::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("interact", "actor"), &Interactable::interact);
-	ClassDB::bind_method(D_METHOD("pickup", "actor"), &Interactable::pickup);
-	ClassDB::bind_method(D_METHOD("drop", "actor"), &Interactable::drop);
-
 	ClassDB::bind_method(D_METHOD("set_is_interactable", "interactable"), &Interactable::set_is_interactable);
 	ClassDB::bind_method(D_METHOD("get_is_interactable"), &Interactable::get_is_interactable);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "is_interactable"), "set_is_interactable", "get_is_interactable");
@@ -15,32 +11,31 @@ void Interactable::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_is_picked_up"), &Interactable::get_is_picked_up);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "is_picked_up"), "set_is_picked_up", "get_is_picked_up");
 
-	ClassDB::bind_method(D_METHOD("set_current_owner", "owner"), &Interactable::set_current_owner);
-	ClassDB::bind_method(D_METHOD("get_current_owner"), &Interactable::get_current_owner);
+	ClassDB::bind_method(D_METHOD("interact", "actor"), &Interactable::interact);
+	ClassDB::bind_method(D_METHOD("pickup", "actor"), &Interactable::pickup);
+	ClassDB::bind_method(D_METHOD("drop", "actor"), &Interactable::drop);
 }
 
-Interactable::Interactable() {}
+Interactable::Interactable() {
+	// Default to static/frozen behavior (e.g. for Stations)
+	set_freeze_enabled(true);
+	set_freeze_mode(FREEZE_MODE_STATIC);
+}
 
 Interactable::~Interactable() {}
 
 void Interactable::interact(Node3D *p_actor) {
-	// Base implementation - Override in subclasses
+	// Virtual method for subclasses to override
 }
 
 void Interactable::pickup(Node3D *p_actor) {
-	if (is_picked_up)
-		return;
-
 	is_picked_up = true;
-	current_owner = p_actor;
+	set_freeze_enabled(true); // Disable physics when held
 }
 
 void Interactable::drop(Node3D *p_actor) {
-	if (!is_picked_up || current_owner != p_actor)
-		return;
-
 	is_picked_up = false;
-	current_owner = nullptr;
+	// Subclasses will decide if they should unfreeze
 }
 
 void Interactable::set_is_interactable(bool p_interactable) { is_interactable = p_interactable; }

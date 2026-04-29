@@ -1,19 +1,21 @@
-#include "ingredient.h"
+#include "oc_ingredient.h"
 #include "../../debug_draw/debug_manager.h"
-#include "overcooked_manager.h"
+#include "oc_manager.h"
 #include <godot_cpp/classes/label3d.hpp>
+#include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/rigid_body3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
 
-void Ingredient::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_state", "state"), &Ingredient::set_state);
-	ClassDB::bind_method(D_METHOD("get_state"), &Ingredient::get_state);
+void OCIngredient::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_state", "state"), &OCIngredient::set_state);
+	ClassDB::bind_method(D_METHOD("get_state"), &OCIngredient::get_state);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "current_state", PROPERTY_HINT_ENUM, "Raw,Chopped,Cooked,Burnt"), "set_state", "get_state");
 
-	ClassDB::bind_method(D_METHOD("set_process_progress", "progress"), &Ingredient::set_process_progress);
-	ClassDB::bind_method(D_METHOD("get_process_progress"), &Ingredient::get_process_progress);
+	ClassDB::bind_method(D_METHOD("set_process_progress", "progress"), &OCIngredient::set_process_progress);
+	ClassDB::bind_method(D_METHOD("get_process_progress"), &OCIngredient::get_process_progress);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "process_progress", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_process_progress", "get_process_progress");
 
 	BIND_ENUM_CONSTANT(STATE_RAW);
@@ -22,10 +24,10 @@ void Ingredient::_bind_methods() {
 	BIND_ENUM_CONSTANT(STATE_BURNT);
 }
 
-Ingredient::Ingredient() {}
-Ingredient::~Ingredient() {}
+OCIngredient::OCIngredient() {}
+OCIngredient::~OCIngredient() {}
 
-void Ingredient::_process(double delta) {
+void OCIngredient::_process(double delta) {
 	DebugManager *dm = DebugManager::get_singleton();
 	if (dm) {
 		String state_name = "RAW";
@@ -52,70 +54,49 @@ void Ingredient::_process(double delta) {
 	}
 }
 
-void Ingredient::_ready() {
+void OCIngredient::_ready() {
 	Interactable::_ready();
 
-	OvercookedManager *om = OvercookedManager::get_singleton();
+	om = OvercookedManager::get_singleton();
 	if (om) {
 		om->register_ingredient(this);
 	}
 
+	// Enable physics
+	set_freeze_enabled(false);
 	update_visuals();
 }
 
-void Ingredient::_exit_tree() {
-	OvercookedManager *om = OvercookedManager::get_singleton();
+void OCIngredient::drop(Node3D *p_actor) {
+	Interactable::drop(p_actor);
+	set_freeze_enabled(false); // Enable physics again
+}
+
+void OCIngredient::_exit_tree() {
 	if (om) {
 		om->unregister_ingredient(this);
 	}
 }
 
-void Ingredient::set_state(State p_state) {
+void OCIngredient::set_state(State p_state) {
 	current_state = p_state;
 	update_visuals();
 }
 
-Ingredient::State Ingredient::get_state() const {
+OCIngredient::State OCIngredient::get_state() const {
 	return current_state;
 }
 
-void Ingredient::set_process_progress(float p_progress) {
+void OCIngredient::set_process_progress(float p_progress) {
 	process_progress = p_progress;
 	update_visuals();
 }
 
-float Ingredient::get_process_progress() const {
+float OCIngredient::get_process_progress() const {
 	return process_progress;
 }
 
-void Ingredient::update_visuals() {
-	// 1. Debug Label support
-	Label3D *label = Object::cast_to<Label3D>(find_child("DebugLabel", true, false));
-	if (label) {
-		String state_name = "RAW";
-		switch (current_state) {
-			case STATE_CHOPPED:
-				state_name = "CHOPPED";
-				break;
-			case STATE_COOKED:
-				state_name = "COOKED";
-				break;
-			case STATE_BURNT:
-				state_name = "BURNT";
-				break;
-			default:
-				break;
-		}
-
-		String progress_text = "";
-		if (process_progress > 0.0f && process_progress < 1.0f) {
-			progress_text = UtilityFunctions::str(" (", (int)(process_progress * 100), "%)");
-		}
-
-		label->set_text(state_name + progress_text);
-	}
-
-	// 2. Mesh swapping (still works if you have them)
+void OCIngredient::update_visuals() {
 	Node *raw = find_child("Raw", true, false);
 	Node *chopped = find_child("Chopped", true, false);
 	Node *cooked = find_child("Cooked", true, false);

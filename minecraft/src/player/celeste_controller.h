@@ -2,21 +2,20 @@
 #define CELESTE_CONTROLLER_H
 
 #include <godot_cpp/classes/character_body3d.hpp>
-#include <godot_cpp/variant/vector3.hpp>
+#include <godot_cpp/classes/node3d.hpp>
 #include <map>
-#include <vector>
 
 namespace godot {
 
-class CelesteState;
+class CelesteUI;
 class CUI;
-class CelesteGroundedState;
+class CelesteState;
 class CelesteIdleState;
 class CelesteMoveState;
-class CelesteAirborneState;
 class CelesteJumpState;
 class CelesteFallState;
-class CelesteUI;
+class CelesteGroundedState;
+class CelesteAirborneState;
 class CelesteDoubleJumpState;
 class CelesteJumpKickState;
 
@@ -52,6 +51,7 @@ private:
 	// Calculated Values
 	float _jump_velocity0 = 0.0f;
 	float _jump_gravity = 0.0f;
+	float _fall_gravity = 0.0f;
 
 	// Dash parameters
 	float dash_speed = 30.0f;
@@ -60,16 +60,19 @@ private:
 
 	// Fall Math (Kinematic)
 	float max_fall_velocity = 20.0f;
-	float _fall_gravity = 0.0f;
 
 	// Melee Parameters
-	float melee_range = 15.0f;
+	float half_height = 1.0f;
+	float melee_range = 3.0f;
 	float melee_lunge_speed = 50.0f;
 	uint32_t melee_target_layer = 4; // Layer 3 (bit 2)
 
-	float ride_height = 2.0f;
-	float spring_stiffness = 200.0f;
-	float spring_damping = 10.0f;
+	float ride_height = 0.2f;
+	float min_ride_height = 0.2f;
+	float max_ride_height = 1.2f;
+	float ride_height_speed = 5.0f;
+	float spring_stiffness = 800.0f;
+	float spring_damping = 40.0f;
 
 	// Runtime State
 	bool is_jumping = false;
@@ -95,9 +98,9 @@ private:
 	CelesteGroundedState *grounded_state = nullptr;
 	CelesteIdleState *idle_state = nullptr;
 	CelesteMoveState *move_state = nullptr;
-	CelesteAirborneState *airborne_state = nullptr;
 	CelesteJumpState *jump_state = nullptr;
 	CelesteFallState *fall_state = nullptr;
+	CelesteAirborneState *airborne_state = nullptr;
 	CelesteDoubleJumpState *double_jump_state = nullptr;
 	class CelesteDashState *dash_state = nullptr;
 	CelesteJumpKickState *jumpkick_state = nullptr;
@@ -135,6 +138,7 @@ private:
 
 	void debug_draw_trajectory(float p_delta);
 	void debug_draw_label();
+	void debug_draw_bottom();
 };
 
 } // namespace godot

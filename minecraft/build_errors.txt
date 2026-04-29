@@ -1,0 +1,235 @@
+time /opt/homebrew/bin/scons target=template_debug platform=macos
+scons: Reading SConscript files ...
+Auto-detected 8 CPU cores available for build parallelism. Using 7 cores by default. You can override it with the -j argument.
+Building for architecture universal on platform macos
+Building in DEBUG mode: adding DEBUG macro
+->  src/register_types.cpp
+->  src/marching_cubes/mc_grid_debug.cpp
+->  src/marching_cubes/mc_ui.cpp
+->  src/marching_cubes/mc_spatial.cpp
+->  src/marching_cubes/mc_grid.cpp
+->  src/marching_cubes/mc_manager.cpp
+->  src/marching_cubes/mc_manager_placement.cpp
+->  src/marching_cubes/mc_grid_placement.cpp
+->  src/marching_cubes/mc_manager_debug.cpp
+->  src/marching_cubes/mc_physics.cpp
+->  src/marching_cubes/mc_grid_serialization.cpp
+->  src/marching_cubes/mc.cpp
+->  src/minigames/overcooked/oc_ingredient.cpp
+->  src/minigames/overcooked/oc_interactor.cpp
+->  src/minigames/overcooked/oc_manager.cpp
+->  src/minigames/overcooked/oc_station.cpp
+->  src/minigames/overcooked/oc_cutting_station.cpp
+->  src/vehicle/arcade_vehicle.cpp
+->  src/vehicle/config/wheel_config.cpp
+->  src/vehicle/config/vehicle_config.cpp
+->  src/vehicle/ai/vehicle_states.cpp
+->  src/vehicle/debug/arcade_vehicle_debug.cpp
+->  src/character/physics_character.cpp
+->  src/character/states/airborne_states.cpp
+->  src/character/states/grounded_states.cpp
+->  src/camera/camera.cpp
+->  src/camera/states/tps_state.cpp
+->  src/camera/states/fixed_state.cpp
+->  src/camera/states/fly_state.cpp
+->  src/camera/states/car_state.cpp
+->  src/debug_draw/debug_quad.cpp
+->  src/debug_draw/debug_manager.cpp
+->  src/road/transform_gizmo.cpp
+->  src/road/road_generator.cpp
+->  src/utils/curve/catmull_rom_curve.cpp
+->  src/utils/curve/bezier_curve.cpp
+->  src/utils/curve/natural_cubic_spline.cpp
+->  src/utils/curve/bspline_curve.cpp
+->  src/utils/encoding/rle.cpp
+->  src/utils/raycast/mc_raycast.cpp
+->  src/enemy/enemy_base.cpp
+->  src/enemy/enemy_manager.cpp
+->  src/enemy/ground/turret/turret_enemy.cpp
+->  src/enemy/ground/patrol_melee/patrol_melee_enemy.cpp
+->  src/gen/doc_data.gen.cpp
+->  src/ai/bt_task.cpp
+->  src/ai/bt_store.cpp
+->  src/ai/bt_decorators.cpp
+->  src/ai/bt_player.cpp
+->  src/ai/bt_composites.cpp
+->  src/terrain/ui.cpp
+->  src/terrain/voxel_terrain.cpp
+->  src/terrain/help.cpp
+->  src/terrain/minecraft.cpp
+->  src/terrain/smooth_terrain.cpp
+->  src/cui/cui_line_graph.cpp
+->  src/cui/cui.cpp
+->  src/interaction/interactable.cpp
+->  src/interaction/spring_bop.cpp
+->  src/interaction/physics_pusher.cpp
+->  src/interaction/spring_door.cpp
+->  src/game_manager/game_manager.cpp
+->  src/game_manager/player_input.cpp
+->  src/player/celeste_controller.cpp
+->  src/player/celeste_debug.cpp
+->  src/player/celeste_ui.cpp
+->  src/player/states/airborne_states.cpp
+->  src/player/states/combat_states.cpp
+->  src/player/states/grounded_states.cpp
+->  src/player/states/dash_states.cpp
+scons: done reading SConscript files.
+scons: Building targets ...
+scons: `godot-cpp/bin/libgodot-cpp.macos.template_debug.universal.a' is up to date.
+Compiling shared src/minigames/overcooked/oc_ingredient.cpp ...
+Compiling shared src/minigames/overcooked/oc_cutting_station.cpp ...
+In file included from src/minigames/overcooked/oc_ingredient.cpp:1:
+src/minigames/overcooked/oc_ingredient.h:25:2: error: unknown type name 'OvercookedManager'
+   25 |         OvercookedManager *om = nullptr;
+      |         ^
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:271:5: note: expanded from macro 'GDCLASS'
+  271 |                                 cls->_notification(p_what);                                                                                                                                            \
+      |                                 ^~~
+In file included from src/minigames/overcooked/oc_ingredient.cpp:1:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:286:12: note: expanded from macro 'GDCLASS'
+  286 |                                 return cls->_set(*reinterpret_cast<const ::godot::StringName *>(p_name), *reinterpret_cast<const ::godot::Variant *>(p_value));                                        \
+      |                                        ^~~
+In file included from src/minigames/overcooked/oc_ingredient.cpp:1:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:299:12: note: expanded from macro 'GDCLASS'
+  299 |                                 return cls->_get(*reinterpret_cast<const ::godot::StringName *>(p_name), *reinterpret_cast<::godot::Variant *>(r_ret));                                                \
+      |                                        ^~~
+In file included from src/minigames/overcooked/oc_ingredient.cpp:1:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:317:3: note: expanded from macro 'GDCLASS'
+  317 |                 cls->_get_property_list(plist_cpp);                                                                                                                                            \
+      |                 ^~~
+In file included from src/minigames/overcooked/oc_cutting_station.cpp:2:
+src/minigames/overcooked/oc_ingredient.h:25:2: error: unknown type name 'OvercookedManager'
+   25 |         OvercookIn file included from src/minigames/overcooked/oc_ingredient.cpp:1:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Wrapped' with an expression of type 'OCIngredient'
+edMa    9 |         GDCLASS(OCIngnagerredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *om = nullptr;
+      |         ^
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:331:12: note: expanded from macro 'GDCLASS'
+  331 |                                 return cls->_property_can_revert(*reinterpret_cast<const ::godot::StringName *>(p_name));                                                                              \
+      |                                        ^~~
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'godot::Wrapped' with an expression of type 'OCIngredient'
+In file included from src/minigames/overcooked/oc_ingredient.cpp:1:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    godot-cpp/include/godot_cpp/classes/wrapped.hpp:271:5: note: expanded from macro 'GDCLASS'
+9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  271 |                                 cls->_notification(p_what);                                                                                                                                            \
+      |                                 ^~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:342:12: note: expanded from macro 'GDCLASS'
+  342 |                                 return cls->_property_get_revert(*reinterpret_cast<const ::godot::StringName *>(p_name), *reinterpret_cast<::godot::Variant *>(r_ret));                                \
+      |                                        ^~~
+In file included from src/minigames/overcooked/oc_cutting_station.cpp:2:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIIn file included from src/minigames/overcooked/oc_ingredient.cpp:1:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Wrapped' with an expression of type 'OCIngredient'
+ngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:286:12: note: expanded from macro 'GDCLASS'
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:356:5: note: expanded from macro 'GDCLASS'
+  286 |                                 return cls->_set(*reinterpret_cast<const ::godot::StringName *>(p_name), *reinterpret_cast<const ::godot::Variant *>(p_value));                                        \
+      |                                        ^~~
+  356 |                                 cls->_validate_property(info);                                                                                                                                         \
+      |                                 ^~~
+In file included from src/minigames/overcooked/oc_cutting_station.cpp:2:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GIn file included from src/minigames/overcooked/oc_ingredient.cpp:1DCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Node' with an expression of type 'OCIngredient'
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:299:12: note: expanded from macro 'GDCLASS'
+    9 |         GDCLASS  299 |                                 return cls->_get(*reinterpr(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+et_cast<const ::godot::StringName *>(p_name), *reinterpret_cast<::godot::Variant *>(r_ret));                                                \
+      |                                        ^~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:368:51: note: expanded from macro 'GDCLASS'
+  368 |                                 *reinterpret_cast<::godot::String *>(r_out) = cls->_to_string();                                                                                                       \
+      |                                                                               ^~~
+In file included from src/minigames/overcooked/oc_cutting_station.cpp:2:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:317:3: note: expanded from macro 'GDCLASS'
+  317 |                 cls->_get_property_list(plist_cpp);                                                                                                                                            \
+      |                 ^~~
+In file included from src/minigames/overcooked/oc_cutting_station.cpp:2:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:331:12: note: expanded from macro 'GDCLASS'
+  331 |                                 return cls->_property_can_revert(*reinterpret_cast<const ::godot::StringName *>(p_name));                                                                              \
+      |                                        ^~~
+In file included from src/minigames/overcooked/oc_cutting_station.cpp:2:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:342:12: note: expanded from macro 'GDCLASS'
+  342 |                                 return cls->_property_get_revert(*reinterpret_cast<const ::godot::StringName *>(p_name), *reinterpret_cast<::godot::Variant *>(r_ret));                                \
+      |                                        ^~~
+In file included from src/minigames/overcooked/oc_cutting_station.cpp:2:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Wrapped' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:356:5: note: expanded from macro 'GDCLASS'
+  356 |                                 cls->_validate_property(info);                                                                                                                                         \
+      |                                 ^~~
+In file included from src/minigames/overcooked/oc_cutting_station.cpp:2:
+src/minigames/overcooked/oc_ingredient.h:9:2: error: cannot initialize object parameter of type 'const godot::Node' with an expression of type 'OCIngredient'
+    9 |         GDCLASS(OCIngredient, Interactable)
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+godot-cpp/include/godot_cpp/classes/wrapped.hpp:368:51: note: expanded from macro 'GDCLASS'
+  368 |                                 *reinterpret_cast<::godot::String *>(r_out) = cls->_to_string();                                                                                                       \
+      |                                                                               ^~~
+9 errors generated.
+scons: *** [src/minigames/overcooked/oc_cutting_station.os] Error 1
+src/minigames/overcooked/oc_ingredient.cpp:51:26: error: cannot initialize object parameter of type 'const godot::Node' with an expression of type 'godot::OCIngredient'
+   51 |                 dm->draw_text("ing_" + get_name(), state_name + progress_text, get_global_position() + Vector3(0, 1.6f, 0), 0.001f, Color(1, 1, 1));
+      |                                        ^~~~~~~~
+src/minigames/overcooked/oc_ingredient.cpp:51:66: error: cannot initialize object parameter of type 'const godot::Node3D' with an expression of type 'godot::OCIngredient'
+   51 |                 dm->draw_text("ing_" + get_name(), state_name + progress_text, get_global_position() + Vector3(0, 1.6f, 0), 0.001f, Color(1, 1, 1));
+      |                                                                                ^~~~~~~~~~~~~~~~~~~
+src/minigames/overcooked/oc_ingredient.cpp:56:16: error: cannot initialize object parameter of type 'godot::Node' with an expression of type 'godot::OCIngredient'
+   56 |         Interactable::_ready();
+      |                       ^~~~~~
+src/minigames/overcooked/oc_ingredient.cpp:64:2: error: cannot initialize object parameter of type 'godot::RigidBody3D' with an expression of type 'godot::OCIngredient'
+   64 |         set_freeze_enabled(false);
+      |         ^~~~~~~~~~~~~~~~~~
+src/minigames/overcooked/oc_ingredient.cpp:69:16: error: cannot initialize object parameter of type 'godot::Interactable' with an expression of type 'godot::OCIngredient'
+   69 |         Interactable::drop(p_actor);
+      |                       ^~~~
+src/minigames/overcooked/oc_ingredient.cpp:70:2: error: cannot initialize object parameter of type 'godot::RigidBody3D' with an expression of type 'godot::OCIngredient'
+   70 |         set_freeze_enabled(false); // Enable physics again
+      |         ^~~~~~~~~~~~~~~~~~
+src/minigames/overcooked/oc_ingredient.cpp:99:14: error: cannot initialize object parameter of type 'const godot::Node' with an expression of type 'godot::OCIngredient'
+   99 |         Node *raw = find_child("Raw", true, false);
+      |                     ^~~~~~~~~~
+src/minigames/overcooked/oc_ingredient.cpp:100:18: error: cannot initialize object parameter of type 'const godot::Node' with an expression of type 'godot::OCIngredient'
+  100 |         Node *chopped = find_child("Chopped", true, false);
+      |                         ^~~~~~~~~~
+src/minigames/overcooked/oc_ingredient.cpp:101:17: error: cannot initialize object parameter of type 'const godot::Node' with an expression of type 'godot::OCIngredient'
+  101 |         Node *cooked = find_child("Cooked", true, false);
+      |                        ^~~~~~~~~~
+src/minigames/overcooked/oc_ingredient.cpp:102:16: error: cannot initialize object parameter of type 'const godot::Node' with an expression of type 'godot::OCIngredient'
+  102 |         Node *burnt = find_child("Burnt", true, false);
+      |                       ^~~~~~~~~~
+19 errors generated.
+scons: *** [src/minigames/overcooked/oc_ingredient.os] Error 1
+scons: building terminated because of errors.
+        2.88 real         2.87 user         0.30 sys
+make: *** [debug] Error 2

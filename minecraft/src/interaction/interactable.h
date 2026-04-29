@@ -1,12 +1,12 @@
 #ifndef INTERACTABLE_H
 #define INTERACTABLE_H
 
-#include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/rigid_body3d.hpp>
 
 namespace godot {
 
-class Interactable : public Node3D {
-	GDCLASS(Interactable, Node3D)
+class Interactable : public RigidBody3D {
+	GDCLASS(Interactable, RigidBody3D)
 
 private:
 	bool is_interactable = true;
