@@ -194,16 +194,31 @@ void CelesteController::_physics_process(double delta) {
 
 		// Forward raycast to detect obstacles
 		Vector3 forward = -get_global_transform().basis.get_column(2).normalized();
-		Vector3 f_start = bottom + Vector3(0, 0.2f, 0);
-		Vector3 f_end = f_start + forward * 1.5f;
+		Vector3 current_vel = get_velocity();
+		float forward_speed = current_vel.dot(forward);
+
+		MCRaycastHit f_hit;
+		bool is_obstacle = false;
 
 		TypedArray<RID> exclude;
 		exclude.append(get_rid());
 
-		MCRaycastHit f_hit = raycast_3d(this, f_start, f_end, 1, exclude);
+		if (forward_speed > 0.5f) {
+			Vector3 f_start = bottom + Vector3(0, 0.2f, 0);
+			Vector3 f_end = f_start + forward * 1.0f;
 
-		// Simple hit check (jitter version)
-		bool is_obstacle = f_hit.is_hit;
+			f_hit = raycast_3d(this, f_start, f_end, 1, exclude);
+
+			is_obstacle = f_hit.is_hit;
+			if (f_hit.is_hit) {
+				// Dot product of normal and world Y axis (0, 1, 0)
+				float dot_y = f_hit.normal.dot(Vector3(0, 1, 0));
+				// If dot_y is low, the surface is steep (e.g. < 0.25 is > 75 degrees)
+				if (dot_y < 0.25f) {
+					is_obstacle = false;
+				}
+			}
+		}
 
 		// Gradual ride_height adjustment
 		float target_height = is_obstacle ? max_ride_height : min_ride_height;
@@ -211,8 +226,8 @@ void CelesteController::_physics_process(double delta) {
 
 #if DEBUG
 		DebugManager::get_singleton()->clear_line("forward_ray");
-		if (is_obstacle) {
-			DebugManager::get_singleton()->draw_line("forward_ray", f_start, f_hit.position, 0.1f, Color(1, 1, 0), 0.1f);
+		if (forward_speed > 0.5f && is_obstacle) {
+			DebugManager::get_singleton()->draw_line("forward_ray", bottom + Vector3(0, 0.2f, 0), f_hit.position, 0.1f, Color(1, 1, 0), 0.1f);
 		}
 #endif
 
@@ -220,11 +235,11 @@ void CelesteController::_physics_process(double delta) {
 		// Increase ray length to catch ground earlier
 		Vector3 ray_dir = Vector3(0, -(ride_height + 1.0f), 0);
 
-		MCRaycastHit hit = raycast_3d(this, ray_origin, ray_origin + ray_dir, 1, exclude);
+		MCRaycastHit b_hit = raycast_3d(this, ray_origin, ray_origin + ray_dir, 1, exclude);
 
-		if (hit.is_hit) {
+		if (b_hit.is_hit) {
 			is_hovering = true;
-			float dist = (ray_origin - hit.position).length() - 0.2f;
+			float dist = (ray_origin - b_hit.position).length() - 0.2f;
 			float error = ride_height - dist;
 			last_spring_error = error;
 
@@ -234,11 +249,17 @@ void CelesteController::_physics_process(double delta) {
 			float spring_force = (error * spring_stiffness) - (vel.y * spring_damping);
 			vel.y += spring_force * f_delta;
 
-			set_velocity(vel);
+			set_velocity(_collide_and_slide(vel, f_hit.normal));
+
+			// set_velocity(vel);
 			set_floor_snap_length(0.0f);
 
 #if DEBUG
-			DebugManager::get_singleton()->draw_line("hover_ray", ray_origin, hit.position, 0.05f, Color(1, 0, 1, 0.8f), 0.1f);
+			DebugManager::get_singleton()->draw_line("hover_ray", ray_origin, b_hit.position, 0.05f, Color(1, 0, 1, 0.8f), 0.1f);
+
+			// Draw velocity vector
+			Vector3 current_vel = get_velocity();
+			DebugManager::get_singleton()->draw_line("velocity_vec", get_global_position(), get_global_position() + current_vel * 0.5f, 0.1f, Color(0, 1, 0), 0.1f);
 #endif
 		}
 	}
@@ -352,6 +373,15 @@ Node3D *CelesteController::_find_melee_target() {
 	}
 
 	return em->get_best_target(get_global_position(), input_dir, melee_range);
+}
+
+Vector3 CelesteController::_collide_and_slide(const Vector3 &p_velocity, const Vector3 &p_normal) {
+	float dot = p_velocity.dot(p_normal);
+	if (dot < 0.0f) {
+		// Project velocity onto the plane perpendicular to the normal
+		return p_velocity - p_normal * dot;
+	}
+	return p_velocity;
 }
 
 } // namespace godot
