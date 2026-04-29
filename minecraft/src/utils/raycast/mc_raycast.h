@@ -24,6 +24,19 @@ struct MCRaycastHit {
 };
 
 /**
+ * Represents a 3D ray with origin and direction.
+ */
+struct MCRay {
+	Vector3 origin;
+	Vector3 normal;
+};
+
+/**
+ * Helper to get a ray from a screen/mouse position using the current camera.
+ */
+MCRay get_ray_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos);
+
+/**
  * Generic raycast helper to perform a 3D raycast from a 2D screen/mouse position.
  * Returns a typed MCRaycastHit struct.
  */
