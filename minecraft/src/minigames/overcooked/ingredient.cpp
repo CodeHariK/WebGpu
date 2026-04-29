@@ -1,6 +1,8 @@
 #include "ingredient.h"
-#include <godot_cpp/classes/node3d.hpp>
+#include "../../debug_draw/debug_manager.h"
+#include "overcooked_manager.h"
 #include <godot_cpp/classes/label3d.hpp>
+#include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -23,9 +25,49 @@ void Ingredient::_bind_methods() {
 Ingredient::Ingredient() {}
 Ingredient::~Ingredient() {}
 
+void Ingredient::_process(double delta) {
+	DebugManager *dm = DebugManager::get_singleton();
+	if (dm) {
+		String state_name = "RAW";
+		switch (current_state) {
+			case STATE_CHOPPED:
+				state_name = "CHOPPED";
+				break;
+			case STATE_COOKED:
+				state_name = "COOKED";
+				break;
+			case STATE_BURNT:
+				state_name = "BURNT";
+				break;
+			default:
+				break;
+		}
+
+		String progress_text = "";
+		if (process_progress > 0.0f && process_progress < 1.0f) {
+			progress_text = UtilityFunctions::str(" (", (int)(process_progress * 100), "%)");
+		}
+
+		dm->draw_text("ing_" + get_name(), state_name + progress_text, get_global_position() + Vector3(0, 1.6f, 0), 0.001f, Color(1, 1, 1));
+	}
+}
+
 void Ingredient::_ready() {
 	Interactable::_ready();
+
+	OvercookedManager *om = OvercookedManager::get_singleton();
+	if (om) {
+		om->register_ingredient(this);
+	}
+
 	update_visuals();
+}
+
+void Ingredient::_exit_tree() {
+	OvercookedManager *om = OvercookedManager::get_singleton();
+	if (om) {
+		om->unregister_ingredient(this);
+	}
 }
 
 void Ingredient::set_state(State p_state) {
@@ -52,12 +94,19 @@ void Ingredient::update_visuals() {
 	if (label) {
 		String state_name = "RAW";
 		switch (current_state) {
-			case STATE_CHOPPED: state_name = "CHOPPED"; break;
-			case STATE_COOKED: state_name = "COOKED"; break;
-			case STATE_BURNT: state_name = "BURNT"; break;
-			default: break;
+			case STATE_CHOPPED:
+				state_name = "CHOPPED";
+				break;
+			case STATE_COOKED:
+				state_name = "COOKED";
+				break;
+			case STATE_BURNT:
+				state_name = "BURNT";
+				break;
+			default:
+				break;
 		}
-		
+
 		String progress_text = "";
 		if (process_progress > 0.0f && process_progress < 1.0f) {
 			progress_text = UtilityFunctions::str(" (", (int)(process_progress * 100), "%)");

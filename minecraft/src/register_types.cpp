@@ -54,6 +54,7 @@
 #include "minigames/overcooked/ingredient.h"
 #include "minigames/overcooked/counter_station.h"
 #include "minigames/overcooked/cutting_station.h"
+#include "minigames/overcooked/overcooked_manager.h"
 
 namespace godot {
 
@@ -132,6 +133,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(Ingredient);
 	GDREGISTER_CLASS(CounterStation);
 	GDREGISTER_CLASS(CuttingStation);
+	GDREGISTER_CLASS(OvercookedManager);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

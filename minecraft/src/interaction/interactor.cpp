@@ -1,9 +1,14 @@
 #include "interactor.h"
 #include <godot_cpp/classes/marker3d.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/input.hpp>
+#include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include "../utils/raycast/mc_raycast.h"
 #include "../minigames/overcooked/counter_station.h"
+#include "../minigames/overcooked/ingredient.h"
+#include "../minigames/overcooked/overcooked_manager.h"
+#include "../game_manager/game_manager.h"
 
 namespace godot {
 
@@ -31,71 +36,101 @@ void Interactor::_ready() {
 	if (!hand_marker) {
 		Marker3D *marker = memnew(Marker3D);
 		marker->set_name("HandMarker");
-		marker->set_position(Vector3(0, 1.2f, 1.0f)); // Typical player reach
+		marker->set_position(Vector3(0, 1.2f, 0.5f)); // Typical player reach
 		add_child(marker);
 		hand_marker = marker;
 	}
 }
 
+void Interactor::_physics_process(double delta) {
+	if (Engine::get_singleton()->is_editor_hint()) return;
+
+	// Only process input if parent is the active target
+	GameManager *gm = GameManager::get_singleton();
+	if (!gm || gm->get_active_target() != get_parent()) {
+		return;
+	}
+
+	Input *input = Input::get_singleton();
+	if (input->is_action_just_pressed("grab")) {
+		UtilityFunctions::print("Interactor: Grab key pressed");
+		grab_or_drop();
+	}
+	if (input->is_action_just_pressed("interact")) {
+		UtilityFunctions::print("Interactor: Interact key pressed");
+		interact();
+	}
+}
+
 void Interactor::grab_or_drop() {
+	OvercookedManager *om = OvercookedManager::get_singleton();
+	if (!om) return;
+
+	Vector3 my_pos = get_global_position();
+
 	if (held_item) {
 		// Attempt to drop
-		MCRaycastHit hit = raycast_3d(this, get_global_transform().origin, get_global_transform().origin - get_global_transform().basis.get_column(2) * interaction_range, interaction_mask);
+		UtilityFunctions::print("Interactor: Attempting to drop item: ", held_item->get_name());
 		
 		// 1. Try to place on a station
-		CounterStation *station = hit.is_hit ? Object::cast_to<CounterStation>(hit.collider) : nullptr;
-		if (station && station->can_place_item(held_item)) {
-			station->place_item(held_item);
-			held_item->drop(Object::cast_to<Node3D>(get_parent()));
-			held_item = nullptr;
-			return;
+		CounterStation *station = om->get_closest_station(my_pos, interaction_range);
+		if (station) {
+			UtilityFunctions::print("Interactor: Closest station found: ", station->get_name());
+			if (station->can_place_item(held_item)) {
+				UtilityFunctions::print("Interactor: Placing item on station");
+				station->place_item(held_item);
+				held_item->drop(Object::cast_to<Node3D>(get_parent()));
+				held_item = nullptr;
+				return;
+			}
 		}
 
 		// 2. Otherwise drop on the floor
-		Vector3 drop_pos = hit.is_hit ? hit.position : get_global_transform().origin - get_global_transform().basis.get_column(2) * interaction_range;
-		
+		UtilityFunctions::print("Interactor: Dropping on floor");
 		Node *world = get_tree()->get_current_scene();
 		held_item->reparent(world);
-		held_item->set_global_position(drop_pos);
+		held_item->set_global_position(my_pos + (get_global_transform().basis.get_column(2) * -1.0f));
 		held_item->drop(Object::cast_to<Node3D>(get_parent()));
 		held_item = nullptr;
 		
 	} else {
 		// Attempt to grab
-		MCRaycastHit hit = raycast_3d(this, get_global_transform().origin, get_global_transform().origin - get_global_transform().basis.get_column(2) * interaction_range, interaction_mask);
+		UtilityFunctions::print("Interactor: Attempting to grab...");
 		
-		if (hit.is_hit) {
-			// Check if we hit a counter station
-			CounterStation *station = Object::cast_to<CounterStation>(hit.collider);
-			if (station && station->has_item()) {
-				held_item = station->take_item();
-				held_item->pickup(Object::cast_to<Node3D>(get_parent()));
-				held_item->reparent(hand_marker);
-				held_item->set_position(Vector3(0, 0, 0));
-				held_item->set_rotation(Vector3(0, 0, 0));
-				return;
-			}
+		// 1. Check for closest station with an item
+		CounterStation *station = om->get_closest_station(my_pos, interaction_range);
+		if (station && station->has_item()) {
+			UtilityFunctions::print("Interactor: Grabbing from station: ", station->get_name());
+			held_item = station->take_item();
+			held_item->pickup(Object::cast_to<Node3D>(get_parent()));
+			held_item->reparent(hand_marker);
+			held_item->set_position(Vector3(0, 0, 0));
+			held_item->set_rotation(Vector3(0, 0, 0));
+			return;
+		}
 
-			// Otherwise try to grab a normal item
-			Interactable *item = Object::cast_to<Interactable>(hit.collider);
-			if (item && item->get_is_interactable() && !item->get_is_picked_up()) {
-				held_item = item;
-				held_item->pickup(Object::cast_to<Node3D>(get_parent()));
-				held_item->reparent(hand_marker);
-				held_item->set_position(Vector3(0, 0, 0));
-				held_item->set_rotation(Vector3(0, 0, 0));
-			}
+		// 2. Otherwise try to grab a loose ingredient
+		Ingredient *ing = om->get_closest_ingredient(my_pos, interaction_range);
+		if (ing) {
+			UtilityFunctions::print("Interactor: Grabbing loose ingredient: ", ing->get_name());
+			held_item = ing;
+			held_item->pickup(Object::cast_to<Node3D>(get_parent()));
+			held_item->reparent(hand_marker);
+			held_item->set_position(Vector3(0, 0, 0));
+			held_item->set_rotation(Vector3(0, 0, 0));
 		}
 	}
 }
 
-void Interactor::interact() {
-	MCRaycastHit hit = raycast_3d(this, get_global_transform().origin, get_global_transform().origin - get_global_transform().basis.get_column(2) * interaction_range, interaction_mask);
-	if (hit.is_hit) {
-		Interactable *item = Object::cast_to<Interactable>(hit.collider);
-		if (item) {
-			item->interact(Object::cast_to<Node3D>(get_parent()));
-		}
+void Interactor::interact(Node3D *p_actor) {
+	OvercookedManager *om = OvercookedManager::get_singleton();
+	if (!om) return;
+
+	CounterStation *station = om->get_closest_station(get_global_position(), interaction_range);
+	if (station) {
+		UtilityFunctions::print("Interactor: Interacting with station: ", station->get_name());
+		Node3D *actor = p_actor ? p_actor : Object::cast_to<Node3D>(get_parent());
+		station->interact(actor);
 	}
 }
 

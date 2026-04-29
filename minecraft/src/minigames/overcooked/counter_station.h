@@ -11,6 +11,7 @@ class CounterStation : public Interactable {
 protected:
 	Interactable *held_item = nullptr;
 	Node3D *item_slot = nullptr;
+	String station_name = "Counter";
 
 	static void _bind_methods();
 
@@ -19,6 +20,8 @@ public:
 	~CounterStation();
 
 	void _ready() override;
+	void _exit_tree() override;
+	void _process(double delta) override;
 
 	// Overriding Interactable methods
 	void interact(Node3D *p_actor) override;
@@ -29,6 +32,8 @@ public:
 	virtual Interactable *take_item();
 
 	bool has_item() const { return held_item != nullptr; }
+	void set_station_name(const String &p_name);
+	String get_station_name() const;
 };
 
 } // namespace godot
