@@ -1,11 +1,11 @@
 #ifndef ROAD_GENERATOR_H
 #define ROAD_GENERATOR_H
 
+#include <godot_cpp/classes/curve3d.hpp>
+#include <godot_cpp/classes/multi_mesh.hpp>
+#include <godot_cpp/classes/multi_mesh_instance3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/path3d.hpp>
-#include <godot_cpp/classes/curve3d.hpp>
-#include <godot_cpp/classes/multi_mesh_instance3d.hpp>
-#include <godot_cpp/classes/multi_mesh.hpp>
 
 #include "../utils/curve/bezier_curve.h"
 #include "../utils/curve/bspline_curve.h"
@@ -18,7 +18,7 @@ class RoadGenerator : public Path3D {
 	GDCLASS(RoadGenerator, Path3D)
 
 public:
-	enum CurveInterpolation {
+	enum CurveInterpolation : uint8_t {
 		LINEAR,
 		CUBIC,
 		BSPLINE,

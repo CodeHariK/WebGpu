@@ -1,5 +1,5 @@
-#include "debug_draw/debug_manager.h"
 #include "../arcade_vehicle.h"
+#include "debug_draw/debug_manager.h"
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -7,10 +7,10 @@ namespace godot {
 void ArcadeVehicle::_update_debug_arrows() {
 	bool show = config.is_valid() && config->get_show_debug_velocity();
 
+	DebugManager *dm = DebugManager::get_singleton();
 	String base_id = "veh_" + get_name() + "_";
 
 	if (!show) {
-		DebugManager *dm = DebugManager::get_singleton();
 		if (dm) {
 			dm->clear_line(base_id + "vel_x");
 			dm->clear_line(base_id + "vel_y");
@@ -30,8 +30,8 @@ void ArcadeVehicle::_update_debug_arrows() {
 	// Origins for arrows (slight vertical offset to not be inside chassis)
 	Vector3 origin = get_global_transform().xform(Vector3(0, 0.5f, 0));
 
-	DebugManager *dm = DebugManager::get_singleton();
-	if (!dm) return;
+	if (!dm)
+		return;
 
 	// Update each arrow using world space coordinates
 	// X-axis (Red)

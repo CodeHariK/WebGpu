@@ -10,7 +10,7 @@ DebugManager *DebugManager::singleton = nullptr;
 void DebugManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("draw_line", "id", "start", "end", "thickness", "color", "duration"), &DebugManager::draw_line, DEFVAL(0.05f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f));
 	ClassDB::bind_method(D_METHOD("clear_line", "id"), &DebugManager::clear_line);
-	
+
 	ClassDB::bind_method(D_METHOD("draw_text", "id", "text", "pos", "size", "color", "duration"), &DebugManager::draw_text, DEFVAL(0.05f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f));
 	ClassDB::bind_method(D_METHOD("clear_text", "id"), &DebugManager::clear_text);
 
@@ -93,7 +93,6 @@ void DebugManager::draw_line(const String &p_id, const Vector3 &p_start, const V
 		dl.quad->set_name("DebugLine_" + p_id);
 		add_child(dl.quad);
 		dl.quad->set_as_top_level(true);
-		
 		dl.duration = p_duration;
 		lines[p_id] = dl;
 	}
@@ -101,8 +100,6 @@ void DebugManager::draw_line(const String &p_id, const Vector3 &p_start, const V
 	DebugLine &dl = lines[p_id];
 	dl.quad->set_line(p_start, p_end, p_thickness);
 	dl.quad->set_color(p_color);
-	dl.quad->set_visible(true);
-	
 	// Update duration if a positive one is provided, otherwise keep current (could be -1 for persistent)
 	if (p_duration > 0) {
 		dl.duration = p_duration;
@@ -130,11 +127,11 @@ void DebugManager::draw_text(const String &p_id, const String &p_text, const Vec
 		dt.label->set_name("DebugText_" + p_id);
 		add_child(dt.label);
 		dt.label->set_as_top_level(true);
-		
+
 		// Setup default look
 		dt.label->set_billboard_mode(BaseMaterial3D::BILLBOARD_ENABLED);
 		dt.label->set_draw_flag(Label3D::FLAG_FIXED_SIZE, true);
-		
+
 		dt.duration = p_duration;
 		texts[p_id] = dt;
 	}
