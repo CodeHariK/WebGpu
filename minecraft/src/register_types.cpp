@@ -50,6 +50,7 @@
 #include "interaction/spring_bop.h"
 #include "interaction/spring_door.h"
 
+#include "minigames/overcooked/oc_cooking_station.h"
 #include "minigames/overcooked/oc_cutting_station.h"
 #include "minigames/overcooked/oc_ingredient.h"
 #include "minigames/overcooked/oc_interactor.h"
@@ -132,6 +133,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(OCIngredient);
 	GDREGISTER_CLASS(OCStation);
 	GDREGISTER_CLASS(OCCuttingStation);
+	GDREGISTER_CLASS(OCCookingStation);
 	GDREGISTER_CLASS(OCInteractor);
 	GDREGISTER_CLASS(OvercookedManager);
 }

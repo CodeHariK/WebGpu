@@ -89,12 +89,19 @@ wheel_configs = Array[WheelConfig]([SubResource("WheelConfig_1dqdu"), SubResourc
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_rafu7"]
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_1dqdu"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_nxv8y"]
+albedo_color = Color(0.39807814, 0.8391901, 0, 1)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_3f0it"]
+material = SubResource("StandardMaterial3D_nxv8y")
 
 [sub_resource type="BoxMesh" id="BoxMesh_1dqdu"]
 size = Vector3(0.285, 0.205, 1.05)
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_4kplg"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_1dqdu"]
+material = ExtResource("4_4kplg")
 
 [sub_resource type="BoxMesh" id="BoxMesh_nxv8y"]
 material = ExtResource("4_4kplg")
@@ -114,7 +121,31 @@ size = Vector3(2, 3, 0.1)
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_ogdk4"]
 
-[node name="Vehicle" type="Node3D" unique_id=42757262]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4kplg"]
+albedo_color = Color(0.816806, 0.5367969, 0.92377734, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_nxv8y"]
+material = SubResource("StandardMaterial3D_4kplg")
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_ogdk4"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_3f0it"]
+material = SubResource("StandardMaterial3D_4kplg")
+radius = 1.6
+height = 3.2
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_gcalk"]
+radius = 1.6
+
+[sub_resource type="SphereMesh" id="SphereMesh_4kplg"]
+material = SubResource("StandardMaterial3D_4kplg")
+radius = 5.0
+height = 10.0
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_nxv8y"]
+radius = 5.0
+
+[node name="Playground" type="Node3D" unique_id=42757262]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=277216433]
 environment = SubResource("Environment_rafu7")
@@ -130,11 +161,6 @@ shadow_enabled = true
 use_collision = true
 size = Vector3(1000, 1, 1000)
 material = ExtResource("2_mxckk")
-
-[node name="Ramp" type="CSGBox3D" parent="Environment" unique_id=1581271548]
-transform = Transform3D(1, 0, 0, 0, 0.96814764, -0.25038, 0, 0.25038, 0.96814764, 10.887694, 1.9056063, -7.0338497)
-use_collision = true
-size = Vector3(18.671509, 1, 31.149704)
 
 [node name="SpeedBreaker" type="Node" parent="Environment" unique_id=233993175]
 
@@ -212,55 +238,109 @@ path_joined = false
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.994751, 0)
 curve = SubResource("Curve3D_rafu7")
 
-[node name="Node" type="Node" parent="Environment" unique_id=914338553]
+[node name="Mountains" type="Node" parent="Environment" unique_id=914338553]
 
-[node name="Cylinder5" type="CSGCylinder3D" parent="Environment/Node" unique_id=41751784]
+[node name="Cylinder5" type="CSGCylinder3D" parent="Environment/Mountains" unique_id=41751784]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.055664, 12.408436, -96.04228)
 use_collision = true
 radius = 3.0
 height = 9.8445
 
-[node name="Cylinder4" type="CSGCylinder3D" parent="Environment/Node" unique_id=1840459801]
+[node name="Cylinder4" type="CSGCylinder3D" parent="Environment/Mountains" unique_id=1840459801]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.527832, 8.165342, -83.52114)
 use_collision = true
 radius = 3.0
 height = 21.689
 
-[node name="Cylinder3" type="CSGCylinder3D" parent="Environment/Node" unique_id=744244675]
+[node name="Cylinder3" type="CSGCylinder3D" parent="Environment/Mountains" unique_id=744244675]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.395874, 0.4296322, -65.890854)
 use_collision = true
 radius = 8.0
 height = 11.378
 
-[node name="Cylinder2" type="CSGCylinder3D" parent="Environment/Node" unique_id=1081625469]
+[node name="Cylinder2" type="CSGCylinder3D" parent="Environment/Mountains" unique_id=1081625469]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44.263916, 5.8494215, -61.260567)
 use_collision = true
 radius = 18.0
 height = 11.378
 
-[node name="Cylinder" type="CSGCylinder3D" parent="Environment/Node" unique_id=805996741]
+[node name="Cylinder" type="CSGCylinder3D" parent="Environment/Mountains" unique_id=805996741]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.131958, 11.269211, -53.630283)
 use_collision = true
 radius = 6.011
 height = 34.756
 
-[node name="Cylinder6" type="CSGCylinder3D" parent="Environment/Node" unique_id=1483311658]
+[node name="Cylinder6" type="CSGCylinder3D" parent="Environment/Mountains" unique_id=1483311658]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.055664, 18.408436, -90.04228)
 use_collision = true
 radius = 3.0
 height = 9.8445
 
-[node name="Cylinder7" type="CSGCylinder3D" parent="Environment/Node" unique_id=789349511]
+[node name="Cylinder7" type="CSGCylinder3D" parent="Environment/Mountains" unique_id=789349511]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.131958, 5.5802107, -66.63028)
 use_collision = true
 radius = 6.011
 height = 23.378
 
-[node name="Cylinder8" type="CSGCylinder3D" parent="Environment/Node" unique_id=532304979]
+[node name="Cylinder8" type="CSGCylinder3D" parent="Environment/Mountains" unique_id=532304979]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.055664, 24.408436, -96.04228)
 use_collision = true
 radius = 3.0
 height = 9.8445
+
+[node name="Stairs" type="Node" parent="Environment" unique_id=1188941005]
+
+[node name="CSGBox3D" type="CSGBox3D" parent="Environment/Stairs" unique_id=2022630468]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66, 0.75, -15)
+use_collision = true
+size = Vector3(4, 0.5, 1)
+
+[node name="CSGBox3D2" type="CSGBox3D" parent="Environment/Stairs" unique_id=1084323735]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66, 1.375, -16)
+use_collision = true
+size = Vector3(4, 0.75, 1)
+
+[node name="CSGBox3D3" type="CSGBox3D" parent="Environment/Stairs" unique_id=81131825]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66, 2.235, -17)
+use_collision = true
+size = Vector3(4, 1, 1)
+
+[node name="CSGBox3D4" type="CSGBox3D" parent="Environment/Stairs" unique_id=218362372]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66, 3.465, -18)
+use_collision = true
+size = Vector3(4, 1.5, 1)
+
+[node name="CSGBox3D5" type="CSGBox3D" parent="Environment/Stairs" unique_id=1476071965]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66, 5.19, -19)
+use_collision = true
+size = Vector3(4, 2, 1)
+
+[node name="Ramp" type="Node" parent="Environment" unique_id=1110452037]
+
+[node name="Ramp15" type="CSGBox3D" parent="Environment/Ramp" unique_id=1581271548]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, -0.25881904, 0, 0.25881904, 0.9659258, 80.887695, 1.9056063, -19.03385)
+use_collision = true
+size = Vector3(8, 1, 12)
+
+[node name="Ramp30" type="CSGBox3D" parent="Environment/Ramp" unique_id=1966684168]
+transform = Transform3D(1, 0, 0, 0, 0.8660253, -0.49999997, 0, 0.49999997, 0.8660253, 88.887695, 1.9056063, -19.03385)
+use_collision = true
+size = Vector3(8, 1, 12)
+
+[node name="Ramp45" type="CSGBox3D" parent="Environment/Ramp" unique_id=152163496]
+transform = Transform3D(1, 0, 0, 0, 0.7071067, -0.7071067, 0, 0.7071067, 0.7071067, 96.887695, 1.9056063, -19.03385)
+use_collision = true
+size = Vector3(8, 1, 12)
+
+[node name="Ramp60" type="CSGBox3D" parent="Environment/Ramp" unique_id=1446281973]
+transform = Transform3D(1, 0, 0, 0, 0.4999999, -0.8660253, 0, 0.8660253, 0.4999999, 104.887695, 1.9056063, -19.03385)
+use_collision = true
+size = Vector3(8, 1, 12)
+
+[node name="Ramp75" type="CSGBox3D" parent="Environment/Ramp" unique_id=945652534]
+transform = Transform3D(1, 0, 0, 0, 0.25881904, -0.9659257, 0, 0.9659257, 0.25881904, 112.887695, 1.9056063, -19.03385)
+use_collision = true
+size = Vector3(8, 1, 12)
 
 [node name="GameCamera" type="GameCamera" parent="." unique_id=975855693]
 follow_target_path = NodePath("../CelesteController")
@@ -269,7 +349,7 @@ follow_offset = Vector3(0, 3, 10)
 transform = Transform3D(1, 0, 0, 0, 0.8347999, 0.55055356, 0, -0.55055356, 0.8347999, 0, 7.7511787, 15.159767)
 
 [node name="RampStaticBody3D" type="StaticBody3D" parent="." unique_id=126377167]
-transform = Transform3D(-8.742278e-07, 20, 0, -20, -8.742278e-07, 0, 0, 0, 20, 0, 19.59, -178.95087)
+transform = Transform3D(-7.571035e-07, 17.320507, 10, -20, -8.7422785e-07, 0, 4.3711393e-07, -10, 17.320507, -59, 19.59, -81.95087)
 
 [node name="BgMIi_objgmk_dashboard01_01-material" type="MeshInstance3D" parent="RampStaticBody3D" unique_id=768924011]
 mesh = SubResource("ArrayMesh_4kplg")
@@ -291,7 +371,7 @@ physics_material_override = SubResource("PhysicsMaterial_rafu7")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.800528, 3.0714903, 2.846653)
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController" unique_id=1101944800]
-mesh = SubResource("CapsuleMesh_1dqdu")
+mesh = SubResource("CapsuleMesh_3f0it")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController/MeshInstance3D" unique_id=317883139]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.71504164, -0.70530033)
@@ -300,7 +380,7 @@ mesh = SubResource("BoxMesh_1dqdu")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CelesteController" unique_id=29480069]
 shape = SubResource("CapsuleShape3D_4kplg")
 
-[node name="PhysicsPusher" type="PhysicsPusher" parent="CelesteController" unique_id=876933445]
+[node name="PhysicsPusher" type="PhysicsPusher" parent="CelesteController" unique_id=1754518186]
 
 [node name="PhysicsCharacter3D" type="PhysicsCharacter3D" parent="." unique_id=1355132004]
 spring_stiffness = 3200.0
@@ -397,3 +477,41 @@ shape = SubResource("CapsuleShape3D_nxv8y")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Spring/PunchBag" unique_id=469048838]
 mesh = SubResource("CapsuleMesh_ogdk4")
+
+[node name="Ball" type="Node" parent="." unique_id=2004731312]
+
+[node name="Ball" type="RigidBody3D" parent="Ball" unique_id=1276213156]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 2, -13)
+collision_layer = 2
+collision_mask = 3
+mass = 0.1
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ball/Ball" unique_id=1422218094]
+mesh = SubResource("SphereMesh_nxv8y")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ball/Ball" unique_id=137015562]
+shape = SubResource("SphereShape3D_ogdk4")
+
+[node name="Ball2" type="RigidBody3D" parent="Ball" unique_id=741854607]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 3, -13)
+collision_layer = 2
+collision_mask = 3
+mass = 2.0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ball/Ball2" unique_id=1645731487]
+mesh = SubResource("SphereMesh_3f0it")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ball/Ball2" unique_id=862268184]
+shape = SubResource("SphereShape3D_gcalk")
+
+[node name="Ball3" type="RigidBody3D" parent="Ball" unique_id=100342644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5, -13)
+collision_layer = 2
+collision_mask = 3
+mass = 10.0
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Ball/Ball3" unique_id=2062950512]
+mesh = SubResource("SphereMesh_4kplg")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ball/Ball3" unique_id=1436752682]
+shape = SubResource("SphereShape3D_nxv8y")
