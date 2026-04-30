@@ -17,6 +17,8 @@ protected:
 	String station_name = "OCStation";
 	Interactable *held_item = nullptr;
 	Node3D *item_slot = nullptr;
+	
+	void update_held_item_position();
 
 	static void _bind_methods();
 
@@ -37,6 +39,7 @@ public:
 	virtual void place_item(Interactable *item);
 	virtual Interactable *take_item();
 	bool has_item() const { return held_item != nullptr; }
+	Interactable *get_held_item() const { return held_item; }
 
 	// Getters/Setters
 	void set_station_name(const String &p_name);
