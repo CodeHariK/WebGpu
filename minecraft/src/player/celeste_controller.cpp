@@ -255,11 +255,11 @@ void CelesteController::_physics_process(double delta) {
 			set_floor_snap_length(0.0f);
 
 #if DEBUG
-			DebugManager::get_singleton()->draw_line("hover_ray", ray_origin, b_hit.position, 0.05f, Color(1, 0, 1, 0.8f), 0.1f);
+			// DebugManager::get_singleton()->draw_line("hover_ray", ray_origin, b_hit.position, 0.05f, Color(1, 0, 1, 0.8f), 0.1f);
 
-			// Draw velocity vector
-			Vector3 current_vel = get_velocity();
-			DebugManager::get_singleton()->draw_line("velocity_vec", get_global_position(), get_global_position() + current_vel * 0.5f, 0.1f, Color(0, 1, 0), 0.1f);
+			// // Draw velocity vector
+			// Vector3 current_vel = get_velocity();
+			// DebugManager::get_singleton()->draw_line("velocity_vec", get_global_position(), get_global_position() + current_vel * 0.5f, 0.1f, Color(0, 1, 0), 0.1f);
 #endif
 		}
 	}
@@ -271,9 +271,9 @@ void CelesteController::_physics_process(double delta) {
 		ui_helper->update_graph(get_velocity().length());
 	}
 #if DEBUG
-	debug_draw_label();
-	debug_draw_trajectory(delta);
-	debug_draw_bottom();
+	// debug_draw_label();
+	// debug_draw_trajectory(delta);
+	// debug_draw_bottom();
 #endif
 }
 

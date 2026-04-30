@@ -21,7 +21,7 @@ void OCCuttingStation::interact(Node3D *p_actor) {
 
 	// Try to chop the item if it's an ingredient
 	OCIngredient *ingredient = Object::cast_to<OCIngredient>(held_item);
-	if (ingredient && ingredient->get_state() == OCIngredient::STATE_RAW) {
+	if (ingredient && ingredient->can_be_chopped()) {
 		float current_progress = ingredient->get_process_progress();
 		float new_progress = current_progress + chop_speed;
 

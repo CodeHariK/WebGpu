@@ -82,8 +82,9 @@ void OCStation::place_item(Interactable *item) {
 	held_item->set_position(Vector3(0, 0, 0));
 	held_item->set_rotation(Vector3(0, 0, 0));
 
-	// Mark as "picked up" so it doesn't fall or get grabbed by raycasts individually
+	// Mark as "picked up" and freeze so it doesn't fall through the station
 	held_item->set_is_picked_up(true);
+	held_item->set_freeze_enabled(true);
 }
 
 Interactable *OCStation::take_item() {
@@ -93,8 +94,9 @@ Interactable *OCStation::take_item() {
 	Interactable *item = held_item;
 	held_item = nullptr;
 
-	// Allow it to be picked up by the player
+	// Allow it to be picked up by the player and re-enable physics
 	item->set_is_picked_up(false);
+	item->set_freeze_enabled(false);
 	return item;
 }
 

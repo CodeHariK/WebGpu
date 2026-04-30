@@ -27,7 +27,7 @@ void PhysicsPusher::_physics_process(double delta) {
 		if (rb) {
 			// Apply an impulse in the opposite direction of the collision normal
 			Vector3 push_dir = -col->get_normal();
-			
+
 			// We apply the impulse at the collision point for more realistic physics
 			// (e.g. hitting a door at the edge will swing it more than hitting the hinge)
 			Vector3 local_hit_pos = col->get_position() - rb->get_global_position();

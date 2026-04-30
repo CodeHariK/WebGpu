@@ -6,12 +6,12 @@
 - [x] **Physics Interaction**: `PhysicsPusher` and `SpringDoor`.
 
 ## Phase 2: Ingredients
-- [ ] **Ingredient Class**: State-based logic (Raw, Chopped, Cooked).
-- [ ] **Visual Swapping**: Dynamic mesh updates.
+- [x] **Ingredient Class**: State-based logic (Raw, Chopped, Cooked).
+- [x] **Visual Swapping**: Dynamic mesh updates.
 
 ## Phase 3: Workstations
-- [ ] **Cutting Station**: "Use" interaction with progress.
-- [ ] **Cooking Station**: Auto-processing over time.
+- [x] **Cutting Station**: "Use" interaction with progress.
+- [x] **Cooking Station**: Auto-processing over time.
 
 ## Phase 4: Scoring
 - [ ] **Recipe System**: Defining ingredient combinations.
