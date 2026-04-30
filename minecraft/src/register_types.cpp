@@ -56,6 +56,10 @@
 #include "minigames/overcooked/oc_interactor.h"
 #include "minigames/overcooked/oc_manager.h"
 #include "minigames/overcooked/oc_station.h"
+#include "minigames/overcooked/oc_delivery_station.h"
+#include "minigames/overcooked/oc_order_ui.h"
+#include "minigames/overcooked/oc_recipe.h"
+#include "minigames/overcooked/oc_plate.h"
 
 namespace godot {
 
@@ -134,7 +138,11 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(OCStation);
 	GDREGISTER_CLASS(OCCuttingStation);
 	GDREGISTER_CLASS(OCCookingStation);
+	GDREGISTER_CLASS(OCDeliveryStation);
+	GDREGISTER_CLASS(OCRecipe);
+	GDREGISTER_CLASS(OCOrderUI);
 	GDREGISTER_CLASS(OCInteractor);
+	GDREGISTER_CLASS(OCPlate);
 	GDREGISTER_CLASS(OvercookedManager);
 }
 

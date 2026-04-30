@@ -3,6 +3,7 @@
 #include "oc_ingredient.h"
 #include "oc_manager.h"
 #include "oc_station.h"
+#include "oc_plate.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/marker3d.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
@@ -80,6 +81,20 @@ void OCInteractor::grab_or_drop() {
 		OCStation *station = om->get_closest_station(my_pos, interaction_range);
 		if (station) {
 			UtilityFunctions::print("OCInteractor: Closest station found: ", station->get_name());
+			
+			// NEW: If station has a plate, add to it!
+			if (station->has_item()) {
+				OCPlate *plate = Object::cast_to<OCPlate>(station->get_held_item());
+				OCIngredient *ing_to_add = Object::cast_to<OCIngredient>(held_item);
+				if (plate && ing_to_add && !Object::cast_to<OCPlate>(held_item)) {
+					if (plate->add_ingredient(ing_to_add)) {
+						held_item->drop(Object::cast_to<Node3D>(get_parent()));
+						held_item = nullptr;
+						return;
+					}
+				}
+			}
+
 			if (station->can_place_item(held_item)) {
 				UtilityFunctions::print("OCInteractor: Placing item on station");
 				station->place_item(held_item);

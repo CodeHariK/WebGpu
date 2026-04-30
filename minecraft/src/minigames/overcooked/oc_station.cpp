@@ -77,14 +77,21 @@ void OCStation::place_item(Interactable *item) {
 	if (!item)
 		return;
 
+
 	held_item = item;
-	held_item->reparent(item_slot);
-	held_item->set_position(Vector3(0, 0, 0));
-	held_item->set_rotation(Vector3(0, 0, 0));
+	update_held_item_position();
 
 	// Mark as "picked up" and freeze so it doesn't fall through the station
 	held_item->set_is_picked_up(true);
 	held_item->set_freeze_enabled(true);
+}
+
+void OCStation::update_held_item_position() {
+	if (!held_item || !item_slot) return;
+	
+	held_item->reparent(item_slot);
+	held_item->set_position(Vector3(0, 0, 0));
+	held_item->set_rotation(Vector3(0, 0, 0));
 }
 
 Interactable *OCStation::take_item() {

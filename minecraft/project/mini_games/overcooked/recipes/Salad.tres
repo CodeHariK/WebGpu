@@ -1,0 +1,8 @@
+[gd_resource type="OCRecipe" format=3]
+
+[resource]
+dish_name = "Garden Salad"
+required_types = PackedStringArray("Tomato", "Lettuce")
+required_states = PackedInt32Array(1, 1)
+base_time = 60.0
+points = 200
