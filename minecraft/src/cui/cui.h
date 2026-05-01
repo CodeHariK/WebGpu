@@ -13,9 +13,13 @@ class Label;
 class Panel;
 class ScrollContainer;
 class VBoxContainer;
-class TabContainer;
 class CanvasLayer;
 class HSlider;
+class LineEdit;
+class OptionButton;
+class ProgressBar;
+class SpinBox;
+class TabContainer;
 class Viewport;
 
 class CUILineGraph;
@@ -48,6 +52,10 @@ public:
 	ScrollContainer *add_scroll(Node *p_parent, const String &p_name);
 	VBoxContainer *add_vbox(Node *p_parent, const String &p_name);
 	Label *add_label(Node *p_parent, const String &p_text, const String &p_name = "");
+	ProgressBar *add_progress_bar(Node *p_parent, const String &p_name = "");
+	LineEdit *add_line_edit(Node *p_parent, const String &p_placeholder = "", const String &p_name = "");
+	OptionButton *add_option_button(Node *p_parent, const String &p_name = "");
+	SpinBox *add_spin_box(Node *p_parent, double p_min, double p_max, double p_step, double p_value, const String &p_name = "");
 	HSlider *add_hslider(Node *p_parent, float p_min, float p_max, float p_step, float p_value, const Callable &p_callback, const String &p_name = "");
 	TabContainer *add_tab_container(Node *p_parent, const String &p_name);
 	AcceptDialog *add_dialog(Node *p_parent, const String &p_name, const String &p_text);

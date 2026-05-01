@@ -1,204 +1,72 @@
 [gd_scene format=3 uid="uid://c3m7x8v2k1l2"]
 
-[ext_resource type="OCRecipe" path="res://mini_games/overcooked/recipes/Salad.tres" id="1_salad"]
-
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_gg8kj"]
-sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
-ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
-
-[sub_resource type="Sky" id="Sky_wmt2g"]
-sky_material = SubResource("ProceduralSkyMaterial_gg8kj")
-
-[sub_resource type="Environment" id="Environment_4dd0a"]
-background_mode = 2
-sky = SubResource("Sky_wmt2g")
-tonemap_mode = 2
-glow_enabled = true
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
-albedo_color = Color(0.2, 0.2, 0.2, 1)
+albedo_color = Color(0.15, 0.15, 0.15, 1)
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
 material = SubResource("StandardMaterial3D_floor")
 size = Vector2(20, 20)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_e5evq"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_floor"]
 size = Vector3(20, 0.1, 20)
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_top_color = Color(0.1, 0.1, 0.2, 1)
+sky_horizon_color = Color(0.3, 0.3, 0.4, 1)
+
+[sub_resource type="Sky" id="Sky_overcooked"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_overcooked"]
+background_mode = 2
+sky = SubResource("Sky_overcooked")
+tonemap_mode = 2
+glow_enabled = true
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_player"]
 
-[sub_resource type="BoxMesh" id="BoxMesh_visor"]
-size = Vector3(0.6, 0.3, 0.4)
-
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tomato"]
-albedo_color = Color(0.8, 0.1, 0.1, 1)
+[node name="Overcooked" type="Node3D" unique_id=1149791109]
 
-[sub_resource type="CylinderShape3D" id="CylinderShape3D_plate"]
-height = 0.1
-radius = 0.4
+[node name="World" type="Node3D" parent="." unique_id=667930202]
 
-[sub_resource type="SphereMesh" id="SphereMesh_gg8kj"]
-material = SubResource("StandardMaterial3D_tomato")
-radius = 0.25
-height = 0.5
-radial_segments = 8
-rings = 8
+[node name="Floor" type="StaticBody3D" parent="World" unique_id=1811617394]
 
-[sub_resource type="SphereShape3D" id="SphereShape3D_tomato"]
-radius = 0.25
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_lettuce"]
-albedo_color = Color(0.1, 0.8, 0.1, 1)
-
-[sub_resource type="SphereMesh" id="SphereMesh_lettuce"]
-material = SubResource("StandardMaterial3D_lettuce")
-radius = 0.25
-height = 0.5
-radial_segments = 8
-rings = 8
-
-[node name="Overcooked" type="Node3D" unique_id=275254068]
-
-[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=442809831]
-environment = SubResource("Environment_4dd0a")
-
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=602998654]
-transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
-shadow_enabled = true
-
-[node name="Floor" type="StaticBody3D" parent="." unique_id=1554106728]
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=1196599303]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="World/Floor" unique_id=308704322]
 mesh = SubResource("PlaneMesh_floor")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor" unique_id=726376859]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="World/Floor" unique_id=711106130]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
-shape = SubResource("BoxShape3D_e5evq")
+shape = SubResource("BoxShape3D_floor")
 
-[node name="CelesteController" type="CelesteController" parent="." unique_id=551363176]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="World" unique_id=1957057729]
+environment = SubResource("Environment_overcooked")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="World" unique_id=2022048892]
+transform = Transform3D(0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, -0.75, 0.433013, 0, 5, 0)
+shadow_enabled = true
+
+[node name="CelesteController" type="CelesteController" parent="." unique_id=1631686641]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController" unique_id=1294972387]
+[node name="MeshInstance3D" type="MeshInstance3D" parent="CelesteController" unique_id=1064214871]
 mesh = SubResource("CapsuleMesh_player")
 
-[node name="Visor" type="MeshInstance3D" parent="CelesteController/MeshInstance3D" unique_id=473911390]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -0.4)
-mesh = SubResource("BoxMesh_visor")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="CelesteController" unique_id=58718812]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CelesteController" unique_id=1197706708]
 shape = SubResource("CapsuleShape3D_player")
 
-[node name="Interactor" type="OCInteractor" parent="CelesteController" unique_id=1029549046]
-interaction_range = 5.0
-
-[node name="GameCamera" type="GameCamera" parent="." unique_id=154741485]
+[node name="GameCamera" type="GameCamera" parent="." unique_id=1612417221]
 camera_mode = 2
 follow_target_path = NodePath("../CelesteController")
 pos_smoothing_enabled = false
 
-[node name="GameManager" type="GameManager" parent="." unique_id=898432918]
+[node name="Systems" type="Node" parent="." unique_id=52594696]
 
-[node name="OvercookedManager" type="OvercookedManager" parent="." unique_id=198765432]
-available_recipes = Array[OCRecipe]([ExtResource("1_salad")])
+[node name="GameManager" type="GameManager" parent="Systems" unique_id=809396014]
 
-[node name="UI" type="CanvasLayer" parent="." unique_id=123456789]
+[node name="OvercookedManager" type="OvercookedManager" parent="Systems" unique_id=74387989]
 
-[node name="OCOrderUI" type="OCOrderUI" parent="UI" unique_id=987654321]
-offset_right = 40.0
-offset_bottom = 40.0
+[node name="UI" type="CanvasLayer" parent="." unique_id=472865108]
 
-[node name="Station" type="Node" parent="." unique_id=1221237211]
-
-[node name="DeliveryStation" type="OCDeliveryStation" parent="Station" unique_id=11223344]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -5)
-
-[node name="Visual" type="CSGBox3D" parent="Station/DeliveryStation" unique_id=22334455]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-use_collision = true
-size = Vector3(1.5, 2, 1.5)
-material = SubResource("StandardMaterial3D_tomato")
-
-[node name="CookingStation" type="OCCookingStation" parent="Station" unique_id=401009969]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, -5)
-
-[node name="Visual" type="CSGBox3D" parent="Station/CookingStation" unique_id=607656487]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-use_collision = true
-size = Vector3(1.5, 2, 1.5)
-material = SubResource("StandardMaterial3D_floor")
-
-[node name="CuttingStation" type="OCCuttingStation" parent="Station" unique_id=577233456]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -5)
-
-[node name="Visual" type="CSGBox3D" parent="Station/CuttingStation" unique_id=1400219306]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-use_collision = true
-size = Vector3(1.5, 2, 1.5)
-material = SubResource("StandardMaterial3D_floor")
-
-[node name="CounterStation" type="OCStation" parent="Station" unique_id=1855831296]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, -5)
-
-[node name="Visual" type="CSGBox3D" parent="Station/CounterStation" unique_id=1334906296]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-use_collision = true
-size = Vector3(1.5, 2, 1.5)
-material = SubResource("StandardMaterial3D_floor")
-
-[node name="Plate" type="OCPlate" parent="Station/CounterStation" unique_id=55667788]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
-collision_layer = 2
-collision_mask = 3
-freeze = false
-
-[node name="Visual" type="CSGCylinder3D" parent="Station/CounterStation/Plate" unique_id=66778899]
-use_collision = true
-radius = 0.4
-height = 0.05
-sides = 16
-material = SubResource("StandardMaterial3D_floor")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Station/CounterStation/Plate" unique_id=11223355]
-shape = SubResource("CylinderShape3D_plate")
-
-[node name="Ingredients" type="Node" parent="." unique_id=124654265]
-
-[node name="Tomato" type="OCIngredient" parent="Ingredients" unique_id=313202823]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 2.275, -5)
-collision_layer = 2
-collision_mask = 3
-mass = 0.1
-freeze = false
-
-[node name="Raw" type="MeshInstance3D" parent="Ingredients/Tomato" unique_id=149369914]
-mesh = SubResource("SphereMesh_gg8kj")
-
-[node name="Chopped" type="CSGCylinder3D" parent="Ingredients/Tomato" unique_id=21699050]
-visible = false
-radius = 0.3
-height = 0.1
-sides = 12
-material = SubResource("StandardMaterial3D_tomato")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ingredients/Tomato" unique_id=929814761]
-shape = SubResource("SphereShape3D_tomato")
-
-[node name="Lettuce" type="OCIngredient" parent="Ingredients" unique_id=11221122]
-ingredient_type = "Lettuce"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 2.275, -5)
-collision_layer = 2
-collision_mask = 3
-freeze = false
-
-[node name="Raw" type="MeshInstance3D" parent="Ingredients/Lettuce" unique_id=22332233]
-mesh = SubResource("SphereMesh_lettuce")
-
-[node name="Chopped" type="CSGBox3D" parent="Ingredients/Lettuce" unique_id=33443344]
-visible = false
-size = Vector3(0.4, 0.1, 0.4)
-material = SubResource("StandardMaterial3D_lettuce")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Ingredients/Lettuce" unique_id=44554455]
-shape = SubResource("SphereShape3D_tomato")
+[node name="Stations" type="Node3D" parent="." unique_id=1132647840]

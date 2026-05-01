@@ -3,17 +3,6 @@
 namespace godot {
 
 void Interactable::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_is_interactable", "interactable"), &Interactable::set_is_interactable);
-	ClassDB::bind_method(D_METHOD("get_is_interactable"), &Interactable::get_is_interactable);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "is_interactable"), "set_is_interactable", "get_is_interactable");
-
-	ClassDB::bind_method(D_METHOD("set_is_picked_up", "picked_up"), &Interactable::set_is_picked_up);
-	ClassDB::bind_method(D_METHOD("get_is_picked_up"), &Interactable::get_is_picked_up);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "is_picked_up"), "set_is_picked_up", "get_is_picked_up");
-
-	ClassDB::bind_method(D_METHOD("interact", "actor"), &Interactable::interact);
-	ClassDB::bind_method(D_METHOD("pickup", "actor"), &Interactable::pickup);
-	ClassDB::bind_method(D_METHOD("drop", "actor"), &Interactable::drop);
 }
 
 Interactable::Interactable() {

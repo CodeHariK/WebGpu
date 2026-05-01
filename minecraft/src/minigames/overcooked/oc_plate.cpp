@@ -10,12 +10,12 @@ void OCPlate::_bind_methods() {
 }
 
 OCPlate::OCPlate() {
-	set_ingredient_type("Plate");
 }
 
 OCPlate::~OCPlate() {}
 
 void OCPlate::_ready() {
+	set_ingredient_type("Plate");
 	OCIngredient::_ready();
 
 	// Create or find a parent for held ingredients
