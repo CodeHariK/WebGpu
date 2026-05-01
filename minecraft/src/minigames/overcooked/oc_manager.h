@@ -19,6 +19,7 @@ class Marker3D;
 class OCRecipe;
 class OCIngredient;
 class OCOrderUI;
+class OCRecipeEditorUI;
 
 class OvercookedManager : public Node {
 	GDCLASS(OvercookedManager, Node)
@@ -40,6 +41,7 @@ private:
 	Inventory *inventory = nullptr;
 
 	OCOrderUI *order_ui = nullptr;
+	OCRecipeEditorUI *recipe_editor = nullptr;
 
 protected:
 	static void _bind_methods();
@@ -71,7 +73,6 @@ public:
 
 	virtual void _ready() override;
 	virtual void _process(double p_delta) override;
-	virtual void _input(const Ref<InputEvent> &p_event) override;
 
 	bool submit_ingredient(OCIngredient *p_ing);
 	void spawn_random_order();
@@ -90,6 +91,7 @@ public:
 	const std::vector<Ref<OCRecipe>> &get_active_orders() const { return active_orders; }
 
 	void attach_interactor_to_player();
+	void initialize_ui();
 	PackedStringArray get_needed_ingredients() const;
 	OCIngredient *create_ingredient(const String &p_type);
 };

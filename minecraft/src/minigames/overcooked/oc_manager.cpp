@@ -6,7 +6,10 @@
 #include "oc_plate.h"
 #include "oc_interactor.h"
 #include "../../game_manager/game_manager.h"
-#include <godot_cpp/classes/marker3d.hpp>
+#include <godot_cpp/classes/canvas_layer.hpp>
+#include <godot_cpp/classes/input.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
+#include "oc_ui.h"
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
@@ -124,14 +127,41 @@ void OvercookedManager::_ready() {
 	load_recipes_from_dir();
 	load_inventory();
 
-	// Find UI components
+	// Find or Create UI components
 	Node *root = get_tree()->get_current_scene();
 	if (root) {
-		order_ui = Object::cast_to<OCOrderUI>(root->find_child("OCOrderUI", true, false));
+		if (!order_ui) {
+			call_deferred("initialize_ui");
+		}
 	}
 
 	// NEW: Attach interactor to player manually
 	call_deferred("attach_interactor_to_player");
+}
+
+void OvercookedManager::initialize_ui() {
+	Node *root = get_tree()->get_current_scene();
+	if (!root) return;
+
+	// Create a CanvasLayer to host our UI
+	CanvasLayer *cl = memnew(CanvasLayer);
+	cl->set_name("OvercookedUI");
+	root->add_child(cl);
+
+	// Add Order UI (Gameplay HUD)
+	order_ui = memnew(OCOrderUI);
+	order_ui->set_name("OCOrderUI");
+	cl->add_child(order_ui);
+	order_ui->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	UtilityFunctions::print("OCManager: Automatically created OCOrderUI.");
+
+	// Add Recipe Editor UI (Admin Tool) - Hidden by default
+	recipe_editor = memnew(OCRecipeEditorUI);
+	recipe_editor->set_name("OCRecipeEditorUI");
+	recipe_editor->set_visible(false); // Hide until needed
+	cl->add_child(recipe_editor);
+	recipe_editor->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	UtilityFunctions::print("OCManager: Automatically created OCRecipeEditorUI.");
 }
 
 void OvercookedManager::attach_interactor_to_player() {
@@ -164,6 +194,7 @@ void OvercookedManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_available_recipes"), &OvercookedManager::get_available_recipes);
 	
 	ClassDB::bind_method(D_METHOD("get_inventory_node"), &OvercookedManager::get_inventory_node);
+	ClassDB::bind_method(D_METHOD("initialize_ui"), &OvercookedManager::initialize_ui);
 	ClassDB::bind_method(D_METHOD("attach_interactor_to_player"), &OvercookedManager::attach_interactor_to_player);
 	ClassDB::bind_method(D_METHOD("get_needed_ingredients"), &OvercookedManager::get_needed_ingredients);
 	ClassDB::bind_method(D_METHOD("create_ingredient"), &OvercookedManager::create_ingredient);
@@ -305,25 +336,20 @@ void OvercookedManager::_process(double p_delta) {
 			if (order_ui) order_ui->rebuild_ui();
 		}
 	}
-}
 
-void OvercookedManager::_input(const Ref<InputEvent> &p_event) {
-	Ref<InputEventKey> key_event = p_event;
-	if (key_event.is_valid() && key_event->is_pressed() && !key_event->is_echo()) {
-		if (key_event->get_keycode() == KEY_K) {
-			Node *root = get_tree()->get_current_scene();
-			if (root) {
-				Control *editor = Object::cast_to<Control>(root->find_child("OCRecipeEditorUI", true, false));
-				if (editor) {
-					editor->set_visible(!editor->is_visible());
-					// Toggle mouse mode
-					Input *input = Input::get_singleton();
-					if (editor->is_visible()) {
-						input->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
-					} else {
-						input->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
-					}
-				}
+	// Handle UI Toggles via PlayerInput
+	PlayerInput *pi = PlayerInput::get_singleton();
+	if (pi && pi->get_state().system.toggle_recipe_editor_just_pressed) {
+		if (recipe_editor) {
+			bool is_visible = recipe_editor->is_visible();
+			recipe_editor->set_visible(!is_visible);
+			UtilityFunctions::print("OCManager: Toggled Recipe Editor via PlayerInput. Visible: ", !is_visible);
+			
+			// Handle mouse mode
+			if (!is_visible) { // We just made it visible
+				Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
+			} else { // We just made it hidden
+				Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
 			}
 		}
 	}

@@ -116,9 +116,14 @@ void OCRecipeEditorUI::_ready() {
 	CUI::_ready();
 
 	// Main Panel
-	Panel *main_panel = add_panel(this, "AdminPanel", PRESET_CENTER, Vector2(600, 700));
-	VBoxContainer *main_vbox = add_vbox(main_panel, "MainVBox");
-	main_vbox->set_anchors_and_offsets_preset(PRESET_FULL_RECT, PRESET_MODE_MINSIZE, 15);
+	Vector2 screen_size = get_viewport_rect().size;
+	Vector2 panel_size = Vector2(screen_size.x * 0.7f, screen_size.y * 0.8f);
+	Panel *main_panel = add_panel(this, "AdminPanel", PRESET_CENTER, panel_size);
+
+	VBoxContainer *main_vbox = memnew(VBoxContainer);
+	main_vbox->set_name("MainVBox");
+	main_panel->add_child(main_vbox);
+	main_vbox->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT, Control::PRESET_MODE_MINSIZE, 20);
 
 	add_label(main_vbox, "ADMIN CONSOLE", "Title");
 
@@ -213,7 +218,8 @@ void OCRecipeEditorUI::_on_add_inventory_item_pressed() {
 
 void OCRecipeEditorUI::_on_save_inventory_pressed() {
 	OvercookedManager *om = OvercookedManager::get_singleton();
-	if (!om || !om->get_inventory_node()) return;
+	if (!om || !om->get_inventory_node())
+		return;
 
 	Dictionary new_inv;
 	for (int i = 0; i < inventory_container->get_child_count(); i++) {

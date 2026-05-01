@@ -9,12 +9,12 @@
 #include <godot_cpp/classes/h_box_container.hpp>
 #include <godot_cpp/classes/h_slider.hpp>
 #include <godot_cpp/classes/label.hpp>
-#include <godot_cpp/classes/panel.hpp>
 #include <godot_cpp/classes/line_edit.hpp>
 #include <godot_cpp/classes/option_button.hpp>
+#include <godot_cpp/classes/panel.hpp>
 #include <godot_cpp/classes/progress_bar.hpp>
-#include <godot_cpp/classes/spin_box.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
+#include <godot_cpp/classes/spin_box.hpp>
 #include <godot_cpp/classes/tab_container.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
 #include <godot_cpp/classes/viewport.hpp>
@@ -85,8 +85,28 @@ Panel *CUI::add_panel(Node *p_parent, const String &p_name, LayoutPreset p_prese
 	} else {
 		add_child(panel);
 	}
+
+	// Professional centering logic
+	panel->set("layout_mode", 1); // ANCHORS
 	panel->set_anchors_and_offsets_preset(p_preset);
-	panel->set_custom_minimum_size(p_min_size);
+
+	// Set actual size
+	panel->set_size(p_min_size);
+
+	if (p_preset == PRESET_CENTER) {
+		// Calculate offsets based on the actual size we just set
+		float offset_x = p_min_size.x * 0.5f;
+		float offset_y = p_min_size.y * 0.5f;
+		panel->set_offset(Side::SIDE_LEFT, -offset_x);
+		panel->set_offset(Side::SIDE_TOP, -offset_y);
+		panel->set_offset(Side::SIDE_RIGHT, offset_x);
+		panel->set_offset(Side::SIDE_BOTTOM, offset_y);
+	}
+
+	// Only set min size if you really want to prevent it from shrinking below this
+	// For most dialogs, setting the initial size is enough.
+	// panel->set_custom_minimum_size(p_min_size);
+
 	panel->set_mouse_filter(Control::MOUSE_FILTER_STOP);
 	elements[p_name] = panel;
 	return panel;

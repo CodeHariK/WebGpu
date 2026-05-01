@@ -70,6 +70,7 @@ void PlayerInput::update() {
 	current_state.character.interact = input->is_action_pressed("interact");
 	current_state.character.dash = input->is_action_pressed("dash");
 	current_state.system.swap_target = input->is_action_pressed("swap_target");
+	current_state.system.toggle_recipe_editor = input->is_action_pressed("toggle_recipe_editor");
 
 	// 4. Just Pressed Logic (Native Godot)
 	current_state.character.jump_just_pressed = input->is_action_just_pressed("jump");
@@ -78,6 +79,7 @@ void PlayerInput::update() {
 	current_state.character.interact_just_pressed = input->is_action_just_pressed("interact");
 	current_state.character.dash_just_pressed = input->is_action_just_pressed("dash");
 	current_state.system.swap_target_just_pressed = input->is_action_just_pressed("swap_target");
+	current_state.system.toggle_recipe_editor_just_pressed = input->is_action_just_pressed("toggle_recipe_editor");
 
 	// 5. Vehicle Specifics
 	// Throttle/Brake derived from forward/backward actions

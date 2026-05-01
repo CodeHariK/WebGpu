@@ -38,6 +38,8 @@ struct CharacterInput {
 struct SystemInput {
 	bool swap_target = false;
 	bool swap_target_just_pressed = false;
+	bool toggle_recipe_editor = false;
+	bool toggle_recipe_editor_just_pressed = false;
 };
 
 /**
