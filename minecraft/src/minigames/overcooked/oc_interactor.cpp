@@ -36,10 +36,7 @@ void OCInteractor::_ready() {
 	om = OvercookedManager::get_singleton();
 	gm = GameManager::get_singleton();
 	
-	Node *parent = get_parent();
-	if (parent) {
-		player_input = parent->get_node<PlayerInput>("PlayerInput");
-	}
+	player_input = PlayerInput::get_singleton();
 
 	// HandMarker: look for it or create it
 	hand_marker = Object::cast_to<Node3D>(find_child("HandMarker"));
