@@ -16,6 +16,7 @@
 #include "debug_draw/debug_quad.h"
 
 #include "game_manager/game_manager.h"
+#include "game_manager/inventory.h"
 #include "game_manager/player_input.h"
 
 #include "marching_cubes/mc.h"
@@ -50,16 +51,13 @@
 #include "interaction/spring_bop.h"
 #include "interaction/spring_door.h"
 
-#include "minigames/overcooked/oc_cooking_station.h"
-#include "minigames/overcooked/oc_cutting_station.h"
 #include "minigames/overcooked/oc_ingredient.h"
 #include "minigames/overcooked/oc_interactor.h"
 #include "minigames/overcooked/oc_manager.h"
-#include "minigames/overcooked/oc_station.h"
-#include "minigames/overcooked/oc_delivery_station.h"
-#include "minigames/overcooked/oc_order_ui.h"
-#include "minigames/overcooked/oc_recipe.h"
 #include "minigames/overcooked/oc_plate.h"
+#include "minigames/overcooked/oc_recipe.h"
+#include "minigames/overcooked/oc_station.h"
+#include "minigames/overcooked/oc_ui.h"
 
 namespace godot {
 
@@ -87,6 +85,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(GameManager);
 	GDREGISTER_CLASS(PlayerInput);
+	GDREGISTER_CLASS(Inventory);
 
 	GDREGISTER_CLASS(PhysicsCharacter3D);
 	GDREGISTER_CLASS(CelesteController);
@@ -136,10 +135,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(OCIngredient);
 	GDREGISTER_CLASS(OCStation);
-	GDREGISTER_CLASS(OCCuttingStation);
-	GDREGISTER_CLASS(OCCookingStation);
-	GDREGISTER_CLASS(OCDeliveryStation);
 	GDREGISTER_CLASS(OCRecipe);
+	GDREGISTER_CLASS(OCRecipeEditorUI);
 	GDREGISTER_CLASS(OCOrderUI);
 	GDREGISTER_CLASS(OCInteractor);
 	GDREGISTER_CLASS(OCPlate);

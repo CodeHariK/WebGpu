@@ -1,23 +1,40 @@
 #ifndef OC_RECIPE_H
 #define OC_RECIPE_H
 
-#include <godot_cpp/classes/resource.hpp>
-#include "oc_manager.h"
+#include <godot_cpp/classes/ref_counted.hpp>
 
 namespace godot {
 
-class OCRecipe : public Resource {
-	GDCLASS(OCRecipe, Resource)
+struct OCRecipeRequirement {
+	String type;
+	int state;
+};
+
+enum ProcessOperation {
+	PROCESS_NONE = 0,
+	PROCESS_CUT,
+	PROCESS_COOK,
+	PROCESS_BLEND
+};
+
+struct OCProcessStep {
+	int input_state;
+	int output_state;
+	float speed;
+	bool automatic;
+	ProcessOperation operation;
+};
+
+class OCRecipe : public RefCounted {
+	GDCLASS(OCRecipe, RefCounted)
 
 private:
 	String dish_name = "New Dish";
-	
-	// We'll use two parallel arrays or a custom resource to expose this to the editor
-	// For simplicity in the C++ API, I'll use TypedArrays
-	PackedStringArray required_types;
-	PackedInt32Array required_states;
-	
+
+	std::vector<OCRecipeRequirement> requirements;
+
 	float base_time = 60.0f;
+	float time_remaining = 60.0f;
 	int points = 100;
 
 protected:
@@ -30,20 +47,26 @@ public:
 	void set_dish_name(const String &p_name) { dish_name = p_name; }
 	String get_dish_name() const { return dish_name; }
 
-	void set_required_types(const PackedStringArray &p_types) { required_types = p_types; }
-	PackedStringArray get_required_types() const { return required_types; }
+	void set_requirements(const std::vector<OCRecipeRequirement> &p_reqs) { requirements = p_reqs; }
+	std::vector<OCRecipeRequirement> get_requirements() const { return requirements; }
 
-	void set_required_states(const PackedInt32Array &p_states) { required_states = p_states; }
-	PackedInt32Array get_required_states() const { return required_states; }
-
-	void set_base_time(float p_time) { base_time = p_time; }
+	void set_base_time(float p_time) {
+		base_time = p_time;
+		time_remaining = p_time;
+	}
 	float get_base_time() const { return base_time; }
+
+	void set_time_remaining(float p_time) { time_remaining = p_time; }
+	float get_time_remaining() const { return time_remaining; }
 
 	void set_points(int p_points) { points = p_points; }
 	int get_points() const { return points; }
 
-	// Helper for C++ logic
-	std::vector<OCRecipeRequirement> get_requirements() const;
+	Ref<OCRecipe> clone() const;
+
+	// Serialization
+	Dictionary to_dict() const;
+	void from_dict(const Dictionary &p_dict);
 };
 
 } // namespace godot

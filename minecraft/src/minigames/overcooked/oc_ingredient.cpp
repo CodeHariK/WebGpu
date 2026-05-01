@@ -10,22 +10,13 @@
 namespace godot {
 
 void OCIngredient::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_state", "state"), &OCIngredient::set_state);
-	ClassDB::bind_method(D_METHOD("get_state"), &OCIngredient::get_state);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "current_state", PROPERTY_HINT_ENUM, "Raw,Chopped,Cooked,Burnt"), "set_state", "get_state");
-
-	ClassDB::bind_method(D_METHOD("set_process_progress", "progress"), &OCIngredient::set_process_progress);
-	ClassDB::bind_method(D_METHOD("get_process_progress"), &OCIngredient::get_process_progress);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "process_progress", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_process_progress", "get_process_progress");
-
 	ClassDB::bind_method(D_METHOD("set_ingredient_type", "type"), &OCIngredient::set_ingredient_type);
 	ClassDB::bind_method(D_METHOD("get_ingredient_type"), &OCIngredient::get_ingredient_type);
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "ingredient_type"), "set_ingredient_type", "get_ingredient_type");
 
-	BIND_ENUM_CONSTANT(STATE_RAW);
-	BIND_ENUM_CONSTANT(STATE_CHOPPED);
-	BIND_ENUM_CONSTANT(STATE_COOKED);
-	BIND_ENUM_CONSTANT(STATE_BURNT);
+	ClassDB::bind_method(D_METHOD("set_state", "state"), &OCIngredient::set_state);
+	ClassDB::bind_method(D_METHOD("get_state"), &OCIngredient::get_state);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "current_state", PROPERTY_HINT_ENUM, "Raw,Chopped,Cooked,Blended,Frozen,Burnt"), "set_state", "get_state");
 }
 
 OCIngredient::OCIngredient() {}
@@ -36,13 +27,19 @@ void OCIngredient::_process(double delta) {
 	if (dm) {
 		String state_name = "RAW";
 		switch (current_state) {
-			case STATE_CHOPPED:
+			case INGREDIENT_STATE_CHOPPED:
 				state_name = "CHOPPED";
 				break;
-			case STATE_COOKED:
+			case INGREDIENT_STATE_COOKED:
 				state_name = "COOKED";
 				break;
-			case STATE_BURNT:
+			case INGREDIENT_STATE_BLENDED:
+				state_name = "BLENDED";
+				break;
+			case INGREDIENT_STATE_FROZEN:
+				state_name = "FROZEN";
+				break;
+			case INGREDIENT_STATE_BURNT:
 				state_name = "BURNT";
 				break;
 			default:
@@ -85,12 +82,12 @@ void OCIngredient::_exit_tree() {
 	}
 }
 
-void OCIngredient::set_state(State p_state) {
+void OCIngredient::set_state(IngredientState p_state) {
 	current_state = p_state;
 	update_visuals();
 }
 
-OCIngredient::State OCIngredient::get_state() const {
+OCIngredient::IngredientState OCIngredient::get_state() const {
 	return current_state;
 }
 
@@ -111,15 +108,21 @@ void OCIngredient::update_visuals() {
 	Node *chopped = find_child("Chopped", true, false);
 	Node *cooked = find_child("Cooked", true, false);
 	Node *burnt = find_child("Burnt", true, false);
+	Node *blended = find_child("Blended", true, false);
+	Node *frozen = find_child("Frozen", true, false);
 
 	if (raw && Object::cast_to<Node3D>(raw))
-		Object::cast_to<Node3D>(raw)->set_visible(current_state == STATE_RAW);
+		Object::cast_to<Node3D>(raw)->set_visible(current_state == INGREDIENT_STATE_RAW);
 	if (chopped && Object::cast_to<Node3D>(chopped))
-		Object::cast_to<Node3D>(chopped)->set_visible(current_state == STATE_CHOPPED);
+		Object::cast_to<Node3D>(chopped)->set_visible(current_state == INGREDIENT_STATE_CHOPPED);
 	if (cooked && Object::cast_to<Node3D>(cooked))
-		Object::cast_to<Node3D>(cooked)->set_visible(current_state == STATE_COOKED);
+		Object::cast_to<Node3D>(cooked)->set_visible(current_state == INGREDIENT_STATE_COOKED);
+	if (blended && Object::cast_to<Node3D>(blended))
+		Object::cast_to<Node3D>(blended)->set_visible(current_state == INGREDIENT_STATE_BLENDED);
+	if (frozen && Object::cast_to<Node3D>(frozen))
+		Object::cast_to<Node3D>(frozen)->set_visible(current_state == INGREDIENT_STATE_FROZEN);
 	if (burnt && Object::cast_to<Node3D>(burnt))
-		Object::cast_to<Node3D>(burnt)->set_visible(current_state == STATE_BURNT);
+		Object::cast_to<Node3D>(burnt)->set_visible(current_state == INGREDIENT_STATE_BURNT);
 }
 
 } // namespace godot

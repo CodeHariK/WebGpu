@@ -10,6 +10,10 @@
 #include <godot_cpp/classes/h_slider.hpp>
 #include <godot_cpp/classes/label.hpp>
 #include <godot_cpp/classes/panel.hpp>
+#include <godot_cpp/classes/line_edit.hpp>
+#include <godot_cpp/classes/option_button.hpp>
+#include <godot_cpp/classes/progress_bar.hpp>
+#include <godot_cpp/classes/spin_box.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
 #include <godot_cpp/classes/tab_container.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
@@ -159,6 +163,67 @@ Label *CUI::add_label(Node *p_parent, const String &p_text, const String &p_name
 		elements[p_name] = label;
 	}
 	return label;
+}
+
+ProgressBar *CUI::add_progress_bar(Node *p_parent, const String &p_name) {
+	ProgressBar *bar = memnew(ProgressBar);
+	if (p_parent) {
+		p_parent->add_child(bar);
+	} else {
+		add_child(bar);
+	}
+	if (!p_name.is_empty()) {
+		bar->set_name(p_name);
+		elements[p_name] = bar;
+	}
+	return bar;
+}
+
+LineEdit *CUI::add_line_edit(Node *p_parent, const String &p_placeholder, const String &p_name) {
+	LineEdit *edit = memnew(LineEdit);
+	edit->set_placeholder(p_placeholder);
+	if (p_parent) {
+		p_parent->add_child(edit);
+	} else {
+		add_child(edit);
+	}
+	if (!p_name.is_empty()) {
+		edit->set_name(p_name);
+		elements[p_name] = edit;
+	}
+	return edit;
+}
+
+OptionButton *CUI::add_option_button(Node *p_parent, const String &p_name) {
+	OptionButton *opt = memnew(OptionButton);
+	if (p_parent) {
+		p_parent->add_child(opt);
+	} else {
+		add_child(opt);
+	}
+	if (!p_name.is_empty()) {
+		opt->set_name(p_name);
+		elements[p_name] = opt;
+	}
+	return opt;
+}
+
+SpinBox *CUI::add_spin_box(Node *p_parent, double p_min, double p_max, double p_step, double p_value, const String &p_name) {
+	SpinBox *spin = memnew(SpinBox);
+	spin->set_min(p_min);
+	spin->set_max(p_max);
+	spin->set_step(p_step);
+	spin->set_value(p_value);
+	if (p_parent) {
+		p_parent->add_child(spin);
+	} else {
+		add_child(spin);
+	}
+	if (!p_name.is_empty()) {
+		spin->set_name(p_name);
+		elements[p_name] = spin;
+	}
+	return spin;
 }
 
 HSlider *CUI::add_hslider(Node *p_parent, float p_min, float p_max, float p_step, float p_value, const Callable &p_callback, const String &p_name) {

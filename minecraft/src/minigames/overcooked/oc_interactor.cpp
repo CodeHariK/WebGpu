@@ -1,9 +1,10 @@
 #include "oc_interactor.h"
+#include "../../debug_draw/debug_manager.h"
 #include "../../game_manager/game_manager.h"
 #include "oc_ingredient.h"
 #include "oc_manager.h"
-#include "oc_station.h"
 #include "oc_plate.h"
+#include "oc_station.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/marker3d.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
@@ -30,22 +31,28 @@ OCInteractor::OCInteractor() {}
 OCInteractor::~OCInteractor() {}
 
 void OCInteractor::_ready() {
-	// Look for a hand marker in children, or create one
+	if (Engine::get_singleton()->is_editor_hint()) return;
+
+	om = OvercookedManager::get_singleton();
+	gm = GameManager::get_singleton();
+	
+	Node *parent = get_parent();
+	if (parent) {
+		player_input = parent->get_node<PlayerInput>("PlayerInput");
+	}
+
+	// HandMarker: look for it or create it
 	hand_marker = Object::cast_to<Node3D>(find_child("HandMarker"));
 	if (!hand_marker) {
 		Marker3D *marker = memnew(Marker3D);
 		marker->set_name("HandMarker");
-		marker->set_position(Vector3(0, 1.2f, 0.5f)); // Typical player reach
+		marker->set_position(Vector3(0, 1.2f, 0.5f)); // Standard reach
 		add_child(marker);
 		hand_marker = marker;
+		UtilityFunctions::print("OCInteractor: Created HandMarker.");
 	}
-
-	gm = GameManager::get_singleton();
-	if (gm) {
-		player_input = gm->get_player_input();
-	}
-
-	om = OvercookedManager::get_singleton();
+	
+	UtilityFunctions::print("OCInteractor: Initialized.");
 }
 
 void OCInteractor::_physics_process(double delta) {
@@ -67,6 +74,42 @@ void OCInteractor::_physics_process(double delta) {
 			UtilityFunctions::print("OCInteractor: Interact key pressed");
 			interact();
 		}
+
+		// PROMPT LOGIC: Show if the current station can process what we have
+		OCStation *station = om->get_closest_station(get_global_position(), interaction_range);
+		if (station) {
+			String prompt = "";
+			bool can_process_any = false;
+
+			// 1. Check held item
+			OCIngredient *held_ing = Object::cast_to<OCIngredient>(held_item);
+			if (held_ing && station->can_process(held_ing)) {
+				can_process_any = true;
+			}
+
+			// 2. Check station item
+			OCIngredient *station_ing = Object::cast_to<OCIngredient>(station->get_held_item());
+			if (station_ing && station->can_process(station_ing)) {
+				can_process_any = true;
+			}
+
+			if (can_process_any) {
+				String op_name = "Process";
+				if (station->get_station_type() == OCStation::TYPE_CUTTING)
+					op_name = "CHOP";
+				else if (station->get_station_type() == OCStation::TYPE_COOKING)
+					op_name = "COOK";
+				else if (station->get_station_type() == OCStation::TYPE_BLENDER)
+					op_name = "BLEND";
+
+				prompt = "[E] to " + op_name;
+
+				DebugManager *dm = DebugManager::get_singleton();
+				if (dm) {
+					dm->draw_text("interact_prompt", prompt, station->get_global_position() + Vector3(0, 2.0f, 0), 0.001f, Color(1, 1, 0));
+				}
+			}
+		}
 	}
 }
 
@@ -81,7 +124,7 @@ void OCInteractor::grab_or_drop() {
 		OCStation *station = om->get_closest_station(my_pos, interaction_range);
 		if (station) {
 			UtilityFunctions::print("OCInteractor: Closest station found: ", station->get_name());
-			
+
 			// NEW: If station has a plate, add to it!
 			if (station->has_item()) {
 				OCPlate *plate = Object::cast_to<OCPlate>(station->get_held_item());
@@ -108,11 +151,10 @@ void OCInteractor::grab_or_drop() {
 		UtilityFunctions::print("OCInteractor: Dropping on floor");
 		Node *world = get_tree()->get_current_scene();
 		held_item->reparent(world);
-		
+
 		// Drop in front of the player, but at a pickable height
 		Vector3 drop_pos = my_pos + (get_global_transform().basis.get_column(2) * -1.5f);
-		drop_pos.y = 1.0f; // Ensure it's not buried in the floor
-		
+
 		held_item->set_global_position(drop_pos);
 		held_item->drop(Object::cast_to<Node3D>(get_parent()));
 		held_item = nullptr;

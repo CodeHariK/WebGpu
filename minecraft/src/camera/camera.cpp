@@ -3,9 +3,9 @@
 #include "../game_manager/player_input.h"
 
 #include "states/car_state.h"
+#include "states/fixed_state.h"
 #include "states/fly_state.h"
 #include "states/tps_state.h"
-#include "states/fixed_state.h"
 
 #include "../utils/raycast/mc_raycast.h"
 #include <godot_cpp/classes/collision_object3d.hpp>
@@ -67,10 +67,6 @@ void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_max_distance", "distance"), &GameCamera::set_max_distance);
 	ClassDB::bind_method(D_METHOD("get_max_distance"), &GameCamera::get_max_distance);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_distance"), "set_max_distance", "get_max_distance");
-
-	ClassDB::bind_method(D_METHOD("set_collision_enabled", "enabled"), &GameCamera::set_collision_enabled);
-	ClassDB::bind_method(D_METHOD("is_collision_enabled"), &GameCamera::is_collision_enabled);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "collision_enabled"), "set_collision_enabled", "is_collision_enabled");
 
 	BIND_ENUM_CONSTANT(MODE_FLY);
 	BIND_ENUM_CONSTANT(MODE_CAR);
