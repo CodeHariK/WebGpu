@@ -120,10 +120,7 @@ void OCRecipeEditorUI::_ready() {
 	Vector2 panel_size = Vector2(screen_size.x * 0.7f, screen_size.y * 0.8f);
 	Panel *main_panel = add_panel(this, "AdminPanel", PRESET_CENTER, panel_size);
 
-	VBoxContainer *main_vbox = memnew(VBoxContainer);
-	main_vbox->set_name("MainVBox");
-	main_panel->add_child(main_vbox);
-	main_vbox->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT, Control::PRESET_MODE_MINSIZE, 20);
+	VBoxContainer *main_vbox = add_vbox(main_panel, "MainVBox");
 
 	add_label(main_vbox, "ADMIN CONSOLE", "Title");
 
@@ -131,20 +128,16 @@ void OCRecipeEditorUI::_ready() {
 	tabs->set_v_size_flags(SIZE_EXPAND_FILL);
 
 	// --- RECIPE TAB ---
-	VBoxContainer *recipe_tab = memnew(VBoxContainer);
-	recipe_tab->set_name("Recipes");
-	tabs->add_child(recipe_tab);
+	VBoxContainer *recipe_tab = add_vbox(tabs, "Recipes");
 
 	// Name
-	HBoxContainer *name_row = memnew(HBoxContainer);
-	recipe_tab->add_child(name_row);
+	HBoxContainer *name_row = add_hbox(recipe_tab, "NameRow");
 	add_label(name_row, "Dish Name: ", "NameLabel");
 	name_edit = add_line_edit(name_row, "e.g. Burger", "NameEdit");
 	name_edit->set_h_size_flags(SIZE_EXPAND_FILL);
 
 	// Points & Time
-	HBoxContainer *settings_row = memnew(HBoxContainer);
-	recipe_tab->add_child(settings_row);
+	HBoxContainer *settings_row = add_hbox(recipe_tab, "SettingsRow");
 	add_label(settings_row, "Points: ", "PointsLabel");
 	points_spin = add_spin_box(settings_row, 10, 1000, 10, 100, "PointsSpin");
 	add_label(settings_row, "Time: ", "TimeLabel");
@@ -159,9 +152,7 @@ void OCRecipeEditorUI::_ready() {
 	add_button(recipe_tab, "SAVE RECIPE", Callable(this, "_on_save_recipe_pressed"), "SaveRecipeBtn");
 
 	// --- INVENTORY TAB ---
-	VBoxContainer *inv_tab = memnew(VBoxContainer);
-	inv_tab->set_name("Inventory");
-	tabs->add_child(inv_tab);
+	VBoxContainer *inv_tab = add_vbox(tabs, "Inventory");
 
 	add_label(inv_tab, "Manage Stock & Items", "InvHeader");
 	ScrollContainer *inv_scroll = add_scroll(inv_tab, "InvScroll");
@@ -191,8 +182,7 @@ void OCRecipeEditorUI::rebuild_inventory_ui() {
 		String name = keys[i];
 		int qty = (int)inv[name];
 
-		HBoxContainer *row = memnew(HBoxContainer);
-		inventory_container->add_child(row);
+		HBoxContainer *row = add_hbox(inventory_container, "InventoryRow");
 
 		LineEdit *name_edit_row = add_line_edit(row, name, "ItemName");
 		name_edit_row->set_text(name);
@@ -205,8 +195,7 @@ void OCRecipeEditorUI::rebuild_inventory_ui() {
 }
 
 void OCRecipeEditorUI::_on_add_inventory_item_pressed() {
-	HBoxContainer *row = memnew(HBoxContainer);
-	inventory_container->add_child(row);
+	HBoxContainer *row = add_hbox(inventory_container, "InventoryRow");
 
 	LineEdit *name_edit_row = add_line_edit(row, "New Item", "ItemName");
 	name_edit_row->set_h_size_flags(SIZE_EXPAND_FILL);
@@ -238,8 +227,7 @@ void OCRecipeEditorUI::_on_save_inventory_pressed() {
 }
 
 void OCRecipeEditorUI::_on_add_ingredient_pressed() {
-	HBoxContainer *row = memnew(HBoxContainer);
-	ingredients_container->add_child(row);
+	HBoxContainer *row = add_hbox(ingredients_container, "IngredientRow");
 
 	OptionButton *type_opt = add_option_button(row, "Type");
 	type_opt->set_h_size_flags(SIZE_EXPAND_FILL);
