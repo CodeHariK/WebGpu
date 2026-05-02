@@ -86,26 +86,22 @@ Panel *CUI::add_panel(Node *p_parent, const String &p_name, LayoutPreset p_prese
 		add_child(panel);
 	}
 
-	// Professional centering logic
-	panel->set("layout_mode", 1); // ANCHORS
-	panel->set_anchors_and_offsets_preset(p_preset);
+	// // Professional centering logic
+	// panel->set("layout_mode", 1); // ANCHORS
+	// panel->set_anchors_and_offsets_preset(p_preset);
 
-	// Set actual size
-	panel->set_size(p_min_size);
+	// // Set actual size
+	// panel->set_size(p_min_size);
 
-	if (p_preset == PRESET_CENTER) {
-		// Calculate offsets based on the actual size we just set
-		float offset_x = p_min_size.x * 0.5f;
-		float offset_y = p_min_size.y * 0.5f;
-		panel->set_offset(Side::SIDE_LEFT, -offset_x);
-		panel->set_offset(Side::SIDE_TOP, -offset_y);
-		panel->set_offset(Side::SIDE_RIGHT, offset_x);
-		panel->set_offset(Side::SIDE_BOTTOM, offset_y);
-	}
-
-	// Only set min size if you really want to prevent it from shrinking below this
-	// For most dialogs, setting the initial size is enough.
-	// panel->set_custom_minimum_size(p_min_size);
+	// if (p_preset == PRESET_CENTER) {
+	// 	// Calculate offsets based on the actual size we just set
+	// 	float offset_x = p_min_size.x * 0.5f;
+	// 	float offset_y = p_min_size.y * 0.5f;
+	// 	panel->set_offset(Side::SIDE_LEFT, -offset_x);
+	// 	panel->set_offset(Side::SIDE_TOP, -offset_y);
+	// 	panel->set_offset(Side::SIDE_RIGHT, offset_x);
+	// 	panel->set_offset(Side::SIDE_BOTTOM, offset_y);
+	// }
 
 	panel->set_mouse_filter(Control::MOUSE_FILTER_STOP);
 	elements[p_name] = panel;
