@@ -12,6 +12,7 @@
 #include <godot_cpp/classes/line_edit.hpp>
 #include <godot_cpp/classes/option_button.hpp>
 #include <godot_cpp/classes/panel.hpp>
+#include <godot_cpp/classes/panel_container.hpp>
 #include <godot_cpp/classes/progress_bar.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
 #include <godot_cpp/classes/spin_box.hpp>
@@ -86,22 +87,58 @@ Panel *CUI::add_panel(Node *p_parent, const String &p_name, LayoutPreset p_prese
 		add_child(panel);
 	}
 
-	// // Professional centering logic
-	// panel->set("layout_mode", 1); // ANCHORS
-	// panel->set_anchors_and_offsets_preset(p_preset);
+	// Professional centering logic
+	panel->set("layout_mode", 1); // ANCHORS
+	panel->set_anchors_and_offsets_preset(p_preset);
+	
+	// Set Grow Direction to BOTH so it expands from the anchor point
+	panel->set_h_grow_direction(Control::GROW_DIRECTION_BOTH);
+	panel->set_v_grow_direction(Control::GROW_DIRECTION_BOTH);
 
-	// // Set actual size
-	// panel->set_size(p_min_size);
+	if (p_min_size != Vector2(0, 0)) {
+		panel->set_size(p_min_size);
+		if (p_preset == PRESET_CENTER) {
+			float offset_x = p_min_size.x * 0.5f;
+			float offset_y = p_min_size.y * 0.5f;
+			panel->set_offset(Side::SIDE_LEFT, -offset_x);
+			panel->set_offset(Side::SIDE_TOP, -offset_y);
+			panel->set_offset(Side::SIDE_RIGHT, offset_x);
+			panel->set_offset(Side::SIDE_BOTTOM, offset_y);
+		}
+	} else if (p_preset == PRESET_CENTER) {
+		// If no size provided, ensure it starts at the center point with 0 offsets
+		panel->set_offset(Side::SIDE_LEFT, 0);
+		panel->set_offset(Side::SIDE_TOP, 0);
+		panel->set_offset(Side::SIDE_RIGHT, 0);
+		panel->set_offset(Side::SIDE_BOTTOM, 0);
+	}
 
-	// if (p_preset == PRESET_CENTER) {
-	// 	// Calculate offsets based on the actual size we just set
-	// 	float offset_x = p_min_size.x * 0.5f;
-	// 	float offset_y = p_min_size.y * 0.5f;
-	// 	panel->set_offset(Side::SIDE_LEFT, -offset_x);
-	// 	panel->set_offset(Side::SIDE_TOP, -offset_y);
-	// 	panel->set_offset(Side::SIDE_RIGHT, offset_x);
-	// 	panel->set_offset(Side::SIDE_BOTTOM, offset_y);
-	// }
+	panel->set_mouse_filter(Control::MOUSE_FILTER_STOP);
+	elements[p_name] = panel;
+	return panel;
+}
+
+PanelContainer *CUI::add_panel_container(Node *p_parent, const String &p_name, LayoutPreset p_preset) {
+	PanelContainer *panel = memnew(PanelContainer);
+	panel->set_name(p_name);
+	if (p_parent) {
+		p_parent->add_child(panel);
+	} else {
+		add_child(panel);
+	}
+
+	// Centering logic for auto-sizing container
+	panel->set("layout_mode", 1); // ANCHORS
+	panel->set_anchors_preset(p_preset);
+	panel->set_h_grow_direction(Control::GROW_DIRECTION_BOTH);
+	panel->set_v_grow_direction(Control::GROW_DIRECTION_BOTH);
+
+	if (p_preset == PRESET_CENTER) {
+		panel->set_offset(Side::SIDE_LEFT, 0);
+		panel->set_offset(Side::SIDE_TOP, 0);
+		panel->set_offset(Side::SIDE_RIGHT, 0);
+		panel->set_offset(Side::SIDE_BOTTOM, 0);
+	}
 
 	panel->set_mouse_filter(Control::MOUSE_FILTER_STOP);
 	elements[p_name] = panel;

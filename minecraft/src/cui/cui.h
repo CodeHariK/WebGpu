@@ -13,6 +13,7 @@ class Label;
 class Panel;
 class ScrollContainer;
 class VBoxContainer;
+class PanelContainer;
 class CanvasLayer;
 class HSlider;
 class LineEdit;
@@ -47,6 +48,7 @@ public:
 	void set_value(const String &p_name, float p_value);
 
 	Panel *add_panel(Node *p_parent, const String &p_name, LayoutPreset p_preset, const Vector2 &p_min_size);
+	PanelContainer *add_panel_container(Node *p_parent, const String &p_name, LayoutPreset p_preset);
 	Button *add_button(Node *p_parent, const String &p_text, const Callable &p_callback, const String &p_name = "");
 	HBoxContainer *add_hbox(Node *p_parent, const String &p_name);
 	ScrollContainer *add_scroll(Node *p_parent, const String &p_name);
