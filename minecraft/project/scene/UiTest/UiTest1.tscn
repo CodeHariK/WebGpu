@@ -62,6 +62,36 @@ layout_mode = 2
 theme = ExtResource("2_smewx")
 text = "Hello"
 
+[node name="HBoxContainer" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer" unique_id=2016445457]
+layout_mode = 2
+
+[node name="MenuButton" type="MenuButton" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer" unique_id=225272650]
+layout_mode = 2
+theme = ExtResource("2_smewx")
+text = "Hello"
+item_count = 2
+popup/item_0/text = "Hello"
+popup/item_0/id = 0
+popup/item_1/text = "Hi"
+popup/item_1/id = 1
+
+[node name="Button" type="Button" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer" unique_id=2037950940]
+layout_mode = 2
+size_flags_horizontal = 4
+theme = ExtResource("2_smewx")
+text = "Hello"
+
+[node name="OptionButton" type="OptionButton" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer" unique_id=1202407218]
+layout_mode = 2
+theme = ExtResource("2_smewx")
+selected = 0
+fit_to_longest_item = false
+item_count = 2
+popup/item_0/text = "Hello"
+popup/item_0/id = 0
+popup/item_1/text = "Hi"
+popup/item_1/id = 1
+
 [node name="MarginContainer" type="MarginContainer" parent="UI" unique_id=369038817]
 anchors_preset = 1
 anchor_left = 1.0
