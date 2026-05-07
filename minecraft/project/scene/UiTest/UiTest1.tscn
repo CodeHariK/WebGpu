@@ -64,6 +64,7 @@ text = "Hello"
 
 [node name="HBoxContainer" type="HBoxContainer" parent="UI/PanelContainer/MarginContainer/VBoxContainer" unique_id=2016445457]
 layout_mode = 2
+theme_override_constants/separation = 16
 
 [node name="MenuButton" type="MenuButton" parent="UI/PanelContainer/MarginContainer/VBoxContainer/HBoxContainer" unique_id=225272650]
 layout_mode = 2
