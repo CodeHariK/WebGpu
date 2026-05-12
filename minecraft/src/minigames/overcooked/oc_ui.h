@@ -20,6 +20,7 @@ class OCOrderUI : public CUI {
 private:
 	VBoxContainer *order_list = nullptr;
 	Label *score_label = nullptr;
+	void _on_cancel_order_pressed(int p_index);
 
 protected:
 	static void _bind_methods();
@@ -27,7 +28,6 @@ protected:
 public:
 	OCOrderUI();
 	~OCOrderUI();
-
 	void rebuild_ui();
 
 	void _ready() override;
@@ -44,6 +44,8 @@ class OCRecipeEditorUI : public CUI {
 private:
 	VBoxContainer *ingredients_container = nullptr;
 	VBoxContainer *inventory_container = nullptr;
+	VBoxContainer *menu_container = nullptr;
+	TabContainer *admin_tabs = nullptr;
 
 	LineEdit *name_edit = nullptr;
 	SpinBox *points_spin = nullptr;
@@ -55,6 +57,11 @@ private:
 	void _on_add_inventory_item_pressed();
 	void _on_save_inventory_pressed();
 	void rebuild_inventory_ui();
+
+	void rebuild_menu_ui();
+	void _on_spawn_order_pressed(int p_index);
+	void _on_edit_recipe_pressed(int p_index);
+	void _on_delete_recipe_pressed(int p_index);
 
 protected:
 	static void _bind_methods();

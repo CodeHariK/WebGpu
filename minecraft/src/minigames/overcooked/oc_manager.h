@@ -76,6 +76,9 @@ public:
 
 	bool submit_ingredient(OCIngredient *p_ing);
 	void spawn_random_order();
+	void spawn_order(Ref<OCRecipe> p_recipe);
+	void cancel_order(int p_index);
+	void delete_recipe(int p_index);
 
 	int get_score() const { return score; }
 

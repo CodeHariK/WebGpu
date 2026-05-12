@@ -36,11 +36,11 @@ Dictionary OCRecipe::to_dict() const {
 	Dictionary dict;
 	dict["name"] = dish_name;
 	
-	PackedStringArray types;
-	PackedByteArray states;
+	Array types;
+	Array states;
 	for (const auto &req : requirements) {
 		types.push_back(req.type);
-		states.push_back((uint8_t)req.state);
+		states.push_back((int)req.state);
 	}
 
 	dict["types"] = types;
@@ -56,12 +56,13 @@ void OCRecipe::from_dict(const Dictionary &p_dict) {
 	
 	requirements.clear();
 	if (p_dict.has("types") && p_dict.has("states")) {
-		PackedStringArray types = p_dict["types"];
-		PackedByteArray states = p_dict["states"];
-		for (int i = 0; i < types.size(); i++) {
+		Array types = p_dict["types"];
+		Array states = p_dict["states"];
+		int count = std::min((int)types.size(), (int)states.size());
+		for (int i = 0; i < count; i++) {
 			OCRecipeRequirement req;
 			req.type = types[i];
-			req.state = states[i];
+			req.state = (int)states[i];
 			requirements.push_back(req);
 		}
 	}

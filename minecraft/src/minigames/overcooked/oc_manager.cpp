@@ -65,7 +65,12 @@ void OvercookedManager::save_recipe_to_json(Ref<OCRecipe> p_recipe) {
 		DirAccess::make_dir_recursive_absolute(recipe_dir);
 	}
 
-	String file_name = p_recipe->get_dish_name().to_lower().replace(" ", "_") + ".json";
+	String dish_name = p_recipe->get_dish_name();
+	if (dish_name.is_empty()) {
+		dish_name = "unnamed_recipe";
+	}
+
+	String file_name = dish_name.to_lower().replace(" ", "_") + ".json";
 	String full_path = recipe_dir + file_name;
 
 	String json_string = JSON::stringify(p_recipe->to_dict(), "\t");
@@ -73,6 +78,21 @@ void OvercookedManager::save_recipe_to_json(Ref<OCRecipe> p_recipe) {
 	if (file.is_valid()) {
 		file->store_string(json_string);
 		UtilityFunctions::print("OCManager: Saved recipe to ", full_path);
+		UtilityFunctions::print("OCManager: Recipe JSON: ", json_string);
+
+		// Add to available recipes if not already there
+		bool found = false;
+		for (int i = 0; i < available_recipes.size(); i++) {
+			Ref<OCRecipe> r = available_recipes[i];
+			if (r.is_valid() && r->get_dish_name() == p_recipe->get_dish_name()) {
+				available_recipes[i] = p_recipe; // Update existing
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			available_recipes.push_back(p_recipe);
+		}
 	}
 }
 
@@ -198,6 +218,9 @@ void OvercookedManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("attach_interactor_to_player"), &OvercookedManager::attach_interactor_to_player);
 	ClassDB::bind_method(D_METHOD("get_needed_ingredients"), &OvercookedManager::get_needed_ingredients);
 	ClassDB::bind_method(D_METHOD("create_ingredient"), &OvercookedManager::create_ingredient);
+	ClassDB::bind_method(D_METHOD("spawn_order", "recipe"), &OvercookedManager::spawn_order);
+	ClassDB::bind_method(D_METHOD("cancel_order", "index"), &OvercookedManager::cancel_order);
+	ClassDB::bind_method(D_METHOD("delete_recipe", "index"), &OvercookedManager::delete_recipe);
 
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "available_recipes", PROPERTY_HINT_RESOURCE_TYPE, "OCRecipe"), "set_available_recipes", "get_available_recipes");
 }
@@ -306,11 +329,61 @@ void OvercookedManager::spawn_random_order() {
 	Ref<OCRecipe> new_order = template_recipe->clone();
 	active_orders.push_back(new_order);
 	
-	UtilityFunctions::print("OCManager: New Order: ", new_order->get_dish_name());
+	if (order_ui) {
+		order_ui->rebuild_ui();
+	}
+}
+
+void OvercookedManager::spawn_order(Ref<OCRecipe> p_recipe) {
+	if (p_recipe.is_null()) return;
+	UtilityFunctions::print("OCManager: spawn_order called for ", p_recipe->get_dish_name());
+
+	Ref<OCRecipe> new_order = p_recipe->clone();
+	active_orders.push_back(new_order);
+
+	UtilityFunctions::print("OCManager: Manual Order Spawned: ", new_order->get_dish_name());
 
 	if (order_ui) {
 		order_ui->rebuild_ui();
 	}
+}
+
+void OvercookedManager::cancel_order(int p_index) {
+	if (p_index < 0 || p_index >= (int)active_orders.size())
+		return;
+
+	UtilityFunctions::print("OCManager: Order Cancelled: ", active_orders[p_index]->get_dish_name());
+	active_orders.erase(active_orders.begin() + p_index);
+
+	if (order_ui) {
+		order_ui->rebuild_ui();
+	}
+}
+
+void OvercookedManager::delete_recipe(int p_index) {
+	if (p_index < 0 || p_index >= available_recipes.size())
+		return;
+
+	Ref<OCRecipe> recipe = available_recipes[p_index];
+	if (recipe.is_null())
+		return;
+
+	String dish_name = recipe->get_dish_name();
+	String file_name = dish_name.to_lower().replace(" ", "_") + ".json";
+	String full_path = "user://recipes/" + file_name;
+
+	UtilityFunctions::print("OCManager: Deleting recipe: ", dish_name, " at ", full_path);
+
+	// Remove from disk
+	Ref<DirAccess> dir = DirAccess::open("user://recipes/");
+	if (dir.is_valid()) {
+		if (dir->file_exists(file_name)) {
+			dir->remove(file_name);
+		}
+	}
+
+	// Remove from memory
+	available_recipes.remove_at(p_index);
 }
 
 void OvercookedManager::_process(double p_delta) {

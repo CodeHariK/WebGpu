@@ -12,7 +12,9 @@ namespace godot {
 
 // --- OCOrderUI Implementation ---
 
-void OCOrderUI::_bind_methods() {}
+void OCOrderUI::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("_on_cancel_order_pressed", "index"), &OCOrderUI::_on_cancel_order_pressed);
+}
 
 OCOrderUI::OCOrderUI() {}
 OCOrderUI::~OCOrderUI() {}
@@ -89,14 +91,27 @@ void OCOrderUI::rebuild_ui() {
 		panel->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 
 		VBoxContainer *row_vbox = add_vbox(panel, order_id + "_VBox");
-		row_vbox->set_offset(Side::SIDE_LEFT, 5);
-		row_vbox->set_offset(Side::SIDE_RIGHT, -5);
+		row_vbox->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT, Control::PRESET_MODE_MINSIZE, 5);
 
-		add_label(row_vbox, order->get_dish_name(), order_id + "_Label");
+		HBoxContainer *header = add_hbox(row_vbox, order_id + "_Header", 10);
+
+		add_label(header, order->get_dish_name(), order_id + "_Label")->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+		
+		// Add "X" button to cancel order
+		Button *cancel_btn = add_button(header, "X", Callable(this, "_on_cancel_order_pressed").bind(i), "CancelBtn");
+		cancel_btn->set_custom_minimum_size(Vector2(20, 20));
+		cancel_btn->set_modulate(Color(1.0, 0.4, 0.4)); // Reddish
 
 		ProgressBar *timer_bar = add_progress_bar(row_vbox, "Timer");
 		timer_bar->set_show_percentage(false);
 		timer_bar->set_custom_minimum_size(Vector2(200, 10));
+	}
+}
+
+void OCOrderUI::_on_cancel_order_pressed(int p_index) {
+	OvercookedManager *om = OvercookedManager::get_singleton();
+	if (om) {
+		om->cancel_order(p_index);
 	}
 }
 
@@ -107,6 +122,10 @@ void OCRecipeEditorUI::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_save_recipe_pressed"), &OCRecipeEditorUI::_on_save_recipe_pressed);
 	ClassDB::bind_method(D_METHOD("_on_add_inventory_item_pressed"), &OCRecipeEditorUI::_on_add_inventory_item_pressed);
 	ClassDB::bind_method(D_METHOD("_on_save_inventory_pressed"), &OCRecipeEditorUI::_on_save_inventory_pressed);
+	ClassDB::bind_method(D_METHOD("_on_spawn_order_pressed", "index"), &OCRecipeEditorUI::_on_spawn_order_pressed);
+	ClassDB::bind_method(D_METHOD("_on_edit_recipe_pressed", "index"), &OCRecipeEditorUI::_on_edit_recipe_pressed);
+	ClassDB::bind_method(D_METHOD("_on_delete_recipe_pressed", "index"), &OCRecipeEditorUI::_on_delete_recipe_pressed);
+	ClassDB::bind_method(D_METHOD("rebuild_menu_ui"), &OCRecipeEditorUI::rebuild_menu_ui);
 }
 
 OCRecipeEditorUI::OCRecipeEditorUI() {}
@@ -123,8 +142,9 @@ void OCRecipeEditorUI::_ready() {
 	VBoxContainer *main_vbox = add_vbox(main_panel, "MainVBox");
 
 	add_label(main_vbox, "ADMIN CONSOLE", "Title");
-
-	TabContainer *tabs = add_tab_container(main_vbox, "AdminTabs");
+ 
+	admin_tabs = add_tab_container(main_vbox, "AdminTabs");
+	TabContainer *tabs = admin_tabs;
 	tabs->set_v_size_flags(SIZE_EXPAND_FILL);
 
 	// --- RECIPE TAB ---
@@ -162,11 +182,21 @@ void OCRecipeEditorUI::_ready() {
 	add_button(inv_tab, "Add New Item", Callable(this, "_on_add_inventory_item_pressed"), "AddInvBtn");
 	add_button(inv_tab, "SAVE INVENTORY", Callable(this, "_on_save_inventory_pressed"), "SaveInvBtn");
 
+	// --- MENU TAB ---
+	VBoxContainer *menu_tab = add_vbox(tabs, "Menu");
+	add_label(menu_tab, "Available Recipes", "MenuHeader");
+	ScrollContainer *menu_scroll = add_scroll(menu_tab, "MenuScroll");
+	menu_scroll->set_v_size_flags(SIZE_EXPAND_FILL);
+	menu_container = add_vbox(menu_scroll, "MenuList");
+
+	add_button(menu_tab, "REFRESH MENU", Callable(this, "rebuild_menu_ui"), "RefreshMenuBtn");
+
 	// Initial population - delay by one frame or check singleton
 	OvercookedManager *om = OvercookedManager::get_singleton();
 	if (om) {
 		_on_add_ingredient_pressed();
 		rebuild_inventory_ui();
+		rebuild_menu_ui();
 	}
 }
 
@@ -227,7 +257,7 @@ void OCRecipeEditorUI::_on_save_inventory_pressed() {
 }
 
 void OCRecipeEditorUI::_on_add_ingredient_pressed() {
-	HBoxContainer *row = add_hbox(ingredients_container, "IngredientRow");
+	HBoxContainer *row = add_hbox(ingredients_container, "IngredientRow", 10);
 
 	OptionButton *type_opt = add_option_button(row, "Type");
 	type_opt->set_h_size_flags(SIZE_EXPAND_FILL);
@@ -255,9 +285,14 @@ void OCRecipeEditorUI::_on_add_ingredient_pressed() {
 }
 
 void OCRecipeEditorUI::_on_save_recipe_pressed() {
+	String dish_name = name_edit->get_text();
+	if (dish_name.is_empty()) {
+		dish_name = "New Recipe";
+	}
+
 	Ref<OCRecipe> recipe;
 	recipe.instantiate();
-	recipe->set_dish_name(name_edit->get_text());
+	recipe->set_dish_name(dish_name);
 	recipe->set_points((int)points_spin->get_value());
 	recipe->set_base_time((float)time_spin->get_value());
 
@@ -279,7 +314,118 @@ void OCRecipeEditorUI::_on_save_recipe_pressed() {
 	recipe->set_requirements(requirements);
 
 	OvercookedManager::get_singleton()->save_recipe_to_json(recipe);
-	UtilityFunctions::print("Recipe Saved: ", recipe->get_dish_name());
+	UtilityFunctions::print("OCManager: Recipe Editor saved '", dish_name, "' with ", (int)requirements.size(), " ingredients.");
+
+	rebuild_menu_ui();
+}
+
+void OCRecipeEditorUI::rebuild_menu_ui() {
+	if (!menu_container)
+		return;
+
+	// Clear current rows
+	for (int i = menu_container->get_child_count() - 1; i >= 0; i--) {
+		Node *child = menu_container->get_child(i);
+		menu_container->remove_child(child);
+		child->queue_free();
+	}
+
+	OvercookedManager *om = OvercookedManager::get_singleton();
+	if (!om)
+		return;
+
+	TypedArray<OCRecipe> recipes = om->get_available_recipes();
+	for (int i = 0; i < recipes.size(); i++) {
+		Ref<OCRecipe> recipe = recipes[i];
+		if (recipe.is_null())
+			continue;
+
+		HBoxContainer *row = add_hbox(menu_container, "MenuRow", 15);
+
+		add_label(row, recipe->get_dish_name(), "RecipeName")->set_h_size_flags(SIZE_EXPAND_FILL);
+		add_label(row, String::num_int64(recipe->get_points()) + " pts", "RecipePoints");
+
+		add_button(row, "SPAWN", Callable(this, "_on_spawn_order_pressed").bind(i), "SpawnBtn");
+		add_button(row, "EDIT", Callable(this, "_on_edit_recipe_pressed").bind(i), "EditBtn");
+		add_button(row, "DELETE", Callable(this, "_on_delete_recipe_pressed").bind(i), "DelRecipeBtn")->set_modulate(Color(1, 0.3, 0.3));
+	}
+}
+
+void OCRecipeEditorUI::_on_spawn_order_pressed(int p_index) {
+	OvercookedManager *om = OvercookedManager::get_singleton();
+	if (!om) return;
+
+	TypedArray<OCRecipe> recipes = om->get_available_recipes();
+	if (p_index >= 0 && p_index < recipes.size()) {
+		Ref<OCRecipe> recipe = recipes[p_index];
+		UtilityFunctions::print("OCManager: Manually spawning order: ", recipe->get_dish_name());
+		om->spawn_order(recipe);
+	}
+}
+
+void OCRecipeEditorUI::_on_edit_recipe_pressed(int p_index) {
+	OvercookedManager *om = OvercookedManager::get_singleton();
+	if (!om) return;
+
+	TypedArray<OCRecipe> recipes = om->get_available_recipes();
+	if (p_index < 0 || p_index >= recipes.size()) return;
+
+	Ref<OCRecipe> recipe = recipes[p_index];
+	if (recipe.is_null()) return;
+
+	// 1. Populate Editor Fields
+	name_edit->set_text(recipe->get_dish_name());
+	points_spin->set_value(recipe->get_points());
+	time_spin->set_value(recipe->get_base_time());
+
+	// 2. Clear and Rebuild Ingredients rows
+	for (int i = ingredients_container->get_child_count() - 1; i >= 0; i--) {
+		Node *child = ingredients_container->get_child(i);
+		ingredients_container->remove_child(child);
+		child->queue_free();
+	}
+
+	const std::vector<OCRecipeRequirement> &reqs = recipe->get_requirements();
+	for (const auto &req : reqs) {
+		HBoxContainer *row = add_hbox(ingredients_container, "IngredientRow", 10);
+		OptionButton *type_opt = add_option_button(row, "Type");
+		type_opt->set_h_size_flags(SIZE_EXPAND_FILL);
+
+		// Get available items from inventory
+		Dictionary inv = om->get_inventory_node()->get_items();
+		Array keys = inv.keys();
+		int selected_type_idx = -1;
+		for (int k = 0; k < keys.size(); k++) {
+			String key = keys[k];
+			type_opt->add_item(key, k);
+			if (key == req.type) selected_type_idx = k;
+		}
+		if (selected_type_idx != -1) type_opt->select(selected_type_idx);
+
+		OptionButton *state_opt = add_option_button(row, "State");
+		state_opt->add_item("RAW", 0);
+		state_opt->add_item("CHOPPED", 1);
+		state_opt->add_item("COOKED", 2);
+		state_opt->add_item("BLENDED", 3);
+		state_opt->add_item("FROZEN", 4);
+		state_opt->add_item("BURNT", 5);
+		state_opt->select(req.state);
+
+		add_button(row, "X", Callable(row, "queue_free"), "DelBtn");
+	}
+
+	// 3. Switch to Recipe tab (Index 0)
+	if (admin_tabs) {
+		admin_tabs->set_current_tab(0);
+	}
+}
+
+void OCRecipeEditorUI::_on_delete_recipe_pressed(int p_index) {
+	OvercookedManager *om = OvercookedManager::get_singleton();
+	if (om) {
+		om->delete_recipe(p_index);
+		rebuild_menu_ui();
+	}
 }
 
 } // namespace godot

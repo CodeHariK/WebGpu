@@ -50,9 +50,9 @@ public:
 	Panel *add_panel(Node *p_parent, const String &p_name, LayoutPreset p_preset, const Vector2 &p_min_size);
 	PanelContainer *add_panel_container(Node *p_parent, const String &p_name, LayoutPreset p_preset);
 	Button *add_button(Node *p_parent, const String &p_text, const Callable &p_callback, const String &p_name = "");
-	HBoxContainer *add_hbox(Node *p_parent, const String &p_name);
+	HBoxContainer *add_hbox(Node *p_parent, const String &p_name, int p_separation = 0);
 	ScrollContainer *add_scroll(Node *p_parent, const String &p_name);
-	VBoxContainer *add_vbox(Node *p_parent, const String &p_name);
+	VBoxContainer *add_vbox(Node *p_parent, const String &p_name, int p_separation = 0);
 	Label *add_label(Node *p_parent, const String &p_text, const String &p_name = "");
 	ProgressBar *add_progress_bar(Node *p_parent, const String &p_name = "");
 	LineEdit *add_line_edit(Node *p_parent, const String &p_placeholder = "", const String &p_name = "");
