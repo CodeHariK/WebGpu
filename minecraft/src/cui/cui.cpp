@@ -6,6 +6,7 @@
 #include <godot_cpp/classes/accept_dialog.hpp>
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/canvas_layer.hpp>
+#include <godot_cpp/classes/container.hpp>
 #include <godot_cpp/classes/h_box_container.hpp>
 #include <godot_cpp/classes/h_slider.hpp>
 #include <godot_cpp/classes/label.hpp>
@@ -87,34 +88,31 @@ Panel *CUI::add_panel(Node *p_parent, const String &p_name, LayoutPreset p_prese
 		add_child(panel);
 	}
 
-	// Professional centering logic
-	panel->set("layout_mode", 1); // ANCHORS
-	panel->set_anchors_and_offsets_preset(p_preset);
-	
-	// Set Grow Direction to BOTH so it expands from the anchor point
-	panel->set_h_grow_direction(Control::GROW_DIRECTION_BOTH);
-	panel->set_v_grow_direction(Control::GROW_DIRECTION_BOTH);
-
-	if (p_min_size != Vector2(0, 0)) {
-		panel->set_size(p_min_size);
-		if (p_preset == PRESET_CENTER) {
-			float offset_x = p_min_size.x * 0.5f;
-			float offset_y = p_min_size.y * 0.5f;
-			panel->set_offset(Side::SIDE_LEFT, -offset_x);
-			panel->set_offset(Side::SIDE_TOP, -offset_y);
-			panel->set_offset(Side::SIDE_RIGHT, offset_x);
-			panel->set_offset(Side::SIDE_BOTTOM, offset_y);
-		}
-	} else if (p_preset == PRESET_CENTER) {
-		// If no size provided, ensure it starts at the center point with 0 offsets
-		panel->set_offset(Side::SIDE_LEFT, 0);
-		panel->set_offset(Side::SIDE_TOP, 0);
-		panel->set_offset(Side::SIDE_RIGHT, 0);
-		panel->set_offset(Side::SIDE_BOTTOM, 0);
-	}
-
 	panel->set_mouse_filter(Control::MOUSE_FILTER_STOP);
 	elements[p_name] = panel;
+
+	// Only use anchors if NOT in a container
+	if (!Object::cast_to<Container>(p_parent)) {
+		panel->set("layout_mode", 1); // ANCHORS
+		panel->set_anchors_and_offsets_preset(p_preset);
+		panel->set_h_grow_direction(Control::GROW_DIRECTION_BOTH);
+		panel->set_v_grow_direction(Control::GROW_DIRECTION_BOTH);
+		
+		if (p_min_size != Vector2(0, 0)) {
+			panel->set_size(p_min_size);
+			if (p_preset == PRESET_CENTER) {
+				float offset_x = p_min_size.x * 0.5f;
+				float offset_y = p_min_size.y * 0.5f;
+				panel->set_offset(Side::SIDE_LEFT, -offset_x);
+				panel->set_offset(Side::SIDE_TOP, -offset_y);
+				panel->set_offset(Side::SIDE_RIGHT, offset_x);
+				panel->set_offset(Side::SIDE_BOTTOM, offset_y);
+			}
+		}
+	} else {
+		panel->set_custom_minimum_size(p_min_size);
+	}
+
 	return panel;
 }
 
@@ -127,21 +125,23 @@ PanelContainer *CUI::add_panel_container(Node *p_parent, const String &p_name, L
 		add_child(panel);
 	}
 
-	// Centering logic for auto-sizing container
-	panel->set("layout_mode", 1); // ANCHORS
-	panel->set_anchors_preset(p_preset);
-	panel->set_h_grow_direction(Control::GROW_DIRECTION_BOTH);
-	panel->set_v_grow_direction(Control::GROW_DIRECTION_BOTH);
-
-	if (p_preset == PRESET_CENTER) {
-		panel->set_offset(Side::SIDE_LEFT, 0);
-		panel->set_offset(Side::SIDE_TOP, 0);
-		panel->set_offset(Side::SIDE_RIGHT, 0);
-		panel->set_offset(Side::SIDE_BOTTOM, 0);
-	}
-
 	panel->set_mouse_filter(Control::MOUSE_FILTER_STOP);
 	elements[p_name] = panel;
+
+	if (!Object::cast_to<Container>(p_parent)) {
+		panel->set("layout_mode", 1); // ANCHORS
+		panel->set_anchors_preset(p_preset);
+		panel->set_h_grow_direction(Control::GROW_DIRECTION_BOTH);
+		panel->set_v_grow_direction(Control::GROW_DIRECTION_BOTH);
+
+		if (p_preset == PRESET_CENTER) {
+			panel->set_offset(Side::SIDE_LEFT, 0);
+			panel->set_offset(Side::SIDE_TOP, 0);
+			panel->set_offset(Side::SIDE_RIGHT, 0);
+			panel->set_offset(Side::SIDE_BOTTOM, 0);
+		}
+	}
+
 	return panel;
 }
 
@@ -164,7 +164,7 @@ Button *CUI::add_button(Node *p_parent, const String &p_text, const Callable &p_
 	return button;
 }
 
-HBoxContainer *CUI::add_hbox(Node *p_parent, const String &p_name) {
+HBoxContainer *CUI::add_hbox(Node *p_parent, const String &p_name, int p_separation) {
 	HBoxContainer *hbox = memnew(HBoxContainer);
 	hbox->set_name(p_name);
 	if (p_parent) {
@@ -174,6 +174,15 @@ HBoxContainer *CUI::add_hbox(Node *p_parent, const String &p_name) {
 	}
 	hbox->set_mouse_filter(Control::MOUSE_FILTER_STOP);
 	elements[p_name] = hbox;
+
+	if (p_separation > 0) {
+		hbox->add_theme_constant_override("separation", p_separation);
+	}
+
+	if (!Object::cast_to<Container>(p_parent)) {
+		hbox->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	}
+
 	return hbox;
 }
 
@@ -190,7 +199,7 @@ ScrollContainer *CUI::add_scroll(Node *p_parent, const String &p_name) {
 	return scroll;
 }
 
-VBoxContainer *CUI::add_vbox(Node *p_parent, const String &p_name) {
+VBoxContainer *CUI::add_vbox(Node *p_parent, const String &p_name, int p_separation) {
 	VBoxContainer *vbox = memnew(VBoxContainer);
 	vbox->set_name(p_name);
 	if (p_parent) {
@@ -198,7 +207,15 @@ VBoxContainer *CUI::add_vbox(Node *p_parent, const String &p_name) {
 	} else {
 		add_child(vbox);
 	}
-	vbox->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+
+	if (p_separation > 0) {
+		vbox->add_theme_constant_override("separation", p_separation);
+	}
+
+	if (!Object::cast_to<Container>(p_parent)) {
+		vbox->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	}
+
 	elements[p_name] = vbox;
 	return vbox;
 }
