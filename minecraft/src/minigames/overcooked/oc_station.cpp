@@ -3,8 +3,13 @@
 #include "oc_ingredient.h"
 #include "oc_manager.h"
 #include "oc_plate.h"
+#include <godot_cpp/classes/box_mesh.hpp>
+#include <godot_cpp/classes/box_shape3d.hpp>
+#include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/marker3d.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -45,6 +50,50 @@ void OCStation::_ready() {
 	om = OvercookedManager::get_singleton();
 	if (om) {
 		om->register_station(this);
+	}
+
+	// Default Visuals if none exist
+	if (find_child("MeshInstance3D", true, false) == nullptr) {
+		MeshInstance3D *mesh = memnew(MeshInstance3D);
+		BoxMesh *bmesh = memnew(BoxMesh);
+		bmesh->set_size(Vector3(1, 0.8, 1));
+		mesh->set_mesh(bmesh);
+		mesh->set_position(Vector3(0, 0.4, 0));
+		add_child(mesh);
+
+		// Color based on type
+		StandardMaterial3D *mat = memnew(StandardMaterial3D);
+		if (station_type == TYPE_CUTTING)
+			mat->set_albedo(Color(0.2, 0.8, 0.2));
+		else if (station_type == TYPE_COOKING)
+			mat->set_albedo(Color(0.8, 0.2, 0.2));
+		else if (station_type == TYPE_CRATE)
+			mat->set_albedo(Color(0.2, 0.2, 0.8));
+		else if (station_type == TYPE_DELIVERY)
+			mat->set_albedo(Color(0.8, 0.8, 0.2));
+		else if (station_type == TYPE_TRASH)
+			mat->set_albedo(Color(0.3, 0.3, 0.3));
+		else if (station_type == TYPE_COUNTER)
+			mat->set_albedo(Color(0.5, 0.4, 0.3));
+		mesh->set_material_override(mat);
+	}
+
+	if (find_child("CollisionShape3D", true, false) == nullptr) {
+		CollisionShape3D *col = memnew(CollisionShape3D);
+		BoxShape3D *shape = memnew(BoxShape3D);
+		shape->set_size(Vector3(1, 0.8, 1));
+		col->set_shape(shape);
+		col->set_position(Vector3(0, 0.4, 0));
+		add_child(col);
+	}
+
+	// Default Steps
+	if (steps.empty()) {
+		if (station_type == TYPE_CUTTING) {
+			add_step(INGREDIENT_STATE_RAW, INGREDIENT_STATE_CHOPPED, 0.25f, false, PROCESS_CUT);
+		} else if (station_type == TYPE_COOKING) {
+			add_step(INGREDIENT_STATE_CHOPPED, INGREDIENT_STATE_COOKED, 0.1f, true, PROCESS_COOK);
+		}
 	}
 
 	// Look for a specific slot to place items
@@ -199,20 +248,13 @@ void OCStation::place_item(Interactable *item) {
 	}
 
 	held_item = item;
-	update_held_item_position();
+	if (held_item) {
+		held_item->attach_to(item_slot);
+	}
 
 	// Mark as "picked up" and freeze so it doesn't fall through the station
 	held_item->set_is_picked_up(true);
 	held_item->set_freeze_enabled(true);
-}
-
-void OCStation::update_held_item_position() {
-	if (!held_item || !item_slot)
-		return;
-
-	held_item->reparent(item_slot);
-	held_item->set_position(Vector3(0, 0, 0));
-	held_item->set_rotation(Vector3(0, 0, 0));
 }
 
 Interactable *OCStation::take_item() {

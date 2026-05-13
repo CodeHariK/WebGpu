@@ -27,6 +27,7 @@ public:
 	OCIngredient();
 	~OCIngredient();
 
+	void _enter_tree() override;
 	void _ready() override;
 	void _exit_tree() override;
 	void _process(double delta) override;

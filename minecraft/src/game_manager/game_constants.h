@@ -10,22 +10,25 @@ namespace godot {
  * Map to Godot's 32-bit collision layer system.
  * Usage: layer = LAYER_TERRAIN | LAYER_OBJECTS;
  */
-enum CollisionLayer : uint32_t {
-	LAYER_NONE = 0,
-	LAYER_TERRAIN = 1 << 0,  // Layer 1
-	LAYER_PLAYER = 1 << 1,   // Layer 2
-	LAYER_ENEMY = 1 << 2,    // Layer 3
-	LAYER_OBJECTS = 1 << 3,  // Layer 4 (Stations, Ingredients, Interactables)
-	LAYER_CORNERS = 1 << 5,  // Layer 6 (MC Grid Debug)
-	LAYER_CELLS = 1 << 6     // Layer 7 (MC Grid Dual)
+enum CollisionLayer : uint8_t {
+	LAYER_TERRAIN = 1, //
+	LAYER_PLAYER = 2, //
+	LAYER_ENEMY = 3, //
+	LAYER_OBJECTS = 4, // Layer 4 (Stations, Ingredients, Interactables)
+	LAYER_CORNERS = 5, // Layer 6 (MC Grid Debug)
+	LAYER_CELLS = 6 // Layer 7 (MC Grid Dual)
 };
+
+inline uint32_t toLayer(CollisionLayer layer) {
+	return 1 << (static_cast<uint32_t>(layer) - 1);
+}
 
 /**
  * @brief Interaction Constants
  */
 namespace InteractionDefaults {
 const float RANGE = 4.0f;
-const uint32_t MASK = LAYER_OBJECTS | LAYER_TERRAIN; // We might want to "hit" terrain to drop things
+inline const uint32_t MASK = toLayer(LAYER_OBJECTS) | toLayer(LAYER_TERRAIN); // We might want to "hit" terrain to drop things
 } // namespace InteractionDefaults
 
 } // namespace godot

@@ -164,12 +164,13 @@ void OCInteractor::grab_or_drop() {
 		OCStation *station = om->get_closest_station(my_pos, interaction_range);
 		if (station && station->has_item()) {
 			UtilityFunctions::print("OCInteractor: Grabbing from station: ", station->get_name());
-			held_item = station->take_item();
-			held_item->pickup(Object::cast_to<Node3D>(get_parent()));
-			held_item->reparent(hand_marker);
-			held_item->set_position(Vector3(0, 0, 0));
-			held_item->set_rotation(Vector3(0, 0, 0));
-			return;
+			Interactable *item = station->take_item();
+			if (item) {
+				held_item = item;
+				held_item->pickup(Object::cast_to<Node3D>(get_parent()));
+				held_item->attach_to(hand_marker);
+				return;
+			}
 		}
 
 		// 2. Otherwise try to grab a loose ingredient
@@ -178,9 +179,7 @@ void OCInteractor::grab_or_drop() {
 			UtilityFunctions::print("OCInteractor: Grabbing loose ingredient: ", ing->get_name());
 			held_item = ing;
 			held_item->pickup(Object::cast_to<Node3D>(get_parent()));
-			held_item->reparent(hand_marker);
-			held_item->set_position(Vector3(0, 0, 0));
-			held_item->set_rotation(Vector3(0, 0, 0));
+			held_item->attach_to(hand_marker);
 		}
 	}
 }

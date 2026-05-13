@@ -25,7 +25,6 @@ protected:
 	Interactable *held_item = nullptr;
 	Node3D *item_slot = nullptr;
 
-	void update_held_item_position();
 	void _process_ingredient(OCIngredient *p_ingredient, float p_delta);
 	bool _interact_ingredient(OCIngredient *p_ingredient);
 

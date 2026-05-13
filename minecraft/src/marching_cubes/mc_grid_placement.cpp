@@ -61,7 +61,7 @@ void MCGrid::add_placed_object(const Vector3i &p_dual_grid_pos, const Vector3i &
 	// Collision instantiation
 	StaticBody3D *sb = MCPhysics::create_static_box_collider(
 			mi,
-			LAYER_OBJECTS,
+			toLayer(LAYER_OBJECTS),
 			Vector3(p_size));
 
 	obj.visual_node = mi;

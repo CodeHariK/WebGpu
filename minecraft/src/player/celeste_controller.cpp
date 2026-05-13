@@ -2,6 +2,7 @@
 #include "../camera/camera.h"
 #include "../debug_draw/debug_manager.h"
 #include "../enemy/enemy_manager.h"
+#include "../game_manager/game_constants.h"
 #include "../game_manager/game_manager.h"
 #include "../game_manager/player_input.h"
 #include "../utils/raycast/mc_raycast.h"
@@ -71,6 +72,9 @@ void CelesteController::_ready() {
 	}
 
 	_update_jump_math();
+
+	set_collision_layer(toLayer(LAYER_PLAYER));
+	set_collision_mask(toLayer(LAYER_TERRAIN) | toLayer(LAYER_PLAYER) | toLayer(LAYER_ENEMY) | toLayer(LAYER_OBJECTS));
 
 	// Initialize HSM States
 	grounded_state = new CelesteGroundedState(this, nullptr);

@@ -44,7 +44,7 @@ void MCGrid::set_corner_collision_enabled(bool p_enabled) {
 		return;
 	}
 
-	uint32_t layer = p_enabled ? LAYER_CORNERS : 0;
+	uint32_t layer = p_enabled ? toLayer(LAYER_CORNERS) : 0;
 
 	TypedArray<Node> children = debug_corners_container->get_children();
 	for (int i = 0; i < children.size(); i++) {
@@ -56,7 +56,7 @@ void MCGrid::set_corner_collision_enabled(bool p_enabled) {
 		TypedArray<Node> sub_children = child->get_children();
 		for (int j = 0; j < sub_children.size(); j++) {
 			StaticBody3D *sb = Object::cast_to<StaticBody3D>(sub_children[j]);
-			if (sb && (sb->get_collision_layer() == LAYER_CORNERS || sb->get_collision_layer() == 0)) {
+			if (sb && (sb->get_collision_layer() == toLayer(LAYER_CORNERS) || sb->get_collision_layer() == 0)) {
 				sb->set_collision_layer(layer);
 			}
 		}
@@ -126,7 +126,7 @@ int MCGrid::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_box_m
 					if (has_inactive) {
 						MCPhysics::create_static_box_collider(
 								mi,
-								LAYER_CORNERS,
+								toLayer(LAYER_CORNERS),
 								Vector3(1.0, 1.0, 1.0));
 					}
 				} else {
@@ -204,7 +204,7 @@ void MCGrid::_update_debug_at(int gx, int gy, int gz) {
 	if (state) {
 		mi->set_material_override(_debug_mat_red);
 		if (has_inactive) {
-			MCPhysics::create_static_box_collider(mi, LAYER_CORNERS, Vector3(1.0, 1.0, 1.0));
+			MCPhysics::create_static_box_collider(mi, toLayer(LAYER_CORNERS), Vector3(1.0, 1.0, 1.0));
 		}
 	} else {
 		mi->set_material_override(_debug_mat_blue);

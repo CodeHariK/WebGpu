@@ -36,4 +36,15 @@ bool Interactable::get_is_picked_up() const { return is_picked_up; }
 void Interactable::set_current_owner(Node3D *p_owner) { current_owner = p_owner; }
 Node3D *Interactable::get_current_owner() const { return current_owner; }
 
+void Interactable::attach_to(Node3D *p_parent) {
+	if (!p_parent) {
+		return;
+	}
+	if (get_parent() != p_parent) {
+		reparent(p_parent);
+	}
+	set_position(Vector3(0, 0, 0));
+	set_rotation(Vector3(0, 0, 0));
+}
+
 } // namespace godot

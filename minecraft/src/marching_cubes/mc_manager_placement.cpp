@@ -60,7 +60,7 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 		}
 	}
 
-	uint32_t mask = LAYER_OBJECTS | LAYER_CORNERS;
+	uint32_t mask = toLayer(LAYER_OBJECTS) | toLayer(LAYER_CORNERS);
 
 	MCRaycastHit hit = raycast_from_event(this, p_event, mask, 512, exclude);
 	if (hit.is_hit) {
@@ -74,7 +74,7 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 
 		// Identify if we hit a placed object (Layer 4)
 		CollisionObject3D *co = Object::cast_to<CollisionObject3D>(collider_node);
-		if (co && co->get_collision_layer() & LAYER_OBJECTS) {
+		if (co && co->get_collision_layer() & toLayer(LAYER_OBJECTS)) {
 			target_object_node = Object::cast_to<MeshInstance3D>(collider_node->get_parent());
 		}
 

@@ -32,6 +32,8 @@ public:
 
 	void set_current_owner(Node3D *p_owner);
 	Node3D *get_current_owner() const;
+
+	void attach_to(Node3D *p_parent);
 };
 
 } // namespace godot

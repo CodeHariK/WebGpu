@@ -482,7 +482,7 @@ mesh = SubResource("CapsuleMesh_ogdk4")
 
 [node name="Ball" type="RigidBody3D" parent="Ball" unique_id=1276213156]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 2, -13)
-collision_layer = 2
+collision_layer = 64
 collision_mask = 3
 mass = 0.1
 
