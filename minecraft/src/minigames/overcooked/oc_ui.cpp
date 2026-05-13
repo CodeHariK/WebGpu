@@ -96,7 +96,7 @@ void OCOrderUI::rebuild_ui() {
 		HBoxContainer *header = add_hbox(row_vbox, order_id + "_Header", 10);
 
 		add_label(header, order->get_dish_name(), order_id + "_Label")->set_h_size_flags(Control::SIZE_EXPAND_FILL);
-		
+
 		// Add "X" button to cancel order
 		Button *cancel_btn = add_button(header, "X", Callable(this, "_on_cancel_order_pressed").bind(i), "CancelBtn");
 		cancel_btn->set_custom_minimum_size(Vector2(20, 20));
@@ -142,7 +142,7 @@ void OCRecipeEditorUI::_ready() {
 	VBoxContainer *main_vbox = add_vbox(main_panel, "MainVBox");
 
 	add_label(main_vbox, "ADMIN CONSOLE", "Title");
- 
+
 	admin_tabs = add_tab_container(main_vbox, "AdminTabs");
 	TabContainer *tabs = admin_tabs;
 	tabs->set_v_size_flags(SIZE_EXPAND_FILL);
@@ -214,9 +214,8 @@ void OCRecipeEditorUI::rebuild_inventory_ui() {
 
 		HBoxContainer *row = add_hbox(inventory_container, "InventoryRow");
 
-		LineEdit *name_edit_row = add_line_edit(row, name, "ItemName");
-		name_edit_row->set_text(name);
-		name_edit_row->set_h_size_flags(SIZE_EXPAND_FILL);
+		Label *name_label = add_label(row, name, "ItemName");
+		name_label->set_h_size_flags(SIZE_EXPAND_FILL);
 
 		SpinBox *qty_spin = add_spin_box(row, 0, 9999, 1, qty, "ItemQty");
 
@@ -227,8 +226,11 @@ void OCRecipeEditorUI::rebuild_inventory_ui() {
 void OCRecipeEditorUI::_on_add_inventory_item_pressed() {
 	HBoxContainer *row = add_hbox(inventory_container, "InventoryRow");
 
-	LineEdit *name_edit_row = add_line_edit(row, "New Item", "ItemName");
-	name_edit_row->set_h_size_flags(SIZE_EXPAND_FILL);
+	OptionButton *type_opt = add_option_button(row, "ItemName");
+	type_opt->set_h_size_flags(SIZE_EXPAND_FILL);
+	for (int i = 0; i < INGREDIENT_MAX; i++) {
+		type_opt->add_item(toString((IngredientType)i), i);
+	}
 
 	SpinBox *qty_spin = add_spin_box(row, 0, 9999, 1, 100, "ItemQty");
 
@@ -244,10 +246,20 @@ void OCRecipeEditorUI::_on_save_inventory_pressed() {
 	for (int i = 0; i < inventory_container->get_child_count(); i++) {
 		HBoxContainer *row = Object::cast_to<HBoxContainer>(inventory_container->get_child(i));
 		if (row) {
-			LineEdit *name_edit_row = Object::cast_to<LineEdit>(row->get_child(0));
-			SpinBox *qty_spin = Object::cast_to<SpinBox>(row->get_child(1));
-			if (name_edit_row && qty_spin) {
-				new_inv[name_edit_row->get_text()] = (int)qty_spin->get_value();
+			String name;
+			// Try Label (existing) or OptionButton (new)
+			Label *lbl = Object::cast_to<Label>(row->find_child("ItemName", false, false));
+			OptionButton *opt = Object::cast_to<OptionButton>(row->find_child("ItemName", false, false));
+			
+			if (lbl) {
+				name = lbl->get_text();
+			} else if (opt) {
+				name = opt->get_item_text(opt->get_selected());
+			}
+
+			SpinBox *qty_spin = Object::cast_to<SpinBox>(row->find_child("ItemQty", false, false));
+			if (!name.is_empty() && qty_spin) {
+				new_inv[name] = (int)qty_spin->get_value();
 			}
 		}
 	}
@@ -261,24 +273,15 @@ void OCRecipeEditorUI::_on_add_ingredient_pressed() {
 
 	OptionButton *type_opt = add_option_button(row, "Type");
 	type_opt->set_h_size_flags(SIZE_EXPAND_FILL);
-
-	Dictionary inv;
-	OvercookedManager *om = OvercookedManager::get_singleton();
-	if (om && om->get_inventory_node()) {
-		inv = om->get_inventory_node()->get_items();
+	for (int i = 0; i < INGREDIENT_MAX; i++) {
+		type_opt->add_item(toString((IngredientType)i), i);
 	}
-	Array keys = inv.keys();
-	for (int i = 0; i < keys.size(); i++) {
-		type_opt->add_item(keys[i], i);
-	}
+	type_opt->select(0);
 
 	OptionButton *state_opt = add_option_button(row, "State");
-	state_opt->add_item("RAW", 0);
-	state_opt->add_item("CHOPPED", 1);
-	state_opt->add_item("COOKED", 2);
-	state_opt->add_item("BLENDED", 3);
-	state_opt->add_item("FROZEN", 4);
-	state_opt->add_item("BURNT", 5);
+	for (int i = 0; i < INGREDIENT_STATE_MAX; i++) {
+		state_opt->add_item(toString((IngredientState)i), i);
+	}
 	state_opt->select(0);
 
 	add_button(row, "X", Callable(row, "queue_free"), "DelBtn");
@@ -305,8 +308,8 @@ void OCRecipeEditorUI::_on_save_recipe_pressed() {
 			OptionButton *state_opt = Object::cast_to<OptionButton>(row->get_child(1));
 			if (type_opt && state_opt) {
 				OCRecipeRequirement req;
-				req.type = type_opt->get_item_text(type_opt->get_selected());
-				req.state = state_opt->get_selected();
+				req.type = (IngredientType)type_opt->get_selected_id();
+				req.state = (IngredientState)state_opt->get_selected_id();
 				requirements.push_back(req);
 			}
 		}
@@ -353,7 +356,8 @@ void OCRecipeEditorUI::rebuild_menu_ui() {
 
 void OCRecipeEditorUI::_on_spawn_order_pressed(int p_index) {
 	OvercookedManager *om = OvercookedManager::get_singleton();
-	if (!om) return;
+	if (!om)
+		return;
 
 	TypedArray<OCRecipe> recipes = om->get_available_recipes();
 	if (p_index >= 0 && p_index < recipes.size()) {
@@ -365,13 +369,16 @@ void OCRecipeEditorUI::_on_spawn_order_pressed(int p_index) {
 
 void OCRecipeEditorUI::_on_edit_recipe_pressed(int p_index) {
 	OvercookedManager *om = OvercookedManager::get_singleton();
-	if (!om) return;
+	if (!om)
+		return;
 
 	TypedArray<OCRecipe> recipes = om->get_available_recipes();
-	if (p_index < 0 || p_index >= recipes.size()) return;
+	if (p_index < 0 || p_index >= recipes.size())
+		return;
 
 	Ref<OCRecipe> recipe = recipes[p_index];
-	if (recipe.is_null()) return;
+	if (recipe.is_null())
+		return;
 
 	// 1. Populate Editor Fields
 	name_edit->set_text(recipe->get_dish_name());
@@ -390,26 +397,23 @@ void OCRecipeEditorUI::_on_edit_recipe_pressed(int p_index) {
 		HBoxContainer *row = add_hbox(ingredients_container, "IngredientRow", 10);
 		OptionButton *type_opt = add_option_button(row, "Type");
 		type_opt->set_h_size_flags(SIZE_EXPAND_FILL);
-
-		// Get available items from inventory
-		Dictionary inv = om->get_inventory_node()->get_items();
-		Array keys = inv.keys();
-		int selected_type_idx = -1;
-		for (int k = 0; k < keys.size(); k++) {
-			String key = keys[k];
-			type_opt->add_item(key, k);
-			if (key == req.type) selected_type_idx = k;
+		for (int i = 0; i < INGREDIENT_MAX; i++) {
+			type_opt->add_item(toString((IngredientType)i), i);
 		}
-		if (selected_type_idx != -1) type_opt->select(selected_type_idx);
+
+		// Find index for the ID
+		for (int k = 0; k < type_opt->get_item_count(); k++) {
+			if (type_opt->get_item_id(k) == (int)req.type) {
+				type_opt->select(k);
+				break;
+			}
+		}
 
 		OptionButton *state_opt = add_option_button(row, "State");
-		state_opt->add_item("RAW", 0);
-		state_opt->add_item("CHOPPED", 1);
-		state_opt->add_item("COOKED", 2);
-		state_opt->add_item("BLENDED", 3);
-		state_opt->add_item("FROZEN", 4);
-		state_opt->add_item("BURNT", 5);
-		state_opt->select(req.state);
+		for (int i = 0; i < INGREDIENT_STATE_MAX; i++) {
+			state_opt->add_item(toString((IngredientState)i), i);
+		}
+		state_opt->select((int)req.state);
 
 		add_button(row, "X", Callable(row, "queue_free"), "DelBtn");
 	}

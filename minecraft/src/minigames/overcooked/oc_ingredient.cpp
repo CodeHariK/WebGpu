@@ -12,7 +12,7 @@ namespace godot {
 void OCIngredient::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_ingredient_type", "type"), &OCIngredient::set_ingredient_type);
 	ClassDB::bind_method(D_METHOD("get_ingredient_type"), &OCIngredient::get_ingredient_type);
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "ingredient_type"), "set_ingredient_type", "get_ingredient_type");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "ingredient_type", PROPERTY_HINT_ENUM, "Generic,Tomato,Lettuce,Onion,Bun,Cheese,Plate"), "set_ingredient_type", "get_ingredient_type");
 
 	ClassDB::bind_method(D_METHOD("set_state", "state"), &OCIngredient::set_state);
 	ClassDB::bind_method(D_METHOD("get_state"), &OCIngredient::get_state);
@@ -25,33 +25,15 @@ OCIngredient::~OCIngredient() {}
 void OCIngredient::_process(double delta) {
 	DebugManager *dm = DebugManager::get_singleton();
 	if (dm) {
-		String state_name = "RAW";
-		switch (current_state) {
-			case INGREDIENT_STATE_CHOPPED:
-				state_name = "CHOPPED";
-				break;
-			case INGREDIENT_STATE_COOKED:
-				state_name = "COOKED";
-				break;
-			case INGREDIENT_STATE_BLENDED:
-				state_name = "BLENDED";
-				break;
-			case INGREDIENT_STATE_FROZEN:
-				state_name = "FROZEN";
-				break;
-			case INGREDIENT_STATE_BURNT:
-				state_name = "BURNT";
-				break;
-			default:
-				break;
-		}
+		String state_name = toString(current_state);
+		String type_name = toString(ingredient_type);
 
 		String progress_text = "";
 		if (process_progress > 0.0f && process_progress < 1.0f) {
 			progress_text = UtilityFunctions::str(" (", (int)(process_progress * 100), "%)");
 		}
 
-		dm->draw_text("ing_" + get_name(), ingredient_type + ": " + state_name + progress_text, get_global_position() + Vector3(0, 1.6f, 0), 0.001f, Color(1, 1, 1));
+		dm->draw_text("ing_" + get_name(), type_name + ": " + state_name + progress_text, get_global_position() + Vector3(0, 1.6f, 0), 0.001f, Color(1, 1, 1));
 	}
 }
 
@@ -87,7 +69,7 @@ void OCIngredient::set_state(IngredientState p_state) {
 	update_visuals();
 }
 
-OCIngredient::IngredientState OCIngredient::get_state() const {
+IngredientState OCIngredient::get_state() const {
 	return current_state;
 }
 
@@ -100,8 +82,8 @@ float OCIngredient::get_process_progress() const {
 	return process_progress;
 }
 
-void OCIngredient::set_ingredient_type(const String &p_type) { ingredient_type = p_type; }
-String OCIngredient::get_ingredient_type() const { return ingredient_type; }
+void OCIngredient::set_ingredient_type(IngredientType p_type) { ingredient_type = p_type; }
+IngredientType OCIngredient::get_ingredient_type() const { return ingredient_type; }
 
 void OCIngredient::update_visuals() {
 	Node *raw = find_child("Raw", true, false);

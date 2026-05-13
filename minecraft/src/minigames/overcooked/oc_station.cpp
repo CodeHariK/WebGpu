@@ -18,13 +18,13 @@ void OCStation::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("take_item"), &OCStation::take_item);
 	ClassDB::bind_method(D_METHOD("has_item"), &OCStation::has_item);
 
-	BIND_ENUM_CONSTANT(TYPE_COUNTER);
-	BIND_ENUM_CONSTANT(TYPE_CUTTING);
-	BIND_ENUM_CONSTANT(TYPE_COOKING);
-	BIND_ENUM_CONSTANT(TYPE_BLENDER);
-	BIND_ENUM_CONSTANT(TYPE_CRATE);
-	BIND_ENUM_CONSTANT(TYPE_DELIVERY);
-	BIND_ENUM_CONSTANT(TYPE_TRASH);
+	ClassDB::bind_integer_constant("OCStation", "StationType", "TYPE_COUNTER", TYPE_COUNTER);
+	ClassDB::bind_integer_constant("OCStation", "StationType", "TYPE_CUTTING", TYPE_CUTTING);
+	ClassDB::bind_integer_constant("OCStation", "StationType", "TYPE_COOKING", TYPE_COOKING);
+	ClassDB::bind_integer_constant("OCStation", "StationType", "TYPE_BLENDER", TYPE_BLENDER);
+	ClassDB::bind_integer_constant("OCStation", "StationType", "TYPE_CRATE", TYPE_CRATE);
+	ClassDB::bind_integer_constant("OCStation", "StationType", "TYPE_DELIVERY", TYPE_DELIVERY);
+	ClassDB::bind_integer_constant("OCStation", "StationType", "TYPE_TRASH", TYPE_TRASH);
 }
 
 OCStation::OCStation() {}
@@ -42,7 +42,7 @@ void OCStation::_ready() {
 	Interactable::_ready();
 	set_is_interactable(true);
 
-	OvercookedManager *om = OvercookedManager::get_singleton();
+	om = OvercookedManager::get_singleton();
 	if (om) {
 		om->register_station(this);
 	}
@@ -82,18 +82,20 @@ void OCStation::_process(double delta) {
 }
 
 void OCStation::_process_ingredient(OCIngredient *ingredient, float delta) {
-	int current_state = (int)ingredient->get_state();
+	IngredientState current_state = ingredient->get_state();
 	float progress = ingredient->get_process_progress();
 
 	ProcessOperation op = PROCESS_NONE;
-	if (station_type == TYPE_COOKING) op = PROCESS_COOK;
-	else if (station_type == TYPE_BLENDER) op = PROCESS_BLEND;
+	if (station_type == TYPE_COOKING)
+		op = PROCESS_COOK;
+	else if (station_type == TYPE_BLENDER)
+		op = PROCESS_BLEND;
 
 	for (const auto &step : steps) {
 		if (step.automatic && step.input_state == current_state && step.operation == op) {
 			float new_progress = progress + (step.speed * delta);
 			if (new_progress >= 1.0f) {
-				ingredient->set_state((OCIngredient::IngredientState)step.output_state);
+				ingredient->set_state(step.output_state);
 				ingredient->set_process_progress(0.0f);
 				UtilityFunctions::print("OCStation: Auto-step complete on ", ingredient->get_name(), " -> ", step.output_state);
 			} else {
@@ -116,16 +118,17 @@ void OCStation::interact(Node3D *p_actor) {
 }
 
 bool OCStation::_interact_ingredient(OCIngredient *ingredient) {
-	int current_state = (int)ingredient->get_state();
-	
+	IngredientState current_state = ingredient->get_state();
+
 	ProcessOperation op = PROCESS_NONE;
-	if (station_type == TYPE_CUTTING) op = PROCESS_CUT;
+	if (station_type == TYPE_CUTTING)
+		op = PROCESS_CUT;
 
 	for (const auto &step : steps) {
 		if (!step.automatic && step.input_state == current_state && step.operation == op) {
 			float new_progress = ingredient->get_process_progress() + step.speed;
 			if (new_progress >= 1.0f) {
-				ingredient->set_state((OCIngredient::IngredientState)step.output_state);
+				ingredient->set_state(step.output_state);
 				ingredient->set_process_progress(0.0f);
 				UtilityFunctions::print("OCStation: Manual-step complete on ", ingredient->get_name(), " -> ", step.output_state);
 			} else {
@@ -138,16 +141,21 @@ bool OCStation::_interact_ingredient(OCIngredient *ingredient) {
 }
 
 bool OCStation::can_process(OCIngredient *ingredient) const {
-	if (!ingredient) return false;
-	
-	int current_state = (int)ingredient->get_state();
+	if (!ingredient)
+		return false;
+
+	IngredientState current_state = ingredient->get_state();
 	ProcessOperation op = PROCESS_NONE;
-	
-	if (station_type == TYPE_CUTTING) op = PROCESS_CUT;
-	else if (station_type == TYPE_COOKING) op = PROCESS_COOK;
-	else if (station_type == TYPE_BLENDER) op = PROCESS_BLEND;
-	
-	if (op == PROCESS_NONE) return false;
+
+	if (station_type == TYPE_CUTTING)
+		op = PROCESS_CUT;
+	else if (station_type == TYPE_COOKING)
+		op = PROCESS_COOK;
+	else if (station_type == TYPE_BLENDER)
+		op = PROCESS_BLEND;
+
+	if (op == PROCESS_NONE)
+		return false;
 
 	for (const auto &step : steps) {
 		if (step.input_state == current_state && step.operation == op) {
@@ -210,18 +218,16 @@ void OCStation::update_held_item_position() {
 Interactable *OCStation::take_item() {
 	// DYNAMIC CRATE LOGIC
 	if (station_type == TYPE_CRATE && !held_item) {
-		OvercookedManager *om = OvercookedManager::get_singleton();
 		if (om) {
-			PackedStringArray needed = om->get_needed_ingredients();
-			for (int i = 0; i < needed.size(); ++i) {
-				String type = needed[i];
+			std::vector<IngredientType> needed = om->get_needed_ingredients_list();
+			for (IngredientType type : needed) {
 				if (om->try_consume_inventory(type, 1)) {
 					OCIngredient *ing = om->create_ingredient(type);
 					if (ing) {
 						if (is_inside_tree()) {
 							get_tree()->get_current_scene()->add_child(ing);
 						}
-						UtilityFunctions::print("OCStation: Dynamically spawned needed ingredient: ", type);
+						UtilityFunctions::print("OCStation: Dynamically spawned needed ingredient: ", (int)type);
 						return ing;
 					}
 				}
@@ -243,10 +249,14 @@ Interactable *OCStation::take_item() {
 	return item;
 }
 
-void OCStation::set_station_type(StationType p_type) { station_type = p_type; }
-OCStation::StationType OCStation::get_station_type() const { return station_type; }
+void OCStation::set_station_type(StationType p_type) {
+	station_type = p_type;
+}
+StationType OCStation::get_station_type() const {
+	return station_type;
+}
 
-void OCStation::add_step(int p_input, int p_output, float p_speed, bool p_auto, ProcessOperation p_op) {
+void OCStation::add_step(IngredientState p_input, IngredientState p_output, float p_speed, bool p_auto, ProcessOperation p_op) {
 	steps.push_back({ p_input, p_output, p_speed, p_auto, p_op });
 }
 

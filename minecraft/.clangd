@@ -30,6 +30,9 @@ Diagnostics:
       "cppcoreguidelines-pro-bounds-constant-array-index",
       "google-readability-casting",
       "bugprone-easily-swappable-parameters",
+      "google-readability-braces-around-statements",
+      "readability-braces-around-statements",
+      "readability-use-anyofallof"
     ]
     CheckOptions:
       readability-identifier-naming.ParameterCase: camelCase

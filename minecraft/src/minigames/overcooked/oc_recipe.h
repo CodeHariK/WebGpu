@@ -1,29 +1,10 @@
 #ifndef OC_RECIPE_H
 #define OC_RECIPE_H
 
+#include "oc_types.h"
 #include <godot_cpp/classes/ref_counted.hpp>
 
 namespace godot {
-
-struct OCRecipeRequirement {
-	String type;
-	int state;
-};
-
-enum ProcessOperation {
-	PROCESS_NONE = 0,
-	PROCESS_CUT,
-	PROCESS_COOK,
-	PROCESS_BLEND
-};
-
-struct OCProcessStep {
-	int input_state;
-	int output_state;
-	float speed;
-	bool automatic;
-	ProcessOperation operation;
-};
 
 class OCRecipe : public RefCounted {
 	GDCLASS(OCRecipe, RefCounted)
