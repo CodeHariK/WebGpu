@@ -109,9 +109,9 @@ void MCManager::_update_hover_raycast() {
 
 	bool ctrl_held = Input::get_singleton()->is_key_pressed(KEY_CTRL) || Input::get_singleton()->is_key_pressed(KEY_META);
 
-	uint32_t mask = LAYER_OBJECTS | LAYER_CORNERS;
+	uint32_t mask = toLayer(LAYER_OBJECTS) | toLayer(LAYER_CORNERS);
 	if (ctrl_held && interaction_mode == MODE_TERRAIN) {
-		mask |= LAYER_TERRAIN;
+		mask |= toLayer(LAYER_TERRAIN);
 	}
 
 	MCRaycastHit hit = raycast_from_mouse(this, viewport->get_mouse_position(), mask, 1000.0f, exclude);

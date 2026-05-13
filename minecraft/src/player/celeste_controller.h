@@ -67,8 +67,8 @@ private:
 	float melee_lunge_speed = 50.0f;
 	uint32_t melee_target_layer = 4; // Layer 3 (bit 2)
 
-	float ride_height = 0.2f;
-	float min_ride_height = 0.2f;
+	float ride_height = 0.1f;
+	float min_ride_height = 0.1f;
 	float max_ride_height = 1.2f;
 	float ride_height_speed = 5.0f;
 	float spring_stiffness = 800.0f;

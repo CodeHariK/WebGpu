@@ -1,10 +1,17 @@
 #include "oc_ingredient.h"
 #include "../../debug_draw/debug_manager.h"
 #include "oc_manager.h"
+#include <godot_cpp/classes/box_mesh.hpp>
+#include <godot_cpp/classes/box_shape3d.hpp>
+#include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/label3d.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
+#include <godot_cpp/classes/sphere_mesh.hpp>
+#include <godot_cpp/classes/sphere_shape3d.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -37,12 +44,60 @@ void OCIngredient::_process(double delta) {
 	}
 }
 
-void OCIngredient::_ready() {
-	Interactable::_ready();
-
+void OCIngredient::_enter_tree() {
 	om = OvercookedManager::get_singleton();
 	if (om) {
 		om->register_ingredient(this);
+	}
+}
+
+void OCIngredient::_ready() {
+	Interactable::_ready();
+
+	// Default Visuals if none exist
+	if (find_child("MeshInstance3D", true, false) == nullptr) {
+		MeshInstance3D *mesh = memnew(MeshInstance3D);
+		if (ingredient_type == INGREDIENT_PLATE) {
+			BoxMesh *pm = memnew(BoxMesh);
+			pm->set_size(Vector3(0.6, 0.1, 0.6));
+			mesh->set_mesh(pm);
+		} else {
+			SphereMesh *sm = memnew(SphereMesh);
+			sm->set_radius(0.2);
+			sm->set_height(0.4);
+			mesh->set_mesh(sm);
+		}
+		add_child(mesh);
+
+		// Color based on type
+		StandardMaterial3D *mat = memnew(StandardMaterial3D);
+		if (ingredient_type == INGREDIENT_TOMATO)
+			mat->set_albedo(Color(0.8, 0.1, 0.1));
+		else if (ingredient_type == INGREDIENT_LETTUCE)
+			mat->set_albedo(Color(0.1, 0.8, 0.1));
+		else if (ingredient_type == INGREDIENT_ONION)
+			mat->set_albedo(Color(0.9, 0.9, 0.7));
+		else if (ingredient_type == INGREDIENT_BUN)
+			mat->set_albedo(Color(0.8, 0.6, 0.3));
+		else if (ingredient_type == INGREDIENT_CHEESE)
+			mat->set_albedo(Color(1.0, 0.9, 0.2));
+		else if (ingredient_type == INGREDIENT_PLATE)
+			mat->set_albedo(Color(0.9, 0.9, 1.0));
+		mesh->set_material_override(mat);
+	}
+
+	if (find_child("CollisionShape3D", true, false) == nullptr) {
+		CollisionShape3D *col = memnew(CollisionShape3D);
+		if (ingredient_type == INGREDIENT_PLATE) {
+			BoxShape3D *bs = memnew(BoxShape3D);
+			bs->set_size(Vector3(0.6, 0.1, 0.6));
+			col->set_shape(bs);
+		} else {
+			SphereShape3D *ss = memnew(SphereShape3D);
+			ss->set_radius(0.2);
+			col->set_shape(ss);
+		}
+		add_child(col);
 	}
 
 	// Enable physics
