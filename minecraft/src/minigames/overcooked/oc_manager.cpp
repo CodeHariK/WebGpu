@@ -1,25 +1,21 @@
 #include "oc_manager.h"
-#include "oc_ingredient.h"
-#include "oc_station.h"
-#include "oc_recipe.h"
-#include "oc_ui.h"
-#include "oc_plate.h"
-#include "oc_interactor.h"
 #include "../../game_manager/game_manager.h"
-#include <godot_cpp/classes/canvas_layer.hpp>
-#include <godot_cpp/classes/input.hpp>
-#include <godot_cpp/classes/scene_tree.hpp>
+#include "oc_ingredient.h"
+#include "oc_interactor.h"
+#include "oc_plate.h"
+#include "oc_recipe.h"
+#include "oc_station.h"
 #include "oc_ui.h"
+#include <algorithm>
+#include <godot_cpp/classes/canvas_layer.hpp>
+#include <godot_cpp/classes/dir_access.hpp>
+#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
-#include <godot_cpp/classes/canvas_layer.hpp>
-#include <godot_cpp/classes/scene_tree.hpp>
-#include <godot_cpp/classes/engine.hpp>
-#include <godot_cpp/classes/file_access.hpp>
-#include <godot_cpp/classes/dir_access.hpp>
 #include <godot_cpp/classes/json.hpp>
-#include <algorithm>
+#include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -33,7 +29,8 @@ void OvercookedManager::load_recipes_from_dir() {
 	}
 
 	Ref<DirAccess> dir = DirAccess::open(recipe_dir);
-	if (dir.is_null()) return;
+	if (dir.is_null())
+		return;
 
 	dir->list_dir_begin();
 	String file_name = dir->get_next();
@@ -42,7 +39,7 @@ void OvercookedManager::load_recipes_from_dir() {
 		if (!dir->current_is_dir() && file_name.ends_with(".json")) {
 			String full_path = recipe_dir + file_name;
 			String json_string = FileAccess::get_file_as_string(full_path);
-			
+
 			Ref<JSON> json;
 			json.instantiate();
 			if (json->parse(json_string) == OK) {
@@ -59,7 +56,8 @@ void OvercookedManager::load_recipes_from_dir() {
 }
 
 void OvercookedManager::save_recipe_to_json(Ref<OCRecipe> p_recipe) {
-	if (p_recipe.is_null()) return;
+	if (p_recipe.is_null())
+		return;
 
 	if (!DirAccess::dir_exists_absolute(recipe_dir)) {
 		DirAccess::make_dir_recursive_absolute(recipe_dir);
@@ -105,10 +103,11 @@ void OvercookedManager::load_inventory() {
 	}
 
 	// Default inventory if none exists
-	inventory->add_item("Tomato", 100);
-	inventory->add_item("Lettuce", 100);
-	inventory->add_item("Onion", 100);
-	inventory->add_item("Beef", 50);
+	inventory->add_item(toString(INGREDIENT_TOMATO), 100);
+	inventory->add_item(toString(INGREDIENT_LETTUCE), 100);
+	inventory->add_item(toString(INGREDIENT_ONION), 100);
+	inventory->add_item(toString(INGREDIENT_BUN), 100);
+	inventory->add_item(toString(INGREDIENT_CHEESE), 100);
 	save_inventory();
 }
 
@@ -120,12 +119,12 @@ void OvercookedManager::save_inventory() {
 	}
 }
 
-bool OvercookedManager::has_inventory(const String &p_type, int p_amount) const {
-	return inventory->has_item(p_type, p_amount);
+bool OvercookedManager::has_inventory(IngredientType p_type, int p_amount) const {
+	return inventory->has_item(toString(p_type), p_amount);
 }
 
-bool OvercookedManager::try_consume_inventory(const String &p_type, int p_amount) {
-	if (inventory->try_consume(p_type, p_amount)) {
+bool OvercookedManager::try_consume_inventory(IngredientType p_type, int p_amount) {
+	if (inventory->try_consume(toString(p_type), p_amount)) {
 		save_inventory();
 		return true;
 	}
@@ -133,7 +132,8 @@ bool OvercookedManager::try_consume_inventory(const String &p_type, int p_amount
 }
 
 void OvercookedManager::_ready() {
-	if (Engine::get_singleton()->is_editor_hint()) return;
+	if (Engine::get_singleton()->is_editor_hint())
+		return;
 
 	singleton = this;
 
@@ -161,7 +161,8 @@ void OvercookedManager::_ready() {
 
 void OvercookedManager::initialize_ui() {
 	Node *root = get_tree()->get_current_scene();
-	if (!root) return;
+	if (!root)
+		return;
 
 	// Create a CanvasLayer to host our UI
 	CanvasLayer *cl = memnew(CanvasLayer);
@@ -186,7 +187,8 @@ void OvercookedManager::initialize_ui() {
 
 void OvercookedManager::attach_interactor_to_player() {
 	GameManager *gm = GameManager::get_singleton();
-	if (!gm) return;
+	if (!gm)
+		return;
 
 	Node3D *player = Object::cast_to<Node3D>(gm->get_celeste_controller());
 	if (!player) {
@@ -209,14 +211,13 @@ void OvercookedManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("submit_ingredient", "ingredient"), &OvercookedManager::submit_ingredient);
 	ClassDB::bind_method(D_METHOD("spawn_random_order"), &OvercookedManager::spawn_random_order);
 	ClassDB::bind_method(D_METHOD("get_score"), &OvercookedManager::get_score);
-	
+
 	ClassDB::bind_method(D_METHOD("set_available_recipes", "recipes"), &OvercookedManager::set_available_recipes);
 	ClassDB::bind_method(D_METHOD("get_available_recipes"), &OvercookedManager::get_available_recipes);
-	
+
 	ClassDB::bind_method(D_METHOD("get_inventory_node"), &OvercookedManager::get_inventory_node);
 	ClassDB::bind_method(D_METHOD("initialize_ui"), &OvercookedManager::initialize_ui);
 	ClassDB::bind_method(D_METHOD("attach_interactor_to_player"), &OvercookedManager::attach_interactor_to_player);
-	ClassDB::bind_method(D_METHOD("get_needed_ingredients"), &OvercookedManager::get_needed_ingredients);
 	ClassDB::bind_method(D_METHOD("create_ingredient"), &OvercookedManager::create_ingredient);
 	ClassDB::bind_method(D_METHOD("spawn_order", "recipe"), &OvercookedManager::spawn_order);
 	ClassDB::bind_method(D_METHOD("cancel_order", "index"), &OvercookedManager::cancel_order);
@@ -297,45 +298,47 @@ OCIngredient *OvercookedManager::get_closest_ingredient(const Vector3 &p_from, f
 	return closest;
 }
 
-PackedStringArray OvercookedManager::get_needed_ingredients() const {
-	PackedStringArray needed;
+std::vector<IngredientType> OvercookedManager::get_needed_ingredients_list() const {
+	std::vector<IngredientType> needed;
 	for (const auto &order : active_orders) {
-		if (!order.is_valid()) continue;
-		
+		if (!order.is_valid())
+			continue;
+
 		for (const auto &req : order->get_requirements()) {
-			// Add the base type (e.g., if we need Tomato_Chopped, we need a Tomato)
-			if (!needed.has(req.type)) {
-				needed.append(req.type);
+			if (std::find(needed.begin(), needed.end(), req.type) == needed.end()) {
+				needed.push_back(req.type);
 			}
 		}
 	}
 	return needed;
 }
 
-OCIngredient *OvercookedManager::create_ingredient(const String &p_type) {
+OCIngredient *OvercookedManager::create_ingredient(IngredientType p_type) {
 	OCIngredient *ing = memnew(OCIngredient);
 	ing->set_ingredient_type(p_type);
-	// In the future, we could look up a PackedScene map here for custom models
 	return ing;
 }
 
 void OvercookedManager::spawn_random_order() {
-	if (available_recipes.size() == 0) return;
+	if (available_recipes.size() == 0)
+		return;
 
 	int idx = rand() % available_recipes.size();
 	Ref<OCRecipe> template_recipe = available_recipes[idx];
-	if (!template_recipe.is_valid()) return;
+	if (!template_recipe.is_valid())
+		return;
 
 	Ref<OCRecipe> new_order = template_recipe->clone();
 	active_orders.push_back(new_order);
-	
+
 	if (order_ui) {
 		order_ui->rebuild_ui();
 	}
 }
 
 void OvercookedManager::spawn_order(Ref<OCRecipe> p_recipe) {
-	if (p_recipe.is_null()) return;
+	if (p_recipe.is_null())
+		return;
 	UtilityFunctions::print("OCManager: spawn_order called for ", p_recipe->get_dish_name());
 
 	Ref<OCRecipe> new_order = p_recipe->clone();
@@ -387,7 +390,8 @@ void OvercookedManager::delete_recipe(int p_index) {
 }
 
 void OvercookedManager::_process(double p_delta) {
-	if (Engine::get_singleton()->is_editor_hint()) return;
+	if (Engine::get_singleton()->is_editor_hint())
+		return;
 
 	// Spawn orders periodically
 	order_timer += (float)p_delta;
@@ -406,7 +410,8 @@ void OvercookedManager::_process(double p_delta) {
 		if (remaining <= 0) {
 			UtilityFunctions::print("OCManager: Order Expired: ", active_orders[i]->get_dish_name());
 			active_orders.erase(active_orders.begin() + i);
-			if (order_ui) order_ui->rebuild_ui();
+			if (order_ui)
+				order_ui->rebuild_ui();
 		}
 	}
 
@@ -417,7 +422,7 @@ void OvercookedManager::_process(double p_delta) {
 			bool is_visible = recipe_editor->is_visible();
 			recipe_editor->set_visible(!is_visible);
 			UtilityFunctions::print("OCManager: Toggled Recipe Editor via PlayerInput. Visible: ", !is_visible);
-			
+
 			// Handle mouse mode
 			if (!is_visible) { // We just made it visible
 				Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
@@ -429,12 +434,13 @@ void OvercookedManager::_process(double p_delta) {
 }
 
 bool OvercookedManager::submit_ingredient(OCIngredient *p_ing) {
-	if (!p_ing) return false;
+	if (!p_ing)
+		return false;
 
 	// Collect ingredients to check
-	std::vector<OCIngredient*> submitted_items;
+	std::vector<OCIngredient *> submitted_items;
 	OCPlate *plate = Object::cast_to<OCPlate>(p_ing);
-	
+
 	if (plate) {
 		submitted_items = plate->get_contents();
 	} else {
@@ -442,18 +448,19 @@ bool OvercookedManager::submit_ingredient(OCIngredient *p_ing) {
 	}
 
 	for (int i = 0; i < (int)active_orders.size(); i++) {
-		const auto& reqs = active_orders[i]->get_requirements();
-		
-		if (reqs.size() != submitted_items.size()) continue;
+		const auto &reqs = active_orders[i]->get_requirements();
+
+		if (reqs.size() != submitted_items.size())
+			continue;
 
 		// Matching Logic
 		std::vector<OCRecipeRequirement> remaining = reqs;
 		bool match = true;
-		
-		for (OCIngredient* item : submitted_items) {
+
+		for (OCIngredient *item : submitted_items) {
 			bool found = false;
 			for (auto it = remaining.begin(); it != remaining.end(); ++it) {
-				if (it->type == item->get_ingredient_type() && it->state == (int)item->get_state()) {
+				if (it->type == item->get_ingredient_type() && it->state == item->get_state()) {
 					remaining.erase(it);
 					found = true;
 					break;
@@ -469,12 +476,12 @@ bool OvercookedManager::submit_ingredient(OCIngredient *p_ing) {
 			// Success!
 			score += active_orders[i]->get_points();
 			UtilityFunctions::print("OCManager: Order Complete! +", active_orders[i]->get_points(), " pts. Total: ", score);
-			
+
 			active_orders.erase(active_orders.begin() + i);
-			
+
 			// Consume Ingredients from Inventory
-			for (OCIngredient* item : submitted_items) {
-				inventory->try_consume(item->get_ingredient_type(), 1);
+			for (OCIngredient *item : submitted_items) {
+				try_consume_inventory(item->get_ingredient_type(), 1);
 			}
 			save_inventory();
 

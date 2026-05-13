@@ -39,7 +39,7 @@ Dictionary OCRecipe::to_dict() const {
 	Array types;
 	Array states;
 	for (const auto &req : requirements) {
-		types.push_back(req.type);
+		types.push_back((int)req.type);
 		states.push_back((int)req.state);
 	}
 
@@ -61,8 +61,8 @@ void OCRecipe::from_dict(const Dictionary &p_dict) {
 		int count = std::min((int)types.size(), (int)states.size());
 		for (int i = 0; i < count; i++) {
 			OCRecipeRequirement req;
-			req.type = types[i];
-			req.state = (int)states[i];
+			req.type = (IngredientType)(int)types[i];
+			req.state = (IngredientState)(int)states[i];
 			requirements.push_back(req);
 		}
 	}

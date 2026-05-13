@@ -92,11 +92,11 @@ void OCInteractor::_physics_process(double delta) {
 
 			if (can_process_any) {
 				String op_name = "Process";
-				if (station->get_station_type() == OCStation::TYPE_CUTTING)
+				if (station->get_station_type() == TYPE_CUTTING)
 					op_name = "CHOP";
-				else if (station->get_station_type() == OCStation::TYPE_COOKING)
+				else if (station->get_station_type() == TYPE_COOKING)
 					op_name = "COOK";
-				else if (station->get_station_type() == OCStation::TYPE_BLENDER)
+				else if (station->get_station_type() == TYPE_BLENDER)
 					op_name = "BLEND";
 
 				prompt = "[E] to " + op_name;

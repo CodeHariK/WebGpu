@@ -6,6 +6,7 @@
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/variant/vector3.hpp>
+#include "oc_types.h"
 #include <vector>
 
 namespace godot {
@@ -59,8 +60,8 @@ public:
 	void save_inventory();
 	Inventory *get_inventory_node() const { return inventory; }
 
-	bool has_inventory(const String &p_type, int p_amount = 1) const;
-	bool try_consume_inventory(const String &p_type, int p_amount = 1);
+	bool has_inventory(IngredientType p_type, int p_amount = 1) const;
+	bool try_consume_inventory(IngredientType p_type, int p_amount = 1);
 
 	void register_station(OCStation *p_station);
 	void unregister_station(OCStation *p_station);
@@ -95,8 +96,8 @@ public:
 
 	void attach_interactor_to_player();
 	void initialize_ui();
-	PackedStringArray get_needed_ingredients() const;
-	OCIngredient *create_ingredient(const String &p_type);
+	std::vector<IngredientType> get_needed_ingredients_list() const;
+	OCIngredient *create_ingredient(IngredientType p_type);
 };
 
 } // namespace godot
