@@ -1,4 +1,7 @@
 #include "oc_plate.h"
+#include "../../debug_draw/debug_manager.h"
+#include "oc_types.h"
+#include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/marker3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -29,6 +32,23 @@ void OCPlate::_ready() {
 	}
 }
 
+void OCPlate::_process(double delta) {
+	OCIngredient::_process(delta);
+
+	DebugManager *dm = DebugManager::get_singleton();
+	if (dm && !get_is_picked_up() && !contents.empty()) {
+		String list = "Contents:\n";
+		for (auto ing : contents) {
+			if (ing) {
+				list += String(" - ") + toString(ing->get_ingredient_type()) + " (" + toString(ing->get_state()) + ")\n";
+			}
+		}
+		dm->draw_text("plate_contents_" + get_name(), list, get_global_position() + Vector3(0, 2.2f, 0), 0.001f, Color(0.8, 0.8, 1.0));
+	} else if (dm) {
+		dm->clear_text("plate_contents_" + get_name());
+	}
+}
+
 bool OCPlate::add_ingredient(OCIngredient *p_ing) {
 	if (!p_ing || p_ing == this)
 		return false;
@@ -50,8 +70,15 @@ bool OCPlate::add_ingredient(OCIngredient *p_ing) {
 	p_ing->set_freeze_enabled(true);
 	p_ing->set_is_interactable(false);
 
+	// NEW: Disable collision shapes to prevent physics glitches with the parent plate
+	TypedArray<Node> shapes = p_ing->find_children("*", "CollisionShape3D", true, false);
+	for (int i = 0; i < shapes.size(); i++) {
+		CollisionShape3D *col = Object::cast_to<CollisionShape3D>(shapes[i]);
+		if (col) col->set_disabled(true);
+	}
+
 	contents.push_back(p_ing);
-	UtilityFunctions::print("Plate: Added ", p_ing->get_ingredient_type());
+	UtilityFunctions::print("Plate: Added ", toString(p_ing->get_ingredient_type()));
 
 	return true;
 }

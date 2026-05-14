@@ -71,6 +71,19 @@ enum StationType : uint8_t {
 	TYPE_TRASH
 };
 
+inline const char *get_station_operation_name(StationType p_type) {
+	switch (p_type) {
+		case TYPE_CUTTING:
+			return "CHOP";
+		case TYPE_COOKING:
+			return "COOK";
+		case TYPE_BLENDER:
+			return "BLEND";
+		default:
+			return "Process";
+	}
+}
+
 } // namespace godot
 
 #endif // OC_TYPES_H

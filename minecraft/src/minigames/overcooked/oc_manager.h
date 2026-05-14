@@ -32,6 +32,7 @@ private:
 	std::vector<Ref<OCRecipe>> active_orders;
 
 	int score = 0;
+	int last_revenue = 0;
 	float order_timer = 0.0f;
 	float next_order_interval = 15.0f;
 
@@ -83,6 +84,7 @@ public:
 	void delete_recipe(int p_index);
 
 	int get_score() const { return score; }
+	int get_last_revenue() const { return last_revenue; }
 
 	void set_available_recipes(const TypedArray<OCRecipe> &p_recipes) { available_recipes = p_recipes; }
 	TypedArray<OCRecipe> get_available_recipes() const { return available_recipes; }

@@ -11,6 +11,9 @@
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include "../../game_manager/game_manager.h"
+#include "../../game_manager/player_input.h"
+#include <godot_cpp/classes/character_body3d.hpp>
 
 namespace godot {
 
@@ -90,7 +93,7 @@ void OCStation::_ready() {
 	// Default Steps
 	if (steps.empty()) {
 		if (station_type == TYPE_CUTTING) {
-			add_step(INGREDIENT_STATE_RAW, INGREDIENT_STATE_CHOPPED, 0.25f, false, PROCESS_CUT);
+			add_step(INGREDIENT_STATE_RAW, INGREDIENT_STATE_CHOPPED, 0.25f, true, PROCESS_CUT);
 		} else if (station_type == TYPE_COOKING) {
 			add_step(INGREDIENT_STATE_CHOPPED, INGREDIENT_STATE_COOKED, 0.1f, true, PROCESS_COOK);
 		}
@@ -108,6 +111,19 @@ void OCStation::_ready() {
 	if (item_slot == nullptr) {
 		item_slot = this;
 	}
+
+	// NEW: Check if we already have an interactable child at start (e.g. from .tscn)
+	// We do this after item_slot is initialized so place_item can use it.
+	for (int i = 0; i < get_child_count(); ++i) {
+		Interactable *child = Object::cast_to<Interactable>(get_child(i));
+		if (child && child->is_inside_tree() && !child->get_is_picked_up()) {
+			// Skip internal children if they happen to be interactable
+			if (child->get_name() == String("ItemSlot")) continue;
+			
+			place_item(child);
+			break; // Only one item per station
+		}
+	}
 }
 
 void OCStation::_process(double delta) {
@@ -120,12 +136,42 @@ void OCStation::_process(double delta) {
 		dm->draw_text("station_" + get_name(), label, get_global_position() + Vector3(0, 3.0f, 0), 0.001f, Color(1, 1, 1));
 	}
 
-	// AUTOMATIC PROCESSING (Stove/Blender)
-	if ((station_type == TYPE_COOKING || station_type == TYPE_BLENDER) && held_item) {
-		// 1. Try to process the held item itself
-		OCIngredient *main_ing = Object::cast_to<OCIngredient>(held_item);
-		if (main_ing) {
-			_process_ingredient(main_ing, delta);
+	// AUTOMATIC PROCESSING
+	if (held_item) {
+		bool can_process_now = false;
+		if (station_type == TYPE_COOKING || station_type == TYPE_BLENDER) {
+			// Cooking/Blender always process automatically
+			can_process_now = true;
+		} else if (station_type == TYPE_CUTTING) {
+			// Cutting requires player presence AND they shouldn't be moving much
+			GameManager *gm = GameManager::get_singleton();
+			if (gm) {
+				Node3D *player = Object::cast_to<Node3D>(gm->get_active_target());
+				if (player) {
+					float dist = get_global_position().distance_to(player->get_global_position());
+					if (dist < 2.5f) { // Interaction range
+						// Check if player is moving
+						bool is_moving = false;
+						// Try to cast to CharacterBody3D to check velocity
+						CharacterBody3D *body = Object::cast_to<CharacterBody3D>(player);
+						if (body) {
+							is_moving = body->get_velocity().length() > 0.1f;
+						}
+
+						if (!is_moving) {
+							can_process_now = true;
+						}
+					}
+				}
+			}
+		}
+
+		if (can_process_now) {
+			OCIngredient *main_ing = Object::cast_to<OCIngredient>(held_item);
+			// Plates should never be processed (chopped/cooked/etc)
+			if (main_ing && !Object::cast_to<OCPlate>(main_ing)) {
+				_process_ingredient(main_ing, delta);
+			}
 		}
 	}
 }
@@ -135,7 +181,9 @@ void OCStation::_process_ingredient(OCIngredient *ingredient, float delta) {
 	float progress = ingredient->get_process_progress();
 
 	ProcessOperation op = PROCESS_NONE;
-	if (station_type == TYPE_COOKING)
+	if (station_type == TYPE_CUTTING)
+		op = PROCESS_CUT;
+	else if (station_type == TYPE_COOKING)
 		op = PROCESS_COOK;
 	else if (station_type == TYPE_BLENDER)
 		op = PROCESS_BLEND;
@@ -158,9 +206,9 @@ void OCStation::_process_ingredient(OCIngredient *ingredient, float delta) {
 void OCStation::interact(Node3D *p_actor) {
 	// MANUAL PROCESSING (Cutting Board)
 	if (station_type == TYPE_CUTTING && held_item) {
-		// 1. Try to process the held item itself
 		OCIngredient *main_ing = Object::cast_to<OCIngredient>(held_item);
-		if (main_ing) {
+		// Plates should never be processed
+		if (main_ing && !Object::cast_to<OCPlate>(main_ing)) {
 			_interact_ingredient(main_ing);
 		}
 	}
@@ -190,7 +238,7 @@ bool OCStation::_interact_ingredient(OCIngredient *ingredient) {
 }
 
 bool OCStation::can_process(OCIngredient *ingredient) const {
-	if (!ingredient)
+	if (!ingredient || Object::cast_to<OCPlate>(ingredient))
 		return false;
 
 	IngredientState current_state = ingredient->get_state();
@@ -289,6 +337,16 @@ Interactable *OCStation::take_item() {
 	// Allow it to be picked up by the player and re-enable physics
 	item->set_is_picked_up(false);
 	item->set_freeze_enabled(false);
+
+	// NEW: Auto-refill from children (allows stacking items in .tscn)
+	for (int i = 0; i < get_child_count(); ++i) {
+		Interactable *child = Object::cast_to<Interactable>(get_child(i));
+		if (child && child->is_inside_tree() && !child->get_is_picked_up() && child != item_slot) {
+			place_item(child);
+			break; 
+		}
+	}
+
 	return item;
 }
 
