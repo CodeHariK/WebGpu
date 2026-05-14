@@ -70,6 +70,7 @@ public:
 	void unregister_ingredient(OCIngredient *p_ing);
 
 	OCStation *get_closest_station(const Vector3 &p_from, float p_max_dist);
+	OCStation *get_closest_station_for_ingredient(const Vector3 &p_from, OCIngredient *p_ing);
 	OCIngredient *get_closest_ingredient(const Vector3 &p_from, float p_max_dist);
 
 	virtual void _ready() override;

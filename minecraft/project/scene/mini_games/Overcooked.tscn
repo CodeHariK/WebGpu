@@ -68,28 +68,27 @@ pos_smoothing_enabled = false
 [node name="OvercookedManager" type="OvercookedManager" parent="Systems" unique_id=74387989]
 
 [node name="Stations" type="Node3D" parent="." unique_id=1132647840]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
 
-[node name="Crate_Tomato" type="OCStation" parent="Stations"]
+[node name="Crate_Tomato" type="OCStation" parent="Stations" unique_id=1225414973]
+station_type = 4
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 0, -3)
-station_type = 4
 
-[node name="Crate_Bun" type="OCStation" parent="Stations"]
+[node name="Crate_Bun" type="OCStation" parent="Stations" unique_id=53442150]
+station_type = 4
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0, -3)
-station_type = 4
 
-[node name="CuttingBoard" type="OCStation" parent="Stations"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3)
+[node name="CuttingBoard" type="OCStation" parent="Stations" unique_id=2031323295]
 station_type = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3)
 
-[node name="Stove" type="OCStation" parent="Stations"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0, -3)
+[node name="Stove" type="OCStation" parent="Stations" unique_id=1815229516]
 station_type = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0, -3)
 
-[node name="DeliveryStation" type="OCStation" parent="Stations"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, -3)
+[node name="DeliveryStation" type="OCStation" parent="Stations" unique_id=507135455]
 station_type = 5
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, -3)
 
-[node name="TrashBin" type="OCStation" parent="Stations"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0, -3)
+[node name="TrashBin" type="OCStation" parent="Stations" unique_id=918082687]
 station_type = 6
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0, -3)
