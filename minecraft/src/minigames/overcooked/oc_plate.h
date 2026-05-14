@@ -21,6 +21,7 @@ public:
 	~OCPlate();
 
 	void _ready() override;
+	void _process(double delta) override;
 	
 	bool add_ingredient(OCIngredient* p_ing);
 	const std::vector<OCIngredient*>& get_contents() const { return contents; }

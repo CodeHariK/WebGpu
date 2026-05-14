@@ -5,6 +5,7 @@
 #include "oc_manager.h"
 #include "oc_plate.h"
 #include "oc_station.h"
+#include <godot_cpp/classes/character_body3d.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/marker3d.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
@@ -31,11 +32,12 @@ OCInteractor::OCInteractor() {}
 OCInteractor::~OCInteractor() {}
 
 void OCInteractor::_ready() {
-	if (Engine::get_singleton()->is_editor_hint()) return;
+	if (Engine::get_singleton()->is_editor_hint())
+		return;
 
 	om = OvercookedManager::get_singleton();
 	gm = GameManager::get_singleton();
-	
+
 	player_input = PlayerInput::get_singleton();
 
 	// HandMarker: look for it or create it
@@ -48,7 +50,7 @@ void OCInteractor::_ready() {
 		hand_marker = marker;
 		UtilityFunctions::print("OCInteractor: Created HandMarker.");
 	}
-	
+
 	UtilityFunctions::print("OCInteractor: Initialized.");
 }
 
@@ -83,37 +85,59 @@ void OCInteractor::_physics_process(double delta) {
 			}
 		}
 
+		// HELD PLATE LOGIC: If holding a plate, show prompt to pick up nearby items
+		OCPlate *held_plate = Object::cast_to<OCPlate>(held_item);
+		if (held_plate && dm) {
+			OCIngredient *nearby_ing = om->get_closest_ingredient(get_global_position(), interaction_range);
+			OCStation *station_near = om->get_closest_station(get_global_position(), interaction_range);
+			if (!nearby_ing && station_near && station_near->has_item()) {
+				nearby_ing = Object::cast_to<OCIngredient>(station_near->get_held_item());
+				if (Object::cast_to<OCPlate>(nearby_ing))
+					nearby_ing = nullptr; // Don't pick up plates into plates
+			}
+
+			if (nearby_ing) {
+				dm->draw_text("plate_add_prompt", "[G] to add to plate", get_global_position() + Vector3(0, 2.5f, 0), 0.001f, Color(0, 1, 1));
+			} else {
+				dm->clear_text("plate_add_prompt");
+			}
+		} else if (dm) {
+			dm->clear_text("plate_add_prompt");
+		}
+
 		// PROMPT LOGIC: Show if the current station can process what we have (only when close)
 		OCStation *station = om->get_closest_station(get_global_position(), interaction_range);
 		if (station) {
 			String prompt = "";
-			bool can_process_any = false;
-
-			// 1. Check held item
-			if (held_ing && station->can_process(held_ing)) {
-				can_process_any = true;
-			}
-
-			// 2. Check station item
 			OCIngredient *station_ing = Object::cast_to<OCIngredient>(station->get_held_item());
-			if (station_ing && station->can_process(station_ing)) {
-				can_process_any = true;
+
+			if (held_ing && station->can_place_item(held_ing) && station->can_process(held_ing)) {
+				// We can place it to start processing
+				prompt = String("[Q] to ") + get_station_operation_name(station->get_station_type());
+			} else if (station_ing && station->can_process(station_ing)) {
+				// Item is already on station
+				if (station->get_station_type() == TYPE_CUTTING) {
+					// Check if we are currently "chopping" (not moving)
+					bool is_moving = false;
+					CharacterBody3D *body = Object::cast_to<CharacterBody3D>(get_parent());
+					if (body)
+						is_moving = body->get_velocity().length() > 0.1f;
+
+					if (is_moving)
+						prompt = "STAY STILL TO CHOP";
+					else
+						prompt = "CHOPPING...";
+				} else {
+					// Cooking/Blender
+					if (station->get_station_type() == TYPE_COOKING)
+						prompt = "COOKING...";
+					else
+						prompt = "BLENDING...";
+				}
 			}
 
-			if (can_process_any) {
-				String op_name = "Process";
-				if (station->get_station_type() == TYPE_CUTTING)
-					op_name = "CHOP";
-				else if (station->get_station_type() == TYPE_COOKING)
-					op_name = "COOK";
-				else if (station->get_station_type() == TYPE_BLENDER)
-					op_name = "BLEND";
-
-				prompt = "[Q] to " + op_name;
-
-				if (dm) {
-					dm->draw_text("interact_prompt", prompt, station->get_global_position() + Vector3(0, 2.0f, 0), 0.001f, Color(1, 1, 0));
-				}
+			if (prompt != "" && dm) {
+				dm->draw_text("interact_prompt", prompt, station->get_global_position() + Vector3(0, 2.0f, 0), 0.001f, Color(1, 1, 0));
 			}
 		}
 	}
@@ -123,6 +147,32 @@ void OCInteractor::grab_or_drop() {
 	Vector3 my_pos = get_global_position();
 
 	if (held_item) {
+		// NEW: If holding a plate, try to pick up nearby items INTO the plate
+		OCPlate *held_plate = Object::cast_to<OCPlate>(held_item);
+		if (held_plate) {
+			// 1. Try to grab a loose ingredient from the floor
+			OCIngredient *ing = om->get_closest_ingredient(my_pos, interaction_range);
+			if (ing) {
+				if (held_plate->add_ingredient(ing)) {
+					UtilityFunctions::print("OCInteractor: Picked up loose ingredient into held plate");
+					return;
+				}
+			}
+
+			// 2. Try to grab from a station
+			OCStation *station = om->get_closest_station(my_pos, interaction_range);
+			if (station && station->has_item()) {
+				OCIngredient *station_ing = Object::cast_to<OCIngredient>(station->get_held_item());
+				if (station_ing && !Object::cast_to<OCPlate>(station_ing)) {
+					if (held_plate->add_ingredient(station_ing)) {
+						station->take_item(); // Actually remove it from the station
+						UtilityFunctions::print("OCInteractor: Picked up station ingredient into held plate");
+						return;
+					}
+				}
+			}
+		}
+
 		// Attempt to drop
 		UtilityFunctions::print("OCInteractor: Attempting to drop item: ", held_item->get_name());
 

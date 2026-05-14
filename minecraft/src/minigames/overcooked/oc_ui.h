@@ -20,6 +20,7 @@ class OCOrderUI : public CUI {
 private:
 	VBoxContainer *order_list = nullptr;
 	Label *score_label = nullptr;
+	Label *revenue_label = nullptr;
 	void _on_cancel_order_pressed(int p_index);
 
 protected:

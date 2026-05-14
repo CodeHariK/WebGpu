@@ -92,3 +92,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, -3)
 [node name="TrashBin" type="OCStation" parent="Stations" unique_id=918082687]
 station_type = 6
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0, -3)
+
+[node name="Counter_Plates" type="OCStation" parent="Stations" unique_id=123456789]
+station_type = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 0, -3)
+
+[node name="Plate_1" type="OCPlate" parent="Stations/Counter_Plates" unique_id=111111111]
+ingredient_type = 6
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+
+[node name="Plate_2" type="OCPlate" parent="Stations/Counter_Plates" unique_id=222222222]
+ingredient_type = 6
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)

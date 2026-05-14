@@ -30,6 +30,8 @@ void OCOrderUI::_ready() {
 	main_vbox->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT, Control::PRESET_MODE_MINSIZE, 10);
 
 	score_label = add_label(main_vbox, "Score: 0", "ScoreLabel");
+	revenue_label = add_label(main_vbox, "Last Rev: 0", "RevenueLabel");
+	revenue_label->set_modulate(Color(0, 1, 0)); // Green
 
 	add_label(main_vbox, "ACTIVE ORDERS", "Title");
 
@@ -53,8 +55,11 @@ void OCOrderUI::_process(double delta) {
 		rebuild_ui();
 	}
 
-	// 2. Update Progress Bars and Score
+	// 2. Update Progress Bars, Score, and Revenue
 	score_label->set_text("Score: " + String::num_int64(om->get_score()));
+	if (om->get_last_revenue() > 0) {
+		revenue_label->set_text("Last Rev: +" + String::num_int64(om->get_last_revenue()));
+	}
 
 	for (int i = 0; i < (int)orders.size(); i++) {
 		Node *child = order_list->get_child(i);
@@ -105,6 +110,20 @@ void OCOrderUI::rebuild_ui() {
 		ProgressBar *timer_bar = add_progress_bar(row_vbox, "Timer");
 		timer_bar->set_show_percentage(false);
 		timer_bar->set_custom_minimum_size(Vector2(200, 10));
+
+		// NEW: Show requirements for the first order only to keep it readable
+		if (i == 0) {
+			String req_text = "Needs: ";
+			const std::vector<OCRecipeRequirement> &reqs = order->get_requirements();
+			for (size_t j = 0; j < reqs.size(); j++) {
+				req_text += String(toString(reqs[j].type)) + " (" + String(toString(reqs[j].state)) + ")";
+				if (j < reqs.size() - 1)
+					req_text += ", ";
+			}
+			Label *req_label = add_label(row_vbox, req_text, order_id + "_Reqs");
+			req_label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
+			req_label->set_modulate(Color(0.8, 0.8, 1.0)); // Light blue
+		}
 	}
 }
 

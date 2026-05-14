@@ -511,6 +511,7 @@ bool OvercookedManager::submit_ingredient(OCIngredient *p_ing) {
 		if (match && remaining.empty()) {
 			// Success!
 			score += active_orders[i]->get_points();
+			last_revenue = active_orders[i]->get_points();
 			UtilityFunctions::print("OCManager: Order Complete! +", active_orders[i]->get_points(), " pts. Total: ", score);
 
 			active_orders.erase(active_orders.begin() + i);
