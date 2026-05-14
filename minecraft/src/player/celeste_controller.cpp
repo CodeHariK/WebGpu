@@ -73,8 +73,7 @@ void CelesteController::_ready() {
 
 	_update_jump_math();
 
-	set_collision_layer(toLayer(LAYER_PLAYER));
-	set_collision_mask(toLayer(LAYER_TERRAIN) | toLayer(LAYER_PLAYER) | toLayer(LAYER_ENEMY) | toLayer(LAYER_OBJECTS));
+	applyCollisionLayerMaskPlayer(this);
 
 	// Initialize HSM States
 	grounded_state = new CelesteGroundedState(this, nullptr);

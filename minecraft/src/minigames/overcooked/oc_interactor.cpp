@@ -72,14 +72,24 @@ void OCInteractor::_physics_process(double delta) {
 			interact();
 		}
 
-		// PROMPT LOGIC: Show if the current station can process what we have
+		DebugManager *dm = DebugManager::get_singleton();
+
+		// TARGET HIGHLIGHT LOGIC: If holding an ingredient, show where to take it regardless of distance
+		OCIngredient *held_ing = Object::cast_to<OCIngredient>(held_item);
+		if (held_ing && dm) {
+			OCStation *target = om->get_closest_station_for_ingredient(get_global_position(), held_ing);
+			if (target) {
+				dm->draw_text("target_highlight", "GO HERE", target->get_global_position() + Vector3(0, 2.5f, 0), 0.001f, Color(0, 1, 0));
+			}
+		}
+
+		// PROMPT LOGIC: Show if the current station can process what we have (only when close)
 		OCStation *station = om->get_closest_station(get_global_position(), interaction_range);
 		if (station) {
 			String prompt = "";
 			bool can_process_any = false;
 
 			// 1. Check held item
-			OCIngredient *held_ing = Object::cast_to<OCIngredient>(held_item);
 			if (held_ing && station->can_process(held_ing)) {
 				can_process_any = true;
 			}
@@ -99,9 +109,8 @@ void OCInteractor::_physics_process(double delta) {
 				else if (station->get_station_type() == TYPE_BLENDER)
 					op_name = "BLEND";
 
-				prompt = "[E] to " + op_name;
+				prompt = "[Q] to " + op_name;
 
-				DebugManager *dm = DebugManager::get_singleton();
 				if (dm) {
 					dm->draw_text("interact_prompt", prompt, station->get_global_position() + Vector3(0, 2.0f, 0), 0.001f, Color(1, 1, 0));
 				}
@@ -160,9 +169,19 @@ void OCInteractor::grab_or_drop() {
 		// Attempt to grab
 		UtilityFunctions::print("OCInteractor: Attempting to grab...");
 
-		// 1. Check for closest station with an item
+		// 1. First try to grab a loose ingredient from the floor
+		OCIngredient *ing = om->get_closest_ingredient(my_pos, interaction_range);
+		if (ing) {
+			UtilityFunctions::print("OCInteractor: Grabbing loose ingredient: ", ing->get_name());
+			held_item = ing;
+			held_item->pickup(Object::cast_to<Node3D>(get_parent()));
+			held_item->attach_to(hand_marker);
+			return;
+		}
+
+		// 2. Otherwise try to grab from a station (either an existing item or a crate)
 		OCStation *station = om->get_closest_station(my_pos, interaction_range);
-		if (station && station->has_item()) {
+		if (station) {
 			UtilityFunctions::print("OCInteractor: Grabbing from station: ", station->get_name());
 			Interactable *item = station->take_item();
 			if (item) {
@@ -172,21 +191,19 @@ void OCInteractor::grab_or_drop() {
 				return;
 			}
 		}
-
-		// 2. Otherwise try to grab a loose ingredient
-		OCIngredient *ing = om->get_closest_ingredient(my_pos, interaction_range);
-		if (ing) {
-			UtilityFunctions::print("OCInteractor: Grabbing loose ingredient: ", ing->get_name());
-			held_item = ing;
-			held_item->pickup(Object::cast_to<Node3D>(get_parent()));
-			held_item->attach_to(hand_marker);
-		}
 	}
 }
 
 void OCInteractor::interact(Node3D *p_actor) {
 	OCStation *station = om->get_closest_station(get_global_position(), interaction_range);
 	if (station) {
+		// SMART INTERACT: If holding an item and station is free, place it first
+		if (held_item && station->can_place_item(held_item)) {
+			station->place_item(held_item);
+			held_item->drop(Object::cast_to<Node3D>(get_parent()));
+			held_item = nullptr;
+		}
+
 		UtilityFunctions::print("OCInteractor: Interacting with station: ", station->get_name());
 		Node3D *actor = p_actor ? p_actor : Object::cast_to<Node3D>(get_parent());
 		station->interact(actor);

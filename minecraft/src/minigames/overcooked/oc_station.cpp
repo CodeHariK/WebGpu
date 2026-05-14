@@ -115,7 +115,7 @@ void OCStation::_process(double delta) {
 	if (dm) {
 		String label = get_name();
 		if (held_item) {
-			label += " (" + held_item->get_name() + ")";
+			label += " ^^(" + held_item->get_name() + ")";
 		}
 		dm->draw_text("station_" + get_name(), label, get_global_position() + Vector3(0, 3.0f, 0), 0.001f, Color(1, 1, 1));
 	}
@@ -284,6 +284,7 @@ Interactable *OCStation::take_item() {
 
 	Interactable *item = held_item;
 	held_item = nullptr;
+	UtilityFunctions::print("OCStation: ", get_name(), " released item, held_item is now NULL");
 
 	// Allow it to be picked up by the player and re-enable physics
 	item->set_is_picked_up(false);

@@ -1,5 +1,6 @@
 #include "oc_ingredient.h"
 #include "../../debug_draw/debug_manager.h"
+#include "game_manager/game_constants.h"
 #include "oc_manager.h"
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>
@@ -32,6 +33,11 @@ OCIngredient::~OCIngredient() {}
 void OCIngredient::_process(double delta) {
 	DebugManager *dm = DebugManager::get_singleton();
 	if (dm) {
+		if (get_is_picked_up()) {
+			dm->clear_text("ing_" + get_name());
+			return;
+		}
+
 		String state_name = toString(current_state);
 		String type_name = toString(ingredient_type);
 
@@ -53,6 +59,8 @@ void OCIngredient::_enter_tree() {
 
 void OCIngredient::_ready() {
 	Interactable::_ready();
+
+	applyCollisionLayerMaskMovingObjects(this);
 
 	// Default Visuals if none exist
 	if (find_child("MeshInstance3D", true, false) == nullptr) {

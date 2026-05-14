@@ -104,6 +104,7 @@ toggle_recipe_editor={
 3d_physics/layer_4="Objects"
 3d_physics/layer_5="MC_Corners"
 3d_physics/layer_6="MC_Cells"
+3d_physics/layer_7="Moving Objects"
 
 [physics]
 

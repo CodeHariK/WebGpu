@@ -281,12 +281,48 @@ OCStation *OvercookedManager::get_closest_station(const Vector3 &p_from, float p
 	return closest;
 }
 
+OCStation *OvercookedManager::get_closest_station_for_ingredient(const Vector3 &p_from, OCIngredient *p_ing) {
+	OCStation *closest = nullptr;
+	float min_dist_sq = 1000000.0f; // Large search radius
+
+	for (auto s : stations) {
+		if (!s || !s->is_inside_tree())
+			continue;
+
+		// Skip if station is busy (for processing stations)
+		if (s->has_item())
+			continue;
+
+		if (s->can_process(p_ing)) {
+			float dist_sq = p_from.distance_squared_to(s->get_global_position());
+			if (dist_sq < min_dist_sq) {
+				min_dist_sq = dist_sq;
+				closest = s;
+			}
+		}
+	}
+	return closest;
+}
+
 OCIngredient *OvercookedManager::get_closest_ingredient(const Vector3 &p_from, float p_max_dist) {
 	OCIngredient *closest = nullptr;
 	float min_dist_sq = p_max_dist * p_max_dist;
 
 	for (auto i : ingredients) {
 		if (!i || !i->is_inside_tree() || i->get_is_picked_up())
+			continue;
+
+		// Skip if it's already on a station (check entire parent chain)
+		bool on_station = false;
+		Node *p = i->get_parent();
+		while (p) {
+			if (Object::cast_to<OCStation>(p)) {
+				on_station = true;
+				break;
+			}
+			p = p->get_parent();
+		}
+		if (on_station)
 			continue;
 
 		float dist_sq = p_from.distance_squared_to(i->get_global_position());
