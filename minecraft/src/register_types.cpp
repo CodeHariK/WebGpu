@@ -59,6 +59,10 @@
 #include "minigames/overcooked/oc_station.h"
 #include "minigames/overcooked/oc_ui.h"
 
+#include "minigames/tennis/tennis_ball.h"
+#include "minigames/tennis/tennis_manager.h"
+#include "minigames/tennis/tennis_player.h"
+
 namespace godot {
 
 void initialize_gdextension_types(ModuleInitializationLevel p_level) {
@@ -141,6 +145,10 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(OCInteractor);
 	GDREGISTER_CLASS(OCPlate);
 	GDREGISTER_CLASS(OvercookedManager);
+
+	GDREGISTER_CLASS(TennisBall);
+	GDREGISTER_CLASS(TennisPlayer);
+	GDREGISTER_CLASS(TennisManager);
 }
 
 void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {

@@ -1,0 +1,28 @@
+[gd_scene format=3 uid="uid://bioeaqqyc2fj3"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ftfec"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_jvq25"]
+sky_material = SubResource("ProceduralSkyMaterial_ftfec")
+
+[sub_resource type="Environment" id="Environment_dsqft"]
+background_mode = 2
+sky = SubResource("Sky_jvq25")
+tonemap_mode = 2
+glow_enabled = true
+
+[node name="Tennis" type="Node3D" unique_id=1284760442]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1382427397]
+environment = SubResource("Environment_dsqft")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=269873561]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+
+[node name="GameCamera" type="GameCamera" parent="." unique_id=1091260283]
+transform = Transform3D(1, 0, 0, 0, 0.7464176, 0.66547793, 0, -0.66547793, 0.74641764, 0, 4, 26.726412)
+
+[node name="TennisManager" type="TennisManager" parent="." unique_id=2013572316]
