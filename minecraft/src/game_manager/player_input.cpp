@@ -87,6 +87,17 @@ void PlayerInput::update() {
 	current_state.vehicle.brake = input->get_action_strength("move_backward");
 	current_state.vehicle.steering = input->get_action_strength("move_right") - input->get_action_strength("move_left");
 	current_state.vehicle.handbrake = input->is_action_pressed("handbrake");
+
+	// 6. Tennis Specifics
+	current_state.tennis.shot_a = input->is_action_pressed("tennis_shot_a");
+	current_state.tennis.shot_b = input->is_action_pressed("tennis_shot_b");
+	current_state.tennis.shot_y = input->is_action_pressed("tennis_shot_y");
+	current_state.tennis.shot_x = input->is_action_pressed("tennis_shot_x");
+
+	current_state.tennis.shot_a_just_pressed = input->is_action_just_pressed("tennis_shot_a");
+	current_state.tennis.shot_b_just_pressed = input->is_action_just_pressed("tennis_shot_b");
+	current_state.tennis.shot_y_just_pressed = input->is_action_just_pressed("tennis_shot_y");
+	current_state.tennis.shot_x_just_pressed = input->is_action_just_pressed("tennis_shot_x");
 }
 
 void PlayerInput::handle_input(const Ref<InputEvent> &p_event) {

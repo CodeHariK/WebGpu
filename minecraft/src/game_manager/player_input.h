@@ -42,6 +42,17 @@ struct SystemInput {
 	bool toggle_recipe_editor_just_pressed = false;
 };
 
+struct TennisInput {
+	bool shot_a = false;
+	bool shot_a_just_pressed = false;
+	bool shot_b = false;
+	bool shot_b_just_pressed = false;
+	bool shot_y = false;
+	bool shot_y_just_pressed = false;
+	bool shot_x = false;
+	bool shot_x_just_pressed = false;
+};
+
 /**
  * Centralized Input State for the player.
  * Decouples game logic from raw hardware keys.
@@ -51,6 +62,7 @@ struct ActionState {
 	VehicleInput vehicle;
 	CharacterInput character;
 	SystemInput system;
+	TennisInput tennis;
 };
 
 class PlayerInput : public Object {
