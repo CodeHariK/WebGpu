@@ -18,6 +18,7 @@ class PlayerInput;
 class DebugManager;
 class EnemyManager;
 class OvercookedManager;
+class TennisManager;
 
 class GameManager : public Node {
 	GDCLASS(GameManager, Node)
@@ -33,6 +34,7 @@ private:
 	DebugManager *debug_manager = nullptr;
 	EnemyManager *enemy_manager = nullptr;
 	OvercookedManager *overcooked_manager = nullptr;
+	TennisManager *tennis_manager = nullptr;
 
 	ArcadeVehicle *vehicle = nullptr;
 	PhysicsCharacter3D *character = nullptr;
@@ -51,9 +53,11 @@ public:
 	void _enter_tree() override;
 	void _exit_tree() override;
 
-	// Registry methods
 	void register_mc_manager(MCManager *p_manager);
 	MCManager *get_mc_manager() const;
+
+	void register_tennis_manager(TennisManager *p_manager);
+	TennisManager *get_tennis_manager() const;
 
 	void register_vehicle(ArcadeVehicle *p_vehicle);
 	ArcadeVehicle *get_vehicle() const;

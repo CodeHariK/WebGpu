@@ -52,11 +52,11 @@ run_mc:
 	$(GODOT) --path project/ --scene scene/MarchingCubes/MARCHING_CUBES.tscn
 run_octo:
 	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn
-run_tennis:
-	$(GODOT) --path project/ --scene scene/tennis/tennis.tscn
 run_road:
 	$(GODOT) --path project/ --scene scene/road/road.tscn
 run_gizmo:
 	$(GODOT) --path project/ --scene scene/road/gizmo.tscn
 run_oc:
 	$(GODOT) --path project/ --scene scene/mini_games/Overcooked.tscn
+run_tennis:
+	$(GODOT) --path project/ --scene scene/mini_games/Tennis.tscn

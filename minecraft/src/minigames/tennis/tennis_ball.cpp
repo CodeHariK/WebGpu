@@ -43,7 +43,7 @@ void TennisBall::_ready() {
 
 void TennisBall::_physics_process(double delta) {
 	if (Engine::get_singleton()->is_editor_hint()) return;
-	if (state == STATE_IDLE || state == STATE_DEAD) return;
+	if (state == STATE_IDLE) return;
 
 	// Apply Gravity
 	velocity.y -= gravity * delta;

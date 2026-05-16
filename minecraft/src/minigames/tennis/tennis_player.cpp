@@ -2,8 +2,15 @@
 #include "tennis_ball.h"
 #include "../../game_manager/player_input.h"
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/area3d.hpp>
+#include <godot_cpp/classes/box_shape3d.hpp>
+#include "tennis_manager.h"
+#include "../../game_manager/game_manager.h"
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
+#include <godot_cpp/classes/box_mesh.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
 
 namespace godot {
 
@@ -11,10 +18,11 @@ void TennisPlayer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_move_speed", "speed"), &TennisPlayer::set_move_speed);
 	ClassDB::bind_method(D_METHOD("get_move_speed"), &TennisPlayer::get_move_speed);
 	
-	ClassDB::bind_method(D_METHOD("_on_swing_area_body_entered", "body"), &TennisPlayer::_on_swing_area_body_entered);
-	ClassDB::bind_method(D_METHOD("_on_swing_area_body_exited", "body"), &TennisPlayer::_on_swing_area_body_exited);
+	ClassDB::bind_method(D_METHOD("set_hitting_speed", "speed"), &TennisPlayer::set_hitting_speed);
+	ClassDB::bind_method(D_METHOD("get_hitting_speed"), &TennisPlayer::get_hitting_speed);
 
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "move_speed"), "set_move_speed", "get_move_speed");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "hitting_speed"), "set_hitting_speed", "get_hitting_speed");
 }
 
 TennisPlayer::TennisPlayer() {}
@@ -25,13 +33,6 @@ void TennisPlayer::_ready() {
 
 	player_input = PlayerInput::get_singleton();
 
-	// Find Swing Area
-	swing_area = Object::cast_to<Area3D>(find_child("SwingArea", true, false));
-	if (swing_area) {
-		swing_area->connect("body_entered", Callable(this, "_on_swing_area_body_entered"));
-		swing_area->connect("body_exited", Callable(this, "_on_swing_area_body_exited"));
-	}
-
 	// Create Cuboid Collider if it doesn't exist
 	if (find_child("CollisionShape3D", true, false) == nullptr) {
 		CollisionShape3D *col = memnew(CollisionShape3D);
@@ -40,7 +41,22 @@ void TennisPlayer::_ready() {
 		col->set_shape(box);
 		add_child(col);
 	}
+
+	// Register with GameManager (as active target)
+	GameManager *gm = GameManager::get_singleton();
+	if (gm) {
+		if (gm->get_active_target() == nullptr) {
+			gm->set_active_target(this);
+		}
+
+		// Register with TennisManager if it exists
+		TennisManager *tm = gm->get_tennis_manager();
+		if (tm) {
+			tm->register_player(this);
+		}
+	}
 }
+
 
 void TennisPlayer::_physics_process(double delta) {
 	if (Engine::get_singleton()->is_editor_hint()) return;
@@ -73,54 +89,43 @@ void TennisPlayer::_handle_movement(double delta) {
 }
 
 void TennisPlayer::_handle_swing() {
-	if (!player_input || !target_ball) return;
+	if (!player_input) return;
 
 	const ActionState &state = player_input->get_state();
-	TennisBall::ShotType shot_type;
-	bool hit_pressed = false;
+	bool hit_pressed = (state.tennis.shot_a_just_pressed || state.tennis.shot_b_just_pressed || 
+	                    state.tennis.shot_x_just_pressed || state.tennis.shot_y_just_pressed);
 
-	if (state.tennis.shot_a_just_pressed) {
-		shot_type = TennisBall::SHOT_TOPSPIN;
-		hit_pressed = true;
-	} else if (state.tennis.shot_b_just_pressed) {
-		shot_type = TennisBall::SHOT_SLICE;
-		hit_pressed = true;
-	} else if (state.tennis.shot_y_just_pressed) {
-		shot_type = TennisBall::SHOT_FLAT;
-		hit_pressed = true;
-	} else if (state.tennis.shot_x_just_pressed) {
-		// Lob if pressing 'Up' (move_forward), else Drop
-		if (state.character.move_axis.y < -0.5f) {
-			shot_type = TennisBall::SHOT_LOB;
-		} else {
-			shot_type = TennisBall::SHOT_DROP;
-		}
-		hit_pressed = true;
-	}
+	if (!hit_pressed) return;
 
-	if (hit_pressed) {
-		// Hit direction based on movement axis + forward bias
-		Vector2 move = player_input->get_move_axis();
-		Vector3 hit_dir = Vector3(move.x, 0, -1.0f).normalized(); // Default to hitting forward (-Z)
+	// Find ball via manager
+	GameManager *gm = GameManager::get_singleton();
+	if (!gm || !gm->get_tennis_manager()) return;
+	TennisBall *ball = gm->get_tennis_manager()->get_ball();
+	if (!ball) return;
+
+	// DX-Ball Style Position Check
+	Vector3 ball_pos = ball->get_global_position();
+	Vector3 my_pos = get_global_position();
+
+	// Check 3D distance between player and ball
+	float distance = my_pos.distance_to(ball_pos);
+	float hit_radius = 4.5f;
+
+	if (distance < hit_radius) {
+		TennisBall::ShotType shot_type = TennisBall::SHOT_FLAT;
+		if (state.tennis.shot_a_just_pressed) shot_type = TennisBall::SHOT_TOPSPIN;
+		else if (state.tennis.shot_b_just_pressed) shot_type = TennisBall::SHOT_SLICE;
+
+		// Hit direction based on relative position (DX-Ball style)
+		// We subtract positions to get the vector from player to ball
+		Vector3 hit_dir = (ball_pos - my_pos);
+		hit_dir.y = 0.2f; // Give it some arc
 		
-		// Adjust for which side of the court we are on? 
-		// For now, let's just use the player's forward vector
-		hit_dir = -get_global_transform().get_basis().get_column(2); // Forward is -Z
+		// Ensure the hit always goes toward the opponent's side (Human is at Z+, so hit toward Z-)
+		if (hit_dir.z > -0.5f) hit_dir.z = -1.0f; 
 
-		target_ball->hit(hit_dir, 20.0f, shot_type);
-	}
-}
-
-void TennisPlayer::_on_swing_area_body_entered(Node *p_body) {
-	TennisBall *ball = Object::cast_to<TennisBall>(p_body);
-	if (ball) {
-		target_ball = ball;
-	}
-}
-
-void TennisPlayer::_on_swing_area_body_exited(Node *p_body) {
-	if (target_ball == p_body) {
-		target_ball = nullptr;
+		ball->hit(hit_dir.normalized(), hitting_speed, shot_type);
+		UtilityFunctions::print("Human Player: DX-Ball Style Hit!");
 	}
 }
 

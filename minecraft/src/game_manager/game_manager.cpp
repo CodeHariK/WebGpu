@@ -4,6 +4,7 @@
 #include "../debug_draw/debug_manager.h"
 #include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
+#include "../minigames/tennis/tennis_manager.h"
 #include "../player/celeste_controller.h"
 #include "../vehicle/arcade_vehicle.h"
 #include <godot_cpp/classes/engine.hpp>
@@ -30,7 +31,8 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_active_target"), &GameManager::get_active_target);
 	ClassDB::bind_method(D_METHOD("register_vehicle", "p_vehicle"), &GameManager::register_vehicle);
 	ClassDB::bind_method(D_METHOD("register_character", "p_character"), &GameManager::register_character);
-	ClassDB::bind_method(D_METHOD("register_celeste_controller", "p_character"), &GameManager::register_celeste_controller);
+	ClassDB::bind_method(D_METHOD("register_tennis_manager", "p_manager"), &GameManager::register_tennis_manager);
+	ClassDB::bind_method(D_METHOD("get_tennis_manager"), &GameManager::get_tennis_manager);
 	ClassDB::bind_method(D_METHOD("register_camera", "p_camera"), &GameManager::register_camera);
 	ClassDB::bind_method(D_METHOD("get_debug_manager"), &GameManager::get_debug_manager);
 }
@@ -109,6 +111,15 @@ void GameManager::register_mc_manager(MCManager *p_manager) {
 
 MCManager *GameManager::get_mc_manager() const {
 	return mc_manager;
+}
+
+void GameManager::register_tennis_manager(TennisManager *p_manager) {
+	tennis_manager = p_manager;
+	UtilityFunctions::print("GameManager: Registered TennisManager.");
+}
+
+TennisManager *GameManager::get_tennis_manager() const {
+	return tennis_manager;
 }
 
 void GameManager::register_vehicle(ArcadeVehicle *p_vehicle) {

@@ -62,6 +62,7 @@
 #include "minigames/tennis/tennis_ball.h"
 #include "minigames/tennis/tennis_manager.h"
 #include "minigames/tennis/tennis_player.h"
+#include "minigames/tennis/tennis_ai_player.h"
 
 namespace godot {
 
@@ -148,6 +149,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(TennisBall);
 	GDREGISTER_CLASS(TennisPlayer);
+	GDREGISTER_CLASS(TennisAIPlayer);
 	GDREGISTER_CLASS(TennisManager);
 }
 
