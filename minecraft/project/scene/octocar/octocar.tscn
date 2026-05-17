@@ -111,16 +111,6 @@ size = Vector3(0.5, 1, 0.5)
 
 [sub_resource type="BoxMesh" id="BoxMesh_4kplg"]
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_4kplg"]
-size = Vector3(2, 3, 0.1)
-
-[sub_resource type="BoxMesh" id="BoxMesh_ogdk4"]
-size = Vector3(2, 3, 0.1)
-
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_nxv8y"]
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_ogdk4"]
-
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4kplg"]
 albedo_color = Color(0.816806, 0.5367969, 0.92377734, 1)
 
@@ -144,6 +134,16 @@ height = 10.0
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_nxv8y"]
 radius = 5.0
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_4kplg"]
+size = Vector3(2, 3, 0.1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_ogdk4"]
+size = Vector3(2, 3, 0.1)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_nxv8y"]
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_ogdk4"]
 
 [node name="Playground" type="Node3D" unique_id=42757262]
 
@@ -442,42 +442,6 @@ mesh = SubResource("BoxMesh_4kplg")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="TurretEnemy/TurretEnemy3" unique_id=1313426362]
 shape = SubResource("BoxShape3D_nxv8y")
 
-[node name="Spring" type="Node" parent="." unique_id=532743600]
-
-[node name="DoorBody" type="SpringDoor" parent="Spring" unique_id=1328101763]
-hinge_offset = Vector3(-1, 0, 0)
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43, 3, 0)
-axis_lock_linear_x = true
-axis_lock_linear_y = true
-axis_lock_linear_z = true
-axis_lock_angular_x = true
-axis_lock_angular_z = true
-mass = 2.0
-center_of_mass_mode = 1
-center_of_mass = Vector3(-1, 0, 0)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Spring/DoorBody" unique_id=1358534588]
-shape = SubResource("BoxShape3D_4kplg")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Spring/DoorBody" unique_id=860948076]
-mesh = SubResource("BoxMesh_ogdk4")
-
-[node name="PunchBag" type="SpringBop" parent="Spring" unique_id=2089616029]
-damping = 6.0
-hinge_offset = Vector3(0, -1.5, 0)
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49, 3, 0)
-axis_lock_linear_x = true
-axis_lock_linear_y = true
-axis_lock_linear_z = true
-center_of_mass_mode = 1
-center_of_mass = Vector3(0, -1.5, 0)
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Spring/PunchBag" unique_id=186212962]
-shape = SubResource("CapsuleShape3D_nxv8y")
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Spring/PunchBag" unique_id=469048838]
-mesh = SubResource("CapsuleMesh_ogdk4")
-
 [node name="Ball" type="Node" parent="." unique_id=2004731312]
 
 [node name="Ball" type="RigidBody3D" parent="Ball" unique_id=1276213156]
@@ -515,3 +479,52 @@ mesh = SubResource("SphereMesh_4kplg")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Ball/Ball3" unique_id=1436752682]
 shape = SubResource("SphereShape3D_nxv8y")
+
+[node name="MovingEnvironment" type="Node" parent="." unique_id=285200077]
+
+[node name="Spring" type="Node" parent="MovingEnvironment" unique_id=532743600]
+
+[node name="DoorBody" type="SpringDoor" parent="MovingEnvironment/Spring" unique_id=1328101763]
+hinge_offset = Vector3(-1, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43, 3, 0)
+axis_lock_linear_x = true
+axis_lock_linear_y = true
+axis_lock_linear_z = true
+axis_lock_angular_x = true
+axis_lock_angular_z = true
+mass = 2.0
+center_of_mass_mode = 1
+center_of_mass = Vector3(-1, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="MovingEnvironment/Spring/DoorBody" unique_id=1358534588]
+shape = SubResource("BoxShape3D_4kplg")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="MovingEnvironment/Spring/DoorBody" unique_id=860948076]
+mesh = SubResource("BoxMesh_ogdk4")
+
+[node name="PunchBag" type="SpringBop" parent="MovingEnvironment/Spring" unique_id=2089616029]
+damping = 6.0
+hinge_offset = Vector3(0, -1.5, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49, 3, 0)
+axis_lock_linear_x = true
+axis_lock_linear_y = true
+axis_lock_linear_z = true
+center_of_mass_mode = 1
+center_of_mass = Vector3(0, -1.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="MovingEnvironment/Spring/PunchBag" unique_id=186212962]
+shape = SubResource("CapsuleShape3D_nxv8y")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="MovingEnvironment/Spring/PunchBag" unique_id=469048838]
+mesh = SubResource("CapsuleMesh_ogdk4")
+
+[node name="MovingPlatform" type="MovingPlatform" parent="MovingEnvironment" unique_id=455667298]
+preset = 3
+x_expression = "sin(2*t) * 3.0"
+y_expression = "2"
+z_expression = "cos(t) * 1.0"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.63931155, 2, -0.9942408)
+
+[node name="CSGBox3D" type="CSGBox3D" parent="MovingEnvironment/MovingPlatform" unique_id=1995100455]
+use_collision = true
+size = Vector3(3, 0.2, 3)

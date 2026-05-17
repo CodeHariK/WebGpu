@@ -46,10 +46,11 @@
 #include "road/road_generator.h"
 #include "road/transform_gizmo.h"
 
+#include "interaction/environment/moving_platform.h"
 #include "interaction/interactable.h"
+#include "interaction/objects/spring_bop.h"
+#include "interaction/objects/spring_door.h"
 #include "interaction/physics_pusher.h"
-#include "interaction/spring_bop.h"
-#include "interaction/spring_door.h"
 
 #include "minigames/overcooked/oc_ingredient.h"
 #include "minigames/overcooked/oc_interactor.h"
@@ -59,10 +60,10 @@
 #include "minigames/overcooked/oc_station.h"
 #include "minigames/overcooked/oc_ui.h"
 
+#include "minigames/tennis/tennis_ai_player.h"
 #include "minigames/tennis/tennis_ball.h"
 #include "minigames/tennis/tennis_manager.h"
 #include "minigames/tennis/tennis_player.h"
-#include "minigames/tennis/tennis_ai_player.h"
 
 namespace godot {
 
@@ -137,6 +138,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(PhysicsPusher);
 	GDREGISTER_CLASS(SpringDoor);
 	GDREGISTER_CLASS(SpringBop);
+	GDREGISTER_CLASS(MovingPlatform);
 
 	GDREGISTER_CLASS(OCIngredient);
 	GDREGISTER_CLASS(OCStation);
