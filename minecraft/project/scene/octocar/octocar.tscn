@@ -145,6 +145,9 @@ size = Vector3(2, 3, 0.1)
 
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_ogdk4"]
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_moving_platform"]
+size = Vector3(3, 0.2, 3)
+
 [node name="Playground" type="Node3D" unique_id=42757262]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=277216433]
@@ -521,10 +524,13 @@ mesh = SubResource("CapsuleMesh_ogdk4")
 [node name="MovingPlatform" type="MovingPlatform" parent="MovingEnvironment" unique_id=455667298]
 preset = 3
 x_expression = "sin(2*t) * 3.0"
-y_expression = "2"
+y_expression = "0"
 z_expression = "cos(t) * 1.0"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.63931155, 2, -0.9942408)
+ping_pong_offset = Vector3(1, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.055, 2, -0.039)
 
-[node name="CSGBox3D" type="CSGBox3D" parent="MovingEnvironment/MovingPlatform" unique_id=1995100455]
-use_collision = true
+[node name="CollisionShape3D" type="CollisionShape3D" parent="MovingEnvironment/MovingPlatform" unique_id=1515798413]
+shape = SubResource("BoxShape3D_moving_platform")
+
+[node name="MovingPlatformCSGBox3D" type="CSGBox3D" parent="MovingEnvironment/MovingPlatform" unique_id=1995100455]
 size = Vector3(3, 0.2, 3)

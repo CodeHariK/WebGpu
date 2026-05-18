@@ -5,6 +5,7 @@
 #include "../game_manager/game_constants.h"
 #include "../game_manager/game_manager.h"
 #include "../game_manager/player_input.h"
+#include "../interaction/environment/moving_platform.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "celeste_state.h"
 #include "celeste_ui.h"
@@ -15,6 +16,7 @@
 #include "states/grounded_states.h"
 #include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/physics_direct_space_state3d.hpp>
 #include <godot_cpp/classes/physics_shape_query_parameters3d.hpp>
 #include <godot_cpp/classes/sphere_shape3d.hpp>
@@ -186,6 +188,7 @@ void CelesteController::_physics_process(double delta) {
 	// 2. Hover Spring Logic (PD Controller)
 	is_hovering = false;
 	last_spring_error = 0.0f;
+	platform_velocity = Vector3(0, 0, 0);
 
 #if DEBUG
 	DebugManager::get_singleton()->clear_line("hover_ray");
@@ -257,6 +260,12 @@ void CelesteController::_physics_process(double delta) {
 			// set_velocity(vel);
 			set_floor_snap_length(0.0f);
 
+			// Detect if hovering over a moving platform
+			MovingPlatform *moving_platform = Object::cast_to<MovingPlatform>(b_hit.collider);
+			if (moving_platform) {
+				platform_velocity = moving_platform->get_velocity();
+			}
+
 #if DEBUG
 			// DebugManager::get_singleton()->draw_line("hover_ray", ray_origin, b_hit.position, 0.05f, Color(1, 0, 1, 0.8f), 0.1f);
 
@@ -267,8 +276,18 @@ void CelesteController::_physics_process(double delta) {
 		}
 	}
 
+	// Apply platform velocity for move_and_slide
+	if (platform_velocity != Vector3(0, 0, 0)) {
+		set_velocity(get_velocity() + platform_velocity);
+	}
+
 	// 3. Apply Movement
 	move_and_slide();
+
+	// Restore relative velocity (subtracting the platform velocity from final velocity)
+	if (platform_velocity != Vector3(0, 0, 0)) {
+		set_velocity(get_velocity() - platform_velocity);
+	}
 
 	if (ui_helper) {
 		ui_helper->update_graph(get_velocity().length());

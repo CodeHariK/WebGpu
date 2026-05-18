@@ -36,6 +36,7 @@ void CelesteGroundedState::physics_update(float delta) {
 	if (state.character.jump_just_pressed || controller->jump_buffer_timer > 0.0f) {
 		Vector3 vel = controller->get_velocity();
 		vel.y = controller->_jump_velocity0;
+		vel += controller->get_platform_velocity();
 		controller->set_velocity(vel);
 		controller->is_jumping = true;
 

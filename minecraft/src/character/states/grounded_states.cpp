@@ -57,12 +57,14 @@ void CharIdleState::physics_update(float delta) {
 	if (!character)
 		return;
 
-	// Apply horizontal damping to prevent sliding
+	// Apply horizontal damping relative to moving platform to prevent sliding
 	Vector3 vel = character->get_linear_velocity();
 	Vector3 horizontal_vel = Vector3(vel.x, 0.0f, vel.z);
+	Vector3 platform_horizontal_vel = Vector3(character->platform_velocity.x, 0.0f, character->platform_velocity.z);
+	Vector3 relative_horizontal_vel = horizontal_vel - platform_horizontal_vel;
 
-	if (horizontal_vel.length() > 0.1f) {
-		character->apply_central_force(-horizontal_vel * character->spring_damping * 0.5f);
+	if (relative_horizontal_vel.length() > 0.1f) {
+		character->apply_central_force(-relative_horizontal_vel * character->spring_damping * 0.5f);
 	}
 }
 
@@ -74,8 +76,9 @@ void CharMoveState::physics_update(float delta) {
 	if (!character || character->input_dir.length() < 0.01f)
 		return;
 
-	// Calculate target horizontal velocity
-	Vector3 target_vel = character->input_dir * character->max_speed;
+	// Calculate target horizontal velocity (relative input + platform velocity)
+	Vector3 platform_horizontal_vel = Vector3(character->platform_velocity.x, 0.0f, character->platform_velocity.z);
+	Vector3 target_vel = character->input_dir * character->max_speed + platform_horizontal_vel;
 	Vector3 current_vel = character->get_linear_velocity();
 	Vector3 current_horizontal_vel = Vector3(current_vel.x, 0.0f, current_vel.z);
 

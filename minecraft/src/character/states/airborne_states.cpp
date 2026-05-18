@@ -34,9 +34,12 @@ void CharJumpState::enter() {
 	if (!character)
 		return;
 
-	// Apply upward impulse
+	// Apply upward impulse + inherit platform velocity
+	Vector3 platform_vel = character->platform_velocity;
 	Vector3 vel = character->get_linear_velocity();
-	character->set_linear_velocity(Vector3(vel.x, 0.0f, vel.z)); // Reset Y for consistent jump
+
+	// Inherit platform's horizontal and vertical velocity
+	character->set_linear_velocity(Vector3(vel.x + platform_vel.x, platform_vel.y, vel.z + platform_vel.z));
 	character->apply_central_impulse(Vector3(0, character->jump_impulse, 0));
 
 	UtilityFunctions::print("Character: Jumping!");
