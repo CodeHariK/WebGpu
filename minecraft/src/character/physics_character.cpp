@@ -1,12 +1,12 @@
 #include "physics_character.h"
 #include "../debug_draw/debug_manager.h"
 #include "../game_manager/game_manager.h"
+#include "../interaction/environment/moving_platform.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "states/airborne_states.h"
 #include "states/grounded_states.h"
-#include "../interaction/environment/moving_platform.h"
-#include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 

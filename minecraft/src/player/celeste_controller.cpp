@@ -20,6 +20,7 @@
 #include <godot_cpp/classes/physics_direct_space_state3d.hpp>
 #include <godot_cpp/classes/physics_shape_query_parameters3d.hpp>
 #include <godot_cpp/classes/sphere_shape3d.hpp>
+#include <godot_cpp/classes/rigid_body3d.hpp>
 #include <godot_cpp/classes/world3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -264,6 +265,20 @@ void CelesteController::_physics_process(double delta) {
 			MovingPlatform *moving_platform = Object::cast_to<MovingPlatform>(b_hit.collider);
 			if (moving_platform) {
 				platform_velocity = moving_platform->get_velocity();
+			}
+
+			// Apply dynamic weight & reaction forces to RigidBody3D grounds (like the car)
+			RigidBody3D *rb = Object::cast_to<RigidBody3D>(b_hit.collider);
+			if (rb) {
+				float player_mass = 80.0f; // in kg
+				float gravity = 9.8f;
+				// Dynamic spring reaction + baseline weight/gravity force
+				float reaction_magnitude = (spring_force * player_mass) + (player_mass * gravity);
+				Vector3 reaction_force = Vector3(0.0f, -reaction_magnitude, 0.0f);
+
+				// Apply at contact point
+				Vector3 relative_hit_pos = b_hit.position - rb->get_global_transform().origin;
+				rb->apply_force(reaction_force, relative_hit_pos);
 			}
 
 #if DEBUG
