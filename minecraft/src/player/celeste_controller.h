@@ -82,6 +82,7 @@ private:
 	float jump_buffer_timer = 0.0f;
 	bool is_hovering = false;
 	float last_spring_error = 0.0f;
+	Vector3 platform_velocity = Vector3(0, 0, 0);
 
 	// Dash state
 	float dash_timer = 0.0f;
@@ -114,6 +115,7 @@ public:
 
 	void _ready() override;
 	float get_speed_percent() const;
+	Vector3 get_platform_velocity() const { return platform_velocity; }
 	void _exit_tree() override;
 	void _physics_process(double delta) override;
 

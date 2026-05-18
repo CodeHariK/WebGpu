@@ -41,6 +41,7 @@ private:
 	float running_time = 0.0f;
 	Vector3 start_position;
 	bool is_initialized = false;
+	Vector3 velocity;
 
 	void compile_expressions();
 	Vector3 calculate_relative_position(float t);
@@ -54,6 +55,8 @@ public:
 
 	void _ready() override;
 	void _physics_process(double delta) override;
+
+	Vector3 get_velocity() const { return velocity; }
 
 	// Getters and Setters
 	void set_preset(int p_preset);

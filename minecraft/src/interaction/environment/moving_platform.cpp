@@ -1,4 +1,5 @@
 #include "moving_platform.h"
+#include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -33,10 +34,15 @@ void MovingPlatform::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "circular_radius"), "set_circular_radius", "get_circular_radius");
 }
 
-MovingPlatform::MovingPlatform() {}
+MovingPlatform::MovingPlatform() {
+	velocity = Vector3(0, 0, 0);
+}
 MovingPlatform::~MovingPlatform() {}
 
 void MovingPlatform::_ready() {
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
 	start_position = get_global_position();
 	compile_expressions();
 	is_initialized = true;
@@ -111,15 +117,27 @@ Vector3 MovingPlatform::calculate_relative_position(float t) {
 }
 
 void MovingPlatform::_physics_process(double delta) {
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+	Vector3 current_pos = get_global_position();
+
 	running_time += (float)delta * time_scale;
 
 	// Calculate the next target relative position
 	Vector3 rel_pos = calculate_relative_position(running_time);
+	Vector3 next_pos = start_position + rel_pos;
+
+	if (delta > 0.0) {
+		velocity = (next_pos - current_pos) / (float)delta;
+	} else {
+		velocity = Vector3(0, 0, 0);
+	}
 
 	// Update our global position. Because AnimatableBody3D computes linear velocity 
 	// based on frame-to-frame position delta, setting the position here automatically 
 	// provides correct physical velocity to carrying/colliding CharacterBody3D actors.
-	set_global_position(start_position + rel_pos);
+	set_global_position(next_pos);
 }
 
 // Getters and Setters

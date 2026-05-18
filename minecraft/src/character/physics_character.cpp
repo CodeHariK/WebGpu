@@ -4,6 +4,8 @@
 #include "../utils/raycast/mc_raycast.h"
 #include "states/airborne_states.h"
 #include "states/grounded_states.h"
+#include "../interaction/environment/moving_platform.h"
+#include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -149,12 +151,20 @@ void PhysicsCharacter3D::_handle_ground_detection(float delta) {
 		dist_to_ground = (get_global_position() - hit.position).length();
 		ground_normal = hit.normal;
 
+		MovingPlatform *moving_platform = Object::cast_to<MovingPlatform>(hit.collider);
+		if (moving_platform) {
+			platform_velocity = moving_platform->get_velocity();
+		} else {
+			platform_velocity = Vector3(0, 0, 0);
+		}
+
 		if (dm) {
 			dm->draw_line(base_id + "ground", get_global_position(), hit.position, 0.02f, Color(1, 0, 1, 0.5f));
 		}
 	} else {
 		dist_to_ground = cast_dist;
 		ground_normal = Vector3(0, 1, 0);
+		platform_velocity = Vector3(0, 0, 0);
 
 		if (dm) {
 			dm->clear_line(base_id + "ground");
@@ -169,7 +179,7 @@ void PhysicsCharacter3D::_apply_hover_spring(float delta) {
 
 	// PD Controller: Force = Stiffness * error - Damping * velocity
 	float error = ride_height - dist_to_ground;
-	float velocity_on_ray = get_linear_velocity().y;
+	float velocity_on_ray = get_linear_velocity().y - platform_velocity.y;
 
 	float force_magnitude = (error * spring_stiffness) - (velocity_on_ray * spring_damping);
 

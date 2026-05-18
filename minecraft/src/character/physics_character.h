@@ -52,6 +52,7 @@ private:
 	Vector3 ground_normal = Vector3(0, 1, 0);
 	float dist_to_ground = 0.0f;
 	Vector3 input_dir;
+	Vector3 platform_velocity = Vector3(0, 0, 0);
 
 	// HSM Nodes
 	CharacterState *current_state = nullptr;
