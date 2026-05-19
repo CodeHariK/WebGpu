@@ -1,4 +1,6 @@
 #include "physics_pusher.h"
+#include "godot_cpp/core/defs.hpp"
+#include "godot_cpp/variant/utility_functions.hpp"
 #include <godot_cpp/classes/character_body3d.hpp>
 #include <godot_cpp/classes/kinematic_collision3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
@@ -28,10 +30,13 @@ void PhysicsPusher::_physics_process(double delta) {
 			// Apply an impulse in the opposite direction of the collision normal
 			Vector3 push_dir = -col->get_normal();
 
+			// Scale impulse proportionally to target's mass, capped at a maximum of 10.0
+			float dynamic_force = push_force * MIN(rb->get_mass(), 1.0f);
+
 			// We apply the impulse at the collision point for more realistic physics
 			// (e.g. hitting a door at the edge will swing it more than hitting the hinge)
 			Vector3 local_hit_pos = col->get_position() - rb->get_global_position();
-			rb->apply_impulse(push_dir * push_force, local_hit_pos);
+			rb->apply_impulse(push_dir * dynamic_force, local_hit_pos);
 		}
 	}
 }

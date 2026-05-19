@@ -37,7 +37,7 @@ inline const uint32_t MASK = toLayer(LAYER_OBJECTS) | toLayer(LAYER_TERRAIN); //
 
 inline void applyCollisionLayerMaskPlayer(CharacterBody3D *p_node) {
 	p_node->set_collision_layer(toLayer(LAYER_PLAYER));
-	p_node->set_collision_mask(toLayer(LAYER_TERRAIN) | toLayer(LAYER_PLAYER) | toLayer(LAYER_ENEMY) | toLayer(LAYER_OBJECTS));
+	p_node->set_collision_mask(toLayer(LAYER_TERRAIN) | toLayer(LAYER_PLAYER) | toLayer(LAYER_ENEMY) | toLayer(LAYER_OBJECTS) | toLayer(LAYER_MOVING_OBJECTS));
 }
 
 inline void applyCollisionLayerMaskMovingObjects(RigidBody3D *p_node) {
