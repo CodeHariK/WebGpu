@@ -11,6 +11,8 @@ void CameraStateCar::enter(GameCamera *p_camera) {
 }
 
 void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
+	RigidBody3D *rb = Object::cast_to<RigidBody3D>(p_camera->get_follow_target_node());
+
 	if (p_camera->get_player_input()) {
 		const ActionState &state = p_camera->get_player_input()->get_state();
 
@@ -24,32 +26,31 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 			p_camera->target_distance = CLAMP(p_camera->target_distance - (state.camera.zoom_delta * p_camera->zoom_speed), p_camera->min_distance, p_camera->max_distance);
 		}
 
-		// Car orientation tracking
-		if (!state.camera.is_orbiting) {
-			float target_yaw = 0.0f;
-			RigidBody3D *rb = Object::cast_to<RigidBody3D>(p_camera->get_follow_target_node());
-			
-			if (rb) {
-				Vector3 linear_vel = rb->get_linear_velocity();
-				Vector3 horizontal_vel = Vector3(linear_vel.x, 0, linear_vel.z);
-				Vector3 target_forward = -p_camera->get_follow_target_node()->get_global_transform().basis.get_column(2).normalized();
-				float forward_dot_vel = (horizontal_vel.length_squared() > 0.01f) ? horizontal_vel.normalized().dot(target_forward) : 1.0f;
+		// // Car orientation tracking
+		// if (!state.camera.is_orbiting) {
+		// 	float target_yaw = 0.0f;
 
-				if (horizontal_vel.length_squared() > 1.0f && forward_dot_vel > 0.0f) {
-					target_yaw = Math::atan2(-horizontal_vel.x, -horizontal_vel.z);
-				} else {
-					target_yaw = p_camera->get_follow_target_node()->get_global_rotation().y;
-				}
-			} else {
-				target_yaw = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_rotation().y : p_camera->yaw;
-			}
+		// 	if (rb) {
+		// 		Vector3 linear_vel = rb->get_linear_velocity();
+		// 		Vector3 horizontal_vel = Vector3(linear_vel.x, 0, linear_vel.z);
+		// 		Vector3 target_forward = -rb->get_global_transform().basis.get_column(2).normalized();
+		// 		float forward_dot_vel = (horizontal_vel.length_squared() > 0.01f) ? horizontal_vel.normalized().dot(target_forward) : 1.0f;
 
-			float h_dist = Vector2(p_camera->follow_offset.x, p_camera->follow_offset.z).length();
-			float target_pitch = (h_dist > 0.01f) ? -Math::atan2(p_camera->follow_offset.y, h_dist) : p_camera->pitch;
+		// 		if (horizontal_vel.length_squared() > 1.0f && forward_dot_vel > 0.0f) {
+		// 			target_yaw = Math::atan2(-horizontal_vel.x, -horizontal_vel.z);
+		// 		} else {
+		// 			target_yaw = rb->get_global_rotation().y;
+		// 		}
+		// 	} else {
+		// 		target_yaw = p_camera->yaw;
+		// 	}
 
-			p_camera->yaw = target_yaw;
-			p_camera->pitch = target_pitch;
-		}
+		// 	float h_dist = Vector2(p_camera->follow_offset.x, p_camera->follow_offset.z).length();
+		// 	float target_pitch = (h_dist > 0.01f) ? -Math::atan2(p_camera->follow_offset.y, h_dist) : p_camera->pitch;
+
+		// 	p_camera->yaw = target_yaw;
+		// 	p_camera->pitch = target_pitch;
+		// }
 	}
 
 	// Shared Follow Logic (Orient + Collision + Springs)
@@ -59,11 +60,11 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 	p_camera->pitch_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
 
 	// Final Ideal Position Calculation
-	Vector3 pivot = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_position() : p_camera->get_global_position();
+	Vector3 pivot = (rb) ? rb->get_global_position() : p_camera->get_global_position();
 	Vector3 ideal_pos = p_camera->_calculate_ideal_position();
 
 	float actual_dist = p_camera->target_distance;
-	if (p_camera->is_collision_enabled() && p_camera->get_follow_target_node()) {
+	if (p_camera->is_collision_enabled() && rb) {
 		actual_dist = p_camera->_solve_collision(pivot, ideal_pos);
 	}
 
