@@ -5,10 +5,19 @@
 namespace godot {
 
 void ArcadeVehicle::_update_debug_arrows() {
-	bool show = config.is_valid() && config->get_show_debug_velocity();
-
 	DebugManager *dm = DebugManager::get_singleton();
 	String base_id = "veh_" + get_name() + "_";
+
+	if (dm) {
+		if (is_drifting) {
+			Vector3 text_pos = get_global_transform().xform(Vector3(0.0f, 1.5f, 0.0f));
+			dm->draw_text(base_id + "drift", "DRIFT", text_pos, 0.002f, Color(1.0f, 0.8f, 0.0f));
+		} else {
+			dm->clear_text(base_id + "drift");
+		}
+	}
+
+	bool show = config.is_valid() && config->get_show_debug_velocity();
 
 	if (!show) {
 		if (dm) {

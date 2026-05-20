@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/csg_box3d.hpp>
 #include <godot_cpp/classes/csg_sphere3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
+#include <godot_cpp/classes/physics_direct_body_state3d.hpp>
 
 namespace godot {
 
@@ -39,6 +40,7 @@ private:
 		float throttle = 0.0f;
 		float brake = 0.0f;
 		float steer = 0.0f;
+		bool handbrake = false;
 	} current_input;
 
 	// Stunt / Flip state
@@ -46,6 +48,13 @@ private:
 	bool is_on_ramp = false;
 	bool stunt_requested = false;
 	bool in_stunt_rotation = false;
+
+	// Physics integration variables
+	Vector3 velocity_nudge_accumulator = Vector3(0.0f, 0.0f, 0.0f);
+	bool should_align_velocity = false;
+
+	// Drift state
+	bool is_drifting = false;
 
 
 	void _setup_vehicle();
@@ -82,6 +91,7 @@ public:
 	void _ready() override;
 	void _exit_tree() override;
 	void _physics_process(double p_delta) override;
+	void _integrate_forces(PhysicsDirectBodyState3D *state) override;
 
 	void change_state(VehicleState* new_state);
 

@@ -1,10 +1,10 @@
 #ifndef VEHICLE_CONFIG_H
 #define VEHICLE_CONFIG_H
 
+#include "wheel_config.h"
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
 #include <godot_cpp/variant/vector3.hpp>
-#include "wheel_config.h"
 
 namespace godot {
 
@@ -15,17 +15,19 @@ private:
 	Vector3 chassis_size = Vector3(2.0f, 1.0f, 4.0f);
 	Vector3 center_of_mass_offset = Vector3(0.0f, -0.5f, 0.0f);
 	float mass = 1500.0f;
-	
+
 	// Arcade driving properties
 	float max_speed = 30.0f;
 	float max_accel_force = 8000.0f;
 	float brake_decel = 12000.0f;
 	float arcade_assist = 3.0f;
 	float max_steer_angle_deg = 35.0f;
+
 	float base_grip = 0.9f;
 	float drift_grip = 0.3f;
 	float drift_speed_threshold = 10.0f;
 	float drift_steering_threshold = 0.5f;
+
 	float downforce = 2000.0f;
 	float angular_damping = 5.0f;
 	float velocity_alignment = 2.0f;
@@ -36,6 +38,7 @@ private:
 	float stunt_com_interpolation_speed = 5.0f;
 	float ramp_detection_threshold = 0.9f;
 	float stunt_recovery_height = 2.0f;
+
 	bool show_debug_velocity = false;
 	float debug_velocity_scale = 0.5f;
 	float debug_velocity_width = 0.3f;

@@ -82,7 +82,8 @@ hardpoint_offset = Vector3(1, 0, -1.5)
 hardpoint_offset = Vector3(-1, 0, -1.5)
 
 [sub_resource type="VehicleConfig" id="VehicleConfig_3f0it"]
-max_accel_force = 16000.0
+max_speed = 60.0
+max_accel_force = 24000.0
 max_steer_angle_deg = 75.0
 show_debug_velocity = true
 wheel_configs = Array[WheelConfig]([SubResource("WheelConfig_1dqdu"), SubResource("WheelConfig_4kplg"), SubResource("WheelConfig_nxv8y"), SubResource("WheelConfig_ogdk4")])
@@ -363,12 +364,12 @@ shape = SubResource("ConcavePolygonShape3D_mxckk")
 
 [node name="GameManager" type="GameManager" parent="." unique_id=542871028]
 
-[node name="CarRigidBody3D" type="ArcadeVehicle" parent="." unique_id=451100269]
+[node name="CarController" type="ArcadeVehicle" parent="." unique_id=451100269]
 config = SubResource("VehicleConfig_3f0it")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.23, 9.576)
 physics_material_override = SubResource("PhysicsMaterial_rafu7")
 
-[node name="suv2" parent="CarRigidBody3D" unique_id=1444790978 instance=ExtResource("1_1dqdu")]
+[node name="suv2" parent="CarController" unique_id=1444790978 instance=ExtResource("1_1dqdu")]
 
 [node name="CelesteController" type="CelesteController" parent="." unique_id=1758102786]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.800528, 3.0714903, 2.846653)
