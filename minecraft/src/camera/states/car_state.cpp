@@ -1,6 +1,7 @@
 #include "car_state.h"
 #include "../../game_manager/player_input.h"
 #include "../camera.h"
+#include "godot_cpp/variant/utility_functions.hpp"
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
 
@@ -26,44 +27,71 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 			p_camera->target_distance = CLAMP(p_camera->target_distance - (state.camera.zoom_delta * p_camera->zoom_speed), p_camera->min_distance, p_camera->max_distance);
 		}
 
-		// // Car orientation tracking
-		// if (!state.camera.is_orbiting) {
-		// 	float target_yaw = 0.0f;
+		// Car orientation tracking
+		if (!state.camera.is_orbiting) {
+			float target_yaw = 0.0f;
 
-		// 	if (rb) {
-		// 		Vector3 linear_vel = rb->get_linear_velocity();
-		// 		Vector3 horizontal_vel = Vector3(linear_vel.x, 0, linear_vel.z);
-		// 		Vector3 target_forward = -rb->get_global_transform().basis.get_column(2).normalized();
-		// 		float forward_dot_vel = (horizontal_vel.length_squared() > 0.01f) ? horizontal_vel.normalized().dot(target_forward) : 1.0f;
+			if (rb) {
+				Vector3 linear_vel = rb->get_linear_velocity();
+				Vector3 horizontal_vel = Vector3(linear_vel.x, 0, linear_vel.z);
+				Vector3 target_forward = -rb->get_global_transform().basis.get_column(2).normalized();
+				Vector3 local_up = rb->get_global_transform().basis.get_column(1).normalized();
 
-		// 		if (horizontal_vel.length_squared() > 1.0f && forward_dot_vel > 0.0f) {
-		// 			target_yaw = Math::atan2(-horizontal_vel.x, -horizontal_vel.z);
-		// 		} else {
-		// 			target_yaw = rb->get_global_rotation().y;
-		// 		}
-		// 	} else {
-		// 		target_yaw = p_camera->yaw;
-		// 	}
+				bool is_flipped = local_up.y < 0.5f; // Tilted more than ~60 degrees
+				float speed_sq = horizontal_vel.length_squared();
 
-		// 	float h_dist = Vector2(p_camera->follow_offset.x, p_camera->follow_offset.z).length();
-		// 	float target_pitch = (h_dist > 0.01f) ? -Math::atan2(p_camera->follow_offset.y, h_dist) : p_camera->pitch;
+				bool is_reversing = false;
+				if (speed_sq > 0.01f) {
+					Vector3 horizontal_forward = Vector3(target_forward.x, 0, target_forward.z);
+					if (horizontal_forward.length_squared() > 0.001f) {
+						is_reversing = horizontal_vel.normalized().dot(horizontal_forward.normalized()) < 0.0f;
+					}
+				}
 
-		// 	p_camera->yaw = target_yaw;
-		// 	p_camera->pitch = target_pitch;
-		// }
+				if (is_flipped) {
+					// If the car is flipped/tilted wildly, hold the camera's current yaw to prevent spinning/jittering
+					target_yaw = p_camera->yaw;
+				} else if (speed_sq > 1.0f && !is_reversing) {
+					// When upright and moving forward, follow the horizontal velocity vector (smooth drifting)
+					target_yaw = Math::atan2(-horizontal_vel.x, -horizontal_vel.z);
+				} else {
+					// When upright and slow/stationary or reversing, follow the car's forward orientation
+					float horizontal_forward_length = Vector2(target_forward.x, target_forward.z).length();
+					if (horizontal_forward_length > 0.001f) {
+						target_yaw = Math::atan2(-target_forward.x, -target_forward.z);
+					} else {
+						target_yaw = p_camera->yaw;
+					}
+				}
+			} else {
+				target_yaw = p_camera->yaw;
+			}
+
+			p_camera->yaw = target_yaw;
+
+			float h_dist = Vector2(p_camera->follow_offset.x, p_camera->follow_offset.z).length();
+			float target_pitch = (h_dist > 0.01f) ? -Math::atan2(p_camera->follow_offset.y, h_dist) : p_camera->pitch;
+			p_camera->pitch = target_pitch;
+		}
 	}
 
 	// Shared Follow Logic (Orient + Collision + Springs)
-	p_camera->yaw_spring.target = p_camera->yaw;
+	p_camera->yaw = UtilityFunctions::wrapf(p_camera->yaw, -Math_PI, Math_PI);
+
+	float yaw_diff = UtilityFunctions::wrapf(p_camera->yaw - p_camera->yaw_spring.current, -Math_PI, Math_PI);
+	p_camera->yaw_spring.target = p_camera->yaw_spring.current + yaw_diff;
+
 	p_camera->pitch_spring.target = p_camera->pitch;
 	p_camera->yaw_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
 	p_camera->pitch_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
+
+	p_camera->yaw_spring.current = UtilityFunctions::wrapf(p_camera->yaw_spring.current, -Math_PI, Math_PI);
 
 	// Final Ideal Position Calculation
 	Vector3 pivot = (rb) ? rb->get_global_position() : p_camera->get_global_position();
 	Vector3 ideal_pos = p_camera->_calculate_ideal_position();
 
-	float actual_dist = p_camera->target_distance;
+	float actual_dist = p_camera->get_current_target_distance();
 	if (p_camera->is_collision_enabled() && rb) {
 		actual_dist = p_camera->_solve_collision(pivot, ideal_pos);
 	}
@@ -84,6 +112,14 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 		p_camera->set_global_position(spring_target_pos);
 	}
 	p_camera->set_rotation(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
+
+	// UtilityFunctions::print(
+	// 		"CameraYaw ", p_camera->yaw,
+	// 		" CameraPitch ", p_camera->pitch,
+	// 		" CameraPitchSpring ", p_camera->pitch_spring.current,
+	// 		" CameraYawSpring ", p_camera->yaw_spring.current,
+	// 		" CameraPos ", p_camera->get_global_position(),
+	// 		" CameraRot ", p_camera->get_global_rotation());
 }
 
 } // namespace godot

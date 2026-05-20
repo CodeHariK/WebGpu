@@ -3,10 +3,12 @@
 #include "../game_manager/player_input.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "ai/vehicle_states.h"
+#include "debug_draw/debug_manager.h"
 #include "godot_cpp/classes/csg_box3d.hpp"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/classes/input.hpp>
+#include <godot_cpp/classes/physics_direct_body_state3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -34,6 +36,11 @@ ArcadeVehicle::~ArcadeVehicle() {
 		delete driving_state;
 	if (stunt_state)
 		delete stunt_state;
+
+	DebugManager *dm = DebugManager::get_singleton();
+	if (dm) {
+		dm->clear_text("veh_" + get_name() + "_drift");
+	}
 }
 
 void ArcadeVehicle::_ready() {
@@ -176,7 +183,6 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	if (config.is_null())
 		return;
 
-	float delta = static_cast<float>(p_delta);
 	Transform3D trans = get_global_transform();
 	Vector3 local_up = trans.basis.get_column(1).normalized();
 	Vector3 local_down = -local_up;
@@ -212,7 +218,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 			float hit_dist = hardpoint_world.distance_to(hit.position);
 
 			// Compute force
-			float force_mag = _calculate_suspension_force(wc, hit_dist, delta, hardpoint_world, local_up);
+			float force_mag = _calculate_suspension_force(wc, hit_dist, p_delta, hardpoint_world, local_up);
 
 			if (force_mag > 0.0f) {
 				// Apply force at the hardpoint pushing locally UP
@@ -288,7 +294,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 
 	// 4. Delegate to HSM
 	if (current_state) {
-		current_state->physics_update(delta);
+		current_state->physics_update(p_delta);
 	}
 
 	// 5. COM Interpolation (Shared logic)
@@ -296,10 +302,50 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	if (in_stunt_rotation || (stunt_requested && grounded_wheels > 0)) {
 		target_com = config->get_stunt_com_offset();
 	}
-	current_com_offset = current_com_offset.lerp(target_com, config->get_stunt_com_interpolation_speed() * delta);
+	current_com_offset = current_com_offset.lerp(target_com, config->get_stunt_com_interpolation_speed() * p_delta);
 	set_center_of_mass(current_com_offset);
 
 	_update_debug_arrows();
+}
+
+void ArcadeVehicle::_integrate_forces(PhysicsDirectBodyState3D *state) {
+	if (state == nullptr) {
+		return;
+	}
+
+	Vector3 vel = state->get_linear_velocity();
+
+	// 1. Apply acceleration nudge
+	vel += velocity_nudge_accumulator;
+
+	// 2. Apply velocity alignment if requested
+	if (should_align_velocity) {
+		float current_speed = vel.length();
+		if (current_speed > 1.0f) {
+			Transform3D trans = state->get_transform();
+			Vector3 forward_dir = -trans.basis.get_column(2).normalized();
+
+			Vector3 target_vel_dir = forward_dir;
+			if (vel.dot(forward_dir) < 0) {
+				target_vel_dir = -forward_dir; // Going in reverse
+			}
+
+			Vector3 current_vel_dir = vel.normalized();
+			float alignment_speed = config->get_velocity_alignment();
+			if (is_drifting) {
+				alignment_speed *= 0.65f; // Reduce velocity alignment when drifting to allow sliding sideways
+			}
+			Vector3 new_vel_dir = current_vel_dir.lerp(target_vel_dir, alignment_speed * state->get_step());
+
+			vel = new_vel_dir.normalized() * current_speed;
+		}
+	}
+
+	state->set_linear_velocity(vel);
+
+	// Reset integration accumulators/flags
+	velocity_nudge_accumulator = Vector3(0.0f, 0.0f, 0.0f);
+	should_align_velocity = false;
 }
 
 void ArcadeVehicle::_process_inputs() {
@@ -310,11 +356,13 @@ void ArcadeVehicle::_process_inputs() {
 		current_input.throttle = input_state->vehicle.throttle;
 		current_input.brake = input_state->vehicle.brake;
 		current_input.steer = input_state->vehicle.steering;
+		current_input.handbrake = input_state->vehicle.handbrake;
 	} else {
 		// Zero out inputs if not active
 		current_input.throttle = 0.0f;
 		current_input.brake = 0.0f;
 		current_input.steer = 0.0f;
+		current_input.handbrake = false;
 	}
 }
 
@@ -344,7 +392,7 @@ void ArcadeVehicle::_apply_acceleration(float delta) {
 	}
 
 	apply_central_force(forward_dir * accel_force * 0.7f);
-	set_linear_velocity(get_linear_velocity() + forward_dir * speed_diff * config->get_arcade_assist() * delta * 0.3f);
+	velocity_nudge_accumulator += forward_dir * speed_diff * config->get_arcade_assist() * delta * 0.3f;
 }
 
 void ArcadeVehicle::_apply_steering(float delta) {
@@ -369,6 +417,7 @@ void ArcadeVehicle::_apply_steering(float delta) {
 void ArcadeVehicle::_apply_lateral_friction(float delta) {
 	Transform3D trans = get_global_transform();
 	Vector3 right_dir = trans.basis.get_column(0).normalized(); // Local X is right
+	Vector3 up_dir = trans.basis.get_column(1).normalized();
 
 	// How fast are we sliding sideways?
 	float lateral_velocity = get_linear_velocity().dot(right_dir);
@@ -376,16 +425,31 @@ void ArcadeVehicle::_apply_lateral_friction(float delta) {
 	// Dynamic Drift Grip
 	Vector3 forward_dir = -trans.basis.get_column(2).normalized();
 	float forward_speed = abs(get_linear_velocity().dot(forward_dir));
+
 	float steering_intensity = abs(current_input.steer);
+
+	// State machine for drifting (Mario Kart style)
+	if (is_drifting) {
+		// Stop drifting if handbrake is released or speed drops below threshold
+		if (!current_input.handbrake || forward_speed < config->get_drift_speed_threshold()) {
+			is_drifting = false;
+		}
+	} else {
+		// Start drifting if holding handbrake, steering, and going fast enough
+		if (current_input.handbrake && forward_speed > config->get_drift_speed_threshold() &&
+				steering_intensity > config->get_drift_steering_threshold()) {
+			is_drifting = true;
+
+			// Hop impulse!
+			Vector3 current_vel = get_linear_velocity();
+			set_linear_velocity(current_vel + up_dir * 1.5f);
+		}
+	}
 
 	float current_grip = config->get_base_grip();
 
-	if (forward_speed > config->get_drift_speed_threshold() && steering_intensity > config->get_drift_steering_threshold()) {
-		// Calculate drift lerp. With a keyboard, steering_intensity is 1.0, meaning full drift grip immediately.
-		float drift_intensity = (steering_intensity - config->get_drift_steering_threshold()) / (1.0f - config->get_drift_steering_threshold());
-		drift_intensity = CLAMP(drift_intensity, 0.0f, 1.0f);
-
-		current_grip = Math::lerp(config->get_base_grip(), config->get_drift_grip(), drift_intensity);
+	if (is_drifting) {
+		current_grip = config->get_drift_grip();
 	}
 
 	// F = ma, so to kill velocity `v` in time `t`, F = m * (v/t)
@@ -401,7 +465,6 @@ void ArcadeVehicle::_apply_lateral_friction(float delta) {
 
 void ArcadeVehicle::_apply_stability(float delta) {
 	Transform3D trans = get_global_transform();
-	Vector3 forward_dir = -trans.basis.get_column(2).normalized();
 	Vector3 up_dir = trans.basis.get_column(1).normalized();
 
 	// --- 1. DOWNFORCE ---
@@ -422,24 +485,7 @@ void ArcadeVehicle::_apply_stability(float delta) {
 	float damping_torque = -yaw_vel * config->get_mass() * damping_multiplier;
 	apply_torque(up_dir * damping_torque);
 
-	// --- 3. VELOCITY ALIGNMENT (THE "CHESS" PASS) ---
-	// Gently rotate the linear velocity vector to match the car's orientation
-	// This makes it feel like the car's wheels are actually directional
-	Vector3 current_vel = get_linear_velocity();
-	float current_speed = current_vel.length();
-
-	if (current_speed > 1.0f) {
-		Vector3 target_vel_dir = forward_dir;
-		if (current_vel.dot(forward_dir) < 0) {
-			target_vel_dir = -forward_dir; // Going in reverse
-		}
-
-		// Interpolate the direction of velocity
-		Vector3 current_vel_dir = current_vel.normalized();
-		Vector3 new_vel_dir = current_vel_dir.lerp(target_vel_dir, config->get_velocity_alignment() * delta);
-
-		set_linear_velocity(new_vel_dir.normalized() * current_speed);
-	}
+	should_align_velocity = true;
 }
 
 void ArcadeVehicle::set_config(const Ref<VehicleConfig> &p_config) {

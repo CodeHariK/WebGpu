@@ -75,6 +75,12 @@ private:
 
 	PlayerInput *player_input = nullptr;
 
+	// Dynamic Zoom
+	bool dynamic_zoom_enabled = true;
+	float speed_threshold = 10.0f;
+	float dynamic_zoom_extra_distance = 6.0f;
+	float max_speed_for_zoom = 30.0f;
+
 	void _update_follow_node();
 	Vector3 _calculate_ideal_position();
 	float _solve_collision(const Vector3 &p_from, const Vector3 &p_to);
@@ -138,6 +144,20 @@ public:
 
 	// Raycasting
 	MCRaycastHit get_center_raycast_hit(uint32_t p_mask = 0xFFFFFFFF, float p_dist = 1000.0f);
+
+	float get_current_target_distance() const;
+
+	void set_dynamic_zoom_enabled(bool p_enabled) { dynamic_zoom_enabled = p_enabled; }
+	bool is_dynamic_zoom_enabled() const { return dynamic_zoom_enabled; }
+
+	void set_speed_threshold(float p_threshold) { speed_threshold = p_threshold; }
+	float get_speed_threshold() const { return speed_threshold; }
+
+	void set_dynamic_zoom_extra_distance(float p_dist) { dynamic_zoom_extra_distance = p_dist; }
+	float get_dynamic_zoom_extra_distance() const { return dynamic_zoom_extra_distance; }
+
+	void set_max_speed_for_zoom(float p_speed) { max_speed_for_zoom = p_speed; }
+	float get_max_speed_for_zoom() const { return max_speed_for_zoom; }
 };
 
 } // namespace godot
