@@ -18,6 +18,7 @@ class GroundedState;
 class AirborneState;
 class DrivingState;
 class StuntState;
+class GlidingState;
 class PlayerInput;
 class ArcadeVehicleUI;
 class CUI;
@@ -80,6 +81,7 @@ private:
 	void _apply_lateral_force_with_roll(Vector3 p_force_global);
 	void _apply_longitudinal_force_with_pitch(Vector3 p_force_global);
 	void _handle_wall_collision_and_spin(int p_wheel_index, const MCRaycastHit &p_hit, Vector3 &r_force_dir, float &r_force_mag);
+	void _update_stunt_logic(double p_delta, float p_forward_speed, int p_grounded_wheels, bool p_is_active);
 	
 	// HSM States
 	friend class VehicleState;
@@ -87,12 +89,14 @@ private:
 	friend class AirborneState;
 	friend class DrivingState;
 	friend class StuntState;
+	friend class GlidingState;
 
 	VehicleState* current_state = nullptr;
 	GroundedState* grounded_state = nullptr;
 	AirborneState* airborne_state = nullptr;
 	DrivingState* driving_state = nullptr;
 	StuntState* stunt_state = nullptr;
+	GlidingState* gliding_state = nullptr;
 
 protected:
 	static void _bind_methods();
