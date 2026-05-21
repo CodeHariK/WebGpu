@@ -16,23 +16,14 @@ void ArcadeVehicle::_update_debug_arrows() {
 		String txt = "(" + String::num(current_vel.x, 1) + " | " + String::num(current_vel.y, 1) + " | " + String::num(current_vel.z, 1) + ") ";
 
 		if (is_drifting) {
-			txt += "DRIFT: " + String::num(drift_timer, 1) + "s";
-			Color col = Color(1.0f, 0.8f, 0.0f); // Default Orange
-
-			if (drift_chain_count > 0) {
-				txt += " (Chain x" + String::num_int64(drift_chain_count + 1) + ")";
-				if (drift_chain_count == 1) {
-					col = Color(0.0f, 0.9f, 1.0f); // Cyan
-				} else {
-					col = Color(0.9f, 0.1f, 1.0f); // Magenta/Purple
-				}
-			}
-			dm->draw_text(base_id + "drift", txt, text_pos, 0.002f, col);
+			txt += "DRIFT NITRO: " + String::num(nitro_fuel, 1) + "%";
+			dm->draw_text(base_id + "drift", txt, text_pos, 0.002f, Color(1.0f, 0.8f, 0.0f));
 		} else if (is_boosting) {
-			txt += "BOOST! " + String::num(boost_timer, 1) + "s (+" + String::num(boost_speed_bonus, 1) + " m/s)";
+			txt += "BOOST! NITRO: " + String::num(nitro_fuel, 1) + "% (+" + String::num(boost_speed_bonus, 1) + " m/s)";
 
 			dm->draw_text(base_id + "drift", txt, text_pos, 0.002f, Color(0.2f, 1.0f, 0.2f));
 		} else {
+			txt += "NITRO: " + String::num(nitro_fuel, 1) + "%";
 			dm->draw_text(base_id + "drift", txt, text_pos, 0.002f, Color(0.5f, 1.0f, 0.2f));
 		}
 	}
@@ -44,6 +35,7 @@ void ArcadeVehicle::_update_debug_arrows() {
 			dm->clear_line(base_id + "vel_x");
 			dm->clear_line(base_id + "vel_y");
 			dm->clear_line(base_id + "vel_z");
+			dm->clear_sphere(base_id + "com");
 		}
 		return;
 	}
@@ -61,6 +53,9 @@ void ArcadeVehicle::_update_debug_arrows() {
 
 	if (!dm)
 		return;
+
+	// Draw Center of Mass sphere
+	dm->draw_sphere(base_id + "com", get_global_transform().xform(current_com_offset), 0.25f, Color(1, 0, 0));
 
 	// Update each arrow using world space coordinates
 	// X-axis (Red)

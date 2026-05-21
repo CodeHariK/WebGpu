@@ -1,6 +1,9 @@
 #include "debug_manager.h"
 #include "debug_quad.h"
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/sphere_mesh.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -13,6 +16,9 @@ void DebugManager::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("draw_text", "id", "text", "pos", "size", "color", "duration"), &DebugManager::draw_text, DEFVAL(0.05f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f));
 	ClassDB::bind_method(D_METHOD("clear_text", "id"), &DebugManager::clear_text);
+
+	ClassDB::bind_method(D_METHOD("draw_sphere", "id", "pos", "radius", "color", "duration"), &DebugManager::draw_sphere, DEFVAL(0.5f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f));
+	ClassDB::bind_method(D_METHOD("clear_sphere", "id"), &DebugManager::clear_sphere);
 
 	ClassDB::bind_method(D_METHOD("clear_all"), &DebugManager::clear_all);
 }
@@ -55,6 +61,7 @@ void DebugManager::_physics_process(double delta) {
 	float f_delta = (float)delta;
 	std::vector<String> lines_to_remove;
 	std::vector<String> texts_to_remove;
+	std::vector<String> spheres_to_remove;
 
 	for (auto &E : lines) {
 		if (E.value.duration > 0) {
@@ -74,11 +81,23 @@ void DebugManager::_physics_process(double delta) {
 		}
 	}
 
+	for (auto &E : spheres) {
+		if (E.value.duration > 0) {
+			E.value.duration -= f_delta;
+			if (E.value.duration <= 0) {
+				spheres_to_remove.push_back(E.key);
+			}
+		}
+	}
+
 	for (const String &id : lines_to_remove) {
 		clear_line(id);
 	}
 	for (const String &id : texts_to_remove) {
 		clear_text(id);
+	}
+	for (const String &id : spheres_to_remove) {
+		clear_sphere(id);
 	}
 }
 
@@ -173,6 +192,13 @@ void DebugManager::clear_all() {
 	}
 	texts.clear();
 
+	for (auto &E : spheres) {
+		if (E.value.mesh_instance) {
+			E.value.mesh_instance->queue_free();
+		}
+	}
+	spheres.clear();
+
 	for (auto &E : trajectories) {
 		Trajectory &traj = E.value;
 		for (size_t i = 0; i < traj.points.size(); ++i) {
@@ -216,6 +242,62 @@ void DebugManager::clear_trajectory(const String &p_id) {
 			clear_line(p_id + String("_") + String::num_int64(i));
 		}
 		trajectories.erase(p_id);
+	}
+}
+
+void DebugManager::draw_sphere(const String &p_id, const Vector3 &p_pos, float p_radius, const Color &p_color, float p_duration) {
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+
+	if (!spheres.has(p_id)) {
+		DebugSphere ds;
+		ds.mesh_instance = memnew(MeshInstance3D);
+		ds.mesh_instance->set_name("DebugSphere_" + p_id);
+		add_child(ds.mesh_instance);
+		ds.mesh_instance->set_as_top_level(true);
+
+		Ref<SphereMesh> sphere_mesh;
+		sphere_mesh.instantiate();
+		sphere_mesh->set_radius(0.5f);
+		sphere_mesh->set_height(1.0f);
+		ds.mesh_instance->set_mesh(sphere_mesh);
+
+		Ref<StandardMaterial3D> mat;
+		mat.instantiate();
+		mat->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+		ds.mesh_instance->set_material_override(mat);
+
+		ds.duration = p_duration;
+		spheres[p_id] = ds;
+	}
+
+	DebugSphere &ds = spheres[p_id];
+	ds.mesh_instance->set_global_position(p_pos);
+	ds.mesh_instance->set_scale(Vector3(p_radius * 2.0f, p_radius * 2.0f, p_radius * 2.0f));
+
+	Ref<StandardMaterial3D> mat = ds.mesh_instance->get_material_override();
+	if (mat.is_valid()) {
+		mat->set_albedo(p_color);
+		if (p_color.a < 1.0f) {
+			mat->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+		} else {
+			mat->set_transparency(BaseMaterial3D::TRANSPARENCY_DISABLED);
+		}
+	}
+
+	if (p_duration > 0) {
+		ds.duration = p_duration;
+	}
+}
+
+void DebugManager::clear_sphere(const String &p_id) {
+	if (spheres.has(p_id)) {
+		DebugSphere &ds = spheres[p_id];
+		if (ds.mesh_instance) {
+			ds.mesh_instance->queue_free();
+		}
+		spheres.erase(p_id);
 	}
 }
 

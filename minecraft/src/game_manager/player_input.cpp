@@ -87,6 +87,7 @@ void PlayerInput::update() {
 	current_state.vehicle.brake = input->get_action_strength("move_backward");
 	current_state.vehicle.steering = input->get_action_strength("move_right") - input->get_action_strength("move_left");
 	current_state.vehicle.handbrake = input->is_action_pressed("handbrake");
+	current_state.vehicle.nitro = input->is_action_pressed("nitro");
 
 	// 6. Tennis Specifics
 	current_state.tennis.shot_a = input->is_action_pressed("tennis_shot_a");

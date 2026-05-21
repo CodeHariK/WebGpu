@@ -52,6 +52,8 @@ void ArcadeVehicleUI::setup(ArcadeVehicle *p_vehicle, CUI *p_ui_root) {
 	_add_variable_slider(physics_tab, "Downforce", "downforce", 0.0f, 10000.0f, 50.0f);
 	_add_variable_slider(physics_tab, "Yaw Damping", "angular_damping", 0.0f, 20.0f, 0.1f);
 	_add_variable_slider(physics_tab, "Vel Alignment", "velocity_alignment", 0.0f, 10.0f, 0.1f);
+	_add_variable_slider(physics_tab, "Roll Influence", "roll_influence", 0.0f, 1.0f, 0.05f);
+	_add_variable_slider(physics_tab, "Pitch Influence", "pitch_influence", 0.0f, 1.0f, 0.05f);
 
 	HBoxContainer *btn_box = ui_root->add_hbox(physics_tab, "ButtonBox");
 	ui_root->add_button(btn_box, "Save Settings", Callable(vehicle, "save_settings"));
@@ -73,7 +75,14 @@ void ArcadeVehicleUI::setup(ArcadeVehicle *p_vehicle, CUI *p_ui_root) {
 	ui_root->add_label(info_tab, "Real-time Velocity:");
 	velocity_graph = ui_root->add_graph(info_tab, "SpeedGraph");
 	if (velocity_graph) {
-		velocity_graph->set_range(0, 50);
+		float max_speed = 50.0f;
+		if (vehicle) {
+			Ref<VehicleConfig> cfg = vehicle->get_vehicle_config();
+			if (cfg.is_valid()) {
+				max_speed = cfg->get_max_speed() + cfg->get_drift_boost_max_speed_bonus();
+			}
+		}
+		velocity_graph->set_range(0, max_speed);
 		velocity_graph->set_max_points(120);
 	}
 }
@@ -105,6 +114,14 @@ void ArcadeVehicleUI::toggle_visibility() {
 
 void ArcadeVehicleUI::update_graph(float p_val) {
 	if (velocity_graph) {
+		float max_speed = 50.0f;
+		if (vehicle) {
+			Ref<VehicleConfig> cfg = vehicle->get_vehicle_config();
+			if (cfg.is_valid()) {
+				max_speed = cfg->get_max_speed() + cfg->get_drift_boost_max_speed_bonus();
+			}
+		}
+		velocity_graph->set_range(0.0f, max_speed);
 		velocity_graph->add_value(p_val);
 	}
 }

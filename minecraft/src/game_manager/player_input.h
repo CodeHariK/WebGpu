@@ -19,6 +19,7 @@ struct VehicleInput {
 	float brake = 0.0f;
 	float steering = 0.0f;
 	bool handbrake = false;
+	bool nitro = false;
 };
 
 struct CharacterInput {

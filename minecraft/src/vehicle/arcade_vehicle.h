@@ -2,6 +2,7 @@
 #define ARCADE_VEHICLE_H
 
 #include "config/vehicle_config.h"
+#include "../utils/raycast/mc_raycast.h"
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/csg_box3d.hpp>
@@ -43,6 +44,7 @@ private:
 		float brake = 0.0f;
 		float steer = 0.0f;
 		bool handbrake = false;
+		bool nitro = false;
 	} current_input;
 
 	// Stunt / Flip state
@@ -57,17 +59,11 @@ private:
 
 	// Drift state
 	bool is_drifting = false;
-	float drift_timer = 0.0f;
-	int drift_chain_count = 0;
-	float time_since_last_drift = 0.0f;
 
 	// Speed Boost state
 	bool is_boosting = false;
-	float boost_timer = 0.0f;
-	float boost_duration = 0.0f;
 	float boost_speed_bonus = 0.0f;
-
-	void _trigger_speed_boost();
+	float nitro_fuel = 0.0f;
 
 	void _setup_vehicle();
 	void _update_visuals();
@@ -79,6 +75,11 @@ private:
 	void _apply_lateral_friction(float delta);
 	void _apply_stability(float delta);
 	void _update_debug_arrows();
+
+	float _get_average_contact_patch_y() const;
+	void _apply_lateral_force_with_roll(Vector3 p_force_global);
+	void _apply_longitudinal_force_with_pitch(Vector3 p_force_global);
+	void _handle_wall_collision_and_spin(int p_wheel_index, const MCRaycastHit &p_hit, Vector3 &r_force_dir, float &r_force_mag);
 	
 	// HSM States
 	friend class VehicleState;

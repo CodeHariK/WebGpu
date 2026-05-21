@@ -1,20 +1,20 @@
 #include "arcade_vehicle.h"
+#include "../cui/cui.h"
 #include "../game_manager/game_manager.h"
 #include "../game_manager/player_input.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "ai/vehicle_states.h"
 #include "debug_draw/debug_manager.h"
 #include "godot_cpp/classes/csg_box3d.hpp"
+#include "ui/arcade_vehicle_ui.h"
+#include <godot_cpp/classes/canvas_layer.hpp>
+#include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/physics_direct_body_state3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include "ui/arcade_vehicle_ui.h"
-#include "../cui/cui.h"
-#include <godot_cpp/classes/canvas_layer.hpp>
-#include <godot_cpp/classes/config_file.hpp>
 
 namespace godot {
 
@@ -34,12 +34,7 @@ void ArcadeVehicle::_bind_methods() {
 }
 
 ArcadeVehicle::ArcadeVehicle() {
-	drift_timer = 0.0f;
-	drift_chain_count = 0;
-	time_since_last_drift = 0.0f;
 	is_boosting = false;
-	boost_timer = 0.0f;
-	boost_duration = 0.0f;
 	boost_speed_bonus = 0.0f;
 	ui_helper = nullptr;
 	ui_root = nullptr;
@@ -91,6 +86,10 @@ void ArcadeVehicle::_ready() {
 	ui_helper = new ArcadeVehicleUI();
 	ui_helper->setup(this, ui_root);
 	load_settings();
+
+	if (config.is_valid()) {
+		nitro_fuel = config->get_nitro_max_fuel();
+	}
 }
 
 void ArcadeVehicle::_exit_tree() {
@@ -250,8 +249,9 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 			float force_mag = _calculate_suspension_force(wc, hit_dist, p_delta, hardpoint_world, local_up);
 
 			if (force_mag > 0.0f) {
-				// Apply force at the hardpoint pushing locally UP
-				apply_force(local_up * force_mag, hardpoint_world - trans.origin);
+				Vector3 force_dir;
+				_handle_wall_collision_and_spin(i, hit, force_dir, force_mag);
+				apply_force(force_dir * force_mag, hardpoint_world - trans.origin);
 			}
 
 			// Position visual at contact patch + radius
@@ -307,7 +307,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 
 	// Early Recovery Check
 	if (in_stunt_rotation) {
-		float recovery_ray_dist = 5.0f;
+		float recovery_ray_dist = 15.0f;
 		TypedArray<RID> exclude;
 		exclude.push_back(get_rid());
 		MCRaycastHit recovery_hit = raycast_3d(this, trans.origin, trans.origin + Vector3(0, -recovery_ray_dist, 0), 0xFFFFFFFF, exclude);
@@ -376,7 +376,7 @@ void ArcadeVehicle::_integrate_forces(PhysicsDirectBodyState3D *state) {
 			Vector3 current_vel_dir = vel.normalized();
 			float alignment_speed = config->get_velocity_alignment();
 			if (is_drifting) {
-				alignment_speed *= 0.65f; // Reduce velocity alignment when drifting to allow sliding sideways
+				alignment_speed *= 0.15f; // Reduce velocity alignment when drifting to allow sliding sideways
 			}
 			Vector3 new_vel_dir = current_vel_dir.lerp(target_vel_dir, alignment_speed * state->get_step());
 
@@ -400,12 +400,14 @@ void ArcadeVehicle::_process_inputs() {
 		current_input.brake = input_state->vehicle.brake;
 		current_input.steer = input_state->vehicle.steering;
 		current_input.handbrake = input_state->vehicle.handbrake;
+		current_input.nitro = input_state->vehicle.nitro;
 	} else {
 		// Zero out inputs if not active
 		current_input.throttle = 0.0f;
 		current_input.brake = 0.0f;
 		current_input.steer = 0.0f;
 		current_input.handbrake = false;
+		current_input.nitro = false;
 	}
 }
 
@@ -414,7 +416,25 @@ void ArcadeVehicle::_apply_acceleration(float delta) {
 	Vector3 forward_dir = -trans.basis.get_column(2).normalized(); // Local -Z is forward
 	float current_forward_speed = get_linear_velocity().dot(forward_dir);
 
+	// Handle manual Nitro/Boost input and fuel consumption
+	bool started_boosting = false;
+	if (current_input.nitro && nitro_fuel > 0.0f) {
+		if (!is_boosting) {
+			started_boosting = true;
+		}
+		is_boosting = true;
+		nitro_fuel = MAX(0.0f, nitro_fuel - config->get_nitro_depletion_rate() * delta);
+		boost_speed_bonus = config->get_drift_boost_max_speed_bonus();
+	} else {
+		is_boosting = false;
+		boost_speed_bonus = 0.0f;
+	}
+
 	float input_drive = current_input.throttle - current_input.brake;
+	// Nitro auto-accelerates forward if the player is not actively braking
+	if (is_boosting && current_input.brake <= 0.01f) {
+		input_drive = 1.0f;
+	}
 
 	// Calculate max speed, taking drift slowdown and speed boost into account
 	float speed_multiplier = 1.0f;
@@ -434,14 +454,17 @@ void ArcadeVehicle::_apply_acceleration(float delta) {
 		bool is_braking = (input_drive * current_forward_speed) < -0.1f;
 		float force_limit = is_braking ? config->get_brake_decel() : config->get_max_accel_force();
 
+		float accel_curve = 1.0f;
 		if (is_boosting) {
 			// Increase acceleration force during boost to push past normal speed quickly
-			force_limit *= 1.5f;
+			force_limit *= 2.0f;
+			// Keep full acceleration force during boost (no drop off as we approach max speed)
+			accel_curve = 1.0f;
+		} else {
+			float speed_ratio = abs(current_forward_speed) / max_speed;
+			accel_curve = 1.0f - (speed_ratio * speed_ratio);
+			accel_curve = MAX(0.1f, accel_curve);
 		}
-
-		float speed_ratio = abs(current_forward_speed) / max_speed;
-		float accel_curve = 1.0f - (speed_ratio * speed_ratio);
-		accel_curve = MAX(0.1f, accel_curve);
 
 		accel_force = force_limit * accel_curve * input_drive;
 	} else {
@@ -453,8 +476,16 @@ void ArcadeVehicle::_apply_acceleration(float delta) {
 		}
 	}
 
-	apply_central_force(forward_dir * accel_force * 0.7f);
-	velocity_nudge_accumulator += forward_dir * speed_diff * config->get_arcade_assist() * delta * 0.3f;
+	_apply_longitudinal_force_with_pitch(forward_dir * accel_force * 0.7f);
+
+	// Apply arcade assist nudge; make it stronger during Nitro boost to help reach top speed quickly
+	float nudge_strength = is_boosting ? 0.6f : 0.3f;
+	velocity_nudge_accumulator += forward_dir * speed_diff * config->get_arcade_assist() * delta * nudge_strength;
+
+	if (started_boosting) {
+		// Initial speed kick forward to feel responsive and punchy
+		velocity_nudge_accumulator += forward_dir * (boost_speed_bonus * 0.2f);
+	}
 }
 
 void ArcadeVehicle::_apply_steering(float delta) {
@@ -464,7 +495,7 @@ void ArcadeVehicle::_apply_steering(float delta) {
 	float current_forward_speed = get_linear_velocity().dot(forward_dir);
 
 	float max_steer_rad = Math::deg_to_rad(config->get_max_steer_angle_deg());
-	
+
 	// Relax steering angle damping at high speeds when drifting for tighter turns
 	float min_steer_clamp = is_drifting ? 0.6f : 0.3f;
 	float steer_speed_factor = CLAMP(1.0f - (abs(current_forward_speed) / config->get_max_speed()), min_steer_clamp, 1.0f);
@@ -472,7 +503,7 @@ void ArcadeVehicle::_apply_steering(float delta) {
 
 	if (abs(current_forward_speed) > 1.0f && abs(steer_angle) > 0.01f) {
 		float dir_sign = (current_forward_speed > 0.0f) ? 1.0f : -1.0f;
-		
+
 		// Apply drift turning force multiplier if drifting
 		float steer_multiplier = 1.0f;
 		if (is_drifting) {
@@ -515,49 +546,13 @@ void ArcadeVehicle::_apply_lateral_friction(float delta) {
 			is_drifting = true;
 
 			// Hop impulse!
-			Vector3 current_vel = get_linear_velocity();
-			set_linear_velocity(current_vel + up_dir * 1.5f);
+			velocity_nudge_accumulator += up_dir * 1.5f;
 		}
 	}
 
-	// Drift duration & Chain & Boost logic
-	if (!was_drifting && is_drifting) {
-		// Started drifting!
-		if (time_since_last_drift <= config->get_drift_chain_window() || is_boosting) {
-			drift_chain_count++;
-			if (drift_chain_count > 5) {
-				drift_chain_count = 5;
-			}
-		} else {
-			drift_chain_count = 0;
-		}
-		drift_timer = 0.0f;
-	} else if (was_drifting && is_drifting) {
-		// Continuing drift
-		drift_timer += delta;
-	} else if (was_drifting && !is_drifting) {
-		// Stopped drifting!
-		if (drift_timer > 0.15f) {
-			_trigger_speed_boost();
-		} else {
-			drift_timer = 0.0f;
-		}
-		time_since_last_drift = 0.0f;
-	} else {
-		// Not drifting
-		time_since_last_drift += delta;
-		if (time_since_last_drift > config->get_drift_chain_window()) {
-			drift_chain_count = 0;
-		}
-	}
-
-	// Update boost timer
-	if (is_boosting) {
-		boost_timer -= delta;
-		if (boost_timer <= 0.0f) {
-			is_boosting = false;
-			boost_speed_bonus = 0.0f;
-		}
+	// Nitro refuel during active drift
+	if (is_drifting) {
+		nitro_fuel = MIN(config->get_nitro_max_fuel(), nitro_fuel + config->get_nitro_refuel_rate() * delta);
 	}
 
 	float current_grip = config->get_base_grip();
@@ -574,39 +569,8 @@ void ArcadeVehicle::_apply_lateral_friction(float delta) {
 	float max_lateral_grip_force = config->get_mass() * 50.0f / delta;
 	lateral_force_magnitude = CLAMP(lateral_force_magnitude, -max_lateral_grip_force, max_lateral_grip_force);
 
-	apply_central_force(right_dir * lateral_force_magnitude);
-}
-
-void ArcadeVehicle::_trigger_speed_boost() {
-	if (config.is_null()) return;
-
-	float base_speed = drift_timer * config->get_drift_boost_speed_coefficient();
-	float base_duration = drift_timer * config->get_drift_boost_duration_coefficient();
-
-	// Chain multiplier: each chain level adds a bonus percentage to speed and duration
-	float chain_mult = 1.0f + (float)drift_chain_count * config->get_drift_chain_bonus_multiplier();
-
-	float speed_bonus = base_speed * chain_mult;
-	float duration = base_duration * chain_mult;
-
-	// Clamp to configured limits
-	speed_bonus = MIN(speed_bonus, config->get_drift_boost_max_speed_bonus());
-	duration = MIN(duration, config->get_drift_boost_max_duration());
-
-	if (speed_bonus > 0.01f && duration > 0.01f) {
-		is_boosting = true;
-		boost_timer = duration;
-		boost_duration = duration;
-		boost_speed_bonus = speed_bonus;
-
-		// Initial velocity kick in forward direction
-		Transform3D trans = get_global_transform();
-		Vector3 forward_dir = -trans.basis.get_column(2).normalized();
-		Vector3 current_vel = get_linear_velocity();
-
-		// Add speed kick directly to the current velocity
-		set_linear_velocity(current_vel + forward_dir * (speed_bonus * 0.4f));
-	}
+	//----------- Roll
+	_apply_lateral_force_with_roll(right_dir * lateral_force_magnitude);
 }
 
 void ArcadeVehicle::_apply_stability(float delta) {
@@ -632,6 +596,85 @@ void ArcadeVehicle::_apply_stability(float delta) {
 	apply_torque(up_dir * damping_torque);
 
 	should_align_velocity = true;
+}
+
+float ArcadeVehicle::_get_average_contact_patch_y() const {
+	if (config.is_null()) {
+		return -1.0f;
+	}
+	float total_wheel_y = 0.0f;
+	int valid_wheels = 0;
+	TypedArray<WheelConfig> wconfigs = config->get_wheel_configs();
+	for (int i = 0; i < wconfigs.size(); i++) {
+		Ref<WheelConfig> wc = wconfigs[i];
+		if (wc.is_valid()) {
+			total_wheel_y += wc->get_hardpoint_offset().y - wc->get_suspension_rest_length() - wc->get_radius();
+			valid_wheels++;
+		}
+	}
+	return (valid_wheels > 0) ? (total_wheel_y / (float)valid_wheels) : -1.0f;
+}
+
+void ArcadeVehicle::_apply_lateral_force_with_roll(Vector3 p_force_global) {
+	if (config.is_null()) {
+		return;
+	}
+	Transform3D trans = get_global_transform();
+	float contact_patch_y = _get_average_contact_patch_y();
+
+	float roll_inf = config->get_roll_influence();
+	float force_y = current_com_offset.y + (contact_patch_y - current_com_offset.y) * roll_inf;
+
+	Vector3 local_force_pos(current_com_offset.x, force_y, current_com_offset.z);
+	Vector3 force_offset_global = trans.basis.xform(local_force_pos);
+
+	apply_force(p_force_global, force_offset_global);
+}
+
+void ArcadeVehicle::_apply_longitudinal_force_with_pitch(Vector3 p_force_global) {
+	if (config.is_null()) {
+		return;
+	}
+	Transform3D trans = get_global_transform();
+	float contact_patch_y = _get_average_contact_patch_y();
+
+	float pitch_inf = config->get_pitch_influence();
+	float force_y = current_com_offset.y + (contact_patch_y - current_com_offset.y) * pitch_inf;
+
+	Vector3 local_force_pos(current_com_offset.x, force_y, current_com_offset.z);
+	Vector3 force_offset_global = trans.basis.xform(local_force_pos);
+
+	apply_force(p_force_global, force_offset_global);
+}
+
+void ArcadeVehicle::_handle_wall_collision_and_spin(int p_wheel_index, const MCRaycastHit &p_hit, Vector3 &r_force_dir, float &r_force_mag) {
+	Transform3D trans = get_global_transform();
+	Vector3 local_up = trans.basis.get_column(1).normalized();
+	
+	float up_dot = p_hit.normal.dot(local_up);
+	r_force_dir = local_up;
+
+	if (up_dot < 0.6f) {
+		// Wall/slope collision: push away from the wall horizontally
+		r_force_dir = p_hit.normal;
+		r_force_mag *= 0.5f; // Soften the force to avoid abrupt bounces
+		r_force_mag = MIN(r_force_mag, config->get_mass() * 30.0f); // Cap the force to keep it smooth and stable
+
+		// Spin assist: apply horizontal torque when front wheels scrape a wall
+		Vector3 forward_dir = -trans.basis.get_column(2).normalized();
+		float forward_speed = get_linear_velocity().dot(forward_dir);
+		if (forward_speed > 3.0f) {
+			float speed_scale = CLAMP(forward_speed / 10.0f, 0.5f, 1.5f);
+			float assist_torque = config->get_mass() * 25.0f * speed_scale;
+			if (p_wheel_index == 0) {
+				// Front-Left hits wall -> spin clockwise (positive yaw torque)
+				apply_torque(local_up * assist_torque);
+			} else if (p_wheel_index == 1) {
+				// Front-Right hits wall -> spin counter-clockwise (negative yaw torque)
+				apply_torque(-local_up * assist_torque);
+			}
+		}
+	}
 }
 
 void ArcadeVehicle::set_config(const Ref<VehicleConfig> &p_config) {
@@ -684,6 +727,11 @@ void ArcadeVehicle::save_settings() {
 	cfg->set_value("Vehicle", "downforce", config->get_downforce());
 	cfg->set_value("Vehicle", "angular_damping", config->get_angular_damping());
 	cfg->set_value("Vehicle", "velocity_alignment", config->get_velocity_alignment());
+	cfg->set_value("Vehicle", "nitro_max_fuel", config->get_nitro_max_fuel());
+	cfg->set_value("Vehicle", "nitro_refuel_rate", config->get_nitro_refuel_rate());
+	cfg->set_value("Vehicle", "nitro_depletion_rate", config->get_nitro_depletion_rate());
+	cfg->set_value("Vehicle", "roll_influence", config->get_roll_influence());
+	cfg->set_value("Vehicle", "pitch_influence", config->get_pitch_influence());
 
 	cfg->set_value("Stunt", "stunt_torque_strength", config->get_stunt_torque_strength());
 	cfg->set_value("Stunt", "stunt_com_interpolation_speed", config->get_stunt_com_interpolation_speed());
@@ -717,6 +765,11 @@ void ArcadeVehicle::load_settings() {
 	config->set_downforce(cfg->get_value("Vehicle", "downforce", config->get_downforce()));
 	config->set_angular_damping(cfg->get_value("Vehicle", "angular_damping", config->get_angular_damping()));
 	config->set_velocity_alignment(cfg->get_value("Vehicle", "velocity_alignment", config->get_velocity_alignment()));
+	config->set_nitro_max_fuel(cfg->get_value("Vehicle", "nitro_max_fuel", config->get_nitro_max_fuel()));
+	config->set_nitro_refuel_rate(cfg->get_value("Vehicle", "nitro_refuel_rate", config->get_nitro_refuel_rate()));
+	config->set_nitro_depletion_rate(cfg->get_value("Vehicle", "nitro_depletion_rate", config->get_nitro_depletion_rate()));
+	config->set_roll_influence(cfg->get_value("Vehicle", "roll_influence", config->get_roll_influence()));
+	config->set_pitch_influence(cfg->get_value("Vehicle", "pitch_influence", config->get_pitch_influence()));
 
 	config->set_stunt_torque_strength(cfg->get_value("Stunt", "stunt_torque_strength", config->get_stunt_torque_strength()));
 	config->set_stunt_com_interpolation_speed(cfg->get_value("Stunt", "stunt_com_interpolation_speed", config->get_stunt_com_interpolation_speed()));
@@ -735,6 +788,8 @@ void ArcadeVehicle::load_settings() {
 		ui_root->set_value("downforce", config->get_downforce());
 		ui_root->set_value("angular_damping", config->get_angular_damping());
 		ui_root->set_value("velocity_alignment", config->get_velocity_alignment());
+		ui_root->set_value("roll_influence", config->get_roll_influence());
+		ui_root->set_value("pitch_influence", config->get_pitch_influence());
 
 		ui_root->set_value("stunt_torque_strength", config->get_stunt_torque_strength());
 		ui_root->set_value("stunt_com_interpolation_speed", config->get_stunt_com_interpolation_speed());
@@ -746,40 +801,90 @@ void ArcadeVehicle::load_settings() {
 }
 
 float ArcadeVehicle::get_ui_var(const String &p_name) const {
-	if (config.is_null()) return 0.0f;
-	if (p_name == "max_speed") return config->get_max_speed();
-	if (p_name == "max_accel_force") return config->get_max_accel_force();
-	if (p_name == "brake_decel") return config->get_brake_decel();
-	if (p_name == "arcade_assist") return config->get_arcade_assist();
-	if (p_name == "max_steer_angle_deg") return config->get_max_steer_angle_deg();
-	if (p_name == "base_grip") return config->get_base_grip();
-	if (p_name == "drift_grip") return config->get_drift_grip();
-	if (p_name == "downforce") return config->get_downforce();
-	if (p_name == "angular_damping") return config->get_angular_damping();
-	if (p_name == "velocity_alignment") return config->get_velocity_alignment();
-	if (p_name == "stunt_torque_strength") return config->get_stunt_torque_strength();
-	if (p_name == "stunt_com_interpolation_speed") return config->get_stunt_com_interpolation_speed();
-	if (p_name == "ramp_detection_threshold") return config->get_ramp_detection_threshold();
-	if (p_name == "stunt_recovery_height") return config->get_stunt_recovery_height();
+	if (config.is_null())
+		return 0.0f;
+	if (p_name == "max_speed")
+		return config->get_max_speed();
+	if (p_name == "max_accel_force")
+		return config->get_max_accel_force();
+	if (p_name == "brake_decel")
+		return config->get_brake_decel();
+	if (p_name == "arcade_assist")
+		return config->get_arcade_assist();
+	if (p_name == "max_steer_angle_deg")
+		return config->get_max_steer_angle_deg();
+	if (p_name == "base_grip")
+		return config->get_base_grip();
+	if (p_name == "drift_grip")
+		return config->get_drift_grip();
+	if (p_name == "downforce")
+		return config->get_downforce();
+	if (p_name == "angular_damping")
+		return config->get_angular_damping();
+	if (p_name == "velocity_alignment")
+		return config->get_velocity_alignment();
+	if (p_name == "nitro_max_fuel")
+		return config->get_nitro_max_fuel();
+	if (p_name == "nitro_refuel_rate")
+		return config->get_nitro_refuel_rate();
+	if (p_name == "nitro_depletion_rate")
+		return config->get_nitro_depletion_rate();
+	if (p_name == "roll_influence")
+		return config->get_roll_influence();
+	if (p_name == "pitch_influence")
+		return config->get_pitch_influence();
+	if (p_name == "stunt_torque_strength")
+		return config->get_stunt_torque_strength();
+	if (p_name == "stunt_com_interpolation_speed")
+		return config->get_stunt_com_interpolation_speed();
+	if (p_name == "ramp_detection_threshold")
+		return config->get_ramp_detection_threshold();
+	if (p_name == "stunt_recovery_height")
+		return config->get_stunt_recovery_height();
 	return 0.0f;
 }
 
 void ArcadeVehicle::set_ui_var(const String &p_name, float p_value) {
-	if (config.is_null()) return;
-	if (p_name == "max_speed") config->set_max_speed(p_value);
-	else if (p_name == "max_accel_force") config->set_max_accel_force(p_value);
-	else if (p_name == "brake_decel") config->set_brake_decel(p_value);
-	else if (p_name == "arcade_assist") config->set_arcade_assist(p_value);
-	else if (p_name == "max_steer_angle_deg") config->set_max_steer_angle_deg(p_value);
-	else if (p_name == "base_grip") config->set_base_grip(p_value);
-	else if (p_name == "drift_grip") config->set_drift_grip(p_value);
-	else if (p_name == "downforce") config->set_downforce(p_value);
-	else if (p_name == "angular_damping") config->set_angular_damping(p_value);
-	else if (p_name == "velocity_alignment") config->set_velocity_alignment(p_value);
-	else if (p_name == "stunt_torque_strength") config->set_stunt_torque_strength(p_value);
-	else if (p_name == "stunt_com_interpolation_speed") config->set_stunt_com_interpolation_speed(p_value);
-	else if (p_name == "ramp_detection_threshold") config->set_ramp_detection_threshold(p_value);
-	else if (p_name == "stunt_recovery_height") config->set_stunt_recovery_height(p_value);
+	if (config.is_null())
+		return;
+	if (p_name == "max_speed")
+		config->set_max_speed(p_value);
+	else if (p_name == "max_accel_force")
+		config->set_max_accel_force(p_value);
+	else if (p_name == "brake_decel")
+		config->set_brake_decel(p_value);
+	else if (p_name == "arcade_assist")
+		config->set_arcade_assist(p_value);
+	else if (p_name == "max_steer_angle_deg")
+		config->set_max_steer_angle_deg(p_value);
+	else if (p_name == "base_grip")
+		config->set_base_grip(p_value);
+	else if (p_name == "drift_grip")
+		config->set_drift_grip(p_value);
+	else if (p_name == "downforce")
+		config->set_downforce(p_value);
+	else if (p_name == "angular_damping")
+		config->set_angular_damping(p_value);
+	else if (p_name == "velocity_alignment")
+		config->set_velocity_alignment(p_value);
+	else if (p_name == "nitro_max_fuel")
+		config->set_nitro_max_fuel(p_value);
+	else if (p_name == "nitro_refuel_rate")
+		config->set_nitro_refuel_rate(p_value);
+	else if (p_name == "nitro_depletion_rate")
+		config->set_nitro_depletion_rate(p_value);
+	else if (p_name == "roll_influence")
+		config->set_roll_influence(p_value);
+	else if (p_name == "pitch_influence")
+		config->set_pitch_influence(p_value);
+	else if (p_name == "stunt_torque_strength")
+		config->set_stunt_torque_strength(p_value);
+	else if (p_name == "stunt_com_interpolation_speed")
+		config->set_stunt_com_interpolation_speed(p_value);
+	else if (p_name == "ramp_detection_threshold")
+		config->set_ramp_detection_threshold(p_value);
+	else if (p_name == "stunt_recovery_height")
+		config->set_stunt_recovery_height(p_value);
 }
 
 } // namespace godot
