@@ -47,6 +47,17 @@ public:
 	virtual void physics_update(float delta) override;
 };
 
+/**
+ * Specialized mid-air state for gliding smoothly.
+ */
+class GlidingState : public AirborneState {
+public:
+	using AirborneState::AirborneState;
+	virtual void enter() override;
+	virtual void exit() override;
+	virtual void physics_update(float delta) override;
+};
+
 } // namespace godot
 
 #endif // VEHICLE_STATES_H

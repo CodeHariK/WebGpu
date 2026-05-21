@@ -72,4 +72,59 @@ void StuntState::physics_update(float delta) {
 	vehicle->apply_torque(right_dir * vehicle->get_vehicle_config()->get_stunt_torque_strength());
 }
 
+void GlidingState::enter() {
+	UtilityFunctions::print("ArcadeVehicle: Entered GlidingState");
+}
+
+void GlidingState::exit() {
+	UtilityFunctions::print("ArcadeVehicle: Exited GlidingState");
+}
+
+void GlidingState::physics_update(float delta) {
+	if (!vehicle || vehicle->get_vehicle_config().is_null()) return;
+
+	// 1. Call parent logic (Airborne)
+	AirborneState::physics_update(delta);
+
+	// 2. Gliding Physics
+	float mass = vehicle->get_vehicle_config()->get_mass();
+	Vector3 vel = vehicle->get_linear_velocity();
+	Transform3D trans = vehicle->get_global_transform();
+	Vector3 forward = -trans.basis.get_column(2).normalized();
+	Vector3 local_up = trans.basis.get_column(1).normalized();
+	Vector3 right_dir = trans.basis.get_column(0).normalized();
+
+	// Counteract a portion of gravity (e.g., apply a constant upward force equal to 70% of gravity)
+	Vector3 lift_force = Vector3(0.0f, 9.8f * 0.7f, 0.0f) * mass;
+	vehicle->apply_central_force(lift_force);
+
+	// Translate downward falling speed into forward speed (Gliding lift)
+	if (vel.y < 0.0f) {
+		float glide_efficiency = 0.8f; // converts 80% of downward velocity to forward thrust
+		Vector3 forward_thrust = forward * (-vel.y * glide_efficiency) * mass;
+		vehicle->apply_central_force(forward_thrust);
+	}
+
+	// Apply extra linear drag to keep the glide smooth
+	Vector3 drag = -vel * 0.5f * mass;
+	vehicle->apply_central_force(drag);
+
+	// 3. Aerodynamic Controls (Pitch / Roll / Yaw)
+	// Roll (steer rolls left/right)
+	float steer_input = vehicle->get_input().steer;
+	float roll_strength = mass * 15.0f;
+	vehicle->apply_torque(-forward * steer_input * roll_strength);
+
+	// Yaw (steer slowly yaw-pivots left/right)
+	float yaw_strength = mass * 8.0f;
+	vehicle->apply_torque(local_up * steer_input * yaw_strength);
+
+	// Pitch (throttle pitches down, brake pitches up)
+	float throttle_input = vehicle->get_input().throttle;
+	float brake_input = vehicle->get_input().brake;
+	float pitch_input = throttle_input - brake_input;
+	float pitch_strength = mass * 12.0f;
+	vehicle->apply_torque(right_dir * pitch_input * pitch_strength);
+}
+
 } // namespace godot

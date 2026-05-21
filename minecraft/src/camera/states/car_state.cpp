@@ -9,10 +9,25 @@ namespace godot {
 
 void CameraStateCar::enter(GameCamera *p_camera) {
 	Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
+	first_frame = true;
 }
 
 void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 	RigidBody3D *rb = Object::cast_to<RigidBody3D>(p_camera->get_follow_target_node());
+
+	Vector3 target_pivot = (rb) ? rb->get_global_position() : p_camera->get_global_position();
+	Vector3 raw_velocity = (rb) ? rb->get_linear_velocity() : Vector3();
+
+	if (first_frame) {
+		smoothed_pivot = target_pivot;
+		smoothed_velocity = raw_velocity;
+		first_frame = false;
+	} else {
+		smoothed_pivot = smoothed_pivot.lerp(target_pivot, MIN(1.0f, p_delta * 10.0f));
+		smoothed_velocity = smoothed_velocity.lerp(raw_velocity, MIN(1.0f, p_delta * 5.0f));
+	}
+
+	Vector3 pivot = smoothed_pivot;
 
 	if (p_camera->get_player_input()) {
 		const ActionState &state = p_camera->get_player_input()->get_state();
@@ -32,7 +47,7 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 			float target_yaw = 0.0f;
 
 			if (rb) {
-				Vector3 linear_vel = rb->get_linear_velocity();
+				Vector3 linear_vel = smoothed_velocity;
 				Vector3 horizontal_vel = Vector3(linear_vel.x, 0, linear_vel.z);
 				Vector3 target_forward = -rb->get_global_transform().basis.get_column(2).normalized();
 				Vector3 local_up = rb->get_global_transform().basis.get_column(1).normalized();
@@ -67,7 +82,9 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 				target_yaw = p_camera->yaw;
 			}
 
-			p_camera->yaw = target_yaw;
+			// Lerp p_camera->yaw towards target_yaw to avoid sudden snapping
+			float yaw_diff_raw = UtilityFunctions::wrapf(target_yaw - p_camera->yaw, -Math_PI, Math_PI);
+			p_camera->yaw += yaw_diff_raw * MIN(1.0f, p_delta * 4.0f);
 
 			float h_dist = Vector2(p_camera->follow_offset.x, p_camera->follow_offset.z).length();
 			float target_pitch = (h_dist > 0.01f) ? -Math::atan2(p_camera->follow_offset.y, h_dist) : p_camera->pitch;
@@ -88,8 +105,9 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 	p_camera->yaw_spring.current = UtilityFunctions::wrapf(p_camera->yaw_spring.current, -Math_PI, Math_PI);
 
 	// Final Ideal Position Calculation
-	Vector3 pivot = (rb) ? rb->get_global_position() : p_camera->get_global_position();
-	Vector3 ideal_pos = p_camera->_calculate_ideal_position();
+	Basis ideal_rot_basis = Basis::from_euler(Vector3(p_camera->pitch, p_camera->yaw, 0));
+	Vector3 base_dir = p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset.normalized() : Vector3(0, 0, 1);
+	Vector3 ideal_pos = pivot + ideal_rot_basis.xform(base_dir * p_camera->get_current_target_distance());
 
 	float actual_dist = p_camera->get_current_target_distance();
 	if (p_camera->is_collision_enabled() && rb) {
@@ -97,10 +115,16 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 	}
 
 	p_camera->dist_spring.target = actual_dist;
-	p_camera->dist_spring.step(p_delta, p_camera->get_frequency() * 1.5f, p_camera->get_damping(), p_camera->response);
+	if (actual_dist < p_camera->dist_spring.current) {
+		// Snap instantly on collision to prevent wall clipping
+		p_camera->dist_spring.current = actual_dist;
+		p_camera->dist_spring.velocity = 0.0f;
+	} else {
+		// Smoothly recover distance when moving away from obstacles
+		p_camera->dist_spring.step(p_delta, p_camera->get_frequency() * 1.5f, p_camera->get_damping(), p_camera->response);
+	}
 
 	Basis rot_basis = Basis::from_euler(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
-	Vector3 base_dir = p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset.normalized() : Vector3(0, 0, 1);
 	Vector3 spring_target_pos = pivot + rot_basis.xform(base_dir * p_camera->dist_spring.current);
 
 	// 6. Final Movement Smoothing

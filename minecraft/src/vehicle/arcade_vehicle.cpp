@@ -53,6 +53,8 @@ ArcadeVehicle::~ArcadeVehicle() {
 		delete driving_state;
 	if (stunt_state)
 		delete stunt_state;
+	if (gliding_state)
+		delete gliding_state;
 
 	DebugManager *dm = DebugManager::get_singleton();
 	if (dm) {
@@ -70,6 +72,7 @@ void ArcadeVehicle::_ready() {
 	airborne_state = new AirborneState(this, nullptr);
 	driving_state = new DrivingState(this, grounded_state);
 	stunt_state = new StuntState(this, airborne_state);
+	gliding_state = new GlidingState(this, airborne_state);
 
 	current_state = driving_state;
 	current_state->enter();
@@ -231,19 +234,24 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		Vector3 hardpoint_local = wc->get_hardpoint_offset();
 		Vector3 hardpoint_world = trans.xform(hardpoint_local);
 
+		// Offset starting point upward to prevent clipping below ground
+		float cast_offset = 0.3f;
+		Vector3 cast_start = hardpoint_world + local_up * cast_offset;
+
 		// 2. Raycast/Spherecast straight down
-		float max_dist = wc->get_suspension_rest_length() + wc->get_radius() + 0.1f; // margin
+		float max_dist = wc->get_suspension_rest_length() + wc->get_radius() + 0.1f + cast_offset; // margin + offset
 
 		// Use our new utility!
 		TypedArray<RID> exclude;
 		exclude.push_back(get_rid());
 
-		MCRaycastHit hit = spherecast_3d(this, hardpoint_world, local_down, max_dist, wc->get_radius() * 0.4f, 0xFFFFFFFF, exclude);
+		MCRaycastHit hit = spherecast_3d(this, cast_start, local_down, max_dist, wc->get_radius() * 0.4f, 0xFFFFFFFF, exclude);
 
 		CSGSphere3D *visual = wheel_visuals[active_wheel_count];
 
 		if (hit.is_hit) {
-			float hit_dist = hardpoint_world.distance_to(hit.position);
+			// Project the hit position relative to the hardpoint along local_down
+			float hit_dist = (hit.position - hardpoint_world).dot(local_down);
 
 			// Compute force
 			float force_mag = _calculate_suspension_force(wc, hit_dist, p_delta, hardpoint_world, local_up);
@@ -254,9 +262,12 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 				apply_force(force_dir * force_mag, hardpoint_world - trans.origin);
 			}
 
-			// Position visual at contact patch + radius
+			// Position visual along the suspension axis, clamped to avoid clipping into chassis
 			if (debug_visuals_enabled) {
-				visual->set_global_position(hit.position + hit.normal * wc->get_radius());
+				Vector3 target_pos = hit.position + hit.normal * wc->get_radius();
+				float displacement = (target_pos - hardpoint_world).dot(local_down);
+				displacement = CLAMP(displacement, 0.0f, wc->get_suspension_rest_length());
+				visual->set_global_position(hardpoint_world + local_down * displacement);
 			}
 			grounded_wheels++;
 			avg_normal += hit.normal;
@@ -273,6 +284,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	// 3. State Transitions & Logic
 	Vector3 forward_dir = -trans.basis.get_column(2).normalized();
 	float forward_speed = get_linear_velocity().dot(forward_dir);
+	bool is_active = (game_manager && game_manager->get_active_target() == this);
 
 	if (grounded_wheels > 0) {
 		avg_normal /= (float)grounded_wheels;
@@ -288,51 +300,25 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	} else {
 		// In the air
 		if (!in_stunt_rotation) {
-			change_state(airborne_state);
-		}
-	}
-
-	// Trigger stunt
-	bool is_active = (game_manager && game_manager->get_active_target() == this);
-	const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
-
-	if (is_active && is_on_ramp && input_state && input_state->character.jump && forward_speed > 10.0f) {
-		stunt_requested = true;
-	}
-
-	if (stunt_requested && grounded_wheels == 0) {
-		change_state(stunt_state);
-		in_stunt_rotation = true;
-	}
-
-	// Early Recovery Check
-	if (in_stunt_rotation) {
-		float recovery_ray_dist = 15.0f;
-		TypedArray<RID> exclude;
-		exclude.push_back(get_rid());
-		MCRaycastHit recovery_hit = raycast_3d(this, trans.origin, trans.origin + Vector3(0, -recovery_ray_dist, 0), 0xFFFFFFFF, exclude);
-		if (recovery_hit.is_hit) {
-			float dist = trans.origin.distance_to(recovery_hit.position);
-			if (dist < config->get_stunt_recovery_height()) {
-				in_stunt_rotation = false;
-				stunt_requested = false;
-				change_state(airborne_state);
+			const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
+			if (is_active && input_state && input_state->character.jump) {
+				if (current_state != gliding_state) {
+					change_state(gliding_state);
+				}
+			} else {
+				if (current_state == gliding_state || current_state != stunt_state) {
+					change_state(airborne_state);
+				}
 			}
 		}
 	}
+
+	_update_stunt_logic(p_delta, forward_speed, grounded_wheels, is_active);
 
 	// 4. Delegate to HSM
 	if (current_state) {
 		current_state->physics_update(p_delta);
 	}
-
-	// 5. COM Interpolation (Shared logic)
-	Vector3 target_com = config->get_center_of_mass_offset();
-	if (in_stunt_rotation || (stunt_requested && grounded_wheels > 0)) {
-		target_com = config->get_stunt_com_offset();
-	}
-	current_com_offset = current_com_offset.lerp(target_com, config->get_stunt_com_interpolation_speed() * p_delta);
-	set_center_of_mass(current_com_offset);
 
 	_update_debug_arrows();
 
@@ -542,7 +528,7 @@ void ArcadeVehicle::_apply_lateral_friction(float delta) {
 	} else {
 		// Start drifting if holding handbrake, steering, and going fast enough
 		if (current_input.handbrake && forward_speed > config->get_drift_speed_threshold() &&
-				steering_intensity > config->get_drift_steering_threshold()) {
+			steering_intensity > config->get_drift_steering_threshold()) {
 			is_drifting = true;
 
 			// Hop impulse!
@@ -650,7 +636,7 @@ void ArcadeVehicle::_apply_longitudinal_force_with_pitch(Vector3 p_force_global)
 void ArcadeVehicle::_handle_wall_collision_and_spin(int p_wheel_index, const MCRaycastHit &p_hit, Vector3 &r_force_dir, float &r_force_mag) {
 	Transform3D trans = get_global_transform();
 	Vector3 local_up = trans.basis.get_column(1).normalized();
-	
+
 	float up_dot = p_hit.normal.dot(local_up);
 	r_force_dir = local_up;
 
@@ -675,6 +661,27 @@ void ArcadeVehicle::_handle_wall_collision_and_spin(int p_wheel_index, const MCR
 			}
 		}
 	}
+}
+
+void ArcadeVehicle::_update_stunt_logic(double p_delta, float p_forward_speed, int p_grounded_wheels, bool p_is_active) {
+	const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
+
+	if (p_is_active && is_on_ramp && input_state && input_state->character.jump && p_forward_speed > 10.0f) {
+		stunt_requested = true;
+	}
+
+	if (stunt_requested && p_grounded_wheels == 0) {
+		change_state(stunt_state);
+		in_stunt_rotation = true;
+	}
+
+	// COM Interpolation (Shared logic)
+	Vector3 target_com = config->get_center_of_mass_offset();
+	if (in_stunt_rotation || (stunt_requested && p_grounded_wheels > 0)) {
+		target_com = config->get_stunt_com_offset();
+	}
+	current_com_offset = current_com_offset.lerp(target_com, config->get_stunt_com_interpolation_speed() * p_delta);
+	set_center_of_mass(current_com_offset);
 }
 
 void ArcadeVehicle::set_config(const Ref<VehicleConfig> &p_config) {
