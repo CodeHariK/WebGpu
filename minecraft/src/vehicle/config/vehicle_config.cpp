@@ -104,29 +104,31 @@ void VehicleConfig::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_drift_slowdown_factor"), &VehicleConfig::get_drift_slowdown_factor);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_slowdown_factor"), "set_drift_slowdown_factor", "get_drift_slowdown_factor");
 
-	ClassDB::bind_method(D_METHOD("set_drift_boost_speed_coefficient", "val"), &VehicleConfig::set_drift_boost_speed_coefficient);
-	ClassDB::bind_method(D_METHOD("get_drift_boost_speed_coefficient"), &VehicleConfig::get_drift_boost_speed_coefficient);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_boost_speed_coefficient"), "set_drift_boost_speed_coefficient", "get_drift_boost_speed_coefficient");
-
-	ClassDB::bind_method(D_METHOD("set_drift_boost_duration_coefficient", "val"), &VehicleConfig::set_drift_boost_duration_coefficient);
-	ClassDB::bind_method(D_METHOD("get_drift_boost_duration_coefficient"), &VehicleConfig::get_drift_boost_duration_coefficient);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_boost_duration_coefficient"), "set_drift_boost_duration_coefficient", "get_drift_boost_duration_coefficient");
-
 	ClassDB::bind_method(D_METHOD("set_drift_boost_max_speed_bonus", "val"), &VehicleConfig::set_drift_boost_max_speed_bonus);
 	ClassDB::bind_method(D_METHOD("get_drift_boost_max_speed_bonus"), &VehicleConfig::get_drift_boost_max_speed_bonus);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_boost_max_speed_bonus"), "set_drift_boost_max_speed_bonus", "get_drift_boost_max_speed_bonus");
 
-	ClassDB::bind_method(D_METHOD("set_drift_boost_max_duration", "val"), &VehicleConfig::set_drift_boost_max_duration);
-	ClassDB::bind_method(D_METHOD("get_drift_boost_max_duration"), &VehicleConfig::get_drift_boost_max_duration);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_boost_max_duration"), "set_drift_boost_max_duration", "get_drift_boost_max_duration");
 
-	ClassDB::bind_method(D_METHOD("set_drift_chain_window", "val"), &VehicleConfig::set_drift_chain_window);
-	ClassDB::bind_method(D_METHOD("get_drift_chain_window"), &VehicleConfig::get_drift_chain_window);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_chain_window"), "set_drift_chain_window", "get_drift_chain_window");
 
-	ClassDB::bind_method(D_METHOD("set_drift_chain_bonus_multiplier", "val"), &VehicleConfig::set_drift_chain_bonus_multiplier);
-	ClassDB::bind_method(D_METHOD("get_drift_chain_bonus_multiplier"), &VehicleConfig::get_drift_chain_bonus_multiplier);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_chain_bonus_multiplier"), "set_drift_chain_bonus_multiplier", "get_drift_chain_bonus_multiplier");
+	ClassDB::bind_method(D_METHOD("set_nitro_max_fuel", "val"), &VehicleConfig::set_nitro_max_fuel);
+	ClassDB::bind_method(D_METHOD("get_nitro_max_fuel"), &VehicleConfig::get_nitro_max_fuel);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "nitro_max_fuel"), "set_nitro_max_fuel", "get_nitro_max_fuel");
+
+	ClassDB::bind_method(D_METHOD("set_nitro_refuel_rate", "val"), &VehicleConfig::set_nitro_refuel_rate);
+	ClassDB::bind_method(D_METHOD("get_nitro_refuel_rate"), &VehicleConfig::get_nitro_refuel_rate);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "nitro_refuel_rate"), "set_nitro_refuel_rate", "get_nitro_refuel_rate");
+
+	ClassDB::bind_method(D_METHOD("set_nitro_depletion_rate", "val"), &VehicleConfig::set_nitro_depletion_rate);
+	ClassDB::bind_method(D_METHOD("get_nitro_depletion_rate"), &VehicleConfig::get_nitro_depletion_rate);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "nitro_depletion_rate"), "set_nitro_depletion_rate", "get_nitro_depletion_rate");
+
+	ClassDB::bind_method(D_METHOD("set_roll_influence", "val"), &VehicleConfig::set_roll_influence);
+	ClassDB::bind_method(D_METHOD("get_roll_influence"), &VehicleConfig::get_roll_influence);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "roll_influence"), "set_roll_influence", "get_roll_influence");
+
+	ClassDB::bind_method(D_METHOD("set_pitch_influence", "val"), &VehicleConfig::set_pitch_influence);
+	ClassDB::bind_method(D_METHOD("get_pitch_influence"), &VehicleConfig::get_pitch_influence);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "pitch_influence"), "set_pitch_influence", "get_pitch_influence");
 
 	ClassDB::bind_method(D_METHOD("set_wheel_configs", "configs"), &VehicleConfig::set_wheel_configs);
 	ClassDB::bind_method(D_METHOD("get_wheel_configs"), &VehicleConfig::get_wheel_configs);
@@ -246,23 +248,25 @@ float VehicleConfig::get_drift_steer_torque_multiplier() const { return drift_st
 void VehicleConfig::set_drift_slowdown_factor(float p_val) { drift_slowdown_factor = p_val; }
 float VehicleConfig::get_drift_slowdown_factor() const { return drift_slowdown_factor; }
 
-void VehicleConfig::set_drift_boost_speed_coefficient(float p_val) { drift_boost_speed_coefficient = p_val; }
-float VehicleConfig::get_drift_boost_speed_coefficient() const { return drift_boost_speed_coefficient; }
-
-void VehicleConfig::set_drift_boost_duration_coefficient(float p_val) { drift_boost_duration_coefficient = p_val; }
-float VehicleConfig::get_drift_boost_duration_coefficient() const { return drift_boost_duration_coefficient; }
-
 void VehicleConfig::set_drift_boost_max_speed_bonus(float p_val) { drift_boost_max_speed_bonus = p_val; }
 float VehicleConfig::get_drift_boost_max_speed_bonus() const { return drift_boost_max_speed_bonus; }
 
-void VehicleConfig::set_drift_boost_max_duration(float p_val) { drift_boost_max_duration = p_val; }
-float VehicleConfig::get_drift_boost_max_duration() const { return drift_boost_max_duration; }
 
-void VehicleConfig::set_drift_chain_window(float p_val) { drift_chain_window = p_val; }
-float VehicleConfig::get_drift_chain_window() const { return drift_chain_window; }
 
-void VehicleConfig::set_drift_chain_bonus_multiplier(float p_val) { drift_chain_bonus_multiplier = p_val; }
-float VehicleConfig::get_drift_chain_bonus_multiplier() const { return drift_chain_bonus_multiplier; }
+void VehicleConfig::set_nitro_max_fuel(float p_val) { nitro_max_fuel = p_val; }
+float VehicleConfig::get_nitro_max_fuel() const { return nitro_max_fuel; }
+
+void VehicleConfig::set_nitro_refuel_rate(float p_val) { nitro_refuel_rate = p_val; }
+float VehicleConfig::get_nitro_refuel_rate() const { return nitro_refuel_rate; }
+
+void VehicleConfig::set_nitro_depletion_rate(float p_val) { nitro_depletion_rate = p_val; }
+float VehicleConfig::get_nitro_depletion_rate() const { return nitro_depletion_rate; }
+
+void VehicleConfig::set_roll_influence(float p_val) { roll_influence = p_val; }
+float VehicleConfig::get_roll_influence() const { return roll_influence; }
+
+void VehicleConfig::set_pitch_influence(float p_val) { pitch_influence = p_val; }
+float VehicleConfig::get_pitch_influence() const { return pitch_influence; }
 
 void VehicleConfig::set_wheel_configs(const TypedArray<WheelConfig> &p_configs) {
 	wheel_configs = p_configs;

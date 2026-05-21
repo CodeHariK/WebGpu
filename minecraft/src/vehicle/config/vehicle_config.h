@@ -46,12 +46,12 @@ private:
 	// Advanced Drift properties
 	float drift_steer_torque_multiplier = 1.8f;
 	float drift_slowdown_factor = 0.75f;
-	float drift_boost_speed_coefficient = 6.0f;
-	float drift_boost_duration_coefficient = 1.0f;
 	float drift_boost_max_speed_bonus = 20.0f;
-	float drift_boost_max_duration = 3.0f;
-	float drift_chain_window = 1.5f;
-	float drift_chain_bonus_multiplier = 0.25f;
+	float nitro_max_fuel = 100.0f;
+	float nitro_refuel_rate = 25.0f;
+	float nitro_depletion_rate = 33.3f;
+	float roll_influence = 0.1f;
+	float pitch_influence = 1.0f;
 
 	TypedArray<WheelConfig> wheel_configs;
 
@@ -137,23 +137,23 @@ public:
 	void set_drift_slowdown_factor(float p_val);
 	float get_drift_slowdown_factor() const;
 
-	void set_drift_boost_speed_coefficient(float p_val);
-	float get_drift_boost_speed_coefficient() const;
-
-	void set_drift_boost_duration_coefficient(float p_val);
-	float get_drift_boost_duration_coefficient() const;
-
 	void set_drift_boost_max_speed_bonus(float p_val);
 	float get_drift_boost_max_speed_bonus() const;
 
-	void set_drift_boost_max_duration(float p_val);
-	float get_drift_boost_max_duration() const;
+	void set_nitro_max_fuel(float p_val);
+	float get_nitro_max_fuel() const;
 
-	void set_drift_chain_window(float p_val);
-	float get_drift_chain_window() const;
+	void set_nitro_refuel_rate(float p_val);
+	float get_nitro_refuel_rate() const;
 
-	void set_drift_chain_bonus_multiplier(float p_val);
-	float get_drift_chain_bonus_multiplier() const;
+	void set_nitro_depletion_rate(float p_val);
+	float get_nitro_depletion_rate() const;
+
+	void set_roll_influence(float p_val);
+	float get_roll_influence() const;
+
+	void set_pitch_influence(float p_val);
+	float get_pitch_influence() const;
 
 	void set_wheel_configs(const TypedArray<WheelConfig> &p_configs);
 	TypedArray<WheelConfig> get_wheel_configs() const;

@@ -72,7 +72,18 @@ void CelesteUI::setup(CelesteController *p_controller, CUI *p_ui_root) {
 	ui_root->add_label(info_tab, "Real-time Velocity:");
 	velocity_graph = ui_root->add_graph(info_tab, "VelocityGraph");
 	if (velocity_graph) {
-		velocity_graph->set_range(0, 30);
+		float max_val = 30.0f;
+		if (controller) {
+			float max_speed = controller->get_ui_var("max_speed");
+			float sprint_mult = controller->get_ui_var("sprint_multiplier");
+			float dash_speed = controller->get_ui_var("dash_speed");
+			max_val = MAX(max_speed, max_speed * sprint_mult);
+			max_val = MAX(max_val, dash_speed);
+			if (max_val <= 0.0f) {
+				max_val = 30.0f;
+			}
+		}
+		velocity_graph->set_range(0, max_val);
 		velocity_graph->set_max_points(120);
 	}
 }
@@ -104,6 +115,18 @@ void CelesteUI::toggle_visibility() {
 
 void CelesteUI::update_graph(float p_val) {
 	if (velocity_graph) {
+		float max_val = 30.0f;
+		if (controller) {
+			float max_speed = controller->get_ui_var("max_speed");
+			float sprint_mult = controller->get_ui_var("sprint_multiplier");
+			float dash_speed = controller->get_ui_var("dash_speed");
+			max_val = MAX(max_speed, max_speed * sprint_mult);
+			max_val = MAX(max_val, dash_speed);
+			if (max_val <= 0.0f) {
+				max_val = 30.0f;
+			}
+		}
+		velocity_graph->set_range(0.0f, max_val);
 		velocity_graph->add_value(p_val);
 	}
 }
