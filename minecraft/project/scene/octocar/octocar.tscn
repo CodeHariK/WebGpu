@@ -26,6 +26,14 @@ _data = {
 }
 point_count = 6
 
+[sub_resource type="Curve3D" id="Curve3D_4kplg"]
+closed = true
+_data = {
+"points": PackedVector3Array(-8, 0, 76, 8, 0, -76, -111, 0.0052490234, -45, -63, 0, -32, 63, 0, 32, 15, 0.0052490234, -77, 97, 0, -43, -97, 0, 43, -21, 0.0052490234, 48, 8, 0, 89, -8, 0, -89, -182, 0.0052490234, 39),
+"tilts": PackedFloat32Array(0, 0, 0, 0)
+}
+point_count = 4
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mt1mj"]
 resource_name = "BgMIi_objgmk_dashboard01_01"
 cull_mode = 2
@@ -345,6 +353,28 @@ size = Vector3(8, 1, 12)
 transform = Transform3D(1, 0, 0, 0, 0.25881904, -0.9659257, 0, 0.9659257, 0.25881904, 112.887695, 1.9056063, -19.03385)
 use_collision = true
 size = Vector3(8, 1, 12)
+
+[node name="Road2" type="Node" parent="Environment" unique_id=1728227075]
+
+[node name="CSGPolygon3D" type="CSGPolygon3D" parent="Environment/Road2" unique_id=842771166]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.619602, -10.454519, 0)
+use_collision = true
+polygon = PackedVector2Array(0, 2, 5, 4, 10, 2, 10, 0, 0, 0)
+mode = 2
+path_node = NodePath("../Path3D")
+path_interval_type = 0
+path_interval = 20.0
+path_simplify_angle = 0.0
+path_rotation = 2
+path_rotation_accurate = false
+path_local = false
+path_continuous_u = true
+path_u_distance = 1.0
+path_joined = false
+
+[node name="Path3D" type="Path3D" parent="Environment/Road2" unique_id=151829576]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.994751, 280)
+curve = SubResource("Curve3D_4kplg")
 
 [node name="GameCamera" type="GameCamera" parent="." unique_id=975855693]
 follow_target_path = NodePath("../CelesteController")
