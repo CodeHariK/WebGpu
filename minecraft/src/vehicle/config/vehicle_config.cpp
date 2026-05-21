@@ -96,6 +96,38 @@ void VehicleConfig::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_debug_velocity_width"), &VehicleConfig::get_debug_velocity_width);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "debug_velocity_width"), "set_debug_velocity_width", "get_debug_velocity_width");
 
+	ClassDB::bind_method(D_METHOD("set_drift_steer_torque_multiplier", "val"), &VehicleConfig::set_drift_steer_torque_multiplier);
+	ClassDB::bind_method(D_METHOD("get_drift_steer_torque_multiplier"), &VehicleConfig::get_drift_steer_torque_multiplier);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_steer_torque_multiplier"), "set_drift_steer_torque_multiplier", "get_drift_steer_torque_multiplier");
+
+	ClassDB::bind_method(D_METHOD("set_drift_slowdown_factor", "val"), &VehicleConfig::set_drift_slowdown_factor);
+	ClassDB::bind_method(D_METHOD("get_drift_slowdown_factor"), &VehicleConfig::get_drift_slowdown_factor);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_slowdown_factor"), "set_drift_slowdown_factor", "get_drift_slowdown_factor");
+
+	ClassDB::bind_method(D_METHOD("set_drift_boost_speed_coefficient", "val"), &VehicleConfig::set_drift_boost_speed_coefficient);
+	ClassDB::bind_method(D_METHOD("get_drift_boost_speed_coefficient"), &VehicleConfig::get_drift_boost_speed_coefficient);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_boost_speed_coefficient"), "set_drift_boost_speed_coefficient", "get_drift_boost_speed_coefficient");
+
+	ClassDB::bind_method(D_METHOD("set_drift_boost_duration_coefficient", "val"), &VehicleConfig::set_drift_boost_duration_coefficient);
+	ClassDB::bind_method(D_METHOD("get_drift_boost_duration_coefficient"), &VehicleConfig::get_drift_boost_duration_coefficient);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_boost_duration_coefficient"), "set_drift_boost_duration_coefficient", "get_drift_boost_duration_coefficient");
+
+	ClassDB::bind_method(D_METHOD("set_drift_boost_max_speed_bonus", "val"), &VehicleConfig::set_drift_boost_max_speed_bonus);
+	ClassDB::bind_method(D_METHOD("get_drift_boost_max_speed_bonus"), &VehicleConfig::get_drift_boost_max_speed_bonus);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_boost_max_speed_bonus"), "set_drift_boost_max_speed_bonus", "get_drift_boost_max_speed_bonus");
+
+	ClassDB::bind_method(D_METHOD("set_drift_boost_max_duration", "val"), &VehicleConfig::set_drift_boost_max_duration);
+	ClassDB::bind_method(D_METHOD("get_drift_boost_max_duration"), &VehicleConfig::get_drift_boost_max_duration);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_boost_max_duration"), "set_drift_boost_max_duration", "get_drift_boost_max_duration");
+
+	ClassDB::bind_method(D_METHOD("set_drift_chain_window", "val"), &VehicleConfig::set_drift_chain_window);
+	ClassDB::bind_method(D_METHOD("get_drift_chain_window"), &VehicleConfig::get_drift_chain_window);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_chain_window"), "set_drift_chain_window", "get_drift_chain_window");
+
+	ClassDB::bind_method(D_METHOD("set_drift_chain_bonus_multiplier", "val"), &VehicleConfig::set_drift_chain_bonus_multiplier);
+	ClassDB::bind_method(D_METHOD("get_drift_chain_bonus_multiplier"), &VehicleConfig::get_drift_chain_bonus_multiplier);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_chain_bonus_multiplier"), "set_drift_chain_bonus_multiplier", "get_drift_chain_bonus_multiplier");
+
 	ClassDB::bind_method(D_METHOD("set_wheel_configs", "configs"), &VehicleConfig::set_wheel_configs);
 	ClassDB::bind_method(D_METHOD("get_wheel_configs"), &VehicleConfig::get_wheel_configs);
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "wheel_configs", PROPERTY_HINT_ARRAY_TYPE, "WheelConfig"), "set_wheel_configs", "get_wheel_configs");
@@ -207,6 +239,30 @@ float VehicleConfig::get_debug_velocity_scale() const { return debug_velocity_sc
 
 void VehicleConfig::set_debug_velocity_width(float p_val) { debug_velocity_width = p_val; }
 float VehicleConfig::get_debug_velocity_width() const { return debug_velocity_width; }
+
+void VehicleConfig::set_drift_steer_torque_multiplier(float p_val) { drift_steer_torque_multiplier = p_val; }
+float VehicleConfig::get_drift_steer_torque_multiplier() const { return drift_steer_torque_multiplier; }
+
+void VehicleConfig::set_drift_slowdown_factor(float p_val) { drift_slowdown_factor = p_val; }
+float VehicleConfig::get_drift_slowdown_factor() const { return drift_slowdown_factor; }
+
+void VehicleConfig::set_drift_boost_speed_coefficient(float p_val) { drift_boost_speed_coefficient = p_val; }
+float VehicleConfig::get_drift_boost_speed_coefficient() const { return drift_boost_speed_coefficient; }
+
+void VehicleConfig::set_drift_boost_duration_coefficient(float p_val) { drift_boost_duration_coefficient = p_val; }
+float VehicleConfig::get_drift_boost_duration_coefficient() const { return drift_boost_duration_coefficient; }
+
+void VehicleConfig::set_drift_boost_max_speed_bonus(float p_val) { drift_boost_max_speed_bonus = p_val; }
+float VehicleConfig::get_drift_boost_max_speed_bonus() const { return drift_boost_max_speed_bonus; }
+
+void VehicleConfig::set_drift_boost_max_duration(float p_val) { drift_boost_max_duration = p_val; }
+float VehicleConfig::get_drift_boost_max_duration() const { return drift_boost_max_duration; }
+
+void VehicleConfig::set_drift_chain_window(float p_val) { drift_chain_window = p_val; }
+float VehicleConfig::get_drift_chain_window() const { return drift_chain_window; }
+
+void VehicleConfig::set_drift_chain_bonus_multiplier(float p_val) { drift_chain_bonus_multiplier = p_val; }
+float VehicleConfig::get_drift_chain_bonus_multiplier() const { return drift_chain_bonus_multiplier; }
 
 void VehicleConfig::set_wheel_configs(const TypedArray<WheelConfig> &p_configs) {
 	wheel_configs = p_configs;

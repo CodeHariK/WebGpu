@@ -11,6 +11,10 @@
 #include <godot_cpp/classes/physics_direct_body_state3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include "ui/arcade_vehicle_ui.h"
+#include "../cui/cui.h"
+#include <godot_cpp/classes/canvas_layer.hpp>
+#include <godot_cpp/classes/config_file.hpp>
 
 namespace godot {
 
@@ -22,12 +26,30 @@ void ArcadeVehicle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_debug_visuals_enabled", "enabled"), &ArcadeVehicle::set_debug_visuals_enabled);
 	ClassDB::bind_method(D_METHOD("get_debug_visuals_enabled"), &ArcadeVehicle::get_debug_visuals_enabled);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_visuals_enabled"), "set_debug_visuals_enabled", "get_debug_visuals_enabled");
+
+	ClassDB::bind_method(D_METHOD("_on_ui_toggle"), &ArcadeVehicle::_on_ui_toggle);
+	ClassDB::bind_method(D_METHOD("save_settings"), &ArcadeVehicle::save_settings);
+	ClassDB::bind_method(D_METHOD("load_settings"), &ArcadeVehicle::load_settings);
+	ClassDB::bind_method(D_METHOD("_on_ui_slider_value_changed", "value", "property"), &ArcadeVehicle::_on_ui_slider_value_changed);
 }
 
 ArcadeVehicle::ArcadeVehicle() {
+	drift_timer = 0.0f;
+	drift_chain_count = 0;
+	time_since_last_drift = 0.0f;
+	is_boosting = false;
+	boost_timer = 0.0f;
+	boost_duration = 0.0f;
+	boost_speed_bonus = 0.0f;
+	ui_helper = nullptr;
+	ui_root = nullptr;
 }
 
 ArcadeVehicle::~ArcadeVehicle() {
+	if (ui_helper) {
+		delete ui_helper;
+		ui_helper = nullptr;
+	}
 	if (grounded_state)
 		delete grounded_state;
 	if (airborne_state)
@@ -40,6 +62,7 @@ ArcadeVehicle::~ArcadeVehicle() {
 	DebugManager *dm = DebugManager::get_singleton();
 	if (dm) {
 		dm->clear_text("veh_" + get_name() + "_drift");
+		dm->clear_trajectory("traj_" + get_name());
 	}
 }
 
@@ -62,6 +85,12 @@ void ArcadeVehicle::_ready() {
 	if (gm) {
 		gm->register_vehicle(this);
 	}
+
+	// Setup UI
+	ui_root = CUI::create_on_new_layer(this);
+	ui_helper = new ArcadeVehicleUI();
+	ui_helper->setup(this, ui_root);
+	load_settings();
 }
 
 void ArcadeVehicle::_exit_tree() {
@@ -306,6 +335,20 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	set_center_of_mass(current_com_offset);
 
 	_update_debug_arrows();
+
+	// Dynamic UI Visibility & Updates
+	if (ui_root) {
+		CanvasLayer *cl = Object::cast_to<CanvasLayer>(ui_root->get_parent());
+		if (cl) {
+			cl->set_visible(is_active);
+		}
+	}
+
+	if (is_active && ui_helper) {
+		ui_helper->update_graph(get_linear_velocity().length());
+	}
+
+	debug_draw_trajectory((float)p_delta);
 }
 
 void ArcadeVehicle::_integrate_forces(PhysicsDirectBodyState3D *state) {
@@ -372,7 +415,18 @@ void ArcadeVehicle::_apply_acceleration(float delta) {
 	float current_forward_speed = get_linear_velocity().dot(forward_dir);
 
 	float input_drive = current_input.throttle - current_input.brake;
-	float target_speed = config->get_max_speed() * input_drive;
+
+	// Calculate max speed, taking drift slowdown and speed boost into account
+	float speed_multiplier = 1.0f;
+	if (is_drifting) {
+		speed_multiplier = config->get_drift_slowdown_factor();
+	}
+	float max_speed = config->get_max_speed() * speed_multiplier;
+	if (is_boosting) {
+		max_speed += boost_speed_bonus;
+	}
+
+	float target_speed = max_speed * input_drive;
 	float speed_diff = target_speed - current_forward_speed;
 	float accel_force = 0.0f;
 
@@ -380,14 +434,22 @@ void ArcadeVehicle::_apply_acceleration(float delta) {
 		bool is_braking = (input_drive * current_forward_speed) < -0.1f;
 		float force_limit = is_braking ? config->get_brake_decel() : config->get_max_accel_force();
 
-		float speed_ratio = abs(current_forward_speed) / config->get_max_speed();
+		if (is_boosting) {
+			// Increase acceleration force during boost to push past normal speed quickly
+			force_limit *= 1.5f;
+		}
+
+		float speed_ratio = abs(current_forward_speed) / max_speed;
 		float accel_curve = 1.0f - (speed_ratio * speed_ratio);
 		accel_curve = MAX(0.1f, accel_curve);
 
 		accel_force = force_limit * accel_curve * input_drive;
 	} else {
 		if (abs(current_forward_speed) > 0.1f) {
-			accel_force = -1000.0f * (current_forward_speed > 0.0f ? 1.0f : -1.0f);
+			// If boosting, preserve momentum and do not apply standard heavy engine brake
+			if (!is_boosting) {
+				accel_force = -1000.0f * (current_forward_speed > 0.0f ? 1.0f : -1.0f);
+			}
 		}
 	}
 
@@ -402,13 +464,23 @@ void ArcadeVehicle::_apply_steering(float delta) {
 	float current_forward_speed = get_linear_velocity().dot(forward_dir);
 
 	float max_steer_rad = Math::deg_to_rad(config->get_max_steer_angle_deg());
-	float steer_speed_factor = CLAMP(1.0f - (abs(current_forward_speed) / config->get_max_speed()), 0.3f, 1.0f);
+	
+	// Relax steering angle damping at high speeds when drifting for tighter turns
+	float min_steer_clamp = is_drifting ? 0.6f : 0.3f;
+	float steer_speed_factor = CLAMP(1.0f - (abs(current_forward_speed) / config->get_max_speed()), min_steer_clamp, 1.0f);
 	float steer_angle = current_input.steer * max_steer_rad * steer_speed_factor;
 
 	if (abs(current_forward_speed) > 1.0f && abs(steer_angle) > 0.01f) {
 		float dir_sign = (current_forward_speed > 0.0f) ? 1.0f : -1.0f;
+		
+		// Apply drift turning force multiplier if drifting
+		float steer_multiplier = 1.0f;
+		if (is_drifting) {
+			steer_multiplier = config->get_drift_steer_torque_multiplier();
+		}
+
 		// Positive steer turns Right (CW), which is Negative Y rotation in Godot
-		float steering_torque = -steer_angle * config->get_mass() * 5.0f * dir_sign;
+		float steering_torque = -steer_angle * config->get_mass() * 5.0f * dir_sign * steer_multiplier;
 
 		apply_torque(up_dir * steering_torque);
 	}
@@ -428,6 +500,8 @@ void ArcadeVehicle::_apply_lateral_friction(float delta) {
 
 	float steering_intensity = abs(current_input.steer);
 
+	bool was_drifting = is_drifting;
+
 	// State machine for drifting (Mario Kart style)
 	if (is_drifting) {
 		// Stop drifting if handbrake is released or speed drops below threshold
@@ -446,6 +520,46 @@ void ArcadeVehicle::_apply_lateral_friction(float delta) {
 		}
 	}
 
+	// Drift duration & Chain & Boost logic
+	if (!was_drifting && is_drifting) {
+		// Started drifting!
+		if (time_since_last_drift <= config->get_drift_chain_window() || is_boosting) {
+			drift_chain_count++;
+			if (drift_chain_count > 5) {
+				drift_chain_count = 5;
+			}
+		} else {
+			drift_chain_count = 0;
+		}
+		drift_timer = 0.0f;
+	} else if (was_drifting && is_drifting) {
+		// Continuing drift
+		drift_timer += delta;
+	} else if (was_drifting && !is_drifting) {
+		// Stopped drifting!
+		if (drift_timer > 0.15f) {
+			_trigger_speed_boost();
+		} else {
+			drift_timer = 0.0f;
+		}
+		time_since_last_drift = 0.0f;
+	} else {
+		// Not drifting
+		time_since_last_drift += delta;
+		if (time_since_last_drift > config->get_drift_chain_window()) {
+			drift_chain_count = 0;
+		}
+	}
+
+	// Update boost timer
+	if (is_boosting) {
+		boost_timer -= delta;
+		if (boost_timer <= 0.0f) {
+			is_boosting = false;
+			boost_speed_bonus = 0.0f;
+		}
+	}
+
 	float current_grip = config->get_base_grip();
 
 	if (is_drifting) {
@@ -461,6 +575,38 @@ void ArcadeVehicle::_apply_lateral_friction(float delta) {
 	lateral_force_magnitude = CLAMP(lateral_force_magnitude, -max_lateral_grip_force, max_lateral_grip_force);
 
 	apply_central_force(right_dir * lateral_force_magnitude);
+}
+
+void ArcadeVehicle::_trigger_speed_boost() {
+	if (config.is_null()) return;
+
+	float base_speed = drift_timer * config->get_drift_boost_speed_coefficient();
+	float base_duration = drift_timer * config->get_drift_boost_duration_coefficient();
+
+	// Chain multiplier: each chain level adds a bonus percentage to speed and duration
+	float chain_mult = 1.0f + (float)drift_chain_count * config->get_drift_chain_bonus_multiplier();
+
+	float speed_bonus = base_speed * chain_mult;
+	float duration = base_duration * chain_mult;
+
+	// Clamp to configured limits
+	speed_bonus = MIN(speed_bonus, config->get_drift_boost_max_speed_bonus());
+	duration = MIN(duration, config->get_drift_boost_max_duration());
+
+	if (speed_bonus > 0.01f && duration > 0.01f) {
+		is_boosting = true;
+		boost_timer = duration;
+		boost_duration = duration;
+		boost_speed_bonus = speed_bonus;
+
+		// Initial velocity kick in forward direction
+		Transform3D trans = get_global_transform();
+		Vector3 forward_dir = -trans.basis.get_column(2).normalized();
+		Vector3 current_vel = get_linear_velocity();
+
+		// Add speed kick directly to the current velocity
+		set_linear_velocity(current_vel + forward_dir * (speed_bonus * 0.4f));
+	}
 }
 
 void ArcadeVehicle::_apply_stability(float delta) {
@@ -508,6 +654,132 @@ void ArcadeVehicle::set_debug_visuals_enabled(bool p_enabled) {
 
 bool ArcadeVehicle::get_debug_visuals_enabled() const {
 	return debug_visuals_enabled;
+}
+
+void ArcadeVehicle::_on_ui_toggle() {
+	if (ui_helper) {
+		ui_helper->toggle_visibility();
+	}
+}
+
+void ArcadeVehicle::_on_ui_slider_value_changed(double p_value, String p_property) {
+	set_ui_var(p_property, (float)p_value);
+}
+
+void ArcadeVehicle::save_settings() {
+	if (config.is_null()) {
+		return;
+	}
+
+	Ref<ConfigFile> cfg;
+	cfg.instantiate();
+
+	cfg->set_value("Vehicle", "max_speed", config->get_max_speed());
+	cfg->set_value("Vehicle", "max_accel_force", config->get_max_accel_force());
+	cfg->set_value("Vehicle", "brake_decel", config->get_brake_decel());
+	cfg->set_value("Vehicle", "arcade_assist", config->get_arcade_assist());
+	cfg->set_value("Vehicle", "max_steer_angle_deg", config->get_max_steer_angle_deg());
+	cfg->set_value("Vehicle", "base_grip", config->get_base_grip());
+	cfg->set_value("Vehicle", "drift_grip", config->get_drift_grip());
+	cfg->set_value("Vehicle", "downforce", config->get_downforce());
+	cfg->set_value("Vehicle", "angular_damping", config->get_angular_damping());
+	cfg->set_value("Vehicle", "velocity_alignment", config->get_velocity_alignment());
+
+	cfg->set_value("Stunt", "stunt_torque_strength", config->get_stunt_torque_strength());
+	cfg->set_value("Stunt", "stunt_com_interpolation_speed", config->get_stunt_com_interpolation_speed());
+	cfg->set_value("Stunt", "ramp_detection_threshold", config->get_ramp_detection_threshold());
+	cfg->set_value("Stunt", "stunt_recovery_height", config->get_stunt_recovery_height());
+
+	cfg->save("user://vehicle_settings.cfg");
+	UtilityFunctions::print("ArcadeVehicle: Settings saved to user://vehicle_settings.cfg");
+}
+
+void ArcadeVehicle::load_settings() {
+	if (config.is_null()) {
+		return;
+	}
+
+	Ref<ConfigFile> cfg;
+	cfg.instantiate();
+
+	Error err = cfg->load("user://vehicle_settings.cfg");
+	if (err != OK) {
+		return;
+	}
+
+	config->set_max_speed(cfg->get_value("Vehicle", "max_speed", config->get_max_speed()));
+	config->set_max_accel_force(cfg->get_value("Vehicle", "max_accel_force", config->get_max_accel_force()));
+	config->set_brake_decel(cfg->get_value("Vehicle", "brake_decel", config->get_brake_decel()));
+	config->set_arcade_assist(cfg->get_value("Vehicle", "arcade_assist", config->get_arcade_assist()));
+	config->set_max_steer_angle_deg(cfg->get_value("Vehicle", "max_steer_angle_deg", config->get_max_steer_angle_deg()));
+	config->set_base_grip(cfg->get_value("Vehicle", "base_grip", config->get_base_grip()));
+	config->set_drift_grip(cfg->get_value("Vehicle", "drift_grip", config->get_drift_grip()));
+	config->set_downforce(cfg->get_value("Vehicle", "downforce", config->get_downforce()));
+	config->set_angular_damping(cfg->get_value("Vehicle", "angular_damping", config->get_angular_damping()));
+	config->set_velocity_alignment(cfg->get_value("Vehicle", "velocity_alignment", config->get_velocity_alignment()));
+
+	config->set_stunt_torque_strength(cfg->get_value("Stunt", "stunt_torque_strength", config->get_stunt_torque_strength()));
+	config->set_stunt_com_interpolation_speed(cfg->get_value("Stunt", "stunt_com_interpolation_speed", config->get_stunt_com_interpolation_speed()));
+	config->set_ramp_detection_threshold(cfg->get_value("Stunt", "ramp_detection_threshold", config->get_ramp_detection_threshold()));
+	config->set_stunt_recovery_height(cfg->get_value("Stunt", "stunt_recovery_height", config->get_stunt_recovery_height()));
+
+	// Update UI values if UI exists
+	if (ui_root) {
+		ui_root->set_value("max_speed", config->get_max_speed());
+		ui_root->set_value("max_accel_force", config->get_max_accel_force());
+		ui_root->set_value("brake_decel", config->get_brake_decel());
+		ui_root->set_value("arcade_assist", config->get_arcade_assist());
+		ui_root->set_value("max_steer_angle_deg", config->get_max_steer_angle_deg());
+		ui_root->set_value("base_grip", config->get_base_grip());
+		ui_root->set_value("drift_grip", config->get_drift_grip());
+		ui_root->set_value("downforce", config->get_downforce());
+		ui_root->set_value("angular_damping", config->get_angular_damping());
+		ui_root->set_value("velocity_alignment", config->get_velocity_alignment());
+
+		ui_root->set_value("stunt_torque_strength", config->get_stunt_torque_strength());
+		ui_root->set_value("stunt_com_interpolation_speed", config->get_stunt_com_interpolation_speed());
+		ui_root->set_value("ramp_detection_threshold", config->get_ramp_detection_threshold());
+		ui_root->set_value("stunt_recovery_height", config->get_stunt_recovery_height());
+	}
+
+	UtilityFunctions::print("ArcadeVehicle: Settings loaded from user://vehicle_settings.cfg");
+}
+
+float ArcadeVehicle::get_ui_var(const String &p_name) const {
+	if (config.is_null()) return 0.0f;
+	if (p_name == "max_speed") return config->get_max_speed();
+	if (p_name == "max_accel_force") return config->get_max_accel_force();
+	if (p_name == "brake_decel") return config->get_brake_decel();
+	if (p_name == "arcade_assist") return config->get_arcade_assist();
+	if (p_name == "max_steer_angle_deg") return config->get_max_steer_angle_deg();
+	if (p_name == "base_grip") return config->get_base_grip();
+	if (p_name == "drift_grip") return config->get_drift_grip();
+	if (p_name == "downforce") return config->get_downforce();
+	if (p_name == "angular_damping") return config->get_angular_damping();
+	if (p_name == "velocity_alignment") return config->get_velocity_alignment();
+	if (p_name == "stunt_torque_strength") return config->get_stunt_torque_strength();
+	if (p_name == "stunt_com_interpolation_speed") return config->get_stunt_com_interpolation_speed();
+	if (p_name == "ramp_detection_threshold") return config->get_ramp_detection_threshold();
+	if (p_name == "stunt_recovery_height") return config->get_stunt_recovery_height();
+	return 0.0f;
+}
+
+void ArcadeVehicle::set_ui_var(const String &p_name, float p_value) {
+	if (config.is_null()) return;
+	if (p_name == "max_speed") config->set_max_speed(p_value);
+	else if (p_name == "max_accel_force") config->set_max_accel_force(p_value);
+	else if (p_name == "brake_decel") config->set_brake_decel(p_value);
+	else if (p_name == "arcade_assist") config->set_arcade_assist(p_value);
+	else if (p_name == "max_steer_angle_deg") config->set_max_steer_angle_deg(p_value);
+	else if (p_name == "base_grip") config->set_base_grip(p_value);
+	else if (p_name == "drift_grip") config->set_drift_grip(p_value);
+	else if (p_name == "downforce") config->set_downforce(p_value);
+	else if (p_name == "angular_damping") config->set_angular_damping(p_value);
+	else if (p_name == "velocity_alignment") config->set_velocity_alignment(p_value);
+	else if (p_name == "stunt_torque_strength") config->set_stunt_torque_strength(p_value);
+	else if (p_name == "stunt_com_interpolation_speed") config->set_stunt_com_interpolation_speed(p_value);
+	else if (p_name == "ramp_detection_threshold") config->set_ramp_detection_threshold(p_value);
+	else if (p_name == "stunt_recovery_height") config->set_stunt_recovery_height(p_value);
 }
 
 } // namespace godot

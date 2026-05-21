@@ -18,6 +18,8 @@ class AirborneState;
 class DrivingState;
 class StuntState;
 class PlayerInput;
+class ArcadeVehicleUI;
+class CUI;
 
 class ArcadeVehicle : public RigidBody3D {
 	GDCLASS(ArcadeVehicle, RigidBody3D)
@@ -55,7 +57,17 @@ private:
 
 	// Drift state
 	bool is_drifting = false;
+	float drift_timer = 0.0f;
+	int drift_chain_count = 0;
+	float time_since_last_drift = 0.0f;
 
+	// Speed Boost state
+	bool is_boosting = false;
+	float boost_timer = 0.0f;
+	float boost_duration = 0.0f;
+	float boost_speed_bonus = 0.0f;
+
+	void _trigger_speed_boost();
 
 	void _setup_vehicle();
 	void _update_visuals();
@@ -107,6 +119,20 @@ public:
 
 	void set_game_manager(GameManager *p_gm) { game_manager = p_gm; }
 	void set_player_input(PlayerInput *p_input) { player_input = p_input; }
+
+	// UI Logic
+	void _on_ui_toggle();
+	void _on_ui_slider_value_changed(double p_value, String p_property);
+	void save_settings();
+	void load_settings();
+	float get_ui_var(const String &p_name) const;
+	void set_ui_var(const String &p_name, float p_value);
+
+	void debug_draw_trajectory(float p_delta);
+
+private:
+	ArcadeVehicleUI *ui_helper = nullptr;
+	CUI *ui_root = nullptr;
 };
 
 } // namespace godot
