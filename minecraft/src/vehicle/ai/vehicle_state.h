@@ -1,6 +1,7 @@
 #ifndef VEHICLE_STATE_H
 #define VEHICLE_STATE_H
 
+#include "godot_cpp/variant/string.hpp"
 #include <godot_cpp/core/defs.hpp>
 
 namespace godot {
@@ -17,8 +18,10 @@ protected:
 	VehicleState *parent = nullptr;
 
 public:
-	VehicleState(ArcadeVehicle *p_vehicle, VehicleState *p_parent = nullptr) :
-			vehicle(p_vehicle), parent(p_parent) {}
+	String state_name = "";
+
+	VehicleState(String p_name, ArcadeVehicle *p_vehicle, VehicleState *p_parent = nullptr) :
+			state_name(p_name), vehicle(p_vehicle), parent(p_parent) {}
 	virtual ~VehicleState() {}
 
 	// Called when this specific state is entered

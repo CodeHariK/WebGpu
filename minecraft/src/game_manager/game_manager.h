@@ -77,6 +77,7 @@ public:
 
 	void set_active_target(Node *p_target);
 	Node *get_active_target() const;
+	bool is_active(Node *p_target) { return (active_target == p_target); }
 
 	void _physics_process(double delta) override;
 	void _input(const Ref<InputEvent> &p_event) override;

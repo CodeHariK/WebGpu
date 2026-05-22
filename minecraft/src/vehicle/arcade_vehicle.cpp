@@ -40,10 +40,7 @@ ArcadeVehicle::ArcadeVehicle() {
 	ui_root = nullptr;
 
 	was_on_ramp = false;
-	ramp_spin_active = false;
-	ramp_roll_active = false;
 	last_roll_tilt = 0.0f;
-	ramp_roll_direction = 1.0f;
 }
 
 ArcadeVehicle::~ArcadeVehicle() {
@@ -59,6 +56,10 @@ ArcadeVehicle::~ArcadeVehicle() {
 		delete driving_state;
 	if (gliding_state)
 		delete gliding_state;
+	if (ramp_spin_state)
+		delete ramp_spin_state;
+	if (ramp_roll_state)
+		delete ramp_roll_state;
 
 	DebugManager *dm = DebugManager::get_singleton();
 	if (dm) {
@@ -72,10 +73,12 @@ void ArcadeVehicle::_ready() {
 		return;
 
 	// 1. Setup HSM
-	grounded_state = new GroundedState(this, nullptr);
-	airborne_state = new AirborneState(this, nullptr);
-	driving_state = new DrivingState(this, grounded_state);
-	gliding_state = new GlidingState(this, airborne_state);
+	grounded_state = new GroundedState("grounded", this, nullptr);
+	airborne_state = new AirborneState("airborne", this, nullptr);
+	driving_state = new DrivingState("driving", this, grounded_state);
+	gliding_state = new GlidingState("gliding", this, airborne_state);
+	ramp_spin_state = new RampSpinState("ramp_spin", this, airborne_state);
+	ramp_roll_state = new RampRollState("ramp_roll", this, airborne_state);
 
 	current_state = driving_state;
 	current_state->enter();
@@ -217,6 +220,8 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	if (config.is_null())
 		return;
 
+	_process_inputs();
+
 	Transform3D trans = get_global_transform();
 	Vector3 local_up = trans.basis.get_column(1).normalized();
 	Vector3 local_down = -local_up;
@@ -300,28 +305,29 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 
 		if (grounded_wheels >= 2) {
 			change_state(driving_state);
-			ramp_spin_active = false;
-			ramp_roll_active = false;
 		}
 	} else {
 		// In the air
-		const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
-		if (is_active && input_state && input_state->character.jump) {
+		bool can_glide = local_up.y > 0.7f && forward_speed > 10.0f && current_state != ramp_roll_state && current_state != ramp_spin_state;
+
+		if (is_active && current_input.glide && can_glide) {
 			if (current_state != gliding_state) {
 				change_state(gliding_state);
 			}
 		} else {
-			if (current_state == gliding_state || current_state != airborne_state) {
+			if (current_state == gliding_state) {
+				change_state(airborne_state);
+			} else if (current_state != ramp_spin_state && current_state != ramp_roll_state && current_state != airborne_state) {
 				change_state(airborne_state);
 			}
-		}
 
-		if (was_on_ramp && !ramp_spin_active && !ramp_roll_active && forward_speed > 10.0f) {
-			if (abs(last_roll_tilt) > 0.4f) {
-				ramp_roll_active = true;
-				ramp_roll_direction = (last_roll_tilt > 0.0f) ? -1.0f : 1.0f;
-			} else {
-				ramp_spin_active = true;
+			if (was_on_ramp && current_state != ramp_spin_state && current_state != ramp_roll_state && current_state != gliding_state && forward_speed > 10.0f) {
+				if (abs(last_roll_tilt) > 0.4f) {
+					ramp_roll_state->set_roll_direction(last_roll_tilt > 0.0f ? -1.0f : 1.0f);
+					change_state(ramp_roll_state);
+				} else {
+					change_state(ramp_spin_state);
+				}
 			}
 		}
 	}
@@ -329,30 +335,6 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	// 4. Delegate to HSM
 	if (current_state) {
 		current_state->physics_update(p_delta);
-	}
-
-	// 5. Ramp Spin Physics (Pitch Flip)
-	if (ramp_spin_active) {
-		Vector3 right_dir = trans.basis.get_column(0).normalized();
-		float pitch_speed = get_angular_velocity().dot(right_dir);
-
-		// Apply spin torque driving towards target pitch speed continuously while in air
-		float target_pitch_speed = (2.0f * Math_PI / 0.8f); // 1.0f for backflip
-		float pitch_speed_error = target_pitch_speed - pitch_speed;
-		float torque_mag = pitch_speed_error * config->get_mass() * 6.0f;
-		apply_torque(right_dir * torque_mag);
-	}
-
-	// 6. Ramp Roll Physics (Barrel Roll)
-	if (ramp_roll_active) {
-		Vector3 roll_forward_dir = -trans.basis.get_column(2).normalized(); // Local -Z is forward
-		float roll_speed = get_angular_velocity().dot(roll_forward_dir);
-
-		// Apply roll torque driving towards target roll speed continuously while in air
-		float target_roll_speed = ramp_roll_direction * (2.0f * Math_PI / 0.8f);
-		float roll_speed_error = target_roll_speed - roll_speed;
-		float torque_mag = roll_speed_error * config->get_mass() * 6.0f;
-		apply_torque(roll_forward_dir * torque_mag);
 	}
 
 	_update_debug_arrows();
@@ -414,22 +396,13 @@ void ArcadeVehicle::_integrate_forces(PhysicsDirectBodyState3D *state) {
 }
 
 void ArcadeVehicle::_process_inputs() {
-	bool is_active = (game_manager && game_manager->get_active_target() == this);
 	const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
 
-	if (is_active && input_state) {
-		current_input.throttle = input_state->vehicle.throttle;
-		current_input.brake = input_state->vehicle.brake;
-		current_input.steer = input_state->vehicle.steering;
-		current_input.handbrake = input_state->vehicle.handbrake;
-		current_input.nitro = input_state->vehicle.nitro;
+	if (game_manager && game_manager->is_active(this) && input_state) {
+		current_input = input_state->vehicle;
+		UtilityFunctions::print(this->get_name().to_lower() + "  steer : ", current_input.steering);
 	} else {
-		// Zero out inputs if not active
-		current_input.throttle = 0.0f;
-		current_input.brake = 0.0f;
-		current_input.steer = 0.0f;
-		current_input.handbrake = false;
-		current_input.nitro = false;
+		current_input = {};
 	}
 }
 
@@ -521,7 +494,7 @@ void ArcadeVehicle::_apply_steering(float delta) {
 	// Relax steering angle damping at high speeds when drifting for tighter turns
 	float min_steer_clamp = is_drifting ? 0.6f : 0.3f;
 	float steer_speed_factor = CLAMP(1.0f - (abs(current_forward_speed) / config->get_max_speed()), min_steer_clamp, 1.0f);
-	float steer_angle = current_input.steer * max_steer_rad * steer_speed_factor;
+	float steer_angle = current_input.steering * max_steer_rad * steer_speed_factor;
 
 	if (abs(current_forward_speed) > 1.0f && abs(steer_angle) > 0.01f) {
 		float dir_sign = (current_forward_speed > 0.0f) ? 1.0f : -1.0f;
@@ -551,7 +524,7 @@ void ArcadeVehicle::_apply_lateral_friction(float delta) {
 	Vector3 forward_dir = -trans.basis.get_column(2).normalized();
 	float forward_speed = abs(get_linear_velocity().dot(forward_dir));
 
-	float steering_intensity = abs(current_input.steer);
+	float steering_intensity = abs(current_input.steering);
 
 	bool was_drifting = is_drifting;
 
@@ -609,7 +582,7 @@ void ArcadeVehicle::_apply_stability(float delta) {
 	Vector3 ang_vel = get_angular_velocity();
 	float yaw_vel = ang_vel.dot(up_dir);
 
-	bool is_steering = abs(current_input.steer) > 0.01f;
+	bool is_steering = abs(current_input.steering) > 0.01f;
 	float damping_multiplier = is_steering ? 1.0f : config->get_angular_damping();
 
 	// Apply counter-torque proportional to yaw velocity
