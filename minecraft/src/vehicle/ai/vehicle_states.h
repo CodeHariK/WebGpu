@@ -48,6 +48,30 @@ public:
 	virtual void physics_update(float delta) override;
 };
 
+/**
+ * Mid-air spin state (pitch/backflip) on ramp takeoff.
+ */
+class RampSpinState : public AirborneState {
+public:
+	using AirborneState::AirborneState;
+	virtual void enter() override;
+	virtual void physics_update(float delta) override;
+};
+
+/**
+ * Mid-air roll state (barrel roll) on ramp takeoff.
+ */
+class RampRollState : public AirborneState {
+private:
+	float roll_direction = 1.0f;
+public:
+	using AirborneState::AirborneState;
+	virtual void enter() override;
+	virtual void physics_update(float delta) override;
+	void set_roll_direction(float p_dir) { roll_direction = p_dir; }
+	float get_roll_direction() const { return roll_direction; }
+};
+
 } // namespace godot
 
 #endif // VEHICLE_STATES_H

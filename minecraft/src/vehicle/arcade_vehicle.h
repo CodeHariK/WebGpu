@@ -3,6 +3,7 @@
 
 #include "../utils/raycast/mc_raycast.h"
 #include "config/vehicle_config.h"
+#include "game_manager/player_input.h"
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/csg_box3d.hpp>
@@ -18,6 +19,8 @@ class GroundedState;
 class AirborneState;
 class DrivingState;
 class GlidingState;
+class RampSpinState;
+class RampRollState;
 class PlayerInput;
 class ArcadeVehicleUI;
 class CUI;
@@ -39,23 +42,14 @@ private:
 	// Debug visualizers
 	std::vector<CSGSphere3D *> wheel_visuals;
 
-	struct VehicleInputState {
-		float throttle = 0.0f;
-		float brake = 0.0f;
-		float steer = 0.0f;
-		bool handbrake = false;
-		bool nitro = false;
-	} current_input;
+	VehicleInput current_input;
 
 	// Flip state
 	Vector3 current_com_offset;
 	bool is_on_ramp = false;
 
 	bool was_on_ramp = false;
-	bool ramp_spin_active = false;
-	bool ramp_roll_active = false;
 	float last_roll_tilt = 0.0f;
-	float ramp_roll_direction = 1.0f;
 
 	// Physics integration variables
 	Vector3 velocity_nudge_accumulator = Vector3(0.0f, 0.0f, 0.0f);
@@ -91,12 +85,16 @@ private:
 	friend class AirborneState;
 	friend class DrivingState;
 	friend class GlidingState;
+	friend class RampSpinState;
+	friend class RampRollState;
 
 	VehicleState *current_state = nullptr;
 	GroundedState *grounded_state = nullptr;
 	AirborneState *airborne_state = nullptr;
 	DrivingState *driving_state = nullptr;
 	GlidingState *gliding_state = nullptr;
+	RampSpinState *ramp_spin_state = nullptr;
+	RampRollState *ramp_roll_state = nullptr;
 
 protected:
 	static void _bind_methods();
@@ -119,7 +117,7 @@ public:
 	bool get_debug_visuals_enabled() const;
 
 	// Accessors for states
-	VehicleInputState &get_input() { return current_input; }
+	VehicleInput &get_input() { return current_input; }
 	Ref<VehicleConfig> get_vehicle_config() { return config; }
 
 	void set_game_manager(GameManager *p_gm) { game_manager = p_gm; }

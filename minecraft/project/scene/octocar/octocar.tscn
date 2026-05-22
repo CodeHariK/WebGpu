@@ -412,17 +412,22 @@ use_collision = true
 size = Vector3(8, 1, 12)
 
 [node name="Ramp18" type="CSGBox3D" parent="Environment/Ramp" unique_id=1822791882]
-transform = Transform3D(0.9659255, 0.25881898, 0, -0.25881895, 0.9659256, 0, 0, 0, 1.0000001, 189.8877, 4.899515, -105.684425)
+transform = Transform3D(0.9659255, 0.25881898, 0, -0.25881895, 0.9659256, 0, 0, 0, 1.0000001, 181.67732, 7.0994763, -105.684425)
 use_collision = true
-size = Vector3(40, 1, 86)
+size = Vector3(57, 1, 86)
+
+[node name="Ramp19" type="CSGBox3D" parent="Environment/Ramp" unique_id=666560580]
+transform = Transform3D(0.9396923, 0.34202003, 0, -0.34202003, 0.9396923, 0, 0, 0, 1.0000001, 246.67732, 7.0994763, -105.684425)
+use_collision = true
+size = Vector3(57, 1, 86)
 
 [node name="Ramp16" type="CSGBox3D" parent="Environment/Ramp" unique_id=1319062302]
-transform = Transform3D(0.8660252, 0.49999988, 0, -0.49999988, 0.8660252, 0, 0, 0, 1.0000001, 251.8877, 8.011435, -105.124954)
+transform = Transform3D(0.8660252, 0.49999988, 0, -0.49999988, 0.8660252, 0, 0, 0, 1.0000001, 300.8877, 8.011435, -105.124954)
 use_collision = true
 size = Vector3(40, 1, 85)
 
 [node name="Ramp17" type="CSGBox3D" parent="Environment/Ramp" unique_id=900415434]
-transform = Transform3D(0.7071066, 0.70710665, 0, -0.7071066, 0.70710665, 0, 0, 0, 1.0000001, 300.8877, 9.905606, -102.533844)
+transform = Transform3D(0.7071066, 0.70710665, 0, -0.7071066, 0.70710665, 0, 0, 0, 1.0000001, 349.8877, 9.905606, -102.533844)
 use_collision = true
 size = Vector3(40, 1, 79)
 
