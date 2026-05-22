@@ -1,8 +1,8 @@
 #ifndef DEBUG_MANAGER_H
 #define DEBUG_MANAGER_H
 
-#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/label3d.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/color.hpp>
@@ -61,7 +61,7 @@ public:
 	void draw_line(const String &p_id, const Vector3 &p_start, const Vector3 &p_end, float p_thickness = 0.05f, const Color &p_color = Color(1, 1, 1), float p_duration = -1.0f);
 	void clear_line(const String &p_id);
 
-	void draw_text(const String &p_id, const String &p_text, const Vector3 &p_pos, float p_size = 0.05f, const Color &p_color = Color(1, 1, 1), float p_duration = -1.0f);
+	void draw_text(const String &p_id, const String &p_text, const Vector3 &p_pos, float p_size = 0.002f, const Color &p_color = Color(1, 1, 1), float p_duration = -1.0f);
 	void clear_text(const String &p_id);
 
 	void draw_sphere(const String &p_id, const Vector3 &p_pos, float p_radius = 0.5f, const Color &p_color = Color(1, 1, 1), float p_duration = -1.0f);

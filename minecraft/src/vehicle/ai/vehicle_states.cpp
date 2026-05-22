@@ -26,8 +26,6 @@ void AirborneState::physics_update(float delta) {
 	// Apply Downforce even in air (to simulate air resistance/gravity assist)
 	float downforce_mag = vehicle->get_vehicle_config()->get_downforce();
 	vehicle->apply_central_force(Vector3(0, -1, 0) * downforce_mag);
-
-	// Stabilization logic could go here
 }
 
 // --- DRIVING STATE (Child of Grounded) ---
