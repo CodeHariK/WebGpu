@@ -57,8 +57,6 @@ ArcadeVehicle::~ArcadeVehicle() {
 		delete airborne_state;
 	if (driving_state)
 		delete driving_state;
-	if (stunt_state)
-		delete stunt_state;
 	if (gliding_state)
 		delete gliding_state;
 
@@ -77,7 +75,6 @@ void ArcadeVehicle::_ready() {
 	grounded_state = new GroundedState(this, nullptr);
 	airborne_state = new AirborneState(this, nullptr);
 	driving_state = new DrivingState(this, grounded_state);
-	stunt_state = new StuntState(this, airborne_state);
 	gliding_state = new GlidingState(this, airborne_state);
 
 	current_state = driving_state;
@@ -294,7 +291,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 
 	if (grounded_wheels > 0) {
 		avg_normal /= (float)grounded_wheels;
-		if (avg_normal.y < config->get_ramp_detection_threshold()) {
+		if (avg_normal.y < 0.9f) {
 			is_on_ramp = true;
 		}
 
@@ -303,13 +300,22 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 
 		if (grounded_wheels >= 2) {
 			change_state(driving_state);
-			in_stunt_rotation = false;
-			stunt_requested = false;
 			ramp_spin_active = false;
 			ramp_roll_active = false;
 		}
 	} else {
 		// In the air
+		const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
+		if (is_active && input_state && input_state->character.jump) {
+			if (current_state != gliding_state) {
+				change_state(gliding_state);
+			}
+		} else {
+			if (current_state == gliding_state || current_state != airborne_state) {
+				change_state(airborne_state);
+			}
+		}
+
 		if (was_on_ramp && !ramp_spin_active && !ramp_roll_active && forward_speed > 10.0f) {
 			if (abs(last_roll_tilt) > 0.4f) {
 				ramp_roll_active = true;
@@ -318,22 +324,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 				ramp_spin_active = true;
 			}
 		}
-
-		if (!in_stunt_rotation) {
-			const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
-			if (is_active && input_state && input_state->character.jump) {
-				if (current_state != gliding_state) {
-					change_state(gliding_state);
-				}
-			} else {
-				if (current_state == gliding_state || current_state != stunt_state) {
-					change_state(airborne_state);
-				}
-			}
-		}
 	}
-
-	_update_stunt_logic(p_delta, forward_speed, grounded_wheels, is_active);
 
 	// 4. Delegate to HSM
 	if (current_state) {
@@ -708,27 +699,6 @@ void ArcadeVehicle::_handle_wall_collision_and_spin(int p_wheel_index, const MCR
 	}
 }
 
-void ArcadeVehicle::_update_stunt_logic(double p_delta, float p_forward_speed, int p_grounded_wheels, bool p_is_active) {
-	const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
-
-	if (p_is_active && is_on_ramp && input_state && input_state->character.jump && p_forward_speed > 10.0f) {
-		stunt_requested = true;
-	}
-
-	if (stunt_requested && p_grounded_wheels == 0) {
-		change_state(stunt_state);
-		in_stunt_rotation = true;
-	}
-
-	// COM Interpolation (Shared logic)
-	Vector3 target_com = config->get_center_of_mass_offset();
-	if (in_stunt_rotation || (stunt_requested && p_grounded_wheels > 0)) {
-		target_com = config->get_stunt_com_offset();
-	}
-	current_com_offset = current_com_offset.lerp(target_com, config->get_stunt_com_interpolation_speed() * p_delta);
-	set_center_of_mass(current_com_offset);
-}
-
 void ArcadeVehicle::set_config(const Ref<VehicleConfig> &p_config) {
 	config = p_config;
 	if (is_inside_tree() && !Engine::get_singleton()->is_editor_hint()) {
@@ -785,11 +755,6 @@ void ArcadeVehicle::save_settings() {
 	cfg->set_value("Vehicle", "roll_influence", config->get_roll_influence());
 	cfg->set_value("Vehicle", "pitch_influence", config->get_pitch_influence());
 
-	cfg->set_value("Stunt", "stunt_torque_strength", config->get_stunt_torque_strength());
-	cfg->set_value("Stunt", "stunt_com_interpolation_speed", config->get_stunt_com_interpolation_speed());
-	cfg->set_value("Stunt", "ramp_detection_threshold", config->get_ramp_detection_threshold());
-	cfg->set_value("Stunt", "stunt_recovery_height", config->get_stunt_recovery_height());
-
 	cfg->save("user://vehicle_settings.cfg");
 	UtilityFunctions::print("ArcadeVehicle: Settings saved to user://vehicle_settings.cfg");
 }
@@ -823,11 +788,6 @@ void ArcadeVehicle::load_settings() {
 	config->set_roll_influence(cfg->get_value("Vehicle", "roll_influence", config->get_roll_influence()));
 	config->set_pitch_influence(cfg->get_value("Vehicle", "pitch_influence", config->get_pitch_influence()));
 
-	config->set_stunt_torque_strength(cfg->get_value("Stunt", "stunt_torque_strength", config->get_stunt_torque_strength()));
-	config->set_stunt_com_interpolation_speed(cfg->get_value("Stunt", "stunt_com_interpolation_speed", config->get_stunt_com_interpolation_speed()));
-	config->set_ramp_detection_threshold(cfg->get_value("Stunt", "ramp_detection_threshold", config->get_ramp_detection_threshold()));
-	config->set_stunt_recovery_height(cfg->get_value("Stunt", "stunt_recovery_height", config->get_stunt_recovery_height()));
-
 	// Update UI values if UI exists
 	if (ui_root) {
 		ui_root->set_value("max_speed", config->get_max_speed());
@@ -842,11 +802,6 @@ void ArcadeVehicle::load_settings() {
 		ui_root->set_value("velocity_alignment", config->get_velocity_alignment());
 		ui_root->set_value("roll_influence", config->get_roll_influence());
 		ui_root->set_value("pitch_influence", config->get_pitch_influence());
-
-		ui_root->set_value("stunt_torque_strength", config->get_stunt_torque_strength());
-		ui_root->set_value("stunt_com_interpolation_speed", config->get_stunt_com_interpolation_speed());
-		ui_root->set_value("ramp_detection_threshold", config->get_ramp_detection_threshold());
-		ui_root->set_value("stunt_recovery_height", config->get_stunt_recovery_height());
 	}
 
 	UtilityFunctions::print("ArcadeVehicle: Settings loaded from user://vehicle_settings.cfg");
@@ -885,14 +840,6 @@ float ArcadeVehicle::get_ui_var(const String &p_name) const {
 		return config->get_roll_influence();
 	if (p_name == "pitch_influence")
 		return config->get_pitch_influence();
-	if (p_name == "stunt_torque_strength")
-		return config->get_stunt_torque_strength();
-	if (p_name == "stunt_com_interpolation_speed")
-		return config->get_stunt_com_interpolation_speed();
-	if (p_name == "ramp_detection_threshold")
-		return config->get_ramp_detection_threshold();
-	if (p_name == "stunt_recovery_height")
-		return config->get_stunt_recovery_height();
 	return 0.0f;
 }
 
@@ -929,14 +876,6 @@ void ArcadeVehicle::set_ui_var(const String &p_name, float p_value) {
 		config->set_roll_influence(p_value);
 	else if (p_name == "pitch_influence")
 		config->set_pitch_influence(p_value);
-	else if (p_name == "stunt_torque_strength")
-		config->set_stunt_torque_strength(p_value);
-	else if (p_name == "stunt_com_interpolation_speed")
-		config->set_stunt_com_interpolation_speed(p_value);
-	else if (p_name == "ramp_detection_threshold")
-		config->set_ramp_detection_threshold(p_value);
-	else if (p_name == "stunt_recovery_height")
-		config->set_stunt_recovery_height(p_value);
 }
 
 } // namespace godot

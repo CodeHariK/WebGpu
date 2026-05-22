@@ -59,17 +59,7 @@ void ArcadeVehicleUI::setup(ArcadeVehicle *p_vehicle, CUI *p_ui_root) {
 	ui_root->add_button(btn_box, "Save Settings", Callable(vehicle, "save_settings"));
 	ui_root->add_button(btn_box, "Load Settings", Callable(vehicle, "load_settings"));
 
-	// Tab 2: Stunt Settings
-	VBoxContainer *stunt_tab = ui_root->add_vbox(tabs, "Stunt");
-	stunt_tab->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT, Control::PRESET_MODE_MINSIZE, 15);
-	ui_root->add_label(stunt_tab, "Vehicle Stunt Settings");
-
-	_add_variable_slider(stunt_tab, "Stunt Torque", "stunt_torque_strength", 1000.0f, 25000.0f, 100.0f);
-	_add_variable_slider(stunt_tab, "Stunt COM Interp", "stunt_com_interpolation_speed", 1.0f, 20.0f, 0.1f);
-	_add_variable_slider(stunt_tab, "Ramp Threshold", "ramp_detection_threshold", 0.5f, 1.0f, 0.01f);
-	_add_variable_slider(stunt_tab, "Stunt Recovery Ht", "stunt_recovery_height", 0.5f, 10.0f, 0.1f);
-
-	// Tab 3: Info & Graph
+	// Tab 2: Info & Graph
 	VBoxContainer *info_tab = ui_root->add_vbox(tabs, "Info");
 	ui_root->add_label(info_tab, "Arcade Vehicle UI v1.0");
 	ui_root->add_label(info_tab, "Real-time Velocity:");
@@ -96,8 +86,8 @@ void ArcadeVehicleUI::_add_variable_slider(Node *p_parent, const String &p_label
 	float current_val = vehicle->get_ui_var(p_property);
 
 	ui_root->add_hslider(hbox, p_min, p_max, p_step, current_val,
-			Callable(vehicle, "_on_ui_slider_value_changed").bind(p_property),
-			p_property);
+						 Callable(vehicle, "_on_ui_slider_value_changed").bind(p_property),
+						 p_property);
 }
 
 void ArcadeVehicleUI::toggle_visibility() {
