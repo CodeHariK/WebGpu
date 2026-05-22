@@ -38,16 +38,6 @@ public:
 };
 
 /**
- * Specialized mid-air state for performing stunts/flips.
- */
-class StuntState : public AirborneState {
-public:
-	using AirborneState::AirborneState;
-	virtual void enter() override;
-	virtual void physics_update(float delta) override;
-};
-
-/**
  * Specialized mid-air state for gliding smoothly.
  */
 class GlidingState : public AirborneState {
