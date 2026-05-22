@@ -3,37 +3,39 @@ Diagnostics:
   MissingIncludes: None
   ClangTidy:
     Add: [
-      "performance-*",
-      "bugprone-*",
-      "readability-*",
-      "modernize-*",
-      "cppcoreguidelines-*",
-      "google-*",
-      "clang-analyzer-*",
-    ]
+  "performance-*",
+  "bugprone-*",
+  "readability-*",
+  "modernize-*",
+  "cppcoreguidelines-*",
+  "google-*",
+  "clang-analyzer-*",
+]
     Remove: [
-      "readability-convert-member-functions-to-static",
-      "readability-magic-numbers",
-      "readability-identifier-length",
-      "readability-implicit-bool-conversion",
-      "readability-isolate-declaration",
-      "readability-uppercase-literal-suffix",
-      "modernize-use-trailing-return-type",
-      "modernize-loop-convert",
-      "modernize-use-auto",
-      "modernize-avoid-c-arrays",
-      "cppcoreguidelines-pro-type-vararg",
-      "cppcoreguidelines-pro-bounds-array-to-pointer-decay",
-      "cppcoreguidelines-avoid-magic-numbers",
-      "cppcoreguidelines-owning-memory",
-      "cppcoreguidelines-avoid-c-arrays",
-      "cppcoreguidelines-pro-bounds-constant-array-index",
-      "google-readability-casting",
-      "bugprone-easily-swappable-parameters",
-      "google-readability-braces-around-statements",
-      "readability-braces-around-statements",
-      "readability-use-anyofallof"
-    ]
+  "readability-convert-member-functions-to-static",
+  "readability-magic-numbers",
+  "readability-identifier-length",
+  "readability-implicit-bool-conversion",
+  "readability-isolate-declaration",
+  "readability-uppercase-literal-suffix",
+  "modernize-use-trailing-return-type",
+  "modernize-loop-convert",
+  "modernize-use-auto",
+  "modernize-avoid-c-arrays",
+  "cppcoreguidelines-pro-type-vararg",
+  "cppcoreguidelines-pro-bounds-array-to-pointer-decay",
+  "cppcoreguidelines-avoid-magic-numbers",
+  "cppcoreguidelines-owning-memory",
+  "cppcoreguidelines-avoid-c-arrays",
+  "cppcoreguidelines-pro-bounds-constant-array-index",
+  "google-readability-casting",
+  "bugprone-easily-swappable-parameters",
+  "google-readability-braces-around-statements",
+  "readability-braces-around-statements",
+  "readability-use-anyofallof",
+  "readability-math-missing-parentheses",
+  "cppcoreguidelines-pro-type-union-access"
+]
     CheckOptions:
       readability-identifier-naming.ParameterCase: camelCase
       readability-identifier-naming.VariableCase: camelCase
@@ -50,4 +52,11 @@ InlayHints:
 
 CompileFlags:
   CompilationDatabase: "."
-  Add: ["-std=c++17", "-Wall", "-Wextra", "-Wpedantic", "-Wshadow", "-Wnon-virtual-dtor"]
+  Add: [
+  "-std=c++17",
+  "-Wall",
+  "-Wextra",
+  "-Wpedantic",
+  "-Wshadow",
+  "-Wnon-virtual-dtor"
+]
