@@ -1,14 +1,14 @@
 #ifndef ARCADE_VEHICLE_H
 #define ARCADE_VEHICLE_H
 
-#include "config/vehicle_config.h"
 #include "../utils/raycast/mc_raycast.h"
+#include "config/vehicle_config.h"
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/csg_box3d.hpp>
 #include <godot_cpp/classes/csg_sphere3d.hpp>
-#include <godot_cpp/classes/rigid_body3d.hpp>
 #include <godot_cpp/classes/physics_direct_body_state3d.hpp>
+#include <godot_cpp/classes/rigid_body3d.hpp>
 
 namespace godot {
 
@@ -54,6 +54,12 @@ private:
 	bool stunt_requested = false;
 	bool in_stunt_rotation = false;
 
+	bool was_on_ramp = false;
+	bool ramp_spin_active = false;
+	bool ramp_roll_active = false;
+	float last_roll_tilt = 0.0f;
+	float ramp_roll_direction = 1.0f;
+
 	// Physics integration variables
 	Vector3 velocity_nudge_accumulator = Vector3(0.0f, 0.0f, 0.0f);
 	bool should_align_velocity = false;
@@ -82,7 +88,7 @@ private:
 	void _apply_longitudinal_force_with_pitch(Vector3 p_force_global);
 	void _handle_wall_collision_and_spin(int p_wheel_index, const MCRaycastHit &p_hit, Vector3 &r_force_dir, float &r_force_mag);
 	void _update_stunt_logic(double p_delta, float p_forward_speed, int p_grounded_wheels, bool p_is_active);
-	
+
 	// HSM States
 	friend class VehicleState;
 	friend class GroundedState;
@@ -91,12 +97,12 @@ private:
 	friend class StuntState;
 	friend class GlidingState;
 
-	VehicleState* current_state = nullptr;
-	GroundedState* grounded_state = nullptr;
-	AirborneState* airborne_state = nullptr;
-	DrivingState* driving_state = nullptr;
-	StuntState* stunt_state = nullptr;
-	GlidingState* gliding_state = nullptr;
+	VehicleState *current_state = nullptr;
+	GroundedState *grounded_state = nullptr;
+	AirborneState *airborne_state = nullptr;
+	DrivingState *driving_state = nullptr;
+	StuntState *stunt_state = nullptr;
+	GlidingState *gliding_state = nullptr;
 
 protected:
 	static void _bind_methods();
@@ -110,7 +116,7 @@ public:
 	void _physics_process(double p_delta) override;
 	void _integrate_forces(PhysicsDirectBodyState3D *state) override;
 
-	void change_state(VehicleState* new_state);
+	void change_state(VehicleState *new_state);
 
 	void set_config(const Ref<VehicleConfig> &p_config);
 	Ref<VehicleConfig> get_config() const;
@@ -119,7 +125,7 @@ public:
 	bool get_debug_visuals_enabled() const;
 
 	// Accessors for states
-	VehicleInputState& get_input() { return current_input; }
+	VehicleInputState &get_input() { return current_input; }
 	Ref<VehicleConfig> get_vehicle_config() { return config; }
 
 	void set_game_manager(GameManager *p_gm) { game_manager = p_gm; }

@@ -38,6 +38,12 @@ ArcadeVehicle::ArcadeVehicle() {
 	boost_speed_bonus = 0.0f;
 	ui_helper = nullptr;
 	ui_root = nullptr;
+
+	was_on_ramp = false;
+	ramp_spin_active = false;
+	ramp_roll_active = false;
+	last_roll_tilt = 0.0f;
+	ramp_roll_direction = 1.0f;
 }
 
 ArcadeVehicle::~ArcadeVehicle() {
@@ -292,13 +298,27 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 			is_on_ramp = true;
 		}
 
+		Vector3 local_x = trans.basis.get_column(0).normalized();
+		last_roll_tilt = local_x.y;
+
 		if (grounded_wheels >= 2) {
 			change_state(driving_state);
 			in_stunt_rotation = false;
 			stunt_requested = false;
+			ramp_spin_active = false;
+			ramp_roll_active = false;
 		}
 	} else {
 		// In the air
+		if (was_on_ramp && !ramp_spin_active && !ramp_roll_active && forward_speed > 10.0f) {
+			if (abs(last_roll_tilt) > 0.4f) {
+				ramp_roll_active = true;
+				ramp_roll_direction = (last_roll_tilt > 0.0f) ? -1.0f : 1.0f;
+			} else {
+				ramp_spin_active = true;
+			}
+		}
+
 		if (!in_stunt_rotation) {
 			const ActionState *input_state = player_input ? &player_input->get_state() : nullptr;
 			if (is_active && input_state && input_state->character.jump) {
@@ -320,6 +340,30 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		current_state->physics_update(p_delta);
 	}
 
+	// 5. Ramp Spin Physics (Pitch Flip)
+	if (ramp_spin_active) {
+		Vector3 right_dir = trans.basis.get_column(0).normalized();
+		float pitch_speed = get_angular_velocity().dot(right_dir);
+
+		// Apply spin torque driving towards target pitch speed continuously while in air
+		float target_pitch_speed = (2.0f * Math_PI / 0.8f); // 1.0f for backflip
+		float pitch_speed_error = target_pitch_speed - pitch_speed;
+		float torque_mag = pitch_speed_error * config->get_mass() * 6.0f;
+		apply_torque(right_dir * torque_mag);
+	}
+
+	// 6. Ramp Roll Physics (Barrel Roll)
+	if (ramp_roll_active) {
+		Vector3 roll_forward_dir = -trans.basis.get_column(2).normalized(); // Local -Z is forward
+		float roll_speed = get_angular_velocity().dot(roll_forward_dir);
+
+		// Apply roll torque driving towards target roll speed continuously while in air
+		float target_roll_speed = ramp_roll_direction * (2.0f * Math_PI / 0.8f);
+		float roll_speed_error = target_roll_speed - roll_speed;
+		float torque_mag = roll_speed_error * config->get_mass() * 6.0f;
+		apply_torque(roll_forward_dir * torque_mag);
+	}
+
 	_update_debug_arrows();
 
 	// Dynamic UI Visibility & Updates
@@ -334,6 +378,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		ui_helper->update_graph(get_linear_velocity().length());
 	}
 
+	was_on_ramp = is_on_ramp;
 	debug_draw_trajectory((float)p_delta);
 }
 
