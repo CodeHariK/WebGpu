@@ -18,6 +18,7 @@ class VehicleState;
 class GroundedState;
 class AirborneState;
 class DrivingState;
+class DriftingState;
 class GlidingState;
 class RampSpinState;
 class RampRollState;
@@ -46,8 +47,8 @@ private:
 
 	// Flip state
 	Vector3 current_com_offset;
-	bool is_on_ramp = false;
 
+	bool is_on_ramp = false;
 	bool was_on_ramp = false;
 	float last_roll_tilt = 0.0f;
 
@@ -84,6 +85,7 @@ private:
 	friend class GroundedState;
 	friend class AirborneState;
 	friend class DrivingState;
+	friend class DriftingState;
 	friend class GlidingState;
 	friend class RampSpinState;
 	friend class RampRollState;
@@ -92,6 +94,7 @@ private:
 	GroundedState *grounded_state = nullptr;
 	AirborneState *airborne_state = nullptr;
 	DrivingState *driving_state = nullptr;
+	DriftingState *drifting_state = nullptr;
 	GlidingState *gliding_state = nullptr;
 	RampSpinState *ramp_spin_state = nullptr;
 	RampRollState *ramp_roll_state = nullptr;

@@ -38,6 +38,17 @@ public:
 };
 
 /**
+ * Specialized drifting state when on the ground.
+ */
+class DriftingState : public GroundedState {
+public:
+	using GroundedState::GroundedState;
+	virtual void enter() override;
+	virtual void exit() override;
+	virtual void physics_update(float delta) override;
+};
+
+/**
  * Specialized mid-air state for gliding smoothly.
  */
 class GlidingState : public AirborneState {

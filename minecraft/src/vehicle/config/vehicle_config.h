@@ -40,9 +40,11 @@ private:
 	float drift_steer_torque_multiplier = 1.8f;
 	float drift_slowdown_factor = 0.75f;
 	float drift_boost_max_speed_bonus = 20.0f;
+
 	float nitro_max_fuel = 100.0f;
 	float nitro_refuel_rate = 25.0f;
 	float nitro_depletion_rate = 33.3f;
+
 	float roll_influence = 0.1f;
 	float pitch_influence = 1.0f;
 
