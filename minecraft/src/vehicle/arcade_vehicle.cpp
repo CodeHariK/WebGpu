@@ -4,130 +4,13 @@
 #include "../game_manager/player_input.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "ai/vehicle_states.h"
-#include "godot_cpp/classes/csg_box3d.hpp"
 #include "ui/arcade_vehicle_ui.h"
 #include <godot_cpp/classes/canvas_layer.hpp>
 #include <godot_cpp/classes/engine.hpp>
-#include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/classes/input.hpp>
-#include <godot_cpp/classes/physics_direct_body_state3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 
 namespace godot {
-
-void ArcadeVehicle::_ready() {
-	if (Engine::get_singleton()->is_editor_hint())
-		return;
-
-	// 1. Setup HSM
-	grounded_state = new GroundedState("grounded", this, nullptr);
-	airborne_state = new AirborneState("airborne", this, nullptr);
-	driving_state = new DrivingState("driving", this, grounded_state);
-	drifting_state = new DriftingState("drifting", this, grounded_state);
-	gliding_state = new GlidingState("gliding", this, airborne_state);
-	ramp_spin_state = new RampSpinState("ramp_spin", this, airborne_state);
-	ramp_roll_state = new RampRollState("ramp_roll", this, airborne_state);
-
-	current_state = driving_state;
-	current_state->enter();
-
-	_setup_vehicle();
-
-	GameManager *gm = GameManager::get_singleton();
-	if (gm) {
-		gm->register_vehicle(this);
-	}
-
-	// Setup UI
-	ui_root = CUI::create_on_new_layer(this);
-	ui_helper = new ArcadeVehicleUI();
-	ui_helper->setup(this, ui_root);
-	load_settings();
-
-	if (config.is_valid()) {
-		nitro_fuel = config->get_nitro_max_fuel();
-	}
-}
-
-void ArcadeVehicle::_exit_tree() {
-	GameManager *gm = GameManager::get_singleton();
-	if (gm && gm->get_vehicle() == this) {
-		gm->register_vehicle(nullptr);
-	}
-}
-
-void ArcadeVehicle::change_state(VehicleState *new_state) {
-	if (current_state == new_state)
-		return;
-
-	if (current_state)
-		current_state->exit();
-	current_state = new_state;
-	if (current_state)
-		current_state->enter();
-}
-
-void ArcadeVehicle::_setup_vehicle() {
-	if (config.is_null()) {
-		UtilityFunctions::printerr("ArcadeVehicle has no config assigned.");
-		return;
-	}
-
-	// 1. Setup physics properties
-	set_mass(config->get_mass());
-	set_center_of_mass_mode(RigidBody3D::CENTER_OF_MASS_MODE_CUSTOM);
-	current_com_offset = config->get_center_of_mass_offset();
-	set_center_of_mass(current_com_offset);
-
-	// 2. Clear old children if any
-	if (chassis_collider) {
-		chassis_collider->queue_free();
-		chassis_collider = nullptr;
-	}
-	if (chassis_mesh) {
-		chassis_mesh->queue_free();
-		chassis_mesh = nullptr;
-	}
-	for (CSGSphere3D *visual : wheel_visuals) {
-		visual->queue_free();
-	}
-	wheel_visuals.clear();
-
-	// 3. Create Chassis Collider
-	chassis_collider = memnew(CollisionShape3D);
-	chassis_shape = memnew(BoxShape3D);
-	chassis_shape->set_size(config->get_chassis_size());
-	chassis_collider->set_shape(chassis_shape);
-	add_child(chassis_collider);
-
-	// 4. Create Chassis Mesh (Visual)
-	chassis_mesh = memnew(CSGBox3D);
-	chassis_mesh->set_size(config->get_chassis_size());
-	chassis_mesh->set_use_collision(false);
-	add_child(chassis_mesh);
-
-	// 5. Create wheel debug visuals
-	TypedArray<WheelConfig> wconfigs = config->get_wheel_configs();
-	for (int i = 0; i < wconfigs.size(); i++) {
-		Ref<WheelConfig> wc = wconfigs[i];
-		if (wc.is_null())
-			continue;
-
-		CSGSphere3D *visual = memnew(CSGSphere3D);
-		visual->set_radius(wc->get_radius());
-		visual->set_radial_segments(12);
-		visual->set_rings(6);
-		// Color it so it's a visible tire
-		visual->set_use_collision(false);
-
-		if (!debug_visuals_enabled) {
-			visual->hide();
-		}
-
-		add_child(visual);
-		wheel_visuals.push_back(visual);
-	}
-}
 
 float ArcadeVehicle::_calculate_suspension_force(Ref<WheelConfig> wheel, float hit_distance, float delta, Vector3 hardpoint_world, Vector3 local_up) {
 	float rest_length = wheel->get_suspension_rest_length();

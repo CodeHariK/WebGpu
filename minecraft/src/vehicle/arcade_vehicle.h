@@ -4,6 +4,10 @@
 #include "../utils/raycast/mc_raycast.h"
 #include "config/vehicle_config.h"
 #include "game_manager/player_input.h"
+#include "godot_cpp/classes/capsule_shape3d.hpp"
+#include "godot_cpp/classes/csg_cylinder3d.hpp"
+#include "godot_cpp/classes/mesh_instance3d.hpp"
+#include "godot_cpp/classes/sphere_shape3d.hpp"
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/csg_box3d.hpp>
@@ -37,8 +41,8 @@ private:
 
 	// Internal state
 	CollisionShape3D *chassis_collider = nullptr;
-	BoxShape3D *chassis_shape = nullptr;
-	CSGBox3D *chassis_mesh = nullptr;
+	SphereShape3D *chassis_shape = nullptr;
+	MeshInstance3D *chassis_mesh = nullptr;
 
 	// Debug visualizers
 	std::vector<CSGSphere3D *> wheel_visuals;
