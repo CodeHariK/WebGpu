@@ -129,8 +129,8 @@ void MinecraftNode::_process(double delta) {
 					String name = "Part_" + String::num_int64(part_pos.x) + "_" + String::num_int64(part_pos.y);
 
 					// Generate the mesh without collision. The dynamic system will add it if needed.
-					// MeshInstance3D *new_mesh = generate_voxel_part_mesh(name, part_pos, false);
-					MeshInstance3D *new_mesh = generate_smooth_part_mesh(name, part_pos, false);
+					MeshInstance3D *new_mesh = generate_voxel_part_mesh(name, part_pos, false);
+					// MeshInstance3D *new_mesh = generate_smooth_part_mesh(name, part_pos, false);
 
 					if (new_mesh) {
 						add_child(new_mesh);
@@ -145,8 +145,8 @@ void MinecraftNode::_process(double delta) {
 		for (auto it = m_parts.begin(); it != m_parts.end();) {
 			Part &part_data = it->second;
 			if (!part_data.visible && part_data.last_visible_time > 0.0 &&
-					//
-					(current_system_time - part_data.last_visible_time) > part_visibility_time_out_duration)
+				//
+				(current_system_time - part_data.last_visible_time) > part_visibility_time_out_duration)
 			//
 			{
 				// part is out of render distance, was visible before, and timeout passed
@@ -191,7 +191,7 @@ void MinecraftNode::_process(double delta) {
 bool MinecraftNode::is_part_visible(const Vector2i &part_pos, const Vector2i &camera_part_pos) const {
 	// 1. Distance check (cheap)
 	if (abs(part_pos.x - camera_part_pos.x) > render_distance ||
-			abs(part_pos.y - camera_part_pos.y) > render_distance) {
+		abs(part_pos.y - camera_part_pos.y) > render_distance) {
 		return false;
 	}
 
