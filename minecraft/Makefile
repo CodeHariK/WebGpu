@@ -60,3 +60,5 @@ run_oc:
 	$(GODOT) --path project/ --scene scene/mini_games/Overcooked.tscn
 run_tennis:
 	$(GODOT) --path project/ --scene scene/mini_games/Tennis.tscn
+run_sn:
+	$(GODOT) --path project/ --scene scene/minecraft/scene_minecraft.tscn
