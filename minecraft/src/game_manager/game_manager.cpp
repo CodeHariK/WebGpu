@@ -12,6 +12,8 @@
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
+#include <godot_cpp/classes/viewport.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include "../minigames/overcooked/oc_manager.h"
@@ -276,6 +278,41 @@ void GameManager::_physics_process(double delta) {
 void GameManager::_input(const Ref<InputEvent> &p_event) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
+	}
+
+	Ref<InputEventKey> k = p_event;
+	if (k.is_valid() && k->is_pressed() && !k->is_echo()) {
+		// Toggle/cycle debug draw modes on F3
+		if (k->get_keycode() == KEY_F3) {
+			Viewport *viewport = get_viewport();
+			if (viewport) {
+				Viewport::DebugDraw current_mode = viewport->get_debug_draw();
+				Viewport::DebugDraw next_mode = Viewport::DEBUG_DRAW_DISABLED;
+
+				if (current_mode == Viewport::DEBUG_DRAW_DISABLED) {
+					next_mode = Viewport::DEBUG_DRAW_UNSHADED;
+				} else if (current_mode == Viewport::DEBUG_DRAW_UNSHADED) {
+					next_mode = Viewport::DEBUG_DRAW_OVERDRAW;
+				} else if (current_mode == Viewport::DEBUG_DRAW_OVERDRAW) {
+					next_mode = Viewport::DEBUG_DRAW_WIREFRAME;
+				} else {
+					next_mode = Viewport::DEBUG_DRAW_DISABLED;
+				}
+
+				viewport->set_debug_draw(next_mode);
+				UtilityFunctions::print("GameManager: Debug Draw mode set to ", next_mode);
+			}
+		}
+
+		// Toggle collision shape visibility on F4
+		if (k->get_keycode() == KEY_F4) {
+			SceneTree *tree = get_tree();
+			if (tree) {
+				bool current = tree->is_debugging_collisions_hint();
+				tree->set_debug_collisions_hint(!current);
+				UtilityFunctions::print("GameManager: Collision Debug toggled to ", !current);
+			}
+		}
 	}
 
 	if (player_input) {

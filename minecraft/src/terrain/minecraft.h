@@ -58,6 +58,7 @@ class MinecraftNode : public Node3D {
 
 private:
 	bool generate_on_ready = true;
+	bool use_smooth_terrain = false;
 
 	std::map<Vector2i, Part> m_parts;
 	Vector2i m_last_camera_part_pos;
@@ -91,6 +92,10 @@ protected:
 		ClassDB::bind_method(D_METHOD("set_generate_on_ready", "enable"), &MinecraftNode::set_generate_on_ready);
 		ClassDB::bind_method(D_METHOD("get_generate_on_ready"), &MinecraftNode::get_generate_on_ready);
 		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "generate_on_ready"), "set_generate_on_ready", "get_generate_on_ready");
+
+		ClassDB::bind_method(D_METHOD("set_use_smooth_terrain", "enable"), &MinecraftNode::set_use_smooth_terrain);
+		ClassDB::bind_method(D_METHOD("get_use_smooth_terrain"), &MinecraftNode::get_use_smooth_terrain);
+		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_smooth_terrain"), "set_use_smooth_terrain", "get_use_smooth_terrain");
 
 		ClassDB::bind_method(D_METHOD("set_part_size", "width"), &MinecraftNode::set_part_size);
 		ClassDB::bind_method(D_METHOD("get_part_size"), &MinecraftNode::get_part_size);
@@ -132,6 +137,13 @@ public:
 	}
 	bool get_generate_on_ready() const {
 		return generate_on_ready;
+	}
+
+	void set_use_smooth_terrain(bool p_enable) {
+		use_smooth_terrain = p_enable;
+	}
+	bool get_use_smooth_terrain() const {
+		return use_smooth_terrain;
 	}
 
 	void set_part_size(int w) {

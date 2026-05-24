@@ -30,14 +30,15 @@ shadow_enabled = true
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1662404255]
 environment = SubResource("Environment_jfv7q")
 
+[node name="GameManager" type="GameManager" parent="." unique_id=1344701221]
+
+[node name="GameCamera" type="GameCamera" parent="." unique_id=2042984676]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10, 0)
+
+[node name="SNGrid" type="SNGrid" parent="." unique_id=2003844719]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
+
 [node name="MinecraftNode" type="MinecraftNode" parent="." unique_id=1010670938]
 terrain_noise = SubResource("FastNoiseLite_2a7lt")
 terrain_material = ExtResource("2_2a7lt")
 height_curve = ExtResource("5_2tur5")
-
-[node name="GameManager" type="GameManager" parent="." unique_id=1344701221]
-
-[node name="GameCamera" type="GameCamera" parent="." unique_id=2042984676]
-
-[node name="SNGrid" type="SNGrid" parent="." unique_id=2003844719]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)

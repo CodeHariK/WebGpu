@@ -53,11 +53,11 @@ void MCManager::setup_ui() {
 
 	// 4. Create Help Dialog
 	ui.help_dialog = ui.manager->add_dialog(ui.manager, "Marching Cubes Info",
-			"This project visualizes the 256 voxel configurations of the Marching Cubes algorithm.\n\n"
-			"- 21 base meshes generate all 256 variants via rotations/reflections.\n"
-			"- Transformations are applied via bitwise-mapped rotation matrices.\n"
-			"- Current UI tracks real-time performance and generation stats.\n\n"
-			"- Stats Button: Toggle sidebar visibility");
+											"This project visualizes the 256 voxel configurations of the Marching Cubes algorithm.\n\n"
+											"- 21 base meshes generate all 256 variants via rotations/reflections.\n"
+											"- Transformations are applied via bitwise-mapped rotation matrices.\n"
+											"- Current UI tracks real-time performance and generation stats.\n\n"
+											"- Stats Button: Toggle sidebar visibility");
 	ui.help_dialog->set_min_size(Vector2(400, 300));
 
 	// 5. Create Scroll Container (inside SidePanel)
@@ -81,8 +81,6 @@ void MCManager::setup_ui() {
 	perf.memory_label = ui.manager->add_label(ui.stats_vbox, "Memory: 0 MB");
 
 	ui.manager->add_label(ui.stats_vbox, "--- DIAGNOSTICS ---");
-	Button *diag_btn = ui.manager->add_button(ui.stats_vbox, "Toggle Collision Debug", Callable(this, "_on_toggle_collision_debug"));
-	diag_btn->set_custom_minimum_size(Vector2(0, 30));
 
 	Button *vis_btn = ui.manager->add_button(ui.stats_vbox, "Toggle Visual Corners", Callable(this, "_on_toggle_visual_corners"));
 	vis_btn->set_custom_minimum_size(Vector2(0, 30));
@@ -185,8 +183,8 @@ void MCManager::update_ui() {
 	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (terrain_node && terrain.stats_label) {
 		terrain.stats_label->set_text("MC Meshes: " + String::num_int64(terrain_node->get_total_mc_meshes()) +
-				"\nMC Cells: " + String::num_int64(terrain_node->get_total_cells()) +
-				"\nDebug Corners: " + String::num_int64(terrain_node->get_total_debug_corners()));
+									  "\nMC Cells: " + String::num_int64(terrain_node->get_total_cells()) +
+									  "\nDebug Corners: " + String::num_int64(terrain_node->get_total_debug_corners()));
 	}
 
 	if (ui.hash_label) {
@@ -195,7 +193,7 @@ void MCManager::update_ui() {
 			String bin = MCNode::hash_to_binary(h);
 			Vector3 display_pos = Vector3(locked_grid_pos);
 			ui.hash_label->set_text("Hash: " + bin + " (" + String::num_int64(h) + ")" +
-					"\nPos: " + String(display_pos));
+									"\nPos: " + String(display_pos));
 		} else {
 			ui.hash_label->set_text("Hash: N/A\nPos: N/A");
 		}
