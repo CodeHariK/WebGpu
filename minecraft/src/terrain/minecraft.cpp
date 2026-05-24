@@ -41,16 +41,7 @@ void MinecraftNode::_process(double delta) {
 		return;
 	}
 
-	// Toggle wireframe view on key press
-	Input *input = Input::get_singleton();
-	if (input->is_action_just_pressed("toggle_wireframe")) {
-		Viewport *viewport = get_viewport();
-		if (viewport->get_debug_draw() == Viewport::DEBUG_DRAW_WIREFRAME) {
-			viewport->set_debug_draw(Viewport::DEBUG_DRAW_DISABLED);
-		} else {
-			viewport->set_debug_draw(Viewport::DEBUG_DRAW_WIREFRAME);
-		}
-	}
+
 
 	Vector2i camera_part_pos(
 			floor(camera->get_global_position().x / part_size),
@@ -115,6 +106,9 @@ void MinecraftNode::_process(double delta) {
 			}
 		}
 
+		typedef MeshInstance3D* (MinecraftNode::*PartMeshGenerator)(String, Vector2i, bool);
+		PartMeshGenerator generator = use_smooth_terrain ? &MinecraftNode::generate_smooth_part_mesh : &MinecraftNode::generate_voxel_part_mesh;
+
 		// Loop 2: Iterate over all parts that should be visible and load new ones
 		for (int z = -render_distance; z <= render_distance; ++z) {
 			for (int x = -render_distance; x <= render_distance; ++x) {
@@ -128,9 +122,7 @@ void MinecraftNode::_process(double delta) {
 				if (m_parts.find(part_pos) == m_parts.end()) {
 					String name = "Part_" + String::num_int64(part_pos.x) + "_" + String::num_int64(part_pos.y);
 
-					// Generate the mesh without collision. The dynamic system will add it if needed.
-					MeshInstance3D *new_mesh = generate_voxel_part_mesh(name, part_pos, false);
-					// MeshInstance3D *new_mesh = generate_smooth_part_mesh(name, part_pos, false);
+					MeshInstance3D *new_mesh = (this->*generator)(name, part_pos, false);
 
 					if (new_mesh) {
 						add_child(new_mesh);

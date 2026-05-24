@@ -1,6 +1,6 @@
 #include "mc_manager.h"
-#include "cui/cui.h"
 #include "../game_manager/game_manager.h"
+#include "cui/cui.h"
 #include "mc.h"
 #include "mc_grid.h"
 #include <godot_cpp/classes/accept_dialog.hpp>
@@ -38,7 +38,6 @@ void MCManager::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("initialize_all"), &MCManager::initialize_all);
 	ClassDB::bind_method(D_METHOD("_on_toggle_ui"), &MCManager::_on_toggle_ui);
-	ClassDB::bind_method(D_METHOD("_on_toggle_collision_debug"), &MCManager::_on_toggle_collision_debug);
 	ClassDB::bind_method(D_METHOD("_on_toggle_visual_corners"), &MCManager::_on_toggle_visual_corners);
 	ClassDB::bind_method(D_METHOD("_on_gui_input", "p_event"), &MCManager::_on_gui_input);
 	ClassDB::bind_method(D_METHOD("_on_toggle_placement_mode"), &MCManager::_on_toggle_placement_mode);
@@ -117,7 +116,7 @@ void MCManager::initialize_all() {
 		// 2. Link nodes and trigger Terrain generation
 		terrain_node->set_mc_node(mc_node);
 		terrain_node->initialize_grid(terrain_node->get_grid_size().x, terrain_node->get_grid_size().y, terrain_node->get_grid_size().z,
-				terrain_node->get_chunk_size().x, terrain_node->get_chunk_size().y, terrain_node->get_chunk_size().z);
+									  terrain_node->get_chunk_size().x, terrain_node->get_chunk_size().y, terrain_node->get_chunk_size().z);
 
 		// 3. Setup UI
 		ui.manager = CUI::create_on_new_layer(this);
@@ -129,7 +128,7 @@ void MCManager::initialize_all() {
 
 		// 4-7. Setup Previews and Debug Cursor
 		_initialize_previews();
-		
+
 		// Register with GameManager
 		GameManager *gm = GameManager::get_singleton();
 		if (gm) {

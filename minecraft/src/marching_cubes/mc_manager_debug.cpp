@@ -19,15 +19,6 @@
 
 namespace godot {
 
-void MCManager::_on_toggle_collision_debug() {
-	SceneTree *tree = get_tree();
-	if (tree) {
-		bool current = tree->is_debugging_collisions_hint();
-		tree->set_debug_collisions_hint(!current);
-		UtilityFunctions::print("MCManager: Collision Debug toggled to ", !current);
-	}
-}
-
 void MCManager::_on_toggle_visual_corners() {
 	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (terrain_node) {
@@ -36,7 +27,6 @@ void MCManager::_on_toggle_visual_corners() {
 		UtilityFunctions::print("MCManager: Visual Corners toggled to ", !current);
 	}
 }
-
 
 void MCManager::_initialize_previews() {
 	hover_mat_yellow.instantiate();
@@ -155,7 +145,7 @@ void MCManager::_update_hover_raycast() {
 							Vector3i target_pos = grid_pos + obj.relative_offset;
 							obj.node->set_position(Vector3(target_pos) + (Vector3(obj.size) * 0.5f));
 							if (terrain_node->is_area_blocked_by_grid(target_pos, obj.size) ||
-									terrain_node->is_area_blocked_by_objects(AABB(Vector3(target_pos), Vector3(obj.size)))) {
+								terrain_node->is_area_blocked_by_objects(AABB(Vector3(target_pos), Vector3(obj.size)))) {
 								group_blocked = true;
 							}
 						}

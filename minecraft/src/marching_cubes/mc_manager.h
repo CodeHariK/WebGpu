@@ -111,7 +111,6 @@ public:
 	void update_ui();
 	void _process(double p_delta) override;
 	void _on_toggle_ui();
-	void _on_toggle_collision_debug();
 	void _on_toggle_visual_corners();
 	void _input(const Ref<InputEvent> &p_event) override;
 	void _on_gui_input(const Ref<InputEvent> &p_event);
