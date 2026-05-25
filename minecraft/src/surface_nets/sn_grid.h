@@ -7,6 +7,7 @@
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
 #include <vector>
+#include "surface_nets/surface_nets.h"
 
 namespace godot {
 
@@ -56,6 +57,10 @@ private:
 	Vector3i chunk_size = Vector3i(16, 16, 16);
 	std::vector<SNChunk> chunks;
 	Ref<Material> terrain_material;
+	SurfaceNetsBuffer mesh_buffer;
+
+	bool cell_center = false;
+	bool smooth_normal = true;
 
 	int _get_chunk_index(int x, int y, int z) const {
 		return (y * grid_size.x * grid_size.z) + (z * grid_size.x) + x;
@@ -98,6 +103,12 @@ public:
 
 	void set_terrain_material(const Ref<Material> &p_material);
 	Ref<Material> get_terrain_material() const;
+
+	void set_cell_center(bool p_enabled);
+	bool is_cell_center() const { return cell_center; }
+
+	void set_smooth_normal(bool p_enabled);
+	bool is_smooth_normal() const { return smooth_normal; }
 
 	void generate_test_sdf();
 };
