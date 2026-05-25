@@ -1,19 +1,20 @@
 #ifndef SN_GRID_H
 #define SN_GRID_H
 
-#include <cstdint>
+#include "godot_cpp/classes/standard_material3d.hpp"
+#include "surface_nets/surface_nets.h"
 #include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/noise.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
-#include <vector>
-#include "surface_nets/surface_nets.h"
 
 namespace godot {
 
 class MeshInstance3D;
 class StaticBody3D;
 class Material;
+class Noise;
 
 struct SNChunk {
 	int size_x = 0;
@@ -57,6 +58,7 @@ private:
 	Vector3i chunk_size = Vector3i(16, 16, 16);
 	std::vector<SNChunk> chunks;
 	Ref<Material> terrain_material;
+	Ref<Noise> terrain_noise;
 	SurfaceNetsBuffer mesh_buffer;
 
 	bool cell_center = false;
@@ -104,6 +106,9 @@ public:
 	void set_terrain_material(const Ref<Material> &p_material);
 	Ref<Material> get_terrain_material() const;
 
+	void set_terrain_noise(const Ref<Noise> &p_noise);
+	Ref<Noise> get_terrain_noise() const;
+
 	void set_cell_center(bool p_enabled);
 	bool is_cell_center() const { return cell_center; }
 
@@ -111,6 +116,7 @@ public:
 	bool is_smooth_normal() const { return smooth_normal; }
 
 	void generate_test_sdf();
+	void generate_noise_sdf();
 };
 
 } // namespace godot

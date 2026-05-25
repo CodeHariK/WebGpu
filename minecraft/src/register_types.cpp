@@ -27,6 +27,7 @@
 #include "player/celeste_controller.h"
 #include "player/celeste_ui.h"
 
+#include "terrain/loafter/procedural_lofter.h"
 #include "terrain/minecraft.h"
 
 #include "vehicle/arcade_vehicle.h"
@@ -133,6 +134,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(BTPlayer);
 
 	GDREGISTER_CLASS(RoadGenerator);
+	GDREGISTER_CLASS(ProceduralLofter);
+	GDREGISTER_CLASS(LoftSlice);
 
 	GDREGISTER_CLASS(TransformGizmo);
 

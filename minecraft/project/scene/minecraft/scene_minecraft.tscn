@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://cpw0oipoya1mi"]
+[gd_scene format=4 uid="uid://cpw0oipoya1mi"]
 
 [ext_resource type="Script" uid="uid://dtif1g023v2sd" path="res://scene/minecraft/minecraft_node.gd" id="1_d82rw"]
 [ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/terrain/mat_terrain.tres" id="2_2a7lt"]
@@ -6,6 +6,7 @@
 [ext_resource type="PackedScene" uid="uid://p4auepeepmyy" path="res://scene/minecraft/ui_minecraft.tscn" id="4_jfv7q"]
 [ext_resource type="Curve" uid="uid://ccpck6g3dfdlv" path="res://scene/minecraft/curve_minecraft.tres" id="5_2tur5"]
 [ext_resource type="PackedScene" uid="uid://btxgtsxntydrd" path="res://scripts/ui/performance/UI_PerformanceMonitor.tscn" id="6_2a7lt"]
+[ext_resource type="Material" uid="uid://bljvmt1pth7f" path="res://material/shaders/terrain/mat_surface_nets.tres" id="7_surface_nets"]
 
 [sub_resource type="Environment" id="Environment_jfv7q"]
 background_color = Color(0.91703, 0.739792, 0.765747, 1)
@@ -13,9 +14,43 @@ sky = ExtResource("4_2a7lt")
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_byupe"]
+[sub_resource type="LoftSlice" id="LoftSlice_2a7lt"]
+profile_points = PackedVector2Array(-1, -1, 1, -1, 1, 1, -1, 1)
+
+[sub_resource type="LoftSlice" id="LoftSlice_l0j1k"]
+profile_points = PackedVector2Array(-0.5, -0.5, 0.5, -0.5, 0, 0.5)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2a7lt"]
+albedo_color = Color(0.85366434, 0.63760704, 0.9069861, 1)
+
+[sub_resource type="Curve3D" id="Curve3D_2a7lt"]
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0, -1, 2, 5, -4.561261),
+"tilts": PackedFloat32Array(0, 0)
+}
+point_count = 2
+
+[sub_resource type="BoxMesh" id="BoxMesh_l0j1k"]
+size = Vector3(0.5, 0.5, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_2a7lt"]
+size = Vector3(0.5, 0.5, 0.5)
+
+[sub_resource type="ArrayMesh" id="ArrayMesh_2a7lt"]
+_surfaces = [{
+"aabb": AABB(-1.2003357, -0.705722, -4.684858, 3.8005316, 6.058583, 5.735281),
+"format": 34359742471,
+"index_count": 63,
+"index_data": PackedByteArray("AAABAAIAAwAEAAUABgAHAAgACQAKAAsADAANAA4ADwAQABEAEgATABQAFQAWABcAGAAZABoAGwAcAB0AHgAfACAAIQAiACMAJAAlACYAJwAoACkAKgArACwALQAuAC8AMAAxADIAMwA0ADUANgA3ADgAOQA6ADsAPAA9AD4A"),
+"primitive": 3,
+"uv_scale": Vector4(0, 0, 0, 0),
+"vertex_count": 63,
+"vertex_data": PackedByteArray("WJ4hvzKqNL9DdIa/mqSZPzKqNL+iOH2+sDQRPV/8dT8OiSTAmqSZPzKqNL+iOH2+xPvuP5EEdj8qQeK/sDQRPV/8dT8OiSTAmqSZPzKqNL+iOH2+mqSZvzKqND+iOH0+xPvuP5EEdj8qQeK/mqSZvzKqND+iOH0+N6IIvzDUF0AY+aK/xPvuP5EEdj8qQeK/mqSZvzKqND+iOH0+WJ4hPzKqND9DdIY/N6IIvzDUF0AY+aK/WJ4hPzKqND9DdIY/BCGmPzzWF0CUoPC+N6IIvzDUF0AY+aK/WJ4hPzKqND9DdIY/WJ4hvzKqNL9DdIa/BCGmPzzWF0CUoPC+WJ4hvzKqNL9DdIa/sDQRPV/8dT8OiSTABCGmPzzWF0CUoPC+sDQRPV/8dT8OiSTAxPvuP5EEdj8qQeK/4333P5PAPkAlhkrAxPvuP5EEdj8qQeK/N6IIvzDUF0AY+aK/4333P5PAPkAlhkrAN6IIvzDUF0AY+aK/4333P5PAPkAlhkrA4333P5PAPkAlhkrAN6IIvzDUF0AY+aK/BCGmPzzWF0CUoPC+4333P5PAPkAlhkrABCGmPzzWF0CUoPC++3OYP5zqa0AC2i3A4333P5PAPkAlhkrABCGmPzzWF0CUoPC+sDQRPV/8dT8OiSTA+3OYP5zqa0AC2i3AsDQRPV/8dT8OiSTA4333P5PAPkAlhkrA+3OYP5zqa0AC2i3A4333P5PAPkAlhkrA4333P5PAPkAlhkrAnGkmQJ+1lEBb6pXA4333P5PAPkAlhkrAnGkmQJ+1lEBb6pXAnGkmQJ+1lEBb6pXA4333P5PAPkAlhkrA+3OYP5zqa0AC2i3AnGkmQJ+1lEBb6pXA+3OYP5zqa0AC2i3AUMntP6NKq0BKlIfAnGkmQJ+1lEBb6pXA+3OYP5zqa0AC2i3A4333P5PAPkAlhkrAUMntP6NKq0BKlIfA4333P5PAPkAlhkrAnGkmQJ+1lEBb6pXAUMntP6NKq0BKlIfA4sg3FsZkAKXiyDcWxmQApeLINxbGZACl48g5Fspk/6TjyDkWymT/pOPIORbKZP+k2KHUpcVNw7HYodSlxU3Dsdih1KXFTcOx16HWpcNNxbHXodalw03Fsdeh1qXDTcWx4sg3FsZkAKXiyDcWxmQApeLINxbGZACl48g5Fspk/6TjyDkWymT/pOPIORbKZP+kpTjxqY12qqqlOPGpjXaqqqU48amNdqqqpDjyqYp2qqqkOPKpinaqqqQ48qmKdqqq2tUtGpx8Cpva1S0anHwKm9rVLRqcfAqb1qHWpcRNxLHWodalxE3Esdah1qXETcSx/3///wAA/7//f///AAD/v/9///8AAP+/GZ3gCDkhpbkZneAIOSGluRmd4Ag5IaW5F7rZrXtTQs0Xutmte1NCzRe62a17U0LNqTZJoP+HzqypNkmg/4fOrKk2SaD/h86sdwvw2rBZBpZ3C/DasFkGlncL8NqwWQaW/3///wAA/7//f///AAD/v/9///8AAP+//3///wAA/7//f///AAD/v/9///8AAP+/cbVimBBP77ZxtWKYEE/vtnG1YpgQT++2cbVimBBP77ZxtWKYEE/vtnG1YpgQT++2YhhyNRBP77ZiGHI1EE/vtmIYcjUQT++2YhhyNRBP77ZiGHI1EE/vtmIYcjUQT++2")
+}]
 
 [sub_resource type="FastNoiseLite" id="FastNoiseLite_2a7lt"]
+noise_type = 0
+frequency = 0.0651
 
 [node name="World" type="Node3D" unique_id=332964045]
 script = ExtResource("1_d82rw")
@@ -35,13 +70,35 @@ environment = SubResource("Environment_jfv7q")
 [node name="GameManager" type="GameManager" parent="." unique_id=1344701221]
 
 [node name="GameCamera" type="GameCamera" parent="." unique_id=2042984676]
-transform = Transform3D(-0.50052255, 0.49948642, -0.70710003, 0, 0.81677353, 0.57695836, 0.8657235, 0.28878066, -0.40881357, -5.672991, 24.38579, -4.625063)
+transform = Transform3D(0.997551, 0.03625949, -0.059809778, 0, 0.8551272, 0.51841825, 0.06994255, -0.5171486, 0.85303307, 0.08214843, 1.3785491, 1.4824595)
+
+[node name="ProceduralLofter" type="ProceduralLofter" parent="." unique_id=493036959]
+slices_array = Array[LoftSlice]([SubResource("LoftSlice_2a7lt"), SubResource("LoftSlice_l0j1k")])
+material = SubResource("StandardMaterial3D_2a7lt")
+flat_shaded = true
+segments = 4
+curve = SubResource("Curve3D_2a7lt")
+
+[node name="Start" type="MeshInstance3D" parent="ProceduralLofter" unique_id=1989527903]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -8.56712)
+mesh = SubResource("BoxMesh_l0j1k")
+
+[node name="End" type="MeshInstance3D" parent="ProceduralLofter" unique_id=788225289]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.011623442, 0.48600304, 0.640527)
+mesh = SubResource("BoxMesh_2a7lt")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ProceduralLofter" unique_id=491894733]
+material_override = SubResource("StandardMaterial3D_2a7lt")
+mesh = SubResource("ArrayMesh_2a7lt")
 
 [node name="SNGrid" type="SNGrid" parent="." unique_id=2003844719]
-terrain_material = SubResource("StandardMaterial3D_byupe")
+terrain_material = ExtResource("7_surface_nets")
+terrain_noise = SubResource("FastNoiseLite_2a7lt")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)
+visible = false
 
 [node name="MinecraftNode" type="MinecraftNode" parent="." unique_id=1010670938]
 terrain_noise = SubResource("FastNoiseLite_2a7lt")
 terrain_material = ExtResource("2_2a7lt")
 height_curve = ExtResource("5_2tur5")
+visible = false
