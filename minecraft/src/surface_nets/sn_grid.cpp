@@ -1,96 +1,26 @@
 #include "surface_nets/sn_grid.h"
+#include "surface_nets/sdf_helpers.h"
 #include "surface_nets/surface_nets.h"
-#include <godot_cpp/classes/engine.hpp>
-#include <godot_cpp/classes/file_access.hpp>
-#include <godot_cpp/classes/mesh_instance3d.hpp>
-#include <godot_cpp/classes/static_body3d.hpp>
+#include <algorithm>
+#include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/concave_polygon_shape3d.hpp>
-#include <godot_cpp/classes/array_mesh.hpp>
+#include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/material.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/static_body3d.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
+#include <godot_cpp/classes/base_material3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include <algorithm>
 
 namespace godot {
 
-// --- SNChunk Implementation ---
-
-PackedByteArray SNChunk::serialize_rle() const {
-	PackedByteArray output;
-	if (corner_densities.empty()) {
-		return output;
-	}
-
-	int8_t current_val = corner_densities[0];
-	uint32_t run_length = 1;
-
-	for (size_t i = 1; i < corner_densities.size(); ++i) {
-		if (corner_densities[i] == current_val && run_length < 255) {
-			run_length++;
-		} else {
-			output.push_back(static_cast<uint8_t>(run_length));
-			output.push_back(static_cast<uint8_t>(current_val));
-			current_val = corner_densities[i];
-			run_length = 1;
-		}
-	}
-	output.push_back(static_cast<uint8_t>(run_length));
-	output.push_back(static_cast<uint8_t>(current_val));
-
-	return output;
-}
-
-void SNChunk::deserialize_rle(const PackedByteArray &p_data) {
-	int num_corners = (size_x + 1) * (size_y + 1) * (size_z + 1);
-	corner_densities.clear();
-	corner_densities.reserve(num_corners);
-
-	for (int i = 0; i < p_data.size(); i += 2) {
-		if (i + 1 >= p_data.size()) {
-			break;
-		}
-		uint8_t run_length = p_data[i];
-		int8_t val = static_cast<int8_t>(p_data[i + 1]);
-		for (int r = 0; r < run_length; ++r) {
-			if (corner_densities.size() < static_cast<size_t>(num_corners)) {
-				corner_densities.push_back(val);
-			}
-		}
-	}
-
-	if (corner_densities.size() < static_cast<size_t>(num_corners)) {
-		corner_densities.resize(num_corners, 127); // Default to empty air (127)
-	}
-}
-
-// --- SNGrid Implementation ---
-
-void SNGrid::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y", "chunk_size_z"), &SNGrid::initialize_grid);
-	ClassDB::bind_method(D_METHOD("refresh_grid"), &SNGrid::refresh_grid);
-	ClassDB::bind_method(D_METHOD("modify_density", "p_grid_pos", "p_density"), &SNGrid::modify_density);
-	ClassDB::bind_method(D_METHOD("get_density", "p_grid_pos"), &SNGrid::get_density);
-	ClassDB::bind_method(D_METHOD("is_solid", "p_grid_pos"), &SNGrid::is_solid);
-
-	ClassDB::bind_method(D_METHOD("set_grid_size", "size"), &SNGrid::set_grid_size);
-	ClassDB::bind_method(D_METHOD("get_grid_size"), &SNGrid::get_grid_size);
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_size"), "set_grid_size", "get_grid_size");
-
-	ClassDB::bind_method(D_METHOD("set_chunk_size", "size"), &SNGrid::set_chunk_size);
-	ClassDB::bind_method(D_METHOD("get_chunk_size"), &SNGrid::get_chunk_size);
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "chunk_size"), "set_chunk_size", "get_chunk_size");
-
-	ClassDB::bind_method(D_METHOD("set_terrain_material", "material"), &SNGrid::set_terrain_material);
-	ClassDB::bind_method(D_METHOD("get_terrain_material"), &SNGrid::get_terrain_material);
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_terrain_material", "get_terrain_material");
-
-	ClassDB::bind_method(D_METHOD("generate_test_sdf"), &SNGrid::generate_test_sdf);
-
-	ClassDB::bind_method(D_METHOD("save_grid", "path"), &SNGrid::save_grid);
-	ClassDB::bind_method(D_METHOD("load_grid", "path"), &SNGrid::load_grid);
-}
-
 SNGrid::SNGrid() {
+	Ref<StandardMaterial3D> mat;
+	mat.instantiate();
+	mat->set_shading_mode(smooth_normal ? BaseMaterial3D::SHADING_MODE_PER_PIXEL : BaseMaterial3D::SHADING_MODE_PER_VERTEX);
+	terrain_material = mat;
 }
 
 SNGrid::~SNGrid() {
@@ -134,6 +64,10 @@ void SNGrid::set_chunk_size(const Vector3i &p_size) {
 
 void SNGrid::set_terrain_material(const Ref<Material> &p_material) {
 	terrain_material = p_material;
+	Ref<BaseMaterial3D> base_mat = terrain_material;
+	if (base_mat.is_valid()) {
+		base_mat->set_shading_mode(smooth_normal ? BaseMaterial3D::SHADING_MODE_PER_PIXEL : BaseMaterial3D::SHADING_MODE_PER_VERTEX);
+	}
 	if (is_inside_tree()) {
 		refresh_grid();
 	}
@@ -141,6 +75,30 @@ void SNGrid::set_terrain_material(const Ref<Material> &p_material) {
 
 Ref<Material> SNGrid::get_terrain_material() const {
 	return terrain_material;
+}
+
+void SNGrid::set_cell_center(bool p_enabled) {
+	if (cell_center == p_enabled) {
+		return;
+	}
+	cell_center = p_enabled;
+	if (is_inside_tree()) {
+		refresh_grid();
+	}
+}
+
+void SNGrid::set_smooth_normal(bool p_enabled) {
+	if (smooth_normal == p_enabled) {
+		return;
+	}
+	smooth_normal = p_enabled;
+	Ref<BaseMaterial3D> base_mat = terrain_material;
+	if (base_mat.is_valid()) {
+		base_mat->set_shading_mode(smooth_normal ? BaseMaterial3D::SHADING_MODE_PER_PIXEL : BaseMaterial3D::SHADING_MODE_PER_VERTEX);
+	}
+	if (is_inside_tree()) {
+		refresh_grid();
+	}
 }
 
 void SNGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, bool p_refresh) {
@@ -240,6 +198,13 @@ void SNGrid::generate_test_sdf() {
 	Vector3 box_center(static_cast<float>(max_x) * 0.7f, static_cast<float>(max_y) * 0.5f, static_cast<float>(max_z) * 0.5f);
 	Vector3 box_half_size(static_cast<float>(max_y) * 0.25f, static_cast<float>(max_y) * 0.25f, static_cast<float>(max_y) * 0.25f);
 
+	SDFSphere sphere(sphere_center, sphere_radius);
+	SDFBox box(box_center, box_half_size);
+
+	// Increase this scale multiplier to give the 8-bit integer more fractional precision.
+	// 120.0f is a good sweet spot for 8-bit ints (since the max is 127).
+	const float SDF_SCALE = 120.0f;
+
 	for (SNChunk &chunk : chunks) {
 		int nx = chunk.size_x + 1;
 		int ny = chunk.size_y + 1;
@@ -262,19 +227,17 @@ void SNGrid::generate_test_sdf() {
 					Vector3 p(static_cast<float>(gx), static_cast<float>(gy), static_cast<float>(gz));
 
 					// Sphere SDF
-					float d_sphere = p.distance_to(sphere_center) - sphere_radius;
+					float d_sphere = sphere.sample(p);
 
-					// Box SDF (Chebyshev distance approximation)
-					float dx = std::abs(p.x - box_center.x) - box_half_size.x;
-					float dy = std::abs(p.y - box_center.y) - box_half_size.y;
-					float dz = std::abs(p.z - box_center.z) - box_half_size.z;
-					float d_box = std::max(dx, std::max(dy, dz));
+					float d_box = box.sample_approx(p);
 
 					// Union
-					float d = std::min(d_sphere, d_box);
+					float d = sdf_union(d_sphere, d_box);
 
-					// Scale and clamp to int8_t
-					float scaled = d * 16.0f;
+					// Scale the float heavily so the decimals become whole numbers
+					float scaled = d * SDF_SCALE;
+
+					// Clamp it strictly within the int8_t bounds
 					int8_t density = static_cast<int8_t>(std::clamp(scaled, -128.0f, 127.0f));
 
 					chunk.set_corner(lx, ly, lz, density);
@@ -292,7 +255,7 @@ void SNGrid::_update_chunk_mesh(int p_chunk_idx) {
 
 	Vector3i chunk_loc(chunk.loc_x, chunk.loc_y, chunk.loc_z);
 
-	SurfaceNets::MeshData data = SurfaceNets::generate_mesh(this, chunk_loc, chunk_size);
+	SurfaceNets::MeshData data = SurfaceNets::generate_mesh(this, chunk_loc, chunk_size, mesh_buffer, cell_center, smooth_normal);
 	if (data.vertices.is_empty() || data.indices.is_empty()) {
 		return;
 	}
@@ -479,6 +442,91 @@ void SNGrid::load_grid(const String &p_path) {
 
 	UtilityFunctions::print("SNGrid: Loaded state from ", p_path);
 	refresh_grid();
+}
+
+// --- SNChunk Implementation ---
+
+PackedByteArray SNChunk::serialize_rle() const {
+	PackedByteArray output;
+	if (corner_densities.empty()) {
+		return output;
+	}
+
+	int8_t current_val = corner_densities[0];
+	uint32_t run_length = 1;
+
+	for (size_t i = 1; i < corner_densities.size(); ++i) {
+		if (corner_densities[i] == current_val && run_length < 255) {
+			run_length++;
+		} else {
+			output.push_back(static_cast<uint8_t>(run_length));
+			output.push_back(static_cast<uint8_t>(current_val));
+			current_val = corner_densities[i];
+			run_length = 1;
+		}
+	}
+	output.push_back(static_cast<uint8_t>(run_length));
+	output.push_back(static_cast<uint8_t>(current_val));
+
+	return output;
+}
+
+void SNChunk::deserialize_rle(const PackedByteArray &p_data) {
+	int num_corners = (size_x + 1) * (size_y + 1) * (size_z + 1);
+	corner_densities.clear();
+	corner_densities.reserve(num_corners);
+
+	for (int i = 0; i < p_data.size(); i += 2) {
+		if (i + 1 >= p_data.size()) {
+			break;
+		}
+		uint8_t run_length = p_data[i];
+		int8_t val = static_cast<int8_t>(p_data[i + 1]);
+		for (int r = 0; r < run_length; ++r) {
+			if (corner_densities.size() < static_cast<size_t>(num_corners)) {
+				corner_densities.push_back(val);
+			}
+		}
+	}
+
+	if (corner_densities.size() < static_cast<size_t>(num_corners)) {
+		corner_densities.resize(num_corners, 127); // Default to empty air (127)
+	}
+}
+
+// --- SNGrid Implementation ---
+
+void SNGrid::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y", "chunk_size_z"), &SNGrid::initialize_grid);
+	ClassDB::bind_method(D_METHOD("refresh_grid"), &SNGrid::refresh_grid);
+	ClassDB::bind_method(D_METHOD("modify_density", "p_grid_pos", "p_density"), &SNGrid::modify_density);
+	ClassDB::bind_method(D_METHOD("get_density", "p_grid_pos"), &SNGrid::get_density);
+	ClassDB::bind_method(D_METHOD("is_solid", "p_grid_pos"), &SNGrid::is_solid);
+
+	ClassDB::bind_method(D_METHOD("set_grid_size", "size"), &SNGrid::set_grid_size);
+	ClassDB::bind_method(D_METHOD("get_grid_size"), &SNGrid::get_grid_size);
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_size"), "set_grid_size", "get_grid_size");
+
+	ClassDB::bind_method(D_METHOD("set_chunk_size", "size"), &SNGrid::set_chunk_size);
+	ClassDB::bind_method(D_METHOD("get_chunk_size"), &SNGrid::get_chunk_size);
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "chunk_size"), "set_chunk_size", "get_chunk_size");
+
+	ClassDB::bind_method(D_METHOD("set_terrain_material", "material"), &SNGrid::set_terrain_material);
+	ClassDB::bind_method(D_METHOD("get_terrain_material"), &SNGrid::get_terrain_material);
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_terrain_material", "get_terrain_material");
+
+	ClassDB::bind_method(D_METHOD("set_cell_center", "enabled"), &SNGrid::set_cell_center);
+	ClassDB::bind_method(D_METHOD("is_cell_center"), &SNGrid::is_cell_center);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "cell_center"), "set_cell_center", "is_cell_center");
+
+	ClassDB::bind_method(D_METHOD("set_smooth_normal", "enabled"), &SNGrid::set_smooth_normal);
+	ClassDB::bind_method(D_METHOD("is_smooth_normal"), &SNGrid::is_smooth_normal);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "smooth_normal"), "set_smooth_normal", "is_smooth_normal");
+
+	ClassDB::bind_method(D_METHOD("generate_test_sdf"), &SNGrid::generate_test_sdf);
+
+	ClassDB::bind_method(D_METHOD("save_grid", "path"), &SNGrid::save_grid);
+	ClassDB::bind_method(D_METHOD("load_grid", "path"), &SNGrid::load_grid);
 }
 
 } // namespace godot

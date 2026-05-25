@@ -12,8 +12,8 @@
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
-#include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include "../minigames/overcooked/oc_manager.h"
@@ -295,6 +295,8 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 					next_mode = Viewport::DEBUG_DRAW_OVERDRAW;
 				} else if (current_mode == Viewport::DEBUG_DRAW_OVERDRAW) {
 					next_mode = Viewport::DEBUG_DRAW_WIREFRAME;
+				} else if (current_mode == Viewport::DEBUG_DRAW_WIREFRAME) {
+					next_mode = Viewport::DEBUG_DRAW_NORMAL_BUFFER;
 				} else {
 					next_mode = Viewport::DEBUG_DRAW_DISABLED;
 				}
