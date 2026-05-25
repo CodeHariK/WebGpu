@@ -9,23 +9,6 @@
 namespace godot {
 
 // ==========================================
-// LoftSlice Implementation
-// ==========================================
-
-void LoftSlice::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_profile_points", "points"), &LoftSlice::set_profile_points);
-	ClassDB::bind_method(D_METHOD("get_profile_points"), &LoftSlice::get_profile_points);
-
-	ADD_PROPERTY(PropertyInfo(Variant::PACKED_VECTOR2_ARRAY, "profile_points"), "set_profile_points", "get_profile_points");
-}
-
-LoftSlice::LoftSlice() {}
-LoftSlice::~LoftSlice() {}
-
-void LoftSlice::set_profile_points(const PackedVector2Array &p_points) { profile_points = p_points; }
-PackedVector2Array LoftSlice::get_profile_points() const { return profile_points; }
-
-// ==========================================
 // ProceduralLofter Implementation
 // ==========================================
 
@@ -46,7 +29,7 @@ void ProceduralLofter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("bake"), &ProceduralLofter::bake);
 	ClassDB::bind_method(D_METHOD("update_loft"), &ProceduralLofter::update_loft);
 
-	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "slices_array", PROPERTY_HINT_ARRAY_TYPE, "LoftSlice"), "set_slices_array", "get_slices_array");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "slices_array", PROPERTY_HINT_ARRAY_TYPE, "Curve3D"), "set_slices_array", "get_slices_array");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_material", "get_material");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "flat_shaded"), "set_flat_shaded", "get_flat_shaded");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "blend_factor"), "set_blend_factor", "get_blend_factor");
@@ -63,14 +46,19 @@ ProceduralLofter::~ProceduralLofter() {
 	if (last_connected_curve.is_valid()) {
 		last_connected_curve->disconnect("changed", Callable(this, "update_loft"));
 	}
+	for (auto &slice : last_connected_slices) {
+		if (slice.is_valid()) {
+			slice->disconnect("changed", Callable(this, "update_loft"));
+		}
+	}
 }
 
-void ProceduralLofter::set_slices_array(const TypedArray<LoftSlice> &p_slices) {
+void ProceduralLofter::set_slices_array(const TypedArray<Curve3D> &p_slices) {
 	slices_array = p_slices;
 	is_dirty = true;
 }
 
-TypedArray<LoftSlice> ProceduralLofter::get_slices_array() const {
+TypedArray<Curve3D> ProceduralLofter::get_slices_array() const {
 	return slices_array;
 }
 
@@ -94,7 +82,7 @@ bool ProceduralLofter::get_flat_shaded() const {
 	return flat_shaded;
 }
 
-void ProceduralLofter::add_slice(Ref<LoftSlice> p_slice, float p_position) {
+void ProceduralLofter::add_slice(Ref<Curve3D> p_slice, float p_position) {
 	if (p_slice.is_valid()) {
 		slices_array.push_back(p_slice);
 		is_dirty = true;
@@ -113,7 +101,7 @@ void ProceduralLofter::set_segments(int p_segments) {
 }
 int ProceduralLofter::get_segments() const { return segments; }
 
-Ref<ArrayMesh> ProceduralLofter::generate_lofted_mesh(TypedArray<LoftSlice> slices, TypedArray<Transform3D> transforms) const {
+Ref<ArrayMesh> ProceduralLofter::generate_lofted_mesh(TypedArray<Curve3D> slices, TypedArray<Transform3D> transforms) const {
 	int num_slices = slices.size();
 	int num_transforms = transforms.size();
 	if (num_slices < 2 || num_transforms < num_slices)
@@ -124,18 +112,18 @@ Ref<ArrayMesh> ProceduralLofter::generate_lofted_mesh(TypedArray<LoftSlice> slic
 	// STEP 1: Transform 2D profiles into 3D space and store vertices
 	std::vector<PackedVector3Array> all_slice_vertices(num_slices);
 	for (int i = 0; i < num_slices; i++) {
-		Ref<LoftSlice> slice = slices[i];
+		Ref<Curve3D> slice = slices[i];
 		if (slice.is_null())
 			continue;
 
 		Transform3D transform = transforms[i];
-		PackedVector2Array profile = slice->get_profile_points();
-		all_slice_vertices[i].resize(profile.size());
+		int pt_count = slice->get_point_count();
+		all_slice_vertices[i].resize(pt_count);
 
-		for (int j = 0; j < profile.size(); j++) {
-			Vector2 p2d = profile[j];
-			// Treat the 2D drawing as lying on the local X/Y plane (Z=0)
-			Vector3 local_3d = Vector3(p2d.x, p2d.y, 0.0);
+		for (int j = 0; j < pt_count; j++) {
+			Vector3 p3d = slice->get_point_position(j);
+			// Ignore Y axis of Curve3D and map X/Z coordinates to local cross-section 2D plane (local Z=0)
+			Vector3 local_3d = Vector3(p3d.x, p3d.z, 0.0);
 			Vector3 world_3d = transform.xform(local_3d);
 			all_slice_vertices[i][j] = world_3d;
 		}
@@ -145,8 +133,8 @@ Ref<ArrayMesh> ProceduralLofter::generate_lofted_mesh(TypedArray<LoftSlice> slic
 		// STEP 2 (Flat Shading): Add each triangle independently (no sharing)
 		int current_vertex_index = 0;
 		for (int i = 0; i < num_slices - 1; i++) {
-			Ref<LoftSlice> slice_A = slices[i];
-			Ref<LoftSlice> slice_B = slices[i + 1];
+			Ref<Curve3D> slice_A = slices[i];
+			Ref<Curve3D> slice_B = slices[i + 1];
 
 			if (slice_A.is_null() || slice_B.is_null())
 				continue;
@@ -235,8 +223,8 @@ Ref<ArrayMesh> ProceduralLofter::generate_lofted_mesh(TypedArray<LoftSlice> slic
 		}
 
 		for (int i = 0; i < num_slices - 1; i++) {
-			Ref<LoftSlice> slice_A = slices[i];
-			Ref<LoftSlice> slice_B = slices[i + 1];
+			Ref<Curve3D> slice_A = slices[i];
+			Ref<Curve3D> slice_B = slices[i + 1];
 
 			if (slice_A.is_null() || slice_B.is_null())
 				continue;
@@ -352,6 +340,36 @@ void ProceduralLofter::_process(double delta) {
 		is_dirty = true;
 	}
 
+	bool slices_changed = false;
+	if (slices_array.size() != last_connected_slices.size()) {
+		slices_changed = true;
+	} else {
+		for (int i = 0; i < slices_array.size(); i++) {
+			Ref<Curve3D> slice = slices_array[i];
+			if (slice != last_connected_slices[i]) {
+				slices_changed = true;
+				break;
+			}
+		}
+	}
+
+	if (slices_changed) {
+		for (auto &slice : last_connected_slices) {
+			if (slice.is_valid()) {
+				slice->disconnect("changed", Callable(this, "update_loft"));
+			}
+		}
+		last_connected_slices.clear();
+		for (int i = 0; i < slices_array.size(); i++) {
+			Ref<Curve3D> slice = slices_array[i];
+			last_connected_slices.push_back(slice);
+			if (slice.is_valid()) {
+				slice->connect("changed", Callable(this, "update_loft"));
+			}
+		}
+		is_dirty = true;
+	}
+
 	if (Engine::get_singleton()->is_editor_hint() || is_dirty) {
 		if (is_dirty) {
 			update_loft();
@@ -376,7 +394,7 @@ void ProceduralLofter::update_loft() {
 	if (mesh_instance) {
 		mesh_instance->set_material_override(material);
 
-		TypedArray<LoftSlice> processing_slices;
+		TypedArray<Curve3D> processing_slices;
 		TypedArray<Transform3D> processing_transforms;
 
 		Ref<Curve3D> curve = get_curve();
@@ -400,13 +418,16 @@ void ProceduralLofter::update_loft() {
 			Transform3D path_transform = curve->sample_baked_with_rotation(distance);
 			processing_transforms.push_back(path_transform);
 
-			Ref<LoftSlice> generated_slice;
+			Ref<Curve3D> generated_slice;
 			generated_slice.instantiate();
 
 			if (num_slices == 1) {
-				Ref<LoftSlice> base_slice = slices_array[0];
+				Ref<Curve3D> base_slice = slices_array[0];
 				if (base_slice.is_valid()) {
-					generated_slice->set_profile_points(base_slice->get_profile_points());
+					int pt_count = base_slice->get_point_count();
+					for (int j = 0; j < pt_count; j++) {
+						generated_slice->add_point(base_slice->get_point_position(j));
+					}
 				}
 			} else {
 				float float_idx = percent * (num_slices - 1);
@@ -415,26 +436,33 @@ void ProceduralLofter::update_loft() {
 				if (idx_high >= num_slices) {
 					idx_high = num_slices - 1;
 				}
-				Ref<LoftSlice> slice_low = slices_array[idx_low];
-				Ref<LoftSlice> slice_high = slices_array[idx_high];
+				Ref<Curve3D> slice_low = slices_array[idx_low];
+				Ref<Curve3D> slice_high = slices_array[idx_high];
 				if (slice_low.is_valid() && slice_high.is_valid()) {
 					float t = float_idx - idx_low;
-					if (slice_low->get_profile_points().size() == slice_high->get_profile_points().size()) {
-						PackedVector2Array p_low = slice_low->get_profile_points();
-						PackedVector2Array p_high = slice_high->get_profile_points();
-						PackedVector2Array profile;
-						profile.resize(p_low.size());
-						for (int j = 0; j < p_low.size(); j++) {
-							profile[j] = p_low[j].lerp(p_high[j], t);
+					int count_low = slice_low->get_point_count();
+					int count_high = slice_high->get_point_count();
+					if (count_low == count_high) {
+						for (int j = 0; j < count_low; j++) {
+							generated_slice->add_point(slice_low->get_point_position(j).lerp(slice_high->get_point_position(j), t));
 						}
-						generated_slice->set_profile_points(profile);
 					} else {
-						generated_slice->set_profile_points((t < 0.5f) ? slice_low->get_profile_points() : slice_high->get_profile_points());
+						Ref<Curve3D> chosen = (t < 0.5f) ? slice_low : slice_high;
+						int count_chosen = chosen->get_point_count();
+						for (int j = 0; j < count_chosen; j++) {
+							generated_slice->add_point(chosen->get_point_position(j));
+						}
 					}
 				} else if (slice_low.is_valid()) {
-					generated_slice->set_profile_points(slice_low->get_profile_points());
+					int pt_count = slice_low->get_point_count();
+					for (int j = 0; j < pt_count; j++) {
+						generated_slice->add_point(slice_low->get_point_position(j));
+					}
 				} else if (slice_high.is_valid()) {
-					generated_slice->set_profile_points(slice_high->get_profile_points());
+					int pt_count = slice_high->get_point_count();
+					for (int j = 0; j < pt_count; j++) {
+						generated_slice->add_point(slice_high->get_point_position(j));
+					}
 				}
 			}
 
