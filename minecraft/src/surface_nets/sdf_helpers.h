@@ -1,8 +1,8 @@
 #ifndef SDF_HELPERS_H
 #define SDF_HELPERS_H
 
-#include <algorithm>
-#include <cmath>
+#include <godot_cpp/classes/noise.hpp>
+#include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/variant/vector3.hpp>
 
 namespace godot {
@@ -116,6 +116,25 @@ public:
 
 		// 5. Combine them. If inside, outside_dist is 0. If outside, inside_dist is 0.
 		return outside_dist + inside_dist;
+	}
+};
+
+class SDFHeightmap {
+private:
+	Ref<Noise> noise;
+	float max_y = 0.0f;
+
+public:
+	SDFHeightmap(const Ref<Noise> &p_noise, float p_max_y) : noise(p_noise), max_y(p_max_y) {}
+
+	inline float sample(const Vector3 &p) const {
+		if (noise.is_null()) {
+			return 127.0f;
+		}
+		float n = noise->get_noise_2d(p.x, p.z);
+		float n_norm = n * 0.5f + 0.5f;
+		float height = 2.0f + n_norm * (max_y - 4.0f);
+		return p.y - height;
 	}
 };
 

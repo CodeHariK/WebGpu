@@ -2,11 +2,9 @@
 #define SURFACE_NETS_H
 
 #include <godot_cpp/classes/ref.hpp>
-#include <godot_cpp/variant/vector3i.hpp>
-#include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
-#include <vector>
-#include <algorithm>
+#include <godot_cpp/variant/packed_vector3_array.hpp>
+#include <godot_cpp/variant/vector3i.hpp>
 
 namespace godot {
 

@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" format=3 uid="uid://bljvmt1pth7f"]
+
+[ext_resource type="Shader" uid="uid://le23qheqs7lq" path="res://material/shaders/terrain/surface_nets.gdshader" id="1_surface_nets"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1_surface_nets")
+shader_parameter/snow_color = Color(0.69519705, 0.8434936, 1, 1)
+shader_parameter/grass_color = Color(0.15, 0.5, 0.2, 1)
+shader_parameter/rock_color = Color(0.4, 0.4, 0.4, 1)
+shader_parameter/snow_height = 10.0
