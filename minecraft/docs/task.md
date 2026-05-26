@@ -1,5 +1,9 @@
 ## Sketchfab, YoutubePlaylist, PolygonRunway
 
+# 2D Noise-Guided Surface Net
+# Terra Spline
+# Marching Prism
+# Marching Hexagon
 # 2d Marching Cubes based 3d extrusion
 # 2d Hex Marching Cubes
 # 2d closed spline based 3d extrusion
