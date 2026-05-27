@@ -27,10 +27,11 @@
 #include "player/celeste_controller.h"
 #include "player/celeste_ui.h"
 
+#include "terrain/convex_hull_rock/convex_hull_rock.h"
 #include "terrain/loafter/procedural_lofter.h"
 #include "terrain/loafter/procedural_rock.h"
-#include "terrain/convex_hull_rock/convex_hull_rock.h"
 #include "terrain/minecraft.h"
+#include "terrain/terraspline/terraspline.h"
 
 #include "vehicle/arcade_vehicle.h"
 #include "vehicle/config/vehicle_config.h"
@@ -139,6 +140,10 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(ProceduralLofter);
 	GDREGISTER_CLASS(ProceduralRock);
 	GDREGISTER_CLASS(ConvexHullRock);
+
+	GDREGISTER_CLASS(TerrainHeightmap);
+	GDREGISTER_CLASS(TerrainSpline2D);
+	GDREGISTER_CLASS(TerrainManager);
 
 	GDREGISTER_CLASS(TransformGizmo);
 
