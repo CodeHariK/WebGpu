@@ -1,0 +1,61 @@
+[gd_scene format=3 uid="uid://cvoup7scds2yi"]
+
+[ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="1_lrsvk"]
+[ext_resource type="Script" uid="uid://b1mqd6agls2kx" path="res://scene/terraspline/TerraSplineChunkedManager.gd" id="2_chunked"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ih7r4"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_cd00g"]
+sky_material = SubResource("ProceduralSkyMaterial_ih7r4")
+
+[sub_resource type="Environment" id="Environment_1uetc"]
+background_mode = 2
+sky = SubResource("Sky_cd00g")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="Curve3D" id="Curve3D_road"]
+_data = {
+"points": PackedVector3Array(1.2, 0, -23.5, -1.2, 0, 23.5, -35, 26, -46, -20, 0, -20, 20, 0, 20, 0, 5, 0, -2.9, 14.6, -14.1, 2.9, -14.6, 14.1, -16, 35, 72),
+"tilts": PackedFloat32Array(0, 0, 0)
+}
+point_count = 3
+
+[sub_resource type="Curve3D" id="Curve3D_mountain"]
+closed = true
+_data = {
+"points": PackedVector3Array(20, 0, -20, -20, 0, 20, -14, 15, 3, -20, 0, -20, 20, 0, 20, 44, 20, 54, -20, 0, 20, 20, 0, -20, 49, 8, -15),
+"tilts": PackedFloat32Array(0, 0, 0)
+}
+point_count = 3
+
+[node name="ChunkedTerrainDemo" type="Node3D" unique_id=1912837547]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=256497665]
+transform = Transform3D(-0.866025, -0.433013, 0.25, 0, 0.5, 0.866025, -0.5, 0.75, -0.433013, 0, 77, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=47639249]
+environment = SubResource("Environment_1uetc")
+
+[node name="GameManager" type="GameManager" parent="." unique_id=868347939]
+
+[node name="GameCamera" type="GameCamera" parent="." unique_id=702751895]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 80, 140)
+
+[node name="TerraSplineChunkedManager" type="TerrainManager" parent="." unique_id=2111848490]
+chunk_size = 32
+script = ExtResource("2_chunked")
+terrain_material = ExtResource("1_lrsvk")
+
+[node name="RoadSpline" type="TerrainSpline2D" parent="TerraSplineChunkedManager" unique_id=767645896]
+max_height = 20.0
+curve = SubResource("Curve3D_road")
+
+[node name="MountainSpline" type="TerrainSpline2D" parent="TerraSplineChunkedManager" unique_id=1255934751]
+max_height = 30.0
+falloff_distance = 35.0
+blend_mode = 2
+curve = SubResource("Curve3D_mountain")
