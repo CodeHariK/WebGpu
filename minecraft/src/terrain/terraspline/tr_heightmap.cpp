@@ -47,10 +47,36 @@ void TerrainHeightmap::initialize(int p_width, int p_height, float p_default_val
 	}
 }
 
+void TerrainHeightmap::set_manager(TerrainManager *p_manager, const Vector2i &p_coords) {
+	manager = p_manager;
+	chunk_coords = p_coords;
+}
+
 float TerrainHeightmap::get_height_at(int x, int z) const {
-	if (x < 0 || x >= width || z < 0 || z >= height) {
+	if (width <= 0 || height <= 0 || data.is_empty()) {
 		return 0.0f;
 	}
+
+	if (x < 0 || x >= width || z < 0 || z >= height) {
+		if (manager != nullptr) {
+			int c_size = width - 1; // Since width is chunk_size + 1
+			if (c_size > 0) {
+				int target_cx = chunk_coords.x + (int)Math::floor((float)x / c_size);
+				int target_cz = chunk_coords.y + (int)Math::floor((float)z / c_size);
+				
+				Ref<TerrainHeightmap> neighbor = manager->get_chunk(Vector2i(target_cx, target_cz));
+				if (neighbor.is_valid()) {
+					int local_x = x - (target_cx - chunk_coords.x) * c_size;
+					int local_z = z - (target_cz - chunk_coords.y) * c_size;
+					return neighbor->get_height_at(local_x, local_z);
+				}
+			}
+		}
+		// Fallback to clamping if manager or neighboring chunk is not found
+		x = Math::clamp(x, 0, width - 1);
+		z = Math::clamp(z, 0, height - 1);
+	}
+
 	return data[z * width + x];
 }
 
@@ -184,14 +210,24 @@ Ref<ArrayMesh> TerrainHeightmap::generate_mesh(int p_lod_level) const {
 		Vector2 uv0((float)x0 / (width - 1), (float)z0 / (height - 1));
 		Vector2 uv1((float)x1 / (width - 1), (float)z1 / (height - 1));
 
-		Vector3 normal0(0, 1, 0);
+		float hl0 = get_height_at(x0 - 1, z0);
+		float hr0 = get_height_at(x0 + 1, z0);
+		float hd0 = get_height_at(x0, z0 - 1);
+		float hu0 = get_height_at(x0, z0 + 1);
+		Vector3 normal0 = Vector3(hl0 - hr0, 2.0f, hd0 - hu0).normalized();
+
+		float hl1 = get_height_at(x1 - 1, z1);
+		float hr1 = get_height_at(x1 + 1, z1);
+		float hd1 = get_height_at(x1, z1 - 1);
+		float hu1 = get_height_at(x1, z1 + 1);
+		Vector3 normal1 = Vector3(hl1 - hr1, 2.0f, hd1 - hu1).normalized();
 
 		st->set_normal(normal0);
 		st->set_uv(uv0);
 		st->add_vertex(v0_skirt);
 		int idx0_skirt = vertex_count++;
 
-		st->set_normal(normal0);
+		st->set_normal(normal1);
 		st->set_uv(uv1);
 		st->add_vertex(v1_skirt);
 		int idx1_skirt = vertex_count++;

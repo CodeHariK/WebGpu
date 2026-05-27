@@ -55,6 +55,7 @@ Ref<TerrainHeightmap> TerrainManager::create_chunk(const Vector2i &p_coords) {
 	Ref<TerrainHeightmap> chunk;
 	chunk.instantiate();
 	chunk->initialize(chunk_size + 1, chunk_size + 1, 0.0f);
+	chunk->set_manager(this, p_coords);
 	chunks[p_coords] = chunk;
 	return chunk;
 }

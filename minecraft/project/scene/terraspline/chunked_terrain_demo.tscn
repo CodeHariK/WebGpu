@@ -18,7 +18,7 @@ glow_enabled = true
 
 [sub_resource type="Curve3D" id="Curve3D_road"]
 _data = {
-"points": PackedVector3Array(1.2, 0, -23.5, -1.2, 0, 23.5, -35, 26, -46, -20, 0, -20, 20, 0, 20, 0, 5, 0, -2.9, 14.6, -14.1, 2.9, -14.6, 14.1, -16, 35, 72),
+"points": PackedVector3Array(1.2, 0, -23.5, -1.2, 0, 23.5, -35, 1, -28, -20, 0, -20, 20, 0, 20, 9, 6, -3, -2.9, 14.6, -14.1, 2.9, -14.6, 14.1, -36, -2, 74),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -26,7 +26,7 @@ point_count = 3
 [sub_resource type="Curve3D" id="Curve3D_mountain"]
 closed = true
 _data = {
-"points": PackedVector3Array(20, 0, -20, -20, 0, 20, -14, 15, 3, -20, 0, -20, 20, 0, 20, 44, 20, 54, -20, 0, 20, 20, 0, -20, 49, 8, -15),
+"points": PackedVector3Array(20, 0, -20, -20, 0, 20, 37, 22, 22, -20, 0, -20, 20, 0, 20, 32, 34, 65, -20, 0, 20, 20, 0, -20, 67, 12, 51),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -52,10 +52,12 @@ terrain_material = ExtResource("1_lrsvk")
 
 [node name="RoadSpline" type="TerrainSpline2D" parent="TerraSplineChunkedManager" unique_id=767645896]
 max_height = 20.0
+falloff_distance = 13.205
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 35, 0)
 curve = SubResource("Curve3D_road")
 
 [node name="MountainSpline" type="TerrainSpline2D" parent="TerraSplineChunkedManager" unique_id=1255934751]
-max_height = 30.0
-falloff_distance = 35.0
+max_height = -0.04
+falloff_distance = 11.515
 blend_mode = 2
 curve = SubResource("Curve3D_mountain")

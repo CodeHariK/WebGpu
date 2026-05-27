@@ -3,13 +3,22 @@
 #include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <cmath>
 
 namespace godot {
+
+static inline float local_lerp(float a, float b, float t) {
+	return a + t * (b - a);
+}
 
 void TerrainSpline2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_max_height", "max_height"), &TerrainSpline2D::set_max_height);
 	ClassDB::bind_method(D_METHOD("get_max_height"), &TerrainSpline2D::get_max_height);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_height"), "set_max_height", "get_max_height");
+
+	ClassDB::bind_method(D_METHOD("set_spline_width", "spline_width"), &TerrainSpline2D::set_spline_width);
+	ClassDB::bind_method(D_METHOD("get_spline_width"), &TerrainSpline2D::get_spline_width);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "spline_width"), "set_spline_width", "get_spline_width");
 
 	ClassDB::bind_method(D_METHOD("set_falloff_distance", "falloff_distance"), &TerrainSpline2D::set_falloff_distance);
 	ClassDB::bind_method(D_METHOD("get_falloff_distance"), &TerrainSpline2D::get_falloff_distance);
@@ -21,17 +30,18 @@ void TerrainSpline2D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_blend_mode", "blend_mode"), &TerrainSpline2D::set_blend_mode);
 	ClassDB::bind_method(D_METHOD("get_blend_mode"), &TerrainSpline2D::get_blend_mode);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "blend_mode", PROPERTY_HINT_ENUM, "Add,Subtract,Max,Min"), "set_blend_mode", "get_blend_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "blend_mode", PROPERTY_HINT_ENUM, "Add,Subtract,Max,Min,Replace"), "set_blend_mode", "get_blend_mode");
 
 	ClassDB::bind_method(D_METHOD("set_falloff_curve", "falloff_curve"), &TerrainSpline2D::set_falloff_curve);
 	ClassDB::bind_method(D_METHOD("get_falloff_curve"), &TerrainSpline2D::get_falloff_curve);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "falloff_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_falloff_curve", "get_falloff_curve");
 
+	ClassDB::bind_method(D_METHOD("get_baked_points_3d"), &TerrainSpline2D::get_baked_points_3d);
 	ClassDB::bind_method(D_METHOD("get_baked_points_2d"), &TerrainSpline2D::get_baked_points_2d);
 	ClassDB::bind_method(D_METHOD("get_padded_aabb"), &TerrainSpline2D::get_padded_aabb);
 	ClassDB::bind_method(D_METHOD("is_point_inside", "point", "polygon"), &TerrainSpline2D::is_point_inside);
 	ClassDB::bind_method(D_METHOD("distance_to_spline", "point", "polygon"), &TerrainSpline2D::distance_to_spline);
-	ClassDB::bind_method(D_METHOD("get_target_height", "x", "z"), &TerrainSpline2D::get_target_height);
+	ClassDB::bind_method(D_METHOD("get_target_height", "x", "z", "current_h"), &TerrainSpline2D::get_target_height);
 	ClassDB::bind_method(D_METHOD("deform_heightmap", "heightmap", "offset"), &TerrainSpline2D::deform_heightmap, DEFVAL(Vector2(0, 0)));
 	ClassDB::bind_method(D_METHOD("_deform_heightmap_row", "row_idx"), &TerrainSpline2D::_deform_heightmap_row);
 	ClassDB::bind_method(D_METHOD("_on_curve_changed"), &TerrainSpline2D::_on_curve_changed);
@@ -44,10 +54,12 @@ void TerrainSpline2D::_bind_methods() {
 	BIND_ENUM_CONSTANT(BLEND_SUBTRACT);
 	BIND_ENUM_CONSTANT(BLEND_MAX);
 	BIND_ENUM_CONSTANT(BLEND_MIN);
+	BIND_ENUM_CONSTANT(BLEND_REPLACE);
 }
 
 TerrainSpline2D::TerrainSpline2D() {
-	max_height = 10.0f;
+	max_height = 0.0f; // Default offset is 0, rely on 3D curve height
+	spline_width = 2.0f;
 	falloff_distance = 5.0f;
 	is_closed = true;
 	blend_mode = BLEND_ADD;
@@ -67,6 +79,15 @@ void TerrainSpline2D::set_max_height(float p_height) {
 
 float TerrainSpline2D::get_max_height() const {
 	return max_height;
+}
+
+void TerrainSpline2D::set_spline_width(float p_width) {
+	spline_width = MAX(0.0f, p_width);
+	mark_dirty();
+}
+
+float TerrainSpline2D::get_spline_width() const {
+	return spline_width;
 }
 
 void TerrainSpline2D::set_falloff_distance(float p_dist) {
@@ -105,57 +126,51 @@ Ref<Curve> TerrainSpline2D::get_falloff_curve() const {
 	return falloff_curve;
 }
 
-PackedVector2Array TerrainSpline2D::get_baked_points_2d() const {
-	PackedVector2Array points_2d;
+PackedVector3Array TerrainSpline2D::get_baked_points_3d() const {
 	Ref<Curve3D> curve = get_curve();
 	if (curve.is_null()) {
-		return points_2d;
+		return PackedVector3Array();
 	}
 
-	// Make sure we are connected to curve's changed signal so we react to handle edits
 	TerrainSpline2D *mutable_this = const_cast<TerrainSpline2D *>(this);
 	if (!curve->is_connected("changed", Callable(mutable_this, "_on_curve_changed"))) {
 		curve->connect("changed", Callable(mutable_this, "_on_curve_changed"));
 	}
 
-	PackedVector3Array points_3d = curve->get_baked_points();
-	int size = points_3d.size();
-	if (size == 0) {
-		return points_2d;
-	}
+	return curve->get_baked_points();
+}
 
-	points_2d.resize(size);
+PackedVector2Array TerrainSpline2D::get_baked_points_2d() const {
+	PackedVector3Array p3d = get_baked_points_3d();
+	PackedVector2Array p2d;
+	int size = p3d.size();
+	p2d.resize(size);
 	for (int i = 0; i < size; ++i) {
-		Vector3 p3d = points_3d[i];
-		points_2d.set(i, Vector2(p3d.x, p3d.z));
+		p2d.set(i, Vector2(p3d[i].x, p3d[i].z));
 	}
-	return points_2d;
+	return p2d;
 }
 
 Rect2 TerrainSpline2D::get_padded_aabb() const {
-	PackedVector2Array points_2d = get_baked_points_2d();
-	int size = points_2d.size();
+	PackedVector3Array points_3d = get_baked_points_3d();
+	int size = points_3d.size();
 	if (size == 0) {
 		return Rect2();
 	}
 
-	Vector2 min_pt = points_2d[0];
-	Vector2 max_pt = points_2d[0];
+	Vector2 min_pt(points_3d[0].x, points_3d[0].z);
+	Vector2 max_pt(points_3d[0].x, points_3d[0].z);
 
 	for (int i = 1; i < size; ++i) {
-		Vector2 p = points_2d[i];
-		if (p.x < min_pt.x)
-			min_pt.x = p.x;
-		if (p.y < min_pt.y)
-			min_pt.y = p.y;
-		if (p.x > max_pt.x)
-			max_pt.x = p.x;
-		if (p.y > max_pt.y)
-			max_pt.y = p.y;
+		Vector2 p(points_3d[i].x, points_3d[i].z);
+		if (p.x < min_pt.x) min_pt.x = p.x;
+		if (p.y < min_pt.y) min_pt.y = p.y;
+		if (p.x > max_pt.x) max_pt.x = p.x;
+		if (p.y > max_pt.y) max_pt.y = p.y;
 	}
 
 	Rect2 rect(min_pt, max_pt - min_pt);
-	return rect.grow(falloff_distance);
+	return rect.grow(spline_width + falloff_distance);
 }
 
 void TerrainSpline2D::mark_dirty() {
@@ -169,9 +184,8 @@ void TerrainSpline2D::_on_curve_changed() {
 
 bool TerrainSpline2D::is_point_inside(const Vector2 &p, const PackedVector2Array &polygon) const {
 	int num_pts = polygon.size();
-	if (num_pts < 3) {
-		return false;
-	}
+	if (num_pts < 3) return false;
+	
 	bool inside = false;
 	for (int i = 0, j = num_pts - 1; i < num_pts; j = i++) {
 		Vector2 vi = polygon[i];
@@ -189,23 +203,17 @@ bool TerrainSpline2D::is_point_inside(const Vector2 &p, const PackedVector2Array
 float TerrainSpline2D::get_distance_to_segment(const Vector2 &p, const Vector2 &a, const Vector2 &b) const {
 	Vector2 ab = b - a;
 	float l2 = ab.length_squared();
-	if (l2 == 0.0f) {
-		return p.distance_to(a);
-	}
-	float t = (p - a).dot(ab) / l2;
-	t = Math::clamp(t, 0.0f, 1.0f);
+	if (l2 == 0.0f) return p.distance_to(a);
+	
+	float t = Math::clamp((p - a).dot(ab) / l2, 0.0f, 1.0f);
 	Vector2 projection = a + t * ab;
 	return p.distance_to(projection);
 }
 
 float TerrainSpline2D::distance_to_spline(const Vector2 &p, const PackedVector2Array &polygon) const {
 	int num_pts = polygon.size();
-	if (num_pts == 0) {
-		return 0.0f;
-	}
-	if (num_pts == 1) {
-		return p.distance_to(polygon[0]);
-	}
+	if (num_pts == 0) return 0.0f;
+	if (num_pts == 1) return p.distance_to(polygon[0]);
 
 	float min_dist = 1e20f;
 	int limit = is_closed ? num_pts : num_pts - 1;
@@ -220,41 +228,84 @@ float TerrainSpline2D::distance_to_spline(const Vector2 &p, const PackedVector2A
 	return min_dist;
 }
 
-float TerrainSpline2D::get_target_height(float x, float z) const {
-	PackedVector2Array polygon = get_baked_points_2d();
-	if (polygon.size() == 0) {
-		return 0.0f;
+// Internal 3D Math Evaluator
+TerrainSpline2D::SplineEval TerrainSpline2D::_evaluate_spline_point(const Vector2 &p, const PackedVector3Array &poly3d, const PackedVector2Array &poly2d) const {
+	SplineEval res;
+	res.distance = 1e20f;
+	res.spline_y = 0.0f;
+	res.is_inside = false;
+
+	int num_pts = poly3d.size();
+	if (num_pts == 0) return res;
+
+	if (is_closed) {
+		res.is_inside = is_point_inside(p, poly2d);
 	}
 
-	Vector2 p(x, z);
-
-	if (is_closed && is_point_inside(p, polygon)) {
-		return max_height;
+	if (num_pts == 1) {
+		res.distance = p.distance_to(Vector2(poly3d[0].x, poly3d[0].z));
+		res.spline_y = poly3d[0].y;
+		return res;
 	}
 
-	float dist = distance_to_spline(p, polygon);
+	int limit = is_closed ? num_pts : num_pts - 1;
+	for (int i = 0; i < limit; ++i) {
+		Vector3 a = poly3d[i];
+		Vector3 b = poly3d[(i + 1) % num_pts];
 
-	if (dist >= falloff_distance || falloff_distance <= 0.0001f) {
-		return 0.0f;
+		Vector2 a2(a.x, a.z);
+		Vector2 b2(b.x, b.z);
+
+		Vector2 ab = b2 - a2;
+		float l2 = ab.length_squared();
+		float t = 0.0f;
+		if (l2 > 0.0f) {
+			t = Math::clamp((p - a2).dot(ab) / l2, 0.0f, 1.0f);
+		}
+
+		Vector2 proj = a2 + t * ab;
+		float dist = p.distance_to(proj);
+
+		if (dist < res.distance) {
+			res.distance = dist;
+			// Interpolate the exact Y height of the 3D spline curve at this projection
+			res.spline_y = a.y + t * (b.y - a.y); 
+		}
+	}
+	return res;
+}
+
+float TerrainSpline2D::get_target_height(float x, float z, float current_h) const {
+	PackedVector3Array poly3d = get_baked_points_3d();
+	PackedVector2Array poly2d = get_baked_points_2d();
+
+	SplineEval eval = _evaluate_spline_point(Vector2(x, z), poly3d, poly2d);
+	
+	// max_height now acts as an additional offset, allowing users to lift the whole plateau
+	float target_spline_h = eval.spline_y + max_height; 
+	float weight = 0.0f;
+
+	if (eval.is_inside || eval.distance <= spline_width) {
+		weight = 1.0f;
+	} else if (eval.distance < (spline_width + falloff_distance) && falloff_distance > 0.0001f) {
+		float t = (eval.distance - spline_width) / falloff_distance;
+		weight = falloff_curve.is_valid() ? falloff_curve->sample(1.0f - t) : 1.0f - t;
 	}
 
-	float t = dist / falloff_distance;
-	float curve_val = 1.0f - t; // Default linear falloff
+	if (weight <= 0.0f) return current_h;
 
-	if (temp_has_curve) {
-		int idx = Math::clamp((int)((1.0f - t) * 255.0f), 0, 255);
-		curve_val = temp_baked_curve[idx];
-	} else if (falloff_curve.is_valid()) {
-		curve_val = falloff_curve->sample(1.0f - t);
+	switch (blend_mode) {
+		case BLEND_ADD: return current_h + (target_spline_h * weight);
+		case BLEND_SUBTRACT: return current_h - (target_spline_h * weight);
+		case BLEND_MAX: return Math::max(current_h, (float)local_lerp(current_h, target_spline_h, weight));
+		case BLEND_MIN: return Math::min(current_h, (float)local_lerp(current_h, target_spline_h, weight));
+		case BLEND_REPLACE: return local_lerp(current_h, target_spline_h, weight);
 	}
-
-	return max_height * curve_val;
+	return current_h;
 }
 
 void TerrainSpline2D::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap, const Vector2 &p_offset) {
-	if (p_heightmap.is_null()) {
-		return;
-	}
+	if (p_heightmap.is_null()) return;
 	Rect2 aabb = get_padded_aabb();
 
 	float chunk_x = p_offset.x;
@@ -263,9 +314,7 @@ void TerrainSpline2D::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap,
 	int h = p_heightmap->get_height();
 
 	Rect2 chunk_rect(Vector2(chunk_x, chunk_z), Vector2(w, h));
-	if (!aabb.intersects(chunk_rect)) {
-		return;
-	}
+	if (!aabb.intersects(chunk_rect)) return;
 
 	int min_x = Math::max(0, (int)Math::floor(aabb.position.x - chunk_x));
 	int max_x = Math::min(w - 1, (int)Math::ceil(aabb.position.x + aabb.size.x - chunk_x));
@@ -273,11 +322,12 @@ void TerrainSpline2D::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap,
 	int max_z = Math::min(h - 1, (int)Math::ceil(aabb.position.y + aabb.size.y - chunk_z));
 
 	int num_rows = max_z - min_z + 1;
-	if (num_rows <= 0) {
-		return;
-	}
+	if (num_rows <= 0) return;
 
-	// Pre-bake the curve if valid
+	// Cache the arrays so we aren't allocating memory on 10,000 voxels inside the thread pool
+	temp_polygon_3d = get_baked_points_3d();
+	temp_polygon_2d = get_baked_points_2d();
+
 	temp_has_curve = falloff_curve.is_valid();
 	if (temp_has_curve) {
 		temp_baked_curve.resize(256);
@@ -301,20 +351,18 @@ void TerrainSpline2D::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap,
 	if (wtp) {
 		int group_id = wtp->add_group_task(
 				Callable(this, "_deform_heightmap_row"),
-				num_rows,
-				-1,
-				true,
-				"TerraSpline Heightmap Deformation");
+				num_rows, -1, true, "TerraSpline Deformation");
 		wtp->wait_for_group_task_completion(group_id);
 	} else {
-		for (int r = 0; r < num_rows; ++r) {
-			_deform_heightmap_row(r);
-		}
+		for (int r = 0; r < num_rows; ++r) _deform_heightmap_row(r);
 	}
 
+	// Clean up caches
 	temp_heightmap.unref();
 	temp_data_ptr = nullptr;
 	temp_baked_curve.clear();
+	temp_polygon_3d.clear();
+	temp_polygon_2d.clear();
 	temp_has_curve = false;
 	temp_offset = Vector2(0, 0);
 }
@@ -334,38 +382,56 @@ void TerrainSpline2D::_process(double delta) {
 }
 
 void TerrainSpline2D::_deform_heightmap_row(int p_row_idx) {
-	if (temp_heightmap.is_null() || temp_data_ptr == nullptr) {
-		return;
-	}
+	if (temp_heightmap.is_null() || temp_data_ptr == nullptr) return;
 	int z = temp_min_z + p_row_idx;
-	if (z < 0 || z >= temp_heightmap->get_height()) {
-		return;
-	}
+	if (z < 0 || z >= temp_heightmap->get_height()) return;
 
 	int map_w = temp_heightmap->get_width();
 
 	for (int x = temp_min_x; x <= temp_max_x; ++x) {
-		float target_h = get_target_height((float)x + temp_offset.x, (float)z + temp_offset.y);
-		if (target_h == 0.0f && blend_mode != BLEND_MIN) {
-			continue;
+		Vector2 p((float)x + temp_offset.x, (float)z + temp_offset.y);
+		SplineEval eval = _evaluate_spline_point(p, temp_polygon_3d, temp_polygon_2d);
+
+		float target_spline_h = eval.spline_y + max_height;
+		float weight = 0.0f;
+
+		if (eval.is_inside || eval.distance <= spline_width) {
+			weight = 1.0f;
+		} else if (eval.distance < (spline_width + falloff_distance) && falloff_distance > 0.0001f) {
+			float t = (eval.distance - spline_width) / falloff_distance;
+			if (temp_has_curve) {
+				int c_idx = Math::clamp((int)((1.0f - t) * 255.0f), 0, 255);
+				weight = temp_baked_curve[c_idx];
+			} else if (falloff_curve.is_valid()) {
+				weight = falloff_curve->sample(1.0f - t);
+			} else {
+				weight = 1.0f - t;
+			}
 		}
+
+		// If the point is outside the spline's influence entirely, do nothing
+		if (weight <= 0.0f && blend_mode != BLEND_MIN) continue;
 
 		int idx = z * map_w + x;
 		float current_h = temp_data_ptr[idx];
 		float new_h = current_h;
 
+		// The Smooth LERP fix ensures exact ground tracking without math artifacts
 		switch (blend_mode) {
 			case BLEND_ADD:
-				new_h = current_h + target_h;
+				new_h = current_h + (target_spline_h * weight);
 				break;
 			case BLEND_SUBTRACT:
-				new_h = current_h - target_h;
+				new_h = current_h - (target_spline_h * weight);
 				break;
 			case BLEND_MAX:
-				new_h = Math::max(current_h, target_h);
+				new_h = Math::max(current_h, (float)local_lerp(current_h, target_spline_h, weight));
 				break;
 			case BLEND_MIN:
-				new_h = Math::min(current_h, target_h);
+				new_h = Math::min(current_h, (float)local_lerp(current_h, target_spline_h, weight));
+				break;
+			case BLEND_REPLACE:
+				new_h = local_lerp(current_h, target_spline_h, weight);
 				break;
 		}
 
