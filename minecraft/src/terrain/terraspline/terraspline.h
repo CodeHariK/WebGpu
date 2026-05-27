@@ -13,6 +13,7 @@
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
+#include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/rect2.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
@@ -21,6 +22,8 @@
 
 namespace godot {
 
+class TerrainManager;
+
 class TerrainHeightmap : public RefCounted {
 	GDCLASS(TerrainHeightmap, RefCounted)
 
@@ -28,6 +31,8 @@ private:
 	int width = 0;
 	int height = 0;
 	PackedFloat32Array data;
+	TerrainManager *manager = nullptr;
+	Vector2i chunk_coords;
 
 protected:
 	static void _bind_methods();
@@ -37,6 +42,7 @@ public:
 	~TerrainHeightmap();
 
 	void initialize(int p_width, int p_height, float p_default_value = 0.0f);
+	void set_manager(TerrainManager *p_manager, const Vector2i &p_coords);
 
 	int get_width() const { return width; }
 	int get_height() const { return height; }
@@ -65,11 +71,19 @@ public:
 		BLEND_ADD = 0,
 		BLEND_SUBTRACT = 1,
 		BLEND_MAX = 2,
-		BLEND_MIN = 3
+		BLEND_MIN = 3,
+		BLEND_REPLACE = 4 // Added for strict 3D road/river carving
+	};
+
+	struct SplineEval {
+		float distance;
+		float spline_y;
+		bool is_inside;
 	};
 
 private:
-	float max_height = 10.0f;
+	float max_height = 0.0f; // Now acts as a global offset to the 3D spline
+	float spline_width = 2.0f; // The flat inner radius
 	float falloff_distance = 5.0f;
 	bool is_closed = true;
 	BlendMode blend_mode = BLEND_ADD;
@@ -87,6 +101,9 @@ public:
 	void set_max_height(float p_height);
 	float get_max_height() const;
 
+	void set_spline_width(float p_width);
+	float get_spline_width() const;
+
 	void set_falloff_distance(float p_dist);
 	float get_falloff_distance() const;
 
@@ -100,13 +117,15 @@ public:
 	Ref<Curve> get_falloff_curve() const;
 
 	// Phase 1 Math Methods
+	PackedVector3Array get_baked_points_3d() const;
 	PackedVector2Array get_baked_points_2d() const;
 	Rect2 get_padded_aabb() const;
 
 	// Phase 2 Math Methods
 	bool is_point_inside(const Vector2 &p, const PackedVector2Array &polygon) const;
 	float distance_to_spline(const Vector2 &p, const PackedVector2Array &polygon) const;
-	float get_target_height(float x, float z) const;
+	float get_target_height(float x, float z, float current_h) const; // Updated signature
+	
 	// Phase 3 Methods
 	void deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap, const Vector2 &p_offset = Vector2(0, 0));
 
@@ -120,8 +139,9 @@ public:
 
 private:
 	float get_distance_to_segment(const Vector2 &p, const Vector2 &a, const Vector2 &b) const;
+	SplineEval _evaluate_spline_point(const Vector2 &p, const PackedVector3Array &poly3d, const PackedVector2Array &poly2d) const;
 
-	// Phase 4 Private Variables
+	// Phase 4 Private Variables (Thread Caches)
 	Ref<Curve3D> last_connected_curve;
 	Ref<TerrainHeightmap> temp_heightmap;
 	int temp_min_x = 0;
@@ -132,6 +152,10 @@ private:
 	std::vector<float> temp_baked_curve;
 	bool temp_has_curve = false;
 	Vector2 temp_offset;
+	
+	// Memory optimizations for the thread pool
+	PackedVector3Array temp_polygon_3d;
+	PackedVector2Array temp_polygon_2d;
 
 public:
 	// Helper to track changes
