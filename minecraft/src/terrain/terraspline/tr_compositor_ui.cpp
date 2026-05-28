@@ -1,0 +1,166 @@
+#include "godot_cpp/classes/image_texture.hpp"
+#include "terraspline.h"
+#include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
+
+namespace godot {
+
+void TerrainSplineCompositorUI::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_default_elevation", "elevation"), &TerrainSplineCompositorUI::set_default_elevation);
+	ClassDB::bind_method(D_METHOD("get_default_elevation"), &TerrainSplineCompositorUI::get_default_elevation);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "default_elevation"), "set_default_elevation", "get_default_elevation");
+
+	ClassDB::bind_method(D_METHOD("set_auto_apply", "auto_apply"), &TerrainSplineCompositorUI::set_auto_apply);
+	ClassDB::bind_method(D_METHOD("get_auto_apply"), &TerrainSplineCompositorUI::get_auto_apply);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "auto_apply"), "set_auto_apply", "get_auto_apply");
+
+	ClassDB::bind_method(D_METHOD("set_apply_now", "apply_now"), &TerrainSplineCompositorUI::set_apply_now);
+	ClassDB::bind_method(D_METHOD("get_apply_now"), &TerrainSplineCompositorUI::get_apply_now);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "apply_now"), "set_apply_now", "get_apply_now");
+
+	ClassDB::bind_method(D_METHOD("queue_rebuild"), &TerrainSplineCompositorUI::queue_rebuild);
+	ClassDB::bind_method(D_METHOD("_execute_rebuild"), &TerrainSplineCompositorUI::_execute_rebuild);
+	ClassDB::bind_method(D_METHOD("apply_all_splines"), &TerrainSplineCompositorUI::apply_all_splines);
+	ClassDB::bind_method(D_METHOD("_connect_spline", "node"), &TerrainSplineCompositorUI::_connect_spline);
+	ClassDB::bind_method(D_METHOD("_on_spline_changed"), &TerrainSplineCompositorUI::_on_spline_changed);
+}
+
+TerrainSplineCompositorUI::TerrainSplineCompositorUI() {
+	// Make sure the TextureRect expands to fit the screen
+	set_expand_mode(TextureRect::EXPAND_IGNORE_SIZE);
+	set_stretch_mode(TextureRect::STRETCH_KEEP_ASPECT_CENTERED);
+}
+TerrainSplineCompositorUI::~TerrainSplineCompositorUI() {}
+
+void TerrainSplineCompositorUI::set_default_elevation(float p_elev) { default_elevation = p_elev; }
+float TerrainSplineCompositorUI::get_default_elevation() const { return default_elevation; }
+void TerrainSplineCompositorUI::set_auto_apply(bool p_auto) { auto_apply = p_auto; }
+bool TerrainSplineCompositorUI::get_auto_apply() const { return auto_apply; }
+
+void TerrainSplineCompositorUI::set_apply_now(bool p_apply) {
+	if (p_apply) {
+		apply_all_splines();
+	}
+}
+bool TerrainSplineCompositorUI::get_apply_now() const { return false; }
+
+void TerrainSplineCompositorUI::_notification(int p_what) {
+	if (p_what == Node::NOTIFICATION_READY) {
+		TypedArray<Node> children = get_children();
+		for (int i = 0; i < children.size(); ++i) {
+			_connect_spline(Object::cast_to<Node>(children[i]));
+		}
+		connect("child_entered_tree", Callable(this, "_connect_spline"));
+		call_deferred("apply_all_splines");
+	}
+}
+
+void TerrainSplineCompositorUI::_connect_spline(Node *p_node) {
+	TerrainSpline2D *spline = Object::cast_to<TerrainSpline2D>(p_node);
+	if (spline) {
+		if (!spline->is_connected("spline_changed", Callable(this, "_on_spline_changed"))) {
+			spline->connect("spline_changed", Callable(this, "_on_spline_changed"));
+		}
+	}
+}
+
+void TerrainSplineCompositorUI::_on_spline_changed() {
+	if (auto_apply) {
+		queue_rebuild();
+	}
+}
+
+void TerrainSplineCompositorUI::queue_rebuild() {
+	if (!_rebuild_queued) {
+		_rebuild_queued = true;
+		call_deferred("_execute_rebuild");
+	}
+}
+
+void TerrainSplineCompositorUI::_execute_rebuild() {
+	_rebuild_queued = false;
+	apply_all_splines();
+}
+
+void TerrainSplineCompositorUI::apply_all_splines() {
+	// 1. GATHER SPLINES & CALCULATE ONE MASSIVE BOUNDING BOX
+	TypedArray<Node> children = get_children();
+	std::vector<TerrainSpline2D *> splines;
+	Rect2 global_bounds;
+	bool first = true;
+
+	for (int i = 0; i < children.size(); ++i) {
+		TerrainSpline2D *spline = Object::cast_to<TerrainSpline2D>(children[i]);
+		if (spline) {
+			splines.push_back(spline);
+			if (first) {
+				global_bounds = spline->get_padded_aabb();
+				first = false;
+			} else {
+				global_bounds = global_bounds.merge(spline->get_padded_aabb());
+			}
+		}
+	}
+
+	if (first)
+		return; // No valid splines found
+
+	// 2. SNAP BOUNDS TO INTEGERS
+	int min_x = (int)Math::floor(global_bounds.position.x);
+	int min_z = (int)Math::floor(global_bounds.position.y);
+	int max_x = (int)Math::ceil(global_bounds.position.x + global_bounds.size.x);
+	int max_z = (int)Math::ceil(global_bounds.position.y + global_bounds.size.y);
+
+	int w = max_x - min_x + 1;
+	int h = max_z - min_z + 1;
+
+	if (w <= 0 || h <= 0)
+		return;
+
+	// 3. ALLOCATE SINGLE BUFFER
+	Ref<TerrainHeightmap> unified_buffer;
+	unified_buffer.instantiate();
+	unified_buffer->initialize(w, h, default_elevation);
+	Vector2 offset(min_x, min_z);
+
+	// 4. PARAMETRIC BLENDING (ALL SPLINES ONTO ONE BUFFER)
+	for (TerrainSpline2D *spline : splines) {
+		spline->deform_heightmap(unified_buffer, offset);
+	}
+
+	// 5. NORMALIZE FLOAT HEIGHTMAP TO GRAYSCALE UI TEXTURE
+	int sz = w * h;
+	float *ptr = unified_buffer->get_data_ptrw();
+
+	// Find highest and lowest points to set black/white boundaries
+	float min_h = 1e20f;
+	float max_h = -1e20f;
+	for (int i = 0; i < sz; ++i) {
+		if (ptr[i] < min_h)
+			min_h = ptr[i];
+		if (ptr[i] > max_h)
+			max_h = ptr[i];
+	}
+
+	float range = max_h - min_h;
+	if (range < 0.0001f)
+		range = 1.0f; // Prevent division by zero if completely flat
+
+	// Create 8-bit grayscale image
+	Ref<Image> ui_img = Image::create_empty(w, h, false, Image::FORMAT_L8);
+	PackedByteArray img_data;
+	img_data.resize(sz);
+	uint8_t *byte_ptr = img_data.ptrw();
+
+	for (int i = 0; i < sz; ++i) {
+		float normalized = (ptr[i] - min_h) / range;
+		byte_ptr[i] = (uint8_t)(Math::clamp(normalized, 0.0f, 1.0f) * 255.0f);
+	}
+
+	ui_img->set_data(w, h, false, Image::FORMAT_L8, img_data);
+
+	// 6. DRAW TO UI
+	Ref<ImageTexture> tex = ImageTexture::create_from_image(ui_img);
+	set_texture(tex);
+}
+} //namespace godot

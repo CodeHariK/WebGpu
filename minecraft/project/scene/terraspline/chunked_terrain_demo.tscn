@@ -18,7 +18,7 @@ glow_enabled = true
 
 [sub_resource type="Curve3D" id="Curve3D_road"]
 _data = {
-"points": PackedVector3Array(1.2, 0, -23.5, -1.2, 0, 23.5, -35, 1, -28, -20, 0, -20, 20, 0, 20, -2, 6, -1, -2.9, 14.6, -14.1, 2.9, -14.6, 14.1, -36, -2, 74),
+"points": PackedVector3Array(32.5, -6.7000003, 15.5, -32.5, 6.7000003, -15.5, -13.828499, 4, -37.25653, 0.4, 3.3, -31.7, -0.4, -3.3, 31.7, -67.56498, -2, 28.061111, -136.2, -1.6, 36.600002, 136.2, 1.6, -36.600002, 131.79288, 30, 37.594543),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -26,7 +26,79 @@ point_count = 3
 [sub_resource type="Curve3D" id="Curve3D_mountain"]
 closed = true
 _data = {
-"points": PackedVector3Array(20, 0, -20, -20, 0, 20, 37, 30, -26, -20, 0, -20, 20, 0, 20, 4, 49, 55, -20, 0, 20, 20, 0, -20, 61, 12, 50),
+"points": PackedVector3Array(21, -22, 9, -21, 22, -9, 6.1518745, 82, -54.731476, -20, 0, -20, 20, 0, 20, -79, 49, 76, -20, 0, 20, 20, 0, -20, 30, 44, 50),
+"tilts": PackedFloat32Array(0, 0, 0)
+}
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_m505t"]
+offsets = PackedFloat32Array(0.2, 1)
+colors = PackedColorArray(1, 1, 1, 1, 0, 0, 0, 1)
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_qv7hl"]
+noise_type = 2
+frequency = 0.03
+cellular_jitter = 3.0
+cellular_return_type = 0
+domain_warp_enabled = true
+domain_warp_type = 1
+domain_warp_amplitude = 50.0
+domain_warp_fractal_type = 2
+domain_warp_fractal_lacunarity = 1.5
+domain_warp_fractal_gain = 1.0
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_bjf5h"]
+noise = SubResource("FastNoiseLite_qv7hl")
+color_ramp = SubResource("Gradient_m505t")
+seamless = true
+
+[sub_resource type="Terrain3DMaterial" id="Terrain3DMaterial_1prlf"]
+_shader_parameters = {
+&"bias_distance": null,
+&"blend_sharpness": null,
+&"depth_blur": null,
+&"enable_macro_variation": null,
+&"enable_projection": null,
+&"flat_terrain_normals": null,
+&"macro_variation1": null,
+&"macro_variation2": null,
+&"macro_variation_slope": null,
+&"mipmap_bias": null,
+&"noise1_angle": null,
+&"noise1_offset": null,
+&"noise1_scale": null,
+&"noise2_scale": null,
+&"noise_texture": SubResource("NoiseTexture2D_bjf5h"),
+&"projection_threshold": null
+}
+show_region_grid = true
+show_checkered = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dju1v"]
+transparency = 4
+cull_mode = 2
+vertex_color_use_as_albedo = true
+backlight_enabled = true
+backlight = Color(0.5, 0.5, 0.5, 1)
+distance_fade_mode = 1
+distance_fade_min_distance = 128.0
+distance_fade_max_distance = 96.0
+
+[sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_n02w8"]
+generated_type = 1
+height_offset = 0.5
+material_override = SubResource("StandardMaterial3D_dju1v")
+last_lod = 0
+last_shadow_lod = 0
+lod0_range = 128.0
+
+[sub_resource type="Terrain3DAssets" id="Terrain3DAssets_acpkc"]
+mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_n02w8")])
+
+[sub_resource type="Curve3D" id="Curve3D_ekpim"]
+closed = true
+_data = {
+"points": PackedVector3Array(21, -22, 9, -21, 22, -9, 9.151871, 82, -22.73148, -20, 0, -20, 20, 0, 20, -28, 49, 44, -20, 0, 20, 20, 0, -20, 48, 44, 34),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -47,6 +119,7 @@ transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 80, 140
 
 [node name="TerraSplineChunkedManager" type="TerrainManagerOld" parent="." unique_id=2129771301]
 chunk_size = 32
+visible = false
 script = ExtResource("2_chunked")
 terrain_material = ExtResource("1_lrsvk")
 
@@ -56,6 +129,7 @@ falloff_distance = 13.205
 blend_mode = 2
 interpolation_mode = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 35, 0)
+visible = false
 curve = SubResource("Curve3D_road")
 
 [node name="MountainSpline" type="TerrainSpline2DOld" parent="TerraSplineChunkedManager" unique_id=517751006]
@@ -63,6 +137,52 @@ max_height = -2.645
 falloff_distance = 19.095
 blend_mode = 2
 interpolation_mode = 2
+visible = false
 curve = SubResource("Curve3D_mountain")
 
 [node name="ChunksContainer" type="Node3D" parent="TerraSplineChunkedManager" unique_id=1354851177]
+visible = false
+
+[node name="SplineManager" type="Terrain3DSplineCompositor" parent="." unique_id=1481368163 node_paths=PackedStringArray("terrain")]
+terrain = NodePath("../Terrain3D")
+
+[node name="RoadSpline" type="TerrainSpline2D" parent="SplineManager" unique_id=2094986216]
+max_height = -21.475
+spline_width = 6.91
+falloff_distance = 13.755
+is_closed = false
+blend_mode = 2
+interpolation_mode = 2
+transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, 9, 35, 206.40794)
+curve = SubResource("Curve3D_road")
+
+[node name="MountainSpline" type="TerrainSpline2D" parent="SplineManager" unique_id=1752537148]
+max_height = -2.645
+falloff_distance = 20.84
+blend_mode = 2
+interpolation_mode = 2
+use_tile_culling = false
+tile_size = 16
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 0, -25)
+curve = SubResource("Curve3D_mountain")
+
+[node name="Terrain3D" type="Terrain3D" parent="." unique_id=61110530]
+data_directory = "res://scene/terraspline/terrain3d"
+material = SubResource("Terrain3DMaterial_1prlf")
+assets = SubResource("Terrain3DAssets_acpkc")
+save_16_bit = true
+show_grid = true
+mesh_lods = 4
+mesh_size = 24
+show_region_grid = true
+show_checkered = true
+top_level = true
+metadata/_edit_lock_ = true
+
+[node name="MountainSpline" type="TerrainSpline2D" parent="." unique_id=858241120]
+max_height = -2.645
+falloff_distance = 19.095
+blend_mode = 2
+interpolation_mode = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 153, 0, -27)
+curve = SubResource("Curve3D_ekpim")

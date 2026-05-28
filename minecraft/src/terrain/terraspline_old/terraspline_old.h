@@ -1,5 +1,5 @@
-#ifndef TERRASPLINE_H
-#define TERRASPLINE_H
+#ifndef TERRASPLINE_OLD_H
+#define TERRASPLINE_OLD_H
 
 #include <cstdint>
 #include <godot_cpp/classes/array_mesh.hpp>
@@ -203,4 +203,4 @@ public:
 VARIANT_ENUM_CAST(godot::TerrainSpline2DOld::BlendMode);
 VARIANT_ENUM_CAST(godot::TerrainSpline2DOld::InterpolationMode);
 
-#endif // TERRASPLINE_H
+#endif // TERRASPLINE_OLD_H
