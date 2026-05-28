@@ -65,4 +65,4 @@ build/*
 godot-cpp
 .cache/*
 
-terrain3d*.res
+**/terrain3d/terrain3d*.res
