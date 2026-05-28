@@ -26,7 +26,7 @@ point_count = 3
 [sub_resource type="Curve3D" id="Curve3D_mountain"]
 closed = true
 _data = {
-"points": PackedVector3Array(20, 0, -20, -20, 0, 20, 55, 30, 21, -20, 0, -20, 20, 0, 20, 32, 48, 65, -20, 0, 20, 20, 0, -20, 71, 12, 64),
+"points": PackedVector3Array(20, 0, -20, -20, 0, 20, 37, 30, -26, -20, 0, -20, 20, 0, 20, 4, 49, 55, -20, 0, 20, 20, 0, -20, 61, 12, 50),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -45,20 +45,24 @@ environment = SubResource("Environment_1uetc")
 [node name="GameCamera" type="GameCamera" parent="." unique_id=702751895]
 transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, 0, 80, 140)
 
-[node name="TerraSplineChunkedManager" type="TerrainManager" parent="." unique_id=2111848490]
+[node name="TerraSplineChunkedManager" type="TerrainManagerOld" parent="." unique_id=2129771301]
 chunk_size = 32
 script = ExtResource("2_chunked")
 terrain_material = ExtResource("1_lrsvk")
 
-[node name="RoadSpline" type="TerrainSpline2D" parent="TerraSplineChunkedManager" unique_id=767645896]
+[node name="RoadSpline" type="TerrainSpline2DOld" parent="TerraSplineChunkedManager" unique_id=585692805]
 max_height = 20.0
 falloff_distance = 13.205
+blend_mode = 2
+interpolation_mode = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 35, 0)
 curve = SubResource("Curve3D_road")
 
-[node name="MountainSpline" type="TerrainSpline2D" parent="TerraSplineChunkedManager" unique_id=1255934751]
+[node name="MountainSpline" type="TerrainSpline2DOld" parent="TerraSplineChunkedManager" unique_id=517751006]
 max_height = -2.645
 falloff_distance = 19.095
+blend_mode = 2
+interpolation_mode = 2
 curve = SubResource("Curve3D_mountain")
 
 [node name="ChunksContainer" type="Node3D" parent="TerraSplineChunkedManager" unique_id=1354851177]

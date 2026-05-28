@@ -1,5 +1,5 @@
 @tool
-extends TerrainManager
+extends TerrainManagerOld
 class_name TerraSplineChunkedManager
 
 @export_group("Grid Configuration")
@@ -51,7 +51,7 @@ func _on_child_entered_tree(node: Node) -> void:
 	_connect_spline(node)
 
 func _connect_spline(node: Node) -> void:
-	if node is TerrainSpline2D:
+	if node is TerrainSpline2DOld:
 		if not node.is_connected("spline_changed", queue_rebuild):
 			node.connect("spline_changed", queue_rebuild)
 
@@ -86,7 +86,7 @@ func rebuild_terrain() -> void:
 
 	var splines = []
 	for child in get_children():
-		if child is TerrainSpline2D:
+		if child is TerrainSpline2DOld:
 			splines.append(child)
 
 	var c_size = get_chunk_size()
