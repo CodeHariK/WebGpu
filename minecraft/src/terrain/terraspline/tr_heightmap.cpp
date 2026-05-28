@@ -63,7 +63,7 @@ float TerrainHeightmap::get_height_at(int x, int z) const {
 			if (c_size > 0) {
 				int target_cx = chunk_coords.x + (int)Math::floor((float)x / c_size);
 				int target_cz = chunk_coords.y + (int)Math::floor((float)z / c_size);
-				
+
 				Ref<TerrainHeightmap> neighbor = manager->get_chunk(Vector2i(target_cx, target_cz));
 				if (neighbor.is_valid()) {
 					int local_x = x - (target_cx - chunk_coords.x) * c_size;

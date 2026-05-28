@@ -1,6 +1,7 @@
 #ifndef TERRASPLINE_H
 #define TERRASPLINE_H
 
+#include <cstdint>
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/curve.hpp>
 #include <godot_cpp/classes/curve3d.hpp>
@@ -67,12 +68,18 @@ class TerrainSpline2D : public Path3D {
 	GDCLASS(TerrainSpline2D, Path3D)
 
 public:
-	enum BlendMode {
+	enum BlendMode : uint8_t {
 		BLEND_ADD = 0,
 		BLEND_SUBTRACT = 1,
 		BLEND_MAX = 2,
 		BLEND_MIN = 3,
 		BLEND_REPLACE = 4 // Added for strict 3D road/river carving
+	};
+
+	enum InterpolationMode : uint8_t {
+		INTERP_NEAREST = 0,
+		INTERP_IDW_LINE = 1,
+		INTERP_IDW_VERTEX = 2
 	};
 
 	struct SplineEval {
@@ -87,6 +94,7 @@ private:
 	float falloff_distance = 5.0f;
 	bool is_closed = true;
 	BlendMode blend_mode = BLEND_ADD;
+	InterpolationMode interpolation_mode = INTERP_IDW_LINE;
 	Ref<Curve> falloff_curve;
 	bool is_dirty = true;
 
@@ -113,6 +121,9 @@ public:
 	void set_blend_mode(BlendMode p_mode);
 	BlendMode get_blend_mode() const;
 
+	void set_interpolation_mode(InterpolationMode p_mode);
+	InterpolationMode get_interpolation_mode() const;
+
 	void set_falloff_curve(const Ref<Curve> &p_curve);
 	Ref<Curve> get_falloff_curve() const;
 
@@ -125,7 +136,7 @@ public:
 	bool is_point_inside(const Vector2 &p, const PackedVector2Array &polygon) const;
 	float distance_to_spline(const Vector2 &p, const PackedVector2Array &polygon) const;
 	float get_target_height(float x, float z, float current_h) const; // Updated signature
-	
+
 	// Phase 3 Methods
 	void deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap, const Vector2 &p_offset = Vector2(0, 0));
 
@@ -152,7 +163,7 @@ private:
 	std::vector<float> temp_baked_curve;
 	bool temp_has_curve = false;
 	Vector2 temp_offset;
-	
+
 	// Memory optimizations for the thread pool
 	PackedVector3Array temp_polygon_3d;
 	PackedVector2Array temp_polygon_2d;
@@ -190,5 +201,6 @@ public:
 } // namespace godot
 
 VARIANT_ENUM_CAST(godot::TerrainSpline2D::BlendMode);
+VARIANT_ENUM_CAST(godot::TerrainSpline2D::InterpolationMode);
 
 #endif // TERRASPLINE_H
