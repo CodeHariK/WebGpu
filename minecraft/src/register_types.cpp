@@ -31,6 +31,7 @@
 #include "terrain/loafter/procedural_lofter.h"
 #include "terrain/loafter/procedural_rock.h"
 #include "terrain/minecraft.h"
+#include "terrain/terraspline/terraspline.h"
 #include "terrain/terraspline_old/terraspline_old.h"
 
 #include "vehicle/arcade_vehicle.h"
@@ -144,6 +145,11 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(TerrainHeightmapOld);
 	GDREGISTER_CLASS(TerrainSpline2DOld);
 	GDREGISTER_CLASS(TerrainManagerOld);
+
+	GDREGISTER_CLASS(TerrainHeightmap);
+	GDREGISTER_CLASS(TerrainSpline2D);
+	GDREGISTER_CLASS(Terrain3DSplineCompositor);
+	GDREGISTER_CLASS(TerrainSplineCompositorUI);
 
 	GDREGISTER_CLASS(TransformGizmo);
 

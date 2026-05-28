@@ -64,3 +64,5 @@ CMakeUserPresets.json
 build/*
 godot-cpp
 .cache/*
+
+terrain3d*.res
