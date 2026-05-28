@@ -71,6 +71,17 @@ public:
 		bool is_inside;
 	};
 
+	// NEW: DATA-ORIENTED PRECOMPUTATION
+	struct BakedSegment {
+		Vector2 a;
+		Vector2 b;
+		Vector2 ab;
+		float l2;
+		float y_start;
+		float y_diff;
+		float min_x, max_x, min_z, max_z;
+	};
+
 private:
 	float max_height = 0.0f;
 	float spline_width = 2.0f;
@@ -80,9 +91,11 @@ private:
 	InterpolationMode interpolation_mode = INTERP_IDW_LINE;
 	Ref<Curve> falloff_curve;
 
-	// NEW: TILE CULLING PARAMETERS
 	bool use_tile_culling = true;
 	int tile_size = 32;
+
+	// NEW: CURVE RESOLUTION
+	float bake_interval = 2.0f;
 
 protected:
 	static void _bind_methods();
@@ -107,11 +120,13 @@ public:
 	void set_falloff_curve(const Ref<Curve> &p_curve);
 	Ref<Curve> get_falloff_curve() const;
 
-	// NEW: GETTERS AND SETTERS
 	void set_use_tile_culling(bool p_use);
 	bool get_use_tile_culling() const;
 	void set_tile_size(int p_size);
 	int get_tile_size() const;
+
+	void set_bake_interval(float p_interval);
+	float get_bake_interval() const;
 
 	PackedVector3Array get_baked_points_3d() const;
 	PackedVector2Array get_baked_points_2d() const;
@@ -119,15 +134,13 @@ public:
 	bool is_point_inside(const Vector2 &p, const PackedVector2Array &polygon) const;
 
 	void deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap, const Vector2 &p_offset);
-
-	// CHANGED: We now thread by "Tasks" (Tiles or Rows) instead of strictly rows
 	void _deform_heightmap_task(int p_task_idx);
 
 	void mark_dirty();
 	void _on_curve_changed();
 
 private:
-	SplineEval _evaluate_spline_point(const Vector2 &p, const PackedVector3Array &poly3d, const PackedVector2Array &poly2d) const;
+	SplineEval _evaluate_spline_point(const Vector2 &p) const;
 
 	Ref<TerrainHeightmap> thread_heightmap;
 	Vector2 thread_offset;
@@ -136,21 +149,20 @@ private:
 	int thread_min_z = 0;
 	int thread_max_z = 0;
 	float *thread_data_ptr = nullptr;
+
 	PackedVector3Array thread_poly3d;
 	PackedVector2Array thread_poly2d;
+	std::vector<BakedSegment> thread_segments; // NEW: The optimized math cache
 	std::vector<float> thread_baked_curve;
 	bool thread_has_curve = false;
-
-	// NEW: THREAD TASK CACHE
 	std::vector<Rect2i> thread_active_tiles;
 };
 
 class Terrain3DSplineCompositor : public Node {
 	GDCLASS(Terrain3DSplineCompositor, Node)
-
 private:
 	Node *terrain = nullptr;
-	int chunk_size = 256;
+	static constexpr int CHUNK_SIZE = 256;
 	float default_elevation = 0.0f;
 	bool auto_apply = true;
 	bool _rebuild_queued = false;
@@ -165,8 +177,6 @@ public:
 	~Terrain3DSplineCompositor();
 	void set_terrain(Node *p_terrain);
 	Node *get_terrain() const;
-	void set_chunk_size(int p_size);
-	int get_chunk_size() const;
 	void set_default_elevation(float p_elev);
 	float get_default_elevation() const;
 	void set_auto_apply(bool p_auto);
@@ -182,7 +192,6 @@ public:
 
 class TerrainSplineCompositorUI : public TextureRect {
 	GDCLASS(TerrainSplineCompositorUI, TextureRect)
-
 private:
 	float default_elevation = 0.0f;
 	bool auto_apply = true;

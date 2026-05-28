@@ -1,5 +1,6 @@
 #include "godot_cpp/classes/image_texture.hpp"
 #include "terraspline.h"
+#include <godot_cpp/classes/time.hpp> // NEW: For high-precision profiling
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -83,6 +84,9 @@ void TerrainSplineCompositorUI::_execute_rebuild() {
 }
 
 void TerrainSplineCompositorUI::apply_all_splines() {
+	uint64_t step1_start = Time::get_singleton()->get_ticks_usec();
+	UtilityFunctions::print("=== [CompositorUI] apply_all_splines() STARTED ===");
+
 	// 1. GATHER SPLINES & CALCULATE ONE MASSIVE BOUNDING BOX
 	TypedArray<Node> children = get_children();
 	std::vector<TerrainSpline2D *> splines;
@@ -102,8 +106,13 @@ void TerrainSplineCompositorUI::apply_all_splines() {
 		}
 	}
 
-	if (first)
-		return; // No valid splines found
+	if (first) {
+		UtilityFunctions::print("[CompositorUI] ABORT: No splines found.");
+		return;
+	}
+
+	uint64_t step2_bounds = Time::get_singleton()->get_ticks_usec();
+	UtilityFunctions::print("[CompositorUI] Gathered ", (int)splines.size(), " splines and calculated bounds in: ", (step2_bounds - step1_start) / 1000.0, " ms.");
 
 	// 2. SNAP BOUNDS TO INTEGERS
 	int min_x = (int)Math::floor(global_bounds.position.x);
@@ -123,16 +132,22 @@ void TerrainSplineCompositorUI::apply_all_splines() {
 	unified_buffer->initialize(w, h, default_elevation);
 	Vector2 offset(min_x, min_z);
 
+	uint64_t step3_alloc = Time::get_singleton()->get_ticks_usec();
+	UtilityFunctions::print("[CompositorUI] Allocated ", w, "x", h, " buffer in: ", (step3_alloc - step2_bounds) / 1000.0, " ms.");
+
 	// 4. PARAMETRIC BLENDING (ALL SPLINES ONTO ONE BUFFER)
 	for (TerrainSpline2D *spline : splines) {
+		// This will trigger the logs inside TerrainSpline2D::deform_heightmap!
 		spline->deform_heightmap(unified_buffer, offset);
 	}
+
+	uint64_t step4_deform = Time::get_singleton()->get_ticks_usec();
+	UtilityFunctions::print("[CompositorUI] All Spline Thread Tasks completed in: ", (step4_deform - step3_alloc) / 1000.0, " ms.");
 
 	// 5. NORMALIZE FLOAT HEIGHTMAP TO GRAYSCALE UI TEXTURE
 	int sz = w * h;
 	float *ptr = unified_buffer->get_data_ptrw();
 
-	// Find highest and lowest points to set black/white boundaries
 	float min_h = 1e20f;
 	float max_h = -1e20f;
 	for (int i = 0; i < sz; ++i) {
@@ -144,9 +159,8 @@ void TerrainSplineCompositorUI::apply_all_splines() {
 
 	float range = max_h - min_h;
 	if (range < 0.0001f)
-		range = 1.0f; // Prevent division by zero if completely flat
+		range = 1.0f;
 
-	// Create 8-bit grayscale image
 	Ref<Image> ui_img = Image::create_empty(w, h, false, Image::FORMAT_L8);
 	PackedByteArray img_data;
 	img_data.resize(sz);
@@ -159,8 +173,15 @@ void TerrainSplineCompositorUI::apply_all_splines() {
 
 	ui_img->set_data(w, h, false, Image::FORMAT_L8, img_data);
 
+	uint64_t step5_norm = Time::get_singleton()->get_ticks_usec();
+	UtilityFunctions::print("[CompositorUI] Converted array to UI Grayscale Image in: ", (step5_norm - step4_deform) / 1000.0, " ms.");
+
 	// 6. DRAW TO UI
 	Ref<ImageTexture> tex = ImageTexture::create_from_image(ui_img);
 	set_texture(tex);
+
+	uint64_t step6_end = Time::get_singleton()->get_ticks_usec();
+	UtilityFunctions::print("=== [CompositorUI] END TOTAL TIME: ", (step6_end - step1_start) / 1000.0, " ms ===\n");
 }
+
 } //namespace godot
