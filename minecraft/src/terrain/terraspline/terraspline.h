@@ -71,7 +71,6 @@ public:
 		bool is_inside;
 	};
 
-	// NEW: DATA-ORIENTED PRECOMPUTATION
 	struct BakedSegment {
 		Vector2 a;
 		Vector2 b;
@@ -93,9 +92,19 @@ private:
 
 	bool use_tile_culling = true;
 	int tile_size = 32;
-
-	// NEW: CURVE RESOLUTION
 	float bake_interval = 2.0f;
+
+	// DIRTY RECT STATE TRACKING
+	struct CurveState {
+		Vector3 pos;
+		Vector3 in;
+		Vector3 out;
+	};
+	std::vector<CurveState> cached_curve_state;
+	Rect2 last_padded_aabb;
+	Rect2 accumulated_dirty_rect;
+	bool is_dirty = true;
+	bool is_full_rebuild = true;
 
 protected:
 	static void _bind_methods();
@@ -119,12 +128,10 @@ public:
 	InterpolationMode get_interpolation_mode() const;
 	void set_falloff_curve(const Ref<Curve> &p_curve);
 	Ref<Curve> get_falloff_curve() const;
-
 	void set_use_tile_culling(bool p_use);
 	bool get_use_tile_culling() const;
 	void set_tile_size(int p_size);
 	int get_tile_size() const;
-
 	void set_bake_interval(float p_interval);
 	float get_bake_interval() const;
 
@@ -138,6 +145,10 @@ public:
 
 	void mark_dirty();
 	void _on_curve_changed();
+	void _cache_curve_state();
+
+	bool get_is_dirty() const { return is_dirty; }
+	Rect2 consume_dirty_rect();
 
 private:
 	SplineEval _evaluate_spline_point(const Vector2 &p) const;
@@ -152,7 +163,7 @@ private:
 
 	PackedVector3Array thread_poly3d;
 	PackedVector2Array thread_poly2d;
-	std::vector<BakedSegment> thread_segments; // NEW: The optimized math cache
+	std::vector<BakedSegment> thread_segments;
 	std::vector<float> thread_baked_curve;
 	bool thread_has_curve = false;
 	std::vector<Rect2i> thread_active_tiles;
@@ -162,10 +173,11 @@ class Terrain3DSplineCompositor : public Node {
 	GDCLASS(Terrain3DSplineCompositor, Node)
 private:
 	Node *terrain = nullptr;
-	static constexpr int CHUNK_SIZE = 256;
+	int chunk_size = 256;
 	float default_elevation = 0.0f;
 	bool auto_apply = true;
 	bool _rebuild_queued = false;
+	bool compositor_full_rebuild = true; // Tracks if the global map needs an overhaul
 	HashMap<Vector2i, Ref<TerrainHeightmap>> chunk_buffers;
 
 protected:
@@ -177,6 +189,8 @@ public:
 	~Terrain3DSplineCompositor();
 	void set_terrain(Node *p_terrain);
 	Node *get_terrain() const;
+	void set_chunk_size(int p_size);
+	int get_chunk_size() const;
 	void set_default_elevation(float p_elev);
 	float get_default_elevation() const;
 	void set_auto_apply(bool p_auto);

@@ -27,7 +27,7 @@ point_count = 3
 [sub_resource type="Curve3D" id="Curve3D_mountain"]
 closed = true
 _data = {
-"points": PackedVector3Array(5, -8, 9, -5, 8, -9, -28.848125, 14, -24.731476, -7, 0, -7, 7, 0, 7, -71, 26, 27, -1, 4, 13, 1, -4, -13, -9, 16, 17),
+"points": PackedVector3Array(5, -8, 9, -5, 8, -9, -32.84813, 14, -45.731476, -7, 0, -7, 7, 0, 7, -71, 26, 27, -1, 4, 13, 1, -4, -13, -3, 16, 15),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -158,7 +158,7 @@ is_closed = false
 blend_mode = 2
 interpolation_mode = 2
 bake_interval = 4.0
-transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, 31, 16, 74.40794)
+transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, 48, 16, 95.40794)
 curve = SubResource("Curve3D_road")
 
 [node name="MountainSpline" type="TerrainSpline2D" parent="SplineManager" unique_id=1752537148]
@@ -168,7 +168,7 @@ interpolation_mode = 2
 use_tile_culling = false
 tile_size = 16
 bake_interval = 4.0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65, 0, -69)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -58, 0, -93)
 curve = SubResource("Curve3D_mountain")
 
 [node name="MountainSpline2" type="TerrainSpline2D" parent="SplineManager" unique_id=98747278]
@@ -178,7 +178,7 @@ interpolation_mode = 2
 use_tile_culling = false
 tile_size = 16
 bake_interval = 4.0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0, 5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -69, 0, 83)
 curve = SubResource("Curve3D_mountain")
 
 [node name="MountainSpline3" type="TerrainSpline2D" parent="SplineManager" unique_id=447113098]
@@ -190,7 +190,7 @@ falloff_curve = SubResource("Curve_hoado")
 use_tile_culling = false
 tile_size = 16
 bake_interval = 4.0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55, 0, -106)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102, 0, -106)
 curve = SubResource("Curve3D_hoado")
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=61110530]
