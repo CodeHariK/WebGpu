@@ -2,6 +2,7 @@
 #define TERRASPLINE_NEW_H
 
 #include "godot_cpp/classes/texture_rect.hpp"
+#include "utils/spline3d/procedural_spline3d.h"
 #include <cstdint>
 #include <godot_cpp/classes/curve.hpp>
 #include <godot_cpp/classes/curve3d.hpp>
@@ -21,19 +22,30 @@
 #include <vector>
 
 #include <godot_cpp/classes/mesh.hpp>
-#include <godot_cpp/classes/shape3d.hpp>
-#include <godot_cpp/classes/noise.hpp>
 #include <godot_cpp/classes/multi_mesh.hpp>
 #include <godot_cpp/classes/multi_mesh_instance3d.hpp>
-#include <godot_cpp/classes/physics_server3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/noise.hpp>
+#include <godot_cpp/classes/physics_server3d.hpp>
+#include <godot_cpp/classes/shape3d.hpp>
 #include <godot_cpp/classes/world3d.hpp>
 
 namespace godot {
 
-class TerrainSpline2D;
+class ProceduralSpline3D;
+class TerrainSplineDeformer;
 class TerrainSplineScatter;
+class TerrainSplineCompositor;
 
+/**
+ * @class TerrainHeightmap
+ * @brief Thread-safe wrapper around raw terrain elevation grids.
+ *
+ * Keeps a contiguous 1D array of floats representing height values for a single terrain chunk.
+ * Exposes get_data_ptrw() to allow worker threads to read and write grid heights directly
+ * and concurrently with no locks. Converts the raw data to a Godot Image format via get_image()
+ * for importing into Terrain3D GPU storage.
+ */
 class TerrainHeightmap : public RefCounted {
 	GDCLASS(TerrainHeightmap, RefCounted)
 
@@ -59,6 +71,15 @@ public:
 	Ref<Image> get_image() const;
 };
 
+/**
+ * @class TerrainChunk
+ * @brief Represents a localized physical block of the world.
+ *
+ * Manages the heightmap data, active visual nodes (MultiMeshInstance3D IDs), and physics body
+ * collision instances (RIDs) for a single chunk coordinate. Operates on a coordinate-based
+ * state machine (STATE_UNLOADED to STATE_VISUAL_AND_PHYSICS) to cull meshes and physics
+ * depending on proximity to the player.
+ */
 class TerrainChunk : public RefCounted {
 	GDCLASS(TerrainChunk, RefCounted)
 
@@ -111,15 +132,24 @@ public:
 	const std::vector<PhysicsCache> &get_physics_caches() const { return physics_caches; }
 };
 
+/**
+ * @class ScatterJob
+ * @brief Sealed data envelope for parallel spline scattering.
+ *
+ * Envelops the input parameters (target chunk, parent spline, density/spacing configurations, offset)
+ * and the output array of Transform3D matrices. This ensures background worker threads only write to
+ * the job container and do not mutate state on the parent TerrainSplineScatter node directly.
+ */
 class ScatterJob : public RefCounted {
 	GDCLASS(ScatterJob, RefCounted)
 
 public:
 	Ref<TerrainChunk> chunk;
-	TerrainSpline2D *spline = nullptr;
+	ProceduralSpline3D *spline = nullptr;
 	TerrainSplineScatter *scatterer = nullptr;
 	Vector2 offset;
 	std::vector<Transform3D> transforms;
+	Rect2 spline_bounds;
 
 	// METRICS
 	int debug_total_cells = 0;
@@ -129,15 +159,43 @@ public:
 	int debug_slope_skipped = 0;
 	uint64_t debug_time_spent_usec = 0;
 
-	ScatterJob();
-	~ScatterJob();
+	ScatterJob() {}
+	~ScatterJob() {}
 
 protected:
-	static void _bind_methods();
+	static void _bind_methods() {}
 };
 
-class TerrainSpline2D : public Path3D {
-	GDCLASS(TerrainSpline2D, Path3D)
+/**
+ * @class DeformerJob
+ * @brief Sealed data envelope for parallel spline heightmap deformation.
+ *
+ * Encapsulates the heightmap reference, raw data pointer, parent spline, offset, and active
+ * tile boundaries, along with pre-evaluated curves. Isolates each chunk's deformation execution
+ * to make the deformation pipeline completely stateless and thread-safe.
+ */
+class DeformerJob : public RefCounted {
+	GDCLASS(DeformerJob, RefCounted)
+public:
+	Ref<TerrainHeightmap> heightmap;
+	ProceduralSpline3D *spline = nullptr;
+	TerrainSplineDeformer *deformer = nullptr;
+	Vector2 offset;
+	float *data_ptr = nullptr;
+
+	std::vector<float> baked_curve;
+	bool has_curve = false;
+	std::vector<Rect2i> active_tiles;
+
+	DeformerJob() {}
+	~DeformerJob() {}
+
+protected:
+	static void _bind_methods() {}
+};
+
+class TerrainSplineDeformer : public SplineComponent {
+	GDCLASS(TerrainSplineDeformer, SplineComponent)
 
 public:
 	enum BlendMode {
@@ -148,60 +206,26 @@ public:
 		BLEND_REPLACE = 4
 	};
 
-	enum InterpolationMode {
-		INTERP_NEAREST = 0,
-		INTERP_IDW_LINE = 1,
-		INTERP_IDW_VERTEX = 2
-	};
-
-	struct SplineEval {
-		float distance;
-		float spline_y;
-		bool is_inside;
-	};
-
-	struct BakedSegment {
-		Vector2 a;
-		Vector2 b;
-		Vector2 ab;
-		float l2;
-		float y_start;
-		float y_diff;
-		float min_x, max_x, min_z, max_z;
-	};
-
 private:
 	float max_height = 0.0f;
 	float spline_width = 2.0f;
 	float falloff_distance = 5.0f;
-	bool is_closed = true;
 	BlendMode blend_mode = BLEND_ADD;
-	InterpolationMode interpolation_mode = INTERP_IDW_LINE;
 	Ref<Curve> falloff_curve;
 
 	bool use_tile_culling = true;
 	int tile_size = 32;
-	float bake_interval = 2.0f;
-
-	// DIRTY RECT STATE TRACKING
-	struct CurveState {
-		Vector3 pos;
-		Vector3 in;
-		Vector3 out;
-	};
-	std::vector<CurveState> cached_curve_state;
-	Rect2 last_padded_aabb;
-	Rect2 accumulated_dirty_rect;
-	bool is_dirty = true;
-	bool is_full_rebuild = true;
 
 protected:
 	static void _bind_methods();
-	void _notification(int p_what);
 
 public:
-	TerrainSpline2D();
-	~TerrainSpline2D();
+	TerrainSplineDeformer();
+	~TerrainSplineDeformer();
+
+	float get_spline_padding() const override {
+		return spline_width + falloff_distance;
+	}
 
 	void set_max_height(float p_height);
 	float get_max_height() const;
@@ -209,63 +233,25 @@ public:
 	float get_spline_width() const;
 	void set_falloff_distance(float p_dist);
 	float get_falloff_distance() const;
-	void set_is_closed(bool p_closed);
-	bool get_is_closed() const;
 	void set_blend_mode(BlendMode p_mode);
 	BlendMode get_blend_mode() const;
-	void set_interpolation_mode(InterpolationMode p_mode);
-	InterpolationMode get_interpolation_mode() const;
 	void set_falloff_curve(const Ref<Curve> &p_curve);
 	Ref<Curve> get_falloff_curve() const;
+
 	void set_use_tile_culling(bool p_use);
 	bool get_use_tile_culling() const;
 	void set_tile_size(int p_size);
 	int get_tile_size() const;
-	void set_bake_interval(float p_interval);
-	float get_bake_interval() const;
 
-	PackedVector3Array get_baked_points_3d() const;
-	PackedVector2Array get_baked_points_2d() const;
-	Rect2 get_padded_aabb() const;
-	bool is_point_inside(const Vector2 &p, const PackedVector2Array &polygon) const;
-
-	void deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap, const Vector2 &p_offset);
-	void _deform_heightmap_task(int p_task_idx);
+	void deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap, ProceduralSpline3D *p_spline, const Vector2 &p_offset);
+	void _deform_heightmap_task(int p_task_idx, Ref<DeformerJob> p_job);
 
 	void mark_dirty();
 	void _on_curve_changed();
-	void _cache_curve_state();
-
-	bool get_is_dirty() const { return is_dirty; }
-	Rect2 consume_dirty_rect();
-
-	void ensure_baked_cache();
-	SplineEval _evaluate_spline_point(const Vector2 &p) const;
-
-	bool has_baked_cache = false;
-	PackedVector3Array baked_poly3d;
-	PackedVector2Array baked_poly2d;
-	std::vector<BakedSegment> baked_segments;
-
-private:
-	Ref<TerrainHeightmap> thread_heightmap;
-	Vector2 thread_offset;
-	int thread_min_x = 0;
-	int thread_max_x = 0;
-	int thread_min_z = 0;
-	int thread_max_z = 0;
-	float *thread_data_ptr = nullptr;
-
-	PackedVector3Array thread_poly3d;
-	PackedVector2Array thread_poly2d;
-	std::vector<BakedSegment> thread_segments;
-	std::vector<float> thread_baked_curve;
-	bool thread_has_curve = false;
-	std::vector<Rect2i> thread_active_tiles;
 };
 
-class TerrainSplineScatter : public Node3D {
-	GDCLASS(TerrainSplineScatter, Node3D)
+class TerrainSplineScatter : public SplineComponent {
+	GDCLASS(TerrainSplineScatter, SplineComponent)
 
 private:
 	Ref<Mesh> mesh;
@@ -288,6 +274,13 @@ protected:
 public:
 	TerrainSplineScatter();
 	~TerrainSplineScatter();
+
+	void run_scatter_job(const Ref<ScatterJob> &p_job, int p_chunk_size);
+	static void scatter_chunk(const Ref<TerrainChunk> &p_chunk, const std::vector<ProceduralSpline3D *> &p_splines, const Rect2 &p_chunk_rect, const Vector2 &p_offset, int p_chunk_size, Node3D *p_scatter_container, Node *p_owner_node);
+
+	float get_spline_padding() const override {
+		return max_spline_dist;
+	}
 
 	void set_mesh(const Ref<Mesh> &p_mesh);
 	Ref<Mesh> get_mesh() const;
@@ -329,8 +322,8 @@ public:
 	float get_biome_noise_threshold() const;
 };
 
-class Terrain3DSplineCompositor : public Node {
-	GDCLASS(Terrain3DSplineCompositor, Node)
+class TerrainSplineCompositor : public Node {
+	GDCLASS(TerrainSplineCompositor, Node)
 private:
 	Node *terrain = nullptr;
 	int chunk_size = 256;
@@ -348,10 +341,9 @@ private:
 
 	void _check_and_evict_far_chunks();
 	void _check_origin_shift();
-	void _generate_chunks(const std::vector<Vector2i> &p_chunks, const std::vector<TerrainSpline2D *> &p_splines, Object *p_target_api);
+	void _generate_chunks(const std::vector<Vector2i> &p_chunks, const std::vector<ProceduralSpline3D *> &p_splines, Object *p_target_api);
 
-	void _run_scatter_job(const Ref<ScatterJob> &p_job);
-	void _update_chunk_physics(const Ref<TerrainChunk>& p_chunk);
+	void _update_chunk_physics(const Ref<TerrainChunk> &p_chunk);
 	void _check_chunk_physics_culling();
 
 protected:
@@ -359,8 +351,8 @@ protected:
 	void _notification(int p_what);
 
 public:
-	Terrain3DSplineCompositor();
-	~Terrain3DSplineCompositor();
+	TerrainSplineCompositor();
+	~TerrainSplineCompositor();
 	void set_terrain(Node *p_terrain);
 	Node *get_terrain() const;
 	void set_chunk_size(int p_size);
@@ -413,7 +405,6 @@ public:
 
 } // namespace godot
 
-VARIANT_ENUM_CAST(godot::TerrainSpline2D::BlendMode);
-VARIANT_ENUM_CAST(godot::TerrainSpline2D::InterpolationMode);
+VARIANT_ENUM_CAST(godot::TerrainSplineDeformer::BlendMode);
 
 #endif // TERRASPLINE_NEW_H

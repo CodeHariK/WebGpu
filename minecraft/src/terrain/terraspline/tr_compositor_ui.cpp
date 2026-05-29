@@ -6,6 +6,10 @@
 
 namespace godot {
 
+/**
+ * @brief Binds TerrainSplineCompositorUI methods and properties to Godot's ClassDB.
+ * Exposes target default elevation, auto apply state, apply now actions, and connection callbacks.
+ */
 void TerrainSplineCompositorUI::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_default_elevation", "elevation"), &TerrainSplineCompositorUI::set_default_elevation);
 	ClassDB::bind_method(D_METHOD("get_default_elevation"), &TerrainSplineCompositorUI::get_default_elevation);
@@ -26,11 +30,17 @@ void TerrainSplineCompositorUI::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_spline_changed"), &TerrainSplineCompositorUI::_on_spline_changed);
 }
 
+/**
+ * @brief Default Constructor. Configures default TextureRect stretch and expansion settings.
+ */
 TerrainSplineCompositorUI::TerrainSplineCompositorUI() {
 	// Make sure the TextureRect expands to fit the screen
 	set_expand_mode(TextureRect::EXPAND_IGNORE_SIZE);
 	set_stretch_mode(TextureRect::STRETCH_KEEP_ASPECT_CENTERED);
 }
+/**
+ * @brief Default Destructor.
+ */
 TerrainSplineCompositorUI::~TerrainSplineCompositorUI() {}
 
 void TerrainSplineCompositorUI::set_default_elevation(float p_elev) { default_elevation = p_elev; }
@@ -45,6 +55,10 @@ void TerrainSplineCompositorUI::set_apply_now(bool p_apply) {
 }
 bool TerrainSplineCompositorUI::get_apply_now() const { return false; }
 
+/**
+ * @brief Handles engine-level notifications (Ready state).
+ * Gathers existing splines, connects change callbacks, and schedules initial UI generation.
+ */
 void TerrainSplineCompositorUI::_notification(int p_what) {
 	if (p_what == Node::NOTIFICATION_READY) {
 		TypedArray<Node> children = get_children();
@@ -53,11 +67,16 @@ void TerrainSplineCompositorUI::_notification(int p_what) {
 		}
 		connect("child_entered_tree", Callable(this, "_connect_spline"));
 		call_deferred("apply_all_splines");
+	} else if (p_what == Node::NOTIFICATION_CHILD_ORDER_CHANGED) {
+		queue_rebuild();
 	}
 }
 
+/**
+ * @brief Subscribes to the change signals of child ProceduralSpline3D nodes.
+ */
 void TerrainSplineCompositorUI::_connect_spline(Node *p_node) {
-	TerrainSpline2D *spline = Object::cast_to<TerrainSpline2D>(p_node);
+	ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(p_node);
 	if (spline) {
 		if (!spline->is_connected("spline_changed", Callable(this, "_on_spline_changed"))) {
 			spline->connect("spline_changed", Callable(this, "_on_spline_changed"));
@@ -65,12 +84,18 @@ void TerrainSplineCompositorUI::_connect_spline(Node *p_node) {
 	}
 }
 
+/**
+ * @brief Callback triggered when a tracked spline's coordinates or shape are updated.
+ */
 void TerrainSplineCompositorUI::_on_spline_changed() {
 	if (auto_apply) {
 		queue_rebuild();
 	}
 }
 
+/**
+ * @brief Queues a deferred UI update to avoid redundant drawing frames.
+ */
 void TerrainSplineCompositorUI::queue_rebuild() {
 	if (!_rebuild_queued) {
 		_rebuild_queued = true;
@@ -78,23 +103,31 @@ void TerrainSplineCompositorUI::queue_rebuild() {
 	}
 }
 
+/**
+ * @brief Executes the deferred UI drawing operation.
+ */
 void TerrainSplineCompositorUI::_execute_rebuild() {
 	_rebuild_queued = false;
 	apply_all_splines();
 }
 
+/**
+ * @brief Regenerates the grayscale terrain elevation preview image.
+ * Gathers all spline deformers, allocates a single unified heightmap buffer, sculpts it,
+ * normalizes the height ranges to a grayscale space, and draws the output to the UI TextureRect.
+ */
 void TerrainSplineCompositorUI::apply_all_splines() {
 	uint64_t step1_start = Time::get_singleton()->get_ticks_usec();
 	UtilityFunctions::print("=== [CompositorUI] apply_all_splines() STARTED ===");
 
 	// 1. GATHER SPLINES & CALCULATE ONE MASSIVE BOUNDING BOX
 	TypedArray<Node> children = get_children();
-	std::vector<TerrainSpline2D *> splines;
+	std::vector<ProceduralSpline3D *> splines;
 	Rect2 global_bounds;
 	bool first = true;
 
 	for (int i = 0; i < children.size(); ++i) {
-		TerrainSpline2D *spline = Object::cast_to<TerrainSpline2D>(children[i]);
+		ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(children[i]);
 		if (spline) {
 			splines.push_back(spline);
 			if (first) {
@@ -126,6 +159,12 @@ void TerrainSplineCompositorUI::apply_all_splines() {
 	if (w <= 0 || h <= 0)
 		return;
 
+	if (w > 2048 || h > 2048) {
+		UtilityFunctions::print("[CompositorUI] Bounding box is too large (", w, "x", h, "). Capping preview to 2048 to avoid main thread freeze.");
+		w = Math::min(w, 2048);
+		h = Math::min(h, 2048);
+	}
+
 	// 3. ALLOCATE SINGLE BUFFER
 	Ref<TerrainHeightmap> unified_buffer;
 	unified_buffer.instantiate();
@@ -136,9 +175,14 @@ void TerrainSplineCompositorUI::apply_all_splines() {
 	UtilityFunctions::print("[CompositorUI] Allocated ", w, "x", h, " buffer in: ", (step3_alloc - step2_bounds) / 1000.0, " ms.");
 
 	// 4. PARAMETRIC BLENDING (ALL SPLINES ONTO ONE BUFFER)
-	for (TerrainSpline2D *spline : splines) {
-		// This will trigger the logs inside TerrainSpline2D::deform_heightmap!
-		spline->deform_heightmap(unified_buffer, offset);
+	for (ProceduralSpline3D *spline : splines) {
+		TypedArray<Node> children = spline->get_children();
+		for (int i = 0; i < children.size(); ++i) {
+			TerrainSplineDeformer *deformer = Object::cast_to<TerrainSplineDeformer>(children[i]);
+			if (deformer) {
+				deformer->deform_heightmap(unified_buffer, spline, offset);
+			}
+		}
 	}
 
 	uint64_t step4_deform = Time::get_singleton()->get_ticks_usec();
