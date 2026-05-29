@@ -52,8 +52,10 @@ Ref<Image> TerrainHeightmap::get_image() const {
 		img->set_data(width, height, false, Image::FORMAT_RF, byte_data);
 	}
 
+#if DEBUG
 	uint64_t t_end = Time::get_singleton()->get_ticks_usec();
 	UtilityFunctions::print("    [TerrainHeightmap] get_image() created in: ", (t_end - t_start) / 1000.0, " ms.");
+#endif
 	return img;
 }
 
@@ -141,7 +143,9 @@ TerrainSpline2D::~TerrainSpline2D() {
 
 void TerrainSpline2D::_notification(int p_what) {
 	if (p_what == Node3D::NOTIFICATION_TRANSFORM_CHANGED) {
+#if DEBUG
 		UtilityFunctions::print("[TerrainSpline2D] Transform changed, marking fully dirty.");
+#endif
 		mark_dirty();
 	} else if (p_what == Node::NOTIFICATION_READY) {
 		_cache_curve_state();
@@ -214,6 +218,7 @@ void TerrainSpline2D::_cache_curve_state() {
 }
 
 void TerrainSpline2D::mark_dirty() {
+	has_baked_cache = false;
 	if (!is_dirty) {
 		accumulated_dirty_rect = last_padded_aabb;
 	} else if (last_padded_aabb.has_area()) {
@@ -227,14 +232,18 @@ void TerrainSpline2D::mark_dirty() {
 void TerrainSpline2D::_on_curve_changed() {
 	Ref<Curve3D> curve = get_curve();
 	if (curve.is_null()) {
+#if DEBUG
 		UtilityFunctions::print("[TerrainSpline2D] Curve became null. Triggering full dirty.");
+#endif
 		mark_dirty();
 		return;
 	}
 
 	int count = curve->get_point_count();
 	if (count != cached_curve_state.size() || is_full_rebuild) {
+#if DEBUG
 		UtilityFunctions::print("[TerrainSpline2D] Point count changed or full rebuild flagged. Triggering full dirty.");
+#endif
 		mark_dirty();
 		return;
 	}
@@ -250,7 +259,9 @@ void TerrainSpline2D::_on_curve_changed() {
 
 		// If this specific control point was moved by the level designer
 		if (pos != cached_curve_state[i].pos || in != cached_curve_state[i].in || out != cached_curve_state[i].out) {
+#if DEBUG
 			UtilityFunctions::print("[TerrainSpline2D] Point ID ", i, " moved! Calculating dirty rect...");
+#endif
 			int start_idx = MAX(0, i - 1);
 			int end_idx = MIN(count - 1, i + 1);
 
@@ -274,8 +285,11 @@ void TerrainSpline2D::_on_curve_changed() {
 	}
 
 	if (has_local_changes) {
+		has_baked_cache = false; // Invalidate the cached baked points and segments
 		local_changes = local_changes.grow(spline_width + falloff_distance);
+#if DEBUG
 		UtilityFunctions::print("[TerrainSpline2D] Local Dirty Rect Extents: Pos(", local_changes.position.x, ", ", local_changes.position.y, ") Size(", local_changes.size.x, ", ", local_changes.size.y, ")");
+#endif
 
 		if (!is_dirty) {
 			accumulated_dirty_rect = local_changes;
@@ -294,7 +308,9 @@ Rect2 TerrainSpline2D::consume_dirty_rect() {
 	Rect2 result;
 
 	if (is_full_rebuild) {
+#if DEBUG
 		UtilityFunctions::print("[TerrainSpline2D] Consuming FULL REBUILD Dirty Rect.");
+#endif
 		if (is_dirty && accumulated_dirty_rect.has_area()) {
 			result = accumulated_dirty_rect.merge(current_bounds);
 		} else {
@@ -305,7 +321,9 @@ Rect2 TerrainSpline2D::consume_dirty_rect() {
 			}
 		}
 	} else {
+#if DEBUG
 		UtilityFunctions::print("[TerrainSpline2D] Consuming LOCAL Dirty Rect.");
+#endif
 		result = accumulated_dirty_rect;
 	}
 
@@ -386,20 +404,56 @@ bool TerrainSpline2D::is_point_inside(const Vector2 &p, const PackedVector2Array
 	return inside;
 }
 
+void TerrainSpline2D::ensure_baked_cache() {
+	if (has_baked_cache) {
+		return;
+	}
+
+	baked_poly3d = get_baked_points_3d();
+	baked_poly2d = get_baked_points_2d();
+
+	baked_segments.clear();
+	int limit = is_closed ? baked_poly3d.size() : baked_poly3d.size() - 1;
+	float search_radius = spline_width + falloff_distance;
+
+	for (int i = 0; i < limit; ++i) {
+		Vector3 a = baked_poly3d[i];
+		Vector3 b = baked_poly3d[(i + 1) % baked_poly3d.size()];
+
+		BakedSegment seg;
+		seg.a = Vector2(a.x, a.z);
+		seg.b = Vector2(b.x, b.z);
+		seg.ab = seg.b - seg.a;
+		seg.l2 = seg.ab.length_squared();
+		seg.y_start = a.y;
+		seg.y_diff = b.y - a.y;
+		seg.min_x = Math::min(seg.a.x, seg.b.x) - search_radius;
+		seg.max_x = Math::max(seg.a.x, seg.b.x) + search_radius;
+		seg.min_z = Math::min(seg.a.y, seg.b.y) - search_radius;
+		seg.max_z = Math::max(seg.a.y, seg.b.y) + search_radius;
+
+		baked_segments.push_back(seg);
+	}
+
+	has_baked_cache = true;
+}
+
 TerrainSpline2D::SplineEval TerrainSpline2D::_evaluate_spline_point(const Vector2 &p) const {
+	const_cast<TerrainSpline2D *>(this)->ensure_baked_cache();
+
 	SplineEval res;
 	res.distance = 1e20f;
 	res.spline_y = 0.0f;
 	res.is_inside = false;
 
-	if (thread_poly3d.size() == 0)
+	if (baked_poly3d.size() == 0)
 		return res;
 	if (is_closed)
-		res.is_inside = is_point_inside(p, thread_poly2d);
+		res.is_inside = is_point_inside(p, baked_poly2d);
 
-	if (thread_poly3d.size() == 1) {
-		res.distance = p.distance_to(Vector2(thread_poly3d[0].x, thread_poly3d[0].z));
-		res.spline_y = thread_poly3d[0].y;
+	if (baked_poly3d.size() == 1) {
+		res.distance = p.distance_to(Vector2(baked_poly3d[0].x, baked_poly3d[0].z));
+		res.spline_y = baked_poly3d[0].y;
 		return res;
 	}
 
@@ -408,7 +462,7 @@ TerrainSpline2D::SplineEval TerrainSpline2D::_evaluate_spline_point(const Vector
 	float total_weight_line = 0.0f;
 	float blended_y_line = 0.0f;
 
-	for (const BakedSegment &seg : thread_segments) {
+	for (const BakedSegment &seg : baked_segments) {
 		if (p.x < seg.min_x || p.x > seg.max_x || p.y < seg.min_z || p.y > seg.max_z)
 			continue;
 
@@ -438,11 +492,11 @@ TerrainSpline2D::SplineEval TerrainSpline2D::_evaluate_spline_point(const Vector
 	} else if (interpolation_mode == INTERP_IDW_VERTEX) {
 		float total_weight_vert = 0.0f;
 		float blended_y_vert = 0.0f;
-		for (int i = 0; i < thread_poly3d.size(); ++i) {
-			Vector2 pt_2d(thread_poly3d[i].x, thread_poly3d[i].z);
+		for (int i = 0; i < baked_poly3d.size(); ++i) {
+			Vector2 pt_2d(baked_poly3d[i].x, baked_poly3d[i].z);
 			float dist = p.distance_to(pt_2d);
 			float weight = 1.0f / (dist * dist + 0.001f);
-			blended_y_vert += thread_poly3d[i].y * weight;
+			blended_y_vert += baked_poly3d[i].y * weight;
 			total_weight_vert += weight;
 		}
 		res.spline_y = (total_weight_vert > 0.0f) ? (blended_y_vert / total_weight_vert) : closest_y;
@@ -521,6 +575,8 @@ void TerrainSpline2D::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap,
 	if (!aabb.intersects(chunk_rect))
 		return;
 
+	ensure_baked_cache();
+
 	thread_min_x = Math::max(0, (int)Math::floor(aabb.position.x - p_offset.x));
 	thread_max_x = Math::min(w - 1, (int)Math::ceil(aabb.position.x + aabb.size.x - p_offset.x));
 	thread_min_z = Math::max(0, (int)Math::floor(aabb.position.y - p_offset.y));
@@ -530,34 +586,15 @@ void TerrainSpline2D::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap,
 	thread_offset = p_offset;
 	thread_data_ptr = p_heightmap->get_data_ptrw();
 
-	thread_poly3d = get_baked_points_3d();
-	thread_poly2d = get_baked_points_2d();
-
-	UtilityFunctions::print("    [TerrainSpline2D] Pre-baked Points: ", (int)thread_poly3d.size());
-
-	// PRECOMPUTE SEGMENTS (The ultimate speed optimization)
-	thread_segments.clear();
-	int limit = is_closed ? thread_poly3d.size() : thread_poly3d.size() - 1;
-	float search_radius = spline_width + falloff_distance;
-
-	for (int i = 0; i < limit; ++i) {
-		Vector3 a = thread_poly3d[i];
-		Vector3 b = thread_poly3d[(i + 1) % thread_poly3d.size()];
-
-		BakedSegment seg;
-		seg.a = Vector2(a.x, a.z);
-		seg.b = Vector2(b.x, b.z);
-		seg.ab = seg.b - seg.a;
-		seg.l2 = seg.ab.length_squared();
-		seg.y_start = a.y;
-		seg.y_diff = b.y - a.y;
-		seg.min_x = Math::min(seg.a.x, seg.b.x) - search_radius;
-		seg.max_x = Math::max(seg.a.x, seg.b.x) + search_radius;
-		seg.min_z = Math::min(seg.a.y, seg.b.y) - search_radius;
-		seg.max_z = Math::max(seg.a.y, seg.b.y) + search_radius;
-
-		thread_segments.push_back(seg);
-	}
+#if DEBUG
+	Ref<Curve3D> c = get_curve();
+	int ctrl_pts = c.is_valid() ? c->get_point_count() : 0;
+	float baked_len = c.is_valid() ? c->get_baked_length() : 0.0f;
+	UtilityFunctions::print("    [TerrainSpline2D: ", get_name(), "] Control Points: ", ctrl_pts,
+							" | Baked Points: ", (int)baked_poly3d.size(),
+							" | Baked Length: ", baked_len, "m",
+							" | Bounding Box Size: ", aabb.size);
+#endif
 
 	thread_has_curve = falloff_curve.is_valid();
 	if (thread_has_curve) {
@@ -570,6 +607,8 @@ void TerrainSpline2D::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap,
 	thread_active_tiles.clear();
 	uint64_t step2_culling = Time::get_singleton()->get_ticks_usec();
 
+	float search_radius = spline_width + falloff_distance;
+
 	if (use_tile_culling && tile_size > 0) {
 		float tile_radius = (tile_size * 1.41421356f) / 2.0f;
 
@@ -581,7 +620,7 @@ void TerrainSpline2D::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap,
 				Vector2 center((tx + t_max_x) / 2.0f + p_offset.x, (tz + t_max_z) / 2.0f + p_offset.y);
 
 				float min_dist = 1e20f;
-				for (const BakedSegment &seg : thread_segments) {
+				for (const BakedSegment &seg : baked_segments) {
 					float t = (seg.l2 > 0.0f) ? Math::clamp((center - seg.a).dot(seg.ab) / seg.l2, 0.0f, 1.0f) : 0.0f;
 					Vector2 proj = seg.a + t * seg.ab;
 					float d = center.distance_to(proj);
@@ -614,14 +653,13 @@ void TerrainSpline2D::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap,
 		}
 	}
 
+#if DEBUG
 	uint64_t step4_end = Time::get_singleton()->get_ticks_usec();
-	UtilityFunctions::print("    [TerrainSpline2D] Precompute: ", (step2_culling - step1_start) / 1000.0, "ms | Culling: ", (step3_threads - step2_culling) / 1000.0, "ms | Math Threads: ", (step4_end - step3_threads) / 1000.0, "ms");
+	UtilityFunctions::print("    [TerrainSpline2D: ", get_name(), "] Precompute: ", (step2_culling - step1_start) / 1000.0, "ms | Culling: ", (step3_threads - step2_culling) / 1000.0, "ms | Math Threads: ", (step4_end - step3_threads) / 1000.0, "ms");
+#endif
 
 	thread_heightmap.unref();
 	thread_data_ptr = nullptr;
-	thread_poly3d.clear();
-	thread_poly2d.clear();
-	thread_segments.clear();
 	thread_baked_curve.clear();
 	thread_active_tiles.clear();
 }
