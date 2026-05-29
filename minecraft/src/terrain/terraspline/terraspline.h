@@ -357,12 +357,16 @@ private:
 	Vector2 global_world_offset = Vector2(0.0f, 0.0f);
 	Node3D *scatter_container = nullptr;
 
+	Ref<Noise> global_terrain_noise;
+	float global_terrain_amplitude = 50.0f;
+
 	void _check_and_evict_far_chunks();
 	void _check_origin_shift();
 	void _generate_chunks(const std::vector<Vector2i> &p_chunks, const std::vector<ProceduralSpline3D *> &p_splines, Object *p_target_api);
 
 	void _update_chunk_physics(const Ref<TerrainChunk> &p_chunk);
 	void _check_chunk_physics_culling();
+	Vector3 _get_player_position() const;
 
 protected:
 	static void _bind_methods();
@@ -371,6 +375,12 @@ protected:
 public:
 	TerrainSplineCompositor();
 	~TerrainSplineCompositor();
+
+	void set_global_terrain_noise(const Ref<Noise> &p_noise);
+	Ref<Noise> get_global_terrain_noise() const;
+	void set_global_terrain_amplitude(float p_amp);
+	float get_global_terrain_amplitude() const;
+
 	void set_terrain(Node *p_terrain);
 	Node *get_terrain() const;
 	void set_chunk_size(int p_size);

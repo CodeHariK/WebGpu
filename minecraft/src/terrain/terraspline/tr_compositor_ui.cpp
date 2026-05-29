@@ -69,7 +69,7 @@ void TerrainSplineCompositorUI::_notification(int p_what) {
 			_connect_spline(Object::cast_to<Node>(children[i]));
 		}
 		connect("child_entered_tree", Callable(this, "_connect_spline"));
-		connect("child_exited_tree", Callable(this, "_disconnect_spline"));
+		connect("child_exiting_tree", Callable(this, "_disconnect_spline"));
 		call_deferred("apply_all_splines");
 	} else if (p_what == Node::NOTIFICATION_CHILD_ORDER_CHANGED) {
 		queue_rebuild();
