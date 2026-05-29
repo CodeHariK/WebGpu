@@ -1,6 +1,7 @@
 #include "godot_cpp/classes/image_texture.hpp"
 #include "terraspline.h"
 #include <godot_cpp/classes/time.hpp> // NEW: For high-precision profiling
+#include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -27,7 +28,9 @@ void TerrainSplineCompositorUI::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_execute_rebuild"), &TerrainSplineCompositorUI::_execute_rebuild);
 	ClassDB::bind_method(D_METHOD("apply_all_splines"), &TerrainSplineCompositorUI::apply_all_splines);
 	ClassDB::bind_method(D_METHOD("_connect_spline", "node"), &TerrainSplineCompositorUI::_connect_spline);
+	ClassDB::bind_method(D_METHOD("_disconnect_spline", "node"), &TerrainSplineCompositorUI::_disconnect_spline);
 	ClassDB::bind_method(D_METHOD("_on_spline_changed"), &TerrainSplineCompositorUI::_on_spline_changed);
+	ClassDB::bind_method(D_METHOD("_normalize_grayscale_task", "task_idx", "job"), &TerrainSplineCompositorUI::_normalize_grayscale_task);
 }
 
 /**
@@ -66,6 +69,7 @@ void TerrainSplineCompositorUI::_notification(int p_what) {
 			_connect_spline(Object::cast_to<Node>(children[i]));
 		}
 		connect("child_entered_tree", Callable(this, "_connect_spline"));
+		connect("child_exited_tree", Callable(this, "_disconnect_spline"));
 		call_deferred("apply_all_splines");
 	} else if (p_what == Node::NOTIFICATION_CHILD_ORDER_CHANGED) {
 		queue_rebuild();
@@ -81,6 +85,16 @@ void TerrainSplineCompositorUI::_connect_spline(Node *p_node) {
 		if (!spline->is_connected("spline_changed", Callable(this, "_on_spline_changed"))) {
 			spline->connect("spline_changed", Callable(this, "_on_spline_changed"));
 		}
+	}
+}
+
+void TerrainSplineCompositorUI::_disconnect_spline(Node *p_node) {
+	ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(p_node);
+	if (spline) {
+		if (spline->is_connected("spline_changed", Callable(this, "_on_spline_changed"))) {
+			spline->disconnect("spline_changed", Callable(this, "_on_spline_changed"));
+		}
+		queue_rebuild();
 	}
 }
 
@@ -210,9 +224,26 @@ void TerrainSplineCompositorUI::apply_all_splines() {
 	img_data.resize(sz);
 	uint8_t *byte_ptr = img_data.ptrw();
 
-	for (int i = 0; i < sz; ++i) {
-		float normalized = (ptr[i] - min_h) / range;
-		byte_ptr[i] = (uint8_t)(Math::clamp(normalized, 0.0f, 1.0f) * 255.0f);
+	Ref<GrayscaleJob> job;
+	job.instantiate();
+	job->ptr = ptr;
+	job->byte_ptr = byte_ptr;
+	job->min_h = min_h;
+	job->range = range;
+	job->size = sz;
+	job->chunk_size = 16384;
+
+	int num_tasks = (sz + job->chunk_size - 1) / job->chunk_size;
+
+	WorkerThreadPool *wtp = WorkerThreadPool::get_singleton();
+	if (wtp && num_tasks > 0) {
+		Callable task_callable = Callable(this, "_normalize_grayscale_task").bind(job);
+		int group_id = wtp->add_group_task(task_callable, num_tasks, -1, true, "TerraSplineUI_Grayscale_Normalize");
+		wtp->wait_for_group_task_completion(group_id);
+	} else {
+		for (int i = 0; i < num_tasks; ++i) {
+			_normalize_grayscale_task(i, job);
+		}
 	}
 
 	ui_img->set_data(w, h, false, Image::FORMAT_L8, img_data);
@@ -226,6 +257,24 @@ void TerrainSplineCompositorUI::apply_all_splines() {
 
 	uint64_t step6_end = Time::get_singleton()->get_ticks_usec();
 	UtilityFunctions::print("=== [CompositorUI] END TOTAL TIME: ", (step6_end - step1_start) / 1000.0, " ms ===\n");
+}
+
+void TerrainSplineCompositorUI::_normalize_grayscale_task(int p_task_idx, Ref<GrayscaleJob> p_job) {
+	if (p_job.is_null() || p_job->ptr == nullptr || p_job->byte_ptr == nullptr) {
+		return;
+	}
+
+	int start = p_task_idx * p_job->chunk_size;
+	int end = Math::min(start + p_job->chunk_size, p_job->size);
+	const float *src = p_job->ptr;
+	uint8_t *dest = p_job->byte_ptr;
+	float min_h = p_job->min_h;
+	float inv_range = 1.0f / p_job->range;
+
+	for (int i = start; i < end; ++i) {
+		float normalized = (src[i] - min_h) * inv_range;
+		dest[i] = (uint8_t)(Math::clamp(normalized, 0.0f, 1.0f) * 255.0f);
+	}
 }
 
 } //namespace godot

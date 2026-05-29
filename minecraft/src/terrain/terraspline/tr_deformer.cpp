@@ -154,7 +154,7 @@ void TerrainSplineDeformer::_deform_heightmap_task(int p_task_idx, Ref<DeformerJ
 	for (int z = tile.position.y; z <= tile.position.y + tile.size.y - 1; ++z) {
 		for (int x = tile.position.x; x <= tile.position.x + tile.size.x - 1; ++x) {
 			Vector2 p((float)x + p_job->offset.x, (float)z + p_job->offset.y);
-			ProceduralSpline3D::SplineEval eval = p_job->spline->_evaluate_spline_point(p);
+			ProceduralSpline3D::SplineEval eval = p_job->spline->evaluate_spline_point_segmented(p, p_job->tile_segments[p_task_idx]);
 
 			float target_spline_h = eval.spline_y + max_height;
 			float weight = 0.0f;
@@ -258,6 +258,8 @@ void TerrainSplineDeformer::deform_heightmap(const Ref<TerrainHeightmap> &p_heig
 
 	if (use_tile_culling && tile_size > 0) {
 		float tile_radius = (tile_size * 1.41421356f) / 2.0f;
+		float combined_radius = search_radius + tile_radius;
+		float combined_radius_sq = combined_radius * combined_radius;
 
 		for (int tz = thread_min_z; tz <= thread_max_z; tz += tile_size) {
 			for (int tx = thread_min_x; tx <= thread_max_x; tx += tile_size) {
@@ -266,26 +268,32 @@ void TerrainSplineDeformer::deform_heightmap(const Ref<TerrainHeightmap> &p_heig
 
 				Vector2 center((tx + t_max_x) / 2.0f + p_offset.x, (tz + t_max_z) / 2.0f + p_offset.y);
 
-				float min_dist_sq = 1e20f;
-				for (const ProceduralSpline3D::BakedSegment &seg : p_spline->baked_segments) {
+				std::vector<int> overlapping_segments;
+				for (size_t seg_idx = 0; seg_idx < p_spline->baked_segments.size(); ++seg_idx) {
+					const ProceduralSpline3D::BakedSegment &seg = p_spline->baked_segments[seg_idx];
 					float t = (seg.l2 > 0.0f) ? Math::clamp((center - seg.a).dot(seg.ab) / seg.l2, 0.0f, 1.0f) : 0.0f;
 					Vector2 proj = seg.a + t * seg.ab;
 
 					float d_sq = center.distance_squared_to(proj);
-					if (d_sq < min_dist_sq) {
-						min_dist_sq = d_sq;
+					if (d_sq <= combined_radius_sq) {
+						overlapping_segments.push_back((int)seg_idx);
 					}
 				}
 
-				float combined_radius = search_radius + tile_radius;
-				if (min_dist_sq <= (combined_radius * combined_radius)) {
+				if (!overlapping_segments.empty()) {
 					job->active_tiles.push_back(Rect2i(tx, tz, t_max_x - tx + 1, t_max_z - tz + 1));
+					job->tile_segments.push_back(overlapping_segments);
 				}
 			}
 		}
 	} else {
+		std::vector<int> all_segments(p_spline->baked_segments.size());
+		for (size_t i = 0; i < all_segments.size(); ++i) {
+			all_segments[i] = (int)i;
+		}
 		for (int tz = thread_min_z; tz <= thread_max_z; ++tz) {
 			job->active_tiles.push_back(Rect2i(thread_min_x, tz, thread_max_x - thread_min_x + 1, 1));
+			job->tile_segments.push_back(all_segments);
 		}
 	}
 
