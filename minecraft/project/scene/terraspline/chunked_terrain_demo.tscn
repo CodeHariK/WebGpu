@@ -3,6 +3,7 @@
 [ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="1_lrsvk"]
 [ext_resource type="Script" uid="uid://b1mqd6agls2kx" path="res://scene/terraspline/TerraSplineChunkedManager.gd" id="2_chunked"]
 [ext_resource type="Shader" uid="uid://dpk0kod73avof" path="res://scene/terraspline/stripe_toon_cheap.gdshader" id="3_m505t"]
+[ext_resource type="Curve" uid="uid://ba5y0jq2eufwp" path="res://scene/minecraft/curve_minecraft_2.tres" id="3_qv7hl"]
 [ext_resource type="Material" uid="uid://nbbdrx8vma80" path="res://Terrain3d_demo/assets/materials/M_rock23_tp.tres" id="4_qv7hl"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ih7r4"]
@@ -20,7 +21,7 @@ glow_enabled = true
 
 [sub_resource type="Curve3D" id="Curve3D_road"]
 _data = {
-"points": PackedVector3Array(21, -6, 2, -21, 6, -2, 10.514084, -16, -85.60361, -12, 1, -9, 12, -1, 9, -8.790821, -9, -48.32998, -20, -2, 17, 20, 2, -17, 49.25267, -12, -52.447525),
+"points": PackedVector3Array(21, -6, 2, -21, 6, -2, 10.514082, 5, -40.603584, -12, 1, -9, 12, -1, 9, -8.790815, 13, 17.670033, -20, -2, 17, 20, 2, -17, 49.252663, 16, 17.552486),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -33,14 +34,10 @@ _data = {
 }
 point_count = 3
 
-[sub_resource type="Curve" id="Curve_hoado"]
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.2332215, 0.58451134), -0.25063875, -0.25063875, 0, 0, Vector2(0.54194635, 0.33282113), -1.4682121, -1.4682121, 0, 0, Vector2(0.8372483, 1), 0.0, 0.0, 0, 0]
-point_count = 4
-
 [sub_resource type="Curve3D" id="Curve3D_hoado"]
 closed = true
 _data = {
-"points": PackedVector3Array(10, -2, 3, -10, 2, -3, -6.8481293, 21, -32.731476, -7, 0, -7, 7, 0, 7, -38, 35, 47, 1, 2, 13, -1, -2, -13, 14, 0, 45),
+"points": PackedVector3Array(10, -2, 3, -10, 2, -3, -10.848129, 21, -24.731476, -7, 0, -7, 7, 0, 7, -16, 35, 8, 1, 2, 13, -1, -2, -13, 13, 18, -5),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -129,56 +126,56 @@ curve = SubResource("Curve3D_mountain")
 [node name="ChunksContainer" type="Node3D" parent="TerraSplineChunkedManager" unique_id=1354851177]
 visible = false
 
-[node name="SplineManager" type="Terrain3DSplineCompositor" parent="." unique_id=1481368163 node_paths=PackedStringArray("terrain")]
+[node name="SplineManager" type="TerrainSplineCompositor" parent="." unique_id=1481368163 node_paths=PackedStringArray("terrain")]
 terrain = NodePath("../Terrain3D")
+max_render_radius = 256.0
+max_physics_radius = 128.0
 
-[node name="RoadSpline" type="TerrainSpline2D" parent="SplineManager" unique_id=2094986216]
-spline_width = 2.5
-falloff_distance = 2.875
+[node name="RoadSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=1885673574]
 is_closed = false
-blend_mode = 2
 interpolation_mode = 2
 bake_interval = 4.0
-transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, 105, 18, 111.40794)
+transform = Transform3D(0.99999994, 0, 0, 0, 1, 0, 0, 0, 0.99999994, 70, 0, 62)
 curve = SubResource("Curve3D_road")
 
-[node name="MountainSpline" type="TerrainSpline2D" parent="SplineManager" unique_id=1752537148]
-falloff_distance = 8.185
-blend_mode = 2
+[node name="TerrainSplineDeformer" type="TerrainSplineDeformer" parent="SplineManager/RoadSpline" unique_id=124574278]
+transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0, 0, 0)
+
+[node name="MountainSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=162060114]
 interpolation_mode = 2
-use_tile_culling = false
-tile_size = 16
 bake_interval = 4.0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53, 0, 77)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -55, 0, 77)
 curve = SubResource("Curve3D_mountain")
 
-[node name="MountainSpline2" type="TerrainSpline2D" parent="SplineManager" unique_id=98747278]
-falloff_distance = 8.185
-blend_mode = 2
+[node name="TerrainSplineDeformer" type="TerrainSplineDeformer" parent="SplineManager/MountainSpline" unique_id=1724963112]
+transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0, 0, 0)
+
+[node name="MountainSpline2" type="ProceduralSpline3D" parent="SplineManager" unique_id=479969026]
 interpolation_mode = 2
-use_tile_culling = false
-tile_size = 16
 bake_interval = 4.0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65, 18, -136)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -67, 18, -131)
 curve = SubResource("Curve3D_mountain")
 
-[node name="MountainSpline3" type="TerrainSpline2D" parent="SplineManager" unique_id=447113098]
-max_height = 2.655
-falloff_distance = 48.885
-blend_mode = 2
+[node name="TerrainSplineDeformer" type="TerrainSplineDeformer" parent="SplineManager/MountainSpline2" unique_id=1317558864]
+transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0, 0, 0)
+
+[node name="MountainSpline3" type="ProceduralSpline3D" parent="SplineManager" unique_id=1858912090]
 interpolation_mode = 2
-falloff_curve = SubResource("Curve_hoado")
-use_tile_culling = false
-tile_size = 16
-bake_interval = 4.0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 151, 15, -142)
+bake_interval = 5.27
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122, 15, -137)
 curve = SubResource("Curve3D_hoado")
 
 [node name="TerrainSplineScatter" type="TerrainSplineScatter" parent="SplineManager/MountainSpline3" unique_id=601317612]
 mesh = SubResource("CapsuleMesh_m505t")
 density = 1.0
-spacing = 2.965
+spacing = 2.0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -139, -15, 145)
+
+[node name="TerrainSplineDeformer" type="TerrainSplineDeformer" parent="SplineManager/MountainSpline3" unique_id=1501991959]
+spline_width = 5.33
+falloff_distance = 37.38
+falloff_curve = ExtResource("3_qv7hl")
+transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0, 0, 0)
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=61110530]
 material = SubResource("Terrain3DMaterial_dju1v")

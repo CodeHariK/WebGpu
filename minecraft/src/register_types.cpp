@@ -34,6 +34,7 @@
 #include "terrain/terraspline/terraspline.h"
 #include "terrain/terraspline_old/terraspline_old.h"
 
+#include "utils/spline3d/procedural_spline3d.h"
 #include "vehicle/arcade_vehicle.h"
 #include "vehicle/config/vehicle_config.h"
 #include "vehicle/config/wheel_config.h"
@@ -146,12 +147,16 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(TerrainSpline2DOld);
 	GDREGISTER_CLASS(TerrainManagerOld);
 
+	GDREGISTER_CLASS(SplineComponent);
+	GDREGISTER_CLASS(ProceduralSpline3D);
+
 	GDREGISTER_CLASS(TerrainHeightmap);
 	GDREGISTER_CLASS(TerrainChunk);
 	GDREGISTER_CLASS(ScatterJob);
-	GDREGISTER_CLASS(TerrainSpline2D);
+	GDREGISTER_CLASS(DeformerJob);
+	GDREGISTER_CLASS(TerrainSplineDeformer);
 	GDREGISTER_CLASS(TerrainSplineScatter);
-	GDREGISTER_CLASS(Terrain3DSplineCompositor);
+	GDREGISTER_CLASS(TerrainSplineCompositor);
 	GDREGISTER_CLASS(TerrainSplineCompositorUI);
 
 	GDREGISTER_CLASS(TransformGizmo);
