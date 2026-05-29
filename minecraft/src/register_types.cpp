@@ -147,7 +147,10 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(TerrainManagerOld);
 
 	GDREGISTER_CLASS(TerrainHeightmap);
+	GDREGISTER_CLASS(TerrainChunk);
+	GDREGISTER_CLASS(ScatterJob);
 	GDREGISTER_CLASS(TerrainSpline2D);
+	GDREGISTER_CLASS(TerrainSplineScatter);
 	GDREGISTER_CLASS(Terrain3DSplineCompositor);
 	GDREGISTER_CLASS(TerrainSplineCompositorUI);
 
