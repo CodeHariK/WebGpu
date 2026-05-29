@@ -4,6 +4,9 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include "../../game_manager/game_manager.h"
+#include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/engine.hpp>
 
 namespace godot {
 
@@ -48,6 +51,14 @@ void TerrainSplineCompositor::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_global_world_offset"), &TerrainSplineCompositor::get_global_world_offset);
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "global_world_offset"), "set_global_world_offset", "get_global_world_offset");
 
+	ClassDB::bind_method(D_METHOD("set_global_terrain_noise", "noise"), &TerrainSplineCompositor::set_global_terrain_noise);
+	ClassDB::bind_method(D_METHOD("get_global_terrain_noise"), &TerrainSplineCompositor::get_global_terrain_noise);
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "global_terrain_noise", PROPERTY_HINT_RESOURCE_TYPE, "Noise"), "set_global_terrain_noise", "get_global_terrain_noise");
+
+	ClassDB::bind_method(D_METHOD("set_global_terrain_amplitude", "amp"), &TerrainSplineCompositor::set_global_terrain_amplitude);
+	ClassDB::bind_method(D_METHOD("get_global_terrain_amplitude"), &TerrainSplineCompositor::get_global_terrain_amplitude);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "global_terrain_amplitude"), "set_global_terrain_amplitude", "get_global_terrain_amplitude");
+
 	ClassDB::bind_method(D_METHOD("queue_rebuild"), &TerrainSplineCompositor::queue_rebuild);
 	ClassDB::bind_method(D_METHOD("_execute_rebuild"), &TerrainSplineCompositor::_execute_rebuild);
 	ClassDB::bind_method(D_METHOD("apply_all_splines"), &TerrainSplineCompositor::apply_all_splines);
@@ -65,6 +76,25 @@ TerrainSplineCompositor::TerrainSplineCompositor() {
 	last_eviction_check_time = 0;
 	global_world_offset = Vector2(0.0f, 0.0f);
 	scatter_container = nullptr;
+	global_terrain_amplitude = 50.0f;
+}
+
+void TerrainSplineCompositor::set_global_terrain_noise(const Ref<Noise> &p_noise) {
+	global_terrain_noise = p_noise;
+	queue_rebuild();
+}
+
+Ref<Noise> TerrainSplineCompositor::get_global_terrain_noise() const {
+	return global_terrain_noise;
+}
+
+void TerrainSplineCompositor::set_global_terrain_amplitude(float p_amp) {
+	global_terrain_amplitude = p_amp;
+	queue_rebuild();
+}
+
+float TerrainSplineCompositor::get_global_terrain_amplitude() const {
+	return global_terrain_amplitude;
 }
 
 /**
@@ -108,6 +138,19 @@ Vector2 TerrainSplineCompositor::get_global_world_offset() const {
 	return global_world_offset;
 }
 
+Vector3 TerrainSplineCompositor::_get_player_position() const {
+	if (GameManager::get_singleton()) {
+		Node3D *active_target = Object::cast_to<Node3D>(GameManager::get_singleton()->get_active_target());
+		if (active_target) {
+			return active_target->get_global_position();
+		}
+	}
+	if (terrain) {
+		return terrain->call("get_collision_target_position");
+	}
+	return Vector3(0.0f, 0.0f, 0.0f);
+}
+
 /**
  * @brief Handles engine-level notifications (Ready, Process, Child Order Changed).
  * - NOTIFICATION_READY: Sets up internal visual containers, connects signals, and triggers initial rebuild.
@@ -125,7 +168,7 @@ void TerrainSplineCompositor::_notification(int p_what) {
 			_connect_spline(Object::cast_to<Node>(children[i]));
 		}
 		connect("child_entered_tree", Callable(this, "_connect_spline"));
-		connect("child_exited_tree", Callable(this, "_disconnect_spline"));
+		connect("child_exiting_tree", Callable(this, "_disconnect_spline"));
 		set_process(true);
 		call_deferred("apply_all_splines");
 	} else if (p_what == Node::NOTIFICATION_CHILD_ORDER_CHANGED) {
@@ -244,9 +287,11 @@ void TerrainSplineCompositor::apply_all_splines() {
 
 	HashMap<Vector2i, bool> active_grid_chunks;
 
-	Vector3 target_pos = terrain->call("get_collision_target_position");
+	Vector3 target_pos = _get_player_position();
 	Vector2 player_pos_2d(target_pos.x, target_pos.z);
 	Vector2 logical_player_pos_2d = player_pos_2d + global_world_offset;
+
+	bool is_editor = Engine::get_singleton()->is_editor_hint();
 
 	if (compositor_full_rebuild) {
 #if DEBUG
@@ -256,30 +301,33 @@ void TerrainSplineCompositor::apply_all_splines() {
 								" | Render radius: ", max_render_radius, "m");
 #endif
 
-		for (ProceduralSpline3D *spline : splines) {
-			Rect2 aabb = spline->get_padded_aabb();
-			if (!aabb.has_area())
-				continue;
-			int min_cx = (int)Math::floor(aabb.position.x / chunk_size);
-			int max_cx = (int)Math::floor((aabb.position.x + aabb.size.x) / chunk_size);
-			int min_cz = (int)Math::floor(aabb.position.y / chunk_size);
-			int max_cz = (int)Math::floor((aabb.position.y + aabb.size.y) / chunk_size);
+		if (is_editor) {
+			// In the editor, generate chunks for all splines
+			for (ProceduralSpline3D *spline : splines) {
+				Rect2 sd = spline->get_padded_aabb();
+				int s_min_cx = (int)Math::floor(sd.position.x / chunk_size);
+				int s_max_cx = (int)Math::floor((sd.position.x + sd.size.x) / chunk_size);
+				int s_min_cz = (int)Math::floor(sd.position.y / chunk_size);
+				int s_max_cz = (int)Math::floor((sd.position.y + sd.size.y) / chunk_size);
+				for (int cx = s_min_cx; cx <= s_max_cx; ++cx) {
+					for (int cz = s_min_cz; cz <= s_max_cz; ++cz) {
+						active_grid_chunks[Vector2i(cx, cz)] = true;
+					}
+				}
+			}
+		} else {
+			int player_cx = (int)Math::floor(logical_player_pos_2d.x / chunk_size);
+			int player_cz = (int)Math::floor(logical_player_pos_2d.y / chunk_size);
+			int radius_chunks = (int)Math::ceil(max_render_radius / chunk_size);
 
-			for (int cx = min_cx; cx <= max_cx; ++cx) {
-				for (int cz = min_cz; cz <= max_cz; ++cz) {
+			for (int cx = player_cx - radius_chunks; cx <= player_cx + radius_chunks; ++cx) {
+				for (int cz = player_cz - radius_chunks; cz <= player_cz + radius_chunks; ++cz) {
 					Vector2 c_center((cx + 0.5f) * chunk_size, (cz + 0.5f) * chunk_size);
 					Vector2 logical_c_center = c_center + global_world_offset;
 					if (logical_player_pos_2d.distance_to(logical_c_center) <= max_render_radius) {
 						active_grid_chunks[Vector2i(cx, cz)] = true;
 					}
 				}
-			}
-		}
-		for (const KeyValue<Vector2i, Ref<TerrainChunk>> &E : chunk_buffers) {
-			Vector2 c_center((E.key.x + 0.5f) * chunk_size, (E.key.y + 0.5f) * chunk_size);
-			Vector2 logical_c_center = c_center + global_world_offset;
-			if (logical_player_pos_2d.distance_to(logical_c_center) <= max_render_radius) {
-				active_grid_chunks[E.key] = true;
 			}
 		}
 	} else {
@@ -299,10 +347,14 @@ void TerrainSplineCompositor::apply_all_splines() {
 
 		for (int cx = min_cx; cx <= max_cx; ++cx) {
 			for (int cz = min_cz; cz <= max_cz; ++cz) {
-				Vector2 c_center((cx + 0.5f) * chunk_size, (cz + 0.5f) * chunk_size);
-				Vector2 logical_c_center = c_center + global_world_offset;
-				if (logical_player_pos_2d.distance_to(logical_c_center) <= max_render_radius) {
+				if (is_editor) {
 					active_grid_chunks[Vector2i(cx, cz)] = true;
+				} else {
+					Vector2 c_center((cx + 0.5f) * chunk_size, (cz + 0.5f) * chunk_size);
+					Vector2 logical_c_center = c_center + global_world_offset;
+					if (logical_player_pos_2d.distance_to(logical_c_center) <= max_render_radius) {
+						active_grid_chunks[Vector2i(cx, cz)] = true;
+					}
 				}
 			}
 		}
@@ -330,23 +382,7 @@ void TerrainSplineCompositor::apply_all_splines() {
 	std::vector<Vector2i> chunks_to_remove;
 
 	for (const KeyValue<Vector2i, bool> &E : active_grid_chunks) {
-		Vector2i chunk_pos = E.key;
-		Vector2 offset(chunk_pos.x * chunk_size, chunk_pos.y * chunk_size);
-		Rect2 chunk_rect(offset, Vector2(chunk_size, chunk_size));
-
-		bool has_splines = false;
-		for (ProceduralSpline3D *spline : splines) {
-			if (spline->get_padded_aabb().intersects(chunk_rect)) {
-				has_splines = true;
-				break;
-			}
-		}
-
-		if (has_splines) {
-			chunks_to_generate.push_back(chunk_pos);
-		} else {
-			chunks_to_remove.push_back(chunk_pos);
-		}
+		chunks_to_generate.push_back(E.key);
 	}
 
 	if (!chunks_to_generate.empty()) {
@@ -378,7 +414,7 @@ void TerrainSplineCompositor::_check_origin_shift() {
 		return;
 	}
 
-	Vector3 target_pos = terrain->call("get_collision_target_position");
+	Vector3 target_pos = _get_player_position();
 
 	// Check if player's X or Z distance exceeds 4096 meters
 	if (Math::abs(target_pos.x) > 4096.0f || Math::abs(target_pos.z) > 4096.0f) {
@@ -491,7 +527,7 @@ void TerrainSplineCompositor::_generate_chunks(const std::vector<Vector2i> &p_ch
 		if (chunk_buffers.has(chunk_pos)) {
 			chunk = chunk_buffers[chunk_pos];
 		} else {
-			if (!has_splines)
+			if (!has_splines && !global_terrain_noise.is_valid())
 				continue;
 			chunk.instantiate();
 			Ref<TerrainHeightmap> buffer;
@@ -533,9 +569,23 @@ void TerrainSplineCompositor::_generate_chunks(const std::vector<Vector2i> &p_ch
 		}
 
 		uint64_t t_math_start = Time::get_singleton()->get_ticks_usec();
-		std::vector<std::pair<TerrainSplineDeformer *, ProceduralSpline3D *>> active_deformers;
 
+		// 1. GENERATE BASE TERRAIN FROM GLOBAL NOISE
+		if (global_terrain_noise.is_valid()) {
+			float *ptr = buffer->get_data_ptrw();
+			for (int z = 0; z < chunk_size; ++z) {
+				for (int x = 0; x < chunk_size; ++x) {
+					float world_x = offset.x + (float)x;
+					float world_z = offset.y + (float)z;
+					float h = global_terrain_noise->get_noise_2d(world_x, world_z) * global_terrain_amplitude;
+					ptr[z * chunk_size + x] = h;
+				}
+			}
+		}
+
+		// 2. STILL ALLOW SPLINES TO DEFORM ON TOP IF THEY EXIST!
 		if (has_splines) {
+			std::vector<std::pair<TerrainSplineDeformer *, ProceduralSpline3D *>> active_deformers;
 			for (ProceduralSpline3D *spline : p_splines) {
 				if (!spline->get_padded_aabb().intersects(chunk_rect)) {
 					continue;
@@ -554,10 +604,9 @@ void TerrainSplineCompositor::_generate_chunks(const std::vector<Vector2i> &p_ch
 					}
 				}
 			}
-		}
-
-		for (const auto &pair : active_deformers) {
-			pair.first->deform_heightmap(buffer, pair.second, offset);
+			for (const auto &pair : active_deformers) {
+				pair.first->deform_heightmap(buffer, pair.second, offset);
+			}
 		}
 		uint64_t t_math_end = Time::get_singleton()->get_ticks_usec();
 
@@ -578,6 +627,20 @@ void TerrainSplineCompositor::_generate_chunks(const std::vector<Vector2i> &p_ch
 		images.push_back(empty_control_map);
 
 		uint64_t t_t3d_start = Time::get_singleton()->get_ticks_usec();
+		bool has_region = p_target_api->call("has_regionp", stamp_position);
+		if (!has_region) {
+			Ref<RefCounted> new_region = ClassDB::instantiate("Terrain3DRegion");
+			if (new_region.is_valid()) {
+				int rsize = 1024;
+				if (terrain) {
+					rsize = terrain->call("get_region_size");
+				}
+				new_region->set("region_size", rsize);
+				Vector2i rloc = p_target_api->call("get_region_location", stamp_position);
+				new_region->set("location", rloc);
+				p_target_api->call("add_region", new_region);
+			}
+		}
 		p_target_api->call("import_images", images, stamp_position, 0.0f, 1.0f);
 		uint64_t t_t3d_end = Time::get_singleton()->get_ticks_usec();
 

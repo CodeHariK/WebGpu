@@ -5,6 +5,8 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include "../../game_manager/game_manager.h"
+#include <godot_cpp/classes/node3d.hpp>
 
 namespace godot {
 
@@ -144,7 +146,7 @@ void TerrainSplineCompositor::_check_and_evict_far_chunks() {
 	}
 
 	// 1. Get player position
-	Vector3 target_pos = terrain->call("get_collision_target_position");
+	Vector3 target_pos = _get_player_position();
 	Vector2 player_pos_2d(target_pos.x, target_pos.z);
 	Vector2 logical_player_pos_2d = player_pos_2d + global_world_offset;
 
@@ -228,17 +230,7 @@ void TerrainSplineCompositor::_check_and_evict_far_chunks() {
 			Vector2 offset(physical_cpos.x * chunk_size, physical_cpos.y * chunk_size);
 			Rect2 chunk_rect(offset, Vector2(chunk_size, chunk_size));
 
-			bool has_splines = false;
-			for (ProceduralSpline3D *spline : splines) {
-				if (spline->get_padded_aabb().intersects(chunk_rect)) {
-					has_splines = true;
-					break;
-				}
-			}
-
-			if (has_splines) {
-				chunks_to_generate_physical.push_back(physical_cpos);
-			}
+			chunks_to_generate_physical.push_back(physical_cpos);
 		}
 	}
 
@@ -304,7 +296,7 @@ void TerrainSplineCompositor::_check_chunk_physics_culling() {
 		return;
 	}
 
-	Vector3 target_pos = terrain->call("get_collision_target_position");
+	Vector3 target_pos = _get_player_position();
 	Vector2 player_pos_2d(target_pos.x, target_pos.z);
 	Vector2 logical_player_pos_2d = player_pos_2d + global_world_offset;
 
