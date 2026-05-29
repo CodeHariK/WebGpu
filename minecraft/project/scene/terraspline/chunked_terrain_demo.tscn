@@ -28,19 +28,19 @@ point_count = 3
 [sub_resource type="Curve3D" id="Curve3D_mountain"]
 closed = true
 _data = {
-"points": PackedVector3Array(5, -8, 9, -5, 8, -9, -32.84813, 14, -45.731476, -7, 0, -7, 7, 0, 7, -71, 26, 27, -1, 4, 13, 1, -4, -13, -3, 16, 15),
+"points": PackedVector3Array(5, -8, 9, -5, 8, -9, -37.84813, 14, -46.731476, -7, 0, -7, 7, 0, 7, -69, 26, 32, -1, 4, 13, 1, -4, -13, -3, 16, 15),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
 
 [sub_resource type="Curve" id="Curve_hoado"]
-_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.2684564, 0.35679162), 0.030139947, 0.030139947, 0, 0, Vector2(0.57214767, 0.664413), 0.0, 0.0, 0, 0, Vector2(0.8372483, 1), 0.0, 0.0, 0, 0]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.2684564, 0.35679162), -1.2217882, -1.2217882, 0, 0, Vector2(0.57214767, 0.664413), -1.4682121, -1.4682121, 0, 0, Vector2(0.8372483, 1), 0.0, 0.0, 0, 0]
 point_count = 4
 
 [sub_resource type="Curve3D" id="Curve3D_hoado"]
 closed = true
 _data = {
-"points": PackedVector3Array(10, -2, 3, -10, 2, -3, -30.848125, 17, 14.268524, -7, 0, -7, 7, 0, 7, -36, 26, 40, 1, 2, 13, -1, -2, -13, -16, 16, 36),
+"points": PackedVector3Array(10, -2, 3, -10, 2, -3, -29.84813, 17, 5.268524, -7, 0, -7, 7, 0, 7, -36, 26, 40, 1, 2, 13, -1, -2, -13, -16, 16, 36),
 "tilts": PackedFloat32Array(0, 0, 0)
 }
 point_count = 3
@@ -50,10 +50,10 @@ _shader_parameters = {
 &"": null,
 &"Stylized_Terrain": null,
 &"botw_biome_scale": null,
-&"botw_color_grass": Color(0.5034967, 0.55109686, 0.8756303, 1),
-&"botw_color_rock": Color(0.31466618, 0.68815756, 0.8449429, 1),
-&"botw_color_sand": Color(0.74978, 0.74978, 0.74977994, 1),
-&"botw_color_snow": Color(0.8846246, 0.64715016, 0.9546638, 1),
+&"botw_color_grass": Color(0.1340262, 0.80997294, 0.8495693, 1),
+&"botw_color_rock": Color(0.55809116, 0.493654, 0.8786895, 1),
+&"botw_color_sand": Color(0.8437426, 0.8752814, 0.97642356, 1),
+&"botw_color_snow": Color(0.25241402, 0.9103982, 0.72322226, 1),
 &"botw_slope_blend": null,
 &"botw_slope_threshold": null,
 &"botw_snow_blend": null,
@@ -63,6 +63,7 @@ _shader_parameters = {
 }
 shader_override_enabled = true
 shader_override = ExtResource("3_m505t")
+show_region_grid = true
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dju1v"]
 transparency = 4
@@ -127,6 +128,7 @@ visible = false
 
 [node name="SplineManager" type="Terrain3DSplineCompositor" parent="." unique_id=1481368163 node_paths=PackedStringArray("terrain")]
 terrain = NodePath("../Terrain3D")
+chunk_size = 128
 
 [node name="RoadSpline" type="TerrainSpline2D" parent="SplineManager" unique_id=2094986216]
 spline_width = 2.5
@@ -135,7 +137,7 @@ is_closed = false
 blend_mode = 2
 interpolation_mode = 2
 bake_interval = 4.0
-transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, 48, 16, 95.40794)
+transform = Transform3D(0.9659258, 0, 0.25881904, 0, 1, 0, -0.25881904, 0, 0.9659258, 48, 16, 97.40794)
 curve = SubResource("Curve3D_road")
 
 [node name="MountainSpline" type="TerrainSpline2D" parent="SplineManager" unique_id=1752537148]
@@ -145,7 +147,7 @@ interpolation_mode = 2
 use_tile_culling = false
 tile_size = 16
 bake_interval = 4.0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -58, 0, -93)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -141, 0, -2)
 curve = SubResource("Curve3D_mountain")
 
 [node name="MountainSpline2" type="TerrainSpline2D" parent="SplineManager" unique_id=98747278]
@@ -155,29 +157,29 @@ interpolation_mode = 2
 use_tile_culling = false
 tile_size = 16
 bake_interval = 4.0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -69, 0, 83)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57, 0, 134)
 curve = SubResource("Curve3D_mountain")
 
 [node name="MountainSpline3" type="TerrainSpline2D" parent="SplineManager" unique_id=447113098]
-max_height = 9.74
+max_height = 11.525
 falloff_distance = 34.12
-is_closed = false
 blend_mode = 2
 interpolation_mode = 2
 falloff_curve = SubResource("Curve_hoado")
 use_tile_culling = false
 tile_size = 16
 bake_interval = 4.0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102, 0, -106)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -90, 12, -122)
 curve = SubResource("Curve3D_hoado")
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=61110530]
-data_directory = "res://scene/terraspline/terrain3d"
 material = SubResource("Terrain3DMaterial_dju1v")
 assets = SubResource("Terrain3DAssets_acpkc")
 save_16_bit = true
-mesh_lods = 4
-mesh_size = 20
+show_grid = true
+mesh_lods = 5
+mesh_size = 16
+show_region_grid = true
 top_level = true
 metadata/_edit_lock_ = true
 

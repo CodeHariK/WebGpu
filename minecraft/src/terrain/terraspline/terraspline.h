@@ -177,8 +177,16 @@ private:
 	float default_elevation = 0.0f;
 	bool auto_apply = true;
 	bool _rebuild_queued = false;
-	bool compositor_full_rebuild = true; // Tracks if the global map needs an overhaul
+	bool compositor_full_rebuild = true;
 	HashMap<Vector2i, Ref<TerrainHeightmap>> chunk_buffers;
+
+	float max_render_radius = 2048.0f;
+	uint64_t last_eviction_check_time = 0;
+	Vector2 global_world_offset = Vector2(0.0f, 0.0f);
+
+	void _check_and_evict_far_chunks();
+	void _check_origin_shift();
+	void _generate_chunks(const std::vector<Vector2i> &p_chunks, const std::vector<TerrainSpline2D *> &p_splines, Object *p_target_api);
 
 protected:
 	static void _bind_methods();
@@ -197,6 +205,10 @@ public:
 	bool get_auto_apply() const;
 	void set_apply_now(bool p_apply);
 	bool get_apply_now() const;
+	void set_max_render_radius(float p_radius);
+	float get_max_render_radius() const;
+	void set_global_world_offset(Vector2 p_offset);
+	Vector2 get_global_world_offset() const;
 	void queue_rebuild();
 	void _execute_rebuild();
 	void apply_all_splines();
