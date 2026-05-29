@@ -393,4 +393,73 @@ ProceduralSpline3D::SplineEval ProceduralSpline3D::_evaluate_spline_point(const 
 	return res;
 }
 
+ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segmented(const Vector2 &p, const std::vector<int> &p_segment_indices) const {
+	const_cast<ProceduralSpline3D *>(this)->ensure_baked_cache();
+
+	SplineEval res;
+	res.distance = 1e20f;
+	res.spline_y = 0.0f;
+	res.is_inside = false;
+
+	if (baked_poly3d.size() == 0)
+		return res;
+	if (is_closed)
+		res.is_inside = is_point_inside(p, baked_poly2d);
+
+	if (baked_poly3d.size() == 1) {
+		res.distance = p.distance_to(Vector2(baked_poly3d[0].x, baked_poly3d[0].z));
+		res.spline_y = baked_poly3d[0].y;
+		return res;
+	}
+
+	float min_dist_sq = 1e20f;
+	float closest_y = 0.0f;
+	float total_weight_line = 0.0f;
+	float blended_y_line = 0.0f;
+
+	for (int seg_idx : p_segment_indices) {
+		const BakedSegment &seg = baked_segments[seg_idx];
+		if (p.x < seg.min_x || p.x > seg.max_x || p.y < seg.min_z || p.y > seg.max_z)
+			continue;
+
+		float t = (seg.l2 > 0.0f) ? Math::clamp((p - seg.a).dot(seg.ab) / seg.l2, 0.0f, 1.0f) : 0.0f;
+		Vector2 proj = seg.a + t * seg.ab;
+
+		float dist_sq = p.distance_squared_to(proj);
+		float seg_y = seg.y_start + t * seg.y_diff;
+
+		if (dist_sq < min_dist_sq) {
+			min_dist_sq = dist_sq;
+			closest_y = seg_y;
+		}
+
+		if (interpolation_mode == INTERP_IDW_LINE) {
+			float weight = 1.0f / (dist_sq + 0.001f);
+			blended_y_line += seg_y * weight;
+			total_weight_line += weight;
+		}
+	}
+
+	res.distance = Math::sqrt(min_dist_sq);
+
+	if (interpolation_mode == INTERP_NEAREST) {
+		res.spline_y = closest_y;
+	} else if (interpolation_mode == INTERP_IDW_LINE) {
+		res.spline_y = (total_weight_line > 0.0f) ? (blended_y_line / total_weight_line) : closest_y;
+	} else if (interpolation_mode == INTERP_IDW_VERTEX) {
+		float total_weight_vert = 0.0f;
+		float blended_y_vert = 0.0f;
+		for (int i = 0; i < baked_poly3d.size(); ++i) {
+			Vector2 pt_2d(baked_poly3d[i].x, baked_poly3d[i].z);
+			float dist_sq = p.distance_squared_to(pt_2d);
+			float weight = 1.0f / (dist_sq + 0.001f);
+			blended_y_vert += baked_poly3d[i].y * weight;
+			total_weight_vert += weight;
+		}
+		res.spline_y = (total_weight_vert > 0.0f) ? (blended_y_vert / total_weight_vert) : closest_y;
+	}
+
+	return res;
+}
+
 } //namespace godot

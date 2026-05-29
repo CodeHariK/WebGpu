@@ -52,6 +52,7 @@ void TerrainSplineCompositor::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_execute_rebuild"), &TerrainSplineCompositor::_execute_rebuild);
 	ClassDB::bind_method(D_METHOD("apply_all_splines"), &TerrainSplineCompositor::apply_all_splines);
 	ClassDB::bind_method(D_METHOD("_connect_spline", "node"), &TerrainSplineCompositor::_connect_spline);
+	ClassDB::bind_method(D_METHOD("_disconnect_spline", "node"), &TerrainSplineCompositor::_disconnect_spline);
 	ClassDB::bind_method(D_METHOD("_on_spline_changed"), &TerrainSplineCompositor::_on_spline_changed);
 }
 
@@ -124,6 +125,7 @@ void TerrainSplineCompositor::_notification(int p_what) {
 			_connect_spline(Object::cast_to<Node>(children[i]));
 		}
 		connect("child_entered_tree", Callable(this, "_connect_spline"));
+		connect("child_exited_tree", Callable(this, "_disconnect_spline"));
 		set_process(true);
 		call_deferred("apply_all_splines");
 	} else if (p_what == Node::NOTIFICATION_CHILD_ORDER_CHANGED) {
@@ -150,6 +152,17 @@ void TerrainSplineCompositor::_connect_spline(Node *p_node) {
 		if (!spline->is_connected("spline_changed", Callable(this, "_on_spline_changed"))) {
 			spline->connect("spline_changed", Callable(this, "_on_spline_changed"));
 		}
+	}
+}
+
+void TerrainSplineCompositor::_disconnect_spline(Node *p_node) {
+	ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(p_node);
+	if (spline) {
+		if (spline->is_connected("spline_changed", Callable(this, "_on_spline_changed"))) {
+			spline->disconnect("spline_changed", Callable(this, "_on_spline_changed"));
+		}
+		compositor_full_rebuild = true;
+		queue_rebuild();
 	}
 }
 
@@ -450,8 +463,6 @@ void TerrainSplineCompositor::_check_origin_shift() {
 	}
 }
 
-
-
 /**
  * @brief Generates, deforms, and scatters assets for specific chunk coordinates.
  * Clears old instances, invokes all child spline deformers, scatters models using the thread pool,
@@ -522,18 +533,31 @@ void TerrainSplineCompositor::_generate_chunks(const std::vector<Vector2i> &p_ch
 		}
 
 		uint64_t t_math_start = Time::get_singleton()->get_ticks_usec();
+		std::vector<std::pair<TerrainSplineDeformer *, ProceduralSpline3D *>> active_deformers;
+
 		if (has_splines) {
 			for (ProceduralSpline3D *spline : p_splines) {
-				if (spline->get_padded_aabb().intersects(chunk_rect)) {
-					TypedArray<Node> children = spline->get_children();
-					for (int i = 0; i < children.size(); ++i) {
-						TerrainSplineDeformer *deformer = Object::cast_to<TerrainSplineDeformer>(children[i]);
-						if (deformer) {
-							deformer->deform_heightmap(buffer, spline, offset);
-						}
+				if (!spline->get_padded_aabb().intersects(chunk_rect)) {
+					continue;
+				}
+
+				TypedArray<Node> children = spline->get_children();
+				for (int i = 0; i < children.size(); ++i) {
+					SplineComponent *comp = Object::cast_to<SplineComponent>(children[i]);
+					if (!comp) {
+						continue;
+					}
+
+					TerrainSplineDeformer *deformer = Object::cast_to<TerrainSplineDeformer>(comp);
+					if (deformer) {
+						active_deformers.push_back({ deformer, spline });
 					}
 				}
 			}
+		}
+
+		for (const auto &pair : active_deformers) {
+			pair.first->deform_heightmap(buffer, pair.second, offset);
 		}
 		uint64_t t_math_end = Time::get_singleton()->get_ticks_usec();
 

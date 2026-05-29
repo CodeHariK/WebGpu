@@ -131,6 +131,9 @@ void GameManager::register_vehicle(ArcadeVehicle *p_vehicle) {
 		if (player_input) {
 			vehicle->set_player_input(player_input);
 		}
+		if (active_target == nullptr) {
+			set_active_target(vehicle);
+		}
 	}
 	UtilityFunctions::print("GameManager: Registered ArcadeVehicle.");
 }

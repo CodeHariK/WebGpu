@@ -99,6 +99,7 @@ public:
 
 	void ensure_baked_cache();
 	SplineEval _evaluate_spline_point(const Vector2 &p) const;
+	SplineEval evaluate_spline_point_segmented(const Vector2 &p, const std::vector<int> &p_segment_indices) const;
 
 	bool has_baked_cache = false;
 	PackedVector3Array baked_poly3d;

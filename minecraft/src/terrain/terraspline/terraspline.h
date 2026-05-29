@@ -186,9 +186,27 @@ public:
 	std::vector<float> baked_curve;
 	bool has_curve = false;
 	std::vector<Rect2i> active_tiles;
+	std::vector<std::vector<int>> tile_segments;
 
 	DeformerJob() {}
 	~DeformerJob() {}
+
+protected:
+	static void _bind_methods() {}
+};
+
+class GrayscaleJob : public RefCounted {
+	GDCLASS(GrayscaleJob, RefCounted)
+public:
+	const float *ptr = nullptr;
+	uint8_t *byte_ptr = nullptr;
+	float min_h = 0.0f;
+	float range = 1.0f;
+	int size = 0;
+	int chunk_size = 0;
+
+	GrayscaleJob() {}
+	~GrayscaleJob() {}
 
 protected:
 	static void _bind_methods() {}
@@ -373,6 +391,7 @@ public:
 	void _execute_rebuild();
 	void apply_all_splines();
 	void _connect_spline(Node *p_node);
+	void _disconnect_spline(Node *p_node);
 	void _on_spline_changed();
 };
 
@@ -400,7 +419,9 @@ public:
 	void _execute_rebuild();
 	void apply_all_splines();
 	void _connect_spline(Node *p_node);
+	void _disconnect_spline(Node *p_node);
 	void _on_spline_changed();
+	void _normalize_grayscale_task(int p_task_idx, Ref<GrayscaleJob> p_job);
 };
 
 } // namespace godot

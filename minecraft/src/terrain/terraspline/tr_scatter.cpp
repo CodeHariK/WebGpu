@@ -182,6 +182,22 @@ void TerrainSplineScatter::run_scatter_job(const Ref<ScatterJob> &p_job, int p_c
 		return; // Spline doesn't affect this chunk's scatter area
 	}
 
+	// Find which segments overlap the active area (grown by max_spline_dist)
+	std::vector<int> active_segments;
+	float max_dist = scatterer->get_max_spline_dist();
+	for (size_t i = 0; i < spline->baked_segments.size(); ++i) {
+		const ProceduralSpline3D::BakedSegment &seg = spline->baked_segments[i];
+		Rect2 seg_aabb(seg.a, Vector2());
+		seg_aabb = seg_aabb.expand(seg.b).grow(max_dist);
+		if (seg_aabb.intersects(active_area)) {
+			active_segments.push_back((int)i);
+		}
+	}
+
+	if (active_segments.empty()) {
+		return;
+	}
+
 	// Convert the active area bounds into grid cell indices
 	int min_cx = Math::max(0, (int)Math::floor((active_area.position.x - offset.x) / spacing));
 	int max_cx = Math::min(num_cells - 1, (int)Math::ceil((active_area.position.x + active_area.size.x - offset.x) / spacing));
@@ -252,15 +268,15 @@ void TerrainSplineScatter::run_scatter_job(const Ref<ScatterJob> &p_job, int p_c
 
 			// Spline corridor check
 			Vector2 test_point(random_x, random_z);
-			ProceduralSpline3D::SplineEval eval = spline->_evaluate_spline_point(test_point);
+			ProceduralSpline3D::SplineEval eval = spline->evaluate_spline_point_segmented(test_point, active_segments);
 			if (eval.distance < scatterer->get_min_spline_dist() || eval.distance > scatterer->get_max_spline_dist()) {
 				p_job->debug_spline_skipped++;
 				continue;
 			}
 
 			// Local heights check to determine normal and slope
-			float local_x = random_x - offset.x;
-			float local_z = random_z - offset.y;
+			float local_x = CLAMP(random_x - offset.x, 0.0f, (float)p_chunk_size - 1.0001f);
+			float local_z = CLAMP(random_z - offset.y, 0.0f, (float)p_chunk_size - 1.0001f);
 
 			int lx = (int)local_x;
 			int lz = (int)local_z;
