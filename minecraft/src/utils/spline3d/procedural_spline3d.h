@@ -70,6 +70,9 @@ private:
 	float cached_max_padding = 0.0f;
 	void _update_max_padding();
 
+	Ref<Curve3D> connected_curve;
+	void _check_curve_connection();
+
 protected:
 	static void _bind_methods();
 	void _notification(int p_what);

@@ -46,9 +46,13 @@ void ProceduralSpline3D::_notification(int p_what) {
 	if (p_what == Node3D::NOTIFICATION_TRANSFORM_CHANGED) {
 		mark_dirty();
 	} else if (p_what == Node::NOTIFICATION_READY) {
+		set_process(true);
+		_check_curve_connection();
 		_update_max_padding();
 		_cache_curve_state();
 		last_padded_aabb = get_padded_aabb();
+	} else if (p_what == Node::NOTIFICATION_PROCESS) {
+		_check_curve_connection();
 	} else if (p_what == Node::NOTIFICATION_CHILD_ORDER_CHANGED) {
 		// MUST check this so padding updates when a child is added/removed!
 		_update_max_padding();
@@ -412,6 +416,20 @@ ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segment
 	}
 
 	return res;
+}
+
+void ProceduralSpline3D::_check_curve_connection() {
+	Ref<Curve3D> current_curve = get_curve();
+	if (current_curve != connected_curve) {
+		if (connected_curve.is_valid() && connected_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
+			connected_curve->disconnect("changed", Callable(this, "_on_curve_changed"));
+		}
+		connected_curve = current_curve;
+		if (connected_curve.is_valid() && !connected_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
+			connected_curve->connect("changed", Callable(this, "_on_curve_changed"));
+		}
+		mark_dirty();
+	}
 }
 
 } //namespace godot
