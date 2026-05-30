@@ -1,11 +1,11 @@
 #ifndef PROCEDURAL_LOFTER_H
 #define PROCEDURAL_LOFTER_H
 
+#include "utils/spline3d/procedural_spline3d.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/curve3d.hpp>
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
-#include <godot_cpp/classes/path3d.hpp>
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
@@ -20,24 +20,24 @@ struct MeshData {
 	PackedInt32Array indices;
 };
 
-class ProceduralLofter : public Path3D {
-	GDCLASS(ProceduralLofter, Path3D)
+class ProceduralLofter : public ProceduralSpline3D {
+	GDCLASS(ProceduralLofter, ProceduralSpline3D)
 
 private:
 	TypedArray<Curve3D> slices_array;
 	Ref<Material> material;
-	Ref<Curve3D> last_connected_curve;
 	std::vector<Ref<Curve3D>> last_connected_slices;
 
 	float blend_factor = 0.0f;
-	int segments = 16;
-	bool is_dirty = true;
+	int slice_resolution = 16; // <-- ADDED: How smooth the 2D slice is baked
+	bool mesh_dirty = true;
 	bool flat_shaded = false;
 
 	MeshInstance3D *mesh_instance = nullptr;
 
 public:
 	virtual void update_loft();
+	void _on_parent_spline_changed();
 
 protected:
 	static void _bind_methods();
@@ -57,15 +57,16 @@ public:
 	bool get_flat_shaded() const;
 	void add_slice(Ref<Curve3D> p_slice, float p_position);
 	void set_blend_factor(float p_factor);
-	void set_segments(int p_segments);
-
 	float get_blend_factor() const;
-	int get_segments() const;
 
-	// Helper that processes slices and transforms into an ArrayMesh
-	Ref<ArrayMesh> generate_lofted_mesh(TypedArray<Curve3D> slices, TypedArray<Transform3D> transforms) const;
+	void set_slice_resolution(int p_res) {
+		slice_resolution = MAX(3, p_res); // A polygon needs at least 3 points!
+		mesh_dirty = true;
+	}
+	int get_slice_resolution() const { return slice_resolution; }
 
-	// Generates a MeshInstance3D and attaches the generated ArrayMesh to it
+	// UPDATE THIS: Accepts raw baked rings instead of Curves!
+	Ref<ArrayMesh> generate_lofted_mesh(const std::vector<PackedVector3Array> &rings, const std::vector<Transform3D> &transforms) const;
 	MeshInstance3D *bake() const;
 };
 

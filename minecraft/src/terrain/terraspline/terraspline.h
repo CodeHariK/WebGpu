@@ -3,14 +3,21 @@
 
 #include "godot_cpp/classes/texture_rect.hpp"
 #include "utils/spline3d/procedural_spline3d.h"
-#include <cstdint>
 #include <godot_cpp/classes/curve.hpp>
 #include <godot_cpp/classes/curve3d.hpp>
 #include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/mesh.hpp>
+#include <godot_cpp/classes/multi_mesh.hpp>
+#include <godot_cpp/classes/multi_mesh_instance3d.hpp>
 #include <godot_cpp/classes/node.hpp>
+#include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/noise.hpp>
 #include <godot_cpp/classes/path3d.hpp>
+#include <godot_cpp/classes/physics_server3d.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/classes/shape3d.hpp>
+#include <godot_cpp/classes/world3d.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
@@ -19,16 +26,6 @@
 #include <godot_cpp/variant/rect2i.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
-#include <vector>
-
-#include <godot_cpp/classes/mesh.hpp>
-#include <godot_cpp/classes/multi_mesh.hpp>
-#include <godot_cpp/classes/multi_mesh_instance3d.hpp>
-#include <godot_cpp/classes/node3d.hpp>
-#include <godot_cpp/classes/noise.hpp>
-#include <godot_cpp/classes/physics_server3d.hpp>
-#include <godot_cpp/classes/shape3d.hpp>
-#include <godot_cpp/classes/world3d.hpp>
 
 namespace godot {
 

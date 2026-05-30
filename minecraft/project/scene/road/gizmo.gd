@@ -82,7 +82,7 @@ func _input(event: InputEvent) -> void:
 		var intersection_point: Variant = _drag_plane.intersects_ray(ray_origin, ray_dir)
 		if intersection_point != null:
 			var new_transform := _calculate_new_transform(intersection_point)
-			DebugDraw3D.draw_line(global_transform.origin, intersection_point, Color.WHITE)
+			# DebugDraw3D.draw_line(global_transform.origin, intersection_point, Color.WHITE)
 			set_gizmo_transform(new_transform)
 
 

@@ -71,10 +71,10 @@ func _physics_process(delta: float) -> void:
 	forward_dir = (forward_dir - up_dir * forward_dir.dot(up_dir)).normalized()
 	forward_dir = forward_dir.rotated(up_dir, y_rot)
 	y_rot = 0.0
-	DebugDraw3D.draw_arrow(global_position, global_position + forward_dir, Color.BLUE, 0.1)
+	# DebugDraw3D.draw_arrow(global_position, global_position + forward_dir, Color.BLUE, 0.1)
 
 	right_dir = forward_dir.cross(up_dir)
-	DebugDraw3D.draw_arrow(global_position, global_position + right_dir, Color.RED, 0.1)
+	# DebugDraw3D.draw_arrow(global_position, global_position + right_dir, Color.RED, 0.1)
 
 	var input_dir := Input.get_vector("a", "d", "s", "w")
 	
@@ -119,14 +119,14 @@ func _update_surface_normal(delta: float) -> void:
 			var weight = pow(1.0 - (distance / RAY_LENGTH), 2)
 			average_normal += result.normal * weight
 			total_weight += weight
-			DebugDraw3D.draw_line(global_position, result.position, Color.WHITE_SMOKE)
+			# DebugDraw3D.draw_line(global_position, result.position, Color.WHITE_SMOKE)
 
 	# If we hit any surfaces, calculate the average normal.
 	if total_weight > 0:
 		is_on_surface = true
 		var target_up_dir = (average_normal / total_weight).normalized()
 		up_dir = up_dir.slerp(target_up_dir, ROTATION_LERP_SPEED * delta)
-		DebugDraw3D.draw_arrow(global_position, global_position + up_dir * 1, Color.GREEN, 0.1)
+		# DebugDraw3D.draw_arrow(global_position, global_position + up_dir * 1, Color.GREEN, 0.1)
 	else:
 		is_on_surface = false
 		# When in the air, smoothly rotate back to world up.

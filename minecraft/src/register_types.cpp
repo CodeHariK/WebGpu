@@ -138,6 +138,9 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(BTTimeLimit);
 	GDREGISTER_CLASS(BTPlayer);
 
+	GDREGISTER_CLASS(SplineComponent);
+	GDREGISTER_CLASS(ProceduralSpline3D);
+
 	GDREGISTER_CLASS(RoadGenerator);
 	GDREGISTER_CLASS(ProceduralLofter);
 	GDREGISTER_CLASS(ProceduralRock);
@@ -146,9 +149,6 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(TerrainHeightmapOld);
 	GDREGISTER_CLASS(TerrainSpline2DOld);
 	GDREGISTER_CLASS(TerrainManagerOld);
-
-	GDREGISTER_CLASS(SplineComponent);
-	GDREGISTER_CLASS(ProceduralSpline3D);
 
 	GDREGISTER_CLASS(TerrainHeightmap);
 	GDREGISTER_CLASS(TerrainChunk);
