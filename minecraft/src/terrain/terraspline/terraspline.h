@@ -163,35 +163,6 @@ protected:
 	static void _bind_methods() {}
 };
 
-/**
- * @class DeformerJob
- * @brief Sealed data envelope for parallel spline heightmap deformation.
- *
- * Encapsulates the heightmap reference, raw data pointer, parent spline, offset, and active
- * tile boundaries, along with pre-evaluated curves. Isolates each chunk's deformation execution
- * to make the deformation pipeline completely stateless and thread-safe.
- */
-class DeformerJob : public RefCounted {
-	GDCLASS(DeformerJob, RefCounted)
-public:
-	Ref<TerrainHeightmap> heightmap;
-	ProceduralSpline3D *spline = nullptr;
-	TerrainSplineDeformer *deformer = nullptr;
-	Vector2 offset;
-	float *data_ptr = nullptr;
-
-	std::vector<float> baked_curve;
-	bool has_curve = false;
-	std::vector<Rect2i> active_tiles;
-	std::vector<std::vector<int>> tile_segments;
-
-	DeformerJob() {}
-	~DeformerJob() {}
-
-protected:
-	static void _bind_methods() {}
-};
-
 class GrayscaleJob : public RefCounted {
 	GDCLASS(GrayscaleJob, RefCounted)
 public:
@@ -207,62 +178,6 @@ public:
 
 protected:
 	static void _bind_methods() {}
-};
-
-class TerrainSplineDeformer : public SplineComponent {
-	GDCLASS(TerrainSplineDeformer, SplineComponent)
-
-public:
-	enum BlendMode {
-		BLEND_ADD = 0,
-		BLEND_SUBTRACT = 1,
-		BLEND_MAX = 2,
-		BLEND_MIN = 3,
-		BLEND_REPLACE = 4
-	};
-
-private:
-	float max_height = 0.0f;
-	float spline_width = 2.0f;
-	float falloff_distance = 5.0f;
-	BlendMode blend_mode = BLEND_ADD;
-	Ref<Curve> falloff_curve;
-
-	bool use_tile_culling = true;
-	int tile_size = 32;
-
-protected:
-	static void _bind_methods();
-
-public:
-	TerrainSplineDeformer();
-	~TerrainSplineDeformer();
-
-	float get_spline_padding() const override {
-		return spline_width + falloff_distance;
-	}
-
-	void set_max_height(float p_height);
-	float get_max_height() const;
-	void set_spline_width(float p_width);
-	float get_spline_width() const;
-	void set_falloff_distance(float p_dist);
-	float get_falloff_distance() const;
-	void set_blend_mode(BlendMode p_mode);
-	BlendMode get_blend_mode() const;
-	void set_falloff_curve(const Ref<Curve> &p_curve);
-	Ref<Curve> get_falloff_curve() const;
-
-	void set_use_tile_culling(bool p_use);
-	bool get_use_tile_culling() const;
-	void set_tile_size(int p_size);
-	int get_tile_size() const;
-
-	void deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap, ProceduralSpline3D *p_spline, const Vector2 &p_offset);
-	void _deform_heightmap_task(int p_task_idx, Ref<DeformerJob> p_job);
-
-	void mark_dirty();
-	void _on_curve_changed();
 };
 
 class TerrainSplineScatter : public SplineComponent {
@@ -433,6 +348,6 @@ public:
 
 } // namespace godot
 
-VARIANT_ENUM_CAST(godot::TerrainSplineDeformer::BlendMode);
+#include "tr_deformer.h"
 
 #endif // TERRASPLINE_NEW_H

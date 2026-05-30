@@ -174,7 +174,7 @@ transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0, 0, 0)
 [node name="MountainSpline3" type="ProceduralSpline3D" parent="SplineManager" unique_id=1858912090]
 interpolation_mode = 2
 bake_interval = 5.27
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 118, 15, -126)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122, 15, -126)
 curve = SubResource("Curve3D_hoado")
 
 [node name="TerrainSplineScatter" type="TerrainSplineScatter" parent="SplineManager/MountainSpline3" unique_id=601317612]
