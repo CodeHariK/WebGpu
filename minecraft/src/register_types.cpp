@@ -29,6 +29,7 @@
 
 #include "terrain/convex_hull_rock/convex_hull_rock.h"
 #include "terrain/loafter/procedural_lofter.h"
+#include "terrain/loafter/procedural_road.h"
 #include "terrain/minecraft.h"
 #include "terrain/terraspline/terraspline.h"
 #include "terrain/terraspline_old/terraspline_old.h"
@@ -142,6 +143,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(RoadGenerator);
 	GDREGISTER_CLASS(ProceduralLofter);
+	GDREGISTER_CLASS(ProceduralRoad);
 	GDREGISTER_CLASS(ConvexHullRock);
 
 	GDREGISTER_CLASS(TerrainHeightmapOld);
