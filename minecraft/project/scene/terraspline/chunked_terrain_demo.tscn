@@ -143,7 +143,6 @@ global_terrain_noise = SubResource("FastNoiseLite_m505t")
 global_terrain_amplitude = 20.0
 
 [node name="RoadSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=1885673574]
-is_closed = false
 interpolation_mode = 2
 bake_interval = 4.0
 transform = Transform3D(0.99999994, 0, 0, 0, 1, 0, 0, 0, 0.99999994, 91, 0, 93)
@@ -165,7 +164,7 @@ transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0, 0, 0)
 [node name="MountainSpline2" type="ProceduralSpline3D" parent="SplineManager" unique_id=479969026]
 interpolation_mode = 2
 bake_interval = 4.0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -96, 18, -125)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -86, 18, -125)
 curve = SubResource("Curve3D_mountain")
 
 [node name="TerrainSplineDeformer" type="TerrainSplineDeformer" parent="SplineManager/MountainSpline2" unique_id=1317558864]
@@ -175,7 +174,7 @@ transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0, 0, 0)
 [node name="MountainSpline3" type="ProceduralSpline3D" parent="SplineManager" unique_id=1858912090]
 interpolation_mode = 2
 bake_interval = 5.27
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 142, 15, -163)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 142, 15, -119)
 curve = SubResource("Curve3D_hoado")
 
 [node name="TerrainSplineScatter" type="TerrainSplineScatter" parent="SplineManager/MountainSpline3" unique_id=601317612]
