@@ -28,7 +28,6 @@ func _process(delta: float) -> void:
 func _format_memory(bytes: float) -> String:
 	return "%.f MB" % (bytes / 1000000)
 
-func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("toggle_performance"):
-		stats_container.visible = not stats_container.visible
-		
+# func _input(event: InputEvent) -> void:
+# 	if event.is_action_pressed("toggle_performance"):
+# 		stats_container.visible = not stats_container.visible

@@ -106,6 +106,10 @@ public:
 	PackedVector3Array baked_poly3d;
 	PackedVector2Array baked_poly2d;
 	std::vector<BakedSegment> baked_segments;
+
+	bool has_transform_cache = false;
+	std::vector<Transform3D> baked_transforms;
+	void ensure_transform_cache();
 };
 
 } // namespace godot

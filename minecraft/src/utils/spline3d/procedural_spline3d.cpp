@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include "utils/curve/curve_baker.h"
 
 namespace godot {
 
@@ -111,6 +112,8 @@ void ProceduralSpline3D::_cache_curve_state() {
 
 void ProceduralSpline3D::mark_dirty() {
 	has_baked_cache = false;
+	has_transform_cache = false;
+
 	if (!is_dirty) {
 		accumulated_dirty_rect = last_padded_aabb;
 	} else if (last_padded_aabb.has_area()) {
@@ -228,19 +231,7 @@ Rect2 ProceduralSpline3D::consume_dirty_rect() {
 }
 
 PackedVector3Array ProceduralSpline3D::get_baked_points_3d() const {
-	Ref<Curve3D> curve = get_curve();
-	if (curve.is_null())
-		return PackedVector3Array();
-
-	PackedVector3Array global_pts;
-	Transform3D gt = get_global_transform();
-
-	float total_len = curve->get_baked_length();
-	for (float d = 0.0f; d < total_len; d += bake_interval) {
-		global_pts.push_back(gt.xform(curve->sample_baked(d)));
-	}
-	global_pts.push_back(gt.xform(curve->sample_baked(total_len)));
-	return global_pts;
+	return CurveBaker::bake_curve(get_curve(), bake_interval, get_global_transform());
 }
 
 PackedVector2Array ProceduralSpline3D::get_baked_points_2d() const {
@@ -339,6 +330,15 @@ void ProceduralSpline3D::ensure_baked_cache() {
 	}
 
 	has_baked_cache = true;
+}
+
+void ProceduralSpline3D::ensure_transform_cache() {
+	if (has_transform_cache) {
+		return;
+	}
+
+	baked_transforms = CurveBaker::bake_transforms(get_curve(), bake_interval, get_global_transform());
+	has_transform_cache = true;
 }
 
 ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segmented(const Vector2 &p, const std::vector<int> &p_segment_indices) const {
