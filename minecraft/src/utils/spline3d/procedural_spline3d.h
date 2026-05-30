@@ -68,7 +68,8 @@ private:
 	bool is_dirty = true;
 	bool is_full_rebuild = true;
 
-	float _get_max_padding() const;
+	float cached_max_padding = 0.0f;
+	void _update_max_padding();
 
 protected:
 	static void _bind_methods();
@@ -78,6 +79,7 @@ public:
 	ProceduralSpline3D();
 	~ProceduralSpline3D();
 
+	void set_curve(const Ref<Curve3D> &p_curve);
 	void set_is_closed(bool p_closed);
 	bool get_is_closed() const;
 	void set_interpolation_mode(InterpolationMode p_mode);
@@ -98,7 +100,6 @@ public:
 	Rect2 consume_dirty_rect();
 
 	void ensure_baked_cache();
-	SplineEval _evaluate_spline_point(const Vector2 &p) const;
 	SplineEval evaluate_spline_point_segmented(const Vector2 &p, const std::vector<int> &p_segment_indices) const;
 
 	bool has_baked_cache = false;

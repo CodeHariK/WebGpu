@@ -8,6 +8,7 @@
 namespace godot {
 
 void ProceduralSpline3D::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_curve", "curve"), &ProceduralSpline3D::set_curve);
 	ClassDB::bind_method(D_METHOD("set_is_closed", "is_closed"), &ProceduralSpline3D::set_is_closed);
 	ClassDB::bind_method(D_METHOD("get_is_closed"), &ProceduralSpline3D::get_is_closed);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "is_closed"), "set_is_closed", "get_is_closed");
@@ -46,13 +47,15 @@ ProceduralSpline3D::~ProceduralSpline3D() {
 
 void ProceduralSpline3D::_notification(int p_what) {
 	if (p_what == Node3D::NOTIFICATION_TRANSFORM_CHANGED) {
-#if DEBUG
-		UtilityFunctions::print("[ProceduralSpline3D] Transform changed, marking fully dirty.");
-#endif
 		mark_dirty();
 	} else if (p_what == Node::NOTIFICATION_READY) {
+		_update_max_padding();
 		_cache_curve_state();
 		last_padded_aabb = get_padded_aabb();
+	} else if (p_what == Node::NOTIFICATION_CHILD_ORDER_CHANGED) {
+		// MUST check this so padding updates when a child is added/removed!
+		_update_max_padding();
+		mark_dirty();
 	}
 }
 
@@ -73,6 +76,25 @@ void ProceduralSpline3D::set_bake_interval(float p_interval) {
 	mark_dirty();
 }
 float ProceduralSpline3D::get_bake_interval() const { return bake_interval; }
+
+void ProceduralSpline3D::set_curve(const Ref<Curve3D> &p_curve) {
+	// 1. Disconnect from the OLD curve if it exists
+	Ref<Curve3D> old_curve = get_curve();
+	if (old_curve.is_valid() && old_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
+		old_curve->disconnect("changed", Callable(this, "_on_curve_changed"));
+	}
+
+	// 2. Call the parent class's standard implementation to actually set it
+	Path3D::set_curve(p_curve);
+
+	// 3. Connect to the NEW curve
+	if (p_curve.is_valid() && !p_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
+		p_curve->connect("changed", Callable(this, "_on_curve_changed"));
+	}
+
+	// 4. A completely new curve means the whole spline needs rebuilding
+	mark_dirty();
+}
 
 void ProceduralSpline3D::_cache_curve_state() {
 	Ref<Curve3D> curve = get_curve();
@@ -121,7 +143,6 @@ void ProceduralSpline3D::_on_curve_changed() {
 	Transform3D gt = get_global_transform();
 	Rect2 local_changes;
 	bool has_local_changes = false;
-	float pad = _get_max_padding();
 
 	for (int i = 0; i < count; ++i) {
 		Vector3 pos = curve->get_point_position(i);
@@ -156,7 +177,7 @@ void ProceduralSpline3D::_on_curve_changed() {
 
 	if (has_local_changes) {
 		has_baked_cache = false;
-		local_changes = local_changes.grow(pad);
+		local_changes = local_changes.grow(cached_max_padding);
 #if DEBUG
 		UtilityFunctions::print("[ProceduralSpline3D] Local Dirty Rect Extents: Pos(", local_changes.position.x, ", ", local_changes.position.y, ") Size(", local_changes.size.x, ", ", local_changes.size.y, ")");
 #endif
@@ -211,11 +232,6 @@ PackedVector3Array ProceduralSpline3D::get_baked_points_3d() const {
 	if (curve.is_null())
 		return PackedVector3Array();
 
-	ProceduralSpline3D *mutable_this = const_cast<ProceduralSpline3D *>(this);
-	if (!curve->is_connected("changed", Callable(mutable_this, "_on_curve_changed"))) {
-		curve->connect("changed", Callable(mutable_this, "_on_curve_changed"));
-	}
-
 	PackedVector3Array global_pts;
 	Transform3D gt = get_global_transform();
 
@@ -237,18 +253,21 @@ PackedVector2Array ProceduralSpline3D::get_baked_points_2d() const {
 	return p2d;
 }
 
-float ProceduralSpline3D::_get_max_padding() const {
+// 1. THE LOOP (Main Thread Only)
+// Call this from _notification() when the node is ready or children change!
+void ProceduralSpline3D::_update_max_padding() {
 	float max_pad = 0.0f;
 	TypedArray<Node> children = get_children();
 
 	for (int i = 0; i < children.size(); ++i) {
-		// Fast C++ pointer cast!
 		SplineComponent *comp = Object::cast_to<SplineComponent>(children[i]);
 		if (comp) {
 			max_pad = Math::max(max_pad, comp->get_spline_padding());
 		}
 	}
-	return max_pad;
+
+	// Save it to memory
+	cached_max_padding = max_pad;
 }
 
 Rect2 ProceduralSpline3D::get_padded_aabb() const {
@@ -270,7 +289,7 @@ Rect2 ProceduralSpline3D::get_padded_aabb() const {
 		if (p.y > max_pt.y)
 			max_pt.y = p.y;
 	}
-	return Rect2(min_pt, max_pt - min_pt).grow(_get_max_padding());
+	return Rect2(min_pt, max_pt - min_pt).grow(cached_max_padding);
 }
 
 bool ProceduralSpline3D::is_point_inside(const Vector2 &p, const PackedVector2Array &polygon) const {
@@ -298,7 +317,7 @@ void ProceduralSpline3D::ensure_baked_cache() {
 
 	baked_segments.clear();
 	int limit = is_closed ? baked_poly3d.size() : baked_poly3d.size() - 1;
-	float search_radius = _get_max_padding();
+	baked_segments.reserve(limit);
 
 	for (int i = 0; i < limit; ++i) {
 		Vector3 a = baked_poly3d[i];
@@ -311,86 +330,15 @@ void ProceduralSpline3D::ensure_baked_cache() {
 		seg.l2 = seg.ab.length_squared();
 		seg.y_start = a.y;
 		seg.y_diff = b.y - a.y;
-		seg.min_x = Math::min(seg.a.x, seg.b.x) - search_radius;
-		seg.max_x = Math::max(seg.a.x, seg.b.x) + search_radius;
-		seg.min_z = Math::min(seg.a.y, seg.b.y) - search_radius;
-		seg.max_z = Math::max(seg.a.y, seg.b.y) + search_radius;
+		seg.min_x = Math::min(seg.a.x, seg.b.x) - cached_max_padding;
+		seg.max_x = Math::max(seg.a.x, seg.b.x) + cached_max_padding;
+		seg.min_z = Math::min(seg.a.y, seg.b.y) - cached_max_padding;
+		seg.max_z = Math::max(seg.a.y, seg.b.y) + cached_max_padding;
 
 		baked_segments.push_back(seg);
 	}
 
 	has_baked_cache = true;
-}
-
-ProceduralSpline3D::SplineEval ProceduralSpline3D::_evaluate_spline_point(const Vector2 &p) const {
-	const_cast<ProceduralSpline3D *>(this)->ensure_baked_cache();
-
-	SplineEval res;
-	res.distance = 1e20f;
-	res.spline_y = 0.0f;
-	res.is_inside = false;
-
-	if (baked_poly3d.size() == 0)
-		return res;
-	if (is_closed)
-		res.is_inside = is_point_inside(p, baked_poly2d);
-
-	if (baked_poly3d.size() == 1) {
-		res.distance = p.distance_to(Vector2(baked_poly3d[0].x, baked_poly3d[0].z));
-		res.spline_y = baked_poly3d[0].y;
-		return res;
-	}
-
-	float min_dist_sq = 1e20f;
-	float closest_y = 0.0f;
-	float total_weight_line = 0.0f;
-	float blended_y_line = 0.0f;
-
-	for (const BakedSegment &seg : baked_segments) {
-		if (p.x < seg.min_x || p.x > seg.max_x || p.y < seg.min_z || p.y > seg.max_z)
-			continue;
-
-		float t = (seg.l2 > 0.0f) ? Math::clamp((p - seg.a).dot(seg.ab) / seg.l2, 0.0f, 1.0f) : 0.0f;
-		Vector2 proj = seg.a + t * seg.ab;
-
-		// OPTIMIZATION: Avoid sqrt() in the loop!
-		float dist_sq = p.distance_squared_to(proj);
-		float seg_y = seg.y_start + t * seg.y_diff;
-
-		if (dist_sq < min_dist_sq) {
-			min_dist_sq = dist_sq;
-			closest_y = seg_y;
-		}
-
-		if (interpolation_mode == INTERP_IDW_LINE) {
-			// IDW already uses squared distance, so we save another multiplication!
-			float weight = 1.0f / (dist_sq + 0.001f);
-			blended_y_line += seg_y * weight;
-			total_weight_line += weight;
-		}
-	}
-
-	// Only do the expensive square root ONCE at the very end
-	res.distance = Math::sqrt(min_dist_sq);
-
-	if (interpolation_mode == INTERP_NEAREST) {
-		res.spline_y = closest_y;
-	} else if (interpolation_mode == INTERP_IDW_LINE) {
-		res.spline_y = (total_weight_line > 0.0f) ? (blended_y_line / total_weight_line) : closest_y;
-	} else if (interpolation_mode == INTERP_IDW_VERTEX) {
-		float total_weight_vert = 0.0f;
-		float blended_y_vert = 0.0f;
-		for (int i = 0; i < baked_poly3d.size(); ++i) {
-			Vector2 pt_2d(baked_poly3d[i].x, baked_poly3d[i].z);
-			float dist_sq = p.distance_squared_to(pt_2d);
-			float weight = 1.0f / (dist_sq + 0.001f);
-			blended_y_vert += baked_poly3d[i].y * weight;
-			total_weight_vert += weight;
-		}
-		res.spline_y = (total_weight_vert > 0.0f) ? (blended_y_vert / total_weight_vert) : closest_y;
-	}
-
-	return res;
 }
 
 ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segmented(const Vector2 &p, const std::vector<int> &p_segment_indices) const {
@@ -449,8 +397,17 @@ ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segment
 	} else if (interpolation_mode == INTERP_IDW_VERTEX) {
 		float total_weight_vert = 0.0f;
 		float blended_y_vert = 0.0f;
+
+		float search_radius = MAX(cached_max_padding, bake_interval * 2.0f);
+
 		for (int i = 0; i < baked_poly3d.size(); ++i) {
 			Vector2 pt_2d(baked_poly3d[i].x, baked_poly3d[i].z);
+
+			if (Math::abs(p.x - pt_2d.x) > search_radius ||
+				Math::abs(p.y - pt_2d.y) > search_radius) {
+				continue;
+			}
+
 			float dist_sq = p.distance_squared_to(pt_2d);
 			float weight = 1.0f / (dist_sq + 0.001f);
 			blended_y_vert += baked_poly3d[i].y * weight;
