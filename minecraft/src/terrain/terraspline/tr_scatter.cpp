@@ -1,4 +1,13 @@
-#include "terraspline.h"
+/*
+ * Module Path: src/terrain/terraspline/tr_scatter.cpp
+ * Explicit System Responsibility: Implements spline-based foliage scattering,
+ * orchestrating grid sampling, culling checks (density, slope, noise, and spline proximity),
+ * and parallel execution via WorkerThreadPool to instantiate MultiMeshInstances and collision shapes.
+ * Build Dependencies: tr_scatter.h, terrain/terraspline/terraspline.h, Godot APIs (Time, WorkerThreadPool, ClassDB, Object, UtilityFunctions).
+ */
+
+#include "tr_scatter.h"
+#include "terrain/terraspline/terraspline.h"
 #include <godot_cpp/classes/time.hpp> // NEW: For high-precision profiling
 #include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -7,10 +16,6 @@
 
 namespace godot {
 
-/**
- * @brief Binds TerrainSplineScatter methods and properties to Godot's ClassDB.
- * Exposes spawned mesh, collision shapes, spacing/density parameters, slope thresholds, and spline corridor boundaries.
- */
 void TerrainSplineScatter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_mesh", "mesh"), &TerrainSplineScatter::set_mesh);
 	ClassDB::bind_method(D_METHOD("get_mesh"), &TerrainSplineScatter::get_mesh);
@@ -67,9 +72,10 @@ void TerrainSplineScatter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("run_scatter_job", "job", "chunk_size"), &TerrainSplineScatter::run_scatter_job);
 }
 
-/**
- * @brief Default Constructor. Configures default density, spacing, and scale limits.
- */
+static inline float local_lerp(float a, float b, float t) {
+	return a + t * (b - a);
+}
+
 TerrainSplineScatter::TerrainSplineScatter() {
 	density = 0.1f;
 	spacing = 4.0f;
@@ -83,59 +89,103 @@ TerrainSplineScatter::TerrainSplineScatter() {
 	biome_noise_threshold = 0.0f;
 }
 
-/**
- * @brief Default Destructor.
- */
 TerrainSplineScatter::~TerrainSplineScatter() {}
 
-void TerrainSplineScatter::set_mesh(const Ref<Mesh> &p_mesh) { mesh = p_mesh; }
-Ref<Mesh> TerrainSplineScatter::get_mesh() const { return mesh; }
+bool TerrainSplineScatter::_evaluate_height_and_slope(const float *heightmap_data, int p_chunk_size, float local_x, float local_z, float &r_height, Vector3 &r_normal, float &r_slope_deg) const {
+	int lx = (int)local_x;
+	int lz = (int)local_z;
+	int lx_min = Math::clamp(lx, 0, p_chunk_size - 1);
+	int lx_max = Math::clamp(lx + 1, 0, p_chunk_size - 1);
+	int lz_min = Math::clamp(lz, 0, p_chunk_size - 1);
+	int lz_max = Math::clamp(lz + 1, 0, p_chunk_size - 1);
 
-void TerrainSplineScatter::set_collision_shape(const Ref<Shape3D> &p_shape) { collision_shape = p_shape; }
-Ref<Shape3D> TerrainSplineScatter::get_collision_shape() const { return collision_shape; }
+	float fx = local_x - lx;
+	float fz = local_z - lz;
 
-void TerrainSplineScatter::set_density(float p_density) { density = CLAMP(p_density, 0.0f, 1.0f); }
-float TerrainSplineScatter::get_density() const { return density; }
+	float h00 = heightmap_data[lz_min * p_chunk_size + lx_min];
+	float h10 = heightmap_data[lz_min * p_chunk_size + lx_max];
+	float h01 = heightmap_data[lz_max * p_chunk_size + lx_min];
+	float h11 = heightmap_data[lz_max * p_chunk_size + lx_max];
 
-void TerrainSplineScatter::set_spacing(float p_spacing) { spacing = MAX(0.5f, p_spacing); }
-float TerrainSplineScatter::get_spacing() const { return spacing; }
+	r_height = local_lerp(local_lerp(h00, h10, fx), local_lerp(h01, h11, fx), fz);
+	float dx = local_lerp(h10 - h00, h11 - h01, fz);
+	float dz = local_lerp(h01 - h00, h11 - h10, fx);
 
-void TerrainSplineScatter::set_scale_min(float p_min) { scale_min = p_min; }
-float TerrainSplineScatter::get_scale_min() const { return scale_min; }
+	r_normal = Vector3(-dx, 1.0f, -dz);
+	r_normal.normalize();
 
-void TerrainSplineScatter::set_scale_max(float p_max) { scale_max = p_max; }
-float TerrainSplineScatter::get_scale_max() const { return scale_max; }
-
-void TerrainSplineScatter::set_min_slope(float p_min_slope) { min_slope = p_min_slope; }
-float TerrainSplineScatter::get_min_slope() const { return min_slope; }
-
-void TerrainSplineScatter::set_max_slope(float p_max_slope) { max_slope = p_max_slope; }
-float TerrainSplineScatter::get_max_slope() const { return max_slope; }
-
-void TerrainSplineScatter::set_min_spline_dist(float p_dist) { min_spline_dist = p_dist; }
-float TerrainSplineScatter::get_min_spline_dist() const { return min_spline_dist; }
-
-void TerrainSplineScatter::set_max_spline_dist(float p_dist) { max_spline_dist = p_dist; }
-float TerrainSplineScatter::get_max_spline_dist() const { return max_spline_dist; }
-
-void TerrainSplineScatter::set_seed_offset(int p_seed_offset) { seed_offset = p_seed_offset; }
-int TerrainSplineScatter::get_seed_offset() const { return seed_offset; }
-
-void TerrainSplineScatter::set_biome_noise(const Ref<Noise> &p_noise) { biome_noise = p_noise; }
-Ref<Noise> TerrainSplineScatter::get_biome_noise() const { return biome_noise; }
-
-void TerrainSplineScatter::set_biome_noise_threshold(float p_threshold) { biome_noise_threshold = p_threshold; }
-float TerrainSplineScatter::get_biome_noise_threshold() const { return biome_noise_threshold; }
-
-static inline float local_lerp(float a, float b, float t) {
-	return a + t * (b - a);
+	r_slope_deg = Math::rad_to_deg(Math::acos(r_normal.y));
+	return true;
 }
 
-/**
- * @brief Thread-pool worker function that evaluates and generates transform matrices for foliage scattering.
- * Iterates through grid cells, checks biome noise, evaluates distances to spline corridors, checks heightmap slopes,
- * and adds successfully generated foliage points into the ScatterJob transforms.
- */
+bool TerrainSplineScatter::_process_scatter_cell(const Ref<ScatterJob> &p_job, int cx, int cz, uint64_t base_seed, const Vector2 &offset, int p_chunk_size, float spacing, float density, const float *heightmap_data, const std::vector<int> &active_segments, Transform3D &r_transform) {
+	Vector2i chunk_pos = p_job->chunk->get_chunk_coords();
+	uint64_t cell_seed = base_seed ^ (uint64_t(chunk_pos.x) * 73856093ULL) ^ (uint64_t(chunk_pos.y) * 19349663ULL) ^ (uint64_t(cx) * 83492791ULL) ^ (uint64_t(cz) * 37476139ULL) ^ uint64_t(seed_offset);
+
+	struct SimpleRNG {
+		uint64_t state;
+		SimpleRNG(uint64_t seed) : state(seed) {}
+		uint32_t next() {
+			state = state * 6364136223846793005ULL + 1442695040888963407ULL;
+			return uint32_t(state >> 32);
+		}
+		float next_float() {
+			return float(next()) / 4294967296.0f;
+		}
+		float next_float_range(float min_val, float max_val) {
+			return min_val + next_float() * (max_val - min_val);
+		}
+	} rng(cell_seed);
+
+	if (rng.next_float() > density) {
+		p_job->debug_density_skipped++;
+		return false;
+	}
+
+	float cell_min_x = offset.x + cx * spacing;
+	float cell_min_z = offset.y + cz * spacing;
+	float random_x = cell_min_x + rng.next_float() * spacing;
+	float random_z = cell_min_z + rng.next_float() * spacing;
+
+	if (biome_noise.is_valid()) {
+		float noise_val = (biome_noise->get_noise_2d(random_x, random_z) + 1.0f) * 0.5f;
+		if (noise_val < biome_noise_threshold || rng.next_float() > noise_val) {
+			p_job->debug_noise_skipped++;
+			return false;
+		}
+	}
+
+	Vector2 test_point(random_x, random_z);
+	ProceduralSpline3D::SplineEval eval = p_job->spline->evaluate_spline_point_segmented(test_point, active_segments);
+	if (eval.distance < min_spline_dist || eval.distance > max_spline_dist) {
+		p_job->debug_spline_skipped++;
+		return false;
+	}
+
+	float local_x = CLAMP(random_x - offset.x, 0.0f, (float)p_chunk_size - 1.0001f);
+	float local_z = CLAMP(random_z - offset.y, 0.0f, (float)p_chunk_size - 1.0001f);
+
+	float exact_y = 0.0f;
+	Vector3 normal;
+	float theta_deg = 0.0f;
+	_evaluate_height_and_slope(heightmap_data, p_chunk_size, local_x, local_z, exact_y, normal, theta_deg);
+
+	if (theta_deg < min_slope || theta_deg > max_slope) {
+		p_job->debug_slope_skipped++;
+		return false;
+	}
+
+	float rand_yaw = rng.next_float_range(0.0f, Math_TAU);
+	float rand_scale = rng.next_float_range(scale_min, scale_max);
+
+	r_transform.origin = Vector3(random_x, exact_y, random_z);
+	r_transform.basis = Basis();
+	r_transform.basis.rotate(Vector3(0, 1, 0), rand_yaw);
+	r_transform.basis.scale(Vector3(1, 1, 1) * rand_scale);
+
+	return true;
+}
+
 void TerrainSplineScatter::run_scatter_job(const Ref<ScatterJob> &p_job, int p_chunk_size) {
 	if (p_job.is_null() || p_job->chunk.is_null() || p_job->spline == nullptr || p_job->scatterer == nullptr) {
 		return;
@@ -155,7 +205,6 @@ void TerrainSplineScatter::run_scatter_job(const Ref<ScatterJob> &p_job, int p_c
 		return;
 	}
 
-	Vector2i chunk_pos = chunk->get_chunk_coords();
 	Ref<TerrainHeightmap> buffer = chunk->get_heightmap();
 	if (buffer.is_null()) {
 		return;
@@ -165,24 +214,20 @@ void TerrainSplineScatter::run_scatter_job(const Ref<ScatterJob> &p_job, int p_c
 		return;
 	}
 
-	// Calculate the total number of cells in the chunk
 	int num_cells = (int)Math::floor(p_chunk_size / spacing);
 	if (num_cells <= 0) {
 		return;
 	}
 
-	// OPTIMIZATION: Only loop through cells near the spline!
 	Rect2 spline_bounds = p_job->spline_bounds;
-	spline_bounds = spline_bounds.grow(scatterer->get_max_spline_dist()); // Pad by scatter radius
+	spline_bounds = spline_bounds.grow(scatterer->get_max_spline_dist());
 
 	Rect2 chunk_rect(offset, Vector2(p_chunk_size, p_chunk_size));
 	Rect2 active_area = spline_bounds.intersection(chunk_rect);
-
 	if (!active_area.has_area()) {
-		return; // Spline doesn't affect this chunk's scatter area
+		return;
 	}
 
-	// Find which segments overlap the active area (grown by max_spline_dist)
 	std::vector<int> active_segments;
 	float max_dist = scatterer->get_max_spline_dist();
 	for (size_t i = 0; i < spline->baked_segments.size(); ++i) {
@@ -198,7 +243,6 @@ void TerrainSplineScatter::run_scatter_job(const Ref<ScatterJob> &p_job, int p_c
 		return;
 	}
 
-	// Convert the active area bounds into grid cell indices
 	int min_cx = Math::max(0, (int)Math::floor((active_area.position.x - offset.x) / spacing));
 	int max_cx = Math::min(num_cells - 1, (int)Math::ceil((active_area.position.x + active_area.size.x - offset.x) / spacing));
 	int min_cz = Math::max(0, (int)Math::floor((active_area.position.y - offset.y) / spacing));
@@ -214,116 +258,12 @@ void TerrainSplineScatter::run_scatter_job(const Ref<ScatterJob> &p_job, int p_c
 	transforms.reserve(p_job->debug_total_cells);
 
 	uint64_t base_seed = 1234567ULL;
-
-	// Loop ONLY over the restricted bounding box!
 	for (int cz = min_cz; cz <= max_cz; ++cz) {
 		for (int cx = min_cx; cx <= max_cx; ++cx) {
-			// Deterministic cell seed
-			uint64_t cell_seed = base_seed ^ (uint64_t(chunk_pos.x) * 73856093ULL) ^ (uint64_t(chunk_pos.y) * 19349663ULL) ^ (uint64_t(cx) * 83492791ULL) ^ (uint64_t(cz) * 37476139ULL) ^ uint64_t(scatterer->get_seed_offset());
-
-			// Simple RNG
-			struct SimpleRNG {
-				uint64_t state;
-				SimpleRNG(uint64_t seed) : state(seed) {}
-				uint32_t next() {
-					state = state * 6364136223846793005ULL + 1442695040888963407ULL;
-					return uint32_t(state >> 32);
-				}
-				float next_float() {
-					return float(next()) / 4294967296.0f;
-				}
-				float next_float_range(float min_val, float max_val) {
-					return min_val + next_float() * (max_val - min_val);
-				}
-			} rng(cell_seed);
-
-			// Density check per cell
-			if (rng.next_float() > density) {
-				p_job->debug_density_skipped++;
-				continue;
-			}
-
-			// Generate candidate point in cell
-			float cell_min_x = offset.x + cx * spacing;
-			float cell_min_z = offset.y + cz * spacing;
-
-			float rx = rng.next_float() * spacing;
-			float rz = rng.next_float() * spacing;
-			float random_x = cell_min_x + rx;
-			float random_z = cell_min_z + rz;
-
-			// Coherent biome noise check
-			if (scatterer->get_biome_noise().is_valid()) {
-				float noise_val = (scatterer->get_biome_noise()->get_noise_2d(random_x, random_z) + 1.0f) * 0.5f;
-				if (noise_val < scatterer->get_biome_noise_threshold()) {
-					p_job->debug_noise_skipped++;
-					continue;
-				}
-				// Density scaling based on noise
-				if (rng.next_float() > noise_val) {
-					p_job->debug_noise_skipped++;
-					continue;
-				}
-			}
-
-			// Spline corridor check
-			Vector2 test_point(random_x, random_z);
-			ProceduralSpline3D::SplineEval eval = spline->evaluate_spline_point_segmented(test_point, active_segments);
-			if (eval.distance < scatterer->get_min_spline_dist() || eval.distance > scatterer->get_max_spline_dist()) {
-				p_job->debug_spline_skipped++;
-				continue;
-			}
-
-			// Local heights check to determine normal and slope
-			float local_x = CLAMP(random_x - offset.x, 0.0f, (float)p_chunk_size - 1.0001f);
-			float local_z = CLAMP(random_z - offset.y, 0.0f, (float)p_chunk_size - 1.0001f);
-
-			int lx = (int)local_x;
-			int lz = (int)local_z;
-
-			// clamp coordinates for safety
-			int lx_min = Math::clamp(lx, 0, p_chunk_size - 1);
-			int lx_max = Math::clamp(lx + 1, 0, p_chunk_size - 1);
-			int lz_min = Math::clamp(lz, 0, p_chunk_size - 1);
-			int lz_max = Math::clamp(lz + 1, 0, p_chunk_size - 1);
-
-			float fx = local_x - lx;
-			float fz = local_z - lz;
-
-			// Get the 4 surrounding heights
-			float h00 = heightmap_data[lz_min * p_chunk_size + lx_min];
-			float h10 = heightmap_data[lz_min * p_chunk_size + lx_max];
-			float h01 = heightmap_data[lz_max * p_chunk_size + lx_min];
-			float h11 = heightmap_data[lz_max * p_chunk_size + lx_max];
-
-			// Bilinear interpolation height calculation
-			float exact_y = local_lerp(local_lerp(h00, h10, fx), local_lerp(h01, h11, fx), fz);
-
-			// Compute precise normal vector using adjacent heightmap heights (bilinearly interpolated)
-			float dx = local_lerp(h10 - h00, h11 - h01, fz);
-			float dz = local_lerp(h01 - h00, h11 - h10, fx);
-
-			Vector3 normal(-dx, 1.0f, -dz);
-			normal.normalize();
-
-			// Slope angle theta = accos(n.y)
-			float theta = Math::acos(normal.y);
-			float theta_deg = Math::rad_to_deg(theta);
-			if (theta_deg < scatterer->get_min_slope() || theta_deg > scatterer->get_max_slope()) {
-				p_job->debug_slope_skipped++;
-				continue;
-			}
-
-			// Build transform
-			float rand_yaw = rng.next_float_range(0.0f, Math_TAU);
-			float rand_scale = rng.next_float_range(scatterer->get_scale_min(), scatterer->get_scale_max());
-
 			Transform3D t;
-			t.origin = Vector3(random_x, exact_y, random_z);
-			t.basis.rotate(Vector3(0, 1, 0), rand_yaw);
-			t.basis.scale(Vector3(1, 1, 1) * rand_scale);
-
-			transforms.push_back(t);
+			if (_process_scatter_cell(p_job, cx, cz, base_seed, offset, p_chunk_size, spacing, density, heightmap_data, active_segments, t)) {
+				transforms.push_back(t);
+			}
 		}
 	}
 
@@ -334,16 +274,8 @@ void TerrainSplineScatter::run_scatter_job(const Ref<ScatterJob> &p_job, int p_c
 #endif
 }
 
-/**
- * @brief Static method orchestrating foliage generation for a given chunk across all overlapping splines.
- * Instantiates ScatterJobs, registers them in WorkerThreadPool tasks, waits for completions, and creates
- * MultiMeshInstance3D visual nodes and static colliders on the main thread.
- */
-void TerrainSplineScatter::scatter_chunk(const Ref<TerrainChunk> &p_chunk, const std::vector<ProceduralSpline3D *> &p_splines, const Rect2 &p_chunk_rect, const Vector2 &p_offset, int p_chunk_size, Node3D *p_scatter_container, Node *p_owner_node) {
-	std::vector<Ref<ScatterJob>> jobs;
-	std::vector<int> task_ids;
+void TerrainSplineScatter::_dispatch_scatter_jobs(const Ref<TerrainChunk> &p_chunk, const std::vector<ProceduralSpline3D *> &p_splines, const Rect2 &p_chunk_rect, const Vector2 &p_offset, int p_chunk_size, std::vector<Ref<ScatterJob>> &r_jobs, std::vector<int> &r_task_ids) {
 	WorkerThreadPool *wtp = WorkerThreadPool::get_singleton();
-
 	for (ProceduralSpline3D *spline : p_splines) {
 		if (!spline->get_padded_aabb().intersects(p_chunk_rect)) {
 			continue;
@@ -363,97 +295,104 @@ void TerrainSplineScatter::scatter_chunk(const Ref<TerrainChunk> &p_chunk, const
 				job->offset = p_offset;
 				job->spline_bounds = spline->get_padded_aabb();
 
-				jobs.push_back(job);
+				r_jobs.push_back(job);
 
 				if (wtp) {
 					Callable callable = Callable(scatterer, "run_scatter_job").bind(job, p_chunk_size);
 					int task_id = wtp->add_task(callable, "TerrainScatterJob");
-					task_ids.push_back(task_id);
+					r_task_ids.push_back(task_id);
 				} else {
 					scatterer->run_scatter_job(job, p_chunk_size);
 				}
 			}
 		}
 	}
+}
 
-	// Wait for background tasks to complete
+void TerrainSplineScatter::_finalize_scatter_job(const Ref<ScatterJob> &p_job, Node3D *p_scatter_container, Node *p_owner_node) {
+	TerrainSplineScatter *scatterer = p_job->scatterer;
+
+#if DEBUG
+	int spawned = (int)p_job->transforms.size();
+	float time_ms = p_job->debug_time_spent_usec / 1000.0f;
+	float spawned_pct = p_job->debug_total_cells > 0 ? (float)spawned / p_job->debug_total_cells * 100.0f : 0.0f;
+
+	UtilityFunctions::print("    [Scatterer: ", scatterer->get_name(), "] Spawned: ", spawned, " / ", p_job->debug_total_cells, " cells (", spawned_pct, "%) | Time: ", time_ms, " ms");
+
+	if (p_job->debug_total_cells > 0) {
+		float dens_pct = (float)p_job->debug_density_skipped / p_job->debug_total_cells * 100.0f;
+		float noise_pct = (float)p_job->debug_noise_skipped / p_job->debug_total_cells * 100.0f;
+		float spline_pct = (float)p_job->debug_spline_skipped / p_job->debug_total_cells * 100.0f;
+		float slope_pct = (float)p_job->debug_slope_skipped / p_job->debug_total_cells * 100.0f;
+		UtilityFunctions::print("      └─ Culled -> Density: ", p_job->debug_density_skipped, " (", dens_pct, "%) | Noise: ", p_job->debug_noise_skipped, " (", noise_pct, "%) | Spline Corridor: ", p_job->debug_spline_skipped, " (", spline_pct, "%) | Slope: ", p_job->debug_slope_skipped, " (", slope_pct, "%)");
+	}
+#endif
+
+	if (p_job->transforms.empty()) {
+		return;
+	}
+
+	MultiMeshInstance3D *mmi = memnew(MultiMeshInstance3D);
+	Ref<MultiMesh> mm;
+	mm.instantiate();
+	mm->set_transform_format(MultiMesh::TRANSFORM_3D);
+	mm->set_instance_count(p_job->transforms.size());
+	mm->set_mesh(scatterer->get_mesh());
+
+	PackedFloat32Array buffer_array;
+	buffer_array.resize(p_job->transforms.size() * 12);
+	float *ptr = buffer_array.ptrw();
+	for (size_t i = 0; i < p_job->transforms.size(); ++i) {
+		Transform3D t = p_job->transforms[i];
+		int base = i * 12;
+		ptr[base + 0] = t.basis[0][0];
+		ptr[base + 1] = t.basis[0][1];
+		ptr[base + 2] = t.basis[0][2];
+		ptr[base + 3] = t.origin.x;
+
+		ptr[base + 4] = t.basis[1][0];
+		ptr[base + 5] = t.basis[1][1];
+		ptr[base + 6] = t.basis[1][2];
+		ptr[base + 7] = t.origin.y;
+
+		ptr[base + 8] = t.basis[2][0];
+		ptr[base + 9] = t.basis[2][1];
+		ptr[base + 10] = t.basis[2][2];
+		ptr[base + 11] = t.origin.z;
+	}
+
+	mm->set_buffer(buffer_array);
+	mmi->set_multimesh(mm);
+	if (p_scatter_container) {
+		p_scatter_container->add_child(mmi);
+	} else if (p_owner_node) {
+		p_owner_node->add_child(mmi);
+	}
+	p_job->chunk->get_visual_nodes().push_back(mmi->get_instance_id());
+
+	if (scatterer->get_collision_shape().is_valid()) {
+		TerrainChunk::PhysicsCache pc;
+		pc.shape_rid = scatterer->get_collision_shape()->get_rid();
+		pc.transforms = p_job->transforms;
+		p_job->chunk->get_physics_caches().push_back(pc);
+	}
+}
+
+void TerrainSplineScatter::scatter_chunk(const Ref<TerrainChunk> &p_chunk, const std::vector<ProceduralSpline3D *> &p_splines, const Rect2 &p_chunk_rect, const Vector2 &p_offset, int p_chunk_size, Node3D *p_scatter_container, Node *p_owner_node) {
+	std::vector<Ref<ScatterJob>> jobs;
+	std::vector<int> task_ids;
+
+	_dispatch_scatter_jobs(p_chunk, p_splines, p_chunk_rect, p_offset, p_chunk_size, jobs, task_ids);
+
+	WorkerThreadPool *wtp = WorkerThreadPool::get_singleton();
 	if (wtp) {
 		for (int task_id : task_ids) {
 			wtp->wait_for_task_completion(task_id);
 		}
 	}
 
-	// Now finalize the completed jobs on the main thread
 	for (const Ref<ScatterJob> &job : jobs) {
-		TerrainSplineScatter *scatterer = job->scatterer;
-
-#if DEBUG
-		int spawned = (int)job->transforms.size();
-		float time_ms = job->debug_time_spent_usec / 1000.0f;
-		float spawned_pct = job->debug_total_cells > 0 ? (float)spawned / job->debug_total_cells * 100.0f : 0.0f;
-
-		UtilityFunctions::print("    [Scatterer: ", scatterer->get_name(), "] Spawned: ", spawned, " / ", job->debug_total_cells, " cells (", spawned_pct, "%) | Time: ", time_ms, " ms");
-
-		if (job->debug_total_cells > 0) {
-			float dens_pct = (float)job->debug_density_skipped / job->debug_total_cells * 100.0f;
-			float noise_pct = (float)job->debug_noise_skipped / job->debug_total_cells * 100.0f;
-			float spline_pct = (float)job->debug_spline_skipped / job->debug_total_cells * 100.0f;
-			float slope_pct = (float)job->debug_slope_skipped / job->debug_total_cells * 100.0f;
-			UtilityFunctions::print("      └─ Culled -> Density: ", job->debug_density_skipped, " (", dens_pct, "%) | Noise: ", job->debug_noise_skipped, " (", noise_pct, "%) | Spline Corridor: ", job->debug_spline_skipped, " (", spline_pct, "%) | Slope: ", job->debug_slope_skipped, " (", slope_pct, "%)");
-		}
-#endif
-
-		if (job->transforms.empty()) {
-			continue;
-		}
-
-		// 1. Create visuals (MultiMeshInstance3D)
-		MultiMeshInstance3D *mmi = memnew(MultiMeshInstance3D);
-		Ref<MultiMesh> mm;
-		mm.instantiate();
-		mm->set_transform_format(MultiMesh::TRANSFORM_3D);
-		mm->set_instance_count(job->transforms.size());
-		mm->set_mesh(scatterer->get_mesh());
-
-		// Pack transforms into a float array
-		PackedFloat32Array buffer_array;
-		buffer_array.resize(job->transforms.size() * 12);
-		float *ptr = buffer_array.ptrw();
-		for (size_t i = 0; i < job->transforms.size(); ++i) {
-			Transform3D t = job->transforms[i];
-			int base = i * 12;
-			ptr[base + 0] = t.basis[0][0];
-			ptr[base + 1] = t.basis[0][1];
-			ptr[base + 2] = t.basis[0][2];
-			ptr[base + 3] = t.origin.x;
-
-			ptr[base + 4] = t.basis[1][0];
-			ptr[base + 5] = t.basis[1][1];
-			ptr[base + 6] = t.basis[1][2];
-			ptr[base + 7] = t.origin.y;
-
-			ptr[base + 8] = t.basis[2][0];
-			ptr[base + 9] = t.basis[2][1];
-			ptr[base + 10] = t.basis[2][2];
-			ptr[base + 11] = t.origin.z;
-		}
-
-		mm->set_buffer(buffer_array);
-		mmi->set_multimesh(mm);
-		if (p_scatter_container) {
-			p_scatter_container->add_child(mmi);
-		} else if (p_owner_node) {
-			p_owner_node->add_child(mmi);
-		}
-		p_chunk->get_visual_nodes().push_back(mmi->get_instance_id());
-
-		// 2. Cache physics transforms if collision shape is set
-		if (scatterer->get_collision_shape().is_valid()) {
-			TerrainChunk::PhysicsCache pc;
-			pc.shape_rid = scatterer->get_collision_shape()->get_rid();
-			pc.transforms = job->transforms;
-			p_chunk->get_physics_caches().push_back(pc);
-		}
+		_finalize_scatter_job(job, p_scatter_container, p_owner_node);
 	}
 }
 

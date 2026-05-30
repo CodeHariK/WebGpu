@@ -129,40 +129,6 @@ public:
 	const std::vector<PhysicsCache> &get_physics_caches() const { return physics_caches; }
 };
 
-/**
- * @class ScatterJob
- * @brief Sealed data envelope for parallel spline scattering.
- *
- * Envelops the input parameters (target chunk, parent spline, density/spacing configurations, offset)
- * and the output array of Transform3D matrices. This ensures background worker threads only write to
- * the job container and do not mutate state on the parent TerrainSplineScatter node directly.
- */
-class ScatterJob : public RefCounted {
-	GDCLASS(ScatterJob, RefCounted)
-
-public:
-	Ref<TerrainChunk> chunk;
-	ProceduralSpline3D *spline = nullptr;
-	TerrainSplineScatter *scatterer = nullptr;
-	Vector2 offset;
-	std::vector<Transform3D> transforms;
-	Rect2 spline_bounds;
-
-	// METRICS
-	int debug_total_cells = 0;
-	int debug_density_skipped = 0;
-	int debug_noise_skipped = 0;
-	int debug_spline_skipped = 0;
-	int debug_slope_skipped = 0;
-	uint64_t debug_time_spent_usec = 0;
-
-	ScatterJob() {}
-	~ScatterJob() {}
-
-protected:
-	static void _bind_methods() {}
-};
-
 class GrayscaleJob : public RefCounted {
 	GDCLASS(GrayscaleJob, RefCounted)
 public:
@@ -178,78 +144,6 @@ public:
 
 protected:
 	static void _bind_methods() {}
-};
-
-class TerrainSplineScatter : public SplineComponent {
-	GDCLASS(TerrainSplineScatter, SplineComponent)
-
-private:
-	Ref<Mesh> mesh;
-	Ref<Shape3D> collision_shape;
-	float density = 0.1f;
-	float spacing = 4.0f;
-	float scale_min = 0.8f;
-	float scale_max = 1.2f;
-	float min_slope = 0.0f;
-	float max_slope = 35.0f;
-	float min_spline_dist = 2.0f;
-	float max_spline_dist = 30.0f;
-	uint32_t seed_offset = 0;
-	Ref<Noise> biome_noise;
-	float biome_noise_threshold = 0.0f;
-
-protected:
-	static void _bind_methods();
-
-public:
-	TerrainSplineScatter();
-	~TerrainSplineScatter();
-
-	void run_scatter_job(const Ref<ScatterJob> &p_job, int p_chunk_size);
-	static void scatter_chunk(const Ref<TerrainChunk> &p_chunk, const std::vector<ProceduralSpline3D *> &p_splines, const Rect2 &p_chunk_rect, const Vector2 &p_offset, int p_chunk_size, Node3D *p_scatter_container, Node *p_owner_node);
-
-	float get_spline_padding() const override {
-		return max_spline_dist;
-	}
-
-	void set_mesh(const Ref<Mesh> &p_mesh);
-	Ref<Mesh> get_mesh() const;
-
-	void set_collision_shape(const Ref<Shape3D> &p_shape);
-	Ref<Shape3D> get_collision_shape() const;
-
-	void set_density(float p_density);
-	float get_density() const;
-
-	void set_spacing(float p_spacing);
-	float get_spacing() const;
-
-	void set_scale_min(float p_min);
-	float get_scale_min() const;
-
-	void set_scale_max(float p_max);
-	float get_scale_max() const;
-
-	void set_min_slope(float p_min_slope);
-	float get_min_slope() const;
-
-	void set_max_slope(float p_max_slope);
-	float get_max_slope() const;
-
-	void set_min_spline_dist(float p_dist);
-	float get_min_spline_dist() const;
-
-	void set_max_spline_dist(float p_dist);
-	float get_max_spline_dist() const;
-
-	void set_seed_offset(int p_seed_offset);
-	int get_seed_offset() const;
-
-	void set_biome_noise(const Ref<Noise> &p_noise);
-	Ref<Noise> get_biome_noise() const;
-
-	void set_biome_noise_threshold(float p_threshold);
-	float get_biome_noise_threshold() const;
 };
 
 class TerrainSplineCompositor : public Node {
@@ -349,5 +243,6 @@ public:
 } // namespace godot
 
 #include "tr_deformer.h"
+#include "tr_scatter.h"
 
 #endif // TERRASPLINE_NEW_H

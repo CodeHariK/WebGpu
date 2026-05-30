@@ -14,7 +14,7 @@ trigger: always_on
 ## 2. Structural Requirements
 
 * **Single Responsibility Principle (SRP):** Every function or method must have exactly one responsibility or reason to change. 
-* **Function Size Cap:** Keep all function sizes small. No function may exceed **100 lines of executable code** under any circumstance. Aim for 30 to 50 lines.
+* **Function Size Cap:** Keep all function sizes small. No function may exceed **70 lines of executable code** under any circumstance. Aim for 30 to 40 lines.
 * **Modularity:** Keep all written code modular. If logic inside a function starts growing or handles multiple tasks, break it down into smaller, single-purpose helper functions immediately.
 
 ## 3. Godot specific

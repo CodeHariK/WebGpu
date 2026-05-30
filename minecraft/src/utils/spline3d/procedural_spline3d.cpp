@@ -1,3 +1,10 @@
+/*
+ * Module Path: src/utils/spline3d/procedural_spline3d.cpp
+ * Explicit System Responsibility: Implements the ProceduralSpline3D class methods,
+ * handling procedural spline cache rebuilding, projection, dirtiness accumulation, and height/distance queries.
+ * Build Dependencies: procedural_spline3d.h, utils/curve/curve_baker.h, Godot C++ APIs (Time, WorkerThreadPool, ClassDB, UtilityFunctions).
+ */
+
 #include "procedural_spline3d.h"
 #include "utils/curve/curve_baker.h"
 #include <godot_cpp/classes/time.hpp>
@@ -60,22 +67,7 @@ void ProceduralSpline3D::_notification(int p_what) {
 	}
 }
 
-bool ProceduralSpline3D::get_is_closed() const {
-	Ref<Curve3D> curve = get_curve();
-	return curve.is_valid() && curve->is_closed();
-}
 
-void ProceduralSpline3D::set_interpolation_mode(InterpolationMode p_mode) {
-	interpolation_mode = p_mode;
-	mark_dirty();
-}
-ProceduralSpline3D::InterpolationMode ProceduralSpline3D::get_interpolation_mode() const { return interpolation_mode; }
-
-void ProceduralSpline3D::set_bake_interval(float p_interval) {
-	bake_interval = MAX(0.1f, p_interval);
-	mark_dirty();
-}
-float ProceduralSpline3D::get_bake_interval() const { return bake_interval; }
 
 void ProceduralSpline3D::set_curve(const Ref<Curve3D> &p_curve) {
 	// 1. Disconnect from the OLD curve if it exists
@@ -297,6 +289,25 @@ bool ProceduralSpline3D::is_point_inside(const Vector2 &p, const PackedVector2Ar
 	return inside;
 }
 
+bool ProceduralSpline3D::is_point_inside_convex(const Vector2 &p, const PackedVector2Array &polygon, bool clockwise) const {
+	int num_pts = polygon.size();
+	for (int i = 0; i < num_pts; ++i) {
+		Vector2 a = polygon[i];
+		Vector2 b = polygon[(i + 1) % num_pts];
+		float cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+		if (clockwise) {
+			if (cross > 0.0f) {
+				return false;
+			}
+		} else {
+			if (cross < 0.0f) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 void ProceduralSpline3D::ensure_baked_cache() {
 	if (has_baked_cache) {
 		return;
@@ -328,6 +339,43 @@ void ProceduralSpline3D::ensure_baked_cache() {
 		baked_segments.push_back(seg);
 	}
 
+	// Check convexity
+	is_convex = false;
+	is_clockwise = false;
+
+	int num_pts = baked_poly2d.size();
+	if (get_is_closed() && num_pts >= 3) {
+		bool sign_set = false;
+		bool positive_sign = false;
+		bool possible_convex = true;
+
+		for (int i = 0; i < num_pts; ++i) {
+			Vector2 a = baked_poly2d[i];
+			Vector2 b = baked_poly2d[(i + 1) % num_pts];
+			Vector2 c = baked_poly2d[(i + 2) % num_pts];
+
+			float cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+			if (Math::abs(cross) < 0.0001f) {
+				continue;
+			}
+
+			bool current_positive = cross > 0.0f;
+			if (!sign_set) {
+				positive_sign = current_positive;
+				sign_set = true;
+			} else if (positive_sign != current_positive) {
+				possible_convex = false;
+				break;
+			}
+		}
+
+		if (possible_convex && sign_set) {
+			is_convex = true;
+			is_clockwise = !positive_sign;
+			UtilityFunctions::print("Spline is convex and clockwise: %s", is_clockwise ? "true" : "false");
+		}
+	}
+
 	has_baked_cache = true;
 }
 
@@ -350,8 +398,13 @@ ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segment
 
 	if (baked_poly3d.size() == 0)
 		return res;
-	if (get_is_closed())
-		res.is_inside = is_point_inside(p, baked_poly2d);
+	if (get_is_closed()) {
+		if (is_convex) {
+			res.is_inside = is_point_inside_convex(p, baked_poly2d, is_clockwise);
+		} else {
+			res.is_inside = is_point_inside(p, baked_poly2d);
+		}
+	}
 
 	if (baked_poly3d.size() == 1) {
 		res.distance = p.distance_to(Vector2(baked_poly3d[0].x, baked_poly3d[0].z));
