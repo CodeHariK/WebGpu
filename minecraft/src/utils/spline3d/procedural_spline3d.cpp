@@ -1,18 +1,15 @@
 #include "procedural_spline3d.h"
-#include <cmath>
+#include "utils/curve/curve_baker.h"
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include "utils/curve/curve_baker.h"
 
 namespace godot {
 
 void ProceduralSpline3D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_curve", "curve"), &ProceduralSpline3D::set_curve);
-	ClassDB::bind_method(D_METHOD("set_is_closed", "is_closed"), &ProceduralSpline3D::set_is_closed);
 	ClassDB::bind_method(D_METHOD("get_is_closed"), &ProceduralSpline3D::get_is_closed);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "is_closed"), "set_is_closed", "get_is_closed");
 
 	ClassDB::bind_method(D_METHOD("set_interpolation_mode", "mode"), &ProceduralSpline3D::set_interpolation_mode);
 	ClassDB::bind_method(D_METHOD("get_interpolation_mode"), &ProceduralSpline3D::get_interpolation_mode);
@@ -34,7 +31,6 @@ void ProceduralSpline3D::_bind_methods() {
 
 ProceduralSpline3D::ProceduralSpline3D() {
 	set_notify_transform(true);
-	is_closed = true;
 	interpolation_mode = INTERP_IDW_LINE;
 	bake_interval = 2.0f;
 }
@@ -60,11 +56,10 @@ void ProceduralSpline3D::_notification(int p_what) {
 	}
 }
 
-void ProceduralSpline3D::set_is_closed(bool p_closed) {
-	is_closed = p_closed;
-	mark_dirty();
+bool ProceduralSpline3D::get_is_closed() const {
+	Ref<Curve3D> curve = get_curve();
+	return curve.is_valid() && curve->is_closed();
 }
-bool ProceduralSpline3D::get_is_closed() const { return is_closed; }
 
 void ProceduralSpline3D::set_interpolation_mode(InterpolationMode p_mode) {
 	interpolation_mode = p_mode;
@@ -307,7 +302,7 @@ void ProceduralSpline3D::ensure_baked_cache() {
 	baked_poly2d = get_baked_points_2d();
 
 	baked_segments.clear();
-	int limit = is_closed ? baked_poly3d.size() : baked_poly3d.size() - 1;
+	int limit = get_is_closed() ? baked_poly3d.size() : baked_poly3d.size() - 1;
 	baked_segments.reserve(limit);
 
 	for (int i = 0; i < limit; ++i) {
@@ -351,7 +346,7 @@ ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segment
 
 	if (baked_poly3d.size() == 0)
 		return res;
-	if (is_closed)
+	if (get_is_closed())
 		res.is_inside = is_point_inside(p, baked_poly2d);
 
 	if (baked_poly3d.size() == 1) {

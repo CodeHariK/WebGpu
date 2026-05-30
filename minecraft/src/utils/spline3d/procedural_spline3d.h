@@ -52,7 +52,6 @@ public:
 	};
 
 private:
-	bool is_closed = true;
 	InterpolationMode interpolation_mode = INTERP_IDW_LINE;
 	float bake_interval = 2.0f;
 
@@ -80,7 +79,6 @@ public:
 	~ProceduralSpline3D();
 
 	void set_curve(const Ref<Curve3D> &p_curve);
-	void set_is_closed(bool p_closed);
 	bool get_is_closed() const;
 	void set_interpolation_mode(InterpolationMode p_mode);
 	InterpolationMode get_interpolation_mode() const;
