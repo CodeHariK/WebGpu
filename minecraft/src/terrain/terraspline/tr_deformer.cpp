@@ -1,3 +1,9 @@
+/*
+ * Module Path: src/terrain/terraspline/tr_deformer.cpp
+ * System Responsibility: Implements spline-based heightmap deformation algorithms and threads.
+ * Build Dependencies: terraspline.h, godot_cpp
+ */
+
 #include "terraspline.h"
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/classes/worker_thread_pool.hpp>
@@ -6,14 +12,19 @@
 
 namespace godot {
 
+/*
+ * Purpose: Linearly interpolates between two float values.
+ * Execution steps: Computes direct interpolation value.
+ * Parameters:
+ *   - a: Start value.
+ *   - b: End value.
+ *   - t: Blend weight fraction.
+ * Behavioral bounds: Returns interpolated float.
+ */
 static inline float local_lerp(float a, float b, float t) {
 	return a + t * (b - a);
 }
 
-/**
- * @brief Binds TerrainSplineDeformer methods and properties to Godot's ClassDB.
- * Exposes spline max height, width, falloff distance, blend mode, and curve parameters.
- */
 void TerrainSplineDeformer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_max_height", "max_height"), &TerrainSplineDeformer::set_max_height);
 	ClassDB::bind_method(D_METHOD("get_max_height"), &TerrainSplineDeformer::get_max_height);
@@ -54,9 +65,6 @@ void TerrainSplineDeformer::_bind_methods() {
 	BIND_ENUM_CONSTANT(BLEND_REPLACE);
 }
 
-/**
- * @brief Default Constructor. Initializes default max height, width, and falloff.
- */
 TerrainSplineDeformer::TerrainSplineDeformer() {
 	max_height = 0.0f;
 	spline_width = 2.0f;
@@ -66,66 +74,12 @@ TerrainSplineDeformer::TerrainSplineDeformer() {
 	tile_size = 32;
 }
 
-/**
- * @brief Default Destructor. Cleans up curve signal connections.
- */
 TerrainSplineDeformer::~TerrainSplineDeformer() {
 	if (falloff_curve.is_valid() && falloff_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
 		falloff_curve->disconnect("changed", Callable(this, "_on_curve_changed"));
 	}
 }
 
-void TerrainSplineDeformer::set_max_height(float p_height) {
-	max_height = p_height;
-	mark_dirty();
-}
-float TerrainSplineDeformer::get_max_height() const { return max_height; }
-
-void TerrainSplineDeformer::set_spline_width(float p_width) {
-	spline_width = MAX(0.0f, p_width);
-	mark_dirty();
-}
-float TerrainSplineDeformer::get_spline_width() const { return spline_width; }
-
-void TerrainSplineDeformer::set_falloff_distance(float p_dist) {
-	falloff_distance = MAX(0.0f, p_dist);
-	mark_dirty();
-}
-float TerrainSplineDeformer::get_falloff_distance() const { return falloff_distance; }
-
-void TerrainSplineDeformer::set_blend_mode(BlendMode p_mode) {
-	blend_mode = p_mode;
-	mark_dirty();
-}
-TerrainSplineDeformer::BlendMode TerrainSplineDeformer::get_blend_mode() const { return blend_mode; }
-
-void TerrainSplineDeformer::set_falloff_curve(const Ref<Curve> &p_curve) {
-	if (falloff_curve.is_valid() && falloff_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
-		falloff_curve->disconnect("changed", Callable(this, "_on_curve_changed"));
-	}
-	falloff_curve = p_curve;
-	if (falloff_curve.is_valid()) {
-		falloff_curve->connect("changed", Callable(this, "_on_curve_changed"));
-	}
-	mark_dirty();
-}
-Ref<Curve> TerrainSplineDeformer::get_falloff_curve() const { return falloff_curve; }
-
-void TerrainSplineDeformer::set_use_tile_culling(bool p_use) {
-	use_tile_culling = p_use;
-	mark_dirty();
-}
-bool TerrainSplineDeformer::get_use_tile_culling() const { return use_tile_culling; }
-
-void TerrainSplineDeformer::set_tile_size(int p_size) {
-	tile_size = MAX(8, p_size);
-	mark_dirty();
-}
-int TerrainSplineDeformer::get_tile_size() const { return tile_size; }
-
-/**
- * @brief Marks the parent ProceduralSpline3D dirty, triggering a rebuild.
- */
 void TerrainSplineDeformer::mark_dirty() {
 	ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(get_parent());
 	if (spline) {
@@ -133,17 +87,10 @@ void TerrainSplineDeformer::mark_dirty() {
 	}
 }
 
-/**
- * @brief Callback triggered when the falloff curve configuration is edited.
- */
 void TerrainSplineDeformer::_on_curve_changed() {
 	mark_dirty();
 }
 
-/**
- * @brief Worker thread task to deform heights for a single tile of the heightmap.
- * Evaluates points against the parent spline and blends them according to the selected BlendMode.
- */
 void TerrainSplineDeformer::_deform_heightmap_task(int p_task_idx, Ref<DeformerJob> p_job) {
 	if (p_job.is_null() || p_job->heightmap.is_null() || p_job->data_ptr == nullptr || p_job->spline == nullptr)
 		return;
@@ -200,32 +147,7 @@ void TerrainSplineDeformer::_deform_heightmap_task(int p_task_idx, Ref<DeformerJ
 	}
 }
 
-/**
- * @brief Main entry point for heightmap deformation.
- * Precomputes boundaries, determines active tiles using tile-based culling, and dispatches
- * the tasks to the Godot WorkerThreadPool.
- */
-void TerrainSplineDeformer::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap, ProceduralSpline3D *p_spline, const Vector2 &p_offset) {
-	uint64_t step1_start = Time::get_singleton()->get_ticks_usec();
-
-	if (p_heightmap.is_null() || p_spline == nullptr)
-		return;
-
-	Rect2 aabb = p_spline->get_padded_aabb();
-	int w = p_heightmap->get_width();
-	int h = p_heightmap->get_height();
-	Rect2 chunk_rect(p_offset, Vector2(w, h));
-
-	if (!aabb.intersects(chunk_rect))
-		return;
-
-	p_spline->ensure_baked_cache();
-
-	int thread_min_x = Math::max(0, (int)Math::floor(aabb.position.x - p_offset.x));
-	int thread_max_x = Math::min(w - 1, (int)Math::ceil(aabb.position.x + aabb.size.x - p_offset.x));
-	int thread_min_z = Math::max(0, (int)Math::floor(aabb.position.y - p_offset.y));
-	int thread_max_z = Math::min(h - 1, (int)Math::ceil(aabb.position.y + aabb.size.y - p_offset.y));
-
+Ref<DeformerJob> TerrainSplineDeformer::_create_deformer_job(const Ref<TerrainHeightmap> &p_heightmap, ProceduralSpline3D *p_spline, const Vector2 &p_offset) {
 	Ref<DeformerJob> job;
 	job.instantiate();
 	job->heightmap = p_heightmap;
@@ -241,18 +163,14 @@ void TerrainSplineDeformer::deform_heightmap(const Ref<TerrainHeightmap> &p_heig
 			job->baked_curve[i] = falloff_curve->sample((float)i / 255.0f);
 		}
 	}
+	return job;
+}
 
-#if DEBUG
-	Ref<Curve3D> c = p_spline->get_curve();
-	int ctrl_pts = c.is_valid() ? c->get_point_count() : 0;
-	float baked_len = c.is_valid() ? c->get_baked_length() : 0.0f;
-	UtilityFunctions::print("    [TerrainSplineDeformer: ", get_name(), "] Control Points: ", ctrl_pts,
-							" | Baked Points: ", (int)p_spline->baked_poly3d.size(),
-							" | Baked Length: ", baked_len, "m",
-							" | Bounding Box Size: ", aabb.size);
-#endif
-
-	uint64_t step2_culling = Time::get_singleton()->get_ticks_usec();
+void TerrainSplineDeformer::_compute_active_tiles_and_culling(Ref<DeformerJob> p_job, const Rect2 &p_aabb, int p_w, int p_h) {
+	int thread_min_x = Math::max(0, (int)Math::floor(p_aabb.position.x - p_job->offset.x));
+	int thread_max_x = Math::min(p_w - 1, (int)Math::ceil(p_aabb.position.x + p_aabb.size.x - p_job->offset.x));
+	int thread_min_z = Math::max(0, (int)Math::floor(p_aabb.position.y - p_job->offset.y));
+	int thread_max_z = Math::min(p_h - 1, (int)Math::ceil(p_aabb.position.y + p_aabb.size.y - p_job->offset.y));
 
 	float search_radius = spline_width + falloff_distance;
 
@@ -266,11 +184,11 @@ void TerrainSplineDeformer::deform_heightmap(const Ref<TerrainHeightmap> &p_heig
 				int t_max_x = Math::min(tx + tile_size - 1, thread_max_x);
 				int t_max_z = Math::min(tz + tile_size - 1, thread_max_z);
 
-				Vector2 center((tx + t_max_x) / 2.0f + p_offset.x, (tz + t_max_z) / 2.0f + p_offset.y);
+				Vector2 center((tx + t_max_x) / 2.0f + p_job->offset.x, (tz + t_max_z) / 2.0f + p_job->offset.y);
 
 				std::vector<int> overlapping_segments;
-				for (size_t seg_idx = 0; seg_idx < p_spline->baked_segments.size(); ++seg_idx) {
-					const ProceduralSpline3D::BakedSegment &seg = p_spline->baked_segments[seg_idx];
+				for (size_t seg_idx = 0; seg_idx < p_job->spline->baked_segments.size(); ++seg_idx) {
+					const ProceduralSpline3D::BakedSegment &seg = p_job->spline->baked_segments[seg_idx];
 					float t = (seg.l2 > 0.0f) ? Math::clamp((center - seg.a).dot(seg.ab) / seg.l2, 0.0f, 1.0f) : 0.0f;
 					Vector2 proj = seg.a + t * seg.ab;
 
@@ -281,37 +199,82 @@ void TerrainSplineDeformer::deform_heightmap(const Ref<TerrainHeightmap> &p_heig
 				}
 
 				if (!overlapping_segments.empty()) {
-					job->active_tiles.push_back(Rect2i(tx, tz, t_max_x - tx + 1, t_max_z - tz + 1));
-					job->tile_segments.push_back(overlapping_segments);
+					p_job->active_tiles.push_back(Rect2i(tx, tz, t_max_x - tx + 1, t_max_z - tz + 1));
+					p_job->tile_segments.push_back(overlapping_segments);
 				}
 			}
 		}
 	} else {
-		std::vector<int> all_segments(p_spline->baked_segments.size());
+		std::vector<int> all_segments(p_job->spline->baked_segments.size());
 		for (size_t i = 0; i < all_segments.size(); ++i) {
 			all_segments[i] = (int)i;
 		}
 		for (int tz = thread_min_z; tz <= thread_max_z; ++tz) {
-			job->active_tiles.push_back(Rect2i(thread_min_x, tz, thread_max_x - thread_min_x + 1, 1));
-			job->tile_segments.push_back(all_segments);
+			p_job->active_tiles.push_back(Rect2i(thread_min_x, tz, thread_max_x - thread_min_x + 1, 1));
+			p_job->tile_segments.push_back(all_segments);
 		}
 	}
+}
 
-	int num_tasks = job->active_tiles.size();
+void TerrainSplineDeformer::_dispatch_deformer_job(Ref<DeformerJob> p_job) {
+	int num_tasks = p_job->active_tiles.size();
+	if (num_tasks <= 0) {
+		return;
+	}
+
+	WorkerThreadPool *wtp = WorkerThreadPool::get_singleton();
+	if (wtp) {
+		Callable task_callable = Callable(this, "_deform_heightmap_task").bind(p_job);
+		int group_id = wtp->add_group_task(task_callable, num_tasks, -1, true, "TerraSpline_Unified_Deform");
+		wtp->wait_for_group_task_completion(group_id);
+	} else {
+		for (int r = 0; r < num_tasks; ++r) {
+			_deform_heightmap_task(r, p_job);
+		}
+	}
+}
+
+void TerrainSplineDeformer::_print_deformer_debug_info(ProceduralSpline3D *p_spline, const Rect2 &p_aabb) {
+	Ref<Curve3D> c = p_spline->get_curve();
+	int ctrl_pts = c.is_valid() ? c->get_point_count() : 0;
+	float baked_len = c.is_valid() ? c->get_baked_length() : 0.0f;
+	UtilityFunctions::print("    [TerrainSplineDeformer: ", get_name(), "] Control Points: ", ctrl_pts,
+							" | Baked Points: ", (int)p_spline->baked_poly3d.size(),
+							" | Baked Length: ", baked_len, "m",
+							" | Bounding Box Size: ", p_aabb.size);
+}
+
+void TerrainSplineDeformer::deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap, ProceduralSpline3D *p_spline, const Vector2 &p_offset) {
+	uint64_t step1_start = Time::get_singleton()->get_ticks_usec();
+
+	if (p_heightmap.is_null() || p_spline == nullptr) {
+		return;
+	}
+
+	Rect2 aabb = p_spline->get_padded_aabb();
+	int w = p_heightmap->get_width();
+	int h = p_heightmap->get_height();
+	Rect2 chunk_rect(p_offset, Vector2(w, h));
+
+	if (!aabb.intersects(chunk_rect)) {
+		return;
+	}
+
+	p_spline->ensure_baked_cache();
+
+	Ref<DeformerJob> job = _create_deformer_job(p_heightmap, p_spline, p_offset);
+
+#if DEBUG
+	_print_deformer_debug_info(p_spline, aabb);
+#endif
+
+	uint64_t step2_culling = Time::get_singleton()->get_ticks_usec();
+
+	_compute_active_tiles_and_culling(job, aabb, w, h);
+
 	uint64_t step3_threads = Time::get_singleton()->get_ticks_usec();
 
-	if (num_tasks > 0) {
-		WorkerThreadPool *wtp = WorkerThreadPool::get_singleton();
-		if (wtp) {
-			Callable task_callable = Callable(this, "_deform_heightmap_task").bind(job);
-			int group_id = wtp->add_group_task(task_callable, num_tasks, -1, true, "TerraSpline_Unified_Deform");
-			wtp->wait_for_group_task_completion(group_id);
-		} else {
-			for (int r = 0; r < num_tasks; ++r) {
-				_deform_heightmap_task(r, job);
-			}
-		}
-	}
+	_dispatch_deformer_job(job);
 
 #if DEBUG
 	uint64_t step4_end = Time::get_singleton()->get_ticks_usec();
