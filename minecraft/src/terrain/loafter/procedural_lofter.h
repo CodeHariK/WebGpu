@@ -21,10 +21,12 @@ struct MeshData {
 	PackedInt32Array indices;
 };
 
-class ProceduralLofter : public ProceduralSpline3D {
-	GDCLASS(ProceduralLofter, ProceduralSpline3D)
+class ProceduralLofter : public SplineComponent {
+	GDCLASS(ProceduralLofter, SplineComponent)
 
 private:
+	float custom_padding = 10.0f;
+
 	TypedArray<Curve3D> slices_array;
 	Ref<Material> material;
 	std::vector<Ref<Curve3D>> last_connected_slices;
@@ -40,8 +42,6 @@ private:
 	bool flat_shaded = false;
 
 	MeshInstance3D *mesh_instance = nullptr;
-	Ref<Curve3D> last_connected_curve;
-	void ensure_curve_connection();
 
 public:
 	virtual void update_loft();
@@ -54,8 +54,16 @@ public:
 	ProceduralLofter();
 	~ProceduralLofter();
 
+public:
 	virtual void _ready() override;
-	virtual void _process(double delta) override;
+	void queue_update();
+
+private:
+	void _update_slice_connections();
+
+public:
+	void set_custom_padding(float p_pad);
+	float get_custom_padding() const;
 
 	void set_slices_array(const TypedArray<Curve3D> &p_slices);
 	TypedArray<Curve3D> get_slices_array() const;
@@ -77,13 +85,14 @@ public:
 
 	void set_slice_resolution(int p_res) {
 		slice_resolution = MAX(3, p_res);
-		mesh_dirty = true;
-		update_loft();
+		queue_update();
 	}
 	int get_slice_resolution() const { return slice_resolution; }
 
 	Ref<ArrayMesh> generate_lofted_mesh(const std::vector<PackedVector3Array> &rings, const std::vector<Transform3D> &transforms) const;
 	MeshInstance3D *bake() const;
+
+	virtual float get_spline_padding() const override;
 };
 
 } // namespace godot

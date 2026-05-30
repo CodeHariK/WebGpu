@@ -21,6 +21,9 @@ void ProceduralLofter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_blend_factor", "factor"), &ProceduralLofter::set_blend_factor);
 	ClassDB::bind_method(D_METHOD("get_blend_factor"), &ProceduralLofter::get_blend_factor);
 
+	ClassDB::bind_method(D_METHOD("set_custom_padding", "padding"), &ProceduralLofter::set_custom_padding);
+	ClassDB::bind_method(D_METHOD("get_custom_padding"), &ProceduralLofter::get_custom_padding);
+
 	// DEFORMATION BINDINGS
 	ClassDB::bind_method(D_METHOD("set_scale_curve", "curve"), &ProceduralLofter::set_scale_curve);
 	ClassDB::bind_method(D_METHOD("get_scale_curve"), &ProceduralLofter::get_scale_curve);
@@ -33,6 +36,7 @@ void ProceduralLofter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("update_loft"), &ProceduralLofter::update_loft);
 	ClassDB::bind_method(D_METHOD("_on_parent_spline_changed"), &ProceduralLofter::_on_parent_spline_changed);
 
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "custom_padding"), "set_custom_padding", "get_custom_padding");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "slice_resolution"), "set_slice_resolution", "get_slice_resolution");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "slices_array", PROPERTY_HINT_ARRAY_TYPE, "Curve3D"), "set_slices_array", "get_slices_array");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_material", "get_material");
@@ -47,43 +51,31 @@ void ProceduralLofter::_bind_methods() {
 ProceduralLofter::ProceduralLofter() {
 	blend_factor = 0.0f;
 	flat_shaded = false;
+	custom_padding = 10.0f;
 }
 
 ProceduralLofter::~ProceduralLofter() {
 	for (auto &slice : last_connected_slices) {
-		if (slice.is_valid())
+		if (slice.is_valid() && slice->is_connected("changed", Callable(this, "_on_parent_spline_changed")))
 			slice->disconnect("changed", Callable(this, "_on_parent_spline_changed"));
 	}
-	if (scale_curve.is_valid())
+	if (scale_curve.is_valid() && scale_curve->is_connected("changed", Callable(this, "_on_parent_spline_changed")))
 		scale_curve->disconnect("changed", Callable(this, "_on_parent_spline_changed"));
-	if (last_connected_curve.is_valid() && last_connected_curve->is_connected("changed", Callable(this, "_on_parent_spline_changed"))) {
-		last_connected_curve->disconnect("changed", Callable(this, "_on_parent_spline_changed"));
-	}
-}
 
-void ProceduralLofter::ensure_curve_connection() {
-	Ref<Curve3D> current_curve = get_curve();
-	if (current_curve != last_connected_curve) {
-		if (last_connected_curve.is_valid() && last_connected_curve->is_connected("changed", Callable(this, "_on_parent_spline_changed"))) {
-			last_connected_curve->disconnect("changed", Callable(this, "_on_parent_spline_changed"));
-		}
-		last_connected_curve = current_curve;
-		if (current_curve.is_valid() && !current_curve->is_connected("changed", Callable(this, "_on_parent_spline_changed"))) {
-			current_curve->connect("changed", Callable(this, "_on_parent_spline_changed"));
-		}
-		mesh_dirty = true;
+	ProceduralSpline3D *parent_spline = Object::cast_to<ProceduralSpline3D>(get_parent());
+	if (parent_spline && parent_spline->is_connected("spline_changed", Callable(this, "_on_parent_spline_changed"))) {
+		parent_spline->disconnect("spline_changed", Callable(this, "_on_parent_spline_changed"));
 	}
 }
 
 void ProceduralLofter::_on_parent_spline_changed() {
-	mesh_dirty = true;
-	update_loft();
+	queue_update();
 }
 
 void ProceduralLofter::set_slices_array(const TypedArray<Curve3D> &p_slices) {
 	slices_array = p_slices;
-	mesh_dirty = true;
-	update_loft();
+	_update_slice_connections();
+	queue_update();
 }
 TypedArray<Curve3D> ProceduralLofter::get_slices_array() const { return slices_array; }
 
@@ -91,28 +83,27 @@ void ProceduralLofter::set_material(const Ref<Material> &p_material) {
 	material = p_material;
 	if (mesh_instance)
 		mesh_instance->set_material_override(material);
+	queue_update();
 }
 Ref<Material> ProceduralLofter::get_material() const { return material; }
 
 void ProceduralLofter::set_flat_shaded(bool p_flat) {
 	flat_shaded = p_flat;
-	mesh_dirty = true;
-	update_loft();
+	queue_update();
 }
 bool ProceduralLofter::get_flat_shaded() const { return flat_shaded; }
 
 void ProceduralLofter::add_slice(Ref<Curve3D> p_slice, float p_position) {
 	if (p_slice.is_valid()) {
 		slices_array.push_back(p_slice);
-		mesh_dirty = true;
-		update_loft();
+		_update_slice_connections();
+		queue_update();
 	}
 }
 
 void ProceduralLofter::set_blend_factor(float p_factor) {
 	blend_factor = p_factor;
-	mesh_dirty = true;
-	update_loft();
+	queue_update();
 }
 float ProceduralLofter::get_blend_factor() const { return blend_factor; }
 
@@ -125,22 +116,19 @@ void ProceduralLofter::set_scale_curve(const Ref<Curve> &p_curve) {
 	if (scale_curve.is_valid() && !scale_curve->is_connected("changed", Callable(this, "_on_parent_spline_changed"))) {
 		scale_curve->connect("changed", Callable(this, "_on_parent_spline_changed"));
 	}
-	mesh_dirty = true;
-	update_loft();
+	queue_update();
 }
 Ref<Curve> ProceduralLofter::get_scale_curve() const { return scale_curve; }
 
 void ProceduralLofter::set_wave_amplitude(float p_amp) {
 	wave_amplitude = p_amp;
-	mesh_dirty = true;
-	update_loft();
+	queue_update();
 }
 float ProceduralLofter::get_wave_amplitude() const { return wave_amplitude; }
 
 void ProceduralLofter::set_wave_frequency(float p_freq) {
 	wave_frequency = p_freq;
-	mesh_dirty = true;
-	update_loft();
+	queue_update();
 }
 float ProceduralLofter::get_wave_frequency() const { return wave_frequency; }
 
@@ -149,7 +137,8 @@ Ref<ArrayMesh> ProceduralLofter::generate_lofted_mesh(const std::vector<PackedVe
 	if (num_slices < 2 || transforms.size() < num_slices)
 		return Ref<ArrayMesh>();
 
-	bool is_closed = get_is_closed() && num_slices > 2;
+	ProceduralSpline3D *parent_spline = Object::cast_to<ProceduralSpline3D>(const_cast<ProceduralLofter *>(this)->get_parent());
+	bool is_closed = parent_spline ? (parent_spline->get_is_closed() && num_slices > 2) : false;
 
 	MeshData mesh_data;
 
@@ -394,8 +383,7 @@ Ref<ArrayMesh> ProceduralLofter::generate_lofted_mesh(const std::vector<PackedVe
 }
 
 void ProceduralLofter::_ready() {
-	ProceduralSpline3D::_ready();
-	ensure_curve_connection();
+	SplineComponent::_ready();
 
 	mesh_instance = Object::cast_to<MeshInstance3D>(get_node_or_null("MeshInstance3D"));
 	if (!mesh_instance) {
@@ -410,57 +398,46 @@ void ProceduralLofter::_ready() {
 		mesh_instance->set_material_override(material);
 	}
 
-	if (!is_connected("spline_changed", Callable(this, "_on_parent_spline_changed"))) {
-		connect("spline_changed", Callable(this, "_on_parent_spline_changed"));
+	ProceduralSpline3D *parent_spline = Object::cast_to<ProceduralSpline3D>(get_parent());
+	if (parent_spline) {
+		if (!parent_spline->is_connected("spline_changed", Callable(this, "_on_parent_spline_changed"))) {
+			parent_spline->connect("spline_changed", Callable(this, "_on_parent_spline_changed"));
+		}
 	}
 
-	set_process(true);
-	mesh_dirty = true;
+	_update_slice_connections();
+
+	mesh_dirty = false;
+	queue_update();
 }
 
-void ProceduralLofter::_process(double delta) {
-	ensure_curve_connection();
-	bool slices_changed = false;
-	if (slices_array.size() != last_connected_slices.size()) {
-		slices_changed = true;
-	} else {
-		for (int i = 0; i < slices_array.size(); i++) {
-			Ref<Curve3D> slice = slices_array[i];
-			if (slice != last_connected_slices[i]) {
-				slices_changed = true;
-				break;
-			}
-		}
-	}
-
-	if (slices_changed) {
-		for (auto &slice : last_connected_slices) {
-			if (slice.is_valid())
-				slice->disconnect("changed", Callable(this, "_on_parent_spline_changed"));
-		}
-		last_connected_slices.clear();
-		for (int i = 0; i < slices_array.size(); i++) {
-			Ref<Curve3D> slice = slices_array[i];
-			last_connected_slices.push_back(slice);
-			if (slice.is_valid())
-				slice->connect("changed", Callable(this, "_on_parent_spline_changed"));
-		}
+void ProceduralLofter::queue_update() {
+	if (!mesh_dirty) {
 		mesh_dirty = true;
+		call_deferred("update_loft");
 	}
+}
 
-	if (Engine::get_singleton()->is_editor_hint() || mesh_dirty) {
-		if (mesh_dirty) {
-			update_loft();
-			mesh_dirty = false;
+void ProceduralLofter::_update_slice_connections() {
+	for (auto &slice : last_connected_slices) {
+		if (slice.is_valid() && slice->is_connected("changed", Callable(this, "_on_parent_spline_changed"))) {
+			slice->disconnect("changed", Callable(this, "_on_parent_spline_changed"));
+		}
+	}
+	last_connected_slices.clear();
+
+	for (int i = 0; i < slices_array.size(); i++) {
+		Ref<Curve3D> slice = slices_array[i];
+		last_connected_slices.push_back(slice);
+		if (slice.is_valid() && !slice->is_connected("changed", Callable(this, "_on_parent_spline_changed"))) {
+			slice->connect("changed", Callable(this, "_on_parent_spline_changed"));
 		}
 	}
 }
 
 void ProceduralLofter::update_loft() {
-	ensure_curve_connection();
-	if (!is_inside_tree()) {
+	if (!is_inside_tree() || is_queued_for_deletion())
 		return;
-	}
 
 	if (!mesh_instance) {
 		mesh_instance = Object::cast_to<MeshInstance3D>(get_node_or_null("MeshInstance3D"));
@@ -473,9 +450,15 @@ void ProceduralLofter::update_loft() {
 		}
 	}
 
+	ProceduralSpline3D *parent_spline = Object::cast_to<ProceduralSpline3D>(get_parent());
+	if (!parent_spline || !mesh_instance)
+		return;
+
 	if (mesh_instance) {
 		mesh_instance->set_material_override(material);
-		std::vector<Transform3D> transforms = CurveBaker::bake_transforms(get_curve(), get_bake_interval(), get_global_transform());
+
+		parent_spline->ensure_transform_cache();
+		const std::vector<Transform3D> &transforms = parent_spline->baked_transforms;
 
 		if (transforms.empty() || slices_array.size() == 0) {
 			mesh_instance->set_mesh(Ref<Mesh>());
@@ -488,8 +471,8 @@ void ProceduralLofter::update_loft() {
 		int num_slices = slices_array.size();
 		int num_baked_points = transforms.size();
 
-		Transform3D inv_global = get_global_transform().affine_inverse();
-		bool is_closed = get_is_closed() && num_baked_points > 2;
+		Transform3D inv_global = parent_spline->get_global_transform().affine_inverse();
+		bool is_closed = parent_spline->get_is_closed() && num_baked_points > 2;
 
 		for (int i = 0; i < num_baked_points; i++) {
 			Transform3D path_transform = inv_global * transforms[i];
@@ -548,12 +531,29 @@ void ProceduralLofter::update_loft() {
 
 		Ref<ArrayMesh> mesh = generate_lofted_mesh(all_rings, processing_transforms);
 		mesh_instance->set_mesh(mesh);
+		mesh_dirty = false;
 	}
 }
 
 MeshInstance3D *ProceduralLofter::bake() const {
 	const_cast<ProceduralLofter *>(this)->update_loft();
 	return mesh_instance;
+}
+
+void ProceduralLofter::set_custom_padding(float p_pad) {
+	custom_padding = MAX(0.0f, p_pad);
+	ProceduralSpline3D *parent_spline = Object::cast_to<ProceduralSpline3D>(get_parent());
+	if (parent_spline) {
+		parent_spline->mark_dirty();
+	}
+}
+
+float ProceduralLofter::get_custom_padding() const {
+	return custom_padding;
+}
+
+float ProceduralLofter::get_spline_padding() const {
+	return custom_padding;
 }
 
 } // namespace godot
