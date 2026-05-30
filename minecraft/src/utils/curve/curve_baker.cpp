@@ -54,4 +54,53 @@ std::vector<Transform3D> CurveBaker::bake_transforms(const Ref<Curve3D> &p_curve
 	return transforms;
 }
 
+// In CurveBaker.cpp
+std::vector<Transform3D> CurveBaker::bake_transforms_adaptive(
+		const Ref<Curve3D> &curve, float start_dist, float end_dist,
+		float max_step, float min_step, float angle_tol_degrees,
+		const Transform3D &global_transform) {
+	std::vector<Transform3D> result;
+	if (curve.is_null() || start_dist >= end_dist)
+		return result;
+
+	float tolerance_dot = Math::cos(Math::deg_to_rad(angle_tol_degrees));
+
+	// 1. Always push the start point
+	Transform3D start_t = global_transform * curve->sample_baked_with_rotation(start_dist);
+	result.push_back(start_t);
+
+	float current_d = start_dist;
+
+	// 2. Step forward along the curve
+	while (current_d < end_dist) {
+		float next_d = MIN(current_d + max_step, end_dist);
+		Transform3D current_t = result.back();
+		Transform3D next_t = global_transform * curve->sample_baked_with_rotation(next_d);
+
+		// 3. ADAPTIVE SUBDIVISION LOOP
+		// If the angle between Forward vectors is too sharp, cut the step size in half
+		float step_size = next_d - current_d;
+
+		while (step_size > min_step) {
+			Vector3 fwd_current = -current_t.basis.get_column(2).normalized();
+			Vector3 fwd_next = -next_t.basis.get_column(2).normalized();
+
+			if (fwd_current.dot(fwd_next) >= tolerance_dot) {
+				break; // The curve is flat enough, accept this step!
+			}
+
+			// Too sharp! Halve the step and re-evaluate
+			step_size *= 0.5f;
+			next_d = current_d + step_size;
+			next_t = global_transform * curve->sample_baked_with_rotation(next_d);
+		}
+
+		// 4. Accept the point and move forward
+		result.push_back(next_t);
+		current_d = next_d;
+	}
+
+	return result;
+}
+
 } // namespace godot

@@ -52,6 +52,8 @@ run_mc:
 	$(GODOT) --path project/ --scene scene/MarchingCubes/MARCHING_CUBES.tscn
 run_chunked:
 	$(GODOT) --path project/ --scene scene/terraspline/chunked_terrain_demo.tscn
+run_pg:
+	$(GODOT) --path project/ --scene scene/terraspline/procgen.tscn
 run_octo:
 	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn
 run_road:
