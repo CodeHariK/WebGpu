@@ -42,7 +42,7 @@ mc_node_path = NodePath("../MCNode")
 terrain_path = NodePath("../MCGrid")
 
 [node name="MCNode" type="MCNode" parent="." unique_id=430891780]
-mesh_library_path = "res://assets/Marching/MarchingCubesMerged.glb"
+mesh_library_path = "res://assets/Marching/Cube.glb"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.115, 0, 0)
 
 [node name="GameManager" type="GameManager" parent="." unique_id=514503315]
