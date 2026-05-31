@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chunked Marching Prism 2D Visualizer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        canvas {
+            background-color: #2d2d2d;
+            border: 2px solid #444;
+            border-radius: 8px;
+            cursor: crosshair;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        #panel {
+            background-color: #2d2d2d;
+            border: 2px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            width: 400px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #4da6ff;
+        }
+
+        .data-box {
+            background-color: #1e1e1e;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+
+        .vertex-on {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .vertex-off {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        .chunk-info {
+            color: #00bcd4;
+            font-weight: bold;
+        }
+
+        .instructions {
+            font-size: 0.9em;
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="gridCanvas" width="900" height="700"></canvas>
+
+    <div id="panel">
+        <h2>Chunk & Grid Inspector</h2>
+        <div class="instructions">
+            • <b>Blue Lines</b> represent Chunk Boundaries (6x6 vertices).<br>
+            • <b>Click a Vertex</b> to toggle its bit in memory.<br>
+            • <b>Click a Triangle</b> to see how it queries chunks.
+        </div>
+
+        <div class="data-box" id="cellInfo">
+            Select a triangle to view chunk crossing data.
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. CHUNK LOGIC (Overlap Bitwise Storage)
+        // ==========================================
+        const CHUNK_SIZE = 6;
+        const CHUNK_MEM_SIZE = CHUNK_SIZE + 1; // 7x7 vertices for overlap!
+
+        class PrismChunk {
+            constructor() {
+                // 7x7 = 49 vertices per chunk.
+                // 49 bits / 8 = 6.125 bytes. We need a Uint8Array of size 7.
+                const requiredBytes = Math.ceil((CHUNK_MEM_SIZE * CHUNK_MEM_SIZE) / 8);
+                this.bitMask = new Uint8Array(requiredBytes);
+            }
+
+            _get1DIndex(x, z) {
+                return x + (z * CHUNK_MEM_SIZE);
+            }
+
+            setVertex(localX, localZ, isSolid) {
+                // Bounds check now uses CHUNK_MEM_SIZE (7) instead of CHUNK_SIZE (6)
+                if (localX < 0 || localX >= CHUNK_MEM_SIZE || localZ < 0 || localZ >= CHUNK_MEM_SIZE) return;
+
+                let index = this._get1DIndex(localX, localZ);
+                let byteIndex = Math.floor(index / 8);
+                let bitOffset = index % 8;
+
+                if (isSolid) {
+                    this.bitMask[byteIndex] |= (1 << bitOffset);
+                } else {
+                    this.bitMask[byteIndex] &= ~(1 << bitOffset);
+                }
+            }
+
+            getVertex(localX, localZ) {
+                if (localX < 0 || localX >= CHUNK_MEM_SIZE || localZ < 0 || localZ >= CHUNK_MEM_SIZE) return false;
+
+                let index = this._get1DIndex(localX, localZ);
+                let byteIndex = Math.floor(index / 8);
+                let bitOffset = index % 8;
+
+                return (this.bitMask[byteIndex] & (1 << bitOffset)) !== 0;
+            }
+        }
+
+        // ==========================================
+        // 2. GRID LOGIC (Overlap Manager)
+        // ==========================================
+        class PrismGrid {
+            constructor() {
+                this.chunks = {};
+            }
+
+            _getChunkCoords(worldX, worldZ) {
+                return {
+                    cx: Math.floor(worldX / CHUNK_SIZE),
+                    cz: Math.floor(worldZ / CHUNK_SIZE)
+                };
+            }
+
+            // Helper to safely initialize and set data in a specific chunk
+            _safeSet(cx, cz, localX, localZ, isSolid) {
+                let key = `${cx},${cz}`;
+                if (!this.chunks[key]) {
+                    this.chunks[key] = new PrismChunk();
+                }
+                this.chunks[key].setVertex(localX, localZ, isSolid);
+            }
+
+            setGlobalVertex(worldX, worldZ, isSolid) {
+                let coords = this._getChunkCoords(worldX, worldZ);
+                let localX = worldX - (coords.cx * CHUNK_SIZE);
+                let localZ = worldZ - (coords.cz * CHUNK_SIZE);
+
+                // 1. Update the primary chunk
+                this._safeSet(coords.cx, coords.cz, localX, localZ, isSolid);
+
+                // 2. THE OVERLAP RULE: Duplicate data to neighbor chunks if on a boundary
+
+                // If on the left edge, update the right edge (Index 6) of the chunk to the Left
+                if (localX === 0) {
+                    this._safeSet(coords.cx - 1, coords.cz, CHUNK_SIZE, localZ, isSolid);
+                }
+
+                // If on the top edge, update the bottom edge (Index 6) of the chunk Above
+                if (localZ === 0) {
+                    this._safeSet(coords.cx, coords.cz - 1, localX, CHUNK_SIZE, isSolid);
+                }
+
+                // If exactly on the top-left corner, update the bottom-right (Index 6,6) of the Diagonal chunk
+                if (localX === 0 && localZ === 0) {
+                    this._safeSet(coords.cx - 1, coords.cz - 1, CHUNK_SIZE, CHUNK_SIZE, isSolid);
+                }
+            }
+
+            getGlobalVertex(worldX, worldZ) {
+                let coords = this._getChunkCoords(worldX, worldZ);
+                let key = `${coords.cx},${coords.cz}`;
+
+                if (!this.chunks[key]) return false;
+
+                let localX = worldX - (coords.cx * CHUNK_SIZE);
+                let localZ = worldZ - (coords.cz * CHUNK_SIZE);
+
+                return this.chunks[key].getVertex(localX, localZ);
+            }
+        }
+
+        // Initialize our infinite grid
+        const worldGrid = new PrismGrid();
+
+        // ==========================================
+        // 3. PRISM LOGIC (Cell to Vertex extraction)
+        // ==========================================
+
+        // Calculates the 3 vertices for any given 2D triangular cell
+        function getPrismVertices2D(cx, cz) {
+            const vx = Math.floor(cx / 2);
+
+            if (cz % 2 === 0) {
+                if (cx % 2 === 0) return [{ x: vx, z: cz }, { x: vx + 1, z: cz }, { x: vx, z: cz + 1 }]; // ∇
+                else return [{ x: vx + 1, z: cz }, { x: vx, z: cz + 1 }, { x: vx + 1, z: cz + 1 }]; // Δ
+            } else {
+                if (cx % 2 === 0) return [{ x: vx, z: cz }, { x: vx + 1, z: cz }, { x: vx + 1, z: cz + 1 }]; // ∇
+                else return [{ x: vx, z: cz }, { x: vx, z: cz + 1 }, { x: vx + 1, z: cz + 1 }]; // Δ
+            }
+        }
+
+        function calculateConfigIndex(v0, v1, v2) {
+            let index = 0;
+            if (worldGrid.getGlobalVertex(v0.x, v0.z)) index |= (1 << 0);
+            if (worldGrid.getGlobalVertex(v1.x, v1.z)) index |= (1 << 1);
+            if (worldGrid.getGlobalVertex(v2.x, v2.z)) index |= (1 << 2);
+            return index;
+        }
+
+        // ==========================================
+        // 4. CANVAS RENDERING
+        // ==========================================
+        const canvas = document.getElementById('gridCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const SCALE = 60; // Size of triangles
+        const OFFSET_X = 50;
+        const OFFSET_Y = 50;
+
+        // We will render an arbitrary window of the infinite grid (14x14 vertices)
+        const RENDER_WIDTH = 14;
+        const RENDER_HEIGHT = 12;
+
+        let selectedCell = null;
+
+        function getScreenPos(x, z) {
+            const stagger = (z % 2 !== 0) ? 0.5 : 0.0;
+            const px = (x + stagger) * SCALE + OFFSET_X;
+            const py = z * SCALE * (Math.sqrt(3) / 2) + OFFSET_Y;
+            return { x: px, y: py };
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Draw Triangles (Cells)
+            const maxCellsX = (RENDER_WIDTH - 1) * 2;
+            const maxCellsZ = RENDER_HEIGHT - 1;
+
+            for (let cz = 0; cz < maxCellsZ; cz++) {
+                for (let cx = 0; cx < maxCellsX; cx++) {
+                    const pts = getPrismVertices2D(cx, cz);
+                    if (pts[1].x >= RENDER_WIDTH || pts[2].x >= RENDER_WIDTH) continue;
+
+                    const p0 = getScreenPos(pts[0].x, pts[0].z);
+                    const p1 = getScreenPos(pts[1].x, pts[1].z);
+                    const p2 = getScreenPos(pts[2].x, pts[2].z);
+
+                    ctx.beginPath();
+                    ctx.moveTo(p0.x, p0.y);
+                    ctx.lineTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.closePath();
+
+                    if (selectedCell && selectedCell.x === cx && selectedCell.z === cz) {
+                        ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
+                        ctx.fill();
+                    }
+
+                    ctx.strokeStyle = '#555';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            }
+
+            // 2. Draw Chunk Boundaries (Thick Blue Lines)
+            ctx.strokeStyle = 'rgba(0, 188, 212, 0.5)';
+            ctx.lineWidth = 4;
+
+            // Draw Vertical chunk boundaries
+            for (let x = 0; x <= RENDER_WIDTH; x += CHUNK_SIZE) {
+                ctx.beginPath();
+                for (let z = 0; z < RENDER_HEIGHT; z++) {
+                    let pos = getScreenPos(x, z);
+                    if (z === 0) ctx.moveTo(pos.x, pos.y);
+                    else ctx.lineTo(pos.x, pos.y);
+                }
+                ctx.stroke();
+            }
+
+            // Draw Horizontal chunk boundaries
+            for (let z = 0; z <= RENDER_HEIGHT; z += CHUNK_SIZE) {
+                ctx.beginPath();
+                let start = getScreenPos(0, z);
+                let end = getScreenPos(RENDER_WIDTH - 1, z);
+                ctx.moveTo(start.x, start.y);
+                ctx.lineTo(end.x, end.y);
+                ctx.stroke();
+            }
+
+            // 3. Draw Vertices (Points)
+            for (let z = 0; z < RENDER_HEIGHT; z++) {
+                for (let x = 0; x < RENDER_WIDTH; x++) {
+                    const pos = getScreenPos(x, z);
+                    const isOn = worldGrid.getGlobalVertex(x, z);
+
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = isOn ? '#4CAF50' : '#444';
+                    ctx.fill();
+
+                    ctx.fillStyle = '#aaa';
+                    ctx.font = '10px monospace';
+                    ctx.fillText(`${x},${z}`, pos.x + 10, pos.y - 10);
+                }
+            }
+        }
+
+        // ==========================================
+        // 5. INTERACTION (Mouse Clicks)
+        // ==========================================
+        function ptInTriangle(p, p0, p1, p2) {
+            var A = 0.5 * (-p1.y * p2.x + p0.y * (-p1.x + p2.x) + p0.x * (p1.y - p2.y) + p1.x * p2.y);
+            var sign = A < 0 ? -1 : 1;
+            var s = (p0.y * p2.x - p0.x * p2.y + (p2.y - p0.y) * p.x + (p0.x - p2.x) * p.y) * sign;
+            var t = (p0.x * p1.y - p0.y * p1.x + (p0.y - p1.y) * p.x + (p1.x - p0.x) * p.y) * sign;
+            return s > 0 && t > 0 && (s + t) < 2 * A * sign;
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            // 1. Clicked Vertex?
+            let clickedVertex = false;
+            for (let z = 0; z < RENDER_HEIGHT; z++) {
+                for (let x = 0; x < RENDER_WIDTH; x++) {
+                    const pos = getScreenPos(x, z);
+                    const dist = Math.sqrt((mx - pos.x) ** 2 + (my - pos.y) ** 2);
+                    if (dist < 12) {
+                        const currentState = worldGrid.getGlobalVertex(x, z);
+                        worldGrid.setGlobalVertex(x, z, !currentState);
+                        updatePanel();
+                        render();
+                        clickedVertex = true;
+                        return;
+                    }
+                }
+            }
+
+            // 2. Clicked Triangle?
+            if (!clickedVertex) {
+                const maxCellsX = (RENDER_WIDTH - 1) * 2;
+                const maxCellsZ = RENDER_HEIGHT - 1;
+
+                for (let cz = 0; cz < maxCellsZ; cz++) {
+                    for (let cx = 0; cx < maxCellsX; cx++) {
+                        const pts = getPrismVertices2D(cx, cz);
+                        if (pts[1].x >= RENDER_WIDTH || pts[2].x >= RENDER_WIDTH) continue;
+
+                        const p0 = getScreenPos(pts[0].x, pts[0].z);
+                        const p1 = getScreenPos(pts[1].x, pts[1].z);
+                        const p2 = getScreenPos(pts[2].x, pts[2].z);
+
+                        if (ptInTriangle({ x: mx, y: my }, p0, p1, p2)) {
+                            selectedCell = { x: cx, z: cz };
+                            updatePanel();
+                            render();
+                            return;
+                        }
+                    }
+                }
+            }
+        });
+
+        function updatePanel() {
+            const panel = document.getElementById('cellInfo');
+            if (!selectedCell) return;
+
+            const pts = getPrismVertices2D(selectedCell.x, selectedCell.z);
+            const configIdx = calculateConfigIndex(pts[0], pts[1], pts[2]);
+
+            const formatV = (v, bit) => {
+                const isOn = worldGrid.getGlobalVertex(v.x, v.z);
+                const coords = worldGrid._getChunkCoords(v.x, v.z);
+                const chunkKey = `${coords.cx},${coords.cz}`;
+
+                const classStr = isOn ? 'vertex-on' : 'vertex-off';
+                const stateStr = isOn ? 'ON (1)' : 'OFF (0)';
+                return `Bit ${bit}: v(${v.x}, ${v.z}) -> Found in <span class="chunk-info">Chunk [${chunkKey}]</span> -> <span class="${classStr}">${stateStr}</span>`;
+            };
+
+            panel.innerHTML = `
+            <strong>Triangle Index:</strong> (${selectedCell.x}, ${selectedCell.z})<br>
+            <hr style="border-color: #444;">
+            <strong>Global Grid Queries:</strong><br><br>
+            ${formatV(pts[0], 0)}<br><br>
+            ${formatV(pts[1], 1)}<br><br>
+            ${formatV(pts[2], 2)}<br>
+            <hr style="border-color: #444;">
+            <strong style="color:#ffcc00">Calculated Hash: ${configIdx}</strong> 
+        `;
+        }
+
+        render();
+    </script>
+</body>
+
+</html>
