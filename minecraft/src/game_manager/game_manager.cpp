@@ -4,6 +4,7 @@
 #include "../debug_draw/debug_manager.h"
 #include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
+#include "../terrain/marching_prism/mp_manager.h"
 #include "../minigames/tennis/tennis_manager.h"
 #include "../player/celeste_controller.h"
 #include "../vehicle/arcade_vehicle.h"
@@ -25,6 +26,9 @@ GameManager *GameManager::singleton = nullptr;
 void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("register_mc_manager", "p_manager"), &GameManager::register_mc_manager);
 	ClassDB::bind_method(D_METHOD("get_mc_manager"), &GameManager::get_mc_manager);
+
+	ClassDB::bind_method(D_METHOD("register_mp_manager", "p_manager"), &GameManager::register_mp_manager);
+	ClassDB::bind_method(D_METHOD("get_mp_manager"), &GameManager::get_mp_manager);
 
 	ClassDB::bind_method(D_METHOD("save_game", "p_slot_name"), &GameManager::save_game);
 	ClassDB::bind_method(D_METHOD("load_game", "p_slot_name"), &GameManager::load_game);
@@ -113,6 +117,15 @@ void GameManager::register_mc_manager(MCManager *p_manager) {
 
 MCManager *GameManager::get_mc_manager() const {
 	return mc_manager;
+}
+
+void GameManager::register_mp_manager(MPManager *p_manager) {
+	mp_manager = p_manager;
+	UtilityFunctions::print("GameManager: Registered MPManager (Marching Prism System).");
+}
+
+MPManager *GameManager::get_mp_manager() const {
+	return mp_manager;
 }
 
 void GameManager::register_tennis_manager(TennisManager *p_manager) {

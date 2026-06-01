@@ -49,7 +49,9 @@ clean:
 
 
 run_mc:
-	$(GODOT) --path project/ --scene scene/MarchingCubes/MARCHING_CUBES.tscn
+	$(GODOT) --path project/ --scene scene/marching/cubes.tscn
+run_mp:
+	$(GODOT) --path project/ --scene scene/marching/prism.tscn
 run_chunked:
 	$(GODOT) --path project/ --scene scene/terraspline/chunked_terrain_demo.tscn
 run_pg:

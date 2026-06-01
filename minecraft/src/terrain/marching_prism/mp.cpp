@@ -53,24 +53,29 @@ String MPNode::get_mesh_library_path() const {
 }
 
 // Meta struct to parse 6-bit binary strings (e.g., "000100")
-struct LoadMeta {
+struct PrismLoadMeta {
 	Node *child = nullptr;
 	MeshInstance3D *mi = nullptr;
 	int ones_count = 0;
 	bool is_valid = true;
 
-	LoadMeta(Node *p_child, MeshInstance3D *p_mi) : child(p_child), mi(p_mi) {
+	PrismLoadMeta(Node *p_child, MeshInstance3D *p_mi) : child(p_child), mi(p_mi) {
 		if (child) {
-			String p_bin = child->get_name().substr(0, 6); // 6 bits for Prisms
+			String p_bin = child->get_name().substr(0, 6);
+			UtilityFunctions::print("MPNode Debug: Parsing name '", child->get_name(), "', extracted prefix '", p_bin, "'");
 			if (p_bin.length() < 6) {
 				is_valid = false;
+				UtilityFunctions::print("  - Invalid: prefix length too short (", p_bin.length(), ")");
 				return;
 			}
 			for (int i = 0; i < p_bin.length(); i++) {
-				if (p_bin[i] == '1') {
+				char32_t c = p_bin[i];
+				UtilityFunctions::print("  - Character [", i, "]: '", String::chr(c), "' (code: ", (int)c, ")");
+				if (c == '1') {
 					ones_count++;
-				} else if (p_bin[i] != '0') {
+				} else if (c != '0') {
 					is_valid = false;
+					UtilityFunctions::print("  - Invalid: character is not '0' or '1'");
 				}
 			}
 		} else {
@@ -78,7 +83,7 @@ struct LoadMeta {
 		}
 	}
 
-	bool operator<(const LoadMeta &p_other) const {
+	bool operator<(const PrismLoadMeta &p_other) const {
 		return ones_count < p_other.ones_count;
 	}
 };
@@ -98,25 +103,41 @@ void MPNode::load_mesh_library() {
 	if (!inst)
 		return;
 
-	std::vector<LoadMeta> candidates;
+	std::vector<PrismLoadMeta> candidates;
 	TypedArray<Node> children = inst->get_children();
+	UtilityFunctions::print("MPNode: Total top-level children in scene: ", children.size());
 
 	for (int i = 0; i < children.size(); i++) {
 		Node *child = Object::cast_to<Node>(children[i]);
+		if (!child) continue;
+
+		UtilityFunctions::print("MPNode: Top-level child [", i, "] name: '", child->get_name(), "'");
 		MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(child);
 
 		if (!mi) {
+			UtilityFunctions::print("  - Not a MeshInstance3D. Sub-children count: ", child->get_child_count());
 			for (int j = 0; j < child->get_child_count(); j++) {
-				mi = Object::cast_to<MeshInstance3D>(child->get_child(j));
-				if (mi)
-					break;
+				Node *sub_child = child->get_child(j);
+				if (sub_child) {
+					UtilityFunctions::print("    - Sub-child [", j, "] name: '", sub_child->get_name(), "' (Class: ", sub_child->get_class(), ")");
+					MeshInstance3D *sub_mi = Object::cast_to<MeshInstance3D>(sub_child);
+					if (sub_mi) {
+						mi = sub_mi;
+					}
+				}
 			}
+		} else {
+			UtilityFunctions::print("  - Is a MeshInstance3D.");
 		}
 
-		if (mi && mi->get_mesh().is_valid()) {
-			LoadMeta meta(child, mi);
-			if (meta.is_valid) {
-				candidates.push_back(meta);
+		if (mi) {
+			UtilityFunctions::print("  - Found MeshInstance3D. Mesh valid: ", mi->get_mesh().is_valid() ? "YES" : "NO");
+			if (mi->get_mesh().is_valid()) {
+				PrismLoadMeta meta(child, mi);
+				UtilityFunctions::print("  - PrismLoadMeta valid: ", meta.is_valid ? "YES" : "NO", ", ones_count: ", meta.ones_count);
+				if (meta.is_valid) {
+					candidates.push_back(meta);
+				}
 			}
 		}
 	}
@@ -125,7 +146,7 @@ void MPNode::load_mesh_library() {
 	std::sort(candidates.begin(), candidates.end());
 
 	base_mesh_order.clear();
-	for (const LoadMeta &meta : candidates) {
+	for (const PrismLoadMeta &meta : candidates) {
 		PrismMeshConfig config;
 		config.mesh = meta.mi->get_mesh();
 		config.transform = Transform3D(); // Identity
@@ -175,6 +196,9 @@ void MPNode::generate_variants_by_120Y_rotation() {
 void MPNode::validate_full_library() {
 	int missing_count = 0;
 	for (int i = 0; i < 64; i++) {
+		if (i == 0 || i == 63) {
+			continue;
+		}
 		if (!mesh_library[i].mesh.is_valid()) {
 			UtilityFunctions::print("MPNode: ERROR - Missing mesh for hash: ", hash_to_binary((uint8_t)i));
 			missing_count++;
@@ -182,7 +206,7 @@ void MPNode::validate_full_library() {
 	}
 
 	if (missing_count == 0) {
-		UtilityFunctions::print("MPNode: SUCCESS - All 64 Prism configurations generated.");
+		UtilityFunctions::print("MPNode: SUCCESS - All 62 active Prism configurations generated.");
 	}
 }
 

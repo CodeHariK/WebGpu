@@ -49,9 +49,13 @@ public:
 	void validate_full_library();
 
 	// Helpers
-	uint8_t binary_to_hash(const String &p_bin);
-	String hash_to_binary(uint8_t p_hash);
+	static uint8_t binary_to_hash(const String &p_bin);
+	static String hash_to_binary(uint8_t p_hash);
 	Dictionary get_variant_counts() const;
+
+	PrismMeshConfig get_mesh_config(uint8_t p_hash) const {
+		return mesh_library[p_hash];
+	}
 };
 
 } // namespace godot

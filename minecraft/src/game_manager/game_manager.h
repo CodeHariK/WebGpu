@@ -10,6 +10,7 @@
 namespace godot {
 
 class MCManager;
+class MPManager;
 class ArcadeVehicle;
 class PhysicsCharacter3D;
 class CelesteController;
@@ -28,6 +29,7 @@ private:
 
 	// Tracked managers
 	MCManager *mc_manager = nullptr;
+	MPManager *mp_manager = nullptr;
 
 	GameCamera *main_camera = nullptr;
 	PlayerInput *player_input = nullptr;
@@ -55,6 +57,9 @@ public:
 
 	void register_mc_manager(MCManager *p_manager);
 	MCManager *get_mc_manager() const;
+
+	void register_mp_manager(MPManager *p_manager);
+	MPManager *get_mp_manager() const;
 
 	void register_tennis_manager(TennisManager *p_manager);
 	TennisManager *get_tennis_manager() const;
