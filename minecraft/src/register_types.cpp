@@ -22,6 +22,9 @@
 #include "marching_cubes/mc.h"
 #include "marching_cubes/mc_grid.h"
 #include "marching_cubes/mc_manager.h"
+#include "terrain/marching_prism/mp.h"
+#include "terrain/marching_prism/mp_grid.h"
+#include "terrain/marching_prism/mp_manager.h"
 #include "surface_nets/sn_grid.h"
 
 #include "player/celeste_controller.h"
@@ -83,6 +86,9 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(MCNode);
 	GDREGISTER_CLASS(MCManager);
 	GDREGISTER_CLASS(MCGrid);
+	GDREGISTER_CLASS(MPNode);
+	GDREGISTER_CLASS(MPGrid);
+	GDREGISTER_CLASS(MPManager);
 	GDREGISTER_CLASS(SNGrid);
 
 	GDREGISTER_CLASS(CUI);
