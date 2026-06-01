@@ -48,6 +48,7 @@ void MPManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("initialize_all"), &MPManager::initialize_all);
 	ClassDB::bind_method(D_METHOD("_on_toggle_ui"), &MPManager::_on_toggle_ui);
 	ClassDB::bind_method(D_METHOD("_on_toggle_visual_corners"), &MPManager::_on_toggle_visual_corners);
+	ClassDB::bind_method(D_METHOD("_on_debug_draw_mode_selected", "index"), &MPManager::_on_debug_draw_mode_selected);
 	ClassDB::bind_method(D_METHOD("_on_gui_input", "p_event"), &MPManager::_on_gui_input);
 	ClassDB::bind_method(D_METHOD("_on_toggle_placement_mode"), &MPManager::_on_toggle_placement_mode);
 	ClassDB::bind_method(D_METHOD("_on_show_help"), &MPManager::_on_show_help);
@@ -71,21 +72,11 @@ void MPManager::_ready() {
 	set_process(true);
 }
 
-void MPManager::set_mp_node_path(const NodePath &p_path) {
-	mp_node_path = p_path;
-}
+void MPManager::set_mp_node_path(const NodePath &p_path) { mp_node_path = p_path; }
+NodePath MPManager::get_mp_node_path() const { return mp_node_path; }
 
-NodePath MPManager::get_mp_node_path() const {
-	return mp_node_path;
-}
-
-void MPManager::set_terrain_path(const NodePath &p_path) {
-	terrain.path = p_path;
-}
-
-NodePath MPManager::get_terrain_path() const {
-	return terrain.path;
-}
+void MPManager::set_terrain_path(const NodePath &p_path) { terrain.path = p_path; }
+NodePath MPManager::get_terrain_path() const { return terrain.path; }
 
 void MPManager::_process(double p_delta) {
 	if (Engine::get_singleton()->is_editor_hint())
@@ -107,34 +98,25 @@ void MPManager::initialize_all() {
 	MPNode *mp_node = Object::cast_to<MPNode>(get_node_or_null(mp_node_path));
 	MPGrid *terrain_node = Object::cast_to<MPGrid>(get_node_or_null(terrain.path));
 
-	if (!mp_node)
-		UtilityFunctions::print("MPManager Error: MPNode not found at ", mp_node_path);
-	if (!terrain_node)
-		UtilityFunctions::print("MPManager Error: MPGrid not found at ", terrain.path);
+	if (!mp_node || !terrain_node)
+		return;
 
-	if (mp_node && terrain_node) {
-		UtilityFunctions::print("MPManager: Found all nodes. Forcing sequential initialization...");
+	mp_node->initialize_library();
 
-		mp_node->initialize_library();
+	terrain_node->set_mp_node(mp_node);
+	terrain_node->initialize_grid(terrain_node->get_grid_size().x, terrain_node->get_grid_size().y, terrain_node->get_grid_size().z,
+								  terrain_node->get_chunk_size().x, terrain_node->get_chunk_size().y, terrain_node->get_chunk_size().z);
 
-		terrain_node->set_mp_node(mp_node);
-		terrain_node->initialize_grid(terrain_node->get_grid_size().x, terrain_node->get_grid_size().y, terrain_node->get_grid_size().z,
-									  terrain_node->get_chunk_size().x, terrain_node->get_chunk_size().y, terrain_node->get_chunk_size().z);
+	ui.manager = CUI::create_on_new_layer(this);
+	if (ui.manager)
+		setup_ui();
+	update_ui();
 
-		ui.manager = CUI::create_on_new_layer(this);
-		if (ui.manager) {
-			setup_ui();
-		}
-		update_ui();
+	_initialize_previews();
 
-		_initialize_previews();
-
-		GameManager *gm = GameManager::get_singleton();
-		if (gm)
-			gm->register_mp_manager(this); // Assuming you add this to GameManager
-
-		UtilityFunctions::print("MPManager: Sequential initialization complete.");
-	}
+	GameManager *gm = GameManager::get_singleton();
+	if (gm)
+		gm->register_mp_manager(this);
 }
 
 void MPManager::_on_load_terrain() { load_terrain("user://prism_terrain.mpt"); }
@@ -160,7 +142,7 @@ uint8_t MPManager::_get_cell_hash(const Vector3i &p_grid_pos) {
 	Vector3i chunk_sz = terrain_node->get_chunk_size();
 	Vector3i grid_sz = terrain_node->get_grid_size();
 
-	int cx = p_grid_pos.x;
+	int cx = p_grid_pos.x; // Global Cell X
 	int y = p_grid_pos.y;
 	int z = p_grid_pos.z;
 
@@ -174,30 +156,44 @@ uint8_t MPManager::_get_cell_hash(const Vector3i &p_grid_pos) {
 
 	int local_cx = cx % (chunk_sz.x * 2);
 	int local_y = y % chunk_sz.y;
-	int local_z = z % chunk_sz.z;
 
 	int vx = local_cx / 2;
 	int v0_x, v0_z, v1_x, v1_z, v2_x, v2_z;
 
-	if (local_z % 2 == 0) {
-		if (local_cx % 2 == 0) {
-			v1_x = vx;     v1_z = local_z;
-			v0_x = vx + 1; v0_z = local_z;
-			v2_x = vx;     v2_z = local_z + 1;
+	// Bind Parity entirely to Global Coordinates to avoid odd-chunk-size desyncs
+	bool points_down = ((cx + z) % 2 == 0);
+
+	if (z % 2 == 0) {
+		if (points_down) {
+			v1_x = vx;
+			v1_z = z;
+			v0_x = vx + 1;
+			v0_z = z;
+			v2_x = vx;
+			v2_z = z + 1;
 		} else {
-			v0_x = vx;     v0_z = local_z + 1;
-			v1_x = vx + 1; v1_z = local_z + 1;
-			v2_x = vx + 1; v2_z = local_z;
+			v0_x = vx;
+			v0_z = z + 1;
+			v1_x = vx + 1;
+			v1_z = z + 1;
+			v2_x = vx + 1;
+			v2_z = z;
 		}
 	} else {
-		if (local_cx % 2 == 0) {
-			v1_x = vx;     v1_z = local_z;
-			v0_x = vx + 1; v0_z = local_z;
-			v2_x = vx + 1; v2_z = local_z + 1;
+		if (points_down) {
+			v1_x = vx;
+			v1_z = z;
+			v0_x = vx + 1;
+			v0_z = z;
+			v2_x = vx + 1;
+			v2_z = z + 1;
 		} else {
-			v0_x = vx + 1; v0_z = local_z + 1;
-			v1_x = vx + 2; v1_z = local_z + 1;
-			v2_x = vx + 1; v2_z = local_z;
+			v0_x = vx;
+			v0_z = z + 1;
+			v1_x = vx + 1;
+			v1_z = z + 1;
+			v2_x = vx;
+			v2_z = z;
 		}
 	}
 
@@ -315,6 +311,14 @@ void MPManager::_on_toggle_visual_corners() {
 		bool current = terrain_node->is_debug_corners_visible();
 		terrain_node->set_debug_corners_visible(!current);
 		UtilityFunctions::print("MPManager: Visual Corners toggled to ", !current);
+	}
+}
+
+void MPManager::_on_debug_draw_mode_selected(int p_index) {
+	MPGrid *terrain_node = Object::cast_to<MPGrid>(get_node_or_null(terrain.path));
+	if (terrain_node) {
+		terrain_node->set_debug_draw_mode((MPGrid::DebugDrawMode)p_index);
+		UtilityFunctions::print("MPManager: Debug Draw Mode selected: ", p_index);
 	}
 }
 

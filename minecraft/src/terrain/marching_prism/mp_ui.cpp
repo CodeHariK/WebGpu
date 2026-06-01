@@ -12,6 +12,7 @@
 #include <godot_cpp/classes/h_box_container.hpp>
 #include <godot_cpp/classes/label.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/option_button.hpp>
 #include <godot_cpp/classes/panel.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
@@ -82,8 +83,19 @@ void MPManager::setup_ui() {
 
 	ui.manager->add_label(ui.stats_vbox, "--- DIAGNOSTICS ---");
 
-	Button *vis_btn = ui.manager->add_button(ui.stats_vbox, "Toggle Visual Corners", Callable(this, "_on_toggle_visual_corners"));
-	vis_btn->set_custom_minimum_size(Vector2(0, 30));
+	OptionButton *vis_opt = ui.manager->add_option_button(ui.stats_vbox, "DebugVisualsDropdown");
+	vis_opt->set_custom_minimum_size(Vector2(0, 30));
+	vis_opt->add_item("Show: None", MPGrid::DEBUG_SHOW_NONE);
+	vis_opt->add_item("Show: Corner", MPGrid::DEBUG_SHOW_CORNER);
+	vis_opt->add_item("Show: Corner & Edge", MPGrid::DEBUG_SHOW_CORNER_AND_EDGE);
+	
+	MPGrid *terrain_node = Object::cast_to<MPGrid>(get_node_or_null(terrain.path));
+	if (terrain_node) {
+		vis_opt->select((int)terrain_node->get_debug_draw_mode());
+	} else {
+		vis_opt->select(0);
+	}
+	vis_opt->connect("item_selected", Callable(this, "_on_debug_draw_mode_selected"));
 
 	ui.manager->add_label(ui.stats_vbox, "--- TERRAIN STATS ---");
 	terrain.stats_label = ui.manager->add_label(ui.stats_vbox, "MP Meshes: 0\nMP Cells: 0\nDebug Corners: 0");

@@ -108,11 +108,18 @@ struct MPChunk {
 class MPGrid : public Node3D {
 	GDCLASS(MPGrid, Node3D)
 
+public:
+	enum DebugDrawMode {
+		DEBUG_SHOW_NONE = 0,
+		DEBUG_SHOW_CORNER,
+		DEBUG_SHOW_CORNER_AND_EDGE
+	};
+
 private:
 	Vector3i grid_size = Vector3i(1, 1, 1);
 	Vector3i chunk_size = Vector3i(6, 6, 6);
 	MPNode *mp_node = nullptr;
-	bool show_debug_corners = false;
+	DebugDrawMode debug_draw_mode = DEBUG_SHOW_NONE; // Current debug draw mode.
 	std::vector<MPChunk> chunks;
 	int total_mp_meshes = 0;
 	int total_debug_corners = 0;
@@ -149,12 +156,19 @@ private:
 	Vector3 _get_corner_world_pos(const MPChunk &p_chunk, int lx, int ly, int lz) const;
 	// Builds/rebuilds the wireframe mesh instance representing the edges of all prisms.
 	void _build_grid_wireframe();
+	// Clears all debugdraw lines representing active prism cell edges.
+	void _clear_prism_edges();
+	// Draws debug wireframe lines for a specific cell.
+	void _draw_cell_wireframe(const MPChunk &p_chunk, int cx, int y, int z, int v0_x, int v0_z, int v1_x, int v1_z, int v2_x, int v2_z);
+	// Clears debug wireframe lines for a specific cell.
+	void _clear_cell_wireframe(const MPChunk &p_chunk, int cx, int y, int z);
 
 protected:
 	static void _bind_methods();
 
 public:
 	MPGrid();
+	// Clean up MPGrid instance and clear related debug resources.
 	~MPGrid() override;
 
 	void initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, bool p_refresh = true);
@@ -180,8 +194,8 @@ public:
 	int get_total_cells() const { return total_cells; }
 	void set_mp_node(MPNode *p_node) { mp_node = p_node; }
 	MPNode *get_mp_node() const { return mp_node; }
-	void set_show_debug_corners(bool p_show);
-	bool get_show_debug_corners() const { return show_debug_corners; }
+	void set_debug_draw_mode(DebugDrawMode p_mode);
+	DebugDrawMode get_debug_draw_mode() const { return debug_draw_mode; }
 	void set_debug_corners_visible(bool p_visible) {
 		if (debug_corners_container)
 			debug_corners_container->set_visible(p_visible);
@@ -202,5 +216,7 @@ public:
 };
 
 } // namespace godot
+
+VARIANT_ENUM_CAST(godot::MPGrid::DebugDrawMode);
 
 #endif // MP_GRID_H

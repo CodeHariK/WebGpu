@@ -1,4 +1,5 @@
 #include "debug_quad.h"
+#include "debug_manager.h"
 #include <godot_cpp/classes/engine.hpp>
 
 namespace godot {
@@ -43,11 +44,16 @@ void DebugLineQuad::_ready() {
 	shader_material.instantiate();
 	set_material_override(shader_material);
 
-	// Default Shader (flat color)
-	Ref<Shader> default_shader;
-	default_shader.instantiate();
-	default_shader->set_code("shader_type spatial; render_mode unshaded, cull_disabled, depth_test_disabled; uniform vec4 color: source_color; void fragment() { ALBEDO = color.rgb; ALPHA = color.a; }");
-	shader_material->set_shader(default_shader);
+	// Use shared shader from DebugManager if available to avoid compiling a new shader per line
+	DebugManager *dm = DebugManager::get_singleton();
+	if (dm) {
+		shader_material->set_shader(dm->get_line_shader());
+	} else {
+		Ref<Shader> default_shader;
+		default_shader.instantiate();
+		default_shader->set_code("shader_type spatial; render_mode unshaded, cull_disabled, depth_test_disabled; uniform vec4 color: source_color; void fragment() { ALBEDO = color.rgb; ALPHA = color.a; }");
+		shader_material->set_shader(default_shader);
+	}
 	shader_material->set_shader_parameter("color", color);
 
 	_update_geometry();

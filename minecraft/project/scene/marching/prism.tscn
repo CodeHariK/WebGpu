@@ -45,6 +45,7 @@ mp_node_path = NodePath("../MPNode")
 terrain_path = NodePath("../MPGrid")
 
 [node name="MPGrid" type="MPGrid" parent="." unique_id=1491364582 node_paths=PackedStringArray("mp_node")]
-chunk_size = Vector3i(3, 2, 3)
+grid_size = Vector3i(3, 2, 3)
+chunk_size = Vector3i(4, 4, 3)
 show_debug_corners = true
 mp_node = NodePath("../MPNode")

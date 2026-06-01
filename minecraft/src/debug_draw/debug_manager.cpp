@@ -37,6 +37,14 @@ DebugManager *DebugManager::get_singleton() {
 	return singleton;
 }
 
+Ref<Shader> DebugManager::get_line_shader() {
+	if (line_shader.is_null()) {
+		line_shader.instantiate();
+		line_shader->set_code("shader_type spatial; render_mode unshaded, cull_disabled, depth_test_disabled; uniform vec4 color: source_color; void fragment() { ALBEDO = color.rgb; ALPHA = color.a; }");
+	}
+	return line_shader;
+}
+
 void DebugManager::_enter_tree() {
 	if (singleton != nullptr && singleton != this) {
 		UtilityFunctions::printerr("DebugManager Error: Multiple instances detected! Only one is allowed.");
@@ -48,6 +56,41 @@ void DebugManager::_enter_tree() {
 }
 
 void DebugManager::_exit_tree() {
+	for (auto &E : lines) {
+		if (E.value.quad) {
+			if (E.value.quad->is_inside_tree()) {
+				remove_child(E.value.quad);
+			}
+			memdelete(E.value.quad);
+		}
+	}
+	lines.clear();
+
+	for (auto &E : texts) {
+		if (E.value.label) {
+			if (E.value.label->is_inside_tree()) {
+				remove_child(E.value.label);
+			}
+			memdelete(E.value.label);
+		}
+	}
+	texts.clear();
+
+	for (auto &E : spheres) {
+		if (E.value.mesh_instance) {
+			if (E.value.mesh_instance->is_inside_tree()) {
+				remove_child(E.value.mesh_instance);
+			}
+			memdelete(E.value.mesh_instance);
+		}
+	}
+	spheres.clear();
+
+	for (auto &E : trajectories) {
+		// Trajectory lines are cleared as part of the lines map.
+	}
+	trajectories.clear();
+
 	if (singleton == this) {
 		singleton = nullptr;
 	}

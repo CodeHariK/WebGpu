@@ -1,6 +1,7 @@
 #ifndef DEBUG_MANAGER_H
 #define DEBUG_MANAGER_H
 
+#include <godot_cpp/classes/shader.hpp>
 #include <godot_cpp/classes/label3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node.hpp>
@@ -13,6 +14,7 @@
 namespace godot {
 
 class DebugLineQuad;
+class Shader;
 
 class DebugManager : public Node {
 	GDCLASS(DebugManager, Node)
@@ -45,6 +47,8 @@ private:
 	HashMap<String, Trajectory> trajectories;
 	HashMap<String, DebugSphere> spheres;
 
+	Ref<Shader> line_shader; // Shared shader resource for drawing debug lines.
+
 protected:
 	static void _bind_methods();
 
@@ -53,6 +57,8 @@ public:
 	~DebugManager();
 
 	static DebugManager *get_singleton();
+
+	Ref<Shader> get_line_shader(); // Returns the shared line shader instance.
 
 	void _enter_tree() override;
 	void _exit_tree() override;

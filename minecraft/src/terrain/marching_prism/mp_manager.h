@@ -105,6 +105,7 @@ public:
 	void _process(double p_delta) override;
 	void _on_toggle_ui();
 	void _on_toggle_visual_corners();
+	void _on_debug_draw_mode_selected(int p_index);
 	// Handles mouse button input events for adding/removing corners or selecting cells.
 	void _input(const Ref<InputEvent> &p_event) override;
 	void _on_gui_input(const Ref<InputEvent> &p_event);
