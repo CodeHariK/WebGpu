@@ -1,3 +1,10 @@
+/**
+ * @file mp_manager.cpp
+ * @brief Manages mouse interaction, UI, raycasting, and placement logic for Marching Prism grids.
+ * Module Path: src/terrain/marching_prism/mp_manager.cpp
+ * Build Dependencies: godot-cpp, mp_manager.h, game_manager.h, mc_raycast.h
+ */
+
 #include "mp_manager.h"
 #include "../../game_manager/game_constants.h"
 #include "../../game_manager/game_manager.h"
@@ -174,35 +181,23 @@ uint8_t MPManager::_get_cell_hash(const Vector3i &p_grid_pos) {
 
 	if (local_z % 2 == 0) {
 		if (local_cx % 2 == 0) {
-			v0_x = vx;
-			v0_z = local_z;
-			v1_x = vx + 1;
-			v1_z = local_z;
-			v2_x = vx;
-			v2_z = local_z + 1;
+			v1_x = vx;     v1_z = local_z;
+			v0_x = vx + 1; v0_z = local_z;
+			v2_x = vx;     v2_z = local_z + 1;
 		} else {
-			v0_x = vx + 1;
-			v0_z = local_z;
-			v1_x = vx;
-			v1_z = local_z + 1;
-			v2_x = vx + 1;
-			v2_z = local_z + 1;
+			v0_x = vx;     v0_z = local_z + 1;
+			v1_x = vx + 1; v1_z = local_z + 1;
+			v2_x = vx + 1; v2_z = local_z;
 		}
 	} else {
 		if (local_cx % 2 == 0) {
-			v0_x = vx;
-			v0_z = local_z;
-			v1_x = vx + 1;
-			v1_z = local_z;
-			v2_x = vx + 1;
-			v2_z = local_z + 1;
+			v1_x = vx;     v1_z = local_z;
+			v0_x = vx + 1; v0_z = local_z;
+			v2_x = vx + 1; v2_z = local_z + 1;
 		} else {
-			v0_x = vx;
-			v0_z = local_z;
-			v1_x = vx;
-			v1_z = local_z + 1;
-			v2_x = vx + 1;
-			v2_z = local_z + 1;
+			v0_x = vx + 1; v0_z = local_z + 1;
+			v1_x = vx + 2; v1_z = local_z + 1;
+			v2_x = vx + 1; v2_z = local_z;
 		}
 	}
 
@@ -255,22 +250,44 @@ void MPManager::_initialize_previews() {
 
 void MPManager::_update_hover_raycast() {
 	MPGrid *terrain_node = Object::cast_to<MPGrid>(get_node_or_null(terrain.path));
-	if (terrain_node) {
+	if (terrain_node)
 		terrain_node->hide_hover_preview();
-	}
 
 	Viewport *viewport = get_viewport();
 	if (!viewport)
 		return;
 
-	uint32_t mask = toLayer(LAYER_CORNERS);
+	bool is_ctrl = Input::get_singleton()->is_key_pressed(KEY_CTRL);
+	if (terrain_node) {
+		terrain_node->set_corner_collision_enabled(!is_ctrl);
+		terrain_node->set_cell_collision_enabled(is_ctrl);
+	}
+
+	uint32_t mask = is_ctrl ? toLayer(LAYER_CELLS) : toLayer(LAYER_CORNERS);
+
 	TypedArray<RID> exclude;
 	MCRaycastHit hit = raycast_from_mouse(this, viewport->get_mouse_position(), mask, 1000.0f, exclude);
+
 	if (hit.is_hit) {
 		Node3D *collider_node = Object::cast_to<Node3D>(hit.collider);
 		if (collider_node) {
 			Camera3D *camera = viewport->get_camera_3d();
-			if (camera && terrain_node) {
+
+			if (is_ctrl && collider_node->has_meta("is_cell")) {
+				// Hit cell center (LAYER_CELLS)
+				int cx = collider_node->get_meta("cell_x");
+				int cy = collider_node->get_meta("cell_y");
+				int cz = collider_node->get_meta("cell_z");
+				locked_grid_pos = Vector3i(cx, cy, cz);
+				is_hovering_cell = true;
+				update_ui();
+
+				// Option: Light up center of cell with debug square
+				if (terrain_node)
+					terrain_node->update_hover_preview(collider_node->get_global_position(), hit.normal, camera, true);
+
+			} else if (!is_ctrl) {
+				// Hit corner (LAYER_CORNERS)
 				Node *parent = collider_node->get_parent();
 				Node3D *parent_node = Object::cast_to<Node3D>(parent);
 				if (parent_node) {
@@ -281,8 +298,11 @@ void MPManager::_update_hover_raycast() {
 					int gx = static_cast<int32_t>(Math::round(hit_pos.x - stagger));
 
 					locked_grid_pos = Vector3i(gx, gy, gz);
+					is_hovering_cell = false;
 					update_ui();
-					terrain_node->update_hover_preview(hit_pos, hit.normal, camera);
+
+					if (terrain_node)
+						terrain_node->update_hover_preview(hit_pos, hit.normal, camera, false);
 				}
 			}
 		}
@@ -300,48 +320,101 @@ void MPManager::_on_toggle_visual_corners() {
 
 void MPManager::_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> mouse_event = p_event;
-	if (mouse_event.is_null() || !mouse_event->is_pressed()) {
+	if (mouse_event.is_null() || !mouse_event->is_pressed())
 		return;
-	}
 
 	MPGrid *terrain_node = Object::cast_to<MPGrid>(get_node_or_null(terrain.path));
 	if (!terrain_node)
 		return;
 
 	int button_index = mouse_event->get_button_index();
-	if (button_index != MOUSE_BUTTON_LEFT && button_index != MOUSE_BUTTON_RIGHT) {
+	if (button_index != MOUSE_BUTTON_LEFT && button_index != MOUSE_BUTTON_RIGHT)
 		return;
-	}
 
-	uint32_t mask = toLayer(LAYER_CORNERS);
+	bool is_ctrl = Input::get_singleton()->is_key_pressed(KEY_CTRL);
+	uint32_t mask = is_ctrl ? toLayer(LAYER_CELLS) : toLayer(LAYER_CORNERS);
+
 	TypedArray<RID> exclude;
 	MCRaycastHit hit = raycast_from_event(this, p_event, mask, 512, exclude);
 	if (hit.is_hit) {
 		Node3D *collider_node = Object::cast_to<Node3D>(hit.collider);
 		if (collider_node) {
-			Node *parent = collider_node->get_parent();
-			Node3D *parent_node = Object::cast_to<Node3D>(parent);
-			if (parent_node) {
-				Vector3 hit_pos = parent_node->get_position();
-				int gy = static_cast<int32_t>(Math::round(hit_pos.y));
-				int gz = static_cast<int32_t>(Math::round(hit_pos.z / 0.866025f));
-				float stagger = (gz % 2 != 0) ? 0.5f : 0.0f;
-				int gx = static_cast<int32_t>(Math::round(hit_pos.x - stagger));
+			if (is_ctrl && collider_node->has_meta("is_cell")) {
+				int cx = collider_node->get_meta("cell_x");
+				int cy = collider_node->get_meta("cell_y");
+				int cz = collider_node->get_meta("cell_z");
+				locked_grid_pos = Vector3i(cx, cy, cz);
+				is_hovering_cell = true;
+				update_ui();
+			} else if (!is_ctrl) {
+				Node *parent = collider_node->get_parent();
+				Node3D *parent_node = Object::cast_to<Node3D>(parent);
+				if (parent_node) {
+					Vector3 hit_pos = parent_node->get_position();
+					int gy = static_cast<int32_t>(Math::round(hit_pos.y));
+					int gz = static_cast<int32_t>(Math::round(hit_pos.z / 0.866025f));
+					float stagger = (gz % 2 != 0) ? 0.5f : 0.0f;
+					int gx = static_cast<int32_t>(Math::round(hit_pos.x - stagger));
 
-				Vector3i grid_pos = Vector3i(gx, gy, gz);
+					Vector3i grid_pos = Vector3i(gx, gy, gz);
 
-				if (button_index == MOUSE_BUTTON_LEFT) {
-					Vector3i normal_dir = Vector3i(
-							static_cast<int32_t>(Math::round(hit.normal.x)),
-							static_cast<int32_t>(Math::round(hit.normal.y)),
-							static_cast<int32_t>(Math::round(hit.normal.z)));
-					terrain_node->modify_corner(grid_pos + normal_dir, true);
-				} else if (button_index == MOUSE_BUTTON_RIGHT) {
-					terrain_node->modify_corner(grid_pos, false);
+					if (button_index == MOUSE_BUTTON_LEFT) {
+						Vector3i normal_dir = _get_staggered_normal_dir(hit.normal, grid_pos);
+						terrain_node->modify_corner(grid_pos + normal_dir, true);
+					} else if (button_index == MOUSE_BUTTON_RIGHT) {
+						terrain_node->modify_corner(grid_pos, false);
+					}
 				}
 			}
 		}
 	}
+}
+
+Vector3i MPManager::_get_staggered_normal_dir(const Vector3 &p_hit_normal, const Vector3i &p_grid_pos) const {
+	Vector3 directions[8] = {
+		Vector3(1.0f, 0.0f, 0.0f),
+		Vector3(-1.0f, 0.0f, 0.0f),
+		Vector3(0.5f, 0.0f, 0.866025f),
+		Vector3(-0.5f, 0.0f, 0.866025f),
+		Vector3(0.5f, 0.0f, -0.866025f),
+		Vector3(-0.5f, 0.0f, -0.866025f),
+		Vector3(0.0f, 1.0f, 0.0f),
+		Vector3(0.0f, -1.0f, 0.0f)
+	};
+
+	Vector3 closest_dir = directions[0];
+	float max_dot = -2.0f;
+	for (int i = 0; i < 8; ++i) {
+		float dot = p_hit_normal.dot(directions[i]);
+		if (dot > max_dot) {
+			max_dot = dot;
+			closest_dir = directions[i];
+		}
+	}
+
+	Vector3i normal_dir(0, 0, 0);
+	if (closest_dir.is_equal_approx(Vector3(1.0f, 0.0f, 0.0f))) {
+		normal_dir = Vector3i(1, 0, 0);
+	} else if (closest_dir.is_equal_approx(Vector3(-1.0f, 0.0f, 0.0f))) {
+		normal_dir = Vector3i(-1, 0, 0);
+	} else if (closest_dir.is_equal_approx(Vector3(0.0f, 1.0f, 0.0f))) {
+		normal_dir = Vector3i(0, 1, 0);
+	} else if (closest_dir.is_equal_approx(Vector3(0.0f, -1.0f, 0.0f))) {
+		normal_dir = Vector3i(0, -1, 0);
+	} else {
+		int gz = p_grid_pos.z;
+		bool is_even = (gz % 2 == 0);
+		if (closest_dir.is_equal_approx(Vector3(0.5f, 0.0f, 0.866025f))) {
+			normal_dir = is_even ? Vector3i(0, 0, 1) : Vector3i(1, 0, 1);
+		} else if (closest_dir.is_equal_approx(Vector3(-0.5f, 0.0f, 0.866025f))) {
+			normal_dir = is_even ? Vector3i(-1, 0, 1) : Vector3i(0, 0, 1);
+		} else if (closest_dir.is_equal_approx(Vector3(0.5f, 0.0f, -0.866025f))) {
+			normal_dir = is_even ? Vector3i(0, 0, -1) : Vector3i(1, 0, -1);
+		} else if (closest_dir.is_equal_approx(Vector3(-0.5f, 0.0f, -0.866025f))) {
+			normal_dir = is_even ? Vector3i(-1, 0, -1) : Vector3i(0, 0, -1);
+		}
+	}
+	return normal_dir;
 }
 
 } // namespace godot
