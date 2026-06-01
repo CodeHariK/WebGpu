@@ -187,11 +187,15 @@ void MPManager::update_ui() {
 
 	if (ui.hash_label) {
 		if (interaction_mode == MODE_TERRAIN) {
-			uint8_t h = _get_cell_hash(locked_grid_pos);
-			String bin = MPNode::hash_to_binary(h);
-			Vector3 display_pos = Vector3(locked_grid_pos);
-			ui.hash_label->set_text("Hash: " + bin + " (" + String::num_int64(h) + ")" +
-									"\nPos: " + String(display_pos));
+			if (is_hovering_cell) {
+				uint8_t h = _get_cell_hash(locked_grid_pos);
+				String bin = MPNode::hash_to_binary(h);
+				Vector3 display_pos = Vector3(locked_grid_pos);
+				ui.hash_label->set_text("Hash: " + bin + " (" + String::num_int64(h) + ")" +
+										"\nPos: " + String(display_pos));
+			} else {
+				ui.hash_label->set_text("Hovering Corner\nPos: " + String(Vector3(locked_grid_pos)));
+			}
 		} else {
 			ui.hash_label->set_text("Hash: N/A\nPos: N/A");
 		}
@@ -207,10 +211,6 @@ void MPManager::update_ui() {
 			}
 
 			Dictionary counts = mp_node->get_variant_counts();
-
-			// Assume you added get_base_mesh_order() to MPNode in the header earlier
-			// If not, you can iterate 0-63 or fetch the master order.
-			// Using a standard 0-63 iteration for safety if base_mesh_order is unavailable:
 			int total = 0;
 			Array keys = counts.keys();
 			for (int i = 0; i < keys.size(); i++) {
@@ -223,7 +223,6 @@ void MPManager::update_ui() {
 					int count = (int)counts[base_name];
 					int bit_count = 0;
 
-					// Marching Prisms only have 6 bits
 					for (int i = 0; i < 6; i++) {
 						if ((h >> i) & 1)
 							bit_count++;

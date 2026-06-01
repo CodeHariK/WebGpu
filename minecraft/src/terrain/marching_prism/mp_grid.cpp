@@ -1,67 +1,66 @@
 /**
  * @file mp_grid.cpp
- * @brief Implementation of chunked Marching Prisms terrain grid.
- * @module src/terrain/marching_prism/mp_grid.cpp
- * @dependencies mp_grid.h, godot classes
+ * @brief Manages the grid and chunk structure for the Marching Prism terrain generator.
+ * Module Path: src/terrain/marching_prism/mp_grid.cpp
+ * Build Dependencies: godot-cpp, mp.h, mp_grid.h
  */
 
 #include "mp_grid.h"
 #include "game_manager/game_constants.h"
 #include "mp.h"
 #include <godot_cpp/classes/box_mesh.hpp>
+#include <godot_cpp/classes/box_shape3d.hpp>
+#include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/sphere_mesh.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/classes/static_body3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
 
-// Binds GDScript methods.
+// Binds GDScript methods...
 void MPGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y", "chunk_size_z"), &MPGrid::initialize_grid);
 	ClassDB::bind_method(D_METHOD("refresh_grid"), &MPGrid::refresh_grid);
 	ClassDB::bind_method(D_METHOD("modify_corner", "p_grid_pos", "p_active"), &MPGrid::modify_corner);
-
 	ClassDB::bind_method(D_METHOD("set_grid_size", "size"), &MPGrid::set_grid_size);
 	ClassDB::bind_method(D_METHOD("get_grid_size"), &MPGrid::get_grid_size);
-
 	ClassDB::bind_method(D_METHOD("set_chunk_size", "size"), &MPGrid::set_chunk_size);
 	ClassDB::bind_method(D_METHOD("get_chunk_size"), &MPGrid::get_chunk_size);
-
 	ClassDB::bind_method(D_METHOD("set_show_debug_corners", "show"), &MPGrid::set_show_debug_corners);
 	ClassDB::bind_method(D_METHOD("get_show_debug_corners"), &MPGrid::get_show_debug_corners);
-
 	ClassDB::bind_method(D_METHOD("set_mp_node", "node"), &MPGrid::set_mp_node);
 	ClassDB::bind_method(D_METHOD("get_mp_node"), &MPGrid::get_mp_node);
-
 	ClassDB::bind_method(D_METHOD("save_grid", "path"), &MPGrid::save_grid);
 	ClassDB::bind_method(D_METHOD("load_grid", "path"), &MPGrid::load_grid);
-
 	ClassDB::bind_method(D_METHOD("get_total_mp_meshes"), &MPGrid::get_total_mp_meshes);
 	ClassDB::bind_method(D_METHOD("get_total_debug_corners"), &MPGrid::get_total_debug_corners);
 	ClassDB::bind_method(D_METHOD("get_total_cells"), &MPGrid::get_total_cells);
+	ClassDB::bind_method(D_METHOD("set_hover_cylinder_alpha", "alpha"), &MPGrid::set_hover_cylinder_alpha);
+	ClassDB::bind_method(D_METHOD("get_hover_cylinder_alpha"), &MPGrid::get_hover_cylinder_alpha);
+
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_size"), "set_grid_size", "get_grid_size");
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "chunk_size"), "set_chunk_size", "get_chunk_size");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_debug_corners"), "set_show_debug_corners", "get_show_debug_corners");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "mp_node", PROPERTY_HINT_NODE_TYPE, "MPNode"), "set_mp_node", "get_mp_node");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "hover_cylinder_alpha"), "set_hover_cylinder_alpha", "get_hover_cylinder_alpha");
 }
 
-// Constructor.
 MPGrid::MPGrid() {
 	grid_size = Vector3i(1, 1, 1);
 	chunk_size = Vector3i(6, 6, 6);
 }
 
-// Destructor.
 MPGrid::~MPGrid() {}
 
-// Ready callback.
 void MPGrid::_ready() {
-	if (Engine::get_singleton()->is_editor_hint()) {
+	if (Engine::get_singleton()->is_editor_hint())
 		return;
-	}
-	UtilityFunctions::print("MPGrid: _ready() called.");
 }
 
-// Initializes the grid structures.
 void MPGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, bool p_refresh) {
 	grid_size = Vector3i(p_chunks_x, p_chunks_y, p_chunks_z);
 	chunk_size = Vector3i(p_chunk_size_x, p_chunk_size_y, p_chunk_size_z);
@@ -87,6 +86,7 @@ void MPGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int
 				int num_corners = (chunk.size_x + 1) * (chunk.size_y + 1) * (chunk.size_z + 1);
 				chunk.corner_states.assign((num_corners + 7) / 8, 0);
 				chunk.cell_visuals.assign(chunk.size_x * 2 * chunk.size_y * chunk.size_z, nullptr);
+				chunk.cell_colliders.assign(chunk.size_x * 2 * chunk.size_y * chunk.size_z, nullptr);
 				chunk.debug_visuals.assign(num_corners, nullptr);
 
 				_initialize_boundaries(chunk);
@@ -94,33 +94,32 @@ void MPGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int
 		}
 	}
 
-	if (p_refresh) {
+	if (p_refresh)
 		refresh_grid();
-	}
 }
 
-// Rebuilds all visual components.
 void MPGrid::refresh_grid() {
 	_clear_children();
 	total_mp_meshes = 0;
 	total_cells = 0;
 
-	if (_debug_box_mesh.is_null()) {
-		_debug_box_mesh.instantiate();
-		_debug_box_mesh->set_size(Vector3(0.1, 0.1, 0.1));
+	if (_debug_corner_mesh.is_null()) {
+		_debug_corner_mesh.instantiate();
 	}
+	_debug_corner_mesh->set_radius(0.04f);
+	_debug_corner_mesh->set_height(0.08f);
 
 	for (const MPChunk &chunk : chunks) {
 		_spawn_marching_prisms(chunk, mp_node);
-		_spawn_debug_cubes(chunk, _debug_box_mesh);
+		_spawn_debug_spheres(chunk, _debug_corner_mesh);
 	}
 
-	if (debug_corners_container) {
+	_build_grid_wireframe();
+
+	if (debug_corners_container)
 		debug_corners_container->set_visible(show_debug_corners);
-	}
 }
 
-// Helper: loops over chunk cells and spawns meshes based on config.
 int MPGrid::_spawn_marching_prisms(const MPChunk &p_chunk, MPNode *p_mp_node) {
 	if (!p_mp_node)
 		return 0;
@@ -132,37 +131,39 @@ int MPGrid::_spawn_marching_prisms(const MPChunk &p_chunk, MPNode *p_mp_node) {
 				int vx = cx / 2;
 				int v0_x, v0_z, v1_x, v1_z, v2_x, v2_z;
 
+				bool points_down = (cx % 2 == 0);
+
 				if (z % 2 == 0) {
-					if (cx % 2 == 0) {
-						v0_x = vx;
-						v0_z = z;
-						v1_x = vx + 1;
+					if (points_down) {
+						v1_x = vx;
 						v1_z = z;
+						v0_x = vx + 1;
+						v0_z = z;
 						v2_x = vx;
 						v2_z = z + 1;
 					} else {
-						v0_x = vx + 1;
-						v0_z = z;
-						v1_x = vx;
+						v0_x = vx;
+						v0_z = z + 1;
+						v1_x = vx + 1;
 						v1_z = z + 1;
 						v2_x = vx + 1;
-						v2_z = z + 1;
+						v2_z = z;
 					}
 				} else {
-					if (cx % 2 == 0) {
-						v0_x = vx;
-						v0_z = z;
-						v1_x = vx + 1;
+					if (points_down) {
+						v1_x = vx;
 						v1_z = z;
+						v0_x = vx + 1;
+						v0_z = z;
 						v2_x = vx + 1;
 						v2_z = z + 1;
 					} else {
-						v0_x = vx;
-						v0_z = z;
-						v1_x = vx;
+						v0_x = vx + 1;
+						v0_z = z + 1;
+						v1_x = vx + 2;
 						v1_z = z + 1;
 						v2_x = vx + 1;
-						v2_z = z + 1;
+						v2_z = z;
 					}
 				}
 
@@ -181,6 +182,24 @@ int MPGrid::_spawn_marching_prisms(const MPChunk &p_chunk, MPNode *p_mp_node) {
 					config_idx |= (1 << 5);
 
 				total_cells++;
+
+				// Calculate TRUE geometric centroid for accurate rotation
+				int global_cx = (p_chunk.loc_x * p_chunk.size_x * 2) + cx;
+				int global_z = (p_chunk.loc_z * p_chunk.size_z) + z;
+				int global_y = (p_chunk.loc_y * p_chunk.size_y) + y;
+
+				float stagger = (global_z % 2 != 0) ? 0.5f : 0.0f;
+				float base_x = (global_cx / 2) + stagger;
+				float base_z = global_z * 0.866025f;
+
+				float centroid_x = base_x + (points_down ? 0.5f : 1.0f);
+				float centroid_z = base_z + (points_down ? 0.288675f : 0.577350f);
+				float centroid_y = (global_y * 1.0f) + 0.5f;
+
+				Vector3 world_pos = Vector3(centroid_x, centroid_y, centroid_z);
+				int cell_idx = (y * p_chunk.size_x * 2 * p_chunk.size_z) + (z * p_chunk.size_x * 2) + cx;
+
+				// Skip mesh generation if fully empty or fully solid
 				if (config_idx == 0 || config_idx == 63)
 					continue;
 
@@ -188,29 +207,39 @@ int MPGrid::_spawn_marching_prisms(const MPChunk &p_chunk, MPNode *p_mp_node) {
 				if (conf.mesh.is_null())
 					continue;
 
-				float stagger = (z % 2 != 0) ? 0.5f : 0.0f;
-				float physical_x = (vx + stagger);
-				float physical_z = (z * 0.866025f);
-				float physical_y = y * 1.0f;
+				// Spawn cell collider only when mesh exists
+				StaticBody3D *cell_sb = memnew(StaticBody3D);
+				cell_sb->set_position(world_pos);
+				cell_sb->set_collision_layer(toLayer(LAYER_CELLS));
+				cell_sb->set_meta("is_cell", true);
+				cell_sb->set_meta("cell_x", global_cx);
+				cell_sb->set_meta("cell_y", global_y);
+				cell_sb->set_meta("cell_z", global_z);
 
-				Vector3 world_pos = Vector3(
-						static_cast<float>(p_chunk.loc_x * p_chunk.size_x) + physical_x,
-						static_cast<float>(p_chunk.loc_y * p_chunk.size_y) + physical_y,
-						static_cast<float>(p_chunk.loc_z * p_chunk.size_z) * 0.866025f + physical_z);
+				CollisionShape3D *cs = memnew(CollisionShape3D);
+				BoxShape3D *shape = memnew(BoxShape3D);
+				shape->set_size(Vector3(0.4, 0.4, 0.4)); // Approximate cell size
+				cs->set_shape(shape);
+				cell_sb->add_child(cs);
+				add_child(cell_sb);
+
+				const_cast<MPChunk &>(p_chunk).cell_colliders[cell_idx] = cell_sb;
 
 				MeshInstance3D *mi = memnew(MeshInstance3D);
 				mi->set_mesh(conf.mesh);
 				Transform3D cell_t;
 				cell_t.origin = world_pos;
+
+				if (points_down) {
+					cell_t.basis = cell_t.basis.rotated(Vector3(0, 1, 0), Math_PI);
+				}
+
 				mi->set_transform(cell_t * conf.transform);
 				mi->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
 				add_child(mi);
 
-				if (is_inside_tree()) {
+				if (is_inside_tree())
 					mi->set_owner(get_owner() ? get_owner() : this);
-				}
-
-				int cell_idx = (y * p_chunk.size_x * 2 * p_chunk.size_z) + (z * p_chunk.size_x * 2) + cx;
 				const_cast<MPChunk &>(p_chunk).cell_visuals[cell_idx] = mi;
 				count++;
 				total_mp_meshes++;
@@ -220,7 +249,6 @@ int MPGrid::_spawn_marching_prisms(const MPChunk &p_chunk, MPNode *p_mp_node) {
 	return count;
 }
 
-// Clears all visual nodes.
 void MPGrid::_clear_children() {
 	TypedArray<Node> children = get_children();
 	for (int i = 0; i < children.size(); i++) {
@@ -244,23 +272,23 @@ void MPGrid::_clear_children() {
 
 	for (MPChunk &chunk : chunks) {
 		std::fill(chunk.cell_visuals.begin(), chunk.cell_visuals.end(), nullptr);
+		std::fill(chunk.cell_colliders.begin(), chunk.cell_colliders.end(), nullptr);
 		std::fill(chunk.debug_visuals.begin(), chunk.debug_visuals.end(), nullptr);
 	}
 
+	wireframe_instance = nullptr;
 	total_mp_meshes = 0;
 	total_debug_corners = 0;
 	total_cells = 0;
 }
 
-// Updates the visual meshes for cells containing a given corner coordinate.
 void MPGrid::_update_visual_at(int gx, int gy, int gz) {
 	int cx = (gx < 0) ? -1 : gx / chunk_size.x;
 	int cy = (gy < 0) ? -1 : gy / chunk_size.y;
 	int cz = (gz < 0) ? -1 : gz / chunk_size.z;
 
-	if (cx < 0 || cx >= grid_size.x || cy < 0 || cy >= grid_size.y || cz < 0 || cz >= grid_size.z) {
+	if (cx < 0 || cx >= grid_size.x || cy < 0 || cy >= grid_size.y || cz < 0 || cz >= grid_size.z)
 		return;
-	}
 
 	int lx = gx - (cx * chunk_size.x);
 	int ly = gy - (cy * chunk_size.y);
@@ -268,9 +296,6 @@ void MPGrid::_update_visual_at(int gx, int gy, int gz) {
 
 	MPChunk &chunk = chunks[_get_chunk_index(cx, cy, cz)];
 
-	// In marching prisms, a corner affects multiple cells. Re-build chunk cells.
-	// Since cell meshes are fast, we can just spawn/update cells around this.
-	// For simplicity and correctness, rebuild cells in the chunk at y and z, z-1.
 	for (int y = ly - 1; y <= ly; y++) {
 		if (y < 0 || y >= chunk.size_y)
 			continue;
@@ -282,46 +307,52 @@ void MPGrid::_update_visual_at(int gx, int gy, int gz) {
 					continue;
 
 				int cell_idx = (y * chunk.size_x * 2 * chunk.size_z) + (z * chunk.size_x * 2) + cx_l;
+
 				if (chunk.cell_visuals[cell_idx]) {
 					chunk.cell_visuals[cell_idx]->queue_free();
 					chunk.cell_visuals[cell_idx] = nullptr;
 					total_mp_meshes--;
 				}
+				if (chunk.cell_colliders[cell_idx]) {
+					chunk.cell_colliders[cell_idx]->queue_free();
+					chunk.cell_colliders[cell_idx] = nullptr;
+				}
 
-				// Stagger formulas:
 				int vx = cx_l / 2;
 				int v0_x, v0_z, v1_x, v1_z, v2_x, v2_z;
+				bool points_down = (cx_l % 2 == 0);
+
 				if (z % 2 == 0) {
-					if (cx_l % 2 == 0) {
-						v0_x = vx;
-						v0_z = z;
-						v1_x = vx + 1;
+					if (points_down) {
+						v1_x = vx;
 						v1_z = z;
+						v0_x = vx + 1;
+						v0_z = z;
 						v2_x = vx;
 						v2_z = z + 1;
 					} else {
-						v0_x = vx + 1;
-						v0_z = z;
-						v1_x = vx;
+						v0_x = vx;
+						v0_z = z + 1;
+						v1_x = vx + 1;
 						v1_z = z + 1;
 						v2_x = vx + 1;
-						v2_z = z + 1;
+						v2_z = z;
 					}
 				} else {
-					if (cx_l % 2 == 0) {
-						v0_x = vx;
-						v0_z = z;
-						v1_x = vx + 1;
+					if (points_down) {
+						v1_x = vx;
 						v1_z = z;
+						v0_x = vx + 1;
+						v0_z = z;
 						v2_x = vx + 1;
 						v2_z = z + 1;
 					} else {
-						v0_x = vx;
-						v0_z = z;
-						v1_x = vx;
+						v0_x = vx + 1;
+						v0_z = z + 1;
+						v1_x = vx + 2;
 						v1_z = z + 1;
 						v2_x = vx + 1;
-						v2_z = z + 1;
+						v2_z = z;
 					}
 				}
 
@@ -339,6 +370,21 @@ void MPGrid::_update_visual_at(int gx, int gy, int gz) {
 				if (chunk.get_corner(v2_x, y + 1, v2_z))
 					config_idx |= (1 << 5);
 
+				// Centroid Logic
+				int global_cx = cx * chunk_size.x * 2 + cx_l;
+				int global_z = cz * chunk_size.z + z;
+				int global_y = cy * chunk_size.y + y;
+
+				float stagger = (global_z % 2 != 0) ? 0.5f : 0.0f;
+				float base_x = (global_cx / 2) + stagger;
+				float base_z = global_z * 0.866025f;
+
+				float centroid_x = base_x + (points_down ? 0.5f : 1.0f);
+				float centroid_z = base_z + (points_down ? 0.288675f : 0.577350f);
+				float centroid_y = (global_y * 1.0f) + 0.5f;
+
+				Vector3 world_pos = Vector3(centroid_x, centroid_y, centroid_z);
+
 				if (config_idx == 0 || config_idx == 63 || !mp_node)
 					continue;
 
@@ -346,28 +392,39 @@ void MPGrid::_update_visual_at(int gx, int gy, int gz) {
 				if (conf.mesh.is_null())
 					continue;
 
-				float stagger = (z % 2 != 0) ? 0.5f : 0.0f;
-				float physical_x = (vx + stagger);
-				float physical_z = (z * 0.866025f);
-				float physical_y = y * 1.0f;
+				// Re-Spawn cell collider only when mesh exists
+				StaticBody3D *cell_sb = memnew(StaticBody3D);
+				cell_sb->set_position(world_pos);
+				cell_sb->set_collision_layer(toLayer(LAYER_CELLS));
+				cell_sb->set_meta("is_cell", true);
+				cell_sb->set_meta("cell_x", global_cx);
+				cell_sb->set_meta("cell_y", global_y);
+				cell_sb->set_meta("cell_z", global_z);
 
-				Vector3 world_pos = Vector3(
-						static_cast<float>(cx * chunk_size.x) + physical_x,
-						static_cast<float>(cy * chunk_size.y) + physical_y,
-						static_cast<float>(cz * chunk_size.z) * 0.866025f + physical_z);
+				CollisionShape3D *cs = memnew(CollisionShape3D);
+				BoxShape3D *shape = memnew(BoxShape3D);
+				shape->set_size(Vector3(0.4, 0.4, 0.4));
+				cs->set_shape(shape);
+				cell_sb->add_child(cs);
+				add_child(cell_sb);
+
+				chunk.cell_colliders[cell_idx] = cell_sb;
 
 				MeshInstance3D *mi = memnew(MeshInstance3D);
 				mi->set_mesh(conf.mesh);
 				Transform3D cell_t;
 				cell_t.origin = world_pos;
+
+				if (points_down) {
+					cell_t.basis = cell_t.basis.rotated(Vector3(0, 1, 0), Math_PI);
+				}
+
 				mi->set_transform(cell_t * conf.transform);
 				mi->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
 				add_child(mi);
 
-				if (is_inside_tree()) {
+				if (is_inside_tree())
 					mi->set_owner(get_owner() ? get_owner() : this);
-				}
-
 				chunk.cell_visuals[cell_idx] = mi;
 				total_mp_meshes++;
 			}
@@ -506,6 +563,17 @@ void MPGrid::set_corner_collision_enabled(bool p_enabled) {
 	}
 }
 
+void MPGrid::set_cell_collision_enabled(bool p_enabled) {
+	uint32_t layer = p_enabled ? toLayer(LAYER_CELLS) : 0;
+	for (MPChunk &chunk : chunks) {
+		for (StaticBody3D *sb : chunk.cell_colliders) {
+			if (sb) {
+				sb->set_collision_layer(layer);
+			}
+		}
+	}
+}
+
 // Persists the grid corner states to a file.
 void MPGrid::save_grid(const String &p_path) {
 	Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::WRITE);
@@ -562,6 +630,17 @@ void MPGrid::load_grid(const String &p_path) {
 	}
 
 	refresh_grid();
+}
+
+void MPGrid::set_hover_cylinder_alpha(float p_alpha) {
+	hover_cylinder_alpha = p_alpha;
+	if (hover_mat_white.is_valid()) {
+		hover_mat_white->set_albedo(Color(1.0f, 1.0f, 1.0f, hover_cylinder_alpha));
+	}
+}
+
+float MPGrid::get_hover_cylinder_alpha() const {
+	return hover_cylinder_alpha;
 }
 
 } // namespace godot

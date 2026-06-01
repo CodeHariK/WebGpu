@@ -26,6 +26,7 @@ class MPManager : public Node3D {
 	GDCLASS(MPManager, Node3D)
 
 public:
+	// Structure defs unchanged
 	struct MPUI {
 		CUI *manager = nullptr;
 		VBoxContainer *stats_vbox = nullptr;
@@ -46,7 +47,6 @@ public:
 		Label *meshes_label = nullptr;
 		Label *collision_label = nullptr;
 		Label *memory_label = nullptr;
-
 		double update_timer = 0.0;
 	};
 
@@ -84,6 +84,7 @@ private:
 	bool drag_valid = false;
 
 	Vector3i locked_grid_pos;
+	bool is_hovering_cell = false; // Tracks if Raycast hit a center of prism cell
 
 protected:
 	static void _bind_methods();
@@ -93,20 +94,18 @@ public:
 	~MPManager() override;
 
 	void _ready() override;
-
 	void set_mp_node_path(const NodePath &p_path);
 	NodePath get_mp_node_path() const;
-
 	void set_terrain_path(const NodePath &p_path);
 	NodePath get_terrain_path() const;
 
 	void initialize_all();
-
 	void setup_ui();
 	void update_ui();
 	void _process(double p_delta) override;
 	void _on_toggle_ui();
 	void _on_toggle_visual_corners();
+	// Handles mouse button input events for adding/removing corners or selecting cells.
 	void _input(const Ref<InputEvent> &p_event) override;
 	void _on_gui_input(const Ref<InputEvent> &p_event);
 	void _on_show_help();
@@ -120,6 +119,8 @@ public:
 	void _update_hover_box(const Vector3i &p_grid_pos, bool p_is_blocked);
 	void _update_hover_raycast();
 	uint8_t _get_cell_hash(const Vector3i &p_grid_pos);
+	// Snaps the hit normal to the nearest staggered grid neighbor direction in the triangular grid.
+	Vector3i _get_staggered_normal_dir(const Vector3 &p_hit_normal, const Vector3i &p_grid_pos) const;
 };
 
 } // namespace godot
