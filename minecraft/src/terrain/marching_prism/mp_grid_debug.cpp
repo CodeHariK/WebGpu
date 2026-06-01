@@ -8,6 +8,7 @@
 #include "marching_cubes/mc_physics.h" // Use MCPhysics helper
 #include "mp.h"
 #include "mp_grid.h"
+#include "debug_draw/debug_manager.h"
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/camera3d.hpp>
@@ -33,27 +34,20 @@ Vector3 MPGrid::_get_corner_world_pos(const MPChunk &p_chunk, int lx, int ly, in
 			static_cast<float>(global_z) * 0.866025f);
 }
 
-int MPGrid::_spawn_debug_spheres(const MPChunk &p_chunk, const Ref<SphereMesh> &p_corner_mesh) {
+int MPGrid::_spawn_debug_spheres(const MPChunk &p_chunk, const Ref<SphereMesh> &p_sphere_mesh) {
 	int nx = p_chunk.size_x + 1;
 	int ny = p_chunk.size_y + 1;
 	int nz = p_chunk.size_z + 1;
 	int count = 0;
 
-	if (_debug_corner_mesh.is_null()) {
-		_debug_corner_mesh.instantiate();
-	}
-	_debug_corner_mesh->set_radius(0.04f);
-	_debug_corner_mesh->set_height(0.08f);
-
 	if (_debug_mat_red.is_null()) {
 		_debug_mat_red.instantiate();
-		_debug_mat_red->set_albedo(Color(1.0f, 0.0f, 0.0f));
+		_debug_mat_red->set_albedo(Color(1, 0, 0));
 		_debug_mat_red->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
 	}
-
 	if (_debug_mat_blue.is_null()) {
 		_debug_mat_blue.instantiate();
-		_debug_mat_blue->set_albedo(Color(0.0f, 0.0f, 1.0f));
+		_debug_mat_blue->set_albedo(Color(0, 0, 1));
 		_debug_mat_blue->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
 	}
 
@@ -64,10 +58,19 @@ int MPGrid::_spawn_debug_spheres(const MPChunk &p_chunk, const Ref<SphereMesh> &
 				bool has_active = p_chunk.has_active_neighbor(lx, ly, lz);
 				bool has_inactive = p_chunk.has_inactive_neighbor(lx, ly, lz);
 
-				Vector3 world_pos = _get_corner_world_pos(p_chunk, lx, ly, lz);
+				if (!state && !has_active)
+					continue;
+
+				int global_z = (p_chunk.loc_z * p_chunk.size_z) + lz;
+				float stagger = (global_z % 2 != 0) ? 0.5f : 0.0f;
+
+				Vector3 world_pos = Vector3(
+						static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx) + stagger,
+						static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly),
+						static_cast<float>(global_z) * 0.866025f);
 
 				MeshInstance3D *mi = memnew(MeshInstance3D);
-				mi->set_mesh(_debug_corner_mesh);
+				mi->set_mesh(p_sphere_mesh);
 				mi->set_position(world_pos);
 
 				if (!debug_corners_container) {
@@ -84,8 +87,9 @@ int MPGrid::_spawn_debug_spheres(const MPChunk &p_chunk, const Ref<SphereMesh> &
 
 				if (state) {
 					mi->set_material_override(_debug_mat_red);
+
 					if (has_inactive) {
-						MCPhysics::create_static_sphere_collider(mi, toLayer(LAYER_CORNERS), 0.3f);
+						MCPhysics::create_static_sphere_collider(mi, toLayer(LAYER_CORNERS), 0.45f);
 					}
 				} else {
 					mi->set_material_override(_debug_mat_blue);
@@ -96,7 +100,6 @@ int MPGrid::_spawn_debug_spheres(const MPChunk &p_chunk, const Ref<SphereMesh> &
 			}
 		}
 	}
-
 	return count;
 }
 
@@ -122,8 +125,21 @@ void MPGrid::_update_debug_at(int gx, int gy, int gz) {
 	bool has_active = chunk.has_active_neighbor(lx, ly, lz);
 	bool has_inactive = chunk.has_inactive_neighbor(lx, ly, lz);
 
+	if (!state && !has_active) {
+		if (mi) {
+			mi->queue_free();
+			chunk.debug_visuals[corner_idx] = nullptr;
+			total_debug_corners--;
+		}
+		return;
+	}
+
 	if (!mi) {
-		Vector3 world_pos = _get_corner_world_pos(chunk, lx, ly, lz);
+		float stagger = (gz % 2 != 0) ? 0.5f : 0.0f;
+		Vector3 world_pos = Vector3(
+				static_cast<float>(gx) + stagger,
+				static_cast<float>(gy),
+				static_cast<float>(gz) * 0.866025f);
 
 		mi = memnew(MeshInstance3D);
 		mi->set_mesh(_debug_corner_mesh);
@@ -148,10 +164,11 @@ void MPGrid::_update_debug_at(int gx, int gy, int gz) {
 				child->queue_free();
 		}
 	}
+
 	if (state) {
 		mi->set_material_override(_debug_mat_red);
 		if (has_inactive) {
-			MCPhysics::create_static_sphere_collider(mi, toLayer(LAYER_CORNERS), 0.4f);
+			MCPhysics::create_static_sphere_collider(mi, toLayer(LAYER_CORNERS), 0.7f);
 		}
 	} else {
 		mi->set_material_override(_debug_mat_blue);
@@ -370,6 +387,118 @@ void MPGrid::_build_grid_wireframe() {
 	debug_corners_container->add_child(wireframe_instance);
 	if (is_inside_tree()) {
 		wireframe_instance->set_owner(get_owner() ? get_owner() : this);
+	}
+}
+
+// Sets the debug draw mode of the grid.
+void MPGrid::set_debug_draw_mode(DebugDrawMode p_mode) {
+	if (debug_draw_mode == p_mode)
+		return;
+	debug_draw_mode = p_mode;
+
+	bool show_corners = (debug_draw_mode == DEBUG_SHOW_CORNER || debug_draw_mode == DEBUG_SHOW_CORNER_AND_EDGE);
+	set_debug_corners_visible(show_corners);
+
+	refresh_grid();
+}
+
+// Enables or disables physical collision shapes on the debug corners.
+void MPGrid::set_corner_collision_enabled(bool p_enabled) {
+	if (!debug_corners_container)
+		return;
+	uint32_t layer = p_enabled ? toLayer(LAYER_CORNERS) : 0;
+	TypedArray<Node> children = debug_corners_container->get_children();
+	for (int i = 0; i < children.size(); i++) {
+		Node *child = Object::cast_to<Node>(children[i]);
+		if (!child)
+			continue;
+		TypedArray<Node> sub_children = child->get_children();
+		for (int j = 0; j < sub_children.size(); j++) {
+			StaticBody3D *sb = Object::cast_to<StaticBody3D>(sub_children[j]);
+			if (sb)
+				sb->set_collision_layer(layer);
+		}
+	}
+}
+
+// Sets the opacity (alpha) of the hover cylinder visual preview.
+void MPGrid::set_hover_cylinder_alpha(float p_alpha) {
+	hover_cylinder_alpha = p_alpha;
+	if (hover_mat_white.is_valid())
+		hover_mat_white->set_albedo(Color(1.0f, 1.0f, 1.0f, hover_cylinder_alpha));
+}
+
+// Gets the opacity (alpha) of the hover cylinder visual preview.
+float MPGrid::get_hover_cylinder_alpha() const {
+	return hover_cylinder_alpha;
+}
+
+// Clears all active cell wireframe debug lines registered in the DebugManager.
+void MPGrid::_clear_prism_edges() {
+	DebugManager *dm = DebugManager::get_singleton();
+	if (!dm)
+		return;
+	for (const MPChunk &chunk : chunks) {
+		for (int y = 0; y < chunk.size_y; y++) {
+			for (int z = 0; z < chunk.size_z; z++) {
+				for (int cx = 0; cx < chunk.size_x * 2; cx++) {
+					char id[64];
+					for (int i = 0; i < 9; i++) {
+						snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_%d", chunk.loc_x, chunk.loc_z, cx, y, z, i);
+						dm->clear_line(id);
+					}
+				}
+			}
+		}
+	}
+}
+
+// Draws debug wireframe lines for a specific cell.
+void MPGrid::_draw_cell_wireframe(const MPChunk &p_chunk, int cx, int y, int z, int v0_x, int v0_z, int v1_x, int v1_z, int v2_x, int v2_z) {
+	DebugManager *dm = DebugManager::get_singleton();
+	if (!dm)
+		return;
+
+	Vector3 v0 = _get_corner_world_pos(p_chunk, v0_x, y, v0_z);
+	Vector3 v1 = _get_corner_world_pos(p_chunk, v1_x, y, v1_z);
+	Vector3 v2 = _get_corner_world_pos(p_chunk, v2_x, y, v2_z);
+	Vector3 v0_t = _get_corner_world_pos(p_chunk, v0_x, y + 1, v0_z);
+	Vector3 v1_t = _get_corner_world_pos(p_chunk, v1_x, y + 1, v1_z);
+	Vector3 v2_t = _get_corner_world_pos(p_chunk, v2_x, y + 1, v2_z);
+
+	char id[64];
+	snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_0", p_chunk.loc_x, p_chunk.loc_z, cx, y, z);
+	dm->draw_line(id, v0, v1, 0.02f, Color(0.2f, 0.2f, 0.2f));
+	snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_1", p_chunk.loc_x, p_chunk.loc_z, cx, y, z);
+	dm->draw_line(id, v1, v2, 0.02f, Color(0.2f, 0.2f, 0.2f));
+	snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_2", p_chunk.loc_x, p_chunk.loc_z, cx, y, z);
+	dm->draw_line(id, v2, v0, 0.02f, Color(0.2f, 0.2f, 0.2f));
+
+	snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_3", p_chunk.loc_x, p_chunk.loc_z, cx, y, z);
+	dm->draw_line(id, v0_t, v1_t, 0.02f, Color(0.2f, 0.2f, 0.2f));
+	snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_4", p_chunk.loc_x, p_chunk.loc_z, cx, y, z);
+	dm->draw_line(id, v1_t, v2_t, 0.02f, Color(0.2f, 0.2f, 0.2f));
+	snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_5", p_chunk.loc_x, p_chunk.loc_z, cx, y, z);
+	dm->draw_line(id, v2_t, v0_t, 0.02f, Color(0.2f, 0.2f, 0.2f));
+
+	snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_6", p_chunk.loc_x, p_chunk.loc_z, cx, y, z);
+	dm->draw_line(id, v0, v0_t, 0.02f, Color(0.2f, 0.2f, 0.2f));
+	snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_7", p_chunk.loc_x, p_chunk.loc_z, cx, y, z);
+	dm->draw_line(id, v1, v1_t, 0.02f, Color(0.2f, 0.2f, 0.2f));
+	snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_8", p_chunk.loc_x, p_chunk.loc_z, cx, y, z);
+	dm->draw_line(id, v2, v2_t, 0.02f, Color(0.2f, 0.2f, 0.2f));
+}
+
+// Clears debug wireframe lines for a specific cell.
+void MPGrid::_clear_cell_wireframe(const MPChunk &p_chunk, int cx, int y, int z) {
+	DebugManager *dm = DebugManager::get_singleton();
+	if (!dm)
+		return;
+
+	char id[64];
+	for (int i = 0; i < 9; i++) {
+		snprintf(id, sizeof(id), "mp_edge_%d_%d_%d_%d_%d_%d", p_chunk.loc_x, p_chunk.loc_z, cx, y, z, i);
+		dm->clear_line(id);
 	}
 }
 
