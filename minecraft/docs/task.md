@@ -1,18 +1,5 @@
 ## Sketchfab, YoutubePlaylist, PolygonRunway
 
-# Lofting, SurfaceNet, Marching, Hull
-
-# 2D Noise-Guided Surface Net
-# Terra Spline
-# Marching Prism
-# Marching Hexagon
-# 2d Marching Cubes based 3d extrusion
-# Marching Cubes Mario/ACNH blender terrain
-# Hex Truchet biomes and roads
-# Spline Terrain Blending
-# Skin Modifier rocks and crystal
-# SDF terrain
-
 # Low poly gta/pokemon city
 
 ## Surface Nets

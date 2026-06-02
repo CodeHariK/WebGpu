@@ -242,7 +242,7 @@ material = ExtResource("4_qv7hl")
 
 [node name="TruckController2" type="ArcadeVehicle" parent="." unique_id=1392412761]
 config = SubResource("VehicleConfig_1prlf")
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 30, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 66, 0)
 physics_material_override = SubResource("PhysicsMaterial_dju1v")
 
 [node name="suv2" parent="TruckController2" unique_id=1444790978 instance=ExtResource("6_bjf5h")]
