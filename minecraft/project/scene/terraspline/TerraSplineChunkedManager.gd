@@ -100,6 +100,7 @@ func rebuild_terrain() -> void:
 			var chunk_heightmap = create_chunk(coords)
 			if not chunk_heightmap:
 				continue
+			chunk_heightmap.initialize(c_size + 1, c_size + 1, default_elevation)
 				
 			var offset = Vector2(x * c_size, z * c_size)
 			for spline in splines:

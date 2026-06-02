@@ -38,6 +38,10 @@ void TerrainSplineDeformer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_falloff_distance"), &TerrainSplineDeformer::get_falloff_distance);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "falloff_distance"), "set_falloff_distance", "get_falloff_distance");
 
+	ClassDB::bind_method(D_METHOD("set_inner_falloff_distance", "dist"), &TerrainSplineDeformer::set_inner_falloff_distance);
+	ClassDB::bind_method(D_METHOD("get_inner_falloff_distance"), &TerrainSplineDeformer::get_inner_falloff_distance);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "inner_falloff_distance"), "set_inner_falloff_distance", "get_inner_falloff_distance");
+
 	ClassDB::bind_method(D_METHOD("set_blend_mode", "blend_mode"), &TerrainSplineDeformer::set_blend_mode);
 	ClassDB::bind_method(D_METHOD("get_blend_mode"), &TerrainSplineDeformer::get_blend_mode);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "blend_mode", PROPERTY_HINT_ENUM, "Add,Subtract,Max,Min,Replace"), "set_blend_mode", "get_blend_mode");
@@ -45,6 +49,14 @@ void TerrainSplineDeformer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_falloff_curve", "falloff_curve"), &TerrainSplineDeformer::set_falloff_curve);
 	ClassDB::bind_method(D_METHOD("get_falloff_curve"), &TerrainSplineDeformer::get_falloff_curve);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "falloff_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_falloff_curve", "get_falloff_curve");
+
+	ClassDB::bind_method(D_METHOD("set_inner_falloff_curve", "curve"), &TerrainSplineDeformer::set_inner_falloff_curve);
+	ClassDB::bind_method(D_METHOD("get_inner_falloff_curve"), &TerrainSplineDeformer::get_inner_falloff_curve);
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "inner_falloff_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_inner_falloff_curve", "get_inner_falloff_curve");
+
+	ClassDB::bind_method(D_METHOD("set_fill_interior", "fill"), &TerrainSplineDeformer::set_fill_interior);
+	ClassDB::bind_method(D_METHOD("get_fill_interior"), &TerrainSplineDeformer::get_fill_interior);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "fill_interior"), "set_fill_interior", "get_fill_interior");
 
 	ClassDB::bind_method(D_METHOD("set_use_tile_culling", "use"), &TerrainSplineDeformer::set_use_tile_culling);
 	ClassDB::bind_method(D_METHOD("get_use_tile_culling"), &TerrainSplineDeformer::get_use_tile_culling);
@@ -69,6 +81,8 @@ TerrainSplineDeformer::TerrainSplineDeformer() {
 	max_height = 0.0f;
 	spline_width = 2.0f;
 	falloff_distance = 5.0f;
+	inner_falloff_distance = 5.0f;
+	fill_interior = true;
 	blend_mode = BLEND_ADD;
 	use_tile_culling = true;
 	tile_size = 32;
@@ -77,6 +91,9 @@ TerrainSplineDeformer::TerrainSplineDeformer() {
 TerrainSplineDeformer::~TerrainSplineDeformer() {
 	if (falloff_curve.is_valid() && falloff_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
 		falloff_curve->disconnect("changed", Callable(this, "_on_curve_changed"));
+	}
+	if (inner_falloff_curve.is_valid() && inner_falloff_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
+		inner_falloff_curve->disconnect("changed", Callable(this, "_on_curve_changed"));
 	}
 }
 
@@ -106,15 +123,35 @@ void TerrainSplineDeformer::_deform_heightmap_task(int p_task_idx, Ref<DeformerJ
 			float target_spline_h = eval.spline_y + max_height;
 			float weight = 0.0f;
 
-			if (eval.is_inside || eval.distance <= spline_width) {
+			if (eval.distance <= spline_width) {
+				// 1. We are directly on the main road/rim!
 				weight = 1.0f;
-			} else if (eval.distance < (spline_width + falloff_distance) && falloff_distance > 0.0001f) {
-				float t = (eval.distance - spline_width) / falloff_distance;
-				if (p_job->has_curve) {
-					int c_idx = Math::clamp((int)((1.0f - t) * 255.0f), 0, 255);
-					weight = p_job->baked_curve[c_idx];
+			} else if (eval.is_inside) {
+				// 2. We are INSIDE the closed loop (The Crater/Inner Hole or Solid Plateau)
+				if (p_job->fill_interior) {
+					// Default: fill the interior completely
+					weight = 1.0f;
 				} else {
-					weight = 1.0f - t;
+					if (eval.distance < (spline_width + inner_falloff_distance) && inner_falloff_distance > 0.0001f) {
+						float t = (eval.distance - spline_width) / inner_falloff_distance;
+						if (p_job->has_inner_curve) {
+							int c_idx = Math::clamp((int)((1.0f - t) * 255.0f), 0, 255);
+							weight = p_job->baked_inner_curve[c_idx];
+						} else {
+							weight = 1.0f - t;
+						}
+					}
+				}
+			} else {
+				// 3. We are OUTSIDE the loop (The Outer Slopes)
+				if (eval.distance < (spline_width + falloff_distance) && falloff_distance > 0.0001f) {
+					float t = (eval.distance - spline_width) / falloff_distance;
+					if (p_job->has_curve) {
+						int c_idx = Math::clamp((int)((1.0f - t) * 255.0f), 0, 255);
+						weight = p_job->baked_curve[c_idx];
+					} else {
+						weight = 1.0f - t;
+					}
 				}
 			}
 
@@ -163,6 +200,15 @@ Ref<DeformerJob> TerrainSplineDeformer::_create_deformer_job(const Ref<TerrainHe
 			job->baked_curve[i] = falloff_curve->sample((float)i / 255.0f);
 		}
 	}
+
+	job->has_inner_curve = inner_falloff_curve.is_valid();
+	if (job->has_inner_curve) {
+		job->baked_inner_curve.resize(256);
+		for (int i = 0; i < 256; ++i) {
+			job->baked_inner_curve[i] = inner_falloff_curve->sample((float)i / 255.0f);
+		}
+	}
+	job->fill_interior = fill_interior;
 	return job;
 }
 
@@ -198,9 +244,27 @@ void TerrainSplineDeformer::_compute_active_tiles_and_culling(Ref<DeformerJob> p
 					}
 				}
 
-				if (!overlapping_segments.empty()) {
+				// --- NEW FIX: Bypassing the culler for interior tiles ---
+				bool is_inside = false;
+				if (p_job->spline->get_is_closed()) {
+					// Pass an empty segment array to safely check interior status without triggering math loops
+					ProceduralSpline3D::SplineEval center_eval = p_job->spline->evaluate_spline_point_segmented(center, std::vector<int>());
+					is_inside = center_eval.is_inside;
+				}
+
+				if (!overlapping_segments.empty() || is_inside) {
 					p_job->active_tiles.push_back(Rect2i(tx, tz, t_max_x - tx + 1, t_max_z - tz + 1));
-					p_job->tile_segments.push_back(overlapping_segments);
+
+					if (is_inside) {
+						// Deep interior tiles MUST calculate against the entire boundary for accurate Ridge SDF and IDW
+						std::vector<int> all_segs(p_job->spline->baked_segments.size());
+						for (size_t i = 0; i < all_segs.size(); ++i) {
+							all_segs[i] = (int)i;
+						}
+						p_job->tile_segments.push_back(all_segs);
+					} else {
+						p_job->tile_segments.push_back(overlapping_segments);
+					}
 				}
 			}
 		}

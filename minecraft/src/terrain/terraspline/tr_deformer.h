@@ -62,8 +62,14 @@ public:
 
 	// Lookup array containing the pre-sampled falloff curve points.
 	std::vector<float> baked_curve;
+	// Lookup array containing the pre-sampled inner falloff curve points.
+	std::vector<float> baked_inner_curve;
 	// Flag indicating if a custom falloff curve is configured.
 	bool has_curve = false;
+	// Flag indicating if a custom inner falloff curve is configured.
+	bool has_inner_curve = false;
+	// Flag indicating if the interior of closed shapes should be filled completely.
+	bool fill_interior = true;
 	// Rectangles containing the local boundaries of active deformation tiles.
 	std::vector<Rect2i> active_tiles;
 	// Segment indices of the spline that overlap with each active tile.
@@ -119,10 +125,16 @@ private:
 	float spline_width = 2.0f;
 	// Transition width over which height values blend back to original terrain height.
 	float falloff_distance = 5.0f;
+	// Transition width over which height values blend back to original terrain height on the inside of closed splines.
+	float inner_falloff_distance = 5.0f;
 	// Mathematical operator used to blend the spline height with heightmap elevation.
 	BlendMode blend_mode = BLEND_ADD;
 	// Optional custom interpolation curve defining falloff weight distribution.
 	Ref<Curve> falloff_curve;
+	// Optional custom interpolation curve defining inner falloff weight distribution.
+	Ref<Curve> inner_falloff_curve;
+	// If true, the interior of closed shapes is filled completely. If false, separate inner falloff is applied.
+	bool fill_interior = true;
 
 	// Controls whether tile-based culling of spline segments is active.
 	bool use_tile_culling = true;
@@ -284,6 +296,49 @@ public:
 	}
 
 	/*
+	 * Purpose: Sets inner transition distance for height falloff.
+	 * Execution steps: Assigns clamped value and marks dirty.
+	 * Parameters:
+	 *   - p_dist: Inner falloff distance limit.
+	 * Behavioral bounds: Clamps input to positive floats.
+	 */
+	void set_inner_falloff_distance(float p_dist) {
+		inner_falloff_distance = MAX(0.0f, p_dist);
+		mark_dirty();
+	}
+
+	/*
+	 * Purpose: Gets inner transition distance for height falloff.
+	 * Execution steps: Returns inner falloff distance.
+	 * Parameters: None.
+	 * Behavioral bounds: Returns positive float.
+	 */
+	float get_inner_falloff_distance() const {
+		return inner_falloff_distance;
+	}
+
+	/*
+	 * Purpose: Sets whether to fill the interior of closed shapes completely.
+	 * Execution steps: Assigns value and marks dirty.
+	 * Parameters:
+	 *   - p_fill: True to fill completely, false to use separate inner falloff.
+	 * Behavioral bounds: None.
+	 */
+	void set_fill_interior(bool p_fill) {
+		fill_interior = p_fill;
+		mark_dirty();
+	}
+
+	/*
+	 * Purpose: Queries if interior filling is active.
+	 * Parameters: None.
+	 * Behavioral bounds: None.
+	 */
+	bool get_fill_interior() const {
+		return fill_interior;
+	}
+
+	/*
 	 * Purpose: Sets blending formula mode.
 	 * Execution steps: Assigns enum mode and marks dirty.
 	 * Parameters:
@@ -331,6 +386,34 @@ public:
 	 */
 	Ref<Curve> get_falloff_curve() const {
 		return falloff_curve;
+	}
+
+	/*
+	 * Purpose: Assigns optional Curve resource for custom inner falloff shaping.
+	 * Execution steps: Disconnects old listener, connects to new curve, and marks dirty.
+	 * Parameters:
+	 *   - p_curve: Ref-wrapped Curve resource.
+	 * Behavioral bounds: Accepts null or valid Curve references.
+	 */
+	void set_inner_falloff_curve(const Ref<Curve> &p_curve) {
+		if (inner_falloff_curve.is_valid() && inner_falloff_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
+			inner_falloff_curve->disconnect("changed", Callable(this, "_on_curve_changed"));
+		}
+		inner_falloff_curve = p_curve;
+		if (inner_falloff_curve.is_valid()) {
+			inner_falloff_curve->connect("changed", Callable(this, "_on_curve_changed"));
+		}
+		mark_dirty();
+	}
+
+	/*
+	 * Purpose: Retrieves custom inner Curve resource.
+	 * Execution steps: Returns Curve reference.
+	 * Parameters: None.
+	 * Behavioral bounds: Returns Ref<Curve>.
+	 */
+	Ref<Curve> get_inner_falloff_curve() const {
+		return inner_falloff_curve;
 	}
 
 	/*

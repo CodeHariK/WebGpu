@@ -31,6 +31,7 @@ void TerrainSplineCompositor::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_default_elevation"), &TerrainSplineCompositor::get_default_elevation);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "default_elevation"), "set_default_elevation", "get_default_elevation");
 
+
 	ClassDB::bind_method(D_METHOD("set_auto_apply", "auto_apply"), &TerrainSplineCompositor::set_auto_apply);
 	ClassDB::bind_method(D_METHOD("get_auto_apply"), &TerrainSplineCompositor::get_auto_apply);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "auto_apply"), "set_auto_apply", "get_auto_apply");
@@ -105,7 +106,12 @@ void TerrainSplineCompositor::set_terrain(Node *p_terrain) { terrain = p_terrain
 Node *TerrainSplineCompositor::get_terrain() const { return terrain; }
 void TerrainSplineCompositor::set_chunk_size(int p_size) { chunk_size = MAX(64, p_size); }
 int TerrainSplineCompositor::get_chunk_size() const { return chunk_size; }
-void TerrainSplineCompositor::set_default_elevation(float p_elev) { default_elevation = p_elev; }
+void TerrainSplineCompositor::set_default_elevation(float p_elev) {
+	if (default_elevation != p_elev) {
+		default_elevation = p_elev;
+		queue_rebuild();
+	}
+}
 float TerrainSplineCompositor::get_default_elevation() const { return default_elevation; }
 void TerrainSplineCompositor::set_auto_apply(bool p_auto) { auto_apply = p_auto; }
 bool TerrainSplineCompositor::get_auto_apply() const { return auto_apply; }
@@ -527,7 +533,7 @@ void TerrainSplineCompositor::_generate_chunks(const std::vector<Vector2i> &p_ch
 		if (chunk_buffers.has(chunk_pos)) {
 			chunk = chunk_buffers[chunk_pos];
 		} else {
-			if (!has_splines && !global_terrain_noise.is_valid())
+			if (!has_splines && !global_terrain_noise.is_valid() && default_elevation == 0.0f)
 				continue;
 			chunk.instantiate();
 			Ref<TerrainHeightmap> buffer;
@@ -577,7 +583,7 @@ void TerrainSplineCompositor::_generate_chunks(const std::vector<Vector2i> &p_ch
 				for (int x = 0; x < chunk_size; ++x) {
 					float world_x = offset.x + (float)x;
 					float world_z = offset.y + (float)z;
-					float h = global_terrain_noise->get_noise_2d(world_x, world_z) * global_terrain_amplitude;
+					float h = default_elevation + global_terrain_noise->get_noise_2d(world_x, world_z) * global_terrain_amplitude;
 					ptr[z * chunk_size + x] = h;
 				}
 			}

@@ -52,7 +52,7 @@ run_mc:
 	$(GODOT) --path project/ --scene scene/marching/cubes.tscn
 run_mp:
 	$(GODOT) --path project/ --scene scene/marching/prism.tscn
-run_chunked:
+run_tr:
 	$(GODOT) --path project/ --scene scene/terraspline/chunked_terrain_demo.tscn
 run_pg:
 	$(GODOT) --path project/ --scene scene/terraspline/procgen.tscn

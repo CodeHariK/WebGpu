@@ -20,11 +20,15 @@ void ProceduralSpline3D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_interpolation_mode", "mode"), &ProceduralSpline3D::set_interpolation_mode);
 	ClassDB::bind_method(D_METHOD("get_interpolation_mode"), &ProceduralSpline3D::get_interpolation_mode);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "interpolation_mode", PROPERTY_HINT_ENUM, "Nearest,IDW Line,IDW Vertex"), "set_interpolation_mode", "get_interpolation_mode");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "interpolation_mode", PROPERTY_HINT_ENUM, "Nearest,IDW Line,IDW Vertex,Peak Ridge"), "set_interpolation_mode", "get_interpolation_mode");
 
 	ClassDB::bind_method(D_METHOD("set_bake_interval", "interval"), &ProceduralSpline3D::set_bake_interval);
 	ClassDB::bind_method(D_METHOD("get_bake_interval"), &ProceduralSpline3D::get_bake_interval);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "bake_interval"), "set_bake_interval", "get_bake_interval");
+
+	ClassDB::bind_method(D_METHOD("set_ridge_steepness", "steepness"), &ProceduralSpline3D::set_ridge_steepness);
+	ClassDB::bind_method(D_METHOD("get_ridge_steepness"), &ProceduralSpline3D::get_ridge_steepness);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "ridge_steepness"), "set_ridge_steepness", "get_ridge_steepness");
 
 	ClassDB::bind_method(D_METHOD("get_padded_aabb"), &ProceduralSpline3D::get_padded_aabb);
 	ClassDB::bind_method(D_METHOD("_on_curve_changed"), &ProceduralSpline3D::_on_curve_changed);
@@ -34,12 +38,14 @@ void ProceduralSpline3D::_bind_methods() {
 	BIND_ENUM_CONSTANT(INTERP_NEAREST);
 	BIND_ENUM_CONSTANT(INTERP_IDW_LINE);
 	BIND_ENUM_CONSTANT(INTERP_IDW_VERTEX);
+	BIND_ENUM_CONSTANT(INTERP_PEAK_RIDGE);
 }
 
 ProceduralSpline3D::ProceduralSpline3D() {
 	set_notify_transform(true);
 	interpolation_mode = INTERP_IDW_LINE;
 	bake_interval = 2.0f;
+	ridge_steepness = 0.35f;
 }
 
 ProceduralSpline3D::~ProceduralSpline3D() {
@@ -66,8 +72,6 @@ void ProceduralSpline3D::_notification(int p_what) {
 		mark_dirty();
 	}
 }
-
-
 
 void ProceduralSpline3D::set_curve(const Ref<Curve3D> &p_curve) {
 	// 1. Disconnect from the OLD curve if it exists
@@ -388,6 +392,28 @@ void ProceduralSpline3D::ensure_transform_cache() {
 	has_transform_cache = true;
 }
 
+float ProceduralSpline3D::_interpolate_idw_vertex(const Vector2 &p, float closest_y) const {
+	float total_weight_vert = 0.0f;
+	float blended_y_vert = 0.0f;
+
+	for (int i = 0; i < baked_poly3d.size(); ++i) {
+		Vector2 pt_2d(baked_poly3d[i].x, baked_poly3d[i].z);
+
+		float dist_sq = p.distance_squared_to(pt_2d);
+		float weight = 1.0f / (dist_sq + 0.001f);
+		blended_y_vert += baked_poly3d[i].y * weight;
+		total_weight_vert += weight;
+	}
+	return (total_weight_vert > 0.0f) ? (blended_y_vert / total_weight_vert) : closest_y;
+}
+
+float ProceduralSpline3D::_interpolate_peak_ridge(float closest_y, float distance, bool is_inside) const {
+	if (is_inside) {
+		return closest_y + (distance * ridge_steepness);
+	}
+	return closest_y;
+}
+
 ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segmented(const Vector2 &p, const std::vector<int> &p_segment_indices) const {
 	const_cast<ProceduralSpline3D *>(this)->ensure_baked_cache();
 
@@ -419,8 +445,13 @@ ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segment
 
 	for (int seg_idx : p_segment_indices) {
 		const BakedSegment &seg = baked_segments[seg_idx];
-		if (p.x < seg.min_x || p.x > seg.max_x || p.y < seg.min_z || p.y > seg.max_z)
-			continue;
+
+		// FIX: If we are deep inside a large shape, the nearest edge might be further
+		// than the max_padding. We must skip the AABB cull for interior points!
+		if (!res.is_inside) {
+			if (p.x < seg.min_x || p.x > seg.max_x || p.y < seg.min_z || p.y > seg.max_z)
+				continue;
+		}
 
 		float t = (seg.l2 > 0.0f) ? Math::clamp((p - seg.a).dot(seg.ab) / seg.l2, 0.0f, 1.0f) : 0.0f;
 		Vector2 proj = seg.a + t * seg.ab;
@@ -447,25 +478,9 @@ ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segment
 	} else if (interpolation_mode == INTERP_IDW_LINE) {
 		res.spline_y = (total_weight_line > 0.0f) ? (blended_y_line / total_weight_line) : closest_y;
 	} else if (interpolation_mode == INTERP_IDW_VERTEX) {
-		float total_weight_vert = 0.0f;
-		float blended_y_vert = 0.0f;
-
-		float search_radius = MAX(cached_max_padding, bake_interval * 2.0f);
-
-		for (int i = 0; i < baked_poly3d.size(); ++i) {
-			Vector2 pt_2d(baked_poly3d[i].x, baked_poly3d[i].z);
-
-			if (Math::abs(p.x - pt_2d.x) > search_radius ||
-				Math::abs(p.y - pt_2d.y) > search_radius) {
-				continue;
-			}
-
-			float dist_sq = p.distance_squared_to(pt_2d);
-			float weight = 1.0f / (dist_sq + 0.001f);
-			blended_y_vert += baked_poly3d[i].y * weight;
-			total_weight_vert += weight;
-		}
-		res.spline_y = (total_weight_vert > 0.0f) ? (blended_y_vert / total_weight_vert) : closest_y;
+		res.spline_y = _interpolate_idw_vertex(p, closest_y);
+	} else if (interpolation_mode == INTERP_PEAK_RIDGE) {
+		res.spline_y = _interpolate_peak_ridge(closest_y, res.distance, res.is_inside);
 	}
 
 	return res;
