@@ -44,7 +44,8 @@ public:
 	enum InterpolationMode {
 		INTERP_NEAREST = 0,
 		INTERP_IDW_LINE = 1,
-		INTERP_IDW_VERTEX = 2
+		INTERP_IDW_VERTEX = 2,
+		INTERP_PEAK_RIDGE = 3
 	};
 
 	struct SplineEval {
@@ -84,6 +85,8 @@ private:
 	InterpolationMode interpolation_mode = INTERP_IDW_LINE;
 	// Target distance between baked curve vertices.
 	float bake_interval = 2.0f;
+	// Steepness scale factor for peak/ridge interpolation.
+	float ridge_steepness = 0.35f;
 
 	struct CurveState {
 		// Position of the control point.
@@ -132,6 +135,34 @@ private:
 	 * Behavioral bounds: Safely manages connection signals without double connecting or leaking connections.
 	 */
 	void _check_curve_connection();
+	
+	/**
+	 * Purpose: Interpolate Y-coordinate using Inverse Distance Weighting (IDW) on vertices.
+	 * Execution steps:
+	 *   1. Define a search radius based on max padding and bake interval.
+	 *   2. Iterate over all baked 3D points.
+	 *   3. If point is within the search bounds, compute distance weight.
+	 *   4. Blended Y using the sum of weights.
+	 * Parameters:
+	 *   - p: Query coordinates on XZ plane.
+	 *   - closest_y: The Y value of the closest point.
+	 * Behavioral bounds: Returns closest_y if no points fall within the search radius.
+	 */
+	float _interpolate_idw_vertex(const Vector2 &p, float closest_y) const;
+
+	/**
+	 * Purpose: Interpolate Y-coordinate using distance-based mountain peak/ridge algorithm.
+	 * Execution steps:
+	 *   1. Check if the query point is inside the closed spline area.
+	 *   2. If inside, add scaled distance to closest_y.
+	 *   3. Otherwise, return closest_y.
+	 * Parameters:
+	 *   - closest_y: The Y value of the closest point.
+	 *   - distance: Distance to the closest point.
+	 *   - is_inside: True if query point is inside the spline shape.
+	 * Behavioral bounds: Returns closest_y when is_inside is false.
+	 */
+	float _interpolate_peak_ridge(float closest_y, float distance, bool is_inside) const;
 
 protected:
 	/**
@@ -241,6 +272,26 @@ public:
 	 */
 	float get_bake_interval() const {
 		return bake_interval;
+	}
+
+	/**
+	 * Purpose: Set the ridge steepness scale factor and mark dirty.
+	 * Parameters:
+	 *   - p_steepness: The new steepness scale factor.
+	 * Behavioral bounds: Marks the spline as dirty to force rebuild.
+	 */
+	void set_ridge_steepness(float p_steepness) {
+		ridge_steepness = p_steepness;
+		mark_dirty();
+	}
+
+	/**
+	 * Purpose: Get the current ridge steepness scale factor.
+	 * Parameters: None.
+	 * Behavioral bounds: Returns the ridge_steepness value.
+	 */
+	float get_ridge_steepness() const {
+		return ridge_steepness;
 	}
 
 	/**

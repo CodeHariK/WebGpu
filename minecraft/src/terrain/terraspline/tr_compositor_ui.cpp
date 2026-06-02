@@ -16,6 +16,7 @@ void TerrainSplineCompositorUI::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_default_elevation"), &TerrainSplineCompositorUI::get_default_elevation);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "default_elevation"), "set_default_elevation", "get_default_elevation");
 
+
 	ClassDB::bind_method(D_METHOD("set_auto_apply", "auto_apply"), &TerrainSplineCompositorUI::set_auto_apply);
 	ClassDB::bind_method(D_METHOD("get_auto_apply"), &TerrainSplineCompositorUI::get_auto_apply);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "auto_apply"), "set_auto_apply", "get_auto_apply");
@@ -46,7 +47,12 @@ TerrainSplineCompositorUI::TerrainSplineCompositorUI() {
  */
 TerrainSplineCompositorUI::~TerrainSplineCompositorUI() {}
 
-void TerrainSplineCompositorUI::set_default_elevation(float p_elev) { default_elevation = p_elev; }
+void TerrainSplineCompositorUI::set_default_elevation(float p_elev) {
+	if (default_elevation != p_elev) {
+		default_elevation = p_elev;
+		queue_rebuild();
+	}
+}
 float TerrainSplineCompositorUI::get_default_elevation() const { return default_elevation; }
 void TerrainSplineCompositorUI::set_auto_apply(bool p_auto) { auto_apply = p_auto; }
 bool TerrainSplineCompositorUI::get_auto_apply() const { return auto_apply; }
