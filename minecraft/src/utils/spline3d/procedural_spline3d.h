@@ -109,7 +109,7 @@ private:
 
 	// Maximum padding from child SplineComponent nodes.
 	float cached_max_padding = 0.0f;
-	
+
 	/**
 	 * Purpose: Updates the maximum padding value by checking all child SplineComponents.
 	 * Execution steps:
@@ -124,7 +124,7 @@ private:
 
 	// Active Curve3D resource reference.
 	Ref<Curve3D> connected_curve;
-	
+
 	/**
 	 * Purpose: Monitored connection state verification between the spline node and its Curve3D resource.
 	 * Execution steps:
@@ -135,7 +135,7 @@ private:
 	 * Behavioral bounds: Safely manages connection signals without double connecting or leaking connections.
 	 */
 	void _check_curve_connection();
-	
+
 	/**
 	 * Purpose: Interpolate Y-coordinate using Inverse Distance Weighting (IDW) on vertices.
 	 * Execution steps:
@@ -176,7 +176,7 @@ protected:
 	 * Behavioral bounds: Called internally by Godot during class registration.
 	 */
 	static void _bind_methods();
-	
+
 	/**
 	 * Purpose: Handle Godot engine lifecycle notifications.
 	 * Execution steps:
@@ -201,7 +201,7 @@ public:
 	 * Behavioral bounds: Initializes object to a valid starting state.
 	 */
 	ProceduralSpline3D();
-	
+
 	/**
 	 * Purpose: Destruct the ProceduralSpline3D object and disconnect signal handlers.
 	 * Execution steps:
@@ -326,16 +326,6 @@ public:
 	PackedVector3Array get_baked_points_3d() const;
 
 	/**
-	 * Purpose: Retrieve the XZ-plane projection of the baked 3D spline points.
-	 * Execution steps:
-	 *   1. Retrieve baked 3D points.
-	 *   2. Project each point onto the XZ plane by creating Vector2(x, z).
-	 * Parameters: None.
-	 * Behavioral bounds: Returns a PackedVector2Array of same size as the 3D points array.
-	 */
-	PackedVector2Array get_baked_points_2d() const;
-
-	/**
 	 * Purpose: Calculate the XZ-plane bounding box of the baked spline points, expanded by child padding.
 	 * Execution steps:
 	 *   1. Retrieve baked 3D points.
@@ -346,34 +336,6 @@ public:
 	 * Behavioral bounds: Returns a padded Rect2 in global space.
 	 */
 	Rect2 get_padded_aabb() const;
-
-	/**
-	 * Purpose: General ray-casting point-in-polygon check.
-	 * Execution steps:
-	 *   1. Check if polygon vertex count is less than 3, return false.
-	 *   2. Run standard ray-casting algorithm to count crossings.
-	 *   3. Return true if odd number of crossings, false otherwise.
-	 * Parameters:
-	 *   - p: 2D coordinates of the point to check.
-	 *   - polygon: Set of vertices representing the polygon.
-	 * Behavioral bounds: Works for arbitrary non-self-intersecting polygons.
-	 */
-	bool is_point_inside(const Vector2 &p, const PackedVector2Array &polygon) const;
-
-	/**
-	 * Purpose: Fast-path point-in-convex-polygon check using an early-exit half-plane test.
-	 * Execution steps:
-	 *   1. Iterate over all edges of the polygon.
-	 *   2. Compute cross product of the edge and point vector.
-	 *   3. If any cross product differs from the expected winding sign, early-exit and return false.
-	 *   4. Return true if all tests pass.
-	 * Parameters:
-	 *   - p: Point to check.
-	 *   - polygon: Vertices of the convex polygon.
-	 *   - clockwise: True if polygon is wound clockwise, false otherwise.
-	 * Behavioral bounds: Returns true if point is inside, false otherwise.
-	 */
-	bool is_point_inside_convex(const Vector2 &p, const PackedVector2Array &polygon, bool clockwise) const;
 
 	/**
 	 * Purpose: Signal callback handler for Curve3D resource change events.
@@ -447,8 +409,6 @@ public:
 	bool has_baked_cache = false;
 	// Cached 3D points baked from the curve.
 	PackedVector3Array baked_poly3d;
-	// Cached XZ-plane 2D points baked from the curve.
-	PackedVector2Array baked_poly2d;
 	// Cached list of segment descriptors for fast distance checks.
 	std::vector<BakedSegment> baked_segments;
 
@@ -456,7 +416,7 @@ public:
 	bool has_transform_cache = false;
 	// Cached 3D transform matrices along the curve.
 	std::vector<Transform3D> baked_transforms;
-	
+
 	/**
 	 * Purpose: Re-bake and cache transform matrices along the spline.
 	 * Execution steps:

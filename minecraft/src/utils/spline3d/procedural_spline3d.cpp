@@ -7,6 +7,7 @@
 
 #include "procedural_spline3d.h"
 #include "utils/curve/curve_baker.h"
+#include "utils/polygon/polygon.h"
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -69,6 +70,20 @@ void ProceduralSpline3D::_notification(int p_what) {
 	} else if (p_what == Node::NOTIFICATION_CHILD_ORDER_CHANGED) {
 		// MUST check this so padding updates when a child is added/removed!
 		_update_max_padding();
+		mark_dirty();
+	}
+}
+
+void ProceduralSpline3D::_check_curve_connection() {
+	Ref<Curve3D> current_curve = get_curve();
+	if (current_curve != connected_curve) {
+		if (connected_curve.is_valid() && connected_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
+			connected_curve->disconnect("changed", Callable(this, "_on_curve_changed"));
+		}
+		connected_curve = current_curve;
+		if (connected_curve.is_valid() && !connected_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
+			connected_curve->connect("changed", Callable(this, "_on_curve_changed"));
+		}
 		mark_dirty();
 	}
 }
@@ -229,16 +244,6 @@ PackedVector3Array ProceduralSpline3D::get_baked_points_3d() const {
 	return CurveBaker::bake_curve(get_curve(), bake_interval, get_global_transform());
 }
 
-PackedVector2Array ProceduralSpline3D::get_baked_points_2d() const {
-	PackedVector3Array p3d = get_baked_points_3d();
-	PackedVector2Array p2d;
-	int size = p3d.size();
-	p2d.resize(size);
-	for (int i = 0; i < size; ++i)
-		p2d.set(i, Vector2(p3d[i].x, p3d[i].z));
-	return p2d;
-}
-
 // 1. THE LOOP (Main Thread Only)
 // Call this from _notification() when the node is ready or children change!
 void ProceduralSpline3D::_update_max_padding() {
@@ -278,47 +283,12 @@ Rect2 ProceduralSpline3D::get_padded_aabb() const {
 	return Rect2(min_pt, max_pt - min_pt).grow(cached_max_padding);
 }
 
-bool ProceduralSpline3D::is_point_inside(const Vector2 &p, const PackedVector2Array &polygon) const {
-	int num_pts = polygon.size();
-	if (num_pts < 3)
-		return false;
-	bool inside = false;
-	for (int i = 0, j = num_pts - 1; i < num_pts; j = i++) {
-		Vector2 vi = polygon[i];
-		Vector2 vj = polygon[j];
-		if (((vi.y > p.y) != (vj.y > p.y)) && (p.x < (vj.x - vi.x) * (p.y - vi.y) / (vj.y - vi.y) + vi.x)) {
-			inside = !inside;
-		}
-	}
-	return inside;
-}
-
-bool ProceduralSpline3D::is_point_inside_convex(const Vector2 &p, const PackedVector2Array &polygon, bool clockwise) const {
-	int num_pts = polygon.size();
-	for (int i = 0; i < num_pts; ++i) {
-		Vector2 a = polygon[i];
-		Vector2 b = polygon[(i + 1) % num_pts];
-		float cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
-		if (clockwise) {
-			if (cross > 0.0f) {
-				return false;
-			}
-		} else {
-			if (cross < 0.0f) {
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
 void ProceduralSpline3D::ensure_baked_cache() {
 	if (has_baked_cache) {
 		return;
 	}
 
 	baked_poly3d = get_baked_points_3d();
-	baked_poly2d = get_baked_points_2d();
 
 	baked_segments.clear();
 	int limit = get_is_closed() ? baked_poly3d.size() : baked_poly3d.size() - 1;
@@ -347,35 +317,9 @@ void ProceduralSpline3D::ensure_baked_cache() {
 	is_convex = false;
 	is_clockwise = false;
 
-	int num_pts = baked_poly2d.size();
-	if (get_is_closed() && num_pts >= 3) {
-		bool sign_set = false;
-		bool positive_sign = false;
-		bool possible_convex = true;
-
-		for (int i = 0; i < num_pts; ++i) {
-			Vector2 a = baked_poly2d[i];
-			Vector2 b = baked_poly2d[(i + 1) % num_pts];
-			Vector2 c = baked_poly2d[(i + 2) % num_pts];
-
-			float cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
-			if (Math::abs(cross) < 0.0001f) {
-				continue;
-			}
-
-			bool current_positive = cross > 0.0f;
-			if (!sign_set) {
-				positive_sign = current_positive;
-				sign_set = true;
-			} else if (positive_sign != current_positive) {
-				possible_convex = false;
-				break;
-			}
-		}
-
-		if (possible_convex && sign_set) {
-			is_convex = true;
-			is_clockwise = !positive_sign;
+	if (get_is_closed()) {
+		is_convex = Polygon::check_convexity(baked_poly3d, is_clockwise);
+		if (is_convex) {
 			UtilityFunctions::print("Spline is convex and clockwise: %s", is_clockwise ? "true" : "false");
 		}
 	}
@@ -426,9 +370,9 @@ ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segment
 		return res;
 	if (get_is_closed()) {
 		if (is_convex) {
-			res.is_inside = is_point_inside_convex(p, baked_poly2d, is_clockwise);
+			res.is_inside = Polygon::is_point_inside_convex(p, baked_poly3d, is_clockwise);
 		} else {
-			res.is_inside = is_point_inside(p, baked_poly2d);
+			res.is_inside = Polygon::is_point_inside(p, baked_poly3d);
 		}
 	}
 
@@ -484,20 +428,6 @@ ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segment
 	}
 
 	return res;
-}
-
-void ProceduralSpline3D::_check_curve_connection() {
-	Ref<Curve3D> current_curve = get_curve();
-	if (current_curve != connected_curve) {
-		if (connected_curve.is_valid() && connected_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
-			connected_curve->disconnect("changed", Callable(this, "_on_curve_changed"));
-		}
-		connected_curve = current_curve;
-		if (connected_curve.is_valid() && !connected_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
-			connected_curve->connect("changed", Callable(this, "_on_curve_changed"));
-		}
-		mark_dirty();
-	}
 }
 
 } //namespace godot
