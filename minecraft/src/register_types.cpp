@@ -21,6 +21,7 @@
 
 #include "marching_cubes/mc.h"
 #include "marching_cubes/mc_grid.h"
+#include "marching_cubes/mc_heightmap.h"
 #include "marching_cubes/mc_manager.h"
 #include "terrain/marching_prism/mp.h"
 #include "terrain/marching_prism/mp_grid.h"
@@ -86,6 +87,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(MCNode);
 	GDREGISTER_CLASS(MCManager);
 	GDREGISTER_CLASS(MCGrid);
+	GDREGISTER_CLASS(MCHeightmap);
 	GDREGISTER_CLASS(MPNode);
 	GDREGISTER_CLASS(MPGrid);
 	GDREGISTER_CLASS(MPManager);
