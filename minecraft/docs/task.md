@@ -16,7 +16,6 @@
 * [x] Single Rock
 * Macto Mountain like point selection, spawn random points around macro point, make mountain
 
-
 ##
 
 It is incredibly common to hit this exact wall. You have spent weeks acting as an **Engine Programmer**—solving deep mathematical problems, managing memory, and writing C++ pipelines. Now, you are staring at a blank screen and having to switch your brain to **Game Designer**. That transition is jarring.
