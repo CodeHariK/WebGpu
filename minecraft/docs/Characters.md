@@ -35,10 +35,17 @@
 * Hearts
 * 
 
+## Environment
+* Luncheon Kingdom (Icecream, Cupcake, Pancake, Macarons, Jelly, Cake, Donut, Oreo)
+
 ## Vehicle
 * Skateboard (Movement, Jump, MidAir Throw/Shoot)
 * Monster truck
 * Bicycle (Jump)
+
+## NPC
+
+* [Rabbit Gardener](https://www.youtube.com/watch?v=SFLa_oLd2WE)
 
 ## Boss
 * DoomSlayer
@@ -59,7 +66,9 @@
 ## Robots
 * Spiders
 * Giant Crab shooting missiles
-* 
+* [Robot 3D Animation Tutorial in Blender](https://www.youtube.com/watch?v=bDy1nL89iq0)
+* https://www.youtube.com/watch?v=oEiQU-jSM9E
+
 
 ## UFO
 * Spawing UFOs
@@ -68,6 +77,6 @@
 ## NPC & Animals
 
 * Crocodiles
-* Ducks
+* Ducks [Learn How to Make A Cute Duck in Blender](youtube.com/watch?v=147SBsi_E00)
 * Sharks
 * TRex
