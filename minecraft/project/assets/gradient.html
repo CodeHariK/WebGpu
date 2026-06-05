@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Gradient Texture Atlas Generator</title>
+    <style>
+        :root {
+            --bg-main: #121214;
+            --bg-card: #1a1a24;
+            --bg-input: #262633;
+            --border-color: #38384a;
+            --text-main: #f1f1f6;
+            --text-muted: #a0a0b8;
+            --accent-green: #10b981;
+            --accent-green-hover: #059669;
+            --accent-blue: #3b82f6;
+            --accent-blue-hover: #2563eb;
+            --accent-danger: #ef4444;
+            --accent-danger-hover: #dc2626;
+            --accent-gray: #4b5563;
+            --accent-gray-hover: #374151;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            margin: 0;
+            padding: 30px;
+            gap: 40px;
+            box-sizing: border-box;
+            height: 100vh;
+        }
+
+        .controls {
+            flex: 0 0 460px;
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            max-height: calc(100vh - 60px);
+        }
+
+        .preview {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #16161a;
+            border-radius: 12px;
+            border: 1px dashed var(--border-color);
+            padding: 20px;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .controls h2 {
+            color: var(--accent-green);
+        }
+
+        .preview h2 {
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+
+        .setting-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        select,
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        select:focus,
+        button:focus {
+            outline: 2px solid var(--accent-blue);
+        }
+
+        button.primary {
+            background: var(--accent-green);
+            border: none;
+            font-weight: 600;
+            margin-top: auto;
+            padding: 14px;
+        }
+
+        button.primary:hover {
+            background: var(--accent-green-hover);
+        }
+
+        button.secondary {
+            background: rgba(59, 130, 246, 0.1);
+            color: #60a5fa;
+            border: 1px dashed var(--accent-blue);
+            margin-bottom: 15px;
+        }
+
+        button.secondary:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .io-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        button.io-btn {
+            background: var(--accent-gray);
+            border: none;
+        }
+
+        button.io-btn:hover {
+            background: var(--accent-gray-hover);
+        }
+
+        button.danger {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 5px;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button.danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-danger);
+        }
+
+        .palette-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 380px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        .palette-row {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .row-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .row-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+        }
+
+        .mode-select {
+            width: auto;
+            padding: 4px 8px;
+            font-size: 11px;
+            height: 26px;
+            border-radius: 4px;
+        }
+
+        .color-pickers {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .color-pickers.mode-2col {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .picker-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .picker-container span {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: 1px solid var(--border-color);
+            width: 100%;
+            height: 34px;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 5px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.1);
+            padding: 6px 10px;
+            border-radius: 6px;
+        }
+
+        .slider-container label {
+            margin: 0;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+            -webkit-appearance: none;
+            background: var(--border-color);
+            height: 4px;
+            border-radius: 2px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent-blue);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .canvas-container {
+            position: relative;
+            background: #000;
+            padding: 6px;
+            border-radius: 14px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--border-color);
+        }
+
+        canvas {
+            display: block;
+            border-radius: 8px;
+            image-rendering: pixelated;
+            max-width: 100%;
+            max-height: 70vh;
+            height: auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="controls">
+        <h2>Atlas Settings</h2>
+
+        <div class="setting-group">
+            <label for="textureSize">Texture Resolution</label>
+            <select id="textureSize" onchange="updateCanvasSize()">
+                <option value="128">128 x 128</option>
+                <option value="256">256 x 256</option>
+                <option value="512" selected>512 x 512</option>
+                <option value="1024">1024 x 1024</option>
+            </select>
+        </div>
+
+        <div class="setting-group">
+            <label>Gradients (Columns)</label>
+            <button class="secondary" onclick="addGradientRow()">+ Add New Column</button>
+            <div id="paletteList" class="palette-list"></div>
+        </div>
+
+        <div class="io-actions">
+            <button class="io-btn" onclick="exportJSON()">📤 Backup Config Only</button>
+            <button class="io-btn" onclick="triggerImportClick()">📥 Import Config JSON</button>
+        </div>
+        <input id="jsonFileInput" type="file" accept=".json" onchange="importJSON(event)" style="display: none;">
+
+        <button class="primary" onclick="downloadAllOutput()">💾 Download Bundle (.PNG + .JSON)</button>
+    </div>
+
+    <div class="preview">
+        <h2>Live Preview</h2>
+        <div class="canvas-container">
+            <canvas id="atlasCanvas" width="512" height="512"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('atlasCanvas');
+        const ctx = canvas.getContext('2d');
+        const paletteList = document.getElementById('paletteList');
+        const textureSizeSelect = document.getElementById('textureSize');
+
+        // Added 'mode' option ("2" or "3") per column
+        let palettes = [
+            { mode: "3", start: "#2e0854", mid: "#8a2be2", end: "#da70d6", midPos: 0.5 },
+            { mode: "3", start: "#002244", mid: "#0077b6", end: "#90e0ef", midPos: 0.5 },
+            { mode: "2", start: "#132a13", mid: "#3f5e5a", end: "#a3b18a", midPos: 0.5 },
+            { mode: "3", start: "#3d0c02", mid: "#d9381e", end: "#f3e5ab", midPos: 0.5 }
+        ];
+
+        function init() {
+            renderUIRows();
+            generateAtlas();
+        }
+
+        function updateCanvasSize() {
+            const size = parseInt(textureSizeSelect.value);
+            canvas.width = size;
+            canvas.height = size;
+            generateAtlas();
+        }
+
+        function renderUIRows() {
+            paletteList.innerHTML = '';
+            palettes.forEach((palette, index) => {
+                const row = document.createElement('div');
+                row.className = 'palette-row';
+
+                if (!palette.mode) palette.mode = "3";
+                if (palette.midPos === undefined) palette.midPos = 0.5;
+
+                const is2Col = palette.mode === "2";
+
+                row.innerHTML = `
+                    <div class="row-header">
+                        <span class="row-title">Column #${index + 1}</span>
+                        <div style="display:flex; gap:8px; align-items:center; margin-left:auto;">
+                            <select class="mode-select" onchange="updateMode(${index}, this.value)">
+                                <option value="2" ${is2Col ? 'selected' : ''}>2 Colors</option>
+                                <option value="3" ${!is2Col ? 'selected' : ''}>3 Colors</option>
+                            </select>
+                            <button class="danger" onclick="removeGradientRow(${index})" title="Delete Column">✖</button>
+                        </div>
+                    </div>
+                    <div class="color-pickers ${is2Col ? 'mode-2col' : ''}">
+                        <div class="picker-container">
+                            <span>Top</span>
+                            <input type="color" value="${palette.start}" oninput="updateColor(${index}, 'start', this.value)">
+                        </div>
+                        <div class="picker-container" style="display: ${is2Col ? 'none' : 'flex'};">
+                            <span>Mid</span>
+                            <input type="color" value="${palette.mid}" oninput="updateColor(${index}, 'mid', this.value)">
+                        </div>
+                        <div class="picker-container">
+                            <span>Bottom</span>
+                            <input type="color" value="${palette.end}" oninput="updateColor(${index}, 'end', this.value)">
+                        </div>
+                    </div>
+                    <div class="slider-container" style="display: ${is2Col ? 'none' : 'flex'};">
+                        <label for="midPos-${index}">Mid Height:</label>
+                        <input type="range" id="midPos-${index}" min="0.01" max="0.99" step="0.01" value="${palette.midPos}" oninput="updateMidpoint(${index}, this.value)">
+                    </div>
+                `;
+                paletteList.appendChild(row);
+            });
+        }
+
+        function updateMode(index, val) {
+            palettes[index].mode = val;
+            renderUIRows();
+            generateAtlas();
+        }
+
+        function updateColor(index, stop, value) {
+            palettes[index][stop] = value;
+            generateAtlas();
+        }
+
+        function updateMidpoint(index, value) {
+            palettes[index].midPos = parseFloat(value);
+            generateAtlas();
+        }
+
+        function addGradientRow() {
+            palettes.push({ mode: "3", start: "#333333", mid: "#888888", end: "#dddddd", midPos: 0.5 });
+            renderUIRows();
+            generateAtlas();
+        }
+
+        function removeGradientRow(index) {
+            if (palettes.length <= 1) {
+                alert("You need at least one gradient column!");
+                return;
+            }
+            palettes.splice(index, 1);
+            renderUIRows();
+            generateAtlas();
+        }
+
+        function generateAtlas() {
+            const width = canvas.width;
+            const height = canvas.height;
+            const cols = palettes.length;
+            const colWidth = width / cols;
+
+            ctx.clearRect(0, 0, width, height);
+
+            palettes.forEach((palette, index) => {
+                const xStart = index * colWidth;
+
+                let gradient = ctx.createLinearGradient(xStart, 0, xStart, height);
+                gradient.addColorStop(0.0, palette.start);
+
+                if (palette.mode === "3") {
+                    gradient.addColorStop(palette.midPos !== undefined ? palette.midPos : 0.5, palette.mid);
+                }
+
+                gradient.addColorStop(1.0, palette.end);
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(Math.floor(xStart), 0, Math.ceil(colWidth) + 1, height);
+            });
+        }
+
+        // --- Linked Simultaneous File Downloads ---
+        function downloadAllOutput() {
+            const timestamp = `${canvas.width}x${canvas.height}`;
+
+            // 1. Image output pipeline
+            const imgLink = document.createElement('a');
+            imgLink.download = `gradient_atlas_${timestamp}.png`;
+            imgLink.href = canvas.toDataURL('image/png');
+            imgLink.click();
+
+            // 2. Structural configuration JSON pipeline
+            const dataToExport = {
+                textureSize: textureSizeSelect.value,
+                palettes: palettes
+            };
+            const jsonString = JSON.stringify(dataToExport, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const jsonLink = document.createElement('a');
+            jsonLink.download = `gradient_atlas_config_${timestamp}.json`;
+            jsonLink.href = URL.createObjectURL(blob);
+            jsonLink.click();
+            URL.revokeObjectURL(jsonLink.href);
+        }
+
+        function exportJSON() {
+            const dataToExport = { textureSize: textureSizeSelect.value, palettes: palettes };
+            const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: "application/json" });
+            const link = document.createElement('a');
+            link.download = `gradient_atlas_config.json`;
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        function triggerImportClick() {
+            document.getElementById('jsonFileInput').click();
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const parsedData = JSON.parse(e.target.result);
+                    if (parsedData.textureSize && Array.isArray(parsedData.palettes)) {
+                        textureSizeSelect.value = parsedData.textureSize;
+                        palettes = parsedData.palettes;
+                        updateCanvasSize();
+                        renderUIRows();
+                    } else {
+                        alert("Invalid profile structure configuration file.");
+                    }
+                } catch (err) {
+                    alert("Error parsing JSON file setup.");
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>

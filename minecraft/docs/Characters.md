@@ -76,7 +76,7 @@
 
 ## NPC & Animals
 
-* Crocodiles
+* Crocodiles [3D Stylized Alligator Creation](https://www.youtube.com/watch?v=XX0recDPjKs)
 * Ducks [Learn How to Make A Cute Duck in Blender](youtube.com/watch?v=147SBsi_E00)
 * Sharks
 * TRex
