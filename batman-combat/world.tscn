@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://dclfsiksmor65"]
+
+[ext_resource type="Script" uid="uid://duwq4g3adbgsa" path="res://character_controller.gd" id="1_fj7yv"]
+[ext_resource type="PackedScene" uid="uid://bbkusyhk8n52m" path="res://batman.tscn" id="2_fj7yv"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_gv5m4"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_f3sb7"]
+sky_material = SubResource("ProceduralSkyMaterial_gv5m4")
+
+[sub_resource type="Environment" id="Environment_fj7yv"]
+background_mode = 2
+sky = SubResource("Sky_f3sb7")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tlwt5"]
+albedo_color = Color(0.35298076, 0.17326927, 0.21918923, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_aqk2v"]
+material = SubResource("StandardMaterial3D_tlwt5")
+size = Vector3(100, 0.1, 100)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_036b0"]
+size = Vector3(100, 0.1, 100)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_f3sb7"]
+radius = 2.0
+height = 6.0
+
+[node name="World" type="Node3D" unique_id=1010366500]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=361954317]
+environment = SubResource("Environment_fj7yv")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1951558473]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 4.868528, 0)
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="." unique_id=235625270]
+mesh = SubResource("BoxMesh_aqk2v")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="Ground" unique_id=1693635571]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Ground/StaticBody3D" unique_id=565543756]
+shape = SubResource("BoxShape3D_036b0")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1233766999]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.579866, 8.755676)
+
+[node name="RigidBody3D" type="RigidBody3D" parent="." unique_id=1036972062]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.0833507, 0)
+script = ExtResource("1_fj7yv")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="RigidBody3D" unique_id=2002667375]
+shape = SubResource("CapsuleShape3D_f3sb7")
+
+[node name="Batman" parent="RigidBody3D/CollisionShape3D" unique_id=1266288873 instance=ExtResource("2_fj7yv")]
