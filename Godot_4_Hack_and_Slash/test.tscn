@@ -1,0 +1,20 @@
+[gd_scene load_steps=2 format=3 uid="uid://eessfocqpv0k"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_l1q6h"]
+subdivide_width = 2
+subdivide_depth = 2
+
+[node name="Node3D" type="Node3D"]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.10323, 6.28056)
+
+[node name="SoftBody3D" type="SoftBody3D" parent="."]
+mesh = SubResource("PlaneMesh_l1q6h")
+pinned_points = [14, 13]
+attachments/0/point_index = 14
+attachments/0/spatial_attachment_path = NodePath("")
+attachments/0/offset = Vector3(0, 0, 0)
+attachments/1/point_index = 13
+attachments/1/spatial_attachment_path = NodePath("")
+attachments/1/offset = Vector3(0, 0, 0)

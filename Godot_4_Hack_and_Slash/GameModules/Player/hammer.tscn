@@ -1,0 +1,5 @@
+[gd_scene load_steps=2 format=3 uid="uid://c3x5qwtm5l7ar"]
+
+[ext_resource type="PackedScene" uid="uid://b7wb237iyqflj" path="res://GameModules/Player/hammer.glb" id="1_kdw70"]
+
+[node name="hammer" instance=ExtResource("1_kdw70")]
