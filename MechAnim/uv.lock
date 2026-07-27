@@ -1,0 +1,23 @@
+version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[[package]]
+name = "fake-bpy-module-latest"
+version = "20260727"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/c3/2fbc5a6cd8db93bb3dc90f288f003042c9861b4b882dcde636475590b8b7/fake_bpy_module_latest-20260727.tar.gz", hash = "sha256:9b0db6e0482154ca94560b911aa63538208a82020520635341ebf9527ab24798", size = 954308, upload-time = "2026-07-27T09:27:48.141Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/ff/a2707e877c0a592430d58054ad6ad476c6b769ef318996a524aa1315dab6/fake_bpy_module_latest-20260727-py3-none-any.whl", hash = "sha256:ed7e7a0ae86c78e9162b77564f114008440552ede71c2ddcbb31711c6294a8db", size = 1102690, upload-time = "2026-07-27T09:27:45.686Z" },
+]
+
+[[package]]
+name = "mechanim"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "fake-bpy-module-latest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "fake-bpy-module-latest", specifier = ">=20260727" }]
