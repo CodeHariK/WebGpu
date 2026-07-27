@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "../godot-mcp"
+		},
+		{
+			"path": "../MechAnim"
 		}
 	],
 	"settings": {
