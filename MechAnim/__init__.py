@@ -21,6 +21,9 @@ import importlib
 from .ui import main_panel
 from .operators import inspect_scene
 from .operators import auto_parent
+from .operators import fk_ik_generator
+from .operators import custom_shapes
+from .operators import bone_colors
 from .operators import rotation_mode
 from .operators import mech_rig
 from .operators import fk_ik_snap
@@ -31,6 +34,9 @@ if "bpy" in locals():
     importlib.reload(main_panel)
     importlib.reload(inspect_scene)
     importlib.reload(auto_parent)
+    importlib.reload(fk_ik_generator)
+    importlib.reload(custom_shapes)
+    importlib.reload(bone_colors)
     importlib.reload(rotation_mode)
     importlib.reload(mech_rig)
     importlib.reload(fk_ik_snap)
@@ -44,6 +50,9 @@ def register() -> None:
     main_panel.register()
     inspect_scene.register()
     auto_parent.register()
+    fk_ik_generator.register()
+    custom_shapes.register()
+    bone_colors.register()
     rotation_mode.register()
     mech_rig.register()
     fk_ik_snap.register()
@@ -56,6 +65,9 @@ def unregister() -> None:
     fk_ik_snap.unregister()
     mech_rig.unregister()
     rotation_mode.unregister()
+    bone_colors.unregister()
+    custom_shapes.unregister()
+    fk_ik_generator.unregister()
     auto_parent.unregister()
     inspect_scene.unregister()
     main_panel.unregister()

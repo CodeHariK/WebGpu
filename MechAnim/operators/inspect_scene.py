@@ -15,6 +15,9 @@ def classify_bone_type(bone_name: str) -> tuple[str, str]:
     Classifies bone into one of the 6 MechAnim types.
     Returns a tuple of (bone_type, base_name).
     """
+    if bone_name.upper() == "ROOT":
+        return "CTRL", "ROOT"
+
     for prefix in ("DEFIK_", "DEF_", "CTRL_", "POLE_", "IK_", "FK_"):
         if bone_name.startswith(prefix):
             return prefix[:-1], bone_name[len(prefix):]
