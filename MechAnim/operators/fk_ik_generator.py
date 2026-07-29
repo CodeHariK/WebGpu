@@ -44,11 +44,11 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
         arm_obj = context.active_object if (context.active_object and context.active_object.type == "ARMATURE") else armature_objs[0]
         arm_data = arm_obj.data
 
-        # 1. Group DEFIK bones by chain key (e.g. 'arm.L', 'leg.L', 'spine')
+        # 1. Group DEFIK and DEFSIK bones by chain key (e.g. 'arm.L', 'leg.L', 'spine')
         defik_groups: dict[str, list[str]] = {}
         for bone in arm_data.bones:
             b_type, base_name = classify_bone_type(bone.name)
-            if b_type == "DEFIK":
+            if b_type in ("DEFIK", "DEFSIK"):
                 chain_base = extract_chain_basename(base_name)
                 side = get_side_suffix(bone.name)
                 group_key = f"{chain_base}{side}"
@@ -58,11 +58,12 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 defik_groups[group_key].append(bone.name)
 
         if not defik_groups:
-            self.report({"WARNING"}, "No DEFIK bones found in armature.")
+            self.report({"WARNING"}, "No DEFIK or DEFSIK bones found in armature.")
             return {"CANCELLED"}
 
-        # Store mode to restore later
+        # Store mode to restore later and ensure active object context
         prev_mode = context.mode
+        context.view_layer.objects.active = arm_obj
         bpy.ops.object.mode_set(mode="EDIT")
         edit_bones = arm_data.edit_bones
 
@@ -98,8 +99,30 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                     ik_ebone.use_deform = False
                     created_ik_bones.append(ik_name)
 
-        # 3. Setup connected parenting for new FK_ and IK_ chains
+        # 3. Setup connected parenting for new FK_ and IK_ chains & auto-create Spline IK CTRL bones
         for group_key, defik_bone_names in defik_groups.items():
+            # If chain is DEFSIK spine, auto-create CTRL_spine_start and CTRL_spine_end if not present
+            if "spine" in group_key.lower():
+                start_ctrl_name = f"CTRL_{group_key}_start" if f"CTRL_{group_key}_start" not in edit_bones else f"CTRL_spine_start"
+                end_ctrl_name = f"CTRL_{group_key}_end" if f"CTRL_{group_key}_end" not in edit_bones else f"CTRL_spine_end"
+
+                first_bone = edit_bones.get(defik_bone_names[0])
+                last_bone = edit_bones.get(defik_bone_names[-1])
+
+                if first_bone and ("CTRL_spine_start" not in edit_bones and f"CTRL_{group_key}_start" not in edit_bones):
+                    c_start = edit_bones.new(start_ctrl_name)
+                    c_start.head = first_bone.head.copy()
+                    c_start.tail = first_bone.head + (first_bone.tail - first_bone.head) * 0.5
+                    c_start.use_deform = False
+                    print(f"[MechAnim] Auto-created '{c_start.name}' at spine base.")
+
+                if last_bone and ("CTRL_spine_end" not in edit_bones and f"CTRL_{group_key}_end" not in edit_bones):
+                    c_end = edit_bones.new(end_ctrl_name)
+                    c_end.head = last_bone.tail.copy()
+                    c_end.tail = last_bone.tail + (last_bone.tail - last_bone.head) * 0.5
+                    c_end.use_deform = False
+                    print(f"[MechAnim] Auto-created '{c_end.name}' at spine top.")
+
             for defik_name in defik_bone_names:
                 b_type, base_name = classify_bone_type(defik_name)
                 orig_ebone = edit_bones.get(defik_name)
@@ -111,7 +134,7 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
 
                 if orig_ebone.parent:
                     parent_btype, parent_base = classify_bone_type(orig_ebone.parent.name)
-                    if parent_btype == "DEFIK":
+                    if parent_btype in ("DEFIK", "DEFSIK"):
                         fk_parent = edit_bones.get(f"FK_{parent_base}")
                         ik_parent = edit_bones.get(f"IK_{parent_base}")
 
@@ -161,7 +184,7 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 ui_data = ctrl_pbone.id_properties_ui("FK_IK_Switch")
                 ui_data.update(min=0.0, max=1.0, description="FK/IK Switch (0.0 = FK, 1.0 = IK)")
 
-            # Add IK Constraint to the tip bone of the generated IK_ chain
+            # Add IK or Spline IK Constraint to the generated IK_ chain
             ik_chain_bones = [pose_bones.get(f"IK_{classify_bone_type(n)[1]}") for n in defik_bone_names if pose_bones.get(f"IK_{classify_bone_type(n)[1]}")]
             if ik_chain_bones:
                 # Tip bone in IK chain (lowest child in hierarchy)
@@ -174,23 +197,85 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 if not tip_ik_bone:
                     tip_ik_bone = ik_chain_bones[-1]
 
-                # Clear existing IK constraint on tip IK_ bone
+                # Clear existing IK / Spline IK constraints on tip IK_ bone
                 for constraint in list(tip_ik_bone.constraints):
-                    if constraint.type == "IK":
+                    if constraint.type in ("IK", "SPLINE_IK"):
                         tip_ik_bone.constraints.remove(constraint)
 
-                # Attach IK Constraint to tip bone targeting CTRL and POLE
-                if ctrl_pbone:
-                    ik_con = tip_ik_bone.constraints.new(type="IK")
-                    ik_con.target = arm_obj
-                    ik_con.subtarget = ctrl_name
-                    ik_con.chain_count = len(ik_chain_bones)
+                # Special Case: Spine Chain using Spline IK Curve
+                if "spine" in group_key.lower():
+                    curve_name = f"Curve_spine{get_side_suffix(group_key)}"
+                    curve_obj = context.scene.objects.get(curve_name)
 
-                    if pole_pbone:
-                        ik_con.pole_target = arm_obj
-                        ik_con.pole_subtarget = pole_name
-                        ik_con.pole_angle = 0.0
-                    print(f"[MechAnim] Added IK Constraint on '{tip_ik_bone.name}' -> Target: '{ctrl_name}' (Chain Count: {len(ik_chain_bones)})")
+                    # Create Bézier Curve if not existing
+                    if not curve_obj:
+                        curve_data = bpy.data.curves.new(name=curve_name, type="CURVE")
+                        curve_data.dimensions = "3D"
+                        spline = curve_data.splines.new("BEZIER")
+                        spline.bezier_points.add(1) # 2 points (base and top)
+
+                        base_ik = ik_chain_bones[0]
+                        spline.bezier_points[0].co = base_ik.head
+                        spline.bezier_points[0].handle_left = base_ik.head - (base_ik.tail - base_ik.head) * 0.5
+                        spline.bezier_points[0].handle_right = base_ik.head + (base_ik.tail - base_ik.head) * 0.5
+
+                        spline.bezier_points[1].co = tip_ik_bone.tail
+                        spline.bezier_points[1].handle_left = tip_ik_bone.tail - (tip_ik_bone.tail - tip_ik_bone.head) * 0.5
+                        spline.bezier_points[1].handle_right = tip_ik_bone.tail + (tip_ik_bone.tail - tip_ik_bone.head) * 0.5
+
+                        curve_obj = bpy.data.objects.new(curve_name, curve_data)
+                        context.scene.collection.objects.link(curve_obj)
+
+                    # Attach Spline IK Constraint to tip spine bone
+                    spline_ik = tip_ik_bone.constraints.new(type="SPLINE_IK")
+                    spline_ik.target = curve_obj
+                    spline_ik.chain_count = len(ik_chain_bones)
+                    spline_ik.use_curve_radius = False
+                    spline_ik.y_scale_mode = "FIT_CURVE"
+
+                    # Hook Curve end handles to CTRL_spine_start (Base) and CTRL_spine_end (Top)
+                    start_ctrl = pose_bones.get(f"CTRL_{group_key}_start") or pose_bones.get("CTRL_spine_start") or pose_bones.get("CTRL_waist") or pose_bones.get("ROOT")
+                    end_ctrl = pose_bones.get(f"CTRL_{group_key}_end") or pose_bones.get("CTRL_spine_end") or ctrl_pbone
+
+                    if start_ctrl and end_ctrl and curve_obj:
+                        # Ensure curve is in edit mode to hook points
+                        bpy.ops.object.mode_set(mode="OBJECT")
+                        bpy.ops.object.select_all(action="DESELECT")
+                        curve_obj.select_set(True)
+                        context.view_layer.objects.active = curve_obj
+                        bpy.ops.object.mode_set(mode="EDIT")
+
+                        # Add Hook modifier for base point directly targeting armature pose bone
+                        hook_base = curve_obj.modifiers.new(name="Hook_Base", type="HOOK")
+                        hook_base.object = arm_obj
+                        hook_base.subtarget = start_ctrl.name
+
+                        # Add Hook modifier for top point directly targeting armature pose bone
+                        hook_top = curve_obj.modifiers.new(name="Hook_Top", type="HOOK")
+                        hook_top.object = arm_obj
+                        hook_top.subtarget = end_ctrl.name
+
+                        # Switch back to active armature Pose Mode
+                        bpy.ops.object.mode_set(mode="OBJECT")
+                        bpy.ops.object.select_all(action="DESELECT")
+                        arm_obj.select_set(True)
+                        context.view_layer.objects.active = arm_obj
+                        bpy.ops.object.mode_set(mode="POSE")
+
+                    print(f"[MechAnim] Created Spline IK for '{group_key}' -> Curve: '{curve_obj.name}' with Top/Base Hooks.")
+                else:
+                    # Standard Limb IK (Arm / Leg)
+                    if ctrl_pbone:
+                        ik_con = tip_ik_bone.constraints.new(type="IK")
+                        ik_con.target = arm_obj
+                        ik_con.subtarget = ctrl_name
+                        ik_con.chain_count = len(ik_chain_bones)
+
+                        if pole_pbone:
+                            ik_con.pole_target = arm_obj
+                            ik_con.pole_subtarget = pole_name
+                            ik_con.pole_angle = 0.0
+                        print(f"[MechAnim] Added Limb IK Constraint on '{tip_ik_bone.name}' -> Target: '{ctrl_name}'")
 
             for defik_name in defik_bone_names:
                 b_type, base_name = classify_bone_type(defik_name)
@@ -284,6 +369,7 @@ class MECHANIM_OT_clear_fk_ik_chains(bpy.types.Operator):
 
         # 1. Clean up Pose Mode constraints, drivers, and custom properties on bones
         prev_mode = context.mode
+        context.view_layer.objects.active = arm_obj
         bpy.ops.object.mode_set(mode="POSE")
 
         for pbone in arm_obj.pose.bones:
@@ -324,11 +410,28 @@ class MECHANIM_OT_clear_fk_ik_chains(bpy.types.Operator):
                 if coll:
                     arm_data.collections.remove(coll)
 
+        # 4. Remove all generated Spline IK Curves (Curve_*) and purge curve datablocks
+        curves_to_remove = [obj for obj in context.scene.objects if obj.type == "CURVE" and obj.name.startswith("Curve_")]
+        for curve_obj in curves_to_remove:
+            c_name = curve_obj.name
+            curve_data = curve_obj.data
+            bpy.data.objects.remove(curve_obj, do_unlink=True)
+            if curve_data and curve_data.users == 0:
+                bpy.data.curves.remove(curve_data)
+            print(f"[MechAnim] Deleted Spline IK Curve '{c_name}'.")
+
+        # 5. Remove any Empty objects generated by Hook modifiers or IK targets (e.g. Empty, Hook-*, etc.)
+        empties_to_remove = [obj for obj in context.scene.objects if obj.type == "EMPTY" and (obj.name.startswith("Hook") or obj.name.startswith("Empty") or obj.name.startswith("Curve_"))]
+        for empty_obj in empties_to_remove:
+            e_name = empty_obj.name
+            bpy.data.objects.remove(empty_obj, do_unlink=True)
+            print(f"[MechAnim] Deleted Empty Object '{e_name}'.")
+
         # Restore original mode
         if prev_mode in ("EDIT", "POSE", "OBJECT"):
             bpy.ops.object.mode_set(mode=prev_mode)
 
-        self.report({"INFO"}, f"MechAnim: Cleared {deleted_bones_count} generated FK/IK bone(s), drivers, properties & collections.")
+        self.report({"INFO"}, f"MechAnim: Cleared {deleted_bones_count} generated FK/IK bone(s), curves, drivers, properties & collections.")
         return {"FINISHED"}
 
 

@@ -8,8 +8,10 @@ import bpy
 
 
 def get_clean_name(name: str) -> str:
-    """Strips DEF_ or DEFIK_ prefix from bone name to find base name."""
-    if name.startswith("DEFIK_"):
+    """Strips DEF_, DEFIK_, or DEFSIK_ prefix from bone name to find base name."""
+    if name.startswith("DEFSIK_"):
+        return name[7:]
+    elif name.startswith("DEFIK_"):
         return name[6:]
     elif name.startswith("DEF_"):
         return name[4:]

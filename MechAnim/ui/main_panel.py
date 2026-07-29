@@ -65,7 +65,7 @@ class VIEW3D_PT_mechanim_panel(bpy.types.Panel):
             col_disp = box_disp.column(align=True)
             col_disp.prop(arm_data, "show_names", text="Show Bone Names", toggle=True, icon="FONT_DATA")
             col_disp.prop(arm_data, "show_axes", text="Show Bone Axes", toggle=True, icon="ORIENTATION_GLOBAL")
-            col_disp.prop(arm_data, "show_in_front", text="In Front (X-Ray)", toggle=True, icon="XRAY")
+            col_disp.prop(arm_obj, "show_in_front", text="In Front (X-Ray)", toggle=True, icon="XRAY")
         else:
             box_disp.label(text="No Armature Selected", icon="INFO")
 
