@@ -176,12 +176,22 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
             if pole_pbone and coll_ik:
                 assign_bone_to_collection(arm_data, coll_ik, pole_name)
 
-            # Ensure custom property 'FK_IK_Switch' exists on CTRL bone (0.0 = FK, 1.0 = IK)
-            if ctrl_pbone:
-                if "FK_IK_Switch" not in ctrl_pbone:
-                    ctrl_pbone["FK_IK_Switch"] = 0.0
+            ctrl_targets_for_switch = [ctrl_pbone] if ctrl_pbone else []
+            if "spine" in group_key.lower():
+                spine_targets = [
+                    pose_bones.get(f"CTRL_{group_key}_end"),
+                    pose_bones.get("CTRL_spine_end"),
+                    pose_bones.get(f"CTRL_{group_key}_start"),
+                    pose_bones.get("CTRL_spine_start"),
+                ]
+                ctrl_targets_for_switch = [b for b in spine_targets if b is not None]
+
+            # Ensure custom property 'FK_IK_Switch' exists on CTRL bones (0.0 = FK, 1.0 = IK)
+            for switch_target in ctrl_targets_for_switch:
+                if "FK_IK_Switch" not in switch_target:
+                    switch_target["FK_IK_Switch"] = 0.0
                     
-                ui_data = ctrl_pbone.id_properties_ui("FK_IK_Switch")
+                ui_data = switch_target.id_properties_ui("FK_IK_Switch")
                 ui_data.update(min=0.0, max=1.0, description="FK/IK Switch (0.0 = FK, 1.0 = IK)")
 
             # Add IK or Spline IK Constraint to the generated IK_ chain
@@ -226,41 +236,32 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                         curve_obj = bpy.data.objects.new(curve_name, curve_data)
                         context.scene.collection.objects.link(curve_obj)
 
-                    # Attach Spline IK Constraint to tip spine bone
+                    # Attach Spline IK Constraint to tip spine bone (y_scale_mode = NONE prevents unwanted stretching)
                     spline_ik = tip_ik_bone.constraints.new(type="SPLINE_IK")
                     spline_ik.target = curve_obj
                     spline_ik.chain_count = len(ik_chain_bones)
                     spline_ik.use_curve_radius = False
-                    spline_ik.y_scale_mode = "FIT_CURVE"
+                    spline_ik.y_scale_mode = "NONE"
 
                     # Hook Curve end handles to CTRL_spine_start (Base) and CTRL_spine_end (Top)
                     start_ctrl = pose_bones.get(f"CTRL_{group_key}_start") or pose_bones.get("CTRL_spine_start") or pose_bones.get("CTRL_waist") or pose_bones.get("ROOT")
                     end_ctrl = pose_bones.get(f"CTRL_{group_key}_end") or pose_bones.get("CTRL_spine_end") or ctrl_pbone
 
                     if start_ctrl and end_ctrl and curve_obj:
-                        # Ensure curve is in edit mode to hook points
-                        bpy.ops.object.mode_set(mode="OBJECT")
-                        bpy.ops.object.select_all(action="DESELECT")
-                        curve_obj.select_set(True)
-                        context.view_layer.objects.active = curve_obj
-                        bpy.ops.object.mode_set(mode="EDIT")
+                        # Add Hook modifier for base point directly targeting start_ctrl (waist/base)
+                        hook_b = curve_obj.modifiers.new(name="Hook_Start", type="HOOK")
+                        hook_b.object = arm_obj
+                        hook_b.subtarget = start_ctrl.name
+                        hook_b.vertex_indices_set([0])
 
-                        # Add Hook modifier for base point directly targeting armature pose bone
-                        hook_base = curve_obj.modifiers.new(name="Hook_Base", type="HOOK")
-                        hook_base.object = arm_obj
-                        hook_base.subtarget = start_ctrl.name
+                        # Add Hook modifier for top point directly targeting end_ctrl (chest/top)
+                        hook_t = curve_obj.modifiers.new(name="Hook_End", type="HOOK")
+                        hook_t.object = arm_obj
+                        hook_t.subtarget = end_ctrl.name
+                        hook_t.vertex_indices_set([1])
 
-                        # Add Hook modifier for top point directly targeting armature pose bone
-                        hook_top = curve_obj.modifiers.new(name="Hook_Top", type="HOOK")
-                        hook_top.object = arm_obj
-                        hook_top.subtarget = end_ctrl.name
-
-                        # Switch back to active armature Pose Mode
-                        bpy.ops.object.mode_set(mode="OBJECT")
-                        bpy.ops.object.select_all(action="DESELECT")
-                        arm_obj.select_set(True)
-                        context.view_layer.objects.active = arm_obj
-                        bpy.ops.object.mode_set(mode="POSE")
+                        # Reset curve transform matrix to align with hooks
+                        curve_obj.matrix_world = arm_obj.matrix_world
 
                     print(f"[MechAnim] Created Spline IK for '{group_key}' -> Curve: '{curve_obj.name}' with Top/Base Hooks.")
                 else:
@@ -320,8 +321,18 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 c_ik.influence = 0.0
 
                 # Create Driver on IK constraint influence cleanly
-                if ctrl_pbone:
-                    data_path = f'pose.bones["{defik_name}"].constraints["MechAnim_Copy_IK"].influence'
+                switch_ctrl_name = ctrl_name
+                if "spine" in group_key.lower():
+                    if f"CTRL_{group_key}_end" in pose_bones:
+                        switch_ctrl_name = f"CTRL_{group_key}_end"
+                    elif "CTRL_spine_end" in pose_bones:
+                        switch_ctrl_name = "CTRL_spine_end"
+                    elif "CTRL_spine" in pose_bones:
+                        switch_ctrl_name = "CTRL_spine"
+
+                switch_pbone = pose_bones.get(switch_ctrl_name)
+                if switch_pbone:
+                    data_path = f'pose.bones["{defik_name}"].constraints["{c_ik.name}"].influence'
                     driver_fcurve = arm_obj.driver_add(data_path)
                     if driver_fcurve:
                         driver = driver_fcurve.driver
@@ -335,7 +346,7 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                         target = var.targets[0]
                         target.id_type = "OBJECT"
                         target.id = arm_obj
-                        target.data_path = f'pose.bones["{ctrl_name}"]["FK_IK_Switch"]'
+                        target.data_path = f'pose.bones["{switch_ctrl_name}"]["FK_IK_Switch"]'
 
             processed_chains += 1
 
