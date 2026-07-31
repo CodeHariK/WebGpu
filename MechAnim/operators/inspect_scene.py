@@ -132,7 +132,14 @@ class MECHANIM_OT_inspect_scene(bpy.types.Operator):
                         else:
                             ik_status = f" | [NO IK TARGETS FOUND (Expected: '{expected_ctrl}'/'{expected_ik}', '{expected_pole}')]"
 
-                print(f"  - Bone: '{b_name}'{parent_str} | Type: {b_type}{mesh_status}{ik_status}")
+                # Check constraints on pose bone
+                pbone = arm_obj.pose.bones.get(b_name)
+                con_str = ""
+                if pbone and pbone.constraints:
+                    con_names = [f"{c.type}({c.name})" for c in pbone.constraints]
+                    con_str = f" | [CONSTRAINTS: {', '.join(con_names)}]"
+
+                print(f"  - Bone: '{b_name}'{parent_str} | Type: {b_type}{mesh_status}{ik_status}{con_str}")
 
         print(f"\n--- MESH OBJECTS FOUND: {len(meshes)} ---")
         for mesh_obj in meshes:

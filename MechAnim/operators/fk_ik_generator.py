@@ -212,8 +212,8 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                     if constraint.type in ("IK", "SPLINE_IK"):
                         tip_ik_bone.constraints.remove(constraint)
 
-                # Special Case: Spine Chain using Spline IK Curve
-                if "spine" in group_key.lower():
+                # Special Case: Spine Chain using Spline IK Curve directly on DEFSIK_ bones
+                if "spine" in group_key.lower() or any(classify_bone_type(n)[0] == "DEFSIK" for n in defik_bone_names):
                     curve_name = f"Curve_spine{get_side_suffix(group_key)}"
                     curve_obj = context.scene.objects.get(curve_name)
 
@@ -224,19 +224,21 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                         spline = curve_data.splines.new("BEZIER")
                         spline.bezier_points.add(1) # 2 points (base and top)
 
-                        base_ik = ik_chain_bones[0]
-                        spline.bezier_points[0].co = base_ik.head
-                        spline.bezier_points[0].handle_left = base_ik.head - (base_ik.tail - base_ik.head) * 0.5
-                        spline.bezier_points[0].handle_right = base_ik.head + (base_ik.tail - base_ik.head) * 0.5
+                        base_def = pose_bones.get(defik_bone_names[0])
+                        tip_def = pose_bones.get(defik_bone_names[-1])
 
-                        spline.bezier_points[1].co = tip_ik_bone.tail
-                        spline.bezier_points[1].handle_left = tip_ik_bone.tail - (tip_ik_bone.tail - tip_ik_bone.head) * 0.5
-                        spline.bezier_points[1].handle_right = tip_ik_bone.tail + (tip_ik_bone.tail - tip_ik_bone.head) * 0.5
+                        spline.bezier_points[0].co = base_def.head
+                        spline.bezier_points[0].handle_left = base_def.head - (base_def.tail - base_def.head) * 0.5
+                        spline.bezier_points[0].handle_right = base_def.head + (base_def.tail - base_def.head) * 0.5
+
+                        spline.bezier_points[1].co = tip_def.tail
+                        spline.bezier_points[1].handle_left = tip_def.tail - (tip_def.tail - tip_def.head) * 0.5
+                        spline.bezier_points[1].handle_right = tip_def.tail + (tip_def.tail - tip_def.head) * 0.5
 
                         curve_obj = bpy.data.objects.new(curve_name, curve_data)
                         context.scene.collection.objects.link(curve_obj)
 
-                    # Attach Spline IK Constraint to tip spine bone (y_scale_mode = NONE prevents unwanted stretching)
+                    # Attach Spline IK Constraint to tip IK_ bone (IK_spine_1)
                     spline_ik = tip_ik_bone.constraints.new(type="SPLINE_IK")
                     spline_ik.target = curve_obj
                     spline_ik.chain_count = len(ik_chain_bones)
@@ -253,15 +255,14 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                         hook_b.object = arm_obj
                         hook_b.subtarget = start_ctrl.name
                         hook_b.vertex_indices_set([0])
+                        hook_b.matrix_inverse = (arm_obj.matrix_world @ start_ctrl.matrix).inverted()
 
                         # Add Hook modifier for top point directly targeting end_ctrl (chest/top)
                         hook_t = curve_obj.modifiers.new(name="Hook_End", type="HOOK")
                         hook_t.object = arm_obj
                         hook_t.subtarget = end_ctrl.name
                         hook_t.vertex_indices_set([1])
-
-                        # Reset curve transform matrix to align with hooks
-                        curve_obj.matrix_world = arm_obj.matrix_world
+                        hook_t.matrix_inverse = (arm_obj.matrix_world @ end_ctrl.matrix).inverted()
 
                     print(f"[MechAnim] Created Spline IK for '{group_key}' -> Curve: '{curve_obj.name}' with Top/Base Hooks.")
                 else:
@@ -306,7 +307,7 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                             pass
                         defik_pbone.constraints.remove(constraint)
 
-                # Constraint 1: Copy Transforms from FK bone (Influence = 1.0)
+                # Constraint 1: Copy Transforms from FK bone (Influence driven by 1.0 - FK_IK_Switch)
                 c_fk = defik_pbone.constraints.new(type="COPY_TRANSFORMS")
                 c_fk.name = "MechAnim_Copy_FK"
                 c_fk.target = arm_obj
@@ -320,7 +321,7 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 c_ik.subtarget = ik_name
                 c_ik.influence = 0.0
 
-                # Create Driver on IK constraint influence cleanly
+                # Determine control bone holding the FK_IK_Switch property
                 switch_ctrl_name = ctrl_name
                 if "spine" in group_key.lower():
                     if f"CTRL_{group_key}_end" in pose_bones:
@@ -332,21 +333,39 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
 
                 switch_pbone = pose_bones.get(switch_ctrl_name)
                 if switch_pbone:
-                    data_path = f'pose.bones["{defik_name}"].constraints["{c_ik.name}"].influence'
-                    driver_fcurve = arm_obj.driver_add(data_path)
-                    if driver_fcurve:
-                        driver = driver_fcurve.driver
-                        driver.type = "AVERAGE"
-                        for var in list(driver.variables):
-                            driver.variables.remove(var)
+                    # Driver for IK constraint influence (Influence = switch_val)
+                    data_path_ik = f'pose.bones["{defik_name}"].constraints["{c_ik.name}"].influence'
+                    dfc_ik = arm_obj.driver_add(data_path_ik)
+                    if dfc_ik:
+                        d_ik = dfc_ik.driver
+                        d_ik.type = "SCRIPTED"
+                        for var in list(d_ik.variables):
+                            d_ik.variables.remove(var)
+                        var_ik = d_ik.variables.new()
+                        var_ik.name = "sw"
+                        var_ik.type = "SINGLE_PROP"
+                        t_ik = var_ik.targets[0]
+                        t_ik.id_type = "OBJECT"
+                        t_ik.id = arm_obj
+                        t_ik.data_path = f'pose.bones["{switch_ctrl_name}"]["FK_IK_Switch"]'
+                        d_ik.expression = "sw"
 
-                        var = driver.variables.new()
-                        var.name = "fk_ik_switch"
-                        var.type = "SINGLE_PROP"
-                        target = var.targets[0]
-                        target.id_type = "OBJECT"
-                        target.id = arm_obj
-                        target.data_path = f'pose.bones["{switch_ctrl_name}"]["FK_IK_Switch"]'
+                    # Driver for FK constraint influence (Influence = 1.0 - switch_val)
+                    data_path_fk = f'pose.bones["{defik_name}"].constraints["{c_fk.name}"].influence'
+                    dfc_fk = arm_obj.driver_add(data_path_fk)
+                    if dfc_fk:
+                        d_fk = dfc_fk.driver
+                        d_fk.type = "SCRIPTED"
+                        for var in list(d_fk.variables):
+                            d_fk.variables.remove(var)
+                        var_fk = d_fk.variables.new()
+                        var_fk.name = "sw"
+                        var_fk.type = "SINGLE_PROP"
+                        t_fk = var_fk.targets[0]
+                        t_fk.id_type = "OBJECT"
+                        t_fk.id = arm_obj
+                        t_fk.data_path = f'pose.bones["{switch_ctrl_name}"]["FK_IK_Switch"]'
+                        d_fk.expression = "1.0 - sw"
 
             processed_chains += 1
 
