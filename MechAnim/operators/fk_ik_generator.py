@@ -36,12 +36,18 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
 
     def execute(self, context: bpy.types.Context) -> set[str]:
         """Executes FK/IK chain duplication, IK constraint attachment on IK_ chain, collection grouping, and driver setup."""
-        armature_objs = [obj for obj in context.scene.objects if obj.type == "ARMATURE"]
-        if not armature_objs:
-            self.report({"WARNING"}, "No Armature object found in scene.")
+        active_obj = context.active_object
+        arm_obj = active_obj if (active_obj and active_obj.type == "ARMATURE") else None
+        if not arm_obj:
+            armatures = [o for o in context.scene.objects if o.type == "ARMATURE"]
+            if armatures:
+                arm_obj = armatures[0]
+
+        if not arm_obj:
+            self.report({"WARNING"}, "No Armature object selected.")
             return {"CANCELLED"}
 
-        arm_obj = context.active_object if (context.active_object and context.active_object.type == "ARMATURE") else armature_objs[0]
+        prev_mode = context.mode
         arm_data = arm_obj.data
 
         # 1. Group DEFIK and DEFSIK bones by chain key (e.g. 'arm.L', 'leg.L', 'spine')
@@ -58,17 +64,18 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 defik_groups[group_key].append(bone.name)
 
         if not defik_groups:
-            self.report({"WARNING"}, "No DEFIK or DEFSIK bones found in armature.")
+            self.report({"WARNING"}, f"No DEFIK or DEFSIK bones found in active armature '{arm_obj.name}'.")
             return {"CANCELLED"}
 
-        # Store mode to restore later and ensure active object context
-        prev_mode = context.mode
+        # Ensure active object context for current armature
+        bpy.ops.object.mode_set(mode="OBJECT")
+        bpy.ops.object.select_all(action="DESELECT")
+        arm_obj.select_set(True)
         context.view_layer.objects.active = arm_obj
+
+        # 2. Switch to Edit Mode for bone creation
         bpy.ops.object.mode_set(mode="EDIT")
         edit_bones = arm_data.edit_bones
-
-        created_fk_bones: list[str] = []
-        created_ik_bones: list[str] = []
 
         # 2. Duplicate DEFIK bones in Edit Mode for FK_ and IK_ chains
         for group_key, defik_bone_names in defik_groups.items():
@@ -81,27 +88,22 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 fk_name = f"FK_{base_name}"
                 ik_name = f"IK_{base_name}"
 
-                # Create FK bone if not exists
                 if fk_name not in edit_bones:
                     fk_ebone = edit_bones.new(fk_name)
                     fk_ebone.head = orig_ebone.head.copy()
                     fk_ebone.tail = orig_ebone.tail.copy()
                     fk_ebone.roll = orig_ebone.roll
                     fk_ebone.use_deform = False
-                    created_fk_bones.append(fk_name)
 
-                # Create IK bone if not exists
                 if ik_name not in edit_bones:
                     ik_ebone = edit_bones.new(ik_name)
                     ik_ebone.head = orig_ebone.head.copy()
                     ik_ebone.tail = orig_ebone.tail.copy()
                     ik_ebone.roll = orig_ebone.roll
                     ik_ebone.use_deform = False
-                    created_ik_bones.append(ik_name)
 
         # 3. Setup connected parenting for new FK_ and IK_ chains & auto-create Spline IK CTRL bones
         for group_key, defik_bone_names in defik_groups.items():
-            # If chain is DEFSIK spine, auto-create CTRL_spine_start and CTRL_spine_end if not present
             if "spine" in group_key.lower():
                 start_ctrl_name = f"CTRL_{group_key}_start" if f"CTRL_{group_key}_start" not in edit_bones else f"CTRL_spine_start"
                 end_ctrl_name = f"CTRL_{group_key}_end" if f"CTRL_{group_key}_end" not in edit_bones else f"CTRL_spine_end"
@@ -114,14 +116,12 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                     c_start.head = first_bone.head.copy()
                     c_start.tail = first_bone.head + (first_bone.tail - first_bone.head) * 0.5
                     c_start.use_deform = False
-                    print(f"[MechAnim] Auto-created '{c_start.name}' at spine base.")
 
                 if last_bone and ("CTRL_spine_end" not in edit_bones and f"CTRL_{group_key}_end" not in edit_bones):
                     c_end = edit_bones.new(end_ctrl_name)
                     c_end.head = last_bone.tail.copy()
                     c_end.tail = last_bone.tail + (last_bone.tail - last_bone.head) * 0.5
                     c_end.use_deform = False
-                    print(f"[MechAnim] Auto-created '{c_end.name}' at spine top.")
 
             for defik_name in defik_bone_names:
                 b_type, base_name = classify_bone_type(defik_name)
@@ -157,10 +157,7 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
         bpy.ops.object.mode_set(mode="POSE")
         pose_bones = arm_obj.pose.bones
 
-        processed_chains = 0
-
         for group_key, defik_bone_names in defik_groups.items():
-            # Per-chain bone collections: DEF_<key>, FK_<key>, IK_<key>
             coll_def = get_or_create_collection(arm_data, f"DEF_{group_key}")
             coll_fk = get_or_create_collection(arm_data, f"FK_{group_key}")
             coll_ik = get_or_create_collection(arm_data, f"IK_{group_key}")
@@ -170,7 +167,6 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
             pole_name = f"POLE_{group_key}"
             pole_pbone = pose_bones.get(pole_name)
 
-            # Assign CTRL and POLE target bones to this chain's IK collection
             if ctrl_pbone and coll_ik:
                 assign_bone_to_collection(arm_data, coll_ik, ctrl_name)
             if pole_pbone and coll_ik:
@@ -186,7 +182,6 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 ]
                 ctrl_targets_for_switch = [b for b in spine_targets if b is not None]
 
-            # Ensure custom property 'FK_IK_Switch' exists on CTRL bones (0.0 = FK, 1.0 = IK)
             for switch_target in ctrl_targets_for_switch:
                 if "FK_IK_Switch" not in switch_target:
                     switch_target["FK_IK_Switch"] = 0.0
@@ -194,10 +189,8 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 ui_data = switch_target.id_properties_ui("FK_IK_Switch")
                 ui_data.update(min=0.0, max=1.0, description="FK/IK Switch (0.0 = FK, 1.0 = IK)")
 
-            # Add IK or Spline IK Constraint to the generated IK_ chain
             ik_chain_bones = [pose_bones.get(f"IK_{classify_bone_type(n)[1]}") for n in defik_bone_names if pose_bones.get(f"IK_{classify_bone_type(n)[1]}")]
             if ik_chain_bones:
-                # Tip bone in IK chain (lowest child in hierarchy)
                 tip_ik_bone = None
                 for ik_pb in ik_chain_bones:
                     has_child_in_chain = any(child.parent == ik_pb for child in ik_chain_bones)
@@ -207,66 +200,63 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 if not tip_ik_bone:
                     tip_ik_bone = ik_chain_bones[-1]
 
-                # Clear existing IK / Spline IK constraints on tip IK_ bone
                 for constraint in list(tip_ik_bone.constraints):
                     if constraint.type in ("IK", "SPLINE_IK"):
                         tip_ik_bone.constraints.remove(constraint)
 
-                # Special Case: Spine Chain using Spline IK Curve directly on DEFSIK_ bones
                 if "spine" in group_key.lower() or any(classify_bone_type(n)[0] == "DEFSIK" for n in defik_bone_names):
                     curve_name = f"Curve_spine{get_side_suffix(group_key)}"
                     curve_obj = context.scene.objects.get(curve_name)
 
-                    # Create Bézier Curve if not existing
                     if not curve_obj:
                         curve_data = bpy.data.curves.new(name=curve_name, type="CURVE")
                         curve_data.dimensions = "3D"
                         spline = curve_data.splines.new("BEZIER")
-                        spline.bezier_points.add(1) # 2 points (base and top)
+                        spline.bezier_points.add(1)
 
                         base_def = pose_bones.get(defik_bone_names[0])
                         tip_def = pose_bones.get(defik_bone_names[-1])
 
-                        spline.bezier_points[0].co = base_def.head
-                        spline.bezier_points[0].handle_left = base_def.head - (base_def.tail - base_def.head) * 0.5
-                        spline.bezier_points[0].handle_right = base_def.head + (base_def.tail - base_def.head) * 0.5
+                        # Transform bone head/tail coordinates using armature matrix_world
+                        head_w = arm_obj.matrix_world @ base_def.head
+                        tail_w = arm_obj.matrix_world @ tip_def.tail
+                        dir_w = tail_w - head_w
 
-                        spline.bezier_points[1].co = tip_def.tail
-                        spline.bezier_points[1].handle_left = tip_def.tail - (tip_def.tail - tip_def.head) * 0.5
-                        spline.bezier_points[1].handle_right = tip_def.tail + (tip_def.tail - tip_def.head) * 0.5
+                        spline.bezier_points[0].co = head_w
+                        spline.bezier_points[0].handle_left = head_w - dir_w * 0.25
+                        spline.bezier_points[0].handle_right = head_w + dir_w * 0.25
+
+                        spline.bezier_points[1].co = tail_w
+                        spline.bezier_points[1].handle_left = tail_w - dir_w * 0.25
+                        spline.bezier_points[1].handle_right = tail_w + dir_w * 0.25
 
                         curve_obj = bpy.data.objects.new(curve_name, curve_data)
                         context.scene.collection.objects.link(curve_obj)
 
-                    # Attach Spline IK Constraint to tip IK_ bone (IK_spine_1)
                     spline_ik = tip_ik_bone.constraints.new(type="SPLINE_IK")
                     spline_ik.target = curve_obj
                     spline_ik.chain_count = len(ik_chain_bones)
                     spline_ik.use_curve_radius = False
                     spline_ik.y_scale_mode = "NONE"
 
-                    # Hook Curve end handles to CTRL_spine_start (Base) and CTRL_spine_end (Top)
                     start_ctrl = pose_bones.get(f"CTRL_{group_key}_start") or pose_bones.get("CTRL_spine_start") or pose_bones.get("CTRL_waist") or pose_bones.get("ROOT")
                     end_ctrl = pose_bones.get(f"CTRL_{group_key}_end") or pose_bones.get("CTRL_spine_end") or ctrl_pbone
 
                     if start_ctrl and end_ctrl and curve_obj:
-                        # Add Hook modifier for base point directly targeting start_ctrl (waist/base)
                         hook_b = curve_obj.modifiers.new(name="Hook_Start", type="HOOK")
                         hook_b.object = arm_obj
                         hook_b.subtarget = start_ctrl.name
                         hook_b.vertex_indices_set([0])
                         hook_b.matrix_inverse = (arm_obj.matrix_world @ start_ctrl.matrix).inverted()
 
-                        # Add Hook modifier for top point directly targeting end_ctrl (chest/top)
                         hook_t = curve_obj.modifiers.new(name="Hook_End", type="HOOK")
                         hook_t.object = arm_obj
                         hook_t.subtarget = end_ctrl.name
                         hook_t.vertex_indices_set([1])
                         hook_t.matrix_inverse = (arm_obj.matrix_world @ end_ctrl.matrix).inverted()
 
-                    print(f"[MechAnim] Created Spline IK for '{group_key}' -> Curve: '{curve_obj.name}' with Top/Base Hooks.")
+                    print(f"[MechAnim] Created Spline IK on '{arm_obj.name}' for '{group_key}' -> Curve: '{curve_obj.name}'.")
                 else:
-                    # Standard Limb IK (Arm / Leg)
                     if ctrl_pbone:
                         ik_con = tip_ik_bone.constraints.new(type="IK")
                         ik_con.target = arm_obj
@@ -290,7 +280,6 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 if not defik_pbone:
                     continue
 
-                # Assign bones to their respective per-chain collections
                 if coll_def:
                     assign_bone_to_collection(arm_data, coll_def, defik_name)
                 if coll_fk and fk_pbone:
@@ -298,7 +287,6 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                 if coll_ik and ik_pbone:
                     assign_bone_to_collection(arm_data, coll_ik, ik_name)
 
-                # Remove existing Copy Transforms constraints safely
                 for constraint in list(defik_pbone.constraints):
                     if constraint.name in ("MechAnim_Copy_FK", "MechAnim_Copy_IK"):
                         try:
@@ -307,21 +295,18 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                             pass
                         defik_pbone.constraints.remove(constraint)
 
-                # Constraint 1: Copy Transforms from FK bone (Influence driven by 1.0 - FK_IK_Switch)
                 c_fk = defik_pbone.constraints.new(type="COPY_TRANSFORMS")
                 c_fk.name = "MechAnim_Copy_FK"
                 c_fk.target = arm_obj
                 c_fk.subtarget = fk_name
                 c_fk.influence = 1.0
 
-                # Constraint 2: Copy Transforms from IK bone (Influence driven by FK_IK_Switch)
                 c_ik = defik_pbone.constraints.new(type="COPY_TRANSFORMS")
                 c_ik.name = "MechAnim_Copy_IK"
                 c_ik.target = arm_obj
                 c_ik.subtarget = ik_name
                 c_ik.influence = 0.0
 
-                # Determine control bone holding the FK_IK_Switch property
                 switch_ctrl_name = ctrl_name
                 if "spine" in group_key.lower():
                     if f"CTRL_{group_key}_end" in pose_bones:
@@ -333,7 +318,6 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
 
                 switch_pbone = pose_bones.get(switch_ctrl_name)
                 if switch_pbone:
-                    # Driver for IK constraint influence (Influence = switch_val)
                     data_path_ik = f'pose.bones["{defik_name}"].constraints["{c_ik.name}"].influence'
                     dfc_ik = arm_obj.driver_add(data_path_ik)
                     if dfc_ik:
@@ -350,7 +334,6 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                         t_ik.data_path = f'pose.bones["{switch_ctrl_name}"]["FK_IK_Switch"]'
                         d_ik.expression = "sw"
 
-                    # Driver for FK constraint influence (Influence = 1.0 - switch_val)
                     data_path_fk = f'pose.bones["{defik_name}"].constraints["{c_fk.name}"].influence'
                     dfc_fk = arm_obj.driver_add(data_path_fk)
                     if dfc_fk:
@@ -367,15 +350,13 @@ class MECHANIM_OT_generate_fk_ik_chains(bpy.types.Operator):
                         t_fk.data_path = f'pose.bones["{switch_ctrl_name}"]["FK_IK_Switch"]'
                         d_fk.expression = "1.0 - sw"
 
-            processed_chains += 1
-
         # Restore original mode
         if prev_mode in ("EDIT", "POSE", "OBJECT"):
             bpy.ops.object.mode_set(mode=prev_mode)
 
         self.report(
             {"INFO"},
-            f"MechAnim: Generated connected FK & IK chains and IK constraints for {processed_chains} group(s).",
+            f"MechAnim: Generated connected FK & IK chains for active armature '{arm_obj.name}'.",
         )
         return {"FINISHED"}
 
