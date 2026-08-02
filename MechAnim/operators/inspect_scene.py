@@ -13,12 +13,23 @@ VALID_BONE_TYPES = ("DEF_", "DEFIK_", "DEFSIK_", "CTRL_", "POLE_", "IK_", "FK_")
 def classify_bone_type(bone_name: str) -> tuple[str, str]:
     """
     Classifies bone into one of the MechAnim types (DEF, DEFIK, DEFSIK, CTRL, POLE, IK, FK).
+    Supports ratio-configured DEFSIK prefixes (e.g., DEFSIK_1:1_ spine_0).
     Returns a tuple of (bone_type, base_name).
     """
     if bone_name.upper() == "ROOT":
         return "CTRL", "ROOT"
 
-    for prefix in ("DEFSIK_", "DEFIK_", "DEF_", "CTRL_", "POLE_", "IK_", "FK_"):
+    if bone_name.startswith("DEFSIK_"):
+        # Check for point count pattern like DEFSIK_3_ or DEFSIK_4_
+        remainder = bone_name[len("DEFSIK_"):]
+        if "_" in remainder:
+            count_part, base_part = remainder.split("_", 1)
+            if count_part.isdigit():
+                return "DEFSIK", base_part
+
+        return "DEFSIK", remainder
+
+    for prefix in ("DEFIK_", "DEF_", "CTRL_", "POLE_", "IK_", "FK_"):
         if bone_name.startswith(prefix):
             b_type = prefix.rstrip("_")
             return b_type, bone_name[len(prefix):]

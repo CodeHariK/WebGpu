@@ -141,6 +141,8 @@ class VIEW3D_PT_mechanim_panel(bpy.types.Panel):
         # 4. FK/IK Snapping & Generation Section
         box = layout.box()
         box.label(text="FK / IK Tools", icon="POSE_HLT")
+        box.prop(scene, "mechanim_spline_order", text="Spline Order")
+        box.prop(scene, "mechanim_spline_y_scale_mode", text="Spline Y-Scale Mode")
         row_gen = box.row(align=True)
         row_gen.operator("mechanim.generate_fk_ik_chains", text="Generate FK/IK Chains", icon="ARMATURE_DATA")
         row_gen.operator("mechanim.clear_fk_ik_chains", text="Clear Chains", icon="TRASH")
