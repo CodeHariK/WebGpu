@@ -3,12 +3,279 @@
 TerraSpline turns child `ProceduralSpline3D`s (with `TerrainSplineDeformer` / `TerrainSplineScatter`
 components) into Terrain3D heightmap regions, streamed in `chunk_size` (256 m) chunks around the player.
 
-## Decision log
+## Architecture
 
-- **Ribbon triangulation / barycentric rasterization (rejected, Sep 2026).** The deformer is not the
-  bottleneck, and the ribbon self-overlaps on the concave side of any bend tighter than the falloff
-  width (20–37 m here), which double-applies `BLEND_ADD`. The nearest-segment SDF handles that for free.
-  If the deformer ever dominates, use a distance transform (step 4 below), not triangles.
+### Classes
+
+| Class | Kind | Owns | Purpose |
+|---|---|---|---|
+| `TerrainSplineCompositor` | Node (scene) | `chunk_buffers`, the generation queue, in-flight jobs, the scatter container | The orchestrator. Watches its child `ProceduralSpline3D`s, decides which chunks need (re)generation, streams them under a per-frame time budget, evicts far chunks, shifts the origin, and is the only class that talks to Terrain3D. |
+| `ProceduralSpline3D` *(utils/spline3d)* | Path3D (scene) | Baked polyline (`baked_poly3d`, `baked_segments`), dirty rect | A designer-placed spline. Children that are `SplineComponent`s (deformer, scatter) act along it. `evaluate_spline_point_segmented` gives distance / height / inside for a 2D point. |
+| `TerrainSplineDeformer` | SplineComponent (scene) | Shape parameters, curves | Raises or lowers a chunk heightmap in a corridor around its parent spline. Stateless per chunk: all per-run data lives in a `DeformerJob`. |
+| `TerrainSplineScatter` | SplineComponent (scene) | Mesh, shape, placement parameters | Places mesh instances (and optional collision) in a corridor around its parent spline. Stateless per chunk: per-run data lives in a `ScatterJob`. |
+| `TerrainChunk` | RefCounted | Heightmap, MultiMesh instance ids, physics body + caches, state | The resident state of one chunk coordinate. Owns the lifetime of everything the chunk put in the scene / physics server. |
+| `TerrainHeightmap` | RefCounted | `PackedFloat32Array` | Flat float grid, one value per metre. Written lock-free by worker tiles; exported as `Image::FORMAT_RF`. |
+| `ChunkJob` | RefCounted (data) | Inputs captured from the scene tree, outputs of the math | One chunk generation. Exists so the math phase never touches the scene tree. |
+| `DeformerJob` | RefCounted (data) | Baked curves, SoA spline geometry, distance field, active tiles | One (deformer, chunk) deformation. Read-only for the per-pixel tasks; each task writes disjoint tiles of the heightmap. |
+| `ScatterJob` | RefCounted (data) | Inputs, resulting transforms, debug counters | One (scatterer, spline, chunk) scattering. |
+| `TerrainSplineCompositorUI`, `GrayscaleJob` | TextureRect / data | — | Debug preview: one unified heightmap over all splines, shown as grayscale. Not used by the game. |
+
+Threading rule that shapes everything: **anything that reads the scene tree runs on the main
+thread** (`_make_chunk_job`, `finalize_*`); **anything that is pure math on job data may run on a
+worker** (`_run_chunk_job_math`, `deform_heightmap_prepared`, `run_scatter_job`). Jobs are the
+hand-off between the two.
+
+Coordinate rule: chunk keys, `TerrainChunk` transforms and Terrain3D positions are **physical**
+(scene) coordinates; the player and all radii are compared in **logical** coordinates
+(`physical + global_world_offset`) so an origin shift does not change what is "in range".
+
+### Flow 1 — startup and rebuild (main thread)
+
+```
+Node::NOTIFICATION_READY
+└─ _on_ready                                  tr_compositor.cpp
+   ├─ memnew scatter_container (internal child)
+   ├─ _connect_spline (each child)             spline_changed → _on_spline_changed
+   ├─ connect child_entered_tree/child_exiting_tree
+   ├─ _bench_init                              tr_bench.cpp (no-op unless --terraspline-bench)
+   └─ call_deferred apply_all_splines
+
+spline edited / added / removed / property changed
+└─ _on_spline_changed | _disconnect_spline | set_default_elevation | ...
+   └─ queue_rebuild                            one deferred _execute_rebuild per frame
+      └─ _execute_rebuild
+         └─ apply_all_splines                  tr_compositor_rebuild.cpp
+            ├─ _get_terrain_data_api           tr_compositor_terrain3d.cpp
+            ├─ _is_terrain_ready               not ready → flag retry, _on_process re-queues
+            ├─ _wait_for_jobs_in_flight        workers read baked caches; finish before rebake
+            ├─ _warn_if_vertex_spacing_mismatch
+            ├─ _gather_splines
+            ├─ _collect_dirty_rect             consumes every dirty spline's rect (always)
+            ├─ full rebuild?  _select_full_rebuild_chunks   editor: under any spline; game: in radius
+            │  else           _select_dirty_rect_chunks     chunks under the merged dirty rect
+            ├─ _run_rebuild
+            │  ├─ editor: _generate_chunks → _flush_terrain_maps → _refresh_terrain_collision
+            │  └─ game:   _enqueue_chunks(allow_existing=true)      streamed by Flow 2
+            └─ _check_chunk_physics_culling
+```
+
+### Flow 2 — every frame (main thread)
+
+```
+Node::NOTIFICATION_PROCESS
+└─ _on_process                                tr_compositor.cpp
+   ├─ retry pending rebuild (≤ MAX_REBUILD_RETRY_FRAMES) → queue_rebuild
+   ├─ _check_origin_shift                     Flow 6
+   ├─ _check_chunk_physics_culling            Flow 5b
+   ├─ every DISCOVERY_INTERVAL_MS: _check_and_evict_far_chunks     Flow 5a
+   ├─ _drain_generation_queue                 tr_compositor_stream.cpp
+   │  ├─ _finalize_completed_jobs             completed workers → _finalize_chunk_job (Flow 3, phase 2)
+   │  │                                       origin shifted mid-flight → _enqueue_chunks instead
+   │  ├─ _dispatch_queued_jobs
+   │  │  ├─ _sort_queue_nearest_first
+   │  │  ├─ _gather_splines
+   │  │  └─ per chunk while < max jobs && within budget:
+   │  │     ├─ _make_chunk_job                Flow 3, phase 0
+   │  │     └─ WorkerThreadPool.add_task(_run_chunk_job_task)   Flow 3, phase 1 on a worker
+   │  └─ _flush_terrain_if_due                idle, or FLUSH_MAX_FRAMES since last flush
+   │     ├─ _flush_terrain_maps               Terrain3DData.update_maps()  (one GPU rebuild)
+   │     └─ _refresh_terrain_collision        Terrain3D.collision.update(true)
+   ├─ _bench_add_frame_time
+   └─ _bench_check_done
+```
+
+The frame budget (`generation_budget_ms`) is measured from the start of `_on_process`, so finalize
+and dispatch together share it. At least one finalize happens per frame when any job is ready, so
+progress is guaranteed even if a single chunk exceeds the budget.
+
+### Flow 3 — one chunk job (tr_chunk_job.cpp)
+
+```
+phase 0  _make_chunk_job(chunk_pos, splines)                      MAIN THREAD
+         ├─ for each spline whose padded AABB intersects the chunk:
+         │  ├─ spline->ensure_baked_cache()          reads global transform → main thread only
+         │  └─ collect its TerrainSplineDeformer / TerrainSplineScatter children
+         ├─ _get_or_create_chunk                     new TerrainChunk + TerrainHeightmap if needed
+         ├─ TerrainSplineScatter::make_scatter_job   one ScatterJob per (spline, scatterer)
+         └─ chunk->set_state(GENERATING)             old visuals/physics stay until phase 2
+
+phase 1  _run_chunk_job_math(job, threaded)                       ANY THREAD
+         ├─ heightmap->clear(default_elevation)
+         ├─ noise fill (global_terrain_noise, if set)
+         ├─ for each deformer: deform_heightmap_prepared(...)      Flow 4
+         └─ for each ScatterJob: scatterer->run_scatter_job(...)  Flow 5
+
+phase 2  _finalize_chunk_job(job, api)                            MAIN THREAD
+         ├─ drop if the chunk was evicted while running
+         ├─ chunk->release_visuals_and_physics(); caches.clear()
+         ├─ TerrainSplineScatter::finalize_scatter_job (each)     MultiMesh node + physics cache
+         ├─ chunk->set_state(VISUAL_ONLY)
+         ├─ _bench_dump_chunk
+         └─ _write_chunk_heights_to_terrain                       tr_compositor_terrain3d.cpp
+            ├─ chunk size == region size: Terrain3DRegion.set_maps + Data.add_region(update=false)
+            │                             → _terrain_maps_dirty (flushed by Flow 2)
+            └─ else: Data.import_images (Terrain3D slices and uploads itself)
+
+_generate_chunks = phase 0 → phase 1 (threaded=true) → phase 2, synchronously (editor path)
+_wait_for_jobs_in_flight = block on every in-flight task → phase 2 each → flush → collision
+```
+
+### Flow 4 — deforming one chunk with one deformer (tr_deformer*.cpp)
+
+```
+deform_heightmap(heightmap, spline, offset)             main-thread convenience
+└─ spline->ensure_baked_cache(); deform_heightmap_prepared(..., spline->get_padded_aabb(), threaded=true)
+
+deform_heightmap_prepared(heightmap, spline, offset, padded_aabb, threaded)     any thread
+├─ skip if padded_aabb misses the chunk
+├─ _create_deformer_job                               tr_deformer_legacy.cpp
+│  ├─ bake_curve (falloff, inner falloff → 256-entry tables)
+│  └─ copy_spline_geometry (SoA segments + vertices, mode, steepness, closed)
+├─ use_distance_field ? _compute_distance_field       tr_deformer_field.cpp
+│  │  ├─ _field_allocate              grid = chunk + 2*(search_radius+1) margin
+│  │  ├─ _field_seed_segments         rasterize segments every ≤0.5 px as seeds
+│  │  ├─ _field_sweep_nearest         two 8-neighbour sweeps (8SSEDT)
+│  │  ├─ _field_refine_adjacent       exact projection onto seg, seg±1
+│  │  ├─ _field_exact_band            brute force (bbox-culled) where weight can be > 0
+│  │  ├─ _field_fill_interior         even-odd scanline fill (closed splines)
+│  │  └─ _field_collect_active_tiles  tiles with any pixel in reach or inside
+│  : else _compute_active_tiles_and_culling           legacy: segments per tile by centre distance
+└─ _dispatch_deformer_job(job, threaded)
+   ├─ threaded: WorkerThreadPool group task over active_tiles
+   └─ else:     serial loop
+      └─ _deform_heightmap_task(tile_idx, job)        tr_deformer_pixel.cpp
+         ├─ field_valid: _deform_tile_field
+         │  per pixel: distance+inside from field → _falloff_weight → (weight>0) field_spline_y → blend_pixel
+         └─ else:        _deform_tile_fallback
+            per pixel: spline->evaluate_spline_point_segmented → _falloff_weight → blend_pixel
+```
+
+Why the field pass is fast: the legacy path evaluated `spline_y` (an O(vertices) IDW sum for
+`INTERP_IDW_VERTEX`) for every pixel before knowing the weight. The field path computes the weight
+first and only evaluates `spline_y` where it is non-zero. Output is bit-identical.
+
+### Flow 5 — scattering one chunk with one scatterer (tr_scatter*.cpp)
+
+```
+make_scatter_job(chunk, spline, scatterer, padded_aabb, offset)      MAIN THREAD
+└─ captures inputs; scatterer_seed = hash(node path)                stable across runs
+
+run_scatter_job(job, chunk_size)                                    ANY THREAD
+├─ active_area = spline bounds grown by max_spline_dist ∩ chunk
+├─ active_segments = segments whose padded bbox touches active_area
+└─ for each cell (cx, cz) in active_area:
+   └─ _process_scatter_cell                        tr_scatter_cell.cpp
+      ├─ CellRNG(seed from chunk, cell, seed_offset, scatterer_seed)
+      ├─ density roll → biome noise → spline distance (evaluate_spline_point_segmented)
+      ├─ _evaluate_height_and_slope (bilinear on the chunk heightmap) → slope filter
+      └─ transform (position, random yaw, random scale)
+
+finalize_scatter_job(job, container, owner)                         MAIN THREAD
+├─ _print_scatter_debug (DEBUG)
+├─ _build_multimesh        one MultiMeshInstance3D under scatter_container; id → chunk visual_nodes
+└─ _record_physics_cache   shape RID + transforms → chunk physics_caches (if collision_shape set)
+
+scatter_chunk(...) = make + run (thread pool) + finalize for every scatterer touching the chunk
+```
+
+### Flow 5a — eviction and discovery (tr_compositor_eviction.cpp, every 0.5 s)
+
+```
+_check_and_evict_far_chunks
+├─ bench mode: enqueue missing bench chunks, return
+├─ _evict_far_chunks       erase chunk_buffers entries beyond max_render_radius
+│                          (TerrainChunk destructor frees MultiMeshes and the physics body)
+├─ _evict_far_regions      Terrain3DData.remove_regionl for regions beyond radius + ½ region
+│                          that no resident chunk still lives in
+└─ _discover_missing_chunks   every in-radius chunk not resident → _enqueue_chunks(allow_existing=false)
+```
+
+### Flow 5b — physics culling (every frame)
+
+```
+_check_chunk_physics_culling
+└─ for each resident chunk: _distance_to_chunk_edge ≤ max_physics_radius ?
+   ├─ VISUAL_ONLY          → _update_chunk_physics: body_create + body_add_shape per cached transform
+   └─ VISUAL_AND_PHYSICS   → _update_chunk_physics: free_rid(body)      (when outside the radius)
+```
+
+### Flow 6 — origin shift (tr_compositor_origin_shift.cpp)
+
+```
+_check_origin_shift
+└─ _compute_origin_shift(player)  |x| or |z| > 4096 → ±4096 per axis
+   └─ _apply_origin_shift(shift)
+      ├─ _shift_terrain_targets    Terrain3D's collision target, clipmap target, camera (each once)
+      ├─ global_world_offset += shift
+      ├─ _shift_spline_nodes       every ProceduralSpline3D child
+      ├─ Terrain3D node, scatter_container    moved by -shift
+      ├─ _shift_chunk_buffers      re-key chunk_buffers; move cached + live physics transforms
+      └─ Terrain3D.snap()
+   in-flight jobs dispatched before the shift are detected in _finalize_completed_jobs and re-enqueued
+```
+
+### Flow 7 — benchmark mode (tr_bench.cpp)
+
+```
+_bench_init (from _on_ready)      parse --terraspline-bench / --terraspline-no-field / --terraspline-dump=
+_get_player_position              returns origin in bench mode
+_select_full_rebuild_chunks       substitutes the fixed 5x5 block
+_check_and_evict_far_chunks       never evicts; enqueues missing bench chunks
+_bench_add_frame_time             called from _on_process and _execute_rebuild
+_bench_dump_chunk                 from _finalize_chunk_job when a dump dir is set
+_bench_check_done (end of _on_process)
+└─ all 25 resident and uploaded → _bench_content_hash → print [BENCH] line → SceneTree.quit()
+```
+
+### Terrain3D touch points (all in tr_compositor_terrain3d.cpp, via Object::call/get)
+
+| Call | Used by | Why |
+|---|---|---|
+| `Terrain3D.data` (fallback `storage`) | `_get_terrain_data_api` | The `Terrain3DData` object |
+| `Terrain3D.get_region_size`, `get_vertex_spacing` | readiness check, region write, eviction | Readiness; 1 chunk == 1 region fast path; region world size |
+| `Terrain3DData.get_region_location(pos)` | region write, eviction | Region key for a world position |
+| `Terrain3DRegion.set_maps`, `Data.add_region(region, false)` | `_write_chunk_heights_to_terrain` | Stage a chunk without a GPU rebuild |
+| `Terrain3DData.import_images` | `_write_chunk_heights_to_terrain` | Generic path when sizes differ |
+| `Terrain3DData.update_maps()` | `_flush_terrain_maps` | One GPU texture-array rebuild per batch |
+| `Terrain3D.collision.update(true)` | `_refresh_terrain_collision` | Re-read heights into collision shapes |
+| `Data.get_region_locations`, `remove_regionl` | `_evict_far_regions` | Unload far regions |
+| `get_collision_target`, `get_clipmap_target`, `get_camera`, `snap` | player position fallback, origin shift | Nodes Terrain3D follows |
+
+## Source layout
+
+One class per header, one responsibility per source file. `terraspline.h` is an umbrella include for
+code outside the module (register_types.cpp); inside the module include the specific header.
+
+| File                             | Contains                                                                  |
+|----------------------------------|---------------------------------------------------------------------------|
+| `tr_heightmap.h/.cpp`            | `TerrainHeightmap` — float grid for one chunk                              |
+| `tr_chunk.h/.cpp`                | `TerrainChunk` — resident chunk state (heightmap, visuals, physics)        |
+| `tr_deformer_job.h`              | `DeformerJob` — per-(deformer, chunk) inputs, SoA geometry, distance field |
+| `tr_deformer.h/.cpp`             | `TerrainSplineDeformer` — bindings, curve wiring, entry points, dispatch  |
+| `tr_deformer_field.cpp`          | Distance-field pass, one function per step (seed, sweep, refine, band, fill, tiles) |
+| `tr_deformer_legacy.cpp`         | Job creation; legacy tile-culling decomposition (A/B fallback)            |
+| `tr_deformer_pixel.cpp`          | Per-pixel weight, spline height, blend; the two tile loops                |
+| `tr_scatter_job.h`               | `ScatterJob` — per-(scatterer, chunk) inputs and transforms               |
+| `tr_scatter.h/.cpp`              | `TerrainSplineScatter` — bindings                                          |
+| `tr_scatter_cell.cpp`            | Per-cell RNG, filters, height/slope sampling                              |
+| `tr_scatter_job.cpp`             | make / run / finalize (MultiMesh, physics cache)                          |
+| `tr_chunk_job.h/.cpp`            | `ChunkJob`; make (main) → math (any thread) → finalize (main)             |
+| `tr_compositor.h`                | `TerrainSplineCompositor` declaration with a per-file responsibility map  |
+| `tr_compositor.cpp`              | Bindings, properties, lifecycle, spline signal wiring                     |
+| `tr_compositor_rebuild.cpp`      | Which chunks a rebuild touches (`apply_all_splines` and its helpers)      |
+| `tr_compositor_stream.cpp`       | Budgeted queue: finalize completed jobs, dispatch new ones, throttled flush |
+| `tr_compositor_eviction.cpp`     | Evict far chunks/regions, discover missing chunks, physics culling        |
+| `tr_compositor_origin_shift.cpp` | Floating origin at ±4096 m                                                 |
+| `tr_compositor_terrain3d.cpp`    | Every call into Terrain3D (data API, region write, flush, collision)      |
+| `tr_compositor_ui.h/.cpp`        | `TerrainSplineCompositorUI`, `GrayscaleJob` — debug preview               |
+| `tr_bench.cpp`                   | Benchmark mode, content hash; zero cost when off                          |
+
+### Refactor verification (Sep 2026)
+
+The split from 4 large files (compositor 779 lines, deformer 757) into the layout above was checked
+with the benchmark's content hash — FNV-1a over every chunk heightmap and every scatter MultiMesh
+buffer. Before: `hash=f5a4760c1154d18f`, 1221 instances. After: identical hash and instance count;
+math 17.1 ms vs 17.5 ms, total ≈220 ms vs ≈220 ms (noise). No function is longer than ~90 lines.
 
 ## Where the time goes (baseline, M2, 7 worker threads, 12-chunk startup rebuild)
 
@@ -136,7 +403,8 @@ means low-core machines finish streaming ~4× sooner.
 ## Benchmark instrumentation
 
 `tr_bench.cpp` plus `_bench_*` counters in the compositor, all gated on the `--terraspline-bench`
-user arg (zero cost otherwise). Prints a per-frame main-thread timeline and one summary line.
+user arg (zero cost otherwise). Prints a per-frame main-thread timeline and one summary line that
+ends with `instances=<n> hash=<fnv1a>` — the content hash of all heightmaps and scatter buffers. Any
+change that should not alter output must reproduce that hash.
 Extra flags: `--terraspline-no-field` (legacy deformer path, for A/B) and `--terraspline-dump=<dir>`
 (writes each chunk's raw float heightmap as `chunk_x_z.bin` for numeric diffing).
-

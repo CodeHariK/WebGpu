@@ -7,6 +7,9 @@ LIB_NAME     := libMinecraftExt.$(PLATFORM).$(TARGET).dylib
 SCONS        := /opt/homebrew/bin/scons
 GODOT        := /Applications/Godot.app/Contents/MacOS/Godot
 NM           := nm
+# clang-format: Homebrew's if present, else the per-user PyPI install (pip3 install --user clang-format)
+CLANG_FORMAT := $(shell command -v clang-format 2>/dev/null || echo $(HOME)/Library/Python/3.9/bin/clang-format)
+SRC_FILES    := $(shell find src -type f \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -not -path 'src/gen/*')
 
 r:
 	$(GODOT) -e --path project
@@ -26,6 +29,14 @@ release:
 
 clang:
 	$(SCONS) target=$(TARGET) platform=$(PLATFORM) compiledb=yes compile_commands.json
+
+# Format all sources in place with the project's .clang-format (Godot style).
+format:
+	$(CLANG_FORMAT) -i $(SRC_FILES)
+
+# Fail if any source is not formatted (for CI / pre-commit).
+format-check:
+	$(CLANG_FORMAT) --dry-run --Werror $(SRC_FILES)
 
 bindings:
 	$(SCONS) target=$(TARGET) platform=$(PLATFORM) generate_bindings=yes
