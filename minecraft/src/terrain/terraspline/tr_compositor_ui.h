@@ -7,9 +7,11 @@
 
 #include "tr_heightmap.h"
 #include <cstdint>
+#include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/classes/texture_rect.hpp>
+#include <godot_cpp/variant/node_path.hpp>
 #include <godot_cpp/variant/rect2.hpp>
 #include <vector>
 
@@ -42,8 +44,13 @@ protected:
 
 /**
  * @class TerrainSplineCompositorUI
- * @brief Debug preview: deforms one unified heightmap over all child splines and shows it as a
- * normalized grayscale texture. Not used by the game; handy while authoring splines.
+ * @brief Debug preview: deforms one unified heightmap over a set of splines and shows it as a
+ * normalized grayscale texture. Handy while authoring splines - it runs in the editor as well.
+ *
+ * The splines are the ProceduralSpline3D children of `splines_root` (default: this node), so a
+ * TerrainSplineCompositorDemo scene can point it at its TerrainSplineCompositor and preview exactly
+ * the splines the terrain uses. Edits to any of them (spline_changed) refresh the preview when
+ * auto_apply is on. `toggle_key` shows/hides the preview at runtime (KEY_NONE disables it).
  */
 class TerrainSplineCompositorUI : public TextureRect {
 	GDCLASS(TerrainSplineCompositorUI,
@@ -52,8 +59,14 @@ class TerrainSplineCompositorUI : public TextureRect {
 private:
 	float default_elevation = 0.0f;
 	bool auto_apply = true;
+	NodePath splines_root; // Empty = this node
+	Key toggle_key = KEY_NONE;
 	bool _rebuild_queued = false;
+	Node *_watched_root = nullptr; // Node whose children we are connected to
 
+	Node *_resolve_splines_root() const;
+	void _watch_root(Node *p_root);
+	void _unwatch_root();
 	std::vector<ProceduralSpline3D *> _gather_splines(Rect2 &r_bounds) const;
 	Ref<TerrainHeightmap> _deform_unified_heightmap(
 			const std::vector<ProceduralSpline3D *> &p_splines,
@@ -81,6 +94,12 @@ public:
 	bool get_auto_apply() const;
 	void set_apply_now(bool p_apply);
 	bool get_apply_now() const;
+	void set_splines_root(const NodePath &p_path);
+	NodePath get_splines_root() const;
+	void set_toggle_key(Key p_key);
+	Key get_toggle_key() const;
+
+	void _unhandled_key_input(const Ref<InputEvent> &p_event) override;
 
 	void queue_rebuild();
 	void _execute_rebuild();

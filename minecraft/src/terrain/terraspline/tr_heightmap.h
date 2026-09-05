@@ -27,6 +27,7 @@ class TerrainHeightmap : public RefCounted {
 private:
 	int width = 0;
 	int height = 0;
+	float base_elevation = 0.0f; // Value the grid was last cleared to (the flat ground level)
 	PackedFloat32Array data;
 
 protected:
@@ -47,6 +48,8 @@ public:
 
 	int get_width() const { return width; }
 	int get_height() const { return height; }
+	/// Ground level the grid was cleared to; relative blend modes measure spline heights against it.
+	float get_base_elevation() const { return base_elevation; }
 
 	/// Raw writable pointer; valid until the next initialize().
 	float *get_data_ptrw() { return data.ptrw(); }

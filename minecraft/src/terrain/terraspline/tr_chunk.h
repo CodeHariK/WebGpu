@@ -53,6 +53,8 @@ private:
 	std::vector<uint64_t> visual_nodes; // MultiMeshInstance3D instance ids
 	RID physics_body_rid; // Static body while VISUAL_AND_PHYSICS, invalid otherwise
 	std::vector<PhysicsCache> physics_caches;
+	std::vector<float> thumbnail; // Downsampled heights (thumbnail_size²) for the stream map; empty if unused
+	int thumbnail_size = 0;
 
 protected:
 	static void _bind_methods();
@@ -78,6 +80,11 @@ public:
 
 	std::vector<PhysicsCache> &get_physics_caches() { return physics_caches; }
 	const std::vector<PhysicsCache> &get_physics_caches() const { return physics_caches; }
+
+	/// Point-samples the heightmap into a p_size² grid (row-major, z then x) for the stream map.
+	void build_thumbnail(int p_size);
+	const std::vector<float> &get_thumbnail() const { return thumbnail; }
+	int get_thumbnail_size() const { return thumbnail_size; }
 
 	/// Frees the MultiMeshInstance3Ds (queue_free if in tree) and the physics body, if any.
 	void release_visuals_and_physics();

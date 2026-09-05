@@ -157,10 +157,12 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(ScatterJob);
 	GDREGISTER_CLASS(DeformerJob);
 	GDREGISTER_CLASS(ChunkJob);
+	GDREGISTER_CLASS(GrayscaleJob);
 	GDREGISTER_CLASS(TerrainSplineDeformer);
 	GDREGISTER_CLASS(TerrainSplineScatter);
 	GDREGISTER_CLASS(TerrainSplineCompositor);
 	GDREGISTER_CLASS(TerrainSplineCompositorUI);
+	GDREGISTER_CLASS(TerrainSplineStreamMap);
 
 	GDREGISTER_CLASS(TransformGizmo);
 

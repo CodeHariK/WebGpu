@@ -6,6 +6,7 @@
 #include "tr_deformer.h"
 #include "utils/spline3d/procedural_spline3d.h"
 #include <godot_cpp/classes/image_texture.hpp>
+#include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -30,6 +31,17 @@ void TerrainSplineCompositorUI::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_apply_now", "apply_now"), &TerrainSplineCompositorUI::set_apply_now);
 	ClassDB::bind_method(D_METHOD("get_apply_now"), &TerrainSplineCompositorUI::get_apply_now);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "apply_now"), "set_apply_now", "get_apply_now");
+
+	ClassDB::bind_method(D_METHOD("set_splines_root", "path"), &TerrainSplineCompositorUI::set_splines_root);
+	ClassDB::bind_method(D_METHOD("get_splines_root"), &TerrainSplineCompositorUI::get_splines_root);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::NODE_PATH, "splines_root", PROPERTY_HINT_NODE_PATH_VALID_TYPES, "Node"),
+			"set_splines_root", "get_splines_root"
+	);
+
+	ClassDB::bind_method(D_METHOD("set_toggle_key", "key"), &TerrainSplineCompositorUI::set_toggle_key);
+	ClassDB::bind_method(D_METHOD("get_toggle_key"), &TerrainSplineCompositorUI::get_toggle_key);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "toggle_key"), "set_toggle_key", "get_toggle_key");
 
 	ClassDB::bind_method(D_METHOD("queue_rebuild"), &TerrainSplineCompositorUI::queue_rebuild);
 	ClassDB::bind_method(D_METHOD("_execute_rebuild"), &TerrainSplineCompositorUI::_execute_rebuild);
@@ -70,22 +82,89 @@ void TerrainSplineCompositorUI::set_apply_now(bool p_apply) {
 }
 bool TerrainSplineCompositorUI::get_apply_now() const { return false; }
 
+void TerrainSplineCompositorUI::set_splines_root(const NodePath &p_path) {
+	splines_root = p_path;
+	if (is_inside_tree()) {
+		_watch_root(_resolve_splines_root());
+		queue_rebuild();
+	}
+}
+NodePath TerrainSplineCompositorUI::get_splines_root() const { return splines_root; }
+void TerrainSplineCompositorUI::set_toggle_key(Key p_key) { toggle_key = p_key; }
+Key TerrainSplineCompositorUI::get_toggle_key() const { return toggle_key; }
+
 // ---------------------------------------------------------------------------------------------
 // Lifecycle and spline wiring
 // ---------------------------------------------------------------------------------------------
 
 void TerrainSplineCompositorUI::_notification(int p_what) {
 	if (p_what == Node::NOTIFICATION_READY) {
-		TypedArray<Node> children = get_children();
-		for (int i = 0; i < children.size(); ++i) {
-			_connect_spline(Object::cast_to<Node>(children[i]));
-		}
-		connect("child_entered_tree", Callable(this, "_connect_spline"));
-		connect("child_exiting_tree", Callable(this, "_disconnect_spline"));
+		set_process_unhandled_key_input(toggle_key != KEY_NONE);
+		_watch_root(_resolve_splines_root());
 		call_deferred("apply_all_splines");
+	} else if (p_what == Node::NOTIFICATION_EXIT_TREE) {
+		_unwatch_root();
 	} else if (p_what == Node::NOTIFICATION_CHILD_ORDER_CHANGED) {
 		queue_rebuild();
 	}
+}
+
+void TerrainSplineCompositorUI::_unhandled_key_input(const Ref<InputEvent> &p_event) {
+	Ref<InputEventKey> key = p_event;
+	if (key.is_valid() && key->is_pressed() && !key->is_echo() && key->get_keycode() == toggle_key) {
+		set_visible(!is_visible());
+		if (is_visible()) {
+			queue_rebuild();
+		}
+	}
+}
+
+/// The node whose ProceduralSpline3D children are previewed: `splines_root`, or this node if unset/invalid.
+Node *TerrainSplineCompositorUI::_resolve_splines_root() const {
+	if (!splines_root.is_empty()) {
+		Node *root = get_node_or_null(splines_root);
+		if (root) {
+			return root;
+		}
+		UtilityFunctions::push_warning(
+				"[CompositorUI] splines_root '", splines_root, "' not found; using own children."
+		);
+	}
+	return const_cast<TerrainSplineCompositorUI *>(this);
+}
+
+/// Connects to every spline under p_root and to its child add/remove signals; drops the previous root.
+void TerrainSplineCompositorUI::_watch_root(Node *p_root) {
+	if (p_root == _watched_root) {
+		return;
+	}
+	_unwatch_root();
+	if (!p_root) {
+		return;
+	}
+	_watched_root = p_root;
+	TypedArray<Node> children = p_root->get_children();
+	for (int i = 0; i < children.size(); ++i) {
+		_connect_spline(Object::cast_to<Node>(children[i]));
+	}
+	p_root->connect("child_entered_tree", Callable(this, "_connect_spline"));
+	p_root->connect("child_exiting_tree", Callable(this, "_disconnect_spline"));
+}
+
+void TerrainSplineCompositorUI::_unwatch_root() {
+	if (!_watched_root) {
+		return;
+	}
+	TypedArray<Node> children = _watched_root->get_children();
+	for (int i = 0; i < children.size(); ++i) {
+		ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(children[i]);
+		if (spline && spline->is_connected("spline_changed", Callable(this, "_on_spline_changed"))) {
+			spline->disconnect("spline_changed", Callable(this, "_on_spline_changed"));
+		}
+	}
+	_watched_root->disconnect("child_entered_tree", Callable(this, "_connect_spline"));
+	_watched_root->disconnect("child_exiting_tree", Callable(this, "_disconnect_spline"));
+	_watched_root = nullptr;
 }
 
 void TerrainSplineCompositorUI::_connect_spline(Node *p_node) {
@@ -135,7 +214,10 @@ void TerrainSplineCompositorUI::apply_all_splines() {
 	Rect2 global_bounds;
 	std::vector<ProceduralSpline3D *> splines = _gather_splines(global_bounds);
 	if (splines.empty()) {
-		UtilityFunctions::print("[CompositorUI] ABORT: No splines found.");
+		UtilityFunctions::print(
+				"[CompositorUI] ABORT: No splines found under '",
+				_watched_root ? _watched_root->get_path() : get_path(), "' (splines_root = '", splines_root, "')."
+		);
 		return;
 	}
 	uint64_t t_bounds = Time::get_singleton()->get_ticks_usec();
@@ -159,10 +241,11 @@ void TerrainSplineCompositorUI::apply_all_splines() {
 	UtilityFunctions::print("=== [CompositorUI] END TOTAL TIME: ", (t_end - t_start) / 1000.0, " ms ===\n");
 }
 
-/// Child splines and the union of their padded AABBs.
+/// Splines under the watched root and the union of their padded AABBs.
 std::vector<ProceduralSpline3D *> TerrainSplineCompositorUI::_gather_splines(Rect2 &r_bounds) const {
 	std::vector<ProceduralSpline3D *> splines;
-	TypedArray<Node> children = get_children();
+	const Node *root = _watched_root ? _watched_root : this;
+	TypedArray<Node> children = root->get_children();
 	for (int i = 0; i < children.size(); ++i) {
 		ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(children[i]);
 		if (!spline) {
@@ -238,6 +321,7 @@ void TerrainSplineCompositorUI::_show_as_grayscale(
 	if (range < 0.0001f) {
 		range = 1.0f;
 	}
+	UtilityFunctions::print("[CompositorUI] preview ", p_w, "x", p_h, " height range ", min_h, " .. ", max_h);
 
 	PackedByteArray img_data;
 	img_data.resize(sz);

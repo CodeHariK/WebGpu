@@ -18,7 +18,8 @@ components) into Terrain3D heightmap regions, streamed in `chunk_size` (256 m) c
 | `ChunkJob` | RefCounted (data) | Inputs captured from the scene tree, outputs of the math | One chunk generation. Exists so the math phase never touches the scene tree. |
 | `DeformerJob` | RefCounted (data) | Baked curves, SoA spline geometry, distance field, active tiles | One (deformer, chunk) deformation. Read-only for the per-pixel tasks; each task writes disjoint tiles of the heightmap. |
 | `ScatterJob` | RefCounted (data) | Inputs, resulting transforms, debug counters | One (scatterer, spline, chunk) scattering. |
-| `TerrainSplineCompositorUI`, `GrayscaleJob` | TextureRect / data | — | Debug preview: one unified heightmap over all splines, shown as grayscale. Not used by the game. |
+| `TerrainSplineStreamMap` | Control | — | Live top-down debug map of streaming state around the player: resident chunks with real heights, physics-live chunks, queued / generating chunks, recent evictions, render & physics radii, spline bounds, player and camera headings. Reads `StreamSnapshot` from the compositor every `refresh_interval`. |
+| `TerrainSplineCompositorUI`, `GrayscaleJob` | TextureRect / data | — | Debug preview: one unified heightmap over the `ProceduralSpline3D` children of `splines_root` (default: itself), shown as normalized grayscale; refreshes on `spline_changed`. Works in the editor and in-game (`toggle_key`). |
 
 Threading rule that shapes everything: **anything that reads the scene tree runs on the main
 thread** (`_make_chunk_job`, `finalize_*`); **anything that is pure math on job data may run on a
@@ -150,6 +151,13 @@ deform_heightmap_prepared(heightmap, spline, offset, padded_aabb, threaded)     
             per pixel: spline->evaluate_spline_point_segmented → _falloff_weight → blend_pixel
 ```
 
+`blend_pixel` receives the absolute target `spline_y + max_height` and the heightmap's
+`base_elevation` (what the chunk was cleared to, i.e. `default_elevation`). ADD/SUBTRACT apply
+`(target − base) · weight` to the current height, so on flat ground the surface meets the spline
+exactly and base noise underneath is preserved; MAX/MIN/REPLACE lerp toward the absolute target.
+(Before Sep 2026 ADD added the absolute target onto the 40 m base, leaving every ridge 40 m above
+its spline — the "mountain offset upwards" bug.)
+
 Why the field pass is fast: the legacy path evaluated `spline_y` (an O(vertices) IDW sum for
 `INTERP_IDW_VERTEX`) for every pixel before knowing the weight. The field path computes the weight
 first and only evaluates `spline_y` where it is non-zero. Output is bit-identical.
@@ -177,6 +185,53 @@ finalize_scatter_job(job, container, owner)                         MAIN THREAD
 
 scatter_chunk(...) = make + run (thread pool) + finalize for every scatterer touching the chunk
 ```
+
+### Flow 4a — heightmap preview (tr_compositor_ui.cpp)
+
+```
+TerrainSplineCompositorUI::_notification(READY)
+├─ _watch_root(_resolve_splines_root())      splines_root NodePath, or this node when unset
+│  ├─ _connect_spline(child) for each child  ProceduralSpline3D.spline_changed → _on_spline_changed
+│  └─ root.child_entered/exiting_tree → _connect_spline / _disconnect_spline
+└─ call_deferred(apply_all_splines)
+_on_spline_changed / set_default_elevation / set_splines_root / apply_now → queue_rebuild → _execute_rebuild
+apply_all_splines
+├─ _gather_splines(bounds)                   union of padded AABBs of the root's splines
+├─ _deform_unified_heightmap                 one TerrainHeightmap over the bounds (≤ 2048²), cleared to
+│  └─ deformer->deform_heightmap(...)        default_elevation, every deformer applied (Flow 4)
+└─ _show_as_grayscale                        min/max normalize → 8-bit L8 (WorkerThreadPool group
+   └─ _normalize_grayscale_task              task per 16 K pixels) → ImageTexture on this TextureRect
+_unhandled_key_input                         toggle_key shows/hides (rebuilds when shown)
+```
+
+The demo scene has `SplinePreviewLayer/SplinePreview` pointing at `SplineManager` with `toggle_key = H`.
+Set the preview's `default_elevation` to the compositor's so relative ADD/SUBTRACT levels match.
+
+### Flow 4b — streaming map (tr_stream_map.cpp, tr_compositor_snapshot.cpp)
+
+```
+TerrainSplineStreamMap::_notification(READY)
+└─ _resolve_compositor            NodePath → TerrainSplineCompositor; compositor->set_thumbnail_size(n)
+                                  (backfills thumbnails for resident chunks; _finalize_chunk_job builds
+                                  them for every chunk finalized from then on: TerrainChunk::build_thumbnail)
+_notification(PROCESS) every refresh_interval (0.1 s), only while visible
+└─ _refresh
+   ├─ compositor->get_stream_snapshot(StreamSnapshot&)   logical-metre rects for resident (+state,
+   │                                                     thumbnail ptr), _gen_queue, _jobs_in_flight,
+   │                                                     _evicted_recent (ring of 64, logged by
+   │                                                     _evict_far_chunks), spline padded AABBs,
+   │                                                     player XZ, player/camera XZ headings
+   ├─ _rebuild_heights_texture   all thumbnails → one L8 image, global min/max normalized
+   └─ queue_redraw → _draw: heights, chunks (evicted fade → queued → generating → resident), splines,
+                            radii, player/camera wedge, legend + counters
+```
+
+What the map shows about the streaming policy: chunks are generated when their centre comes within
+`max_render_radius` of the player and evicted when it leaves (checked every 0.5 s), independent of
+where the camera looks; Terrain3D handles frustum culling/LOD of what is resident. Physics for scatter
+instances is switched on/off per chunk by `max_physics_radius`. A chunk's heights are regenerated only
+when it streams back in or when a spline changes (dirty-rect rebuild); the camera wedge makes the
+"looking vs loading" distinction visible. The demo has `SplinePreviewLayer/StreamMap` (toggle **M**).
 
 ### Flow 5a — eviction and discovery (tr_compositor_eviction.cpp, every 0.5 s)
 
@@ -267,6 +322,8 @@ code outside the module (register_types.cpp); inside the module include the spec
 | `tr_compositor_eviction.cpp`     | Evict far chunks/regions, discover missing chunks, physics culling        |
 | `tr_compositor_origin_shift.cpp` | Floating origin at ±4096 m                                                 |
 | `tr_compositor_terrain3d.cpp`    | Every call into Terrain3D (data API, region write, flush, collision)      |
+| `tr_compositor_snapshot.cpp`     | `StreamSnapshot` filling, eviction log, thumbnail switch (debug map support)          |
+| `tr_stream_map.h/.cpp`           | `TerrainSplineStreamMap` — live streaming debug map                                    |
 | `tr_compositor_ui.h/.cpp`        | `TerrainSplineCompositorUI`, `GrayscaleJob` — debug preview               |
 | `tr_bench.cpp`                   | Benchmark mode, content hash; zero cost when off                          |
 
@@ -276,6 +333,11 @@ The split from 4 large files (compositor 779 lines, deformer 757) into the layou
 with the benchmark's content hash — FNV-1a over every chunk heightmap and every scatter MultiMesh
 buffer. Before: `hash=f5a4760c1154d18f`, 1221 instances. After: identical hash and instance count;
 math 17.1 ms vs 17.5 ms, total ≈220 ms vs ≈220 ms (noise). No function is longer than ~90 lines.
+
+Golden hash after the relative ADD/SUBTRACT fix (intentional output change): `hash=c5e7bde0659bb845`,
+1468 instances. Dumped chunk heightmaps are exactly 40 m lower than before at every deformed pixel
+(e.g. chunk −1,0 max 232.80 → 192.80); the extra instances are scatter cells whose slope filter now
+passes on the lower, gentler ridges.
 
 ## Where the time goes (baseline, M2, 7 worker threads, 12-chunk startup rebuild)
 

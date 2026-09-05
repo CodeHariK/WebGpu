@@ -35,6 +35,7 @@ void TerrainHeightmap::initialize(
 }
 
 void TerrainHeightmap::clear(float p_default_value) {
+	base_elevation = p_default_value;
 	int sz = width * height;
 	float *ptr = data.ptrw();
 	for (int i = 0; i < sz; ++i) {

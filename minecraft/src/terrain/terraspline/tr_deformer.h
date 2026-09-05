@@ -35,17 +35,18 @@ class TerrainSplineDeformer : public SplineComponent {
 
 public:
 	/*
-	 * All modes work with the ABSOLUTE target height `spline_y + max_height`, where spline_y is the
-	 * spline's world-space Y at the nearest point. ADD/SUBTRACT therefore add/subtract that absolute
-	 * value (scaled by falloff weight) onto the current terrain height - a spline placed at y=25 over
-	 * 40 m terrain yields ~65 m at full weight. Splines meant as relative bumps should sit near y=0
-	 * and express their height through max_height. MAX/MIN/REPLACE move the terrain toward the target.
+	 * The target height is `spline_y + max_height`, where spline_y is the spline's world-space Y at
+	 * the nearest point. ADD/SUBTRACT apply the target's offset from the chunk's base elevation
+	 * (TerrainHeightmap::get_base_elevation, i.e. the compositor's default_elevation) scaled by the
+	 * falloff weight, so on flat ground the surface meets the spline exactly and base noise is kept:
+	 * a spline at y=25 over 40 m ground gives 25 m at full weight, 30 m with max_height=5.
+	 * MAX/MIN/REPLACE move the terrain toward the absolute target.
 	 */
 	enum BlendMode { BLEND_ADD = 0, BLEND_SUBTRACT = 1, BLEND_MAX = 2, BLEND_MIN = 3, BLEND_REPLACE = 4 };
 
 private:
 	// ---- Shape ----
-	float max_height = 0.0f; // Added to the spline's Y to form the target height
+	float max_height = 0.0f; // Added to the spline's Y to form the target height (ridge above the spline)
 	float spline_width = 2.0f; // Half-width of the full-weight core
 	float falloff_distance = 5.0f; // Ramp to zero outside the core (and outside a closed loop)
 	float inner_falloff_distance = 5.0f; // Ramp to zero inside a closed loop when !fill_interior

@@ -38,6 +38,7 @@ public:
 	TerrainSplineDeformer *deformer = nullptr;
 	Vector2 offset; // World XZ of the chunk's pixel (0,0)
 	float *data_ptr = nullptr; // heightmap->get_data_ptrw(), cached
+	float base_elevation = 0.0f; // heightmap->get_base_elevation(); ADD/SUBTRACT are relative to it
 
 	// ---- Falloff curves, pre-sampled to 256 entries ----
 	std::vector<float> baked_curve;

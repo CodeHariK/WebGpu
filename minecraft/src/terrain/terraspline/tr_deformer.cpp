@@ -42,9 +42,9 @@ void TerrainSplineDeformer::_bind_methods() {
 	ADD_PROPERTY(
 			PropertyInfo(
 					Variant::INT, "blend_mode", PROPERTY_HINT_ENUM,
-					"Add (terrain + (spline Y + max_height) * weight),Subtract (terrain - (spline Y + max_height) "
-					"* weight),Max (raise to spline Y + max_height),Min (lower to spline Y + max_height),Replace "
-					"(blend to spline Y + max_height)"
+					"Add (terrain + (spline Y + max_height - base) * weight),Subtract (terrain - (spline Y + "
+					"max_height - base) * weight),Max (raise to spline Y + max_height),Min (lower to spline Y + "
+					"max_height),Replace (blend to spline Y + max_height)"
 			),
 			"set_blend_mode", "get_blend_mode"
 	);
