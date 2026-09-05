@@ -86,17 +86,17 @@ void TennisManager::_spawn_court() {
 	ground->set_name("TennisCourt");
 
 	CollisionShape3D *col = memnew(CollisionShape3D);
-	BoxShape3D *box = memnew(BoxShape3D);
+	Ref<BoxShape3D> box = memnew(BoxShape3D);
 	box->set_size(Vector3(court_width, 1.0f, court_length));
 	col->set_shape(box);
 	ground->add_child(col);
 
 	MeshInstance3D *mesh = memnew(MeshInstance3D);
-	BoxMesh *bm = memnew(BoxMesh);
+	Ref<BoxMesh> bm = memnew(BoxMesh);
 	bm->set_size(Vector3(court_width, 1.0f, court_length));
 	mesh->set_mesh(bm);
 
-	StandardMaterial3D *mat = memnew(StandardMaterial3D);
+	Ref<StandardMaterial3D> mat = memnew(StandardMaterial3D);
 	mat->set_albedo(Color(0.2f, 0.5f, 0.2f)); // Green court
 	mesh->set_material_override(mat);
 	ground->add_child(mesh);
@@ -109,17 +109,17 @@ void TennisManager::_spawn_court() {
 	net->set_name("TennisNet");
 
 	CollisionShape3D *ncol = memnew(CollisionShape3D);
-	BoxShape3D *nbox = memnew(BoxShape3D);
+	Ref<BoxShape3D> nbox = memnew(BoxShape3D);
 	nbox->set_size(Vector3(32.0f, 1.5f, 0.2f));
 	ncol->set_shape(nbox);
 	net->add_child(ncol);
 
 	MeshInstance3D *nmesh = memnew(MeshInstance3D);
-	BoxMesh *nbm = memnew(BoxMesh);
+	Ref<BoxMesh> nbm = memnew(BoxMesh);
 	nbm->set_size(Vector3(32.0f, 1.5f, 0.2f));
 	nmesh->set_mesh(nbm);
 
-	StandardMaterial3D *nmat = memnew(StandardMaterial3D);
+	Ref<StandardMaterial3D> nmat = memnew(StandardMaterial3D);
 	nmat->set_albedo(Color(0.9f, 0.9f, 0.9f)); // White net
 	nmesh->set_material_override(nmat);
 	net->add_child(nmesh);
@@ -155,17 +155,17 @@ void TennisManager::_create_wall(Vector3 size, Vector3 position, String name) {
 	wall->set_name(name);
 
 	CollisionShape3D *col = memnew(CollisionShape3D);
-	BoxShape3D *box = memnew(BoxShape3D);
+	Ref<BoxShape3D> box = memnew(BoxShape3D);
 	box->set_size(size);
 	col->set_shape(box);
 	wall->add_child(col);
 
 	MeshInstance3D *mesh = memnew(MeshInstance3D);
-	BoxMesh *bm = memnew(BoxMesh);
+	Ref<BoxMesh> bm = memnew(BoxMesh);
 	bm->set_size(size);
 	mesh->set_mesh(bm);
 
-	StandardMaterial3D *mat = memnew(StandardMaterial3D);
+	Ref<StandardMaterial3D> mat = memnew(StandardMaterial3D);
 	mat->set_albedo(Color(0.5f, 0.5f, 0.8f, 0.3f)); // Semi-transparent blue
 	mat->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
 	mesh->set_material_override(mat);
@@ -181,19 +181,19 @@ void TennisManager::_spawn_ball() {
 	
 	// Add visual for the ball
 	MeshInstance3D *mesh = memnew(MeshInstance3D);
-	SphereMesh *sm = memnew(SphereMesh);
+	Ref<SphereMesh> sm = memnew(SphereMesh);
 	sm->set_radius(0.15f);
 	sm->set_height(0.3f);
 	mesh->set_mesh(sm);
 	
-	StandardMaterial3D *mat = memnew(StandardMaterial3D);
+	Ref<StandardMaterial3D> mat = memnew(StandardMaterial3D);
 	mat->set_albedo(Color(0.8f, 0.9f, 0.1f)); // Yellow tennis ball
 	mesh->set_material_override(mat);
 	ball->add_child(mesh);
 
 	// Add collision for the ball
 	CollisionShape3D *col = memnew(CollisionShape3D);
-	SphereShape3D *ss = memnew(SphereShape3D);
+	Ref<SphereShape3D> ss = memnew(SphereShape3D);
 	ss->set_radius(0.15f);
 	col->set_shape(ss);
 	ball->add_child(col);
@@ -210,10 +210,10 @@ void TennisManager::_spawn_human_player() {
 
 	// Add visual for Player (Blue Capsule)
 	MeshInstance3D *mesh = memnew(MeshInstance3D);
-	CapsuleMesh *cm = memnew(CapsuleMesh);
+	Ref<CapsuleMesh> cm = memnew(CapsuleMesh);
 	mesh->set_mesh(cm);
 
-	StandardMaterial3D *mat = memnew(StandardMaterial3D);
+	Ref<StandardMaterial3D> mat = memnew(StandardMaterial3D);
 	mat->set_albedo(Color(0.2f, 0.2f, 0.8f)); // Blue Player
 	mesh->set_material_override(mat);
 	player->add_child(mesh);
@@ -231,17 +231,17 @@ void TennisManager::_spawn_ai_player() {
 	
 	// Add visual for AI (Red Capsule)
 	MeshInstance3D *mesh = memnew(MeshInstance3D);
-	CapsuleMesh *cm = memnew(CapsuleMesh);
+	Ref<CapsuleMesh> cm = memnew(CapsuleMesh);
 	mesh->set_mesh(cm);
 	
-	StandardMaterial3D *mat = memnew(StandardMaterial3D);
+	Ref<StandardMaterial3D> mat = memnew(StandardMaterial3D);
 	mat->set_albedo(Color(0.8f, 0.2f, 0.2f)); // Red AI
 	mesh->set_material_override(mat);
 	ai->add_child(mesh);
 
 	add_child(ai);
 	ai->set_global_position(Vector3(0, 1.0f, -18.0f)); // Opposite baseline
-	ai->rotate_y(Math_PI); // Face the player
+	ai->rotate_y(Math::PI); // Face the player
 	
 	// Register as player 2
 	register_player(ai);

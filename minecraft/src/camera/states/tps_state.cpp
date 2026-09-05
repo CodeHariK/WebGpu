@@ -3,6 +3,7 @@
 #include "../camera.h"
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <cmath>
 
 namespace godot {
 
@@ -17,7 +18,7 @@ void CameraStateTPS::update(GameCamera *p_camera, float p_delta) {
 		// 1. Update Rotation (TPS captures mouse, so we always look)
 		p_camera->yaw -= state.camera.look_delta.x * p_camera->orbit_sensitivity;
 		p_camera->pitch -= state.camera.look_delta.y * p_camera->orbit_sensitivity;
-		p_camera->pitch = CLAMP(p_camera->pitch, -Math_PI * 0.45f, Math_PI * 0.45f);
+		p_camera->pitch = CLAMP(p_camera->pitch, -Math::PI * 0.45f, Math::PI * 0.45f);
 
 		// 2. Zoom handling
 		if (std::abs(state.camera.zoom_delta) > 0.001f) {
@@ -26,16 +27,16 @@ void CameraStateTPS::update(GameCamera *p_camera, float p_delta) {
 	}
 
 	// 3. Spring Smoothing for Rotation
-	p_camera->yaw = UtilityFunctions::wrapf(p_camera->yaw, -Math_PI, Math_PI);
+	p_camera->yaw = UtilityFunctions::wrapf(p_camera->yaw, -Math::PI, Math::PI);
 
-	float yaw_diff = UtilityFunctions::wrapf(p_camera->yaw - p_camera->yaw_spring.current, -Math_PI, Math_PI);
+	float yaw_diff = UtilityFunctions::wrapf(p_camera->yaw - p_camera->yaw_spring.current, -Math::PI, Math::PI);
 	p_camera->yaw_spring.target = p_camera->yaw_spring.current + yaw_diff;
 
 	p_camera->pitch_spring.target = p_camera->pitch;
 	p_camera->yaw_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
 	p_camera->pitch_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
 
-	p_camera->yaw_spring.current = UtilityFunctions::wrapf(p_camera->yaw_spring.current, -Math_PI, Math_PI);
+	p_camera->yaw_spring.current = UtilityFunctions::wrapf(p_camera->yaw_spring.current, -Math::PI, Math::PI);
 
 	// 4. Position Calculation
 	Vector3 pivot = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_position() : p_camera->get_global_position();

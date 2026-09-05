@@ -11,6 +11,7 @@
 #include "utils/convhull_3d/convhull_3d.h"
 
 #include <vector>
+#include <utility>
 
 namespace godot {
 
@@ -25,8 +26,8 @@ struct SeededRand {
 
 static Vector2 get_uv(const Vector3 &p) {
 	Vector3 n = p.is_zero_approx() ? Vector3(0, 0, 1) : p.normalized();
-	float u = 0.5f + Math::atan2(n.z, n.x) / (2.0f * Math_PI);
-	float v = 0.5f - Math::asin(n.y) / Math_PI;
+	float u = 0.5f + Math::atan2(n.z, n.x) / (2.0f * Math::PI);
+	float v = 0.5f - Math::asin(n.y) / Math::PI;
 	return Vector2(u, v);
 }
 

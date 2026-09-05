@@ -154,6 +154,7 @@ private:
 	float default_elevation = 0.0f;
 	bool auto_apply = true;
 	bool _rebuild_queued = false;
+	bool _rebuild_retry_pending = false;
 	bool compositor_full_rebuild = true;
 	HashMap<Vector2i, Ref<TerrainChunk>> chunk_buffers;
 
@@ -244,5 +245,6 @@ public:
 
 #include "tr_deformer.h"
 #include "tr_scatter.h"
+#include <vector>
 
 #endif // TERRASPLINE_NEW_H

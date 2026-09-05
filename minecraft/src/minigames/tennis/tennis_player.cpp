@@ -36,7 +36,7 @@ void TennisPlayer::_ready() {
 	// Create Cuboid Collider if it doesn't exist
 	if (find_child("CollisionShape3D", true, false) == nullptr) {
 		CollisionShape3D *col = memnew(CollisionShape3D);
-		BoxShape3D *box = memnew(BoxShape3D);
+		Ref<BoxShape3D> box = memnew(BoxShape3D);
 		box->set_size(Vector3(1.0f, 2.0f, 1.0f));
 		col->set_shape(box);
 		add_child(col);

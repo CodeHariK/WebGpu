@@ -1,6 +1,5 @@
 #include "game_manager.h"
 #include "../camera/camera.h"
-#include "../character/physics_character.h"
 #include "../debug_draw/debug_manager.h"
 #include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
@@ -18,6 +17,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include "../minigames/overcooked/oc_manager.h"
+#include <vector>
 
 namespace godot {
 
@@ -36,7 +36,6 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_active_target", "p_target"), &GameManager::set_active_target);
 	ClassDB::bind_method(D_METHOD("get_active_target"), &GameManager::get_active_target);
 	ClassDB::bind_method(D_METHOD("register_vehicle", "p_vehicle"), &GameManager::register_vehicle);
-	ClassDB::bind_method(D_METHOD("register_character", "p_character"), &GameManager::register_character);
 	ClassDB::bind_method(D_METHOD("register_tennis_manager", "p_manager"), &GameManager::register_tennis_manager);
 	ClassDB::bind_method(D_METHOD("get_tennis_manager"), &GameManager::get_tennis_manager);
 	ClassDB::bind_method(D_METHOD("register_camera", "p_camera"), &GameManager::register_camera);
@@ -155,24 +154,6 @@ ArcadeVehicle *GameManager::get_vehicle() const {
 	return vehicle;
 }
 
-void GameManager::register_character(PhysicsCharacter3D *p_character) {
-	character = p_character;
-	if (character) {
-		character->set_game_manager(this);
-		if (player_input) {
-			character->set_player_input(player_input);
-		}
-	}
-	UtilityFunctions::print("GameManager: Registered PhysicsCharacter3D.");
-	if (active_target == nullptr) {
-		set_active_target(character);
-	}
-}
-
-PhysicsCharacter3D *GameManager::get_character() const {
-	return character;
-}
-
 void GameManager::register_celeste_controller(Node *p_character) {
 	if (p_character == nullptr) {
 		if (active_target == celeste_character) {
@@ -223,7 +204,7 @@ void GameManager::set_active_target(Node *p_target) {
 				// Auto-switch camera mode
 				if (Object::cast_to<ArcadeVehicle>(active_target)) {
 					main_camera->set_camera_mode(GameCamera::MODE_CAR);
-				} else if (Object::cast_to<PhysicsCharacter3D>(active_target) || Object::cast_to<CelesteController>(active_target)) {
+				} else if (Object::cast_to<CelesteController>(active_target)) {
 					// Only auto-switch to TPS if we aren't already in a character-friendly mode like FIXED
 					if (main_camera->get_camera_mode() != GameCamera::MODE_FIXED) {
 						main_camera->set_camera_mode(GameCamera::MODE_TPS);
@@ -260,8 +241,6 @@ void GameManager::_physics_process(double delta) {
 		if (state.system.swap_target_just_pressed) {
 			// Create a list of available targets to cycle through
 			std::vector<Node *> valid_targets;
-			if (character)
-				valid_targets.push_back(character);
 			if (vehicle)
 				valid_targets.push_back(vehicle);
 			if (celeste_character)

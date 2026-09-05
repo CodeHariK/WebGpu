@@ -32,6 +32,7 @@
 #include <godot_cpp/variant/rect2i.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
+#include <vector>
 
 namespace godot {
 

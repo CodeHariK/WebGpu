@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/progress_bar.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <vector>
 
 namespace godot {
 

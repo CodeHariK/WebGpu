@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/packed_scene.hpp>
+#include <vector>
 
 namespace godot {
 

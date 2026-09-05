@@ -8,6 +8,7 @@
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
+#include <vector>
 
 namespace godot {
 

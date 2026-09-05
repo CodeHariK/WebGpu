@@ -1,6 +1,7 @@
 #include "road_generator.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <vector>
 
 namespace godot {
 

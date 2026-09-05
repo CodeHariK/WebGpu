@@ -7,6 +7,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 #include "../../game_manager/game_manager.h"
 #include <godot_cpp/classes/node3d.hpp>
+#include <vector>
 
 namespace godot {
 

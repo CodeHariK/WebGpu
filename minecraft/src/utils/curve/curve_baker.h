@@ -5,6 +5,7 @@
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
+#include <vector>
 
 namespace godot {
 

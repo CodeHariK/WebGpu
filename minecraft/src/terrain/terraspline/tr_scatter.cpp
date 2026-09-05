@@ -13,6 +13,7 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <vector>
 
 namespace godot {
 
@@ -175,7 +176,7 @@ bool TerrainSplineScatter::_process_scatter_cell(const Ref<ScatterJob> &p_job, i
 		return false;
 	}
 
-	float rand_yaw = rng.next_float_range(0.0f, Math_TAU);
+	float rand_yaw = rng.next_float_range(0.0f, Math::TAU);
 	float rand_scale = rng.next_float_range(scale_min, scale_max);
 
 	r_transform.origin = Vector3(random_x, exact_y, random_z);

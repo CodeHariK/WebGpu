@@ -5,6 +5,7 @@
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
+#include <vector>
 
 namespace godot {
 

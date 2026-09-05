@@ -1,6 +1,7 @@
 #include "natural_cubic_spline.h"
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <cmath>
+#include <vector>
 
 namespace godot {
 

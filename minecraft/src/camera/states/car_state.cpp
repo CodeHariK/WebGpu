@@ -4,6 +4,7 @@
 #include "godot_cpp/variant/utility_functions.hpp"
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
+#include <cmath>
 
 namespace godot {
 
@@ -35,7 +36,7 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 		if (state.camera.is_orbiting) {
 			p_camera->yaw -= state.camera.look_delta.x * p_camera->orbit_sensitivity;
 			p_camera->pitch -= state.camera.look_delta.y * p_camera->orbit_sensitivity;
-			p_camera->pitch = CLAMP(p_camera->pitch, -Math_PI * 0.49f, Math_PI * 0.49f);
+			p_camera->pitch = CLAMP(p_camera->pitch, -Math::PI * 0.49f, Math::PI * 0.49f);
 		}
 
 		if (std::abs(state.camera.zoom_delta) > 0.001f) {
@@ -83,7 +84,7 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 			}
 
 			// Lerp p_camera->yaw towards target_yaw to avoid sudden snapping
-			float yaw_diff_raw = UtilityFunctions::wrapf(target_yaw - p_camera->yaw, -Math_PI, Math_PI);
+			float yaw_diff_raw = UtilityFunctions::wrapf(target_yaw - p_camera->yaw, -Math::PI, Math::PI);
 			p_camera->yaw += yaw_diff_raw * MIN(1.0f, p_delta * 4.0f);
 
 			float h_dist = Vector2(p_camera->follow_offset.x, p_camera->follow_offset.z).length();
@@ -93,16 +94,16 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 	}
 
 	// Shared Follow Logic (Orient + Collision + Springs)
-	p_camera->yaw = UtilityFunctions::wrapf(p_camera->yaw, -Math_PI, Math_PI);
+	p_camera->yaw = UtilityFunctions::wrapf(p_camera->yaw, -Math::PI, Math::PI);
 
-	float yaw_diff = UtilityFunctions::wrapf(p_camera->yaw - p_camera->yaw_spring.current, -Math_PI, Math_PI);
+	float yaw_diff = UtilityFunctions::wrapf(p_camera->yaw - p_camera->yaw_spring.current, -Math::PI, Math::PI);
 	p_camera->yaw_spring.target = p_camera->yaw_spring.current + yaw_diff;
 
 	p_camera->pitch_spring.target = p_camera->pitch;
 	p_camera->yaw_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
 	p_camera->pitch_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
 
-	p_camera->yaw_spring.current = UtilityFunctions::wrapf(p_camera->yaw_spring.current, -Math_PI, Math_PI);
+	p_camera->yaw_spring.current = UtilityFunctions::wrapf(p_camera->yaw_spring.current, -Math::PI, Math::PI);
 
 	// Final Ideal Position Calculation
 	Basis ideal_rot_basis = Basis::from_euler(Vector3(p_camera->pitch, p_camera->yaw, 0));

@@ -14,6 +14,7 @@
 #include "../../game_manager/game_manager.h"
 #include "../../game_manager/player_input.h"
 #include <godot_cpp/classes/character_body3d.hpp>
+#include <vector>
 
 namespace godot {
 
@@ -58,14 +59,14 @@ void OCStation::_ready() {
 	// Default Visuals if none exist
 	if (find_child("MeshInstance3D", true, false) == nullptr) {
 		MeshInstance3D *mesh = memnew(MeshInstance3D);
-		BoxMesh *bmesh = memnew(BoxMesh);
+		Ref<BoxMesh> bmesh = memnew(BoxMesh);
 		bmesh->set_size(Vector3(1, 0.8, 1));
 		mesh->set_mesh(bmesh);
 		mesh->set_position(Vector3(0, 0.4, 0));
 		add_child(mesh);
 
 		// Color based on type
-		StandardMaterial3D *mat = memnew(StandardMaterial3D);
+		Ref<StandardMaterial3D> mat = memnew(StandardMaterial3D);
 		if (station_type == TYPE_CUTTING)
 			mat->set_albedo(Color(0.2, 0.8, 0.2));
 		else if (station_type == TYPE_COOKING)
@@ -83,7 +84,7 @@ void OCStation::_ready() {
 
 	if (find_child("CollisionShape3D", true, false) == nullptr) {
 		CollisionShape3D *col = memnew(CollisionShape3D);
-		BoxShape3D *shape = memnew(BoxShape3D);
+		Ref<BoxShape3D> shape = memnew(BoxShape3D);
 		shape->set_size(Vector3(1, 0.8, 1));
 		col->set_shape(shape);
 		col->set_position(Vector3(0, 0.4, 0));

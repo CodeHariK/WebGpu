@@ -230,7 +230,7 @@ public:
 			return FAILURE;
 
 		if (!has_target) {
-			float angle = UtilityFunctions::randf_range(0, Math_TAU);
+			float angle = UtilityFunctions::randf_range(0, Math::TAU);
 			float dist = UtilityFunctions::randf_range(0, patrol_radius);
 			target_pos = home_pos + Vector3(Math::cos(angle) * dist, 0, Math::sin(angle) * dist);
 			has_target = true;

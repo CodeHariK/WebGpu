@@ -4,6 +4,8 @@
 #include <godot_cpp/classes/noise.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/variant/vector3.hpp>
+#include <algorithm>
+#include <cmath>
 
 namespace godot {
 

@@ -14,6 +14,7 @@
 #include <godot_cpp/classes/csg_sphere3d.hpp>
 #include <godot_cpp/classes/physics_direct_body_state3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
+#include <vector>
 
 namespace godot {
 
@@ -41,7 +42,7 @@ private:
 
 	// Internal state
 	CollisionShape3D *chassis_collider = nullptr;
-	SphereShape3D *chassis_shape = nullptr;
+	Ref<SphereShape3D> chassis_shape;
 	MeshInstance3D *chassis_mesh = nullptr;
 
 	// Debug visualizers

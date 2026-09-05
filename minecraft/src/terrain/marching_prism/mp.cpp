@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <vector>
 
 namespace godot {
 
@@ -164,7 +165,7 @@ void MPNode::load_mesh_library() {
 }
 
 void MPNode::generate_variants_by_120Y_rotation() {
-	float rad_120 = Math_TAU / 3.0f; // Exactly 120 degrees
+	float rad_120 = Math::TAU / 3.0f; // Exactly 120 degrees
 
 	for (int i = 0; i < 64; i++) {
 		// If this index is a valid base mesh, generate its rotated variants

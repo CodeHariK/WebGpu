@@ -7,7 +7,6 @@
 
 #include "camera/camera.h"
 
-#include "character/physics_character.h"
 
 #include "cui/cui.h"
 #include "cui/cui_line_graph.h"
@@ -36,7 +35,6 @@
 #include "terrain/loafter/procedural_road.h"
 #include "terrain/minecraft.h"
 #include "terrain/terraspline/terraspline.h"
-#include "terrain/terraspline_old/terraspline_old.h"
 
 #include "utils/spline3d/procedural_spline3d.h"
 #include "vehicle/arcade_vehicle.h"
@@ -109,7 +107,6 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(PlayerInput);
 	GDREGISTER_CLASS(Inventory);
 
-	GDREGISTER_CLASS(PhysicsCharacter3D);
 	GDREGISTER_CLASS(CelesteController);
 
 	GDREGISTER_CLASS(EnemyManager);
@@ -154,9 +151,6 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(ProceduralRoad);
 	GDREGISTER_CLASS(ConvexHullRock);
 
-	GDREGISTER_CLASS(TerrainHeightmapOld);
-	GDREGISTER_CLASS(TerrainSpline2DOld);
-	GDREGISTER_CLASS(TerrainManagerOld);
 
 	GDREGISTER_CLASS(TerrainHeightmap);
 	GDREGISTER_CLASS(TerrainChunk);

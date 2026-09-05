@@ -3,6 +3,7 @@
 
 #include "oc_types.h"
 #include <godot_cpp/classes/ref_counted.hpp>
+#include <vector>
 
 namespace godot {
 
