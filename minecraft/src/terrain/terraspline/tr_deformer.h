@@ -7,32 +7,16 @@
 #ifndef TR_DEFORMER_H
 #define TR_DEFORMER_H
 
-#include "godot_cpp/classes/texture_rect.hpp"
 #include "utils/spline3d/procedural_spline3d.h"
 #include <godot_cpp/classes/curve.hpp>
-#include <godot_cpp/classes/curve3d.hpp>
-#include <godot_cpp/classes/image.hpp>
-#include <godot_cpp/classes/mesh.hpp>
-#include <godot_cpp/classes/multi_mesh.hpp>
-#include <godot_cpp/classes/multi_mesh_instance3d.hpp>
 #include <godot_cpp/classes/node.hpp>
-#include <godot_cpp/classes/node3d.hpp>
-#include <godot_cpp/classes/noise.hpp>
-#include <godot_cpp/classes/path3d.hpp>
-#include <godot_cpp/classes/physics_server3d.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
-#include <godot_cpp/classes/shape3d.hpp>
-#include <godot_cpp/classes/world3d.hpp>
-#include <godot_cpp/templates/hash_map.hpp>
-#include <godot_cpp/variant/packed_float32_array.hpp>
-#include <godot_cpp/variant/packed_vector2_array.hpp>
-#include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/rect2.hpp>
 #include <godot_cpp/variant/rect2i.hpp>
-#include <godot_cpp/variant/transform3d.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
 #include <vector>
+#include <cstdint>
 
 namespace godot {
 
@@ -73,8 +57,29 @@ public:
 	bool fill_interior = true;
 	// Rectangles containing the local boundaries of active deformation tiles.
 	std::vector<Rect2i> active_tiles;
-	// Segment indices of the spline that overlap with each active tile.
+	// Segment indices of the spline that overlap with each active tile (fallback path only).
 	std::vector<std::vector<int>> tile_segments;
+
+	// --- Distance field (Terraspline.md step 4) ---
+	// Computed once per (deformer, chunk) on a grid padded by `field_margin` pixels on every side so
+	// segments just outside the chunk still influence it. Per pixel: nearest segment index and the
+	// nearest point on it, from which distance and spline_y are derived exactly. `field_inside` is
+	// the even-odd fill of the closed polygon. When `field_valid` is false the per-pixel task falls
+	// back to ProceduralSpline3D::evaluate_spline_point_segmented.
+	bool field_valid = false;
+	int field_w = 0;
+	int field_h = 0;
+	int field_margin = 0;
+	std::vector<int32_t> field_seg; // -1 = no segment within range
+	std::vector<float> field_nx; // nearest point x (world) on that segment
+	std::vector<float> field_nz; // nearest point z (world)
+	std::vector<uint8_t> field_inside;
+	// Structure-of-arrays copies of the spline geometry for tight inner loops.
+	std::vector<float> seg_ax, seg_az, seg_abx, seg_abz, seg_l2, seg_y0, seg_dy;
+	std::vector<float> vert_x, vert_z, vert_y;
+	int interpolation_mode = 0;
+	float ridge_steepness = 0.0f;
+	bool spline_closed = false;
 
 	/*
 	 * Purpose: Default constructor.
@@ -111,6 +116,13 @@ class TerrainSplineDeformer : public SplineComponent {
 	GDCLASS(TerrainSplineDeformer, SplineComponent)
 
 public:
+	/*
+	 * All modes work with the ABSOLUTE target height `spline_y + max_height`, where spline_y is the
+	 * spline's world-space Y at the nearest point. ADD/SUBTRACT therefore add/subtract that absolute
+	 * value (scaled by falloff weight) onto the current terrain height - a spline placed at y=25 over
+	 * 40 m terrain yields ~65 m at full weight. Splines meant as relative bumps should sit near y=0
+	 * and express their height through max_height. MAX/MIN/REPLACE move the terrain toward the target.
+	 */
 	enum BlendMode {
 		BLEND_ADD = 0,
 		BLEND_SUBTRACT = 1,
@@ -172,6 +184,11 @@ private:
 	 * Behavioral bounds: Modifies p_job->active_tiles and p_job->tile_segments.
 	 */
 	void _compute_active_tiles_and_culling(Ref<DeformerJob> p_job, const Rect2 &p_aabb, int p_w, int p_h);
+	// Step 4: builds the distance field and the active tile list from it. Returns false if the
+	// spline is degenerate (then the caller uses _compute_active_tiles_and_culling instead).
+	bool _compute_distance_field(Ref<DeformerJob> p_job, const Rect2 &p_aabb, int p_w, int p_h);
+	void _deform_pixel_fallback(Ref<DeformerJob> p_job, int p_x, int p_z, int p_task_idx, int p_w);
+	bool use_distance_field = true;
 
 	/*
 	 * Purpose: Enqueues the deformer job into the WorkerThreadPool or runs it synchronously.
@@ -182,7 +199,7 @@ private:
 	 *   - p_job: The populated DeformerJob to run.
 	 * Behavioral bounds: None.
 	 */
-	void _dispatch_deformer_job(Ref<DeformerJob> p_job);
+	void _dispatch_deformer_job(Ref<DeformerJob> p_job, bool p_threaded);
 
 	/*
 	 * Purpose: Prints spline control points and baked geometry metrics for debugging.
@@ -446,6 +463,13 @@ public:
 	 *   - p_size: Tile grid dimension in pixels.
 	 * Behavioral bounds: Ensures tile size is at least 8.
 	 */
+	void set_use_distance_field(bool p_use) {
+		use_distance_field = p_use;
+		mark_dirty();
+	}
+	bool get_use_distance_field() const {
+		return use_distance_field;
+	}
 	void set_tile_size(int p_size) {
 		tile_size = MAX(8, p_size);
 		mark_dirty();
@@ -475,6 +499,10 @@ public:
 	 * Behavioral bounds: Returns early on null/no overlaps.
 	 */
 	void deform_heightmap(const Ref<TerrainHeightmap> &p_heightmap, ProceduralSpline3D *p_spline, const Vector2 &p_offset);
+	// Same, but with the spline's padded AABB precomputed and the spline cache already baked (both need
+	// the main thread). With p_threaded=false the tiles run serially on the calling thread, which is
+	// what a worker-thread chunk job wants (chunk-level parallelism instead of tile-level).
+	void deform_heightmap_prepared(const Ref<TerrainHeightmap> &p_heightmap, ProceduralSpline3D *p_spline, const Vector2 &p_offset, const Rect2 &p_padded_aabb, bool p_threaded);
 
 	/*
 	 * Purpose: Worker thread method processing deformation calculations on a single tile.

@@ -1,5 +1,8 @@
 #include "terraspline.h"
-#include <godot_cpp/classes/time.hpp> // NEW: For high-precision profiling
+#include <godot_cpp/classes/time.hpp>
+#include <godot_cpp/classes/camera3d.hpp>
+#include <godot_cpp/classes/os.hpp>
+#include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
@@ -62,6 +65,15 @@ void TerrainSplineCompositor::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_global_terrain_amplitude"), &TerrainSplineCompositor::get_global_terrain_amplitude);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "global_terrain_amplitude"), "set_global_terrain_amplitude", "get_global_terrain_amplitude");
 
+	ClassDB::bind_method(D_METHOD("set_generation_budget_ms", "ms"), &TerrainSplineCompositor::set_generation_budget_ms);
+	ClassDB::bind_method(D_METHOD("get_generation_budget_ms"), &TerrainSplineCompositor::get_generation_budget_ms);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "generation_budget_ms", PROPERTY_HINT_RANGE, "0.5,32,0.5"), "set_generation_budget_ms", "get_generation_budget_ms");
+
+	ClassDB::bind_method(D_METHOD("set_max_jobs_in_flight", "n"), &TerrainSplineCompositor::set_max_jobs_in_flight);
+	ClassDB::bind_method(D_METHOD("get_max_jobs_in_flight"), &TerrainSplineCompositor::get_max_jobs_in_flight);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_jobs_in_flight", PROPERTY_HINT_RANGE, "0,16,1"), "set_max_jobs_in_flight", "get_max_jobs_in_flight");
+	ClassDB::bind_method(D_METHOD("_run_chunk_job_task", "job"), &TerrainSplineCompositor::_run_chunk_job_task);
+
 	ClassDB::bind_method(D_METHOD("queue_rebuild"), &TerrainSplineCompositor::queue_rebuild);
 	ClassDB::bind_method(D_METHOD("_execute_rebuild"), &TerrainSplineCompositor::_execute_rebuild);
 	ClassDB::bind_method(D_METHOD("apply_all_splines"), &TerrainSplineCompositor::apply_all_splines);
@@ -106,7 +118,18 @@ float TerrainSplineCompositor::get_global_terrain_amplitude() const {
 TerrainSplineCompositor::~TerrainSplineCompositor() {}
 void TerrainSplineCompositor::set_terrain(Node *p_terrain) { terrain = p_terrain; }
 Node *TerrainSplineCompositor::get_terrain() const { return terrain; }
-void TerrainSplineCompositor::set_chunk_size(int p_size) { chunk_size = MAX(64, p_size); }
+void TerrainSplineCompositor::set_chunk_size(int p_size) {
+	// Must be a power of two >= 64 so the 4096 m origin shift is a whole number of chunks.
+	int sz = MAX(64, p_size);
+	int pow2 = 64;
+	while (pow2 < sz) {
+		pow2 <<= 1;
+	}
+	if (pow2 != p_size) {
+		UtilityFunctions::print("[Compositor] chunk_size ", p_size, " rounded up to power of two: ", pow2);
+	}
+	chunk_size = pow2;
+}
 int TerrainSplineCompositor::get_chunk_size() const { return chunk_size; }
 void TerrainSplineCompositor::set_default_elevation(float p_elev) {
 	if (default_elevation != p_elev) {
@@ -139,6 +162,9 @@ float TerrainSplineCompositor::get_max_physics_radius() const {
 	return max_physics_radius;
 }
 
+void TerrainSplineCompositor::set_generation_budget_ms(float p_ms) { generation_budget_ms = MAX(0.5f, p_ms); }
+float TerrainSplineCompositor::get_generation_budget_ms() const { return generation_budget_ms; }
+
 void TerrainSplineCompositor::set_global_world_offset(Vector2 p_offset) {
 	global_world_offset = p_offset;
 }
@@ -147,6 +173,9 @@ Vector2 TerrainSplineCompositor::get_global_world_offset() const {
 }
 
 Vector3 TerrainSplineCompositor::_get_player_position() const {
+	if (_bench) {
+		return Vector3(0.0f, 0.0f, 0.0f);
+	}
 	if (GameManager::get_singleton()) {
 		Node3D *active_target = Object::cast_to<Node3D>(GameManager::get_singleton()->get_active_target());
 		if (active_target) {
@@ -154,7 +183,14 @@ Vector3 TerrainSplineCompositor::_get_player_position() const {
 		}
 	}
 	if (terrain) {
-		return terrain->call("get_collision_target_position");
+		// Terrain3D exposes the nodes it follows, not a position.
+		Node3D *target = Object::cast_to<Node3D>(terrain->call("get_collision_target"));
+		if (!target) {
+			target = Object::cast_to<Node3D>(terrain->call("get_camera"));
+		}
+		if (target && target->is_inside_tree()) {
+			return target->get_global_position();
+		}
 	}
 	return Vector3(0.0f, 0.0f, 0.0f);
 }
@@ -178,23 +214,57 @@ void TerrainSplineCompositor::_notification(int p_what) {
 		connect("child_entered_tree", Callable(this, "_connect_spline"));
 		connect("child_exiting_tree", Callable(this, "_disconnect_spline"));
 		set_process(true);
+		_bench_init();
 		call_deferred("apply_all_splines");
 	} else if (p_what == Node::NOTIFICATION_CHILD_ORDER_CHANGED) {
-		UtilityFunctions::print("[Compositor] Child order changed! Flagging full rebuild.");
-		compositor_full_rebuild = true;
-		queue_rebuild();
-	} else if (p_what == Node::NOTIFICATION_PROCESS) {
-		if (_rebuild_retry_pending) {
+		// Reordering children doesn't change the terrain; only an added/removed spline does.
+		if (_spline_set_changed()) {
+			UtilityFunctions::print("[Compositor] Spline set changed! Flagging full rebuild.");
+			compositor_full_rebuild = true;
 			queue_rebuild();
+		}
+	} else if (p_what == Node::NOTIFICATION_PROCESS) {
+		uint64_t t_proc_start = Time::get_singleton()->get_ticks_usec();
+		if (_rebuild_retry_pending) {
+			if (_rebuild_retry_frames < MAX_REBUILD_RETRY_FRAMES) {
+				_rebuild_retry_frames++;
+				queue_rebuild();
+			} else if (_rebuild_retry_frames == MAX_REBUILD_RETRY_FRAMES) {
+				_rebuild_retry_frames++; // Report once, then stop retrying.
+				UtilityFunctions::printerr("[Compositor] Terrain3D never became ready (is the 'terrain' node in the scene tree?). Giving up on automatic rebuild.");
+			}
 		}
 		_check_origin_shift();
 		_check_chunk_physics_culling();
 		uint64_t msec = Time::get_singleton()->get_ticks_msec();
-		if (msec - last_eviction_check_time >= 3000) {
+		if (msec - last_eviction_check_time >= DISCOVERY_INTERVAL_MS) {
 			last_eviction_check_time = msec;
-			_check_and_evict_far_chunks();
+			_check_and_evict_far_chunks(); // Evicts far chunks and *enqueues* missing ones.
+		}
+		_drain_generation_queue(t_proc_start);
+		_bench_add_frame_time(Time::get_singleton()->get_ticks_usec() - t_proc_start);
+		_bench_check_done();
+	}
+}
+
+/**
+ * @brief Returns true (and updates the cache) if the set of child ProceduralSpline3D instance ids changed.
+ */
+bool TerrainSplineCompositor::_spline_set_changed() {
+	std::vector<uint64_t> current;
+	TypedArray<Node> children = get_children();
+	for (int i = 0; i < children.size(); ++i) {
+		ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(children[i]);
+		if (spline) {
+			current.push_back(spline->get_instance_id());
 		}
 	}
+	std::sort(current.begin(), current.end());
+	if (current == _known_spline_ids) {
+		return false;
+	}
+	_known_spline_ids = current;
+	return true;
 }
 
 /**
@@ -243,7 +313,9 @@ void TerrainSplineCompositor::queue_rebuild() {
  */
 void TerrainSplineCompositor::_execute_rebuild() {
 	_rebuild_queued = false;
+	uint64_t t0 = Time::get_singleton()->get_ticks_usec();
 	apply_all_splines();
+	_bench_add_frame_time(Time::get_singleton()->get_ticks_usec() - t0);
 }
 
 /**
@@ -273,7 +345,9 @@ void TerrainSplineCompositor::apply_all_splines() {
 	// initialized its data (region_size > 0). Calling into it earlier yields
 	// NaN/INT_MIN region locations and can hang inside Terrain3D (region_size == 0).
 	// This happens e.g. while the editor is still instantiating the scene.
-	if (!is_inside_tree() || !terrain->is_inside_tree() || (int)target_api->call("get_region_size") <= 0) {
+	// Terrain3D initializes its data on ENTER_TREE, so "both in tree" is the readiness condition.
+	// (region_size lives on the Terrain3D node, not on Terrain3DData.)
+	if (!is_inside_tree() || !terrain->is_inside_tree() || (int)terrain->call("get_region_size") <= 0) {
 		if (!_rebuild_retry_pending) {
 			UtilityFunctions::print("[Compositor] Terrain3D not ready yet; will retry on next process frame.");
 		}
@@ -282,6 +356,19 @@ void TerrainSplineCompositor::apply_all_splines() {
 		return;
 	}
 	_rebuild_retry_pending = false;
+	_rebuild_retry_frames = 0;
+
+	// Workers read the splines' baked caches; finish them before anything below can rebake.
+	_wait_for_jobs_in_flight();
+
+	// Heightmaps are stamped at 1 pixel per metre; Terrain3D must agree or chunks import at the wrong scale.
+	float vertex_spacing = terrain->call("get_vertex_spacing");
+	if (!Math::is_equal_approx(vertex_spacing, 1.0f)) {
+		if (!_warned_vertex_spacing) {
+			_warned_vertex_spacing = true;
+			UtilityFunctions::printerr("[Compositor] Terrain3D vertex_spacing is ", vertex_spacing, " but the compositor assumes 1.0. Chunks will import at the wrong scale.");
+		}
+	}
 
 	TypedArray<Node> children = get_children();
 	std::vector<ProceduralSpline3D *> splines;
@@ -345,6 +432,13 @@ void TerrainSplineCompositor::apply_all_splines() {
 			int player_cz = (int)Math::floor(logical_player_pos_2d.y / chunk_size);
 			int radius_chunks = (int)Math::ceil(max_render_radius / chunk_size);
 
+			if (_bench) {
+				for (const Vector2i &c : _bench_chunks) {
+					active_grid_chunks[c] = true;
+				}
+				radius_chunks = -1; // skip the radius loop below
+			}
+
 			for (int cx = player_cx - radius_chunks; cx <= player_cx + radius_chunks; ++cx) {
 				for (int cz = player_cz - radius_chunks; cz <= player_cz + radius_chunks; ++cz) {
 					Vector2 c_center((cx + 0.5f) * chunk_size, (cz + 0.5f) * chunk_size);
@@ -404,21 +498,21 @@ void TerrainSplineCompositor::apply_all_splines() {
 #endif
 
 	std::vector<Vector2i> chunks_to_generate;
-	std::vector<Vector2i> chunks_to_remove;
-
 	for (const KeyValue<Vector2i, bool> &E : active_grid_chunks) {
 		chunks_to_generate.push_back(E.key);
 	}
 
 	if (!chunks_to_generate.empty()) {
-		_generate_chunks(chunks_to_generate, splines, target_api);
+		if (is_editor) {
+			// Editor: immediate feedback on spline edits is worth the stall.
+			_generate_chunks(chunks_to_generate, splines, target_api);
+			_flush_terrain_maps(target_api);
+			_refresh_terrain_collision();
+		} else {
+			// Game: spread the work over frames under generation_budget_ms.
+			_enqueue_chunks(chunks_to_generate, /*allow_existing=*/true);
+		}
 	}
-
-	for (Vector2i cpos : chunks_to_remove) {
-		chunk_buffers.erase(cpos);
-	}
-
-	terrain->set("show_checkered", false);
 
 	// Update physics culling to immediately activate physics inside the radius
 	_check_chunk_physics_culling();
@@ -491,6 +585,12 @@ void TerrainSplineCompositor::_check_origin_shift() {
 			terrain_3d->set_global_position(terrain_3d->get_global_position() - shift);
 		}
 
+		// 4b. The scattered MultiMeshInstance3Ds live under scatter_container in world space;
+		// shift the container so visuals stay aligned with the (shifted) physics caches below.
+		if (scatter_container) {
+			scatter_container->set_global_position(scatter_container->get_global_position() - shift);
+		}
+
 		// 5. Shift compositor's chunk_buffers coordinates
 		Vector2i chunk_shift(shift.x / chunk_size, shift.z / chunk_size);
 		if (chunk_shift != Vector2i(0, 0)) {
@@ -525,153 +625,154 @@ void TerrainSplineCompositor::_check_origin_shift() {
 }
 
 /**
- * @brief Generates, deforms, and scatters assets for specific chunk coordinates.
- * Clears old instances, invokes all child spline deformers, scatters models using the thread pool,
- * and calls Terrain3D's image importer to update GPU heightmaps.
+ * @brief Uploads all regions added with update=false since the last flush (one GPU rebuild per batch).
  */
-void TerrainSplineCompositor::_generate_chunks(const std::vector<Vector2i> &p_chunks, const std::vector<ProceduralSpline3D *> &p_splines, Object *p_target_api) {
-	Ref<Image> empty_control_map;
-	empty_control_map.instantiate();
+void TerrainSplineCompositor::_flush_terrain_maps(Object *p_target_api) {
+	if (!_terrain_maps_dirty || !p_target_api) {
+		return;
+	}
+	uint64_t t0 = Time::get_singleton()->get_ticks_usec();
+	p_target_api->call("update_maps"); // TYPE_MAX, all_regions=true, generate_mipmaps=false
+	_terrain_maps_dirty = false;
+	_frames_since_flush = 0;
+	if (_bench) {
+		_bench_flush_ms += (Time::get_singleton()->get_ticks_usec() - t0) / 1000.0;
+		_bench_flushes++;
+	}
+}
 
-	for (Vector2i chunk_pos : p_chunks) {
-#if DEBUG
-		UtilityFunctions::print("  --- Chunk [", chunk_pos.x, ", ", chunk_pos.y, "] Generation ---");
-#endif
-		Vector2 offset(chunk_pos.x * chunk_size, chunk_pos.y * chunk_size);
-		Rect2 chunk_rect(offset, Vector2(chunk_size, chunk_size));
-
-		bool has_splines = false;
-		for (ProceduralSpline3D *spline : p_splines) {
-			if (spline->get_padded_aabb().intersects(chunk_rect)) {
-				has_splines = true;
-				break;
-			}
+void TerrainSplineCompositor::_refresh_terrain_collision() {
+	if (!terrain) {
+		return;
+	}
+	Variant col_var = terrain->get("collision");
+	Object *collision = (col_var.get_type() == Variant::OBJECT) ? (Object *)col_var : nullptr;
+	if (collision && collision->has_method("update")) {
+		uint64_t t0 = Time::get_singleton()->get_ticks_usec();
+		collision->call("update", true);
+		if (_bench) {
+			_bench_collision_ms += (Time::get_singleton()->get_ticks_usec() - t0) / 1000.0;
 		}
+	}
+}
 
-		Ref<TerrainChunk> chunk;
-		if (chunk_buffers.has(chunk_pos)) {
-			chunk = chunk_buffers[chunk_pos];
+/**
+ * @brief Adds chunk coordinates to the generation queue (deduplicated).
+ * With p_allow_existing false, chunks that are already resident are skipped (streaming discovery);
+ * with true they are regenerated (spline edits / full rebuilds).
+ */
+void TerrainSplineCompositor::_enqueue_chunks(const std::vector<Vector2i> &p_chunks, bool p_allow_existing) {
+	for (const Vector2i &c : p_chunks) {
+		if (!p_allow_existing && chunk_buffers.has(c)) {
+			continue;
+		}
+		if (std::find(_gen_queue.begin(), _gen_queue.end(), c) == _gen_queue.end()) {
+			_gen_queue.push_back(c);
+		}
+	}
+}
+
+/**
+ * @brief Streams queued chunks without stalling the frame.
+ *  1. Finalize any in-flight jobs whose math has finished (main-thread work: MultiMesh nodes,
+ *     physics caches, Terrain3D region), stopping once generation_budget_ms of this frame is spent.
+ *  2. Dispatch new jobs (nearest chunk first) up to max_jobs_in_flight; their math runs on
+ *     WorkerThreadPool threads.
+ *  3. If anything was finalized, upload to Terrain3D once and refresh collision.
+ */
+void TerrainSplineCompositor::_drain_generation_queue(uint64_t p_frame_start_usec) {
+	if ((_gen_queue.empty() && _jobs_in_flight.empty()) || !terrain || !terrain->is_inside_tree()) {
+		return;
+	}
+	Variant api_var = terrain->get("data");
+	Object *target_api = (api_var.get_type() == Variant::OBJECT) ? (Object *)api_var : nullptr;
+	if (!target_api) {
+		return;
+	}
+	WorkerThreadPool *wtp = WorkerThreadPool::get_singleton();
+	const uint64_t budget_usec = (uint64_t)(generation_budget_ms * 1000.0f);
+	auto over_budget = [&]() { return Time::get_singleton()->get_ticks_usec() - p_frame_start_usec >= budget_usec; };
+
+	// 1. Finalize completed jobs (at least one per frame if any is ready, so progress is guaranteed).
+	int finalized = 0;
+	for (size_t i = 0; i < _jobs_in_flight.size();) {
+		Ref<ChunkJob> job = _jobs_in_flight[i];
+		bool done = !wtp || job->task_id < 0 || wtp->is_task_completed(job->task_id);
+		if (!done || (finalized > 0 && over_budget())) {
+			++i;
+			continue;
+		}
+		if (wtp && job->task_id >= 0) {
+			wtp->wait_for_task_completion(job->task_id); // Already complete; releases the task.
+		}
+		if (job->world_offset_at_dispatch != global_world_offset) {
+			// An origin shift happened mid-flight; the transforms are stale. Regenerate.
+			_enqueue_chunks({ job->chunk_pos }, /*allow_existing=*/true);
 		} else {
-			if (!has_splines && !global_terrain_noise.is_valid() && default_elevation == 0.0f)
+			uint64_t tf0 = Time::get_singleton()->get_ticks_usec();
+			_finalize_chunk_job(job, target_api);
+			if (_bench) {
+				_bench_finalize_ms += (Time::get_singleton()->get_ticks_usec() - tf0) / 1000.0;
+			}
+			finalized++;
+		}
+		_jobs_in_flight.erase(_jobs_in_flight.begin() + i);
+	}
+
+	// 2. Dispatch new jobs, nearest first.
+	if (!_gen_queue.empty()) {
+		Vector3 target_pos = _get_player_position();
+		Vector2 logical_player_pos_2d = Vector2(target_pos.x, target_pos.z) + global_world_offset;
+		auto chunk_dist = [&](const Vector2i &c) {
+			Vector2 center = Vector2((c.x + 0.5f) * chunk_size, (c.y + 0.5f) * chunk_size) + global_world_offset;
+			return logical_player_pos_2d.distance_squared_to(center);
+		};
+		std::sort(_gen_queue.begin(), _gen_queue.end(), [&](const Vector2i &a, const Vector2i &b) {
+			return chunk_dist(a) > chunk_dist(b); // farthest first so pop_back() yields nearest
+		});
+
+		TypedArray<Node> children = get_children();
+		std::vector<ProceduralSpline3D *> splines;
+		for (int i = 0; i < children.size(); ++i) {
+			ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(children[i]);
+			if (spline) {
+				splines.push_back(spline);
+			}
+		}
+
+		int max_in_flight = max_jobs_in_flight > 0 ? max_jobs_in_flight : MAX(1, OS::get_singleton()->get_processor_count() - 1);
+		while (!_gen_queue.empty() && (int)_jobs_in_flight.size() < max_in_flight && !over_budget()) {
+			Vector2i c = _gen_queue.back();
+			_gen_queue.pop_back();
+			uint64_t tm0 = Time::get_singleton()->get_ticks_usec();
+			Ref<ChunkJob> job = _make_chunk_job(c, splines);
+			if (_bench) {
+				_bench_make_ms += (Time::get_singleton()->get_ticks_usec() - tm0) / 1000.0;
+			}
+			if (job.is_null()) {
 				continue;
-			chunk.instantiate();
-			Ref<TerrainHeightmap> buffer;
-			buffer.instantiate();
-			buffer->initialize(chunk_size, chunk_size, default_elevation);
-			chunk->set_heightmap(buffer);
-			chunk->set_chunk_coords(chunk_pos);
-			chunk_buffers[chunk_pos] = chunk;
-		}
-
-		Ref<TerrainHeightmap> buffer = chunk->get_heightmap();
-		buffer->clear(default_elevation);
-
-		// Clean up existing visual/physics for this chunk in case of regeneration
-		{
-			std::vector<uint64_t> &nodes = chunk->get_visual_nodes();
-			for (uint64_t id : nodes) {
-				Object *obj = ObjectDB::get_instance(id);
-				if (obj) {
-					MultiMeshInstance3D *node = Object::cast_to<MultiMeshInstance3D>(obj);
-					if (node) {
-						if (node->is_inside_tree()) {
-							node->queue_free();
-						} else {
-							memdelete(node);
-						}
-					}
-				}
 			}
-			nodes.clear();
-
-			RID body_rid = chunk->get_physics_body_rid();
-			if (body_rid.is_valid()) {
-				PhysicsServer3D::get_singleton()->free_rid(body_rid);
-				chunk->set_physics_body_rid(RID());
-			}
-			chunk->get_physics_caches().clear();
-			chunk->set_state(TerrainChunk::STATE_GENERATING);
-		}
-
-		uint64_t t_math_start = Time::get_singleton()->get_ticks_usec();
-
-		// 1. GENERATE BASE TERRAIN FROM GLOBAL NOISE
-		if (global_terrain_noise.is_valid()) {
-			float *ptr = buffer->get_data_ptrw();
-			for (int z = 0; z < chunk_size; ++z) {
-				for (int x = 0; x < chunk_size; ++x) {
-					float world_x = offset.x + (float)x;
-					float world_z = offset.y + (float)z;
-					float h = default_elevation + global_terrain_noise->get_noise_2d(world_x, world_z) * global_terrain_amplitude;
-					ptr[z * chunk_size + x] = h;
-				}
+			if (wtp) {
+				job->task_id = wtp->add_task(Callable(this, "_run_chunk_job_task").bind(job), false, "TerraSpline_Chunk");
+				_jobs_in_flight.push_back(job);
+			} else {
+				_run_chunk_job_math(job, true);
+				_finalize_chunk_job(job, target_api);
+				finalized++;
 			}
 		}
+	}
 
-		// 2. STILL ALLOW SPLINES TO DEFORM ON TOP IF THEY EXIST!
-		if (has_splines) {
-			std::vector<std::pair<TerrainSplineDeformer *, ProceduralSpline3D *>> active_deformers;
-			for (ProceduralSpline3D *spline : p_splines) {
-				if (!spline->get_padded_aabb().intersects(chunk_rect)) {
-					continue;
-				}
-
-				TypedArray<Node> children = spline->get_children();
-				for (int i = 0; i < children.size(); ++i) {
-					SplineComponent *comp = Object::cast_to<SplineComponent>(children[i]);
-					if (!comp) {
-						continue;
-					}
-
-					TerrainSplineDeformer *deformer = Object::cast_to<TerrainSplineDeformer>(comp);
-					if (deformer) {
-						active_deformers.push_back({ deformer, spline });
-					}
-				}
-			}
-			for (const auto &pair : active_deformers) {
-				pair.first->deform_heightmap(buffer, pair.second, offset);
-			}
+	// 3. Upload + collision refresh. Terrain3D's update_maps rebuilds the whole texture array
+	// (~7 ms at 25 regions) so it is throttled: flush when the pipeline goes idle, or at most every
+	// FLUSH_MAX_FRAMES frames while chunks keep streaming in.
+	if (_terrain_maps_dirty) {
+		_frames_since_flush++;
+		bool idle = _gen_queue.empty() && _jobs_in_flight.empty();
+		if (idle || _frames_since_flush >= FLUSH_MAX_FRAMES) {
+			_flush_terrain_maps(target_api);
+			_refresh_terrain_collision();
 		}
-		uint64_t t_math_end = Time::get_singleton()->get_ticks_usec();
-
-		// Run procedural scattering for this chunk!
-		if (has_splines) {
-			TerrainSplineScatter::scatter_chunk(chunk, p_splines, chunk_rect, offset, chunk_size, scatter_container, this);
-		}
-
-		// Set chunk state to visual only
-		chunk->set_state(TerrainChunk::STATE_VISUAL_ONLY);
-
-		Ref<Image> height_image = buffer->get_image();
-		Vector3 stamp_position(offset.x, 0.0f, offset.y);
-
-		Array images;
-		images.push_back(height_image);
-		images.push_back(empty_control_map);
-		images.push_back(empty_control_map);
-
-		uint64_t t_t3d_start = Time::get_singleton()->get_ticks_usec();
-		bool has_region = p_target_api->call("has_regionp", stamp_position);
-		if (!has_region) {
-			Ref<RefCounted> new_region = ClassDB::instantiate("Terrain3DRegion");
-			if (new_region.is_valid()) {
-				int rsize = 1024;
-				if (terrain) {
-					rsize = terrain->call("get_region_size");
-				}
-				new_region->set("region_size", rsize);
-				Vector2i rloc = p_target_api->call("get_region_location", stamp_position);
-				new_region->set("location", rloc);
-				p_target_api->call("add_region", new_region);
-			}
-		}
-		p_target_api->call("import_images", images, stamp_position, 0.0f, 1.0f);
-		uint64_t t_t3d_end = Time::get_singleton()->get_ticks_usec();
-
-#if DEBUG
-		UtilityFunctions::print("  -> Dynamic Chunk [", chunk_pos.x, ", ", chunk_pos.y, "] | Math: ", (t_math_end - t_math_start) / 1000.0, " ms | Terrain3D API: ", (t_t3d_end - t_t3d_start) / 1000.0, " ms");
-#endif
 	}
 }
 

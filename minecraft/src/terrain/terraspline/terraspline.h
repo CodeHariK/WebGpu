@@ -3,29 +3,21 @@
 
 #include "godot_cpp/classes/texture_rect.hpp"
 #include "utils/spline3d/procedural_spline3d.h"
-#include <godot_cpp/classes/curve.hpp>
-#include <godot_cpp/classes/curve3d.hpp>
 #include <godot_cpp/classes/image.hpp>
-#include <godot_cpp/classes/mesh.hpp>
-#include <godot_cpp/classes/multi_mesh.hpp>
 #include <godot_cpp/classes/multi_mesh_instance3d.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/noise.hpp>
-#include <godot_cpp/classes/path3d.hpp>
 #include <godot_cpp/classes/physics_server3d.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
-#include <godot_cpp/classes/shape3d.hpp>
-#include <godot_cpp/classes/world3d.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
-#include <godot_cpp/variant/packed_vector2_array.hpp>
-#include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/rect2.hpp>
-#include <godot_cpp/variant/rect2i.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
+#include <algorithm>
+#include <vector>
 
 namespace godot {
 
@@ -33,6 +25,7 @@ class ProceduralSpline3D;
 class TerrainSplineDeformer;
 class TerrainSplineScatter;
 class TerrainSplineCompositor;
+class ScatterJob;
 
 /**
  * @class TerrainHeightmap
@@ -146,6 +139,48 @@ protected:
 	static void _bind_methods() {}
 };
 
+/**
+ * @class ChunkJob
+ * @brief Everything one chunk generation needs, gathered on the main thread so the math can run anywhere.
+ * Phase 1 (`_run_chunk_job_math`, any thread): noise fill, spline deformers, scatter transforms.
+ * Phase 2 (`_finalize_chunk_job`, main thread): MultiMesh nodes, physics caches, Terrain3D region.
+ */
+class ChunkJob : public RefCounted {
+	GDCLASS(ChunkJob, RefCounted)
+public:
+	struct SplineEntry {
+		ProceduralSpline3D *spline = nullptr;
+		Rect2 padded_aabb;
+		std::vector<TerrainSplineDeformer *> deformers;
+		std::vector<TerrainSplineScatter *> scatterers;
+	};
+
+	Vector2i chunk_pos;
+	Vector2 offset;
+	Rect2 chunk_rect;
+	int chunk_size = 0;
+	Ref<TerrainChunk> chunk;
+	std::vector<SplineEntry> splines; // only splines whose padded AABB intersects this chunk
+	Ref<Noise> noise;
+	float default_elevation = 0.0f;
+	float noise_amplitude = 0.0f;
+	Vector2 world_offset_at_dispatch;
+
+	// Outputs
+	std::vector<Ref<ScatterJob>> scatter_jobs;
+	uint64_t math_usec = 0;
+	uint64_t scatter_usec = 0;
+
+	// Async bookkeeping
+	int task_id = -1;
+
+	ChunkJob() {}
+	~ChunkJob() {}
+
+protected:
+	static void _bind_methods() {}
+};
+
 class TerrainSplineCompositor : public Node {
 	GDCLASS(TerrainSplineCompositor, Node)
 private:
@@ -155,12 +190,36 @@ private:
 	bool auto_apply = true;
 	bool _rebuild_queued = false;
 	bool _rebuild_retry_pending = false;
+	int _rebuild_retry_frames = 0;
+	static constexpr int MAX_REBUILD_RETRY_FRAMES = 600; // ~10 s at 60 fps
+	bool _warned_vertex_spacing = false;
+	std::vector<uint64_t> _known_spline_ids;
 	bool compositor_full_rebuild = true;
 	HashMap<Vector2i, Ref<TerrainChunk>> chunk_buffers;
 
 	float max_render_radius = 2048.0f;
 	float max_physics_radius = 150.0f;
 	uint64_t last_eviction_check_time = 0;
+	static constexpr uint64_t DISCOVERY_INTERVAL_MS = 500;
+
+	// Streaming generation queue (see Terraspline.md step 1).
+	std::vector<Vector2i> _gen_queue;
+	float generation_budget_ms = 4.0f;
+	void _enqueue_chunks(const std::vector<Vector2i> &p_chunks, bool p_allow_existing);
+	void _drain_generation_queue(uint64_t p_frame_start_usec);
+
+	// Chunk job pipeline (tr_chunk_job.cpp). See Terraspline.md step 3.
+	Ref<ChunkJob> _make_chunk_job(const Vector2i &p_chunk_pos, const std::vector<ProceduralSpline3D *> &p_splines);
+	static void _run_chunk_job_math(const Ref<ChunkJob> &p_job, bool p_threaded);
+	void _finalize_chunk_job(const Ref<ChunkJob> &p_job, Object *p_target_api);
+	std::vector<Ref<ChunkJob>> _jobs_in_flight;
+	int max_jobs_in_flight = 0; // 0 = auto (hardware threads - 1)
+	void _wait_for_jobs_in_flight();
+	void _refresh_terrain_collision();
+	bool _terrain_maps_dirty = false;
+	int _frames_since_flush = 0;
+	static constexpr int FLUSH_MAX_FRAMES = 6; // ~100 ms at 60 fps
+	void _flush_terrain_maps(Object *p_target_api);
 	Vector2 global_world_offset = Vector2(0.0f, 0.0f);
 	Node3D *scatter_container = nullptr;
 
@@ -174,6 +233,29 @@ private:
 	void _update_chunk_physics(const Ref<TerrainChunk> &p_chunk);
 	void _check_chunk_physics_culling();
 	Vector3 _get_player_position() const;
+	bool _spline_set_changed();
+
+	// --- Benchmark mode (see Terraspline.md; enabled with `-- --terraspline-bench`) ---
+	bool _bench = false;
+	bool _bench_done = false;
+	std::vector<Vector2i> _bench_chunks;
+	uint64_t _bench_start_usec = 0;
+	uint64_t _bench_first_frame = 0;
+	HashMap<uint64_t, double> _bench_frame_ms; // process frame -> main-thread ms spent in compositor
+	double _bench_math_ms = 0.0;
+	double _bench_scatter_ms = 0.0;
+	double _bench_upload_ms = 0.0; // per-chunk region add (main)
+	double _bench_flush_ms = 0.0; // update_maps per batch (main)
+	int _bench_flushes = 0;
+	double _bench_collision_ms = 0.0; // collision.update(true) per batch (main)
+	double _bench_make_ms = 0.0; // _make_chunk_job (main)
+	double _bench_finalize_ms = 0.0; // _finalize_chunk_job incl. region add (main)
+	void _bench_init();
+	void _bench_add_frame_time(uint64_t p_usec);
+	void _bench_check_done();
+	bool _bench_wants_chunk(const Vector2i &p_chunk) const;
+	String _bench_dump_dir;
+	void _bench_dump_chunk(const Ref<TerrainChunk> &p_chunk);
 
 protected:
 	static void _bind_methods();
@@ -204,12 +286,17 @@ public:
 	float get_max_physics_radius() const;
 	void set_global_world_offset(Vector2 p_offset);
 	Vector2 get_global_world_offset() const;
+	void set_generation_budget_ms(float p_ms);
+	float get_generation_budget_ms() const;
 	void queue_rebuild();
 	void _execute_rebuild();
 	void apply_all_splines();
 	void _connect_spline(Node *p_node);
 	void _disconnect_spline(Node *p_node);
 	void _on_spline_changed();
+	void _run_chunk_job_task(Ref<ChunkJob> p_job); // WorkerThreadPool entry point
+	void set_max_jobs_in_flight(int p_n) { max_jobs_in_flight = MAX(0, p_n); }
+	int get_max_jobs_in_flight() const { return max_jobs_in_flight; }
 };
 
 class TerrainSplineCompositorUI : public TextureRect {

@@ -151,6 +151,18 @@ void TerrainSplineCompositor::_check_and_evict_far_chunks() {
 	Vector2 player_pos_2d(target_pos.x, target_pos.z);
 	Vector2 logical_player_pos_2d = player_pos_2d + global_world_offset;
 
+	if (_bench) {
+		// Benchmark: no eviction; just make sure every bench chunk exists.
+		std::vector<Vector2i> missing;
+		for (const Vector2i &c : _bench_chunks) {
+			if (!chunk_buffers.has(c)) {
+				missing.push_back(c);
+			}
+		}
+		_enqueue_chunks(missing, /*allow_existing=*/false);
+		return;
+	}
+
 	// 2. Erase far-away chunks from compositor's chunk_buffers
 	std::vector<Vector2i> chunks_to_erase;
 	for (const KeyValue<Vector2i, Ref<TerrainChunk>> &E : chunk_buffers) {
@@ -237,9 +249,9 @@ void TerrainSplineCompositor::_check_and_evict_far_chunks() {
 
 	if (!chunks_to_generate_physical.empty()) {
 #if DEBUG
-		UtilityFunctions::print("[Compositor] Dynamic generation of ", (int)chunks_to_generate_physical.size(), " new chunks inside render radius...");
+		UtilityFunctions::print("[Compositor] Discovered ", (int)chunks_to_generate_physical.size(), " new chunks inside render radius; queued.");
 #endif
-		_generate_chunks(chunks_to_generate_physical, splines, target_api);
+		_enqueue_chunks(chunks_to_generate_physical, /*allow_existing=*/false);
 	}
 }
 
@@ -311,10 +323,14 @@ void TerrainSplineCompositor::_check_chunk_physics_culling() {
 		}
 
 		Vector2i cpos = chunk->get_chunk_coords();
-		Vector2 c_center((cpos.x + 0.5f) * chunk_size, (cpos.y + 0.5f) * chunk_size);
-		Vector2 logical_c_center = c_center + global_world_offset;
-
-		float dist = logical_player_pos_2d.distance_to(logical_c_center);
+		// Measure to the nearest point of the chunk, not its center: with 256 m chunks and a
+		// 150 m radius, center-distance left neighbouring chunks' collision asleep while their
+		// scattered meshes were plainly visible ~130 m away.
+		Rect2 logical_rect(Vector2(cpos.x * chunk_size, cpos.y * chunk_size) + global_world_offset, Vector2(chunk_size, chunk_size));
+		Vector2 nearest(
+				Math::clamp(logical_player_pos_2d.x, logical_rect.position.x, logical_rect.position.x + logical_rect.size.x),
+				Math::clamp(logical_player_pos_2d.y, logical_rect.position.y, logical_rect.position.y + logical_rect.size.y));
+		float dist = logical_player_pos_2d.distance_to(nearest);
 
 		// If inside physics radius and not yet awake, wake it up!
 		if (dist <= max_physics_radius) {
