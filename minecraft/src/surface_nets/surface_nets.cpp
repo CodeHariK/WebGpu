@@ -1,6 +1,7 @@
 #include "surface_nets/surface_nets.h"
 #include "surface_nets/sdf_helpers.h"
 #include "surface_nets/sn_grid.h"
+#include <vector>
 
 namespace godot {
 

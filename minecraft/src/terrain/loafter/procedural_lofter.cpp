@@ -5,6 +5,7 @@
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <vector>
 
 namespace godot {
 
@@ -504,7 +505,7 @@ void ProceduralLofter::update_loft() {
 
 			// --- DEFORMATION MATH (BASED ON PERCENT 't') ---
 			float current_scale = scale_curve.is_valid() ? scale_curve->sample_baked(percent) : 1.0f;
-			float current_wave = Math::sin(percent * wave_frequency * Math_TAU) * wave_amplitude;
+			float current_wave = Math::sin(percent * wave_frequency * Math::TAU) * wave_amplitude;
 
 			for (int k = 0; k < current_ring.size(); ++k) {
 				Vector3 pt = current_ring[k];

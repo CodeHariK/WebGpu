@@ -12,7 +12,6 @@ namespace godot {
 class MCManager;
 class MPManager;
 class ArcadeVehicle;
-class PhysicsCharacter3D;
 class CelesteController;
 class GameCamera;
 class PlayerInput;
@@ -39,7 +38,6 @@ private:
 	TennisManager *tennis_manager = nullptr;
 
 	ArcadeVehicle *vehicle = nullptr;
-	PhysicsCharacter3D *character = nullptr;
 	CelesteController *celeste_character = nullptr;
 	Node *active_target = nullptr;
 
@@ -67,8 +65,6 @@ public:
 	void register_vehicle(ArcadeVehicle *p_vehicle);
 	ArcadeVehicle *get_vehicle() const;
 
-	void register_character(PhysicsCharacter3D *p_character);
-	PhysicsCharacter3D *get_character() const;
 
 	void register_celeste_controller(Node *p_character);
 	Node *get_celeste_controller() const;

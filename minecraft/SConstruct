@@ -11,6 +11,9 @@ projectdir = "project"
 
 localEnv = Environment(tools=["default"], PLATFORM="")
 
+# godot-cpp now ships per-version API JSONs; pick the one matching compatibility_minimum.
+localEnv.setdefault("api_version", "4.7")
+
 # localEnv["build_profile"] = "build_profile.json"
 
 customs = ["custom.py"]

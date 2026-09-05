@@ -33,9 +33,9 @@ struct SpringDynamics {
 			return;
 
 		// Dynamics constants
-		float k1 = p_damping / (Math_PI * p_frequency);
-		float k2 = 1.0f / (pow(2.0f * Math_PI * p_frequency, 2.0f));
-		float k3 = p_response * p_damping / (2.0f * Math_PI * p_frequency);
+		float k1 = p_damping / (Math::PI * p_frequency);
+		float k2 = 1.0f / (pow(2.0f * Math::PI * p_frequency, 2.0f));
+		float k3 = p_response * p_damping / (2.0f * Math::PI * p_frequency);
 
 		// Estimate target velocity (x_prime)
 		T x_prime = (target - current) / p_delta;
@@ -74,7 +74,7 @@ struct AnalyticalSpring {
 			return;
 
 		// Convert Hz to Angular Frequency (rad/s)
-		float omega = 2.0f * Math_PI * p_frequency;
+		float omega = 2.0f * Math::PI * p_frequency;
 		float zeta = p_damping;
 		const float epsilon = 0.0001f;
 

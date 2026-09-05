@@ -2,6 +2,7 @@
 #include "oc_ingredient.h"
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
+#include <algorithm>
 
 namespace godot {
 

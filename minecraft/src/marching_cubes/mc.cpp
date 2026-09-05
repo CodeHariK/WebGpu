@@ -12,6 +12,8 @@
 #include <godot_cpp/templates/hash_map.hpp>
 
 #include "cui/cui.h"
+#include <algorithm>
+#include <vector>
 
 namespace godot {
 
@@ -576,8 +578,8 @@ void MCNode::apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t
 }
 
 void MCNode::apply_mct_transform(uint8_t &p_hash, Transform3D &p_transform, MCTransform p_op) {
-	float p90 = Math_PI / 2.0;
-	float m90 = -Math_PI / 2.0;
+	float p90 = Math::PI / 2.0;
+	float m90 = -Math::PI / 2.0;
 
 	switch (p_op) {
 		case RX90:
@@ -586,7 +588,7 @@ void MCNode::apply_mct_transform(uint8_t &p_hash, Transform3D &p_transform, MCTr
 			break;
 		case RX180:
 			p_hash = rotate_x(rotate_x(p_hash));
-			p_transform = p_transform.rotated(Vector3(1, 0, 0), Math_PI);
+			p_transform = p_transform.rotated(Vector3(1, 0, 0), Math::PI);
 			break;
 		case RX270:
 			p_hash = rotate_x(rotate_x(rotate_x(p_hash)));
@@ -599,7 +601,7 @@ void MCNode::apply_mct_transform(uint8_t &p_hash, Transform3D &p_transform, MCTr
 			break;
 		case RY180:
 			p_hash = rotate_y(rotate_y(p_hash));
-			p_transform = p_transform.rotated(Vector3(0, 1, 0), Math_PI);
+			p_transform = p_transform.rotated(Vector3(0, 1, 0), Math::PI);
 			break;
 		case RY270:
 			p_hash = rotate_y(rotate_y(rotate_y(p_hash)));
@@ -612,7 +614,7 @@ void MCNode::apply_mct_transform(uint8_t &p_hash, Transform3D &p_transform, MCTr
 			break;
 		case RZ180:
 			p_hash = rotate_z(rotate_z(p_hash));
-			p_transform = p_transform.rotated(Vector3(0, 0, 1), Math_PI);
+			p_transform = p_transform.rotated(Vector3(0, 0, 1), Math::PI);
 			break;
 		case RZ270:
 			p_hash = rotate_z(rotate_z(rotate_z(p_hash)));

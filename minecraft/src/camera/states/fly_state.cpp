@@ -2,6 +2,7 @@
 #include "../../game_manager/player_input.h"
 #include "../camera.h"
 #include <godot_cpp/classes/input.hpp>
+#include <cmath>
 
 namespace godot {
 
@@ -23,7 +24,7 @@ void CameraStateFly::update(GameCamera *p_camera, float p_delta) {
 			} else {
 				p_camera->yaw -= state.camera.look_delta.x * p_camera->orbit_sensitivity;
 				p_camera->pitch -= state.camera.look_delta.y * p_camera->orbit_sensitivity;
-				p_camera->pitch = CLAMP(p_camera->pitch, -Math_PI * 0.49f, Math_PI * 0.49f);
+				p_camera->pitch = CLAMP(p_camera->pitch, -Math::PI * 0.49f, Math::PI * 0.49f);
 			}
 		}
 

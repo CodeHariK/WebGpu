@@ -7,6 +7,8 @@
 #include "../../game_manager/game_manager.h"
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <utility>
+#include <vector>
 
 namespace godot {
 
@@ -182,6 +184,9 @@ void TerrainSplineCompositor::_notification(int p_what) {
 		compositor_full_rebuild = true;
 		queue_rebuild();
 	} else if (p_what == Node::NOTIFICATION_PROCESS) {
+		if (_rebuild_retry_pending) {
+			queue_rebuild();
+		}
 		_check_origin_shift();
 		_check_chunk_physics_culling();
 		uint64_t msec = Time::get_singleton()->get_ticks_msec();
@@ -263,6 +268,20 @@ void TerrainSplineCompositor::apply_all_splines() {
 		UtilityFunctions::printerr("[Compositor] ABORT: Terrain3D Data/Storage is not initialized!");
 		return;
 	}
+
+	// Terrain3DData is only usable once the Terrain3D node has entered the tree and
+	// initialized its data (region_size > 0). Calling into it earlier yields
+	// NaN/INT_MIN region locations and can hang inside Terrain3D (region_size == 0).
+	// This happens e.g. while the editor is still instantiating the scene.
+	if (!is_inside_tree() || !terrain->is_inside_tree() || (int)target_api->call("get_region_size") <= 0) {
+		if (!_rebuild_retry_pending) {
+			UtilityFunctions::print("[Compositor] Terrain3D not ready yet; will retry on next process frame.");
+		}
+		_rebuild_retry_pending = true; // Retried from NOTIFICATION_PROCESS (or READY's deferred apply).
+		compositor_full_rebuild = true;
+		return;
+	}
+	_rebuild_retry_pending = false;
 
 	TypedArray<Node> children = get_children();
 	std::vector<ProceduralSpline3D *> splines;

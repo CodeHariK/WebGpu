@@ -1,5 +1,6 @@
 #include "cui_line_graph.h"
 #include <godot_cpp/variant/utility_functions.hpp>
+#include <vector>
 
 namespace godot {
 

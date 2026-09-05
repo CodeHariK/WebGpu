@@ -131,7 +131,7 @@ void ArcadeVehicle::_setup_vehicle() {
 
 	// 4. Create Chassis Mesh (Visual)
 	chassis_mesh = memnew(MeshInstance3D);
-	SphereMesh *sphere = memnew(SphereMesh);
+	Ref<SphereMesh> sphere = memnew(SphereMesh);
 	sphere->set_radius(config->get_chassis_size().x);
 	sphere->set_height(config->get_chassis_size().x * 2);
 	chassis_mesh->set_mesh(sphere);

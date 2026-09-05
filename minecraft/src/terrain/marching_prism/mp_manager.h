@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/variant/node_path.hpp>
+#include <vector>
 
 namespace godot {
 

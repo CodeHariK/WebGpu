@@ -18,6 +18,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include "cui/cui.h"
+#include <vector>
 
 namespace godot {
 

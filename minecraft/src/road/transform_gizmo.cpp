@@ -61,15 +61,15 @@ void TransformGizmo::_ready() {
 	ResourceLoader *rl = ResourceLoader::get_singleton();
 	circle_shader = rl->load("res://scene/road/circle_gizmo.gdshader");
 
-	_create_box_gizmo("MoveX", Color(1, 0.2f, 0.2f, 1), Transform3D(Basis(Vector3(0, 0, -1), Math_PI / 2.0f)),
+	_create_box_gizmo("MoveX", Color(1, 0.2f, 0.2f, 1), Transform3D(Basis(Vector3(0, 0, -1), Math::PI / 2.0f)),
 			MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(0.06f, MOVE_GIZMO_LEN));
 	_create_box_gizmo("MoveY", Color(0.6f, 1, 0.2f, 1), Transform3D(),
 			MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(0.06f, MOVE_GIZMO_LEN));
-	_create_box_gizmo("MoveZ", Color(0.5f, 0.5f, 1, 1), Transform3D(Basis(Vector3(1, 0, 0), Math_PI / 2.0f)),
+	_create_box_gizmo("MoveZ", Color(0.5f, 0.5f, 1, 1), Transform3D(Basis(Vector3(1, 0, 0), Math::PI / 2.0f)),
 			MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(0.06f, MOVE_GIZMO_LEN));
 
-	_create_plane_gizmo("RotateX", Color(1, 0.2f, 0.2f, 1), Transform3D(Basis(Vector3(0, 1, 0), Math_PI / 2.0f)));
-	_create_plane_gizmo("RotateY", Color(0.6f, 1, 0.2f, 1), Transform3D(Basis(Vector3(1, 0, 0), Math_PI / 2.0f)));
+	_create_plane_gizmo("RotateX", Color(1, 0.2f, 0.2f, 1), Transform3D(Basis(Vector3(0, 1, 0), Math::PI / 2.0f)));
+	_create_plane_gizmo("RotateY", Color(0.6f, 1, 0.2f, 1), Transform3D(Basis(Vector3(1, 0, 0), Math::PI / 2.0f)));
 	_create_plane_gizmo("RotateZ", Color(0.5f, 0.5f, 1, 1), Transform3D());
 
 	grid_mesh_instance = memnew(MeshInstance3D);

@@ -1,4 +1,5 @@
 #include "curve_baker.h"
+#include <vector>
 
 namespace godot {
 

@@ -219,7 +219,7 @@ int MPGrid::_spawn_marching_prisms(const MPChunk &p_chunk, MPNode *p_mp_node) {
 				cell_sb->set_meta("cell_z", global_z);
 
 				CollisionShape3D *cs = memnew(CollisionShape3D);
-				BoxShape3D *shape = memnew(BoxShape3D);
+				Ref<BoxShape3D> shape = memnew(BoxShape3D);
 				shape->set_size(Vector3(0.4, 0.4, 0.4));
 				cs->set_shape(shape);
 				cell_sb->add_child(cs);
@@ -240,7 +240,7 @@ int MPGrid::_spawn_marching_prisms(const MPChunk &p_chunk, MPNode *p_mp_node) {
 				cell_t.origin = world_pos;
 
 				if (points_down) {
-					cell_t.basis = cell_t.basis.rotated(Vector3(0, 1, 0), Math_PI);
+					cell_t.basis = cell_t.basis.rotated(Vector3(0, 1, 0), Math::PI);
 				}
 
 				mi->set_transform(cell_t * conf.transform);
@@ -421,7 +421,7 @@ void MPGrid::_update_visual_at(int gx, int gy, int gz) {
 				cell_sb->set_meta("cell_z", global_z);
 
 				CollisionShape3D *cs = memnew(CollisionShape3D);
-				BoxShape3D *shape = memnew(BoxShape3D);
+				Ref<BoxShape3D> shape = memnew(BoxShape3D);
 				shape->set_size(Vector3(0.4, 0.4, 0.4));
 				cs->set_shape(shape);
 				cell_sb->add_child(cs);
@@ -442,7 +442,7 @@ void MPGrid::_update_visual_at(int gx, int gy, int gz) {
 				cell_t.origin = world_pos;
 
 				if (points_down) {
-					cell_t.basis = cell_t.basis.rotated(Vector3(0, 1, 0), Math_PI);
+					cell_t.basis = cell_t.basis.rotated(Vector3(0, 1, 0), Math::PI);
 				}
 
 				mi->set_transform(cell_t * conf.transform);

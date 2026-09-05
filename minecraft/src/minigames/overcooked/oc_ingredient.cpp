@@ -66,11 +66,11 @@ void OCIngredient::_ready() {
 	if (find_child("MeshInstance3D", true, false) == nullptr) {
 		MeshInstance3D *mesh = memnew(MeshInstance3D);
 		if (ingredient_type == INGREDIENT_PLATE) {
-			BoxMesh *pm = memnew(BoxMesh);
+			Ref<BoxMesh> pm = memnew(BoxMesh);
 			pm->set_size(Vector3(0.6, 0.1, 0.6));
 			mesh->set_mesh(pm);
 		} else {
-			SphereMesh *sm = memnew(SphereMesh);
+			Ref<SphereMesh> sm = memnew(SphereMesh);
 			sm->set_radius(0.2);
 			sm->set_height(0.4);
 			mesh->set_mesh(sm);
@@ -78,7 +78,7 @@ void OCIngredient::_ready() {
 		add_child(mesh);
 
 		// Color based on type
-		StandardMaterial3D *mat = memnew(StandardMaterial3D);
+		Ref<StandardMaterial3D> mat = memnew(StandardMaterial3D);
 		if (ingredient_type == INGREDIENT_TOMATO)
 			mat->set_albedo(Color(0.8, 0.1, 0.1));
 		else if (ingredient_type == INGREDIENT_LETTUCE)
@@ -97,11 +97,11 @@ void OCIngredient::_ready() {
 	if (find_child("CollisionShape3D", true, false) == nullptr) {
 		CollisionShape3D *col = memnew(CollisionShape3D);
 		if (ingredient_type == INGREDIENT_PLATE) {
-			BoxShape3D *bs = memnew(BoxShape3D);
+			Ref<BoxShape3D> bs = memnew(BoxShape3D);
 			bs->set_size(Vector3(0.6, 0.1, 0.6));
 			col->set_shape(bs);
 		} else {
-			SphereShape3D *ss = memnew(SphereShape3D);
+			Ref<SphereShape3D> ss = memnew(SphereShape3D);
 			ss->set_radius(0.2);
 			col->set_shape(ss);
 		}

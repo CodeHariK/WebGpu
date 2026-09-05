@@ -187,7 +187,7 @@ void RampSpinState::physics_update(float delta) {
 	Vector3 right_dir = trans.basis.get_column(0).normalized();
 	float pitch_speed = vehicle->get_angular_velocity().dot(right_dir);
 
-	float target_pitch_speed = (2.0f * Math_PI / 0.8f); // target speed for 360 flip
+	float target_pitch_speed = (2.0f * Math::PI / 0.8f); // target speed for 360 flip
 	float pitch_speed_error = target_pitch_speed - pitch_speed;
 	float torque_mag = pitch_speed_error * vehicle->get_vehicle_config()->get_mass() * 6.0f;
 	vehicle->apply_torque(right_dir * torque_mag);
@@ -211,7 +211,7 @@ void RampRollState::physics_update(float delta) {
 	Vector3 roll_forward_dir = -trans.basis.get_column(2).normalized(); // Local -Z is forward
 	float roll_speed = vehicle->get_angular_velocity().dot(roll_forward_dir);
 
-	float target_roll_speed = roll_direction * (2.0f * Math_PI / 0.8f);
+	float target_roll_speed = roll_direction * (2.0f * Math::PI / 0.8f);
 	float roll_speed_error = target_roll_speed - roll_speed;
 	float torque_mag = roll_speed_error * vehicle->get_vehicle_config()->get_mass() * 6.0f;
 	vehicle->apply_torque(roll_forward_dir * torque_mag);

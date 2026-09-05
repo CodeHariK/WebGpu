@@ -1,6 +1,7 @@
 #include "procedural_road.h"
 #include "utils/curve/curve_baker.h"
 #include <godot_cpp/core/class_db.hpp>
+#include <vector>
 
 namespace godot {
 

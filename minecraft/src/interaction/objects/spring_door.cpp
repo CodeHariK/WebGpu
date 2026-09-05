@@ -46,7 +46,7 @@ void SpringDoor::_physics_process(double delta) {
 	float displacement = current_rotation_y - rest_rotation_y;
 
 	// 2. Wrap angle to shortest path
-	displacement = UtilityFunctions::wrapf(displacement, -Math_PI, Math_PI);
+	displacement = UtilityFunctions::wrapf(displacement, -Math::PI, Math::PI);
 
 	// 3. Get current angular velocity (Y axis)
 	float current_vel_y = get_angular_velocity().y;

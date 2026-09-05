@@ -6,6 +6,7 @@
 #include <godot_cpp/classes/curve2d.hpp>
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <vector>
 
 namespace godot {
 
