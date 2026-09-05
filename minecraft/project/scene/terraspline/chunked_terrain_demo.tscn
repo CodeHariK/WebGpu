@@ -4,6 +4,8 @@
 [ext_resource type="Curve" uid="uid://ba5y0jq2eufwp" path="res://scene/minecraft/curve_minecraft_2.tres" id="3_qv7hl"]
 [ext_resource type="Material" uid="uid://nbbdrx8vma80" path="res://Terrain3d_demo/assets/materials/M_rock23_tp.tres" id="4_qv7hl"]
 [ext_resource type="PackedScene" uid="uid://bgq4dpehnmquk" path="res://assets/vehicle_env/suv.glb" id="6_bjf5h"]
+[ext_resource type="Texture2D" uid="uid://ddprscrpsofah" path="res://Terrain3d_demo/assets/textures/ground037_alb_ht.png" id="7_t3dalb"]
+[ext_resource type="Texture2D" uid="uid://c1ots7w6i0i1q" path="res://Terrain3d_demo/assets/textures/ground037_nrm_rgh.png" id="8_t3dnrm"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_ih7r4"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -94,7 +96,13 @@ last_lod = 0
 last_shadow_lod = 0
 lod0_range = 128.0
 
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_placeholder"]
+name = "Placeholder (keeps Terrain3D checkered debug view off)"
+albedo_texture = ExtResource("7_t3dalb")
+normal_texture = ExtResource("8_t3dnrm")
+
 [sub_resource type="Terrain3DAssets" id="Terrain3DAssets_acpkc"]
+texture_list = Array[Terrain3DTextureAsset]([SubResource("Terrain3DTextureAsset_placeholder")])
 mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_n02w8")])
 
 [sub_resource type="WheelConfig" id="WheelConfig_wkk6t"]

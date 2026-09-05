@@ -1,6 +1,6 @@
 #include "godot_cpp/classes/image_texture.hpp"
 #include "terraspline.h"
-#include <godot_cpp/classes/time.hpp> // NEW: For high-precision profiling
+#include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>

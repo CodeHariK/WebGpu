@@ -8,7 +8,8 @@
 
 #include "tr_scatter.h"
 #include "terrain/terraspline/terraspline.h"
-#include <godot_cpp/classes/time.hpp> // NEW: For high-precision profiling
+#include <godot_cpp/classes/multi_mesh.hpp>
+#include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
@@ -121,7 +122,9 @@ bool TerrainSplineScatter::_evaluate_height_and_slope(const float *heightmap_dat
 
 bool TerrainSplineScatter::_process_scatter_cell(const Ref<ScatterJob> &p_job, int cx, int cz, uint64_t base_seed, const Vector2 &offset, int p_chunk_size, float spacing, float density, const float *heightmap_data, const std::vector<int> &active_segments, Transform3D &r_transform) {
 	Vector2i chunk_pos = p_job->chunk->get_chunk_coords();
-	uint64_t cell_seed = base_seed ^ (uint64_t(chunk_pos.x) * 73856093ULL) ^ (uint64_t(chunk_pos.y) * 19349663ULL) ^ (uint64_t(cx) * 83492791ULL) ^ (uint64_t(cz) * 37476139ULL) ^ uint64_t(seed_offset);
+	// p_job->scatterer_seed distinguishes scatterers sharing a cell (same spline, or overlapping
+	// corridors); without it they draw identical positions and stack meshes on top of each other.
+	uint64_t cell_seed = base_seed ^ (uint64_t(chunk_pos.x) * 73856093ULL) ^ (uint64_t(chunk_pos.y) * 19349663ULL) ^ (uint64_t(cx) * 83492791ULL) ^ (uint64_t(cz) * 37476139ULL) ^ uint64_t(seed_offset) ^ p_job->scatterer_seed;
 
 	struct SimpleRNG {
 		uint64_t state;
@@ -275,29 +278,33 @@ void TerrainSplineScatter::run_scatter_job(const Ref<ScatterJob> &p_job, int p_c
 #endif
 }
 
+Ref<ScatterJob> TerrainSplineScatter::make_scatter_job(const Ref<TerrainChunk> &p_chunk, ProceduralSpline3D *p_spline, TerrainSplineScatter *p_scatterer, const Rect2 &p_spline_padded_aabb, const Vector2 &p_offset) {
+	Ref<ScatterJob> job;
+	job.instantiate();
+	job->chunk = p_chunk;
+	job->spline = p_spline;
+	job->scatterer = p_scatterer;
+	job->offset = p_offset;
+	job->spline_bounds = p_spline_padded_aabb;
+	// Stable across runs (unlike instance ids) so a chunk always regrows the same rocks.
+	job->scatterer_seed = uint64_t(String(p_scatterer->get_path()).hash()) * 0x9E3779B97F4A7C15ULL;
+	return job;
+}
+
 void TerrainSplineScatter::_dispatch_scatter_jobs(const Ref<TerrainChunk> &p_chunk, const std::vector<ProceduralSpline3D *> &p_splines, const Rect2 &p_chunk_rect, const Vector2 &p_offset, int p_chunk_size, std::vector<Ref<ScatterJob>> &r_jobs, std::vector<int> &r_task_ids) {
 	WorkerThreadPool *wtp = WorkerThreadPool::get_singleton();
 	for (ProceduralSpline3D *spline : p_splines) {
-		if (!spline->get_padded_aabb().intersects(p_chunk_rect)) {
+		Rect2 aabb = spline->get_padded_aabb();
+		if (!aabb.intersects(p_chunk_rect)) {
 			continue;
 		}
-
 		spline->ensure_baked_cache();
-
 		TypedArray<Node> spline_children = spline->get_children();
 		for (int i = 0; i < spline_children.size(); ++i) {
 			TerrainSplineScatter *scatterer = Object::cast_to<TerrainSplineScatter>(spline_children[i]);
 			if (scatterer) {
-				Ref<ScatterJob> job;
-				job.instantiate();
-				job->chunk = p_chunk;
-				job->spline = spline;
-				job->scatterer = scatterer;
-				job->offset = p_offset;
-				job->spline_bounds = spline->get_padded_aabb();
-
+				Ref<ScatterJob> job = make_scatter_job(p_chunk, spline, scatterer, aabb, p_offset);
 				r_jobs.push_back(job);
-
 				if (wtp) {
 					Callable callable = Callable(scatterer, "run_scatter_job").bind(job, p_chunk_size);
 					int task_id = wtp->add_task(callable, "TerrainScatterJob");

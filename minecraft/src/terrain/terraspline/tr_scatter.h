@@ -8,29 +8,16 @@
 #ifndef TR_SCATTER_H
 #define TR_SCATTER_H
 
-#include "godot_cpp/classes/texture_rect.hpp"
 #include "utils/spline3d/procedural_spline3d.h"
-#include <godot_cpp/classes/curve.hpp>
-#include <godot_cpp/classes/curve3d.hpp>
-#include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/mesh.hpp>
-#include <godot_cpp/classes/multi_mesh.hpp>
 #include <godot_cpp/classes/multi_mesh_instance3d.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/noise.hpp>
-#include <godot_cpp/classes/path3d.hpp>
-#include <godot_cpp/classes/physics_server3d.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/classes/shape3d.hpp>
-#include <godot_cpp/classes/world3d.hpp>
-#include <godot_cpp/templates/hash_map.hpp>
-#include <godot_cpp/variant/packed_float32_array.hpp>
-#include <godot_cpp/variant/packed_vector2_array.hpp>
-#include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/rect2.hpp>
-#include <godot_cpp/variant/rect2i.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
 #include <vector>
@@ -53,6 +40,8 @@ public:
 	TerrainSplineScatter *scatterer = nullptr;
 	// Global coordinate offset of the target chunk.
 	Vector2 offset;
+	// Stable per-scatterer hash mixed into cell seeds so overlapping scatterers don't stack meshes.
+	uint64_t scatterer_seed = 0;
 	// Array storing generated instance transforms.
 	std::vector<Transform3D> transforms;
 	// Cache of the spline's global bounding box.
@@ -261,6 +250,13 @@ public:
 	 * Behavioral bounds: Runs on main thread, blocks/waits for background threads.
 	 */
 	static void scatter_chunk(const Ref<TerrainChunk> &p_chunk, const std::vector<ProceduralSpline3D *> &p_splines, const Rect2 &p_chunk_rect, const Vector2 &p_offset, int p_chunk_size, Node3D *p_scatter_container, Node *p_owner_node);
+
+	// Three-phase API used by the compositor's chunk jobs (see Terraspline.md step 3):
+	//   make_scatter_job     - main thread (reads the scene tree)
+	//   run_scatter_job      - any thread (pure math on the baked spline cache and the chunk heightmap)
+	//   finalize_scatter_job - main thread (creates MultiMeshInstance3D, records physics caches)
+	static Ref<ScatterJob> make_scatter_job(const Ref<TerrainChunk> &p_chunk, ProceduralSpline3D *p_spline, TerrainSplineScatter *p_scatterer, const Rect2 &p_spline_padded_aabb, const Vector2 &p_offset);
+	static void finalize_scatter_job(const Ref<ScatterJob> &p_job, Node3D *p_scatter_container, Node *p_owner_node) { _finalize_scatter_job(p_job, p_scatter_container, p_owner_node); }
 
 	/*
 	 * Purpose: Get the spline padding boundary required by this scatterer.
