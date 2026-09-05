@@ -5,7 +5,7 @@
 ### General config, applies to all languages ###
 BasedOnStyle:  LLVM
 AccessModifierOffset: -4
-AlignAfterOpenBracket: DontAlign
+AlignAfterOpenBracket: BlockIndent # break after '(' and put ')' on its own line when wrapping
 # AlignArrayOfStructures: None
 # AlignConsecutiveMacros: None
 # AlignConsecutiveAssignments: None
@@ -15,7 +15,7 @@ AlignAfterOpenBracket: DontAlign
 AlignOperands:   DontAlign
 AlignTrailingComments: false
 # AllowAllArgumentsOnNextLine: true
-AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: true
 # AllowShortEnumsOnASingleLine: true
 # AllowShortBlocksOnASingleLine: Never
 # AllowShortCaseLabelsOnASingleLine: false
@@ -59,7 +59,8 @@ AllowAllParametersOfDeclarationOnNextLine: false
 # BreakConstructorInitializersBeforeComma: false
 BreakConstructorInitializers: AfterColon
 # BreakStringLiterals: true
-ColumnLimit:     0
+ColumnLimit:     120 # Project override (Godot uses 0 = never wrap); long signatures wrap one parameter per line
+BinPackParameters: AlwaysOnePerLine # every parameter on its own line (clang-format >= 20)
 # CommentPragmas:  '^ IWYU pragma:'
 # QualifierAlignment: Leave
 # CompactNamespaces: false
