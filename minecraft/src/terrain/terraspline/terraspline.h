@@ -27,5 +27,6 @@
 #include "tr_heightmap.h"
 #include "tr_scatter.h"
 #include "tr_scatter_job.h"
+#include "tr_stream_map.h"
 
 #endif // TERRASPLINE_H

@@ -184,6 +184,9 @@ void TerrainSplineCompositor::_finalize_chunk_job(
 		TerrainSplineScatter::finalize_scatter_job(sj, scatter_container, this);
 	}
 	chunk->set_state(TerrainChunk::STATE_VISUAL_ONLY);
+	if (_thumbnail_size > 0) {
+		chunk->build_thumbnail(_thumbnail_size);
+	}
 	if (_bench) {
 		_bench_dump_chunk(chunk);
 	}

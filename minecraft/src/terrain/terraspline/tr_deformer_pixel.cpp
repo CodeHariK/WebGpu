@@ -58,22 +58,28 @@ float TerrainSplineDeformer::_falloff_weight(
 	return 0.0f;
 }
 
-/// Combines the target height into the terrain according to the blend mode.
+/**
+ * @brief Combines the target height into the terrain according to the blend mode.
+ * `p_target_h` is the absolute height the spline asks for (spline Y + max_height). ADD/SUBTRACT
+ * apply its offset from the chunk's base elevation, so on flat ground the surface meets the spline
+ * exactly and any noise underneath is preserved; MAX/MIN/REPLACE move toward the absolute target.
+ */
 static inline void blend_pixel(
 		float *p_data,
 		int p_idx,
 		int p_blend_mode,
 		float p_weight,
-		float p_target_h
+		float p_target_h,
+		float p_base_h
 ) {
 	float current_h = p_data[p_idx];
 	float new_h = current_h;
 	switch (p_blend_mode) {
 		case TerrainSplineDeformer::BLEND_ADD:
-			new_h = current_h + (p_target_h * p_weight);
+			new_h = current_h + ((p_target_h - p_base_h) * p_weight);
 			break;
 		case TerrainSplineDeformer::BLEND_SUBTRACT:
-			new_h = current_h - (p_target_h * p_weight);
+			new_h = current_h - ((p_target_h - p_base_h) * p_weight);
 			break;
 		case TerrainSplineDeformer::BLEND_MAX:
 			new_h = Math::max(current_h, (float)local_lerp(current_h, p_target_h, p_weight));
@@ -214,7 +220,7 @@ void TerrainSplineDeformer::_deform_tile_field(
 				continue;
 			}
 			const float spline_y = field_spline_y(p_job, seg, px, pz, distance, is_inside);
-			blend_pixel(p_job->data_ptr, z * p_w + x, blend_mode, weight, spline_y + max_height);
+			blend_pixel(p_job->data_ptr, z * p_w + x, blend_mode, weight, spline_y + max_height, p_job->base_elevation);
 		}
 	}
 }
@@ -234,7 +240,9 @@ void TerrainSplineDeformer::_deform_tile_fallback(
 			if (weight <= 0.0f) {
 				continue;
 			}
-			blend_pixel(p_job->data_ptr, z * p_w + x, blend_mode, weight, eval.spline_y + max_height);
+			blend_pixel(
+					p_job->data_ptr, z * p_w + x, blend_mode, weight, eval.spline_y + max_height, p_job->base_elevation
+			);
 		}
 	}
 }

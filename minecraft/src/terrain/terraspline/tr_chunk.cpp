@@ -41,4 +41,27 @@ void TerrainChunk::release_visuals_and_physics() {
 	}
 }
 
+void TerrainChunk::build_thumbnail(int p_size) {
+	thumbnail.clear();
+	thumbnail_size = 0;
+	if (heightmap.is_null() || p_size <= 0) {
+		return;
+	}
+	const int w = heightmap->get_width();
+	const int h = heightmap->get_height();
+	if (w <= 0 || h <= 0) {
+		return;
+	}
+	const float *src = heightmap->get_data_ptrw();
+	thumbnail_size = p_size;
+	thumbnail.resize((size_t)p_size * p_size);
+	for (int tz = 0; tz < p_size; ++tz) {
+		const int z = Math::min(h - 1, (tz * h) / p_size);
+		for (int tx = 0; tx < p_size; ++tx) {
+			const int x = Math::min(w - 1, (tx * w) / p_size);
+			thumbnail[(size_t)tz * p_size + tx] = src[z * w + x];
+		}
+	}
+}
+
 } // namespace godot

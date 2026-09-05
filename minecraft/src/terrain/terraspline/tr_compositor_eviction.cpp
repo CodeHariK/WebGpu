@@ -56,6 +56,7 @@ void TerrainSplineCompositor::_evict_far_chunks(const Vector2 &p_logical_player)
 		}
 	}
 	for (Vector2i cpos : chunks_to_erase) {
+		_log_eviction(cpos);
 		chunk_buffers.erase(cpos);
 	}
 }

@@ -77,6 +77,7 @@ Ref<DeformerJob> TerrainSplineDeformer::_create_deformer_job(
 	job->deformer = this;
 	job->offset = p_offset;
 	job->data_ptr = p_heightmap->get_data_ptrw();
+	job->base_elevation = p_heightmap->get_base_elevation();
 
 	job->has_curve = falloff_curve.is_valid();
 	if (job->has_curve) {

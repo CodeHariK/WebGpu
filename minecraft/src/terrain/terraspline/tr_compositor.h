@@ -38,9 +38,40 @@ namespace godot {
  *  - tr_compositor_terrain3d.cpp    every call into the Terrain3D GDExtension
  *  - tr_chunk_job.cpp               make -> math -> finalize for one chunk
  *  - tr_bench.cpp                   benchmark mode (--terraspline-bench), zero cost when off
+ *  - tr_compositor_snapshot.cpp     read-only state snapshot for TerrainSplineStreamMap
  *
  * See Terraspline.md for the performance history and benchmark protocol.
  */
+/**
+ * @struct StreamSnapshot
+ * @brief Read-only copy of the compositor's streaming state, in LOGICAL world coordinates (metres),
+ * filled by TerrainSplineCompositor::get_stream_snapshot for the debug map. Heights are included
+ * only for chunks that built a thumbnail (see set_thumbnail_size).
+ */
+struct StreamSnapshot {
+	struct Chunk {
+		Rect2 rect; // Logical world footprint
+		int state = 0; // TerrainChunk::ChunkState
+		const std::vector<float> *thumbnail = nullptr; // thumbnail_size² heights, or nullptr
+	};
+	struct Evicted {
+		Rect2 rect;
+		uint64_t time_msec = 0;
+	};
+	int chunk_size = 0;
+	int thumbnail_size = 0;
+	float render_radius = 0.0f;
+	float physics_radius = 0.0f;
+	Vector2 player; // Logical XZ
+	Vector2 player_forward; // Unit XZ heading of the followed node (zero if unknown)
+	Vector2 camera_forward; // Unit XZ heading of the active camera (zero if unknown)
+	std::vector<Chunk> resident;
+	std::vector<Rect2> queued;
+	std::vector<Rect2> in_flight;
+	std::vector<Evicted> evicted; // Recent evictions, oldest first
+	std::vector<Rect2> spline_bounds; // Padded AABB of every spline
+};
+
 class TerrainSplineCompositor : public Node {
 	GDCLASS(TerrainSplineCompositor,
 			Node)
@@ -73,6 +104,13 @@ private:
 	Node3D *scatter_container = nullptr; // Parent of all scattered MultiMeshInstance3Ds
 	uint64_t last_eviction_check_time = 0;
 	static constexpr uint64_t DISCOVERY_INTERVAL_MS = 500;
+
+	// ---- Debug map support (tr_compositor_snapshot.cpp) ----
+	int _thumbnail_size = 0; // 0 = no thumbnails; set by TerrainSplineStreamMap
+	std::vector<StreamSnapshot::Evicted> _evicted_recent; // Ring of the last evictions (logical rects)
+	static constexpr size_t EVICTED_LOG_MAX = 64;
+	Rect2 _logical_chunk_rect(const Vector2i &p_physical_chunk) const;
+	void _log_eviction(const Vector2i &p_physical_chunk);
 
 	// ---- Streaming queue and async jobs (tr_compositor_stream.cpp) ----
 	std::vector<Vector2i> _gen_queue;
@@ -262,6 +300,13 @@ public:
 	void _on_spline_changed();
 	/// WorkerThreadPool entry point for one chunk's math.
 	void _run_chunk_job_task(Ref<ChunkJob> p_job);
+
+	// ---- Debug map (tr_compositor_snapshot.cpp) ----
+	/// Chunks finalized from now on carry a p_size² height thumbnail (0 disables). Main thread only.
+	void set_thumbnail_size(int p_size);
+	int get_thumbnail_size() const { return _thumbnail_size; }
+	/// Fills r_out with the current streaming state; thumbnail pointers are valid until the next frame.
+	void get_stream_snapshot(StreamSnapshot &r_out) const;
 };
 
 } // namespace godot
