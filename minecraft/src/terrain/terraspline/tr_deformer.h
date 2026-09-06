@@ -124,6 +124,10 @@ private:
 	int tile_size = 32; // Pixel tile size for parallel work
 
 	// ---- Job preparation (tr_deformer_legacy.cpp) ----
+	void _fill_job_shape(
+			Ref<DeformerJob> &p_job,
+			ProceduralSpline3D *p_spline
+	) const;
 	Ref<DeformerJob> _create_deformer_job(
 			const Ref<TerrainHeightmap> &p_heightmap,
 			ProceduralSpline3D *p_spline,
@@ -322,6 +326,18 @@ public:
 	float get_road_blur() const { return road_blur; }
 
 	/**
+	 * @brief The road profile a HEIGHT_TERRAIN deformer would carve along its spline: world-space
+	 * (x, y, z) of every baked vertex with y replaced by the smoothed / graded / capped ground profile,
+	 * computed against p_heightmap's base terrain description (see TerrainSplineCompositor::
+	 * make_profile_context). Lets a TerrainSplineRoad lie exactly on the roadbed. Main thread.
+	 */
+	bool bake_road_profile(
+			const Ref<TerrainHeightmap> &p_heightmap,
+			ProceduralSpline3D *p_spline,
+			std::vector<Vector3> &r_points
+	);
+
+	/**
 	 * @brief Height this deformer would leave at world (p_x, p_z) given the current height there.
 	 * 1-D evaluation for other deformers' terrain profiles; exact, O(segments).
 	 */
@@ -337,6 +353,22 @@ public:
 		mark_dirty();
 	}
 	int get_tile_size() const { return tile_size; }
+
+	/**
+	 * @brief The corridor weight of every pixel of a p_size² chunk at p_offset (row-major, z then x):
+	 * exactly the weights this deformer blends heights with — 1 on the core, the falloff ramp (and
+	 * curve) outside, the interior of a closed loop when fill_interior. Zero elsewhere. Lets other
+	 * components (TerrainSplinePainter) follow the earthwork footprint precisely. Any thread once the
+	 * spline cache is baked (tr_deformer_weights.cpp). Returns false when the spline misses the chunk;
+	 * r_weights is then untouched.
+	 */
+	bool compute_weight_field(
+			ProceduralSpline3D *p_spline,
+			const Vector2 &p_offset,
+			int p_size,
+			const Rect2 &p_padded_aabb,
+			std::vector<float> &r_weights
+	);
 
 	/// Main-thread entry point: bakes the spline cache, then deforms with tile-level threading.
 	void deform_heightmap(

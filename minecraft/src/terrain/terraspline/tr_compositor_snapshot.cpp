@@ -6,6 +6,7 @@
 #include "../../camera/camera.h"
 #include "../../game_manager/game_manager.h"
 #include "tr_compositor.h"
+#include "tr_deformer.h"
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/classes/viewport.hpp>
@@ -96,6 +97,26 @@ void TerrainSplineCompositor::get_stream_snapshot(StreamSnapshot &r_out) const {
 		aabb.position += global_world_offset;
 		r_out.spline_bounds.push_back(aabb);
 	}
+}
+
+Ref<TerrainHeightmap> TerrainSplineCompositor::make_profile_context() const {
+	Ref<TerrainHeightmap> hm;
+	hm.instantiate();
+	hm->initialize(1, 1, default_elevation);
+	hm->set_base_terrain(global_terrain_noise, global_terrain_amplitude);
+	std::vector<TerrainHeightmap::BaseDeformer> base;
+	for (ProceduralSpline3D *spline : _gather_splines()) {
+		spline->ensure_baked_cache();
+		TypedArray<Node> children = spline->get_children();
+		for (int i = 0; i < children.size(); ++i) {
+			TerrainSplineDeformer *d = Object::cast_to<TerrainSplineDeformer>(children[i]);
+			if (d && d->get_height_source() == TerrainSplineDeformer::HEIGHT_SPLINE) {
+				base.push_back({ spline, d });
+			}
+		}
+	}
+	hm->set_base_deformers(base);
+	return hm;
 }
 
 } // namespace godot

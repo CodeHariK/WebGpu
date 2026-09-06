@@ -21,6 +21,7 @@ namespace godot {
 class ProceduralSpline3D;
 class TerrainSplineDeformer;
 class TerrainSplineScatter;
+class TerrainSplinePainter;
 
 /**
  * @class ChunkJob
@@ -42,6 +43,7 @@ public:
 		Rect2 padded_aabb;
 		std::vector<TerrainSplineDeformer *> deformers;
 		std::vector<TerrainSplineScatter *> scatterers;
+		std::vector<TerrainSplinePainter *> painters;
 	};
 
 	// ---- Inputs ----
@@ -61,6 +63,8 @@ public:
 
 	// ---- Outputs ----
 	std::vector<Ref<ScatterJob>> scatter_jobs;
+	/// Terrain3D control words (chunk_size², row-major); empty when no painter touched the chunk.
+	std::vector<uint32_t> control;
 	uint64_t math_usec = 0;
 	uint64_t scatter_usec = 0;
 

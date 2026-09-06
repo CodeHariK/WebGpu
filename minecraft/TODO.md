@@ -28,23 +28,36 @@ Legend: `[x]` done · `[ ]` next · `[~]` in progress · `[?]` idea, undecided
             underside + caps, vertex colours per region, banking from spline tilt, fixed/adaptive
             stations, section windows (gaps = jumps), trimesh collision, internal children, small files
       - [x] demo `TrackSpline` (banked continuous loop over the mesas; jumps = two sections with a gap)
-      - [ ] TERRAIN mode: heights from the deformer's baked profile (`_bake_terrain_profile`) so the
-            mesh lies on the shaped roadbed; banking off in that mode
-      - [ ] water preset: flat, no collision, scrolling cartoon shader, Area3D
+      - [x] TERRAIN mode: heights from the deformer's baked profile via `bake_road_profile` /
+            `make_profile_context`; upright frames; demo `RoadSpline2/GroundRoad` sits +0.07 m on the bed
+      - [x] water preset: `PROFILE_WATER`, Area3D (group water), built-in scrolling toon shader
       - [ ] presets for lane markings / edge stripes via UV (texture_length already there)
       - [x] `loafter/ProceduralRoad` retired: `procgen.tscn` migrated to `TerrainSplineRoad` (custom
             profile + adaptive), baked meshes removed from that scene (109 KB → 5 KB)
 - [ ] **ProceduralLofter** (tunnels, tubes, tube-slides, bridge girders): saved-child bug fixed;
       later split `generate_lofted_mesh` (250 lines), drop the const_casts, add collision, rename folder
       `loafter` → `lofter`
-- [ ] **TerrainSplinePainter** — write Terrain3D control map along a corridor (texture id + blend)
-      - reuse the deformer distance field; road shoulders, riverbanks, mountain rock automatically
+- [x] **TerrainSplinePainter** — Terrain3D control map along a corridor: `texture_id`, `strength`,
+      `paint_curve`; shape from the sibling deformer's footprint (`compute_weight_field`, same distance
+      field) or custom width/falloff; stacks (dominant texture kept as the other layer). Demo shader
+      `stripe_toon_cheap` decodes it into `paint_color_1..4`; demo road shoulders, river banks, lake beach
+      - [ ] later: share one distance field between a deformer and its painter (currently computed twice)
+      - [ ] later: `stripe_toon.gdshader` (full) and `_cheapest` don't read the control map yet
 - [x] **TerrainSplineArray** — meshes at regular intervals along a spline: sides, offsets, tangent /
       inward facing, tilt, jitter, `stretch_to_ground` pillars (Terrain3D heights or raycast), MultiMesh +
       per-instance collision; demo pillars + rail posts on `TrackSpline`
-- [ ] **River** = `CUT_ONLY` terrain-following deformer with negative `max_height` (riverbed) + water ribbon
-- [ ] **Lake** — closed spline: cut-only deformer + flat water cap at `bottom_y` (reuse cliff cap builder)
-- [ ] **Bridge** — ribbon with terrain-independent height + arrayed pillars
+- [x] **River** — demo `RiverSpline`: cut-only Subtract deformer (bed) + water road at −0.9 m on the same profile
+- [x] **Lake** — `TerrainSplineLake`: closed spline → Delaunay water sheet (`level_from_spline` /
+      `water_level`, `depth`, `shore_offset`), Area3D group water; toon water shader moved to shared
+      `tr_water.h/.cpp`; demo `LakeSpline` = fill-interior Replace deformer (basin) + lake
+- [x] **Bridge** — demo `BridgeSpline`: SPLINE-mode slab+rails road over the river + `stretch_to_ground` pillars and rail posts (no new code)
+- [x] **RaceTrack** (`src/racing/`) — SplineComponent: checkpoint gates (Area3D boxes every
+      `checkpoint_spacing`, banked with the spline, gate 0 = start/finish, `show_gates` debug boxes),
+      per-body progress (gates in order only), laps / `race_finished`, wrong-way (velocity vs segment
+      direction for `wrong_way_time`), fall-off (`kill_depth` below the last gate → `respawn` upright
+      `respawn_back` behind it, velocities cleared). Signals for HUD/audio. Demo `TrackSpline/Race`.
+      - [ ] start grid + countdown (`track_body` enrols without crossing the line; needs a grid layout helper)
+      - [ ] HUD: lap / position / wrong-way banner reading `get_progress` (ranking = lap + progress)
 - [ ] Toon material for cliff slots (flat light response, rim/outline); the default StandardMaterial
       goes too dark on the shadow side
 
@@ -80,8 +93,8 @@ Switches & gates (Link's Awakening, Zelda dungeons)
 Racing specific (Mario Kart, Diddy Kong Racing)
 - [ ] Boost pads / dash panels, anti-gravity strips (up vector from the road frame — we have tilt),
       glider ramps + glide zones, underwater sections (slow + float)
-- [ ] Item boxes (respawn timer), coins on the track, checkpoint gates + lap counter + respawn,
-      start grid + countdown, shortcut ramps that need a boost
+- [ ] Item boxes (respawn timer), coins on the track, start grid + countdown, shortcut ramps that
+      need a boost (checkpoint gates + laps + respawn: done, `RaceTrack`)
 - [ ] Track hazards: swinging pendulums over the road, Thwomps on the straight, rolling barrels,
       cars/trains crossing (Toad's Turnpike), water splashes / mud slowing zones
 - [ ] Destructible scenery (crates, hay bales), bumpers / pinball bumpers

@@ -19,8 +19,11 @@ components) into Terrain3D heightmap regions, streamed in `chunk_size` (256 m) c
 | `DeformerJob` | RefCounted (data) | Baked curves, SoA spline geometry, distance field, active tiles | One (deformer, chunk) deformation. Read-only for the per-pixel tasks; each task writes disjoint tiles of the heightmap. |
 | `ScatterJob` | RefCounted (data) | Inputs, resulting transforms, debug counters | One (scatterer, spline, chunk) scattering. |
 | `TerrainSplineCliff` | SplineComponent | — | Stylized cliff wall hung from the parent spline's top edge: strata that step in/out, ledges, bevels, lip, skirt, quantized wobble and vertical columns; flat-shaded vertex colours from a Gradient; internal MeshInstance3D + trimesh StaticBody3D. Never touches the terrain; rebuilds (coalesced) on `spline_changed` and property edits. `rim_from_deformer` places the top edge just outside a sibling deformer's slope. |
-| `TerrainSplineRoad` | SplineComponent | — | Drivable track mesh swept along the parent spline: closed cross-section presets (slab, slab + rails, half-pipe, custom Curve2D) with underside and end caps, flat-shaded vertex colours per region, U across / V along (`texture_length`), spline tilt = banking, fixed or adaptive stations, `section_start/end` windows (gaps = jumps), trimesh collision. `HEIGHT_SPLINE`: floats freely — no terrain needed. `HEIGHT_TERRAIN` planned. Internal children only. |
+| `TerrainSplineRoad` | SplineComponent | — | Drivable track mesh swept along the parent spline: closed cross-section presets (slab, slab + rails, half-pipe, custom Curve2D) with underside and end caps, flat-shaded vertex colours per region, U across / V along (`texture_length`), spline tilt = banking, fixed or adaptive stations, `section_start/end` windows (gaps = jumps), trimesh collision. `PROFILE_WATER`: flat surface over a `thickness`-deep box, Area3D (group "water", `get_water_area()`) instead of a body, built-in scrolling toon water ShaderMaterial (`water_speed`, `water_alpha`, deck = water colour, edge = foam). `HEIGHT_SPLINE`: floats freely — no terrain needed. `HEIGHT_TERRAIN`: heights from the sibling deformer's road profile (`bake_road_profile` on `make_profile_context()`), upright frames, `surface_offset` above the roadbed. Internal children only. |
 | `TerrainSplineArray` | SplineComponent | — | One mesh every `spacing` metres along the parent spline (posts, gates, pads, pillars): centre / left / right / both sides, lateral & vertical offset, yaw to tangent or facing the spline, upright or following tilt, deterministic jitter, `stretch_to_ground` (Terrain3D heightmap when under a compositor, else raycast; retries while terrain streams in). One MultiMeshInstance3D + optional StaticBody3D with a shape per instance; internal children. |
+| `TerrainSplineLake` | SplineComponent | — | Flat water sheet inside a closed parent spline: rim resampled every `segment_length`, grown by `shore_offset` (tuck under the bank), level = mean spline Y + `level_offset` or absolute `water_level`, interior grid + Delaunay (no long slivers), UVs in world XZ / `texture_scale`. Area3D (group "water", `get_water_area()`) of two sheets `depth` apart. Same toon water material as the road water preset (bank foam off). Pair with a fill-interior Replace deformer for the basin. Internal children only. |
+| `TerrainSplinePainter` | SplineComponent | — | Paints a Terrain3D texture id into the control map along the parent spline's corridor, inside the chunk job: `SHAPE_FROM_DEFORMER` reuses the sibling deformer's exact footprint (road shoulders, river banks, lake beds), `SHAPE_CUSTOM` has its own width / falloff / curve / interior fill; `strength` and an optional `paint_curve` remap the weight. Stacks over earlier paint by keeping the dominant texture as the other layer; clears the autoshader bit where it paints. Heights untouched. |
+| `RaceTrack` (src/racing) | SplineComponent | — | Race course on the parent spline: checkpoint gates (Area3D boxes every `checkpoint_spacing`, banked with the spline, gate 0 = start / finish), per-body progress in gate order, laps and `race_finished`, wrong-way detection, fall-off (`kill_depth`) with respawn onto the last gate. Signals only — HUD, audio and AI subscribe. Not a terrain component; listed here because it is a spline component like the others. |
 | `TerrainSplineStreamMap` | Control | — | Live top-down debug map of streaming state around the player: resident chunks with real heights, physics-live chunks, queued / generating chunks, recent evictions, render & physics radii, spline bounds, player and camera headings. Reads `StreamSnapshot` from the compositor every `refresh_interval`. |
 | `TerrainSplineCompositorUI`, `GrayscaleJob` | TextureRect / data | — | Debug preview: one unified heightmap over the `ProceduralSpline3D` children of `splines_root` (default: itself), shown as normalized grayscale; refreshes on `spline_changed`. Works in the editor and in-game (`toggle_key`). |
 
@@ -329,6 +332,23 @@ parent spline_changed / property set → queue_rebuild → (deferred) rebuild
                      open sections of closed profiles get triangulated caps → ArrayMesh → trimesh collision
 ```
 
+TERRAIN mode: `_terrain_profile` asks the sibling HEIGHT_TERRAIN deformer for `bake_road_profile(
+compositor->make_profile_context(), spline)` — a 1×1 TerrainHeightmap carrying default elevation, noise
+and every spline-height deformer, so `_create_deformer_job` runs the exact chunk-time
+`_bake_terrain_profile` (smoothing, earthwork, caps, blur) and returns the profile as world points along
+the spline; `_apply_terrain_heights` interpolates it by arc length onto the stations, lifts by
+`surface_offset` and flattens the frame upright. Measured on `RoadSpline2/GroundRoad`: deck vertices sit
++0.07 m (−0.06..+0.11) above the Terrain3D heights with offset 0.08 — the spread is the heightmap's
+bilinear interpolation versus the 1-D profile, hence the 0.15 m default offset.
+
+River recipe (demo `RiverSpline`): a `TerrainSplineDeformer` with `height_source = Terrain`,
+`blend_mode = Subtract`, `max_height` = bed depth, cut-only earthwork (the bed follows the ground and
+never fills), plus a `TerrainSplineRoad` `PROFILE_WATER` in `height_source = Terrain` with a negative
+`surface_offset` (water level below the bank profile). Both read the same baked profile, so the water
+sits in the trench by construction. The water material is created in code (`make_toon_water_material()`, tr_water.cpp, shared with the lake):
+quantized two-tone stripes scrolled along UV.y by `speed`, thin foam lines, bank foam from the lateral
+position, a small vertex bob.
+
 Demo: `TrackSpline` — a 12-point banked loop (tilts on the corners) undulating over both mesas with one
 `TerrainSplineRoad` (`Road`). For a jump, use two roads on the same spline with a gap between their
 section windows (e.g. 0–360 m and 378 m–end).
@@ -350,6 +370,75 @@ parent spline_changed / property set → queue_rebuild → (deferred) rebuild
 
 Demo: `TrackSpline/Pillars` (cylinders stretched from the ground to the deck every 28 m) and
 `TrackSpline/Posts` (boxes on both rails every 12 m, following the banking).
+
+Bridge recipe (demo `BridgeSpline`): a 3-point spline across the river at bank height with the middle
+point raised a little (gentle arch), `TerrainSplineRoad` slab + rails in `HEIGHT_SPLINE` (terrain
+independent — the deck spans the trench), `TerrainSplineArray` pillars with `stretch_to_ground`
+(`start_offset` / `spacing` chosen so no pillar lands on the bank edge) and rail posts on both sides.
+No deformer: the river bed is untouched and the array reads the streamed heights.
+
+### Flow 4f — lake (tr_lake.cpp; independent of the compositor)
+
+```
+parent spline_changed / property set → queue_rebuild → (deferred) rebuild
+└─ _rim_points   closed curve sampled every segment_length → XZ polygon, offset outward by shore_offset
+                 (winding auto-detected); level = mean of the spline's Y + level_offset, or water_level
+   _build_mesh   rim + interior grid (resolution) → Delaunay → drop triangles whose centroid is outside
+                 the polygon → flat sheet at level, UV = XZ / texture_scale, vertex colour = water_color
+   → MeshInstance3D + Area3D (group "water") with a box from level−depth to level
+```
+
+Lake recipe (demo `LakeSpline`): a closed 9-point spline with a `TerrainSplineDeformer`
+(`height_source = Terrain`, `blend_mode = Replace`, `fill_interior`, `max_height` = −basin depth,
+falloff = bank width) that sinks the basin, and a `TerrainSplineLake` (`level_offset` a little below the
+rim, `depth` ≥ basin depth, `shore_offset` = falloff so the sheet reaches under the sloping bank).
+
+### Flow 4g — painter (tr_painter.cpp, tr_deformer_weights.cpp; inside the chunk job)
+
+```
+_make_chunk_job (main)   painter->prepare(): sync the private shape deformer (CUSTOM), bake paint_curve
+_run_chunk_job_math      after the deformers, per spline, per painter:
+└─ paint_prepared        field owner = sibling deformer (FROM_DEFORMER) or the private one (CUSTOM)
+   ├─ compute_weight_field   DeformerJob without a heightmap → distance field (Flow 4 steps 1-6) →
+   │                         _falloff_weight per pixel of the active tiles: the corridor as 0..1 weights
+   └─ per pixel w>0: w = paint_curve(w) · strength → paint_control(old, texture_id, w)
+                     w ≥ ½: base = id, overlay = old dominant, blend = 255·(1−w)
+                     w < ½: base = old dominant, overlay = id, blend = 255·w      (autoshader bit off)
+   job->control (chunk_size² uint32, CONTROL_DEFAULT = autoshader on where nothing painted)
+_finalize_chunk_job      control words → Image FORMAT_RF (bits as float) → maps[1] of the region
+```
+
+Terrain3D 1.0 control word: base id bits 27..31, overlay id 22..26, blend 14..21, uv rotation 10..13,
+uv scale 7..9, hole 2, navigation 1, autoshader 0. Only Terrain3D's own material reads texture slots;
+the demo's `stripe_toon_cheap.gdshader` decodes the same word (`control_color`, bilinear over the four
+texels it already fetches for normals) into flat `paint_color_1..4` uniforms — id 0 / autoshader keeps
+the procedural colour. Cost: one extra distance field per painter per chunk (same as a deformer).
+
+Demo: `RoadSpline2/Shoulders` (id 1, dirt, the cut-only bed's footprint), `RiverSpline/Banks` and
+`LakeSpline/Beach` (id 2, sand, the bed footprints: the band fades out over the deformer's falloff).
+
+### Flow 4h — race track (src/racing/race_track*.cpp; independent of the compositor)
+
+```
+parent spline_changed / property set → queue_rebuild → (deferred) rebuild
+└─ _gate_frames   every checkpoint_spacing m from the spline start (closed loop: none in the last half
+                  spacing): origin on the curve, +Z = travel direction (central difference), Y = banked up
+   _make_gate_nodes  Area3D (box gate_width × gate_height × gate_depth, mask body_mask) per gate; with
+                  show_gates a translucent box (white = start). Internal children.
+body_entered(gate i)   unknown body: enrolled only at gate 0. Known body: _advance —
+                  i == next → next = i+1; gate 0 closes a lap (lap_completed, race_finished at `laps`);
+                  any other gate is ignored (skipping / reversing never advances)
+_physics_process  per tracked body: _watch_body —
+                  y < last gate − kill_depth → fell_off (+ respawn when auto_respawn)
+                  velocity vs (prev gate → next gate) direction beyond wrong_way_angle for
+                  wrong_way_time at ≥ wrong_way_min_speed → wrong_way(true) … wrong_way(false)
+respawn(body)     upright frame respawn_back m before the last passed gate, respawn_height above the
+                  deck, facing along the track; RigidBody3D velocities cleared; respawned
+```
+
+Queries for HUD / AI: `get_progress` (0..1 of the lap, gates passed + fraction to the next),
+`get_lap`, `get_next_checkpoint`, `get_race_time_msec`, `get_checkpoint_transform`, `track_body`
+(grid start without crossing the line). Demo: `TrackSpline/Race`, 9 gates on the banked loop.
 
 ### Flow 5a — eviction and discovery (tr_compositor_eviction.cpp, every 0.5 s)
 
@@ -449,6 +538,10 @@ code outside the module (register_types.cpp); inside the module include the spec
 | `tr_road_mesh.cpp`               | stations (fixed / adaptive, section window, loop), sweep + stitch, UVs, caps              |
 | `tr_array.h/.cpp`                | `TerrainSplineArray` — bindings, rebuild scheduling, MultiMesh + collision children         |
 | `tr_array_place.cpp`             | stations → instance transforms (sides, orientation, jitter, stretch to ground)             |
+| `tr_deformer_weights.cpp`        | `compute_weight_field` — the corridor footprint as a 0..1 grid, no heights (painter)      |
+| `tr_painter.h/.cpp`              | `TerrainSplinePainter` — bindings, private shape deformer, control-word paint            |
+| `tr_lake.h/.cpp`                 | `TerrainSplineLake` — bindings, rim polygon, Delaunay water sheet, Area3D                  |
+| `tr_water.h/.cpp`                | `make_toon_water_material()` — shared scrolling toon water shader (road water preset, lake) |
 | `tr_compositor_snapshot.cpp`     | `StreamSnapshot` filling, eviction log, thumbnail switch (debug map support)          |
 | `tr_stream_map.h/.cpp`           | `TerrainSplineStreamMap` — live streaming debug map                                    |
 | `tr_compositor_ui.h/.cpp`        | `TerrainSplineCompositorUI`, `GrayscaleJob` — debug preview               |

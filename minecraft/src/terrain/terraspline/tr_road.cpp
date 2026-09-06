@@ -3,6 +3,7 @@
  * @brief TerrainSplineRoad: bindings, properties, rebuild scheduling and the internal nodes.
  */
 #include "tr_road.h"
+#include "tr_water.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/concave_polygon_shape3d.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
@@ -18,7 +19,7 @@ namespace godot {
 
 void TerrainSplineRoad::_bind_methods() {
 	ADD_GROUP("Cross Section", "");
-	TR_ROAD_BIND(INT, profile, PROPERTY_HINT_ENUM, "Slab,Slab with rails,Half pipe,Custom (cross_section)");
+	TR_ROAD_BIND(INT, profile, PROPERTY_HINT_ENUM, "Slab,Slab with rails,Half pipe,Custom (cross_section),Water");
 	TR_ROAD_BIND(FLOAT, width, PROPERTY_HINT_RANGE, "0.2,100,0.1,suffix:m");
 	TR_ROAD_BIND(FLOAT, thickness, PROPERTY_HINT_RANGE, "0.02,10,0.02,suffix:m");
 	TR_ROAD_BIND(FLOAT, edge_radius, PROPERTY_HINT_RANGE, "0,3,0.01,suffix:m");
@@ -40,6 +41,7 @@ void TerrainSplineRoad::_bind_methods() {
 	TR_ROAD_BIND(FLOAT, section_start, PROPERTY_HINT_RANGE, "0,100000,0.5,suffix:m");
 	TR_ROAD_BIND(FLOAT, section_end, PROPERTY_HINT_RANGE, "0,100000,0.5,suffix:m");
 	TR_ROAD_BIND(BOOL, cap_ends, PROPERTY_HINT_NONE, "");
+	TR_ROAD_BIND(FLOAT, surface_offset, PROPERTY_HINT_RANGE, "-5,5,0.01,suffix:m");
 
 	ADD_GROUP("Look", "");
 	TR_ROAD_BIND(FLOAT, texture_length, PROPERTY_HINT_RANGE, "0.1,200,0.1,suffix:m");
@@ -51,16 +53,21 @@ void TerrainSplineRoad::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_material"), &TerrainSplineRoad::get_material);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_material", "get_material");
 	TR_ROAD_BIND(BOOL, collision_enabled, PROPERTY_HINT_NONE, "");
+	ADD_GROUP("Water", "water_");
+	TR_ROAD_BIND(FLOAT, water_speed, PROPERTY_HINT_RANGE, "-10,10,0.05,suffix:m/s");
+	TR_ROAD_BIND(FLOAT, water_alpha, PROPERTY_HINT_RANGE, "0,1,0.01");
 
 	BIND_ENUM_CONSTANT(PROFILE_SLAB);
 	BIND_ENUM_CONSTANT(PROFILE_SLAB_RAILS);
 	BIND_ENUM_CONSTANT(PROFILE_HALF_PIPE);
 	BIND_ENUM_CONSTANT(PROFILE_CUSTOM);
+	BIND_ENUM_CONSTANT(PROFILE_WATER);
 	BIND_ENUM_CONSTANT(SAMPLING_FIXED);
 	BIND_ENUM_CONSTANT(SAMPLING_ADAPTIVE);
 	BIND_ENUM_CONSTANT(HEIGHT_SPLINE);
 	BIND_ENUM_CONSTANT(HEIGHT_TERRAIN);
 
+	ClassDB::bind_method(D_METHOD("get_water_area"), &TerrainSplineRoad::get_water_area);
 	ClassDB::bind_method(D_METHOD("rebuild"), &TerrainSplineRoad::rebuild);
 	ClassDB::bind_method(D_METHOD("queue_rebuild"), &TerrainSplineRoad::queue_rebuild);
 	ClassDB::bind_method(D_METHOD("_on_spline_changed"), &TerrainSplineRoad::_on_spline_changed);
@@ -164,13 +171,23 @@ void TerrainSplineRoad::_ensure_nodes() {
 	}
 }
 
-/// `material` if set, else a shared vertex-colour StandardMaterial3D.
+/// `material` if set; else the water shader for WATER, else a shared vertex-colour StandardMaterial3D.
 void TerrainSplineRoad::_apply_material() {
 	if (!mesh_instance) {
 		return;
 	}
 	if (material.is_valid()) {
 		mesh_instance->set_material_override(material);
+		return;
+	}
+	if (profile == PROFILE_WATER) {
+		if (_water_material.is_null()) {
+			_water_material = make_toon_water_material();
+		}
+		_water_material->set_shader_parameter("speed", water_speed);
+		_water_material->set_shader_parameter("alpha", water_alpha);
+		_water_material->set_shader_parameter("foam_color", edge_color);
+		mesh_instance->set_material_override(_water_material);
 		return;
 	}
 	if (_fallback_material.is_null()) {
@@ -184,8 +201,32 @@ void TerrainSplineRoad::_apply_material() {
 	mesh_instance->set_material_override(_fallback_material);
 }
 
+/// WATER: an Area3D (group "water") over the water volume so gameplay can react to entering it.
+void TerrainSplineRoad::_update_water_area(const Ref<ArrayMesh> &p_mesh) {
+	const bool want = profile == PROFILE_WATER && p_mesh.is_valid() && p_mesh->get_surface_count() > 0;
+	if (!want) {
+		if (water_area) {
+			water_area->queue_free();
+			water_area = nullptr;
+			water_shape = nullptr;
+		}
+		return;
+	}
+	if (!water_area) {
+		water_area = memnew(Area3D);
+		water_area->set_name("WaterArea");
+		water_area->add_to_group("water");
+		add_child(water_area, false, INTERNAL_MODE_BACK);
+		water_shape = memnew(CollisionShape3D);
+		water_shape->set_name("WaterShape");
+		water_area->add_child(water_shape, false, INTERNAL_MODE_BACK);
+	}
+	water_shape->set_shape(p_mesh->create_trimesh_shape());
+}
+
 void TerrainSplineRoad::_update_collision(const Ref<ArrayMesh> &p_mesh) {
-	const bool want = collision_enabled && p_mesh.is_valid() && p_mesh->get_surface_count() > 0;
+	const bool want =
+			collision_enabled && profile != PROFILE_WATER && p_mesh.is_valid() && p_mesh->get_surface_count() > 0;
 	if (!want) {
 		if (static_body) {
 			static_body->queue_free();
@@ -227,6 +268,7 @@ void TerrainSplineRoad::rebuild() {
 	mesh_instance->set_mesh(mesh);
 	_apply_material();
 	_update_collision(mesh);
+	_update_water_area(mesh);
 }
 
 } // namespace godot

@@ -6,10 +6,12 @@
 #define TR_ROAD_H
 
 #include "utils/spline3d/procedural_spline3d.h"
+#include <godot_cpp/classes/area3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/curve2d.hpp>
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/classes/static_body3d.hpp>
 #include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/packed_color_array.hpp>
@@ -26,9 +28,14 @@ namespace godot {
  * rails, a half-pipe, or a custom Curve2D) along its parent ProceduralSpline3D and builds one
  * flat-shaded, vertex-coloured mesh with an underside and end caps - a self-contained track that can
  * float in the air, loop and bank (the spline's tilt), with trimesh collision to drive on.
+ * The WATER profile turns the same sweep into a river / canal surface: `thickness` is the water depth,
+ * the volume is an Area3D (group "water", `get_water_area()`) rather than a body, and the default
+ * material is a built-in scrolling toon water shader (`water_speed`, `water_alpha`, deck/edge colours).
  *
  * `height_source`: SPLINE (default) - the spline's Y and tilt ARE the road surface; nothing else moves
- * it. TERRAIN (planned) - heights from the terrain profile a sibling deformer bakes.
+ * it. TERRAIN - heights from the road profile a sibling HEIGHT_TERRAIN TerrainSplineDeformer bakes
+ * (same smoothing, grade, caps and blur), so the mesh lies on the shaped roadbed; frames are upright
+ * (no banking) and lifted by `surface_offset`. Needs the spline under a TerrainSplineCompositor.
  *
  * A long spline can be split into sections with `section_start` / `section_end` (arc length), each
  * with its own profile - or a gap between two sections for a jump. Nothing generated is saved: the
@@ -44,7 +51,13 @@ class TerrainSplineRoad : public SplineComponent {
 			SplineComponent)
 
 public:
-	enum Profile { PROFILE_SLAB = 0, PROFILE_SLAB_RAILS = 1, PROFILE_HALF_PIPE = 2, PROFILE_CUSTOM = 3 };
+	enum Profile {
+		PROFILE_SLAB = 0,
+		PROFILE_SLAB_RAILS = 1,
+		PROFILE_HALF_PIPE = 2,
+		PROFILE_CUSTOM = 3,
+		PROFILE_WATER = 4 // Flat surface + depth; Area3D instead of a body; scrolling toon water material
+	};
 	enum Sampling { SAMPLING_FIXED = 0, SAMPLING_ADAPTIVE = 1 };
 	enum HeightSource { HEIGHT_SPLINE = 0, HEIGHT_TERRAIN = 1 };
 	/// Which part of the cross-section a polygon edge belongs to; picks its vertex colour.
@@ -79,6 +92,8 @@ private:
 	float section_start = 0.0f; // Arc length; 0..0 = whole spline
 	float section_end = 0.0f;
 	bool cap_ends = true;
+	float surface_offset =
+			0.15f; // TERRAIN: lift above the roadbed (heightmap interpolation differs from the profile by ~0.1 m)
 
 	// ---- Look ----
 	float texture_length = 10.0f; // Metres of track per V repeat
@@ -88,12 +103,17 @@ private:
 	Color underside_color = Color(0.28f, 0.3f, 0.34f);
 	Ref<Material> material;
 	bool collision_enabled = true;
+	float water_speed = 0.6f; // WATER: flow along the spline, metres per second (texture space)
+	float water_alpha = 0.85f;
 
 	// ---- Internals ----
 	MeshInstance3D *mesh_instance = nullptr;
 	StaticBody3D *static_body = nullptr;
 	CollisionShape3D *collision_shape = nullptr;
+	Area3D *water_area = nullptr;
+	CollisionShape3D *water_shape = nullptr;
 	Ref<Material> _fallback_material;
+	Ref<ShaderMaterial> _water_material;
 	bool _rebuild_queued = false;
 	ProceduralSpline3D *_watched_spline = nullptr;
 
@@ -103,6 +123,7 @@ private:
 	void _ensure_nodes();
 	void _apply_material();
 	void _update_collision(const Ref<ArrayMesh> &p_mesh);
+	void _update_water_area(const Ref<ArrayMesh> &p_mesh);
 
 	// tr_road_profile.cpp
 	void _build_profile(
@@ -112,6 +133,12 @@ private:
 	Color _region_color(int p_region) const;
 
 	// tr_road_mesh.cpp
+	bool _terrain_profile(std::vector<Vector3> &r_points) const;
+	void _apply_terrain_heights(
+			std::vector<Transform3D> &r_stations,
+			const std::vector<float> &p_distances,
+			const std::vector<Vector3> &p_profile
+	) const;
 	bool _build_stations(
 			std::vector<Transform3D> &r_stations,
 			std::vector<float> &r_distances,
@@ -165,12 +192,15 @@ public:
 	TR_ROAD_PROP(float, section_start, MAX(0.0f, p_value))
 	TR_ROAD_PROP(float, section_end, MAX(0.0f, p_value))
 	TR_ROAD_PROP(bool, cap_ends, p_value)
+	TR_ROAD_PROP(float, surface_offset, p_value)
 	TR_ROAD_PROP(float, texture_length, MAX(0.1f, p_value))
 	TR_ROAD_PROP(Color, deck_color, p_value)
 	TR_ROAD_PROP(Color, edge_color, p_value)
 	TR_ROAD_PROP(Color, rail_color, p_value)
 	TR_ROAD_PROP(Color, underside_color, p_value)
 	TR_ROAD_PROP(bool, collision_enabled, p_value)
+	TR_ROAD_PROP(float, water_speed, p_value)
+	TR_ROAD_PROP(float, water_alpha, CLAMP(p_value, 0.0f, 1.0f))
 #undef TR_ROAD_PROP
 	// clang-format on
 
@@ -178,6 +208,8 @@ public:
 	Ref<Curve2D> get_cross_section() const { return cross_section; }
 	void set_material(const Ref<Material> &p_material);
 	Ref<Material> get_material() const { return material; }
+	/// WATER profile: the overlap volume (group "water"); null for other profiles.
+	Area3D *get_water_area() const { return water_area; }
 };
 
 } // namespace godot

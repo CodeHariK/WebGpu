@@ -322,4 +322,23 @@ void TerrainSplineDeformer::_bake_terrain_profile(
 	}
 }
 
+bool TerrainSplineDeformer::bake_road_profile(
+		const Ref<TerrainHeightmap> &p_heightmap,
+		ProceduralSpline3D *p_spline,
+		std::vector<Vector3> &r_points
+) {
+	r_points.clear();
+	if (p_heightmap.is_null() || !p_spline || height_source != HEIGHT_TERRAIN) {
+		return false;
+	}
+	p_spline->ensure_baked_cache();
+	Ref<DeformerJob> job = _create_deformer_job(p_heightmap, p_spline, Vector2()); // Bakes the profile
+	const size_t n = job->vert_x.size();
+	r_points.resize(n);
+	for (size_t i = 0; i < n; ++i) {
+		r_points[i] = Vector3(job->vert_x[i], job->vert_y[i], job->vert_z[i]);
+	}
+	return n >= 2;
+}
+
 } // namespace godot

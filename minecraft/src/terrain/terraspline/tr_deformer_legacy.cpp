@@ -69,6 +69,26 @@ static void copy_spline_geometry(
 	}
 }
 
+/// Captures the corridor shape (falloff curves, interior fill) and the spline's baked geometry into a
+/// job: everything the distance field and the falloff weight need, nothing about heights.
+void TerrainSplineDeformer::_fill_job_shape(
+		Ref<DeformerJob> &p_job,
+		ProceduralSpline3D *p_spline
+) const {
+	p_job->spline = p_spline;
+	p_job->deformer = const_cast<TerrainSplineDeformer *>(this);
+	p_job->has_curve = falloff_curve.is_valid();
+	if (p_job->has_curve) {
+		bake_curve(falloff_curve, p_job->baked_curve);
+	}
+	p_job->has_inner_curve = inner_falloff_curve.is_valid();
+	if (p_job->has_inner_curve) {
+		bake_curve(inner_falloff_curve, p_job->baked_inner_curve);
+	}
+	p_job->fill_interior = fill_interior;
+	copy_spline_geometry(p_spline, p_job);
+}
+
 /// Captures this deformer's settings and the spline's baked geometry into a job.
 Ref<DeformerJob> TerrainSplineDeformer::_create_deformer_job(
 		const Ref<TerrainHeightmap> &p_heightmap,
@@ -84,17 +104,7 @@ Ref<DeformerJob> TerrainSplineDeformer::_create_deformer_job(
 	job->data_ptr = p_heightmap->get_data_ptrw();
 	job->base_elevation = p_heightmap->get_base_elevation();
 
-	job->has_curve = falloff_curve.is_valid();
-	if (job->has_curve) {
-		bake_curve(falloff_curve, job->baked_curve);
-	}
-	job->has_inner_curve = inner_falloff_curve.is_valid();
-	if (job->has_inner_curve) {
-		bake_curve(inner_falloff_curve, job->baked_inner_curve);
-	}
-	job->fill_interior = fill_interior;
-
-	copy_spline_geometry(p_spline, job);
+	_fill_job_shape(job, p_spline);
 	if (height_source == HEIGHT_TERRAIN) {
 		_bake_terrain_profile(job, p_heightmap); // Replaces the spline's Y arrays with the ground profile
 	}

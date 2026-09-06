@@ -20,6 +20,15 @@ uniform float botw_snow_blend : hint_range(0.1, 50.0) = 10.0;
 uniform float botw_stripe_frequency : hint_range(0.01, 5.0) = 0.5;
 uniform float botw_stripe_darkness : hint_range(0.0, 1.0) = 0.2;
 group_uniforms; // Ends the grouping
+
+// Painted corridors (TerrainSplinePainter writes texture ids into the control map). Id 0 / autoshader
+// pixels keep the procedural colour above; ids 1..4 take these flat colours.
+group_uniforms Painted_Corridors;
+uniform vec3 paint_color_1 : source_color = vec3(0.55, 0.40, 0.25); // dirt
+uniform vec3 paint_color_2 : source_color = vec3(0.90, 0.80, 0.55); // sand
+uniform vec3 paint_color_3 : source_color = vec3(0.36, 0.34, 0.36); // dark rock
+uniform vec3 paint_color_4 : source_color = vec3(0.30, 0.62, 0.30); // meadow
+group_uniforms;
 // ==============================================================
 
 // Defined Constants
@@ -125,6 +134,27 @@ void vertex() {
 // Fragment
 ////////////////////////
 
+vec3 paint_color(uint id, vec3 procedural) {
+	switch (id) {
+		case 1u: return paint_color_1;
+		case 2u: return paint_color_2;
+		case 3u: return paint_color_3;
+		case 4u: return paint_color_4;
+		default: return procedural;
+	}
+}
+
+// Colour of one control texel: procedural where the autoshader bit is set, else base→overlay by blend.
+vec3 control_color(uint c, vec3 procedural) {
+	if ((c & 1u) != 0u) {
+		return procedural;
+	}
+	uint base = (c >> 27u) & 0x1Fu;
+	uint over = (c >> 22u) & 0x1Fu;
+	float blend = float((c >> 14u) & 0xFFu) * (1.0 / 255.0);
+	return mix(paint_color(base, procedural), paint_color(over, procedural), blend);
+}
+
 void fragment() {
 	// ==============================================================
 	// SMOOTH NORMALS (Bilinear Interpolation)
@@ -212,6 +242,19 @@ void fragment() {
 	// Altitude (Snow Peaks)
 	surface_color = mix(surface_color, botw_color_snow, smoothstep(botw_snow_height, botw_snow_height + botw_snow_blend, world_pos.y));
 	
+	// Painted corridors: bilinear over the same 4 texels as the normals
+	if (region_uv.z > -1.) {
+		uint c0 = floatBitsToUint(texelFetch(_control_maps, index[0], 0).r);
+		uint c1 = floatBitsToUint(texelFetch(_control_maps, index[1], 0).r);
+		uint c2 = floatBitsToUint(texelFetch(_control_maps, index[2], 0).r);
+		uint c3 = floatBitsToUint(texelFetch(_control_maps, index[3], 0).r);
+		surface_color =
+			control_color(c0, surface_color) * weights[0] +
+			control_color(c1, surface_color) * weights[1] +
+			control_color(c2, surface_color) * weights[2] +
+			control_color(c3, surface_color) * weights[3];
+	}
+
 	// Topography Stripes (Strata)
 	float stripe = fract(world_pos.y * botw_stripe_frequency);
 	surface_color = mix(surface_color, surface_color * (1.0 - botw_stripe_darkness), step(stripe, 0.15));

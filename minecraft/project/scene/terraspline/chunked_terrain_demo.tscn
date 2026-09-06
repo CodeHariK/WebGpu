@@ -124,33 +124,35 @@ rings = 1
 [sub_resource type="BoxMesh" id="BoxMesh_post"]
 size = Vector3(0.4, 1.6, 0.4)
 
-[sub_resource type="Gradient" id="Gradient_1prlf"]
-offsets = PackedFloat32Array(0.2, 1)
-colors = PackedColorArray(1, 1, 1, 1, 0, 0, 0, 1)
+[sub_resource type="Curve3D" id="Curve3D_river"]
+bake_interval = 4.0
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, -190, 0, 0, 0, 0, 0, 0, 0, 0, -136, 0, 23.5, 0, 0, 0, 0, 0, 0, -82, 0, 29.2, 0, 0, 0, 0, 0, 0, -28, 0, 12.8, 0, 0, 0, 0, 0, 0, 26, 0, -13.3, 0, 0, 0, 0, 0, 0, 80, 0, -29.3, 0, 0, 0, 0, 0, 0, 134, 0, -23.2, 0, 0, 0, 0, 0, 0, 188, 0, 0.5),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0)
+}
+point_count = 8
 
-[sub_resource type="FastNoiseLite" id="FastNoiseLite_dju1v"]
-noise_type = 2
-frequency = 0.03
-cellular_jitter = 3.0
-cellular_return_type = 0
-domain_warp_enabled = true
-domain_warp_type = 1
-domain_warp_amplitude = 50.0
-domain_warp_fractal_type = 2
-domain_warp_fractal_lacunarity = 1.5
-domain_warp_fractal_gain = 1.0
+[sub_resource type="Curve3D" id="Curve3D_bridge"]
+bake_interval = 4.0
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -68, 0, 0, 0, 0, 0, 0, 0, 2.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 68),
+"tilts": PackedFloat32Array(0, 0, 0)
+}
+point_count = 3
 
-[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_n02w8"]
-noise = SubResource("FastNoiseLite_dju1v")
-color_ramp = SubResource("Gradient_1prlf")
-seamless = true
+[sub_resource type="Curve3D" id="Curve3D_lake"]
+closed = true
+bake_interval = 4.0
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 54.1, 0, 0, 0, 0, 0, 0, 0, 0, 39.6, 0, 22.1, 0, 0, 0, 0, 0, 0, 7.2, 0, 27.4, 0, 0, 0, 0, 0, 0, -22.4, 0, 25.8, 0, 0, 0, 0, 0, 0, -51.3, 0, 12.4, 0, 0, 0, 0, 0, 0, -47.7, 0, -11.6, 0, 0, 0, 0, 0, 0, -20.6, 0, -23.8, 0, 0, 0, 0, 0, 0, 7.9, 0, -30, 0, 0, 0, 0, 0, 0, 42.1, 0, -23.5),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0)
+}
+point_count = 9
 
 [sub_resource type="Terrain3DMaterial" id="Terrain3DMaterial_dju1v"]
 _shader_parameters = {
 &"": null,
 &"Stylized_Terrain": null,
-&"bias_distance": null,
-&"blend_sharpness": null,
 &"botw_biome_scale": null,
 &"botw_color_grass": Color(0.70620126, 0.25488338, 0.76346993, 1),
 &"botw_color_rock": Color(0.4988286, 0.51709795, 0.85904384, 1),
@@ -161,22 +163,9 @@ _shader_parameters = {
 &"botw_snow_blend": null,
 &"botw_snow_height": null,
 &"botw_stripe_darkness": null,
-&"botw_stripe_frequency": null,
-&"depth_blur": null,
-&"enable_macro_variation": null,
-&"enable_projection": null,
-&"flat_terrain_normals": null,
-&"macro_variation1": null,
-&"macro_variation2": null,
-&"macro_variation_slope": null,
-&"mipmap_bias": null,
-&"noise1_angle": null,
-&"noise1_offset": null,
-&"noise1_scale": null,
-&"noise2_scale": null,
-&"noise_texture": SubResource("NoiseTexture2D_n02w8"),
-&"projection_threshold": null
+&"botw_stripe_frequency": null
 }
+shader_override_enabled = true
 shader_override = ExtResource("2_m505t")
 show_region_grid = true
 
@@ -337,6 +326,17 @@ road_blur = 85.5
 fill_interior = false
 transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0, 0, 0)
 
+[node name="Shoulders" type="TerrainSplinePainter" parent="SplineManager/RoadSpline2" unique_id=1723548900]
+texture_id = 1
+
+[node name="GroundRoad" type="TerrainSplineRoad" parent="SplineManager/RoadSpline2" unique_id=1723548860]
+thickness = 0.3
+edge_radius = 0.1
+height_source = 1
+surface_offset = 0.2
+deck_color = Color(0.32, 0.33, 0.36, 1)
+edge_color = Color(0.95, 0.9, 0.8, 1)
+
 [node name="CliffSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=1723548830]
 interpolation_mode = 0
 bake_interval = 4.0
@@ -407,6 +407,11 @@ thickness = 0.8
 rail_height = 0.9
 rail_width = 0.5
 
+[node name="Race" type="RaceTrack" parent="SplineManager/TrackSpline" unique_id=1723548895]
+checkpoint_spacing = 80.0
+gate_width = 26.0
+show_gates = true
+
 [node name="Pillars" type="TerrainSplineArray" parent="SplineManager/TrackSpline" unique_id=1723548853]
 mesh = SubResource("CylinderMesh_pillar")
 mesh_centered = true
@@ -422,6 +427,89 @@ spacing = 12.0
 side = 3
 lateral_offset = 5.25
 follow_tilt = true
+
+[node name="RiverSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=1723548870]
+interpolation_mode = 0
+bake_interval = 4.0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 40, 460)
+curve = SubResource("Curve3D_river")
+
+[node name="Bed" type="TerrainSplineDeformer" parent="SplineManager/RiverSpline" unique_id=1723548871]
+max_height = 16.89
+spline_width = 9.99
+falloff_distance = 33.18
+blend_mode = 1
+height_source = 1
+max_grade = 4.0
+earthwork = 1
+road_blur = 20.0
+fill_interior = false
+
+[node name="Banks" type="TerrainSplinePainter" parent="SplineManager/RiverSpline" unique_id=1723548901]
+texture_id = 2
+
+[node name="Water" type="TerrainSplineRoad" parent="SplineManager/RiverSpline" unique_id=1723548872]
+profile = 4
+width = 75.2
+thickness = 1.8
+height_source = 1
+surface_offset = -0.9
+deck_color = Color(0.25, 0.55, 0.85, 1)
+edge_color = Color(0.95, 0.98, 1, 1)
+underside_color = Color(0.2, 0.4, 0.6, 1)
+water_speed = 0.8
+
+[node name="LakeSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=1723548880]
+interpolation_mode = 0
+bake_interval = 4.0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -230, 40, 380)
+curve = SubResource("Curve3D_lake")
+
+[node name="Bed" type="TerrainSplineDeformer" parent="SplineManager/LakeSpline" unique_id=1723548881]
+max_height = -3.0
+spline_width = 1.0
+falloff_distance = 10.0
+blend_mode = 4
+
+[node name="Beach" type="TerrainSplinePainter" parent="SplineManager/LakeSpline" unique_id=1723548902]
+texture_id = 2
+
+[node name="Lake" type="TerrainSplineLake" parent="SplineManager/LakeSpline" unique_id=1723548882]
+level_offset = -0.4
+depth = 2.6
+shore_offset = 8.0
+water_color = Color(0.22, 0.5, 0.82, 1)
+
+[node name="BridgeSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=1723548890]
+interpolation_mode = 0
+bake_interval = 4.0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 41.2, 460)
+curve = SubResource("Curve3D_bridge")
+
+[node name="Deck" type="TerrainSplineRoad" parent="SplineManager/BridgeSpline" unique_id=1723548891]
+profile = 1
+width = 10.0
+thickness = 1.0
+rail_height = 1.0
+rail_width = 0.4
+deck_color = Color(0.55, 0.36, 0.2, 1)
+edge_color = Color(0.85, 0.8, 0.7, 1)
+underside_color = Color(0.4, 0.26, 0.14, 1)
+
+[node name="Pillars" type="TerrainSplineArray" parent="SplineManager/BridgeSpline" unique_id=1723548892]
+mesh = SubResource("CylinderMesh_pillar")
+mesh_centered = true
+spacing = 28.0
+start_offset = 12.0
+vertical_offset = -1.0
+stretch_to_ground = true
+
+[node name="Posts" type="TerrainSplineArray" parent="SplineManager/BridgeSpline" unique_id=1723548893]
+mesh = SubResource("BoxMesh_post")
+mesh_centered = true
+spacing = 8.0
+side = 3
+lateral_offset = 4.6
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=61110530]
 material = SubResource("Terrain3DMaterial_dju1v")

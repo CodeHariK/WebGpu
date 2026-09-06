@@ -8,7 +8,9 @@
  */
 #include "tr_compositor.h"
 #include "tr_deformer.h"
+#include "tr_painter.h"
 #include "tr_scatter.h"
+#include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/classes/worker_thread_pool.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -77,6 +79,9 @@ Ref<ChunkJob> TerrainSplineCompositor::_make_chunk_job(
 				entry.deformers.push_back(d);
 			} else if (TerrainSplineScatter *sc = Object::cast_to<TerrainSplineScatter>(child)) {
 				entry.scatterers.push_back(sc);
+			} else if (TerrainSplinePainter *pt = Object::cast_to<TerrainSplinePainter>(child)) {
+				pt->prepare(); // Main thread: syncs its private shape, bakes curves
+				entry.painters.push_back(pt);
 			}
 		}
 		job->splines.push_back(entry);
@@ -173,6 +178,14 @@ void TerrainSplineCompositor::_run_chunk_job_math(
 			}
 		}
 	}
+	// 2b. Painters: texture ids into the control map along each corridor (heights untouched).
+	p_job->control.clear();
+	for (const ChunkJob::SplineEntry &entry : p_job->splines) {
+		TerrainSplineDeformer *sibling = entry.deformers.empty() ? nullptr : entry.deformers[0];
+		for (TerrainSplinePainter *pt : entry.painters) {
+			pt->paint_prepared(p_job->control, entry.spline, p_job->offset, cs, entry.padded_aabb, sibling);
+		}
+	}
 	uint64_t t1 = Time::get_singleton()->get_ticks_usec();
 
 	// 3. Scatter transforms (reads the finished heightmap).
@@ -222,7 +235,14 @@ void TerrainSplineCompositor::_finalize_chunk_job(
 	}
 
 	uint64_t t_t3d_start = Time::get_singleton()->get_ticks_usec();
-	_write_chunk_heights_to_terrain(p_target_api, chunk, p_job->offset);
+	Ref<Image> control_image;
+	if (!p_job->control.empty()) { // Terrain3D control maps are FORMAT_RF: the uint32 bits as a float
+		PackedByteArray bytes;
+		bytes.resize(p_job->control.size() * sizeof(uint32_t));
+		memcpy(bytes.ptrw(), p_job->control.data(), bytes.size());
+		control_image = Image::create_from_data(p_job->chunk_size, p_job->chunk_size, false, Image::FORMAT_RF, bytes);
+	}
+	_write_chunk_heights_to_terrain(p_target_api, chunk, p_job->offset, control_image);
 	uint64_t t_t3d_end = Time::get_singleton()->get_ticks_usec();
 
 	if (_bench) {

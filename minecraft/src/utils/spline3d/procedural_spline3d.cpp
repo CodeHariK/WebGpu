@@ -2,7 +2,8 @@
  * Module Path: src/utils/spline3d/procedural_spline3d.cpp
  * Explicit System Responsibility: Implements the ProceduralSpline3D class methods,
  * handling procedural spline cache rebuilding, projection, dirtiness accumulation, and height/distance queries.
- * Build Dependencies: procedural_spline3d.h, utils/curve/curve_baker.h, Godot C++ APIs (Time, WorkerThreadPool, ClassDB, UtilityFunctions).
+ * Build Dependencies: procedural_spline3d.h, utils/curve/curve_baker.h, Godot C++ APIs (Time, WorkerThreadPool,
+ * ClassDB, UtilityFunctions).
  */
 
 #include "procedural_spline3d.h"
@@ -22,7 +23,12 @@ void ProceduralSpline3D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_interpolation_mode", "mode"), &ProceduralSpline3D::set_interpolation_mode);
 	ClassDB::bind_method(D_METHOD("get_interpolation_mode"), &ProceduralSpline3D::get_interpolation_mode);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "interpolation_mode", PROPERTY_HINT_ENUM, "Nearest,IDW Line,IDW Vertex,Peak Ridge"), "set_interpolation_mode", "get_interpolation_mode");
+	ADD_PROPERTY(
+			PropertyInfo(
+					Variant::INT, "interpolation_mode", PROPERTY_HINT_ENUM, "Nearest,IDW Line,IDW Vertex,Peak Ridge"
+			),
+			"set_interpolation_mode", "get_interpolation_mode"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_bake_interval", "interval"), &ProceduralSpline3D::set_bake_interval);
 	ClassDB::bind_method(D_METHOD("get_bake_interval"), &ProceduralSpline3D::get_bake_interval);
@@ -78,11 +84,13 @@ void ProceduralSpline3D::_notification(int p_what) {
 void ProceduralSpline3D::_check_curve_connection() {
 	Ref<Curve3D> current_curve = get_curve();
 	if (current_curve != connected_curve) {
-		if (connected_curve.is_valid() && connected_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
+		if (connected_curve.is_valid() &&
+			connected_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
 			connected_curve->disconnect("changed", Callable(this, "_on_curve_changed"));
 		}
 		connected_curve = current_curve;
-		if (connected_curve.is_valid() && !connected_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
+		if (connected_curve.is_valid() &&
+			!connected_curve->is_connected("changed", Callable(this, "_on_curve_changed"))) {
 			connected_curve->connect("changed", Callable(this, "_on_curve_changed"));
 		}
 		mark_dirty();
@@ -124,6 +132,9 @@ void ProceduralSpline3D::_cache_curve_state() {
 void ProceduralSpline3D::mark_dirty() {
 	has_baked_cache = false;
 	has_transform_cache = false;
+	// A component's reach may have changed (e.g. a deformer's falloff): refresh the padding now, or the
+	// padded AABB clips the next rebuild to the old box (straight edges, right angles at the ends).
+	_update_max_padding();
 
 	if (!is_dirty) {
 		accumulated_dirty_rect = last_padded_aabb;
@@ -148,7 +159,9 @@ void ProceduralSpline3D::_on_curve_changed() {
 	int count = curve->get_point_count();
 	if (count != cached_curve_state.size() || is_full_rebuild) {
 #if DEBUG
-		UtilityFunctions::print("[ProceduralSpline3D] Point count changed or full rebuild flagged. Triggering full dirty.");
+		UtilityFunctions::print(
+				"[ProceduralSpline3D] Point count changed or full rebuild flagged. Triggering full dirty."
+		);
 #endif
 		mark_dirty();
 		return;
@@ -193,7 +206,10 @@ void ProceduralSpline3D::_on_curve_changed() {
 		has_baked_cache = false;
 		local_changes = local_changes.grow(cached_max_padding);
 #if DEBUG
-		UtilityFunctions::print("[ProceduralSpline3D] Local Dirty Rect Extents: Pos(", local_changes.position.x, ", ", local_changes.position.y, ") Size(", local_changes.size.x, ", ", local_changes.size.y, ")");
+		UtilityFunctions::print(
+				"[ProceduralSpline3D] Local Dirty Rect Extents: Pos(", local_changes.position.x, ", ",
+				local_changes.position.y, ") Size(", local_changes.size.x, ", ", local_changes.size.y, ")"
+		);
 #endif
 
 		if (!is_dirty) {
@@ -337,7 +353,10 @@ void ProceduralSpline3D::ensure_transform_cache() {
 	has_transform_cache = true;
 }
 
-float ProceduralSpline3D::_interpolate_idw_vertex(const Vector2 &p, float closest_y) const {
+float ProceduralSpline3D::_interpolate_idw_vertex(
+		const Vector2 &p,
+		float closest_y
+) const {
 	float total_weight_vert = 0.0f;
 	float blended_y_vert = 0.0f;
 
@@ -352,14 +371,21 @@ float ProceduralSpline3D::_interpolate_idw_vertex(const Vector2 &p, float closes
 	return (total_weight_vert > 0.0f) ? (blended_y_vert / total_weight_vert) : closest_y;
 }
 
-float ProceduralSpline3D::_interpolate_peak_ridge(float closest_y, float distance, bool is_inside) const {
+float ProceduralSpline3D::_interpolate_peak_ridge(
+		float closest_y,
+		float distance,
+		bool is_inside
+) const {
 	if (is_inside) {
 		return closest_y + (distance * ridge_steepness);
 	}
 	return closest_y;
 }
 
-ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segmented(const Vector2 &p, const std::vector<int> &p_segment_indices) const {
+ProceduralSpline3D::SplineEval ProceduralSpline3D::evaluate_spline_point_segmented(
+		const Vector2 &p,
+		const std::vector<int> &p_segment_indices
+) const {
 	const_cast<ProceduralSpline3D *>(this)->ensure_baked_cache();
 
 	SplineEval res;

@@ -31,6 +31,7 @@ void add(
  *  SLAB_RAILS: same, with a rectangular rail rising from each deck edge
  *  HALF_PIPE:  parabolic deck between two rims, with a parallel underside
  *  CUSTOM:     the Curve2D's baked points; closed when the last point returns to the first
+ *  WATER:      flat surface at y = 0 over a `thickness`-deep box (the Area3D volume)
  */
 void TerrainSplineRoad::_build_profile(
 		std::vector<ProfilePoint> &r_points,
@@ -82,6 +83,13 @@ void TerrainSplineRoad::_build_profile(
 				const float u = -1.0f + 2.0f * i / n;
 				add(r_points, u * hw, pipe_depth * (u * u - 1.0f), i == 0 ? REGION_EDGE : REGION_DECK);
 			}
+		} break;
+
+		case PROFILE_WATER: {
+			add(r_points, -hw, -t, REGION_UNDERSIDE);
+			add(r_points, hw, -t, REGION_EDGE);
+			add(r_points, hw, 0.0f, REGION_DECK);
+			add(r_points, -hw, 0.0f, REGION_EDGE);
 		} break;
 
 		case PROFILE_CUSTOM:

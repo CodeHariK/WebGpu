@@ -33,6 +33,7 @@
 #include "terrain/convex_hull_rock/convex_hull_rock.h"
 #include "terrain/loafter/procedural_lofter.h"
 #include "terrain/minecraft.h"
+#include "racing/race_track.h"
 #include "terrain/terraspline/terraspline.h"
 
 #include "utils/spline3d/procedural_spline3d.h"
@@ -162,6 +163,9 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(TerrainSplineCliff);
 	GDREGISTER_CLASS(TerrainSplineRoad);
 	GDREGISTER_CLASS(TerrainSplineArray);
+	GDREGISTER_CLASS(TerrainSplineLake);
+	GDREGISTER_CLASS(TerrainSplinePainter);
+	GDREGISTER_CLASS(RaceTrack);
 	GDREGISTER_CLASS(TerrainSplineCompositor);
 	GDREGISTER_CLASS(TerrainSplineCompositorUI);
 	GDREGISTER_CLASS(TerrainSplineStreamMap);
