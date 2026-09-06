@@ -51,6 +51,9 @@ public:
 	int chunk_size = 0;
 	Ref<TerrainChunk> chunk;
 	std::vector<SplineEntry> splines;
+	/// Every spline-height deformer in the scene (not just those touching this chunk): terrain-following
+	/// profiles sample the ground through them, and must see the same ground from every chunk.
+	std::vector<TerrainHeightmap::BaseDeformer> base_deformers;
 	Ref<Noise> noise;
 	float default_elevation = 0.0f;
 	float noise_amplitude = 0.0f;

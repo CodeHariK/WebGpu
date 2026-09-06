@@ -52,6 +52,11 @@ static void copy_spline_geometry(
 		p_job->seg_dy[i] = sg.y_diff;
 	}
 
+	p_job->all_segments.resize(nseg);
+	for (size_t i = 0; i < nseg; ++i) {
+		p_job->all_segments[i] = (int)i;
+	}
+
 	const int nvert = p_spline->baked_poly3d.size();
 	p_job->vert_x.resize(nvert);
 	p_job->vert_z.resize(nvert);
@@ -90,6 +95,9 @@ Ref<DeformerJob> TerrainSplineDeformer::_create_deformer_job(
 	job->fill_interior = fill_interior;
 
 	copy_spline_geometry(p_spline, job);
+	if (height_source == HEIGHT_TERRAIN) {
+		_bake_terrain_profile(job, p_heightmap); // Replaces the spline's Y arrays with the ground profile
+	}
 	return job;
 }
 

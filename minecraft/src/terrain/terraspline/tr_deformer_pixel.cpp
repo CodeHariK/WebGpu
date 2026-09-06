@@ -58,12 +58,7 @@ float TerrainSplineDeformer::_falloff_weight(
 	return 0.0f;
 }
 
-/**
- * @brief Combines the target height into the terrain according to the blend mode.
- * `p_target_h` is the absolute height the spline asks for (spline Y + max_height). ADD/SUBTRACT
- * apply its offset from the chunk's base elevation, so on flat ground the surface meets the spline
- * exactly and any noise underneath is preserved; MAX/MIN/REPLACE move toward the absolute target.
- */
+/// Writes TerrainSplineDeformer::blend_height for one pixel.
 static inline void blend_pixel(
 		float *p_data,
 		int p_idx,
@@ -72,26 +67,7 @@ static inline void blend_pixel(
 		float p_target_h,
 		float p_base_h
 ) {
-	float current_h = p_data[p_idx];
-	float new_h = current_h;
-	switch (p_blend_mode) {
-		case TerrainSplineDeformer::BLEND_ADD:
-			new_h = current_h + ((p_target_h - p_base_h) * p_weight);
-			break;
-		case TerrainSplineDeformer::BLEND_SUBTRACT:
-			new_h = current_h - ((p_target_h - p_base_h) * p_weight);
-			break;
-		case TerrainSplineDeformer::BLEND_MAX:
-			new_h = Math::max(current_h, (float)local_lerp(current_h, p_target_h, p_weight));
-			break;
-		case TerrainSplineDeformer::BLEND_MIN:
-			new_h = Math::min(current_h, (float)local_lerp(current_h, p_target_h, p_weight));
-			break;
-		case TerrainSplineDeformer::BLEND_REPLACE:
-			new_h = local_lerp(current_h, p_target_h, p_weight);
-			break;
-	}
-	p_data[p_idx] = new_h;
+	p_data[p_idx] = TerrainSplineDeformer::blend_height(p_data[p_idx], p_blend_mode, p_weight, p_target_h, p_base_h);
 }
 
 /// Height of segment `p_seg` at the projection of (px, pz) onto it.
@@ -189,6 +165,33 @@ static inline float field_spline_y(
 	}
 }
 
+/// Index of the candidate segment closest to (px, pz), or -1 when there are none.
+static inline int nearest_segment(
+		const Ref<DeformerJob> &p_job,
+		const std::vector<int> &p_segments,
+		float px,
+		float pz
+) {
+	int best = -1;
+	float best_d2 = 1e30f;
+	for (int s : p_segments) {
+		const float l2 = p_job->seg_l2[s];
+		float t = 0.0f;
+		if (l2 > 0.0f) {
+			t = ((px - p_job->seg_ax[s]) * p_job->seg_abx[s] + (pz - p_job->seg_az[s]) * p_job->seg_abz[s]) / l2;
+			t = Math::clamp(t, 0.0f, 1.0f);
+		}
+		const float dx = p_job->seg_ax[s] + p_job->seg_abx[s] * t - px;
+		const float dz = p_job->seg_az[s] + p_job->seg_abz[s] * t - pz;
+		const float d2 = dx * dx + dz * dz;
+		if (d2 < best_d2) {
+			best_d2 = d2;
+			best = s;
+		}
+	}
+	return best;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Tile loops
 // ---------------------------------------------------------------------------------------------
@@ -220,7 +223,10 @@ void TerrainSplineDeformer::_deform_tile_field(
 				continue;
 			}
 			const float spline_y = field_spline_y(p_job, seg, px, pz, distance, is_inside);
-			blend_pixel(p_job->data_ptr, z * p_w + x, blend_mode, weight, spline_y + max_height, p_job->base_elevation);
+			blend_pixel(
+					p_job->data_ptr, z * p_w + x, _effective_blend_mode(), weight,
+					spline_y + _effective_height_offset(), p_job->base_elevation
+			);
 		}
 	}
 }
@@ -240,11 +246,40 @@ void TerrainSplineDeformer::_deform_tile_fallback(
 			if (weight <= 0.0f) {
 				continue;
 			}
+			float spline_y = eval.spline_y;
+			if (height_source == HEIGHT_TERRAIN) {
+				// The spline's own evaluation returns control-point heights; re-read the job's profile.
+				const int seg = nearest_segment(p_job, segments, p.x, p.y);
+				spline_y = field_spline_y(p_job, seg, p.x, p.y, eval.distance, eval.is_inside);
+			}
 			blend_pixel(
-					p_job->data_ptr, z * p_w + x, blend_mode, weight, eval.spline_y + max_height, p_job->base_elevation
+					p_job->data_ptr, z * p_w + x, _effective_blend_mode(), weight,
+					spline_y + _effective_height_offset(), p_job->base_elevation
 			);
 		}
 	}
+}
+
+float TerrainSplineDeformer::evaluate_height_at(
+		const Ref<DeformerJob> &p_job,
+		float p_x,
+		float p_z,
+		float p_current_h
+) const {
+	if (p_job.is_null() || p_job->spline == nullptr || p_job->all_segments.empty()) {
+		return p_current_h;
+	}
+	const Vector2 p(p_x, p_z);
+	const ProceduralSpline3D::SplineEval eval = p_job->spline->evaluate_spline_point_segmented(p, p_job->all_segments);
+	const float weight = _falloff_weight(p_job, eval.distance, eval.is_inside);
+	if (weight <= 0.0f) {
+		return p_current_h;
+	}
+	const int seg = nearest_segment(p_job, p_job->all_segments, p_x, p_z);
+	const float spline_y = field_spline_y(p_job, seg, p_x, p_z, eval.distance, eval.is_inside);
+	return blend_height(
+			p_current_h, _effective_blend_mode(), weight, spline_y + _effective_height_offset(), p_job->base_elevation
+	);
 }
 
 } // namespace godot

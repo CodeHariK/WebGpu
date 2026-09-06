@@ -9,6 +9,7 @@
  * enqueued and streamed under the frame budget (tr_compositor_stream.cpp).
  */
 #include "tr_compositor.h"
+#include "tr_deformer.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -151,7 +152,22 @@ bool TerrainSplineCompositor::_collect_dirty_rect(
 		r_rect = has_any ? r_rect.merge(sd) : sd;
 		has_any = true;
 	}
-	return has_any;
+	if (!has_any) {
+		return false;
+	}
+	// A terrain-following road samples the ground through every other spline's deformers, so any
+	// change anywhere can move its profile: include the footprint of every such spline.
+	for (ProceduralSpline3D *spline : p_splines) {
+		TypedArray<Node> children = spline->get_children();
+		for (int i = 0; i < children.size(); ++i) {
+			TerrainSplineDeformer *d = Object::cast_to<TerrainSplineDeformer>(children[i]);
+			if (d && d->get_height_source() == TerrainSplineDeformer::HEIGHT_TERRAIN) {
+				r_rect = r_rect.merge(spline->get_padded_aabb());
+				break;
+			}
+		}
+	}
+	return true;
 }
 
 /**
