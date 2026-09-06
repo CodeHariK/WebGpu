@@ -67,6 +67,8 @@ public:
 	struct ProfilePoint {
 		float offset = 0.0f;
 		float depth = 0.0f;
+		float depth_norm = 0.0f; // depth / wall height, for colour-by-depth
+		float shade = 1.0f; // Vertex colour multiplier (clefts darker, columns vary)
 		int stratum = 0; // Which layer's colour it takes
 	};
 
@@ -79,6 +81,8 @@ private:
 	bool rim_from_deformer = true; // Add a sibling TerrainSplineDeformer's width + falloff so the wall wraps its slope
 	Ref<Curve> height_curve; // Optional multiplier over normalized arc length
 	bool flip_side = false;
+	Ref<Curve> profile_curve; // Silhouette over depth: x = 0 top .. 1 foot, y × profile_amount = horizontal offset
+	float profile_amount = 5.0f; // Metres of offset at curve value 1 (negative values tuck in under the rim)
 	float segment_length = 3.0f;
 	int strata = 4;
 	float strata_variation = 0.4f; // Random layer thickness spread, 0..1
@@ -92,6 +96,12 @@ private:
 	float noise_frequency = 0.08f; // Per metre of arc
 	float noise_quantize = 0.25f; // Snap wobble to this step for a blocky look (0 = smooth)
 	float column_width = 0.0f; // Sample the wobble per `column_width` metres of wall: vertical panels (0 = per station)
+	float column_coherence = 0.0f; // 0 = each layer wobbles on its own, 1 = a column shares one offset top to bottom
+	float cleft_depth = 0.0f; // Groove cut into the wall at every column boundary, metres
+	float cleft_width = 1.5f; // Groove width along the wall, metres
+	float cleft_shade = 0.5f; // Darkening inside grooves (fake ambient occlusion), 0..1
+	float column_shade = 0.15f; // Random brightness variation per column, 0..1
+	float talus_start = 1.0f; // Depth fraction below which steps, bevels and clefts fade out (smooth apron); 1 = never
 	bool cap_ends = true;
 	bool cap_top = true; // Closed loops: build the plateau surface as a second material slot (grass/snow)
 	float cap_resolution = 4.0f; // Interior sample spacing of the top surface, metres
@@ -105,6 +115,7 @@ private:
 	Color top_color = Color(0.45f, 0.72f, 0.30f); // Cap vertex colour when top_material is unset
 	Ref<Material> top_material; // Cap (surface 1)
 	bool collision_enabled = true;
+	bool color_by_depth = false; // Sample `colors` by normalized depth instead of by stratum index
 
 	// ---- Internals ----
 	MeshInstance3D *mesh_instance = nullptr;
@@ -167,8 +178,8 @@ public:
 	void queue_rebuild();
 	void _on_spline_changed();
 
-	float get_spline_padding() const override {
-		return Math::abs(base_offset) + skirt + (step_out + ledge_depth) * strata;
+	float get_spline_padding() const override { // (+ profile_amount: the silhouette may bulge out)
+		return Math::abs(profile_amount) + Math::abs(base_offset) + skirt + (step_out + ledge_depth) * strata;
 	}
 
 	// clang-format off
@@ -183,6 +194,7 @@ public:
 	TR_CLIFF_PROP(float, base_offset, p_value)
 	TR_CLIFF_PROP(bool, rim_from_deformer, p_value)
 	TR_CLIFF_PROP(bool, flip_side, p_value)
+	TR_CLIFF_PROP(float, profile_amount, p_value)
 	TR_CLIFF_PROP(float, segment_length, MAX(0.5f, p_value))
 	TR_CLIFF_PROP(int, strata, CLAMP(p_value, 1, 32))
 	TR_CLIFF_PROP(float, strata_variation, CLAMP(p_value, 0.0f, 1.0f))
@@ -196,6 +208,13 @@ public:
 	TR_CLIFF_PROP(float, noise_frequency, MAX(0.0f, p_value))
 	TR_CLIFF_PROP(float, noise_quantize, MAX(0.0f, p_value))
 	TR_CLIFF_PROP(float, column_width, MAX(0.0f, p_value))
+	TR_CLIFF_PROP(float, column_coherence, CLAMP(p_value, 0.0f, 1.0f))
+	TR_CLIFF_PROP(float, cleft_depth, MAX(0.0f, p_value))
+	TR_CLIFF_PROP(float, cleft_width, MAX(0.0f, p_value))
+	TR_CLIFF_PROP(float, cleft_shade, CLAMP(p_value, 0.0f, 1.0f))
+	TR_CLIFF_PROP(float, column_shade, CLAMP(p_value, 0.0f, 1.0f))
+	TR_CLIFF_PROP(float, talus_start, CLAMP(p_value, 0.0f, 1.0f))
+	TR_CLIFF_PROP(bool, color_by_depth, p_value)
 	TR_CLIFF_PROP(float, bottom_y, p_value)
 	TR_CLIFF_PROP(bool, cap_ends, p_value)
 	TR_CLIFF_PROP(bool, cap_top, p_value)
@@ -215,6 +234,8 @@ public:
 	BottomMode get_bottom_mode() const { return bottom_mode; }
 	void set_height_curve(const Ref<Curve> &p_curve);
 	Ref<Curve> get_height_curve() const { return height_curve; }
+	void set_profile_curve(const Ref<Curve> &p_curve);
+	Ref<Curve> get_profile_curve() const { return profile_curve; }
 	void set_colors(const Ref<Gradient> &p_colors);
 	Ref<Gradient> get_colors() const { return colors; }
 	void set_material(const Ref<Material> &p_material);

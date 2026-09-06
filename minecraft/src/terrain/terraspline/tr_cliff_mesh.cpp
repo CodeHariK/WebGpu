@@ -84,8 +84,10 @@ Ref<ArrayMesh> TerrainSplineCliff::_build_mesh(
 	const size_t segments = p_closed ? n : n - 1;
 	const int max_k = MAX(1, strata - 1);
 
-	auto stratum_color = [&](int p_stratum, bool p_ledge_top) -> Color {
-		Color c = colors.is_valid() ? colors->sample((float)p_stratum / (float)max_k) : Color(0.7f, 0.6f, 0.5f);
+	auto point_color = [&](const ProfilePoint &p_pt, bool p_ledge_top) -> Color {
+		const float t = color_by_depth ? p_pt.depth_norm : (float)p_pt.stratum / (float)max_k;
+		Color c = colors.is_valid() ? colors->sample(t) : Color(0.7f, 0.6f, 0.5f);
+		c = Color(c.r * p_pt.shade, c.g * p_pt.shade, c.b * p_pt.shade, 1.0f);
 		return p_ledge_top ? c.lightened(0.12f) : c;
 	};
 
@@ -103,7 +105,7 @@ Ref<ArrayMesh> TerrainSplineCliff::_build_mesh(
 			const float d_down = a1.depth - a0.depth; // + = going down
 			const Vector3 outward = s0.out * d_down + Vector3(0, 1, 0) * d_off;
 			const bool ledge_top = d_off > 1e-4f && Math::abs(d_down) < 1e-4f;
-			const Color col = stratum_color(a1.stratum, ledge_top);
+			const Color col = point_color(a1, ledge_top);
 			mb.quad(place(s0, a0), place(s0, a1), place(s1, b1), place(s1, b0), outward, col);
 		}
 	}
@@ -121,7 +123,7 @@ Ref<ArrayMesh> TerrainSplineCliff::_build_mesh(
 			const Vector3 outward = end == 0 ? -along : along;
 			const Vector3 apex = place(st, pr[0]);
 			for (size_t j = 1; j + 1 < pr.size(); ++j) {
-				mb.tri(apex, place(st, pr[j]), place(st, pr[j + 1]), outward, stratum_color(pr[j].stratum, false));
+				mb.tri(apex, place(st, pr[j]), place(st, pr[j + 1]), outward, point_color(pr[j], false));
 			}
 		}
 	}

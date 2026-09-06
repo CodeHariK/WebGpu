@@ -391,9 +391,7 @@ void ProceduralLofter::_ready() {
 		mesh_instance = memnew(MeshInstance3D);
 		mesh_instance->set_name("MeshInstance3D");
 		add_child(mesh_instance);
-		if (get_owner()) {
-			mesh_instance->set_owner(get_owner());
-		}
+		// Generated mesh: never owned by the scene, so it is never saved.
 	}
 	if (mesh_instance) {
 		mesh_instance->set_material_override(material);
@@ -446,8 +444,7 @@ void ProceduralLofter::update_loft() {
 			mesh_instance = memnew(MeshInstance3D);
 			mesh_instance->set_name("MeshInstance3D");
 			add_child(mesh_instance);
-			if (get_owner())
-				mesh_instance->set_owner(get_owner());
+			// Generated mesh: never owned by the scene, so it is never saved.
 		}
 	}
 

@@ -1,0 +1,226 @@
+/**
+ * @file tr_road_mesh.cpp
+ * @brief TerrainSplineRoad: stations along the spline, sweeping the cross-section, stitching, caps.
+ */
+#include "tr_road.h"
+#include "utils/curve/curve_baker.h"
+#include <godot_cpp/classes/array_mesh.hpp>
+#include <godot_cpp/classes/curve3d.hpp>
+#include <godot_cpp/classes/geometry2d.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
+
+namespace godot {
+
+namespace {
+
+/// Flat-shaded triangle accumulator with colour and UV, clockwise as seen from `outward`.
+struct RoadMeshBuilder {
+	PackedVector3Array vertices, normals;
+	PackedVector2Array uvs;
+	PackedColorArray colors;
+	PackedInt32Array indices;
+
+	void
+	tri(const Vector3 &a,
+		const Vector3 &b,
+		const Vector3 &c,
+		const Vector2 &uva,
+		const Vector2 &uvb,
+		const Vector2 &uvc,
+		const Vector3 &p_outward,
+		const Color &p_color) {
+		Vector3 n = (b - a).cross(c - a);
+		if (n.length_squared() < 1e-12f) {
+			return;
+		}
+		Vector3 v1 = b, v2 = c;
+		Vector2 t1 = uvb, t2 = uvc;
+		if (n.dot(p_outward) > 0.0f) {
+			std::swap(v1, v2);
+			std::swap(t1, t2);
+			n = -n;
+		}
+		n = -n;
+		n.normalize();
+		const int base = vertices.size();
+		vertices.push_back(a);
+		vertices.push_back(v1);
+		vertices.push_back(v2);
+		uvs.push_back(uva);
+		uvs.push_back(t1);
+		uvs.push_back(t2);
+		for (int i = 0; i < 3; ++i) {
+			normals.push_back(n);
+			colors.push_back(p_color);
+			indices.push_back(base + i);
+		}
+	}
+};
+
+/// A cross-section corner placed at a station: X = lateral, Y = up (the spline's tilt is in the frame).
+inline Vector3
+place(const Transform3D &p_station,
+	  const Vector2 &p_pos) {
+	return p_station.origin + p_station.basis.get_column(0) * p_pos.x + p_station.basis.get_column(1) * p_pos.y;
+}
+
+} // namespace
+
+// ---------------------------------------------------------------------------------------------
+// Stations
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * @brief Frames along the section of the parent curve, in this node's local space, with the arc
+ * distance of each. Fixed: every `segment_length`, landing exactly on the section end (or wrapping for
+ * a whole closed spline). Adaptive: CurveBaker subdivides where the direction changes faster than
+ * `adaptive_angle_tol`.
+ */
+bool TerrainSplineRoad::_build_stations(
+		std::vector<Transform3D> &r_stations,
+		std::vector<float> &r_distances,
+		bool &r_loop
+) const {
+	r_stations.clear();
+	r_distances.clear();
+	r_loop = false;
+	const ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(get_parent());
+	if (!spline) {
+		return false;
+	}
+	Ref<Curve3D> curve = spline->get_curve();
+	if (curve.is_null() || curve->get_point_count() < 2) {
+		return false;
+	}
+	const float total = curve->get_baked_length();
+	float start = CLAMP(section_start, 0.0f, total);
+	float end = section_end > section_start ? MIN(section_end, total) : total;
+	if (end - start < 0.5f) {
+		return false;
+	}
+	const bool whole = start <= 0.0f && end >= total;
+	r_loop = whole && curve->is_closed();
+
+	const Transform3D to_local = get_global_transform().affine_inverse() * spline->get_global_transform();
+
+	if (sampling == SAMPLING_ADAPTIVE) {
+		std::vector<Transform3D> world = CurveBaker::bake_transforms_adaptive(
+				curve, start, end, adaptive_max_step, adaptive_min_step, adaptive_angle_tol,
+				spline->get_global_transform()
+		);
+		const Transform3D inv = get_global_transform().affine_inverse();
+		float d = start;
+		for (size_t i = 0; i < world.size(); ++i) {
+			if (i > 0) {
+				d += world[i].origin.distance_to(world[i - 1].origin); // Chord length ~ arc length
+			}
+			r_stations.push_back(inv * world[i]);
+			r_distances.push_back(d);
+		}
+		if (r_loop && r_stations.size() > 2) { // The adaptive bake repeats the start; the loop closes itself
+			r_stations.pop_back();
+			r_distances.pop_back();
+		}
+		return r_stations.size() >= 2;
+	}
+
+	const int count = MAX(1, (int)Math::round((end - start) / segment_length));
+	const float step = (end - start) / (float)count;
+	const int n = r_loop ? count : count + 1;
+	for (int i = 0; i < n; ++i) {
+		const float d = MIN(start + i * step, end);
+		r_stations.push_back(to_local * curve->sample_baked_with_rotation(d, false, /*apply_tilt=*/true));
+		r_distances.push_back(d);
+	}
+	return r_stations.size() >= 2;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Mesh
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * @brief One quad per profile edge between neighbouring stations, oriented by the edge's 2-D outward
+ * normal expressed in the station frame; U runs across the profile, V along the track in
+ * `texture_length` repeats; colour per region. Closed profiles on open sections get fan caps.
+ */
+Ref<ArrayMesh> TerrainSplineRoad::_build_mesh(
+		const std::vector<Transform3D> &p_stations,
+		const std::vector<float> &p_distances,
+		bool p_loop,
+		const std::vector<ProfilePoint> &p_profile,
+		bool p_profile_closed
+) const {
+	RoadMeshBuilder mb;
+	const size_t n = p_stations.size();
+	const size_t m = p_profile.size();
+	const size_t edges = p_profile_closed ? m : m - 1;
+
+	// U per profile corner: cumulative perimeter, normalized.
+	std::vector<float> u(m + 1, 0.0f);
+	for (size_t j = 1; j <= edges; ++j) {
+		u[j] = u[j - 1] + p_profile[j % m].pos.distance_to(p_profile[j - 1].pos);
+	}
+	const float perimeter = MAX(1e-4f, u[edges]);
+	for (float &v : u) {
+		v /= perimeter;
+	}
+
+	const size_t segments = p_loop ? n : n - 1;
+	for (size_t s = 0; s < segments; ++s) {
+		const Transform3D &s0 = p_stations[s];
+		const Transform3D &s1 = p_stations[(s + 1) % n];
+		const float v0 = p_distances[s] / texture_length;
+		const float v1 =
+				(s + 1 < n ? p_distances[s + 1] : p_distances[s] + s0.origin.distance_to(s1.origin)) / texture_length;
+		for (size_t j = 0; j < edges; ++j) {
+			const ProfilePoint &pa = p_profile[j];
+			const ProfilePoint &pb = p_profile[(j + 1) % m];
+			const Vector2 d2 = pb.pos - pa.pos;
+			const Vector2 n2(d2.y, -d2.x); // Outward for a counter-clockwise polygon
+			const Vector3 outward = s0.basis.get_column(0) * n2.x + s0.basis.get_column(1) * n2.y;
+			const Color col = _region_color(pa.region);
+			const Vector3 a0 = place(s0, pa.pos), a1 = place(s0, pb.pos);
+			const Vector3 b0 = place(s1, pa.pos), b1 = place(s1, pb.pos);
+			const Vector2 ua(u[j], v0), ub(u[j + 1], v0), uc(u[j + 1], v1), ud(u[j], v1);
+			mb.tri(a0, a1, b1, ua, ub, uc, outward, col);
+			mb.tri(a0, b1, b0, ua, uc, ud, outward, col);
+		}
+	}
+
+	// Caps on open sections of a closed profile: the polygon itself, facing backwards / forwards.
+	if (!p_loop && cap_ends && p_profile_closed && m >= 3) {
+		PackedVector2Array poly;
+		for (const ProfilePoint &pt : p_profile) {
+			poly.push_back(pt.pos);
+		}
+		const PackedInt32Array tris = Geometry2D::get_singleton()->triangulate_polygon(poly);
+		for (int end = 0; end < 2; ++end) {
+			const Transform3D &st = p_stations[end == 0 ? 0 : n - 1];
+			const Vector3 along = (p_stations[1].origin - p_stations[0].origin).normalized();
+			const Vector3 outward = end == 0 ? -along : along;
+			for (int t = 0; t + 2 < tris.size(); t += 3) {
+				const Vector2 &q0 = p_profile[tris[t]].pos, &q1 = p_profile[tris[t + 1]].pos,
+							  &q2 = p_profile[tris[t + 2]].pos;
+				mb.tri(place(st, q0), place(st, q1), place(st, q2), q0 / width, q1 / width, q2 / width, outward,
+					   underside_color);
+			}
+		}
+	}
+
+	Ref<ArrayMesh> mesh;
+	mesh.instantiate();
+	if (mb.vertices.size() >= 3) {
+		Array arrays;
+		arrays.resize(Mesh::ARRAY_MAX);
+		arrays[Mesh::ARRAY_VERTEX] = mb.vertices;
+		arrays[Mesh::ARRAY_NORMAL] = mb.normals;
+		arrays[Mesh::ARRAY_TEX_UV] = mb.uvs;
+		arrays[Mesh::ARRAY_COLOR] = mb.colors;
+		arrays[Mesh::ARRAY_INDEX] = mb.indices;
+		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
+	}
+	return mesh;
+}
+
+} // namespace godot
