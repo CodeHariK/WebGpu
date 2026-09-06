@@ -19,6 +19,8 @@ components) into Terrain3D heightmap regions, streamed in `chunk_size` (256 m) c
 | `DeformerJob` | RefCounted (data) | Baked curves, SoA spline geometry, distance field, active tiles | One (deformer, chunk) deformation. Read-only for the per-pixel tasks; each task writes disjoint tiles of the heightmap. |
 | `ScatterJob` | RefCounted (data) | Inputs, resulting transforms, debug counters | One (scatterer, spline, chunk) scattering. |
 | `TerrainSplineCliff` | SplineComponent | — | Stylized cliff wall hung from the parent spline's top edge: strata that step in/out, ledges, bevels, lip, skirt, quantized wobble and vertical columns; flat-shaded vertex colours from a Gradient; internal MeshInstance3D + trimesh StaticBody3D. Never touches the terrain; rebuilds (coalesced) on `spline_changed` and property edits. `rim_from_deformer` places the top edge just outside a sibling deformer's slope. |
+| `TerrainSplineRoad` | SplineComponent | — | Drivable track mesh swept along the parent spline: closed cross-section presets (slab, slab + rails, half-pipe, custom Curve2D) with underside and end caps, flat-shaded vertex colours per region, U across / V along (`texture_length`), spline tilt = banking, fixed or adaptive stations, `section_start/end` windows (gaps = jumps), trimesh collision. `HEIGHT_SPLINE`: floats freely — no terrain needed. `HEIGHT_TERRAIN` planned. Internal children only. |
+| `TerrainSplineArray` | SplineComponent | — | One mesh every `spacing` metres along the parent spline (posts, gates, pads, pillars): centre / left / right / both sides, lateral & vertical offset, yaw to tangent or facing the spline, upright or following tilt, deterministic jitter, `stretch_to_ground` (Terrain3D heightmap when under a compositor, else raycast; retries while terrain streams in). One MultiMeshInstance3D + optional StaticBody3D with a shape per instance; internal children. |
 | `TerrainSplineStreamMap` | Control | — | Live top-down debug map of streaming state around the player: resident chunks with real heights, physics-live chunks, queued / generating chunks, recent evictions, render & physics radii, spline bounds, player and camera headings. Reads `StreamSnapshot` from the compositor every `refresh_interval`. |
 | `TerrainSplineCompositorUI`, `GrayscaleJob` | TextureRect / data | — | Debug preview: one unified heightmap over the `ProceduralSpline3D` children of `splines_root` (default: itself), shown as normalized grayscale; refreshes on `spline_changed`. Works in the editor and in-game (`toggle_key`). |
 
@@ -292,6 +294,16 @@ rebuild
 └─ MeshInstance3D.mesh + ConcavePolygonShape3D (collision_enabled)
 ```
 
+`profile_curve` × `profile_amount` shapes the silhouette over normalized depth (x = 0 top, 1 foot; positive
+= out, negative = tucked in under the rim), added to the accumulated random strata steps — so a curve
+running 0 → −1 with 6 m gives a mesa fat at the rim and narrow at the foot (inverted / mushroom), while
+the steps and ledges stay crisp on the leaning faces. The demo's cliff uses such a curve.
+Columnar walls: `column_coherence` blends the wobble from per-layer to one shared value per column
+(vertical fins); `cleft_depth` / `cleft_width` cut a groove at every column boundary, `cleft_shade`
+darkens it (fake AO) and `column_shade` jitters brightness per column; `talus_start` fades steps,
+bevels and clefts out below that depth fraction so the profile curve's flare becomes a smooth apron;
+`color_by_depth` samples the Gradient by normalized depth (caprock band, wall, talus stripes). The
+demo's `ButteSpline` is the Monument-Valley preset built from these.
 Closed loops also build a **top cap** (`cap_top`, `_build_cap`): interior samples on a `cap_resolution`
 grid (kept off the rim), Delaunay-triangulated with the rim (`Geometry2D::triangulate_delaunay`) and
 clipped to the polygon; interior heights start as inverse-distance interpolation of the rim (the same
@@ -302,6 +314,42 @@ is skipped and the cliff is a complete free-standing mesa — no deformer, no te
 `CliffSpline` (closed 70×45 m loop at y=66, no deformer) shows this: 6 strata, ledges, 6 m columns,
 bottom at y=40. When a cliff does wrap a deformed plateau, `_rim_offset` adds 1 m beyond width+falloff
 because heightmap cells are 1 m wide.
+
+### Flow 4d — road / track (tr_road*.cpp; independent of the compositor)
+
+```
+parent spline_changed / property set → queue_rebuild → (deferred) rebuild
+├─ _build_stations   frames along [section_start, section_end] in local space (Curve3D
+│                    sample_baked_with_rotation with tilt → X lateral, Y up); FIXED every segment_length
+│                    (exact end / wrap when the whole spline is closed) or ADAPTIVE (CurveBaker, by angle)
+├─ _build_profile    preset → closed counter-clockwise polygon; each corner carries the region of the
+│                    edge starting there (deck / edge / rail / underside)
+└─ _build_mesh       per station pair, one quad per profile edge; outward = edge's 2-D normal in the
+                     station frame; clockwise winding; U = perimeter fraction, V = distance/texture_length;
+                     open sections of closed profiles get triangulated caps → ArrayMesh → trimesh collision
+```
+
+Demo: `TrackSpline` — a 12-point banked loop (tilts on the corners) undulating over both mesas with one
+`TerrainSplineRoad` (`Road`). For a jump, use two roads on the same spline with a gap between their
+section windows (e.g. 0–360 m and 378 m–end).
+
+### Flow 4e — array (tr_array*.cpp; independent of the compositor)
+
+```
+parent spline_changed / property set → queue_rebuild → (deferred) rebuild
+└─ _build_transforms   walk [section_start, section_end] from start_offset every spacing (± jitter);
+                       frame from sample_baked_with_rotation (tilt only when follow_tilt, else flattened
+                       upright); per side: origin = station + lateral·offset + up·vertical; basis looking
+                       along the spline (or at it when face_inward), yaw jitter, scale (± jitter);
+                       stretch_to_ground: _ground_drop → base on the ground, Y scale = drop / mesh height
+                       (mesh_centered lifts primitives whose pivot is in the middle)
+   _ground_drop        Terrain3D `data.get_height` via the compositor (exact, anywhere) else a physics ray
+   → MultiMesh buffer (+ StaticBody3D with one CollisionShape3D per instance when enabled)
+   Terrain not there yet (NaN)? retry every 0.5 s, up to 20 times.
+```
+
+Demo: `TrackSpline/Pillars` (cylinders stretched from the ground to the deck every 28 m) and
+`TrackSpline/Posts` (boxes on both rails every 12 m, following the banking).
 
 ### Flow 5a — eviction and discovery (tr_compositor_eviction.cpp, every 0.5 s)
 
@@ -396,6 +444,11 @@ code outside the module (register_types.cpp); inside the module include the spec
 | `tr_cliff.h/.cpp`                | `TerrainSplineCliff` — bindings, rebuild scheduling, internal mesh/collision nodes        |
 | `tr_cliff_profile.cpp`           | stations along the spline (rim offset, winding, bottom mode) and the per-station cross-section |
 | `tr_cliff_mesh.cpp`              | stitching cross-sections into a flat-shaded, vertex-coloured ArrayMesh + end caps         |
+| `tr_road.h/.cpp`                 | `TerrainSplineRoad` — bindings, rebuild scheduling, internal mesh/collision nodes         |
+| `tr_road_profile.cpp`            | cross-section presets → closed CCW polygon with per-edge regions                          |
+| `tr_road_mesh.cpp`               | stations (fixed / adaptive, section window, loop), sweep + stitch, UVs, caps              |
+| `tr_array.h/.cpp`                | `TerrainSplineArray` — bindings, rebuild scheduling, MultiMesh + collision children         |
+| `tr_array_place.cpp`             | stations → instance transforms (sides, orientation, jitter, stretch to ground)             |
 | `tr_compositor_snapshot.cpp`     | `StreamSnapshot` filling, eviction log, thumbnail switch (debug map support)          |
 | `tr_stream_map.h/.cpp`           | `TerrainSplineStreamMap` — live streaming debug map                                    |
 | `tr_compositor_ui.h/.cpp`        | `TerrainSplineCompositorUI`, `GrayscaleJob` — debug preview               |

@@ -73,10 +73,56 @@ _data = {
 }
 point_count = 8
 
+[sub_resource type="Curve" id="Curve_cliff_profile"]
+_limits = [-1.0, 1.0, 0.0, 1.0]
+_data = [Vector2(0.03063457, 0.61497325), 0.0, -0.3, 0, 0, Vector2(0.33479214, -0.35828876), -0.9, -0.9, 0, 0, Vector2(0.88621444, -0.9358289), -1.8, 0.0, 0, 0]
+point_count = 3
+
 [sub_resource type="Gradient" id="Gradient_bjf5h"]
 interpolation_mode = 1
 offsets = PackedFloat32Array(0, 0.5, 1)
 colors = PackedColorArray(0.93, 0.8, 0.58, 1, 0.8, 0.6, 0.42, 1, 0.58, 0.4, 0.32, 1)
+
+[sub_resource type="Curve3D" id="Curve3D_butte"]
+closed = true
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 25.24, 0, 13.1, 0, 0, 0, 0, 0, 0, 8.04, 0, 17.68, 0, 0, 0, 0, 0, 0, -8.04, 0, 17.68, 0, 0, 0, 0, 0, 0, -25.24, 0, 13.1, 0, 0, 0, 0, 0, 0, -28, 0, 0, 0, 0, 0, 0, 0, 0, -20.07, 0, -10.41, 0, 0, 0, 0, 0, 0, -9.26, 0, -20.36, 0, 0, 0, 0, 0, 0, 9.26, 0, -20.36, 0, 0, 0, 0, 0, 0, 20.07, 0, -10.41),
+"tilts": PackedFloat32Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+}
+point_count = 10
+
+[sub_resource type="Curve" id="Curve_butte_profile"]
+_limits = [-1.0, 1.0, 0.0, 1.0]
+_data = [Vector2(0, 0), 0.0, 0.0, 0, 0, Vector2(0.04, -0.06), 0.0, 0.0, 0, 0, Vector2(0.55, -0.03), 0.0, 0.6, 0, 0, Vector2(0.72, 0.28), 1.6, 1.6, 0, 0, Vector2(1, 1), 2.6, 0.0, 0, 0]
+point_count = 5
+
+[sub_resource type="Gradient" id="Gradient_butte"]
+interpolation_mode = 1
+offsets = PackedFloat32Array(0, 0.05, 0.3, 0.5, 0.57, 0.66, 0.74, 0.82, 0.9)
+colors = PackedColorArray(0.95, 0.78, 0.58, 1, 0.88, 0.46, 0.27, 1, 0.84, 0.41, 0.23, 1, 0.66, 0.29, 0.17, 1, 0.9, 0.53, 0.3, 1, 0.83, 0.46, 0.25, 1, 0.9, 0.53, 0.3, 1, 0.8, 0.43, 0.24, 1, 0.88, 0.5, 0.28, 1)
+
+[sub_resource type="Curve3D" id="Curve3D_track"]
+closed = true
+bake_interval = 4.0
+_data = {
+"points": PackedVector3Array(4, 2, -15, -4, -2, 15, 135.67825, -6.791748, -0.2012024, 17, -4, -22, -17, 4, 22, 112.58, -0.6100006, 45, 18.5, -4.1, -11.7, -18.5, 4.1, 11.7, 65, 4.39, 77.94, 14.1, 1.8000001, -1.4, -14.1, -1.8000001, 1.4, 0, 0, 90, 9.5, 2, 3.7, -9.5, -2, -3.7, -65, -4.39, 77.94, 10.1, -1.5, 12.5, -10.1, 1.5, -12.5, -112.58, -10.39, 45, 12, -2, 16, -12, 2, -16, -130.10332, -6.1355247, -0.0050964355, -10.6, -4.7000003, 16.9, 10.6, 4.7000003, -16.9, -112.58, 10.39, -45, -14, 0, 6, 14, 0, -6, -60.62481, 20.157806, -79.46031, -27, 7, 2, 27, -7, -2, 0, 0, -90, -19.800001, 9.2, -9.1, 19.800001, -9.2, 9.1, 50.299805, -5.231636, -85.11218, -19, 3.2, -14.2, 19, -3.2, 14.2, 98.83557, -10.7679825, -60.711807),
+"tilts": PackedFloat32Array(0.489, 0.317, 0.061, 0, -0.061, -0.317, -0.489, -0.317, -0.061, 0, 0.061, 0.317)
+}
+point_count = 12
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_pillar"]
+albedo_color = Color(0.82, 0.78, 0.7, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_pillar"]
+material = SubResource("StandardMaterial3D_pillar")
+top_radius = 0.9
+bottom_radius = 1.3
+height = 1.0
+radial_segments = 8
+rings = 1
+
+[sub_resource type="BoxMesh" id="BoxMesh_post"]
+size = Vector3(0.4, 1.6, 0.4)
 
 [sub_resource type="Gradient" id="Gradient_1prlf"]
 offsets = PackedFloat32Array(0.2, 1)
@@ -299,6 +345,8 @@ curve = SubResource("Curve3D_cliff")
 
 [node name="TerrainSplineCliff" type="TerrainSplineCliff" parent="SplineManager/CliffSpline" unique_id=1723548832]
 height = 13.5
+profile_curve = SubResource("Curve_cliff_profile")
+profile_amount = 6.0
 bottom_mode = 1
 bottom_y = 40.0
 seed = 3
@@ -313,6 +361,67 @@ noise_frequency = 0.36
 noise_quantize = 0.45
 column_width = 6.0
 colors = SubResource("Gradient_bjf5h")
+
+[node name="ButteSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=1723548840]
+interpolation_mode = 0
+bake_interval = 4.0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90, 82, 300)
+curve = SubResource("Curve3D_butte")
+
+[node name="TerrainSplineCliff" type="TerrainSplineCliff" parent="SplineManager/ButteSpline" unique_id=1723548841]
+profile_curve = SubResource("Curve_butte_profile")
+profile_amount = 4.0
+segment_length = 2.0
+bottom_mode = 1
+bottom_y = 40.0
+seed = 11
+strata = 7
+strata_variation = 0.3
+step_out = 0.15
+ledge_chance = 0.0
+ledge_depth = 0.0
+bevel = 0.1
+skirt = 3.0
+noise_amplitude = 2.45
+noise_quantize = 0.3
+column_width = 2.5
+column_coherence = 0.52
+cleft_depth = 0.75
+cleft_width = 1.2
+cleft_shade = 0.45
+talus_start = 0.76
+colors = SubResource("Gradient_butte")
+top_color = Color(0.88, 0.66, 0.46, 1)
+color_by_depth = true
+
+[node name="TrackSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=1723548850]
+interpolation_mode = 0
+bake_interval = 4.0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 54, 280)
+curve = SubResource("Curve3D_track")
+
+[node name="Road" type="TerrainSplineRoad" parent="SplineManager/TrackSpline" unique_id=1723548851]
+profile = 1
+width = 20.0
+thickness = 0.8
+rail_height = 0.9
+rail_width = 0.5
+
+[node name="Pillars" type="TerrainSplineArray" parent="SplineManager/TrackSpline" unique_id=1723548853]
+mesh = SubResource("CylinderMesh_pillar")
+mesh_centered = true
+spacing = 28.0
+start_offset = 6.0
+vertical_offset = -0.8
+stretch_to_ground = true
+
+[node name="Posts" type="TerrainSplineArray" parent="SplineManager/TrackSpline" unique_id=1723548854]
+mesh = SubResource("BoxMesh_post")
+mesh_centered = true
+spacing = 12.0
+side = 3
+lateral_offset = 5.25
+follow_tilt = true
 
 [node name="Terrain3D" type="Terrain3D" parent="." unique_id=61110530]
 material = SubResource("Terrain3DMaterial_dju1v")

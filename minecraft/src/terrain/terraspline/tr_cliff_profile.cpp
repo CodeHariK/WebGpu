@@ -225,10 +225,36 @@ void TerrainSplineCliff::_build_profile(
 		thickness[k] *= p_station.wall_height / sum;
 	}
 
+	const float wall_h = MAX(0.001f, p_station.wall_height);
+
+	// Where this station sits within its column: 1 inside a cleft (groove at a column boundary), else 0.
+	float cleft = 0.0f;
+	float col_variation = 0.0f; // Per-column brightness jitter in [-1, 1]
+	if (column_width > 0.0f) {
+		const float in_col = Math::fposmod(p_station.distance, column_width);
+		const float to_boundary = MIN(in_col, column_width - in_col);
+		if (cleft_width > 0.0f && to_boundary < cleft_width * 0.5f) {
+			cleft = 1.0f;
+		}
+		const float col_centre = (Math::floor(p_station.distance / column_width) + 0.5f) * column_width;
+		col_variation = _noise->get_noise_2d(col_centre * 0.37f, 911.0f + seed);
+	}
+	// Talus factor: 0 on the wall, ramping to 1 over the 10 % below talus_start (smooth apron).
+	auto talus = [&](float p_depth) -> float {
+		if (talus_start >= 1.0f) {
+			return 0.0f;
+		}
+		const float t = (p_depth / wall_h - talus_start) / 0.1f;
+		return CLAMP(t, 0.0f, 1.0f);
+	};
+
 	auto push = [&](float p_offset, float p_depth, int p_stratum) {
 		ProfilePoint pt;
-		pt.offset = p_offset;
+		const float rock = 1.0f - talus(p_depth); // Clefts and column shading belong to the wall, not the apron
+		pt.offset = p_offset - cleft_depth * cleft * rock;
 		pt.depth = p_depth;
+		pt.depth_norm = CLAMP(p_depth / wall_h, 0.0f, 1.0f);
+		pt.shade = (1.0f - cleft_shade * cleft * rock) * (1.0f + column_shade * col_variation * rock);
 		pt.stratum = p_stratum;
 		r_profile.push_back(pt);
 	};
@@ -241,33 +267,52 @@ void TerrainSplineCliff::_build_profile(
 		push(-lip * 0.5f, -0.05f, 0);
 	}
 
-	// Each layer: [chamfer in from the corner ->] chamfer down -> vertical face; the next layer's first
-	// point closes the horizontal step (ledge top when it goes out, overhang underside when it goes in).
-	float offset = 0.0f;
+	// Silhouette from the profile curve: horizontal offset as a function of normalized depth.
+	auto shape = [&](float p_depth) -> float {
+		if (profile_curve.is_null()) {
+			return 0.0f;
+		}
+		return (float)profile_curve->sample_baked(CLAMP(p_depth / wall_h, 0.0f, 1.0f)) * profile_amount;
+	};
+
+	// Each layer: [chamfer in from the corner ->] chamfer down -> face; the next layer's first point
+	// closes the horizontal step (ledge top when it goes out, overhang underside when it goes in).
+	// `steps` is the accumulated random in/out of the strata; the curve's shape is added on top, so a
+	// layer's face follows the silhouette (it may lean) while the steps stay crisp.
+	float steps = 0.0f;
 	float depth = 0.0f;
 	for (int k = 0; k < strata; ++k) {
 		const float face_top = depth;
 		const float face_bottom = depth + thickness[k];
-		const float b = MIN(bevel, thickness[k] * 0.45f);
-		push(offset - b, face_top, k);
+		const float b = MIN(bevel, thickness[k] * 0.45f) * (1.0f - talus(face_top));
+		const float o_top = steps + shape(face_top);
+		const float o_bottom = steps + shape(face_bottom);
+		push(o_top - b, face_top, k);
 		if (b > 0.0f) {
-			push(offset, face_top + b, k);
+			push(o_top + (o_bottom - o_top) * (b / thickness[k]), face_top + b, k);
 		}
-		push(offset, face_bottom, k);
+		push(o_bottom, face_bottom, k);
 
 		if (k + 1 < strata) {
 			// Step to the next layer: base step + wobble, plus a ledge where the ledge mask is high.
-			float step = base_step[k] + _wobble(p_station.distance, k, 0.0f);
+			// Wobble: per layer, or shared by the whole column (vertical fins) as column_coherence -> 1.
+			const float wobble = Math::lerp(
+					_wobble(p_station.distance, k, 0.0f), _wobble(p_station.distance, 1000, 0.0f), column_coherence
+			);
+			float step = base_step[k] + wobble;
 			const float ledge_mask =
 					_noise->get_noise_2d(p_station.distance * noise_frequency * 0.6f, k * 53.7f + 7.0f + seed);
 			if (ledge_chance > 0.0f && (ledge_mask * 0.5f + 0.5f) < ledge_chance) {
 				step += ledge_depth;
 			}
-			// Never step back behind the rim: the terrain's own face is there and would poke through.
-			offset = MAX(0.0f, offset + step);
+			step *= 1.0f - talus(face_bottom); // No steps on the apron
+			// The random part never steps back behind the rim (a hosting terrain face would poke through);
+			// tucking under the rim is the profile curve's job.
+			steps = MAX(0.0f, steps + step);
 		}
 		depth = face_bottom;
 	}
+	const float offset = steps + shape(depth);
 
 	// Skirt: straight down past the foot, hiding the ground seam.
 	const float skirt_depth = depth + skirt;

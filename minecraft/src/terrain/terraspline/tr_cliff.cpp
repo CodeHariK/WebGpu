@@ -29,6 +29,10 @@ void TerrainSplineCliff::_bind_methods() {
 	TR_CLIFF_BIND(FLOAT, base_offset, PROPERTY_HINT_RANGE, "-50,50,0.1,suffix:m");
 	TR_CLIFF_BIND(BOOL, rim_from_deformer, PROPERTY_HINT_NONE, "");
 	TR_CLIFF_BIND(BOOL, flip_side, PROPERTY_HINT_NONE, "");
+	ClassDB::bind_method(D_METHOD("set_profile_curve", "curve"), &TerrainSplineCliff::set_profile_curve);
+	ClassDB::bind_method(D_METHOD("get_profile_curve"), &TerrainSplineCliff::get_profile_curve);
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "profile_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_profile_curve", "get_profile_curve");
+	TR_CLIFF_BIND(FLOAT, profile_amount, PROPERTY_HINT_RANGE, "-50,50,0.1,suffix:m");
 	TR_CLIFF_BIND(FLOAT, segment_length, PROPERTY_HINT_RANGE, "0.5,20,0.1,suffix:m");
 	ClassDB::bind_method(D_METHOD("set_bottom_mode", "mode"), &TerrainSplineCliff::set_bottom_mode);
 	ClassDB::bind_method(D_METHOD("get_bottom_mode"), &TerrainSplineCliff::get_bottom_mode);
@@ -56,6 +60,12 @@ void TerrainSplineCliff::_bind_methods() {
 	TR_CLIFF_BIND(FLOAT, noise_frequency, PROPERTY_HINT_RANGE, "0,1,0.005");
 	TR_CLIFF_BIND(FLOAT, noise_quantize, PROPERTY_HINT_RANGE, "0,2,0.05,suffix:m");
 	TR_CLIFF_BIND(FLOAT, column_width, PROPERTY_HINT_RANGE, "0,50,0.5,suffix:m");
+	TR_CLIFF_BIND(FLOAT, column_coherence, PROPERTY_HINT_RANGE, "0,1,0.01");
+	TR_CLIFF_BIND(FLOAT, cleft_depth, PROPERTY_HINT_RANGE, "0,10,0.05,suffix:m");
+	TR_CLIFF_BIND(FLOAT, cleft_width, PROPERTY_HINT_RANGE, "0,20,0.1,suffix:m");
+	TR_CLIFF_BIND(FLOAT, cleft_shade, PROPERTY_HINT_RANGE, "0,1,0.01");
+	TR_CLIFF_BIND(FLOAT, column_shade, PROPERTY_HINT_RANGE, "0,1,0.01");
+	TR_CLIFF_BIND(FLOAT, talus_start, PROPERTY_HINT_RANGE, "0,1,0.01");
 
 	ADD_GROUP("Look", "");
 	ClassDB::bind_method(D_METHOD("set_colors", "gradient"), &TerrainSplineCliff::set_colors);
@@ -73,6 +83,7 @@ void TerrainSplineCliff::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_top_material", "material"), &TerrainSplineCliff::set_top_material);
 	ClassDB::bind_method(D_METHOD("get_top_material"), &TerrainSplineCliff::get_top_material);
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "top_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_top_material", "get_top_material");
+	TR_CLIFF_BIND(BOOL, color_by_depth, PROPERTY_HINT_NONE, "");
 	TR_CLIFF_BIND(BOOL, collision_enabled, PROPERTY_HINT_NONE, "");
 
 	BIND_ENUM_CONSTANT(BOTTOM_RELATIVE);
@@ -179,6 +190,13 @@ void TerrainSplineCliff::set_height_curve(const Ref<Curve> &p_curve) {
 	Ref<Resource> slot = height_curve;
 	swap_changed_listener(slot, p_curve, this);
 	height_curve = slot;
+	queue_rebuild();
+}
+
+void TerrainSplineCliff::set_profile_curve(const Ref<Curve> &p_curve) {
+	Ref<Resource> slot = profile_curve;
+	swap_changed_listener(slot, p_curve, this);
+	profile_curve = slot;
 	queue_rebuild();
 }
 

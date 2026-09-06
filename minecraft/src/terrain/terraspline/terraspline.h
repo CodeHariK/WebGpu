@@ -18,6 +18,7 @@
 #ifndef TERRASPLINE_H
 #define TERRASPLINE_H
 
+#include "tr_array.h"
 #include "tr_chunk.h"
 #include "tr_chunk_job.h"
 #include "tr_cliff.h"
@@ -26,6 +27,7 @@
 #include "tr_deformer.h"
 #include "tr_deformer_job.h"
 #include "tr_heightmap.h"
+#include "tr_road.h"
 #include "tr_scatter.h"
 #include "tr_scatter_job.h"
 #include "tr_stream_map.h"
