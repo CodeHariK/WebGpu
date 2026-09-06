@@ -151,6 +151,45 @@ deform_heightmap_prepared(heightmap, spline, offset, padded_aabb, threaded)     
             per pixel: spline->evaluate_spline_point_segmented → _falloff_weight → blend_pixel
 ```
 
+**Height source.** `TerrainSplineDeformer.height_source` picks where `spline_y` comes from. `SPLINE`
+(default) uses the control points' Y — mountains and carving. `TERRAIN` ignores the spline's Y: in
+`_create_deformer_job`, `_bake_terrain_profile` samples the undeformed ground
+(`TerrainHeightmap::base_height_at` = base elevation + compositor noise, set via `set_base_terrain`
+by the chunk job and the editor preview) at every baked vertex, smooths it along the arc with a
+triangular kernel `profile_smoothing` metres wide (two half-width box passes, so a cliff becomes an
+S-curve rather than a kinked ramp), clamps the slope to `max_grade` % (forward + backward passes), and overwrites the job's `vert_y` /
+`seg_y0` / `seg_dy`. The job's interpolation mode is forced to NEAREST (the profile is already smooth; IDW modes blend in
+neighbouring vertex heights and bead a sloping centreline). Everything else downstream is unchanged, so with
+`BLEND_REPLACE` the corridor is flat across, gently follows the ground along, and cut-and-fills over
+`falloff_distance`; `max_height` is the offset above the profile. With `profile_include_splines`
+(default on) the ground is sampled *through* every `SPLINE`-height deformer in the scene
+(`ChunkJob::base_deformers`, gathered from all splines — not just those touching the chunk — so the
+profile is identical in every chunk; `_sample_ground` → `evaluate_height_at`, a 1-D O(segments)
+evaluation per vertex), so a road climbs over spline-built mountains and only cuts/fills as much as
+the smoothing and grade limit demand; off, it sees only the noise and cuts straight through them.
+`earthwork` picks the policy: `CUT_AND_FILL` (default; the grade clamp raises dips and lowers rises,
+so a short route past a tall block ends up on an embankment), `CUT_ONLY` (one-sided smoothing: erode the
+ground over the window, then the triangular kernel — the average of an eroded signal can never exceed
+the original, so the result is smooth AND never above the ground with no jagged clamp — then a
+slope-constrained lower envelope `min_j(h_j + g·d_ij)`, so a too-steep climb becomes a ramped trench
+into the slope) or `FILL_ONLY` (the mirror: dilate + smooth, upper envelope).
+`max_cut_depth` / `max_fill_height` (0 = unlimited) then cap how far the profile may sit below / above
+the ground. The caps are themselves smooth surfaces (dilated / eroded ground, smoothed — never the raw
+ground, which would copy its bumps onto the road) and in the one-sided modes are clamped so they can
+never flip a cut into a fill or vice versa. Where a cap engages the grade limit is best-effort — depth
+wins — so a cap smaller than the terrain's own steps (a 3 m cut over 16 m terraces) leaves the road as
+steep as the terrain there.
+`road_blur` (metres, 0 = off) is a final triangular blur of the finished profile: the caps copy the
+ground's steps onto the road wherever they engage, and this rounds them off, deliberately allowing the
+caps to be exceeded a little (a step becomes a ramp, half cut / half fill). Set it to a few times the
+bake interval for bead-free roads over terraced terrain; it is the last word in the pipeline.
+In `TERRAIN` mode ADD is remapped to
+REPLACE (it would be a no-op — the target is the ground itself) and SUBTRACT to REPLACE at
+`profile − max_height` (sunken road); MAX = fill-only, MIN = cut-only (`_effective_blend_mode`). Only the noise function is sampled,
+never a chunk buffer, so the profile is identical in every chunk and in the preview. The chunk pass
+(and the preview) applies all `SPLINE` deformers first and `TERRAIN` ones last, so roads cut through
+mountains built by earlier splines rather than being buried by them.
+
 `blend_pixel` receives the absolute target `spline_y + max_height` and the heightmap's
 `base_elevation` (what the chunk was cleared to, i.e. `default_elevation`). ADD/SUBTRACT apply
 `(target − base) · weight` to the current height, so on flat ground the surface meets the spline
@@ -310,6 +349,7 @@ code outside the module (register_types.cpp); inside the module include the spec
 | `tr_deformer_field.cpp`          | Distance-field pass, one function per step (seed, sweep, refine, band, fill, tiles) |
 | `tr_deformer_legacy.cpp`         | Job creation; legacy tile-culling decomposition (A/B fallback)            |
 | `tr_deformer_pixel.cpp`          | Per-pixel weight, spline height, blend; the two tile loops                |
+| `tr_deformer_profile.cpp`        | `_bake_terrain_profile` — HEIGHT_TERRAIN: ground sampled along the spline, smoothed, grade-limited |
 | `tr_scatter_job.h`               | `ScatterJob` — per-(scatterer, chunk) inputs and transforms               |
 | `tr_scatter.h/.cpp`              | `TerrainSplineScatter` — bindings                                          |
 | `tr_scatter_cell.cpp`            | Per-cell RNG, filters, height/slope sampling                              |

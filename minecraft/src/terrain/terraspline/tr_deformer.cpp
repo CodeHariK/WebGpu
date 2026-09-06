@@ -49,6 +49,68 @@ void TerrainSplineDeformer::_bind_methods() {
 			"set_blend_mode", "get_blend_mode"
 	);
 
+	ClassDB::bind_method(D_METHOD("set_height_source", "source"), &TerrainSplineDeformer::set_height_source);
+	ClassDB::bind_method(D_METHOD("get_height_source"), &TerrainSplineDeformer::get_height_source);
+	ADD_PROPERTY(
+			PropertyInfo(
+					Variant::INT, "height_source", PROPERTY_HINT_ENUM,
+					"Spline (control point Y),Terrain (follow the ground; road)"
+			),
+			"set_height_source", "get_height_source"
+	);
+	ClassDB::bind_method(D_METHOD("set_profile_smoothing", "metres"), &TerrainSplineDeformer::set_profile_smoothing);
+	ClassDB::bind_method(D_METHOD("get_profile_smoothing"), &TerrainSplineDeformer::get_profile_smoothing);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "profile_smoothing", PROPERTY_HINT_RANGE, "0,500,1,suffix:m"),
+			"set_profile_smoothing", "get_profile_smoothing"
+	);
+	ClassDB::bind_method(D_METHOD("set_max_grade", "percent"), &TerrainSplineDeformer::set_max_grade);
+	ClassDB::bind_method(D_METHOD("get_max_grade"), &TerrainSplineDeformer::get_max_grade);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "max_grade", PROPERTY_HINT_RANGE, "0,100,0.5,suffix:%"), "set_max_grade",
+			"get_max_grade"
+	);
+
+	ClassDB::bind_method(
+			D_METHOD("set_profile_include_splines", "include"), &TerrainSplineDeformer::set_profile_include_splines
+	);
+	ClassDB::bind_method(D_METHOD("get_profile_include_splines"), &TerrainSplineDeformer::get_profile_include_splines);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::BOOL, "profile_include_splines"), "set_profile_include_splines",
+			"get_profile_include_splines"
+	);
+
+	ClassDB::bind_method(D_METHOD("set_earthwork", "mode"), &TerrainSplineDeformer::set_earthwork);
+	ClassDB::bind_method(D_METHOD("get_earthwork"), &TerrainSplineDeformer::get_earthwork);
+	ADD_PROPERTY(
+			PropertyInfo(
+					Variant::INT, "earthwork", PROPERTY_HINT_ENUM,
+					"Cut and fill (embankments and cuttings),Cut only (never above the ground),Fill only (never below "
+					"the ground)"
+			),
+			"set_earthwork", "get_earthwork"
+	);
+
+	ClassDB::bind_method(D_METHOD("set_max_cut_depth", "metres"), &TerrainSplineDeformer::set_max_cut_depth);
+	ClassDB::bind_method(D_METHOD("get_max_cut_depth"), &TerrainSplineDeformer::get_max_cut_depth);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "max_cut_depth", PROPERTY_HINT_RANGE, "0,200,0.1,suffix:m"),
+			"set_max_cut_depth", "get_max_cut_depth"
+	);
+	ClassDB::bind_method(D_METHOD("set_max_fill_height", "metres"), &TerrainSplineDeformer::set_max_fill_height);
+	ClassDB::bind_method(D_METHOD("get_max_fill_height"), &TerrainSplineDeformer::get_max_fill_height);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "max_fill_height", PROPERTY_HINT_RANGE, "0,200,0.1,suffix:m"),
+			"set_max_fill_height", "get_max_fill_height"
+	);
+
+	ClassDB::bind_method(D_METHOD("set_road_blur", "metres"), &TerrainSplineDeformer::set_road_blur);
+	ClassDB::bind_method(D_METHOD("get_road_blur"), &TerrainSplineDeformer::get_road_blur);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "road_blur", PROPERTY_HINT_RANGE, "0,200,0.5,suffix:m"), "set_road_blur",
+			"get_road_blur"
+	);
+
 	ClassDB::bind_method(D_METHOD("set_falloff_curve", "falloff_curve"), &TerrainSplineDeformer::set_falloff_curve);
 	ClassDB::bind_method(D_METHOD("get_falloff_curve"), &TerrainSplineDeformer::get_falloff_curve);
 	ADD_PROPERTY(
@@ -92,6 +154,11 @@ void TerrainSplineDeformer::_bind_methods() {
 	BIND_ENUM_CONSTANT(BLEND_MAX);
 	BIND_ENUM_CONSTANT(BLEND_MIN);
 	BIND_ENUM_CONSTANT(BLEND_REPLACE);
+	BIND_ENUM_CONSTANT(HEIGHT_SPLINE);
+	BIND_ENUM_CONSTANT(HEIGHT_TERRAIN);
+	BIND_ENUM_CONSTANT(EARTHWORK_CUT_AND_FILL);
+	BIND_ENUM_CONSTANT(EARTHWORK_CUT_ONLY);
+	BIND_ENUM_CONSTANT(EARTHWORK_FILL_ONLY);
 }
 
 TerrainSplineDeformer::TerrainSplineDeformer() {}

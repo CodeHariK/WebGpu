@@ -3,6 +3,7 @@
  * @brief TerrainSplineCompositorUI: a grayscale preview of the combined spline heightmap.
  */
 #include "tr_compositor_ui.h"
+#include "tr_compositor.h"
 #include "tr_deformer.h"
 #include "utils/spline3d/procedural_spline3d.h"
 #include <godot_cpp/classes/image_texture.hpp>
@@ -285,15 +286,34 @@ Ref<TerrainHeightmap> TerrainSplineCompositorUI::_deform_unified_heightmap(
 	Ref<TerrainHeightmap> buffer;
 	buffer.instantiate();
 	buffer->initialize(r_w, r_h, default_elevation);
+	// When previewing a compositor's splines, use its base noise so terrain-following roads match.
+	if (const TerrainSplineCompositor *comp = Object::cast_to<TerrainSplineCompositor>(_watched_root)) {
+		buffer->set_base_terrain(comp->get_global_terrain_noise(), comp->get_global_terrain_amplitude());
+	}
 	Vector2 offset(min_x, min_z);
 
 	uint64_t t0 = Time::get_singleton()->get_ticks_usec();
+	std::vector<TerrainHeightmap::BaseDeformer> base_deformers;
 	for (ProceduralSpline3D *spline : p_splines) {
 		TypedArray<Node> children = spline->get_children();
 		for (int i = 0; i < children.size(); ++i) {
 			TerrainSplineDeformer *deformer = Object::cast_to<TerrainSplineDeformer>(children[i]);
-			if (deformer) {
-				deformer->deform_heightmap(buffer, spline, offset);
+			if (deformer && deformer->get_height_source() == TerrainSplineDeformer::HEIGHT_SPLINE) {
+				base_deformers.push_back({ spline, deformer });
+			}
+		}
+	}
+	buffer->set_base_deformers(base_deformers);
+
+	// Same order as the chunk pipeline: spline-height deformers first, terrain-following (roads) last.
+	for (int pass = TerrainSplineDeformer::HEIGHT_SPLINE; pass <= TerrainSplineDeformer::HEIGHT_TERRAIN; ++pass) {
+		for (ProceduralSpline3D *spline : p_splines) {
+			TypedArray<Node> children = spline->get_children();
+			for (int i = 0; i < children.size(); ++i) {
+				TerrainSplineDeformer *deformer = Object::cast_to<TerrainSplineDeformer>(children[i]);
+				if (deformer && (int)deformer->get_height_source() == pass) {
+					deformer->deform_heightmap(buffer, spline, offset);
+				}
 			}
 		}
 	}

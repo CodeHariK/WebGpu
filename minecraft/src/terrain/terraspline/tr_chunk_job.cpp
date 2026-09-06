@@ -82,6 +82,27 @@ Ref<ChunkJob> TerrainSplineCompositor::_make_chunk_job(
 		job->splines.push_back(entry);
 	}
 
+	// Terrain-following deformers need the ground as shaped by ALL spline-height deformers, including
+	// splines outside this chunk, otherwise the road profile would differ between chunks.
+	bool has_terrain_following = false;
+	for (const ChunkJob::SplineEntry &entry : job->splines) {
+		for (TerrainSplineDeformer *d : entry.deformers) {
+			has_terrain_following |= d->get_height_source() == TerrainSplineDeformer::HEIGHT_TERRAIN;
+		}
+	}
+	if (has_terrain_following) {
+		for (ProceduralSpline3D *spline : p_splines) {
+			spline->ensure_baked_cache();
+			TypedArray<Node> children = spline->get_children();
+			for (int i = 0; i < children.size(); ++i) {
+				TerrainSplineDeformer *d = Object::cast_to<TerrainSplineDeformer>(children[i]);
+				if (d && d->get_height_source() == TerrainSplineDeformer::HEIGHT_SPLINE) {
+					job->base_deformers.push_back({ spline, d });
+				}
+			}
+		}
+	}
+
 	bool worth_generating = !job->splines.empty() || global_terrain_noise.is_valid() || default_elevation != 0.0f;
 	job->chunk = _get_or_create_chunk(p_chunk_pos, /*allow_create=*/worth_generating);
 	if (job->chunk.is_null()) {
@@ -123,6 +144,7 @@ void TerrainSplineCompositor::_run_chunk_job_math(
 	uint64_t t0 = Time::get_singleton()->get_ticks_usec();
 
 	buffer->clear(p_job->default_elevation);
+	buffer->set_base_terrain(p_job->noise, p_job->noise_amplitude);
 
 	// 1. Base terrain from global noise.
 	if (p_job->noise.is_valid()) {
@@ -137,10 +159,18 @@ void TerrainSplineCompositor::_run_chunk_job_math(
 		}
 	}
 
-	// 2. Spline deformers on top.
-	for (const ChunkJob::SplineEntry &entry : p_job->splines) {
-		for (TerrainSplineDeformer *d : entry.deformers) {
-			d->deform_heightmap_prepared(buffer, entry.spline, p_job->offset, entry.padded_aabb, p_threaded);
+	buffer->set_base_deformers(p_job->base_deformers); // Ground context for terrain-following profiles
+
+	// 2. Spline deformers on top: spline-height deformers (mountains, carving) first, then
+	//    terrain-following ones (roads) so a road cuts through / fills over whatever was built before it.
+	for (int pass = TerrainSplineDeformer::HEIGHT_SPLINE; pass <= TerrainSplineDeformer::HEIGHT_TERRAIN; ++pass) {
+		for (const ChunkJob::SplineEntry &entry : p_job->splines) {
+			for (TerrainSplineDeformer *d : entry.deformers) {
+				if ((int)d->get_height_source() != pass) {
+					continue;
+				}
+				d->deform_heightmap_prepared(buffer, entry.spline, p_job->offset, entry.padded_aabb, p_threaded);
+			}
 		}
 	}
 	uint64_t t1 = Time::get_singleton()->get_ticks_usec();

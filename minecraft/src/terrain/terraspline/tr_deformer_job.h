@@ -49,6 +49,7 @@ public:
 
 	// ---- Work decomposition ----
 	std::vector<Rect2i> active_tiles; // Pixel rectangles that may receive weight
+	std::vector<int> all_segments; // 0..nseg-1, for whole-spline point evaluation
 	std::vector<std::vector<int>> tile_segments; // Legacy path only: candidate segments per tile
 
 	// ---- Spline geometry as structure-of-arrays (tight inner loops) ----
