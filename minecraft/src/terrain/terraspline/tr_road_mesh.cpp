@@ -2,6 +2,8 @@
  * @file tr_road_mesh.cpp
  * @brief TerrainSplineRoad: stations along the spline, sweeping the cross-section, stitching, caps.
  */
+#include "tr_compositor.h"
+#include "tr_deformer.h"
 #include "tr_road.h"
 #include "utils/curve/curve_baker.h"
 #include <godot_cpp/classes/array_mesh.hpp>
@@ -67,6 +69,83 @@ place(const Transform3D &p_station,
 } // namespace
 
 // ---------------------------------------------------------------------------------------------
+// Terrain mode
+// ---------------------------------------------------------------------------------------------
+
+/// The sibling HEIGHT_TERRAIN deformer's road profile (world-space points along the spline), or false.
+bool TerrainSplineRoad::_terrain_profile(std::vector<Vector3> &r_points) const {
+	ProceduralSpline3D *spline = Object::cast_to<ProceduralSpline3D>(get_parent());
+	if (!spline) {
+		return false;
+	}
+	const TerrainSplineCompositor *comp = Object::cast_to<TerrainSplineCompositor>(spline->get_parent());
+	if (!comp) {
+		UtilityFunctions::push_warning(
+				"[TerrainSplineRoad] TERRAIN mode needs the spline under a TerrainSplineCompositor."
+		);
+		return false;
+	}
+	TypedArray<Node> siblings = spline->get_children();
+	for (int i = 0; i < siblings.size(); ++i) {
+		TerrainSplineDeformer *d = Object::cast_to<TerrainSplineDeformer>(siblings[i]);
+		if (d && d->get_height_source() == TerrainSplineDeformer::HEIGHT_TERRAIN) {
+			return d->bake_road_profile(comp->make_profile_context(), spline, r_points);
+		}
+	}
+	UtilityFunctions::push_warning(
+			"[TerrainSplineRoad] TERRAIN mode needs a sibling TerrainSplineDeformer with height_source = Terrain."
+	);
+	return false;
+}
+
+/**
+ * @brief Replaces each station's height with the profile's, interpolated by arc length along the
+ * profile's own vertices, and flattens the frame (upright, no banking) - the ground cannot bank.
+ */
+void TerrainSplineRoad::_apply_terrain_heights(
+		std::vector<Transform3D> &r_stations,
+		const std::vector<float> &p_distances,
+		const std::vector<Vector3> &p_profile
+) const {
+	// Arc length of the profile vertices (world space).
+	std::vector<float> arc(p_profile.size(), 0.0f);
+	for (size_t i = 1; i < p_profile.size(); ++i) {
+		arc[i] =
+				arc[i - 1] + Vector2(p_profile[i].x - p_profile[i - 1].x, p_profile[i].z - p_profile[i - 1].z).length();
+	}
+	const Transform3D to_local = get_global_transform().affine_inverse();
+	const Transform3D to_world = get_global_transform();
+	for (size_t s = 0; s < r_stations.size(); ++s) {
+		// Height at this station's arc distance (the profile and the curve share their parametrization
+		// up to bake-interval rounding, so match by distance rather than by index).
+		const float d = p_distances[s];
+		size_t hi = 1;
+		while (hi + 1 < arc.size() && arc[hi] < d) {
+			++hi;
+		}
+		const size_t lo = hi - 1;
+		const float span = MAX(1e-4f, arc[hi] - arc[lo]);
+		const float t = CLAMP((d - arc[lo]) / span, 0.0f, 1.0f);
+		const float world_y = Math::lerp(p_profile[lo].y, p_profile[hi].y, t) + surface_offset;
+
+		Transform3D &st = r_stations[s];
+		Vector3 world_origin = to_world.xform(st.origin);
+		world_origin.y = world_y;
+		st.origin = to_local.xform(world_origin);
+		// Upright frame: keep the horizontal heading, drop the tilt.
+		Vector3 along = st.basis.get_column(2);
+		along.y = 0.0f;
+		along = along.length_squared() > 1e-8f ? along.normalized() : Vector3(0, 0, 1);
+		const Vector3 up(0, 1, 0);
+		Vector3 right = up.cross(along).normalized();
+		if (right.dot(st.basis.get_column(0)) < 0.0f) { // Keep the original left/right sense
+			right = -right;
+		}
+		st.basis = Basis(right, up, along);
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
 // Stations
 // ---------------------------------------------------------------------------------------------
 
@@ -121,6 +200,12 @@ bool TerrainSplineRoad::_build_stations(
 			r_stations.pop_back();
 			r_distances.pop_back();
 		}
+		if (height_source == HEIGHT_TERRAIN) {
+			std::vector<Vector3> profile;
+			if (_terrain_profile(profile)) {
+				_apply_terrain_heights(r_stations, r_distances, profile);
+			}
+		}
 		return r_stations.size() >= 2;
 	}
 
@@ -131,6 +216,12 @@ bool TerrainSplineRoad::_build_stations(
 		const float d = MIN(start + i * step, end);
 		r_stations.push_back(to_local * curve->sample_baked_with_rotation(d, false, /*apply_tilt=*/true));
 		r_distances.push_back(d);
+	}
+	if (height_source == HEIGHT_TERRAIN) {
+		std::vector<Vector3> profile;
+		if (_terrain_profile(profile)) {
+			_apply_terrain_heights(r_stations, r_distances, profile);
+		}
 	}
 	return r_stations.size() >= 2;
 }

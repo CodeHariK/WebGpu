@@ -9,6 +9,7 @@
 #include "tr_chunk_job.h"
 #include "utils/spline3d/procedural_spline3d.h"
 #include <cstdint>
+#include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/noise.hpp>
@@ -227,7 +228,8 @@ private:
 	void _write_chunk_heights_to_terrain(
 			Object *p_target_api,
 			const Ref<TerrainChunk> &p_chunk,
-			const Vector2 &p_offset
+			const Vector2 &p_offset,
+			const Ref<Image> &p_control
 	);
 	void _flush_terrain_maps(Object *p_target_api);
 	void _refresh_terrain_collision();
@@ -300,6 +302,13 @@ public:
 	void _on_spline_changed();
 	/// WorkerThreadPool entry point for one chunk's math.
 	void _run_chunk_job_task(Ref<ChunkJob> p_job);
+
+	/**
+	 * @brief A 1x1 TerrainHeightmap describing the undeformed ground (default elevation, noise) and
+	 * every spline-height deformer in the scene - what TerrainSplineDeformer::bake_road_profile needs to
+	 * reproduce a chunk's road profile outside the chunk pipeline. Main thread (bakes spline caches).
+	 */
+	Ref<TerrainHeightmap> make_profile_context() const;
 
 	// ---- Debug map (tr_compositor_snapshot.cpp) ----
 	/// Chunks finalized from now on carry a p_size² height thumbnail (0 disables). Main thread only.

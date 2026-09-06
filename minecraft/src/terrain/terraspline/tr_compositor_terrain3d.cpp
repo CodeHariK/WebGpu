@@ -30,7 +30,7 @@ Object *TerrainSplineCompositor::_get_terrain_data_api() const {
 }
 
 /**
- * @brief Hands a finished chunk heightmap to Terrain3D.
+ * @brief Hands a finished chunk heightmap (and its control map, when a painter produced one) to Terrain3D.
  * Fast path (chunk size == region size): build the Terrain3DRegion ourselves and add it with
  * update=false; the GPU texture arrays are rebuilt once per batch by _flush_terrain_maps(). This is
  * what import_images does internally, minus its per-call update_maps.
@@ -39,7 +39,8 @@ Object *TerrainSplineCompositor::_get_terrain_data_api() const {
 void TerrainSplineCompositor::_write_chunk_heights_to_terrain(
 		Object *p_target_api,
 		const Ref<TerrainChunk> &p_chunk,
-		const Vector2 &p_offset
+		const Vector2 &p_offset,
+		const Ref<Image> &p_control
 ) {
 	Ref<Image> height_image = p_chunk->get_heightmap()->get_image();
 	Vector3 stamp_position(p_offset.x, 0.0f, p_offset.y);
@@ -53,6 +54,9 @@ void TerrainSplineCompositor::_write_chunk_heights_to_terrain(
 			TypedArray<Image> maps;
 			maps.resize(3); // height, control, color; nulls are sanitized to defaults by add_region
 			maps[0] = height_image;
+			if (p_control.is_valid()) {
+				maps[1] = p_control;
+			}
 			region->call("set_maps", maps);
 			p_target_api->call("add_region", region, false);
 			_terrain_maps_dirty = true;
@@ -64,7 +68,7 @@ void TerrainSplineCompositor::_write_chunk_heights_to_terrain(
 	empty_map.instantiate();
 	Array images;
 	images.push_back(height_image);
-	images.push_back(empty_map);
+	images.push_back(p_control.is_valid() ? p_control : empty_map);
 	images.push_back(empty_map);
 	bool has_region = p_target_api->call("has_regionp", stamp_position);
 	if (!has_region) {
