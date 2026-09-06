@@ -1,64 +1,57 @@
+/**
+ * @file convex_hull_rock.h
+ * @brief ConvexHullRock: a MeshInstance3D showing a ConvexHullRockMesh with optional static collision.
+ */
 #ifndef CONVEX_HULL_ROCK_H
 #define CONVEX_HULL_ROCK_H
 
+#include "convex_hull_rock_mesh.h"
+#include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/static_body3d.hpp>
-#include <godot_cpp/classes/collision_shape3d.hpp>
-#include <godot_cpp/classes/material.hpp>
 
 namespace godot {
 
+/**
+ * @class ConvexHullRock
+ * @brief Thin scene node around ConvexHullRockMesh. Assign or create the rock in `rock_mesh`; the node
+ * displays it and, when `collision_enabled`, keeps a StaticBody3D/CollisionShape3D child in sync with
+ * the mesh's convex hull. The helper nodes are not saved with the scene, and neither is the generated
+ * mesh - only `rock_mesh`'s parameters are.
+ */
 class ConvexHullRock : public MeshInstance3D {
-	GDCLASS(ConvexHullRock, MeshInstance3D)
-
-public:
-	enum CollisionType {
-		COLLISION_NONE = 0,
-		COLLISION_CONVEX = 1,
-		COLLISION_CONCAVE = 2
-	};
+	GDCLASS(ConvexHullRock,
+			MeshInstance3D)
 
 private:
-	CollisionType collision_type = COLLISION_CONVEX;
+	Ref<ConvexHullRockMesh> rock_mesh;
+	bool collision_enabled = true;
 	StaticBody3D *static_body = nullptr;
 	CollisionShape3D *collision_shape = nullptr;
 
-	int rock_seed = 12345;
-	int num_points = 30;
-	Vector3 size_scale = Vector3(1.0f, 1.0f, 1.0f);
-	bool flat_shaded = true;
-
-	void update_collision();
+	void _apply_mesh();
+	void _update_collision();
+	void _ensure_collision_nodes();
+	void _free_collision_nodes();
 
 protected:
 	static void _bind_methods();
+	void _notification(int p_what);
+	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	ConvexHullRock();
 	~ConvexHullRock();
 
-	virtual void _ready() override;
+	void set_rock_mesh(const Ref<ConvexHullRockMesh> &p_mesh);
+	Ref<ConvexHullRockMesh> get_rock_mesh() const { return rock_mesh; }
+	void set_collision_enabled(bool p_enabled);
+	bool get_collision_enabled() const { return collision_enabled; }
 
-	void set_collision_type(CollisionType p_type);
-	CollisionType get_collision_type() const;
-
-	void set_rock_seed(int p_seed);
-	int get_rock_seed() const;
-
-	void set_num_points(int p_points);
-	int get_num_points() const;
-
-	void set_size_scale(const Vector3 &p_scale);
-	Vector3 get_size_scale() const;
-
-	void set_flat_shaded(bool p_flat);
-	bool get_flat_shaded() const;
-
-	void generate_rock();
+	/// Called when rock_mesh changes its geometry.
+	void _on_rock_mesh_changed();
 };
 
 } // namespace godot
-
-VARIANT_ENUM_CAST(godot::ConvexHullRock::CollisionType);
 
 #endif // CONVEX_HULL_ROCK_H

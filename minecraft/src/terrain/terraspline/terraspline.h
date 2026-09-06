@@ -20,6 +20,7 @@
 
 #include "tr_chunk.h"
 #include "tr_chunk_job.h"
+#include "tr_cliff.h"
 #include "tr_compositor.h"
 #include "tr_compositor_ui.h"
 #include "tr_deformer.h"

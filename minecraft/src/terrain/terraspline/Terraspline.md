@@ -18,6 +18,7 @@ components) into Terrain3D heightmap regions, streamed in `chunk_size` (256 m) c
 | `ChunkJob` | RefCounted (data) | Inputs captured from the scene tree, outputs of the math | One chunk generation. Exists so the math phase never touches the scene tree. |
 | `DeformerJob` | RefCounted (data) | Baked curves, SoA spline geometry, distance field, active tiles | One (deformer, chunk) deformation. Read-only for the per-pixel tasks; each task writes disjoint tiles of the heightmap. |
 | `ScatterJob` | RefCounted (data) | Inputs, resulting transforms, debug counters | One (scatterer, spline, chunk) scattering. |
+| `TerrainSplineCliff` | SplineComponent | — | Stylized cliff wall hung from the parent spline's top edge: strata that step in/out, ledges, bevels, lip, skirt, quantized wobble and vertical columns; flat-shaded vertex colours from a Gradient; internal MeshInstance3D + trimesh StaticBody3D. Never touches the terrain; rebuilds (coalesced) on `spline_changed` and property edits. `rim_from_deformer` places the top edge just outside a sibling deformer's slope. |
 | `TerrainSplineStreamMap` | Control | — | Live top-down debug map of streaming state around the player: resident chunks with real heights, physics-live chunks, queued / generating chunks, recent evictions, render & physics radii, spline bounds, player and camera headings. Reads `StreamSnapshot` from the compositor every `refresh_interval`. |
 | `TerrainSplineCompositorUI`, `GrayscaleJob` | TextureRect / data | — | Debug preview: one unified heightmap over the `ProceduralSpline3D` children of `splines_root` (default: itself), shown as normalized grayscale; refreshes on `spline_changed`. Works in the editor and in-game (`toggle_key`). |
 
@@ -272,6 +273,36 @@ instances is switched on/off per chunk by `max_physics_radius`. A chunk's height
 when it streams back in or when a spline changes (dirty-rect rebuild); the camera wedge makes the
 "looking vs loading" distinction visible. The demo has `SplinePreviewLayer/StreamMap` (toggle **M**).
 
+### Flow 4c — cliff wall (tr_cliff*.cpp; independent of the compositor)
+
+```
+parent ProceduralSpline3D.spline_changed / any property set → queue_rebuild → (deferred) rebuild
+rebuild
+├─ _build_stations          sample the curve every segment_length (exact end / wrap); out = tangent × up
+│                           (closed loops: even-odd test flips "out" to face away from the interior);
+│                           top += out · _rim_offset() (base_offset + sibling deformer width+falloff);
+│                           wall_height per station: RELATIVE height·height_curve | ABSOLUTE top−bottom_y |
+│                           GROUND raycast
+├─ _build_profile (per station)   lip → per stratum: chamfer, vertical face, step (base_step + _wobble
+│                                 [quantized, per column_width panel] + ledge where the ledge mask is high;
+│                                 never behind the rim) → skirt
+├─ _build_mesh              one quad per profile edge between neighbouring stations, outward = edge's 2-D
+│                           normal, clockwise winding, colour = Gradient(stratum) (ledge tops lightened);
+│                           open ends get a fan cap
+└─ MeshInstance3D.mesh + ConcavePolygonShape3D (collision_enabled)
+```
+
+Closed loops also build a **top cap** (`cap_top`, `_build_cap`): interior samples on a `cap_resolution`
+grid (kept off the rim), Delaunay-triangulated with the rim (`Geometry2D::triangulate_delaunay`) and
+clipped to the polygon; interior heights start as inverse-distance interpolation of the rim (the same
+idea as the deformer's IDW modes) and are relaxed with `cap_smoothing` Laplacian passes into a smooth
+membrane, optionally lifted by `cap_dome`; shared vertices with averaged normals. Emitted as **surface 1** with
+`top_material` / `top_color` (grass, snow) while the wall is surface 0 (`material`). With the cap the lip
+is skipped and the cliff is a complete free-standing mesa — no deformer, no terrain change. The demo's
+`CliffSpline` (closed 70×45 m loop at y=66, no deformer) shows this: 6 strata, ledges, 6 m columns,
+bottom at y=40. When a cliff does wrap a deformed plateau, `_rim_offset` adds 1 m beyond width+falloff
+because heightmap cells are 1 m wide.
+
 ### Flow 5a — eviction and discovery (tr_compositor_eviction.cpp, every 0.5 s)
 
 ```
@@ -362,6 +393,9 @@ code outside the module (register_types.cpp); inside the module include the spec
 | `tr_compositor_eviction.cpp`     | Evict far chunks/regions, discover missing chunks, physics culling        |
 | `tr_compositor_origin_shift.cpp` | Floating origin at ±4096 m                                                 |
 | `tr_compositor_terrain3d.cpp`    | Every call into Terrain3D (data API, region write, flush, collision)      |
+| `tr_cliff.h/.cpp`                | `TerrainSplineCliff` — bindings, rebuild scheduling, internal mesh/collision nodes        |
+| `tr_cliff_profile.cpp`           | stations along the spline (rim offset, winding, bottom mode) and the per-station cross-section |
+| `tr_cliff_mesh.cpp`              | stitching cross-sections into a flat-shaded, vertex-coloured ArrayMesh + end caps         |
 | `tr_compositor_snapshot.cpp`     | `StreamSnapshot` filling, eviction log, thumbnail switch (debug map support)          |
 | `tr_stream_map.h/.cpp`           | `TerrainSplineStreamMap` — live streaming debug map                                    |
 | `tr_compositor_ui.h/.cpp`        | `TerrainSplineCompositorUI`, `GrayscaleJob` — debug preview               |
