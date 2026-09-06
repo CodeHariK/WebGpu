@@ -98,6 +98,12 @@ Key TerrainSplineCompositorUI::get_toggle_key() const { return toggle_key; }
 // Lifecycle and spline wiring
 // ---------------------------------------------------------------------------------------------
 
+void TerrainSplineCompositorUI::_validate_property(PropertyInfo &p_property) const {
+	if (p_property.name == StringName("texture")) {
+		p_property.usage &= ~PROPERTY_USAGE_STORAGE;
+	}
+}
+
 void TerrainSplineCompositorUI::_notification(int p_what) {
 	if (p_what == Node::NOTIFICATION_READY) {
 		set_process_unhandled_key_input(toggle_key != KEY_NONE);

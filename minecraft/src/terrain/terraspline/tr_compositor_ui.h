@@ -83,6 +83,8 @@ private:
 protected:
 	static void _bind_methods();
 	void _notification(int p_what);
+	/// The preview texture is derived data: show it, never save it with the scene.
+	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	TerrainSplineCompositorUI();
