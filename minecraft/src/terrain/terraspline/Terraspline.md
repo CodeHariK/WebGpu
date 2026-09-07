@@ -231,6 +231,30 @@ finalize_scatter_job(job, container, owner)                         MAIN THREAD
 scatter_chunk(...) = make + run (thread pool) + finalize for every scatterer touching the chunk
 ```
 
+### Debug keys (runtime, GameManager + overlays in the demo scene)
+
+| Key | What |
+|-----|------|
+| H | `TerrainSplineCompositorUI` heightmap preview (Flow 4a) |
+| M | `TerrainSplineStreamMap` streaming map (Flow 4b) |
+| F4 | Godot collision shapes (gates, road/cliff trimeshes, water areas) |
+| F3 | Cycles debug views: Godot unshaded → overdraw → wireframe → normal buffer, then the TerraSpline shader views below, then off |
+
+While any F3 / F4 view is active a yellow CUI banner at the top of the screen names it (GameManager::_update_debug_banner).
+
+F3's TerraSpline views set the `ts_debug_view` shader global (declared in project.godot, read by tr_toon,
+tr_water and `stripe_toon_cheap.gdshader`); every mesh drawn by those shaders switches to unlit false colour:
+
+| View | Meshes (cliff, road, water) | Terrain |
+|------|------------------------------|---------|
+| 1 UV | R = U around the cross-section, G = V along the track (repeating) | grey |
+| 2 UV2 | R = 0..1 across the deck, G = 1 on the deck / 0 elsewhere | grey |
+| 3 vertex colour | raw sRGB vertex colour, no lighting | grey |
+| 4 marking mask | the lane-marking mask (white = line), roads only | grey |
+| 5 control map | — (normal) | dominant painted texture id as hue (0 red, 1 yellow, 2 green, 3 cyan…), its weight as brightness, autoshader pixels grey |
+
+Any new shader can join by declaring `global uniform int ts_debug_view;` and honouring the same numbers.
+
 ### Flow 4a — heightmap preview (tr_compositor_ui.cpp)
 
 ```
@@ -317,6 +341,19 @@ is skipped and the cliff is a complete free-standing mesa — no deformer, no te
 `CliffSpline` (closed 70×45 m loop at y=66, no deformer) shows this: 6 strata, ledges, 6 m columns,
 bottom at y=40. When a cliff does wrap a deformed plateau, `_rim_offset` adds 1 m beyond width+falloff
 because heightmap cells are 1 m wide.
+
+Materials: unset cliff slots (wall, cap) and roads use `make_toon_solid_material()` (tr_toon.cpp): albedo from
+the sRGB vertex colour, `light()` quantizes NdotL × shadow attenuation into `bands` steps between
+`shadow_level` (tinted by `shadow_tint`, so the shade side stays readable and cool instead of black) and full,
+`LIGHT_COLOR / PI` because Godot pre-multiplies energy by π, a view-angle rim as emission, specular off. Set
+`material` / `top_material` to override; `make_toon_outline_material(width, color)` is an optional inverted-hull
+`next_pass` (best on smooth-shaded meshes).
+
+Roads use the `make_toon_road_material()` variant: the mesh carries UV2 = (0..1 across the deck region,
+on-deck flag) and the shader draws `marking_lanes` − 1 dividers (dashed every `marking_dash` metres via
+UV.y × texture_length, or solid) and optional edge lines `marking_edge_inset` in from the deck edge, all
+`marking_width` wide with fwidth anti-aliasing — lane markings with no textures, on any profile that has
+a deck region. `TerrainSplineRoad::_apply_material` pushes the properties as uniforms.
 
 ### Flow 4d — road / track (tr_road*.cpp; independent of the compositor)
 
@@ -540,6 +577,7 @@ code outside the module (register_types.cpp); inside the module include the spec
 | `tr_array_place.cpp`             | stations → instance transforms (sides, orientation, jitter, stretch to ground)             |
 | `tr_deformer_weights.cpp`        | `compute_weight_field` — the corridor footprint as a 0..1 grid, no heights (painter)      |
 | `tr_painter.h/.cpp`              | `TerrainSplinePainter` — bindings, private shape deformer, control-word paint            |
+| `tr_toon.h/.cpp`                 | `make_toon_solid_material()` / `make_toon_road_material()` (lane markings from UV2) / `make_toon_outline_material()` — shared cartoon shading |
 | `tr_lake.h/.cpp`                 | `TerrainSplineLake` — bindings, rim polygon, Delaunay water sheet, Area3D                  |
 | `tr_water.h/.cpp`                | `make_toon_water_material()` — shared scrolling toon water shader (road water preset, lake) |
 | `tr_compositor_snapshot.cpp`     | `StreamSnapshot` filling, eviction log, thumbnail switch (debug map support)          |

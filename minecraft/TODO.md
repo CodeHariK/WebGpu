@@ -31,7 +31,8 @@ Legend: `[x]` done · `[ ]` next · `[~]` in progress · `[?]` idea, undecided
       - [x] TERRAIN mode: heights from the deformer's baked profile via `bake_road_profile` /
             `make_profile_context`; upright frames; demo `RoadSpline2/GroundRoad` sits +0.07 m on the bed
       - [x] water preset: `PROFILE_WATER`, Area3D (group water), built-in scrolling toon shader
-      - [ ] presets for lane markings / edge stripes via UV (texture_length already there)
+      - [x] lane markings: `marking_lanes` (n−1 dividers, dashed or solid), `marking_edges`, width /
+            dash / inset / colour — drawn by the built-in toon road shader from UV2 (deck-relative), no textures
       - [x] `loafter/ProceduralRoad` retired: `procgen.tscn` migrated to `TerrainSplineRoad` (custom
             profile + adaptive), baked meshes removed from that scene (109 KB → 5 KB)
 - [ ] **ProceduralLofter** (tunnels, tubes, tube-slides, bridge girders): saved-child bug fixed;
@@ -58,8 +59,11 @@ Legend: `[x]` done · `[ ]` next · `[~]` in progress · `[?]` idea, undecided
       `respawn_back` behind it, velocities cleared). Signals for HUD/audio. Demo `TrackSpline/Race`.
       - [ ] start grid + countdown (`track_body` enrols without crossing the line; needs a grid layout helper)
       - [ ] HUD: lap / position / wrong-way banner reading `get_progress` (ranking = lap + progress)
-- [ ] Toon material for cliff slots (flat light response, rim/outline); the default StandardMaterial
-      goes too dark on the shadow side
+- [x] Toon material — `tr_toon.h/.cpp` `make_toon_solid_material()`: vertex-colour albedo, diffuse in
+      `bands` steps down to `shadow_level` with a cool `shadow_tint` (never black), rim light, no
+      specular; now the default for unset cliff slots (wall + cap) and roads. `make_toon_outline_material`
+      (inverted hull, for `next_pass`) exists but is off by default — flat-shaded meshes crack at hard edges
+      - [ ] later: expose bands / shadow_level / rim on the cliff and road nodes instead of needing a custom material
 
 ## Later
 

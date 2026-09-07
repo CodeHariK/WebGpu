@@ -3,6 +3,7 @@
  * @brief TerrainSplineRoad: bindings, properties, rebuild scheduling and the internal nodes.
  */
 #include "tr_road.h"
+#include "tr_toon.h"
 #include "tr_water.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/concave_polygon_shape3d.hpp>
@@ -56,6 +57,14 @@ void TerrainSplineRoad::_bind_methods() {
 	ADD_GROUP("Water", "water_");
 	TR_ROAD_BIND(FLOAT, water_speed, PROPERTY_HINT_RANGE, "-10,10,0.05,suffix:m/s");
 	TR_ROAD_BIND(FLOAT, water_alpha, PROPERTY_HINT_RANGE, "0,1,0.01");
+	ADD_GROUP("Markings", "marking_");
+	TR_ROAD_BIND(INT, marking_lanes, PROPERTY_HINT_RANGE, "0,8,1");
+	TR_ROAD_BIND(BOOL, marking_dashed, PROPERTY_HINT_NONE, "");
+	TR_ROAD_BIND(BOOL, marking_edges, PROPERTY_HINT_NONE, "");
+	TR_ROAD_BIND(FLOAT, marking_width, PROPERTY_HINT_RANGE, "0.01,3,0.01,suffix:m");
+	TR_ROAD_BIND(FLOAT, marking_dash, PROPERTY_HINT_RANGE, "0.1,50,0.1,suffix:m");
+	TR_ROAD_BIND(FLOAT, marking_edge_inset, PROPERTY_HINT_RANGE, "0,10,0.05,suffix:m");
+	TR_ROAD_BIND(COLOR, marking_color, PROPERTY_HINT_NONE, "");
 
 	BIND_ENUM_CONSTANT(PROFILE_SLAB);
 	BIND_ENUM_CONSTANT(PROFILE_SLAB_RAILS);
@@ -171,7 +180,7 @@ void TerrainSplineRoad::_ensure_nodes() {
 	}
 }
 
-/// `material` if set; else the water shader for WATER, else a shared vertex-colour StandardMaterial3D.
+/// `material` if set; else the water shader for WATER, else the toon road material with the marking uniforms.
 void TerrainSplineRoad::_apply_material() {
 	if (!mesh_instance) {
 		return;
@@ -191,13 +200,18 @@ void TerrainSplineRoad::_apply_material() {
 		return;
 	}
 	if (_fallback_material.is_null()) {
-		Ref<StandardMaterial3D> m;
-		m.instantiate();
-		m->set_flag(BaseMaterial3D::FLAG_ALBEDO_FROM_VERTEX_COLOR, true);
-		m->set_flag(BaseMaterial3D::FLAG_SRGB_VERTEX_COLOR, true);
-		m->set_roughness(0.9f);
-		_fallback_material = m;
+		_fallback_material = make_toon_road_material();
 	}
+	Ref<ShaderMaterial> road_mat = _fallback_material;
+	road_mat->set_shader_parameter("deck_width", _deck_width);
+	road_mat->set_shader_parameter("texture_length", texture_length);
+	road_mat->set_shader_parameter("lanes", marking_lanes);
+	road_mat->set_shader_parameter("dashed", marking_dashed);
+	road_mat->set_shader_parameter("edge_lines", marking_edges);
+	road_mat->set_shader_parameter("line_width", marking_width);
+	road_mat->set_shader_parameter("dash_length", marking_dash);
+	road_mat->set_shader_parameter("edge_inset", marking_edge_inset);
+	road_mat->set_shader_parameter("line_color", marking_color);
 	mesh_instance->set_material_override(_fallback_material);
 }
 
