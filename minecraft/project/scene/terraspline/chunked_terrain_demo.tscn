@@ -132,14 +132,6 @@ _data = {
 }
 point_count = 8
 
-[sub_resource type="Curve3D" id="Curve3D_bridge"]
-bake_interval = 4.0
-_data = {
-"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -68, 0, 0, 0, 0, 0, 0, 0, 2.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 68),
-"tilts": PackedFloat32Array(0, 0, 0)
-}
-point_count = 3
-
 [sub_resource type="Curve3D" id="Curve3D_lake"]
 closed = true
 bake_interval = 4.0
@@ -149,9 +141,18 @@ _data = {
 }
 point_count = 9
 
+[sub_resource type="Curve3D" id="Curve3D_bridge"]
+bake_interval = 4.0
+_data = {
+"points": PackedVector3Array(0, 0, 0, 0, 0, 0, 0, 0, -68, 0, 0, 0, 0, 0, 0, 0, 2.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 68),
+"tilts": PackedFloat32Array(0, 0, 0)
+}
+point_count = 3
+
 [sub_resource type="Terrain3DMaterial" id="Terrain3DMaterial_dju1v"]
 _shader_parameters = {
 &"": null,
+&"Painted_Corridors": null,
 &"Stylized_Terrain": null,
 &"botw_biome_scale": null,
 &"botw_color_grass": Color(0.70620126, 0.25488338, 0.76346993, 1),
@@ -163,7 +164,11 @@ _shader_parameters = {
 &"botw_snow_blend": null,
 &"botw_snow_height": null,
 &"botw_stripe_darkness": null,
-&"botw_stripe_frequency": null
+&"botw_stripe_frequency": null,
+&"paint_color_1": null,
+&"paint_color_2": null,
+&"paint_color_3": null,
+&"paint_color_4": null
 }
 shader_override_enabled = true
 shader_override = ExtResource("2_m505t")
@@ -327,7 +332,6 @@ fill_interior = false
 transform = Transform3D(1.0000001, 0, 0, 0, 1, 0, 0, 0, 1.0000001, 0, 0, 0)
 
 [node name="Shoulders" type="TerrainSplinePainter" parent="SplineManager/RoadSpline2" unique_id=1723548900]
-texture_id = 1
 
 [node name="GroundRoad" type="TerrainSplineRoad" parent="SplineManager/RoadSpline2" unique_id=1723548860]
 thickness = 0.3
@@ -336,6 +340,8 @@ height_source = 1
 surface_offset = 0.2
 deck_color = Color(0.32, 0.33, 0.36, 1)
 edge_color = Color(0.95, 0.9, 0.8, 1)
+marking_lanes = 2
+marking_edges = true
 
 [node name="CliffSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=1723548830]
 interpolation_mode = 0
@@ -406,6 +412,9 @@ width = 20.0
 thickness = 0.8
 rail_height = 0.9
 rail_width = 0.5
+marking_lanes = 2
+marking_edges = true
+marking_width = 0.35
 
 [node name="Race" type="RaceTrack" parent="SplineManager/TrackSpline" unique_id=1723548895]
 checkpoint_spacing = 80.0
@@ -425,7 +434,7 @@ mesh = SubResource("BoxMesh_post")
 mesh_centered = true
 spacing = 12.0
 side = 3
-lateral_offset = 5.25
+lateral_offset = 9.75
 follow_tilt = true
 
 [node name="RiverSpline" type="ProceduralSpline3D" parent="SplineManager" unique_id=1723548870]
@@ -491,7 +500,6 @@ profile = 1
 width = 10.0
 thickness = 1.0
 rail_height = 1.0
-rail_width = 0.4
 deck_color = Color(0.55, 0.36, 0.2, 1)
 edge_color = Color(0.85, 0.8, 0.7, 1)
 underside_color = Color(0.4, 0.26, 0.14, 1)

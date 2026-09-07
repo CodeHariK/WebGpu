@@ -8,6 +8,10 @@
 #include <godot_cpp/variant/string.hpp>
 
 namespace godot {
+class CUI;
+}
+
+namespace godot {
 
 class MCManager;
 class MPManager;
@@ -24,6 +28,9 @@ class GameManager : public Node {
 	GDCLASS(GameManager, Node)
 
 private:
+	int _ts_debug_view = 0; // F3: current TerraSpline shader debug view (ts_debug_view shader global)
+	CUI *_debug_ui = nullptr; // Banner naming the active debug views (created on first use, hidden when none)
+	void _update_debug_banner();
 	static GameManager *singleton;
 
 	// Tracked managers

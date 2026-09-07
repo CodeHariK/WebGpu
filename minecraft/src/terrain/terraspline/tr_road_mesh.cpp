@@ -19,6 +19,7 @@ namespace {
 struct RoadMeshBuilder {
 	PackedVector3Array vertices, normals;
 	PackedVector2Array uvs;
+	PackedVector2Array uv2s; // x = 0..1 across the deck (0.5 = centre line), y = 1 on the deck else 0
 	PackedColorArray colors;
 	PackedInt32Array indices;
 
@@ -30,16 +31,27 @@ struct RoadMeshBuilder {
 		const Vector2 &uvb,
 		const Vector2 &uvc,
 		const Vector3 &p_outward,
-		const Color &p_color) {
+		const Color &p_color,
+		const Vector2 &uv2a =
+				Vector2(0.5f,
+						0.0f),
+		const Vector2 &uv2b =
+				Vector2(0.5f,
+						0.0f),
+		const Vector2 &uv2c =
+				Vector2(0.5f,
+						0.0f)) {
 		Vector3 n = (b - a).cross(c - a);
 		if (n.length_squared() < 1e-12f) {
 			return;
 		}
 		Vector3 v1 = b, v2 = c;
 		Vector2 t1 = uvb, t2 = uvc;
+		Vector2 s1 = uv2b, s2 = uv2c;
 		if (n.dot(p_outward) > 0.0f) {
 			std::swap(v1, v2);
 			std::swap(t1, t2);
+			std::swap(s1, s2);
 			n = -n;
 		}
 		n = -n;
@@ -51,6 +63,9 @@ struct RoadMeshBuilder {
 		uvs.push_back(uva);
 		uvs.push_back(t1);
 		uvs.push_back(t2);
+		uv2s.push_back(uv2a);
+		uv2s.push_back(s1);
+		uv2s.push_back(s2);
 		for (int i = 0; i < 3; ++i) {
 			normals.push_back(n);
 			colors.push_back(p_color);
@@ -233,7 +248,8 @@ bool TerrainSplineRoad::_build_stations(
 /**
  * @brief One quad per profile edge between neighbouring stations, oriented by the edge's 2-D outward
  * normal expressed in the station frame; U runs across the profile, V along the track in
- * `texture_length` repeats; colour per region. Closed profiles on open sections get fan caps.
+ * `texture_length` repeats, UV2 = (0..1 across the deck, on-deck flag) for the marking shader; colour per region.
+ * Closed profiles on open sections get fan caps.
  */
 Ref<ArrayMesh> TerrainSplineRoad::_build_mesh(
 		const std::vector<Transform3D> &p_stations,
@@ -257,6 +273,24 @@ Ref<ArrayMesh> TerrainSplineRoad::_build_mesh(
 		v /= perimeter;
 	}
 
+	// Deck extent for UV2 (lane markings): the lateral span of the deck-region edges.
+	float deck_min = 1e9f, deck_max = -1e9f;
+	for (size_t j = 0; j < edges; ++j) {
+		if (p_profile[j].region == REGION_DECK) {
+			const Vector2 &pa = p_profile[j].pos, &pb = p_profile[(j + 1) % m].pos;
+			deck_min = MIN(deck_min, MIN(pa.x, pb.x));
+			deck_max = MAX(deck_max, MAX(pa.x, pb.x));
+		}
+	}
+	const bool has_deck = deck_max > deck_min;
+	_deck_width = has_deck ? deck_max - deck_min : 0.0f;
+	auto uv2_for = [&](const ProfilePoint &p_start, const Vector2 &p_pos) -> Vector2 {
+		if (!has_deck || p_start.region != REGION_DECK) {
+			return Vector2(0.5f, 0.0f);
+		}
+		return Vector2((p_pos.x - deck_min) / _deck_width, 1.0f);
+	};
+
 	const size_t segments = p_loop ? n : n - 1;
 	for (size_t s = 0; s < segments; ++s) {
 		const Transform3D &s0 = p_stations[s];
@@ -274,8 +308,9 @@ Ref<ArrayMesh> TerrainSplineRoad::_build_mesh(
 			const Vector3 a0 = place(s0, pa.pos), a1 = place(s0, pb.pos);
 			const Vector3 b0 = place(s1, pa.pos), b1 = place(s1, pb.pos);
 			const Vector2 ua(u[j], v0), ub(u[j + 1], v0), uc(u[j + 1], v1), ud(u[j], v1);
-			mb.tri(a0, a1, b1, ua, ub, uc, outward, col);
-			mb.tri(a0, b1, b0, ua, uc, ud, outward, col);
+			const Vector2 wa = uv2_for(pa, pa.pos), wb = uv2_for(pa, pb.pos);
+			mb.tri(a0, a1, b1, ua, ub, uc, outward, col, wa, wb, wb);
+			mb.tri(a0, b1, b0, ua, uc, ud, outward, col, wa, wb, wa);
 		}
 	}
 
@@ -307,6 +342,7 @@ Ref<ArrayMesh> TerrainSplineRoad::_build_mesh(
 		arrays[Mesh::ARRAY_VERTEX] = mb.vertices;
 		arrays[Mesh::ARRAY_NORMAL] = mb.normals;
 		arrays[Mesh::ARRAY_TEX_UV] = mb.uvs;
+		arrays[Mesh::ARRAY_TEX_UV2] = mb.uv2s;
 		arrays[Mesh::ARRAY_COLOR] = mb.colors;
 		arrays[Mesh::ARRAY_INDEX] = mb.indices;
 		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);

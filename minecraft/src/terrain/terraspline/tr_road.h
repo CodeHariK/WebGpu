@@ -106,6 +106,15 @@ private:
 	float water_speed = 0.6f; // WATER: flow along the spline, metres per second (texture space)
 	float water_alpha = 0.85f;
 
+	// ---- Markings (built-in road shader; ignored when `material` is set) ----
+	int marking_lanes = 0; // 0 = no lines; n lanes → n − 1 dividers across the deck
+	bool marking_dashed = true; // Dividers dashed (edge lines are always solid)
+	bool marking_edges = false; // Solid line along each deck edge
+	float marking_width = 0.25f; // Metres
+	float marking_dash = 3.0f; // Dash length (gap is the same), metres
+	float marking_edge_inset = 0.4f; // Edge line distance from the deck edge, metres
+	Color marking_color = Color(0.96f, 0.93f, 0.8f);
+
 	// ---- Internals ----
 	MeshInstance3D *mesh_instance = nullptr;
 	StaticBody3D *static_body = nullptr;
@@ -114,6 +123,7 @@ private:
 	CollisionShape3D *water_shape = nullptr;
 	Ref<Material> _fallback_material;
 	Ref<ShaderMaterial> _water_material;
+	mutable float _deck_width = 0.0f; // Lateral extent of the deck region in the last built profile
 	bool _rebuild_queued = false;
 	ProceduralSpline3D *_watched_spline = nullptr;
 
@@ -201,6 +211,13 @@ public:
 	TR_ROAD_PROP(bool, collision_enabled, p_value)
 	TR_ROAD_PROP(float, water_speed, p_value)
 	TR_ROAD_PROP(float, water_alpha, CLAMP(p_value, 0.0f, 1.0f))
+	TR_ROAD_PROP(int, marking_lanes, CLAMP(p_value, 0, 8))
+	TR_ROAD_PROP(bool, marking_dashed, p_value)
+	TR_ROAD_PROP(bool, marking_edges, p_value)
+	TR_ROAD_PROP(float, marking_width, MAX(0.01f, p_value))
+	TR_ROAD_PROP(float, marking_dash, MAX(0.1f, p_value))
+	TR_ROAD_PROP(float, marking_edge_inset, MAX(0.0f, p_value))
+	TR_ROAD_PROP(Color, marking_color, p_value)
 #undef TR_ROAD_PROP
 	// clang-format on
 

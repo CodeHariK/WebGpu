@@ -3,6 +3,7 @@
  * @brief TerrainSplineCliff: bindings, properties, rebuild scheduling and the internal nodes.
  */
 #include "tr_cliff.h"
+#include "tr_toon.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/concave_polygon_shape3d.hpp>
 #include <godot_cpp/classes/engine.hpp>
@@ -217,18 +218,13 @@ void TerrainSplineCliff::set_top_material(const Ref<Material> &p_material) {
 	_apply_materials();
 }
 
-/// Surface 0 = wall, surface 1 = top cap. Unset slots fall back to vertex-colour materials.
+/// Surface 0 = wall, surface 1 = top cap. Unset slots fall back to the shared toon vertex-colour material.
 void TerrainSplineCliff::_apply_materials() {
 	if (!mesh_instance || mesh_instance->get_mesh().is_null()) {
 		return;
 	}
 	if (_fallback_material.is_null()) {
-		Ref<StandardMaterial3D> m;
-		m.instantiate();
-		m->set_flag(BaseMaterial3D::FLAG_ALBEDO_FROM_VERTEX_COLOR, true);
-		m->set_flag(BaseMaterial3D::FLAG_SRGB_VERTEX_COLOR, true);
-		m->set_roughness(1.0f);
-		_fallback_material = m;
+		_fallback_material = make_toon_solid_material(); // Flat bands, cool shadows that never go black
 	}
 	const Ref<Material> &fallback = _fallback_material;
 	const int surfaces = mesh_instance->get_mesh()->get_surface_count();

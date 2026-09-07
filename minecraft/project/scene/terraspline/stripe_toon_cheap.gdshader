@@ -29,6 +29,25 @@ uniform vec3 paint_color_2 : source_color = vec3(0.90, 0.80, 0.55); // sand
 uniform vec3 paint_color_3 : source_color = vec3(0.36, 0.34, 0.36); // dark rock
 uniform vec3 paint_color_4 : source_color = vec3(0.30, 0.62, 0.30); // meadow
 group_uniforms;
+
+// F3 debug views (global set by GameManager): 5 = control map (dominant paint id as hue, its blend weight as
+// brightness, autoshader pixels grey), 1..4 = mesh debug views, terrain shows plain grey.
+global uniform int ts_debug_view;
+
+vec3 control_debug(uint c) {
+	if ((c & 1u) != 0u) {
+		return vec3(0.35);
+	}
+	uint base = (c >> 27u) & 0x1Fu;
+	uint over = (c >> 22u) & 0x1Fu;
+	float blend = float((c >> 14u) & 0xFFu) * (1.0 / 255.0);
+	// Dominant texture as hue (id 0 red, 1 yellow, 2 green, 3 cyan, ...), its strength as brightness.
+	uint dominant = blend < 0.5 ? base : over;
+	float strength = blend < 0.5 ? 1.0 - blend : blend;
+	float hue = float(dominant) / 6.0;
+	vec3 rgb = clamp(abs(mod(hue * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+	return rgb * mix(0.3, 1.0, strength);
+}
 // ==============================================================
 
 // Defined Constants
@@ -260,6 +279,11 @@ void fragment() {
 	surface_color = mix(surface_color, surface_color * (1.0 - botw_stripe_darkness), step(stripe, 0.15));
 
 	// FINAL OUTPUT 
+	if (ts_debug_view == 5) {
+		surface_color = control_debug(floatBitsToUint(texelFetch(_control_maps, index[3], 0).r));
+	} else if (ts_debug_view != 0) {
+		surface_color = vec3(0.25);
+	}
 	ALBEDO = surface_color;
 	ROUGHNESS = 0.9;
 	SPECULAR = 0.0; 

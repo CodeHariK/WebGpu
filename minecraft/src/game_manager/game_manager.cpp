@@ -1,5 +1,6 @@
 #include "game_manager.h"
 #include "../camera/camera.h"
+#include "../cui/cui.h"
 #include "../debug_draw/debug_manager.h"
 #include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
@@ -12,7 +13,10 @@
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
+#include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/label.hpp>
+#include <godot_cpp/classes/panel_container.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -277,14 +281,20 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 
 	Ref<InputEventKey> k = p_event;
 	if (k.is_valid() && k->is_pressed() && !k->is_echo()) {
-		// Toggle/cycle debug draw modes on F3
+		// F3 cycles the debug views: the viewport's built-in ones (unshaded, overdraw, wireframe,
+		// normals), then TerraSpline's shader views through the `ts_debug_view` shader global
+		// (1 UV, 2 UV2, 3 vertex colour, 4 road marking mask, 5 painted control map), then off.
 		if (k->get_keycode() == KEY_F3) {
 			Viewport *viewport = get_viewport();
 			if (viewport) {
+				static const char *TS_VIEW_NAMES[] = { "off",			"UV",			"UV2",
+													   "vertex colour", "marking mask", "control map" };
+				const int TS_VIEWS = 5;
 				Viewport::DebugDraw current_mode = viewport->get_debug_draw();
 				Viewport::DebugDraw next_mode = Viewport::DEBUG_DRAW_DISABLED;
+				int ts_view = _ts_debug_view;
 
-				if (current_mode == Viewport::DEBUG_DRAW_DISABLED) {
+				if (current_mode == Viewport::DEBUG_DRAW_DISABLED && ts_view == 0) {
 					next_mode = Viewport::DEBUG_DRAW_UNSHADED;
 				} else if (current_mode == Viewport::DEBUG_DRAW_UNSHADED) {
 					next_mode = Viewport::DEBUG_DRAW_OVERDRAW;
@@ -292,12 +302,20 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 					next_mode = Viewport::DEBUG_DRAW_WIREFRAME;
 				} else if (current_mode == Viewport::DEBUG_DRAW_WIREFRAME) {
 					next_mode = Viewport::DEBUG_DRAW_NORMAL_BUFFER;
-				} else {
+				} else if (current_mode == Viewport::DEBUG_DRAW_NORMAL_BUFFER) {
 					next_mode = Viewport::DEBUG_DRAW_DISABLED;
+					ts_view = 1;
+				} else {
+					ts_view = ts_view < TS_VIEWS ? ts_view + 1 : 0;
 				}
 
 				viewport->set_debug_draw(next_mode);
-				UtilityFunctions::print("GameManager: Debug Draw mode set to ", next_mode);
+				_ts_debug_view = ts_view;
+				RenderingServer::get_singleton()->global_shader_parameter_set("ts_debug_view", ts_view);
+				UtilityFunctions::print(
+						"GameManager: Debug Draw mode ", next_mode, " | TerraSpline view ", TS_VIEW_NAMES[ts_view]
+				);
+				_update_debug_banner();
 			}
 		}
 
@@ -308,6 +326,7 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 				bool current = tree->is_debugging_collisions_hint();
 				tree->set_debug_collisions_hint(!current);
 				UtilityFunctions::print("GameManager: Collision Debug toggled to ", !current);
+				_update_debug_banner();
 			}
 		}
 	}
@@ -315,6 +334,57 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 	if (player_input) {
 		player_input->handle_input(p_event);
 	}
+}
+
+/**
+ * @brief Top-centre CUI banner listing the active debug views (F3 viewport mode, F3 TerraSpline shader
+ * view, F4 collision shapes). Built on first use on its own CanvasLayer; hidden when everything is off.
+ */
+void GameManager::_update_debug_banner() {
+	static const char *VIEWPORT_NAMES[] = { "", "Unshaded", "Lighting", "Overdraw", "Wireframe", "Normal buffer" };
+	static const char *TS_NAMES[] = {
+		"",
+		"UV  (R = around profile, G = along track)",
+		"UV2  (R = across deck, G = on deck)",
+		"Vertex colour  (raw, unlit)",
+		"Marking mask  (roads)",
+		"Control map  (hue = paint id, brightness = weight)",
+	};
+	Viewport *viewport = get_viewport();
+	SceneTree *tree = get_tree();
+	if (!viewport || !tree) {
+		return;
+	}
+	PackedStringArray parts;
+	const int vp = (int)viewport->get_debug_draw();
+	if (vp > 0 && vp <= 5) {
+		parts.push_back(String("F3  ") + VIEWPORT_NAMES[vp]);
+	}
+	if (_ts_debug_view > 0 && _ts_debug_view <= 5) {
+		parts.push_back(String("F3  ") + TS_NAMES[_ts_debug_view]);
+	}
+	if (tree->is_debugging_collisions_hint()) {
+		parts.push_back("F4  Collision shapes");
+	}
+
+	if (!_debug_ui) {
+		if (parts.is_empty()) {
+			return;
+		}
+		_debug_ui = CUI::create_on_new_layer(this);
+		PanelContainer *panel = _debug_ui->add_panel_container(nullptr, "debug_banner", Control::PRESET_CENTER_TOP);
+		panel->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
+		panel->set_offset(SIDE_TOP, 12.0f); // Clear of the window edge; the container keeps its own height
+		panel->set_offset(SIDE_BOTTOM, 12.0f);
+		Label *label = _debug_ui->add_label(panel, "", "debug_banner_text");
+		label->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_CENTER);
+		label->set_modulate(Color(1.0f, 0.9f, 0.35f));
+	}
+	Control *panel = _debug_ui->get_element("debug_banner");
+	if (panel) {
+		panel->set_visible(!parts.is_empty());
+	}
+	_debug_ui->set_text("debug_banner_text", String("DEBUG   ") + String("   |   ").join(parts));
 }
 
 void GameManager::_unhandled_input(const Ref<InputEvent> &p_event) {
@@ -327,7 +397,8 @@ void GameManager::_unhandled_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> mb = p_event;
 	if (mb.is_valid() && mb->is_pressed() && mb->get_button_index() == MOUSE_BUTTON_LEFT) {
 		Input *input = Input::get_singleton();
-		if (main_camera && main_camera->get_camera_mode() != GameCamera::MODE_FLY && main_camera->get_camera_mode() != GameCamera::MODE_FIXED) {
+		if (main_camera && main_camera->get_camera_mode() != GameCamera::MODE_FLY &&
+			main_camera->get_camera_mode() != GameCamera::MODE_FIXED) {
 			if (input->get_mouse_mode() == Input::MOUSE_MODE_VISIBLE) {
 				input->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
 			}

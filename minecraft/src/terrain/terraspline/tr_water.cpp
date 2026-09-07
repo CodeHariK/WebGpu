@@ -25,6 +25,7 @@ uniform vec4 foam_color : source_color = vec4(0.95, 0.98, 1.0, 1.0);
 uniform float stripe_repeat = 1.0;   // stripes per texture_length
 uniform float bank_foam = 0.08;      // fraction of the width that foams at each bank
 uniform float bob = 0.08;            // vertex bob amplitude, metres
+global uniform int ts_debug_view;    // F3 debug views: 1 UV, 2 UV2, 3 raw vertex colour
 
 varying vec2 v_uv;
 varying vec3 v_color;
@@ -50,6 +51,13 @@ void fragment() {
 	ALBEDO = mix(base, foam_color.rgb, clamp(foam, 0.0, 1.0));
 	ROUGHNESS = 0.2;
 	ALPHA = alpha;
+	if (ts_debug_view == 1) {
+		ALBEDO = vec3(0.0); EMISSION = vec3(v_uv.x, fract(v_uv.y), 0.0); ALPHA = 1.0;
+	} else if (ts_debug_view == 2) {
+		ALBEDO = vec3(0.0); EMISSION = vec3(UV2.x, UV2.y, 0.0); ALPHA = 1.0;
+	} else if (ts_debug_view == 3 || ts_debug_view == 4) {
+		ALBEDO = vec3(0.0); EMISSION = ts_debug_view == 3 ? v_color : vec3(0.0); ALPHA = 1.0;
+	}
 }
 )");
 	Ref<ShaderMaterial> m;
