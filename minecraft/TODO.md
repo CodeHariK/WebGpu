@@ -14,7 +14,7 @@ Legend: `[x]` done · `[ ]` next · `[~]` in progress · `[?]` idea, undecided
 - [x] Terrain-following roads: `HEIGHT_TERRAIN`, smoothing, grade limit, earthwork
       (cut & fill / cut only / fill only), depth caps, road blur, profile through other splines
 - [x] Debug overlays: heightmap preview (H), live streaming map (M)
-- [x] `ConvexHullRockMesh` resource (roughness, flat bottom) + thin `ConvexHullRock` node
+- [x] ~~`ConvexHullRockMesh`~~ retired → `RockMesh` / `Rock` (src/environment)
 - [x] `TerrainSplineCliff`: free-standing stylised cliff/mesa — strata, ledges, bevel, columns,
       clefts, talus, profile curve (inverted / butte silhouettes), smooth top cap (grass/snow slot),
       trimesh collision, nothing saved but parameters
@@ -66,6 +66,47 @@ Legend: `[x]` done · `[ ]` next · `[~]` in progress · `[?]` idea, undecided
       - [ ] later: expose bands / shadow_level / rim on the cliff and road nodes instead of needing a custom material
 
 ## Later
+
+### Environment props (`src/environment/` — procedural meshes, semi-realistic like Odyssey / Link's Awakening)
+
+Shared pattern (as ConvexHullRockMesh): `XxxMesh : ArrayMesh` generator (seed, size, variation params,
+smooth or faceted normals, vertex colours or gradient) + thin `Xxx` node with `_validate_property` so
+nothing generated is saved; a `PropMaterial` shared shader (smooth stylized shading, fresnel rim,
+optional translucency / subsurface for crystals and leaves, gradient by height) — not flat cel.
+Everything is placeable by `TerrainSplineArray` / `TerrainSplineScatter` and later the map generator.
+
+Geology
+- [x] Crystal cluster — `CrystalClusterMesh` / `CrystalCluster` + shared `make_prop_material()`
+      (wrap diffuse, specular, fresnel rim, transmission, tip glow); demo `CrystalBig`, `CrystalBlue`.
+      Docs: `src/environment/Environment.md`
+      - [ ] later: cluster on a slope (align the base plane to the ground normal), LOD (drop pebbles far away)
+- [x] Rocks — `RockMesh` / `Rock`: noise-displaced sphere or cube base (`roundness`), shear, tilt, planar
+      facets, flat bottom, PILE / OUTCROP / STACK clusters for rocky cliff feet and mountains, crevice + strata + moss colouring,
+      per-blob convex collision, `custom_mesh` slot; convex-hull rock and convhull_3d removed. Demo ×3
+      - [ ] pebbles preset (tiny, many, via Scatter), stone pillars & arches, stalagmites for caves
+      - [x] `SplineRocks` — rock wall / boulder line along a spline (rows, variants, ground snap, colliders); demo `RockWallSpline`
+      - [ ] later: SplineRocks picking heights from a sibling cliff (rocks at the wall's foot automatically)
+- [ ] Ice blocks / icicles, snow piles, lava rocks with emissive cracks
+Vegetation
+- [x] Trees — `FoliageTreeMesh` / `FoliageTree`: trunk + buttress roots + **multi-sphere canopy shell**
+      clad in MultiMesh-instanced `leaf_mesh` / `fruit_mesh` (placeholder quad/sphere until authored in
+      Blender), leaves/blossom + hanging fruit, per-instance gradient colour, prop material. Demo grove.
+      - [ ] author leaf.blend + cherry.blend (and a green-leaf, autumn-leaf) → drop into the mesh slots
+      - [ ] more species / presets: palm, willow (droopy cards), shrubby, autumn, bare-winter; expose a preset enum
+      - [ ] LOD (fewer leaves / drop fruit far away), wind sway (vertex shader on the instances),
+            place through TerrainSplineScatter with per-instance season colour
+- [ ] Bushes, hedges, tall grass / reed clumps, flowers patches, mushrooms (Odyssey-size), cacti
+- [ ] Bushes, hedges, tall grass / reed clumps, flowers patches, mushrooms (Odyssey-size), cacti
+- [ ] Fallen logs, stumps, roots; lily pads, cattails, vines hanging from cliff lips
+Man-made
+- [ ] Fences (post & rail along a spline via Array), signposts, lanterns / torches, wells, barrels, crates
+- [ ] Wooden planks / rope bridges, stone walls & ruins (pillars, broken arches), windmill, tents / stalls
+- [ ] Racing set: tyre barriers, cones, checkpoint arch + banners / flags, grandstands, start-gantry lights
+Water & sky
+- [ ] Waterfall ribbon (spline road water preset, vertical), splash pool foam, geyser, fountain
+- [ ] Clouds (soft blobs, drifting), floating islands (cliff loop + underside cone), rainbow arcs
+Gameplay props (share meshes with interactors)
+- [ ] Coins / moons / regional coins, treasure chests, ? blocks, breakable pots, hay bales
 
 ### Environment interactors (level "verbs"; each a small node, most reusable by both racing and exploration)
 
@@ -123,8 +164,6 @@ Area3D base with car / player filtering. Build those three first; the rest are m
       mountains as blobs, towns as arrays → emits splines only
 - [ ] Cliff extras: caprock/grass overhang over the wall, darker crack strips at column boundaries,
       finer columns preset, tunnels/portals through a cliff wall (skip wall between two arc lengths)
-- [ ] Rock: subdivide + noise displacement pass for chunkier boulders; SDF rock via surface nets if
-      realistic boulders are ever wanted
 - [ ] Scatter: exclusion from road/river corridors (needs the ribbon's mask), grass via Terrain3D instancer
 - [ ] Frozen benchmark scene (the live demo keeps changing, so the golden hash no longer means much)
 - [ ] `make format` over the whole tree as one separate commit
