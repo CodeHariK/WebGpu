@@ -30,9 +30,15 @@
 #include "player/celeste_controller.h"
 #include "player/celeste_ui.h"
 
-#include "terrain/convex_hull_rock/convex_hull_rock.h"
 #include "terrain/loafter/procedural_lofter.h"
 #include "terrain/minecraft.h"
+#include "environment/crystal_cluster.h"
+#include "environment/rock.h"
+#include "environment/rock_mesh.h"
+#include "environment/spline_rocks.h"
+#include "environment/tree.h"
+#include "environment/tree_mesh.h"
+#include "environment/crystal_cluster_mesh.h"
 #include "racing/race_track.h"
 #include "terrain/terraspline/terraspline.h"
 
@@ -148,8 +154,6 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(RoadGenerator);
 	GDREGISTER_CLASS(ProceduralLofter);
-	GDREGISTER_CLASS(ConvexHullRockMesh);
-	GDREGISTER_CLASS(ConvexHullRock);
 
 
 	GDREGISTER_CLASS(TerrainHeightmap);
@@ -166,6 +170,13 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(TerrainSplineLake);
 	GDREGISTER_CLASS(TerrainSplinePainter);
 	GDREGISTER_CLASS(RaceTrack);
+	GDREGISTER_CLASS(CrystalClusterMesh);
+	GDREGISTER_CLASS(CrystalCluster);
+	GDREGISTER_CLASS(FoliageTreeMesh);
+	GDREGISTER_CLASS(FoliageTree);
+	GDREGISTER_CLASS(RockMesh);
+	GDREGISTER_CLASS(Rock);
+	GDREGISTER_CLASS(SplineRocks);
 	GDREGISTER_CLASS(TerrainSplineCompositor);
 	GDREGISTER_CLASS(TerrainSplineCompositorUI);
 	GDREGISTER_CLASS(TerrainSplineStreamMap);

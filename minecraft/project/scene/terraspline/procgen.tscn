@@ -59,10 +59,8 @@ _data = {
 }
 point_count = 4
 
-[sub_resource type="ConvexHullRockMesh" id="ConvexHullRockMesh_rock1"]
-num_points = 50
-size_scale = Vector3(5, 5, 5)
-roughness = 0.35
+[sub_resource type="RockMesh" id="RockMesh_rock1"]
+size = Vector3(5, 4, 5)
 flatten_bottom = 0.3
 
 [node name="Rocky" type="Node3D" unique_id=1945912640]
@@ -103,9 +101,9 @@ scale_curve = SubResource("Curve_6kddl")
 wave_amplitude = 0.405
 wave_frequency = 1.43
 
-[node name="ConvexHullRock" type="ConvexHullRock" parent="." unique_id=1420052830]
+[node name="Rock" type="Rock" parent="." unique_id=1420052830]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.7887158, 4.221366, 6.80073)
-rock_mesh = SubResource("ConvexHullRockMesh_rock1")
+rock_mesh = SubResource("RockMesh_rock1")
 
 [node name="Path3D" type="Path3D" parent="." unique_id=924035329]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.7887158, 4.221366, -5)
