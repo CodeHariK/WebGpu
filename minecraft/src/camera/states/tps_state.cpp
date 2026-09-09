@@ -1,17 +1,18 @@
 #include "tps_state.h"
 #include "../../game_manager/player_input.h"
 #include "../camera.h"
+#include <cmath>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include <cmath>
 
 namespace godot {
 
-void CameraStateTPS::enter(GameCamera *p_camera) {
-	Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
-}
+void CameraStateTPS::enter(GameCamera *p_camera) { Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_CAPTURED); }
 
-void CameraStateTPS::update(GameCamera *p_camera, float p_delta) {
+void CameraStateTPS::update(
+		GameCamera *p_camera,
+		float p_delta
+) {
 	if (p_camera->get_player_input()) {
 		const ActionState &state = p_camera->get_player_input()->get_state();
 
@@ -22,7 +23,9 @@ void CameraStateTPS::update(GameCamera *p_camera, float p_delta) {
 
 		// 2. Zoom handling
 		if (std::abs(state.camera.zoom_delta) > 0.001f) {
-			p_camera->target_distance = CLAMP(p_camera->target_distance - (state.camera.zoom_delta * p_camera->zoom_speed), p_camera->min_distance, p_camera->max_distance);
+			p_camera->target_distance =
+					CLAMP(p_camera->target_distance - (state.camera.zoom_delta * p_camera->zoom_speed),
+						  p_camera->min_distance, p_camera->max_distance);
 		}
 	}
 
@@ -39,13 +42,15 @@ void CameraStateTPS::update(GameCamera *p_camera, float p_delta) {
 	p_camera->yaw_spring.current = UtilityFunctions::wrapf(p_camera->yaw_spring.current, -Math::PI, Math::PI);
 
 	// 4. Position Calculation
-	Vector3 pivot = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_position() : p_camera->get_global_position();
+	Vector3 pivot = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_position()
+														 : p_camera->get_global_position();
 
 	// Apply rotation to the offset
 	Basis rot_basis = Basis::from_euler(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
 
 	// Default Offset if none specified: slightly right and back
-	Vector3 local_offset = p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset : Vector3(0.5f, 1.5f, 3.0f);
+	Vector3 local_offset =
+			p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset : Vector3(0.5f, 1.5f, 3.0f);
 	Vector3 target_pos = pivot + rot_basis.xform(local_offset);
 
 	// 5. Collision Solving

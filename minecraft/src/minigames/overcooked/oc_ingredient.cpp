@@ -20,11 +20,19 @@ namespace godot {
 void OCIngredient::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_ingredient_type", "type"), &OCIngredient::set_ingredient_type);
 	ClassDB::bind_method(D_METHOD("get_ingredient_type"), &OCIngredient::get_ingredient_type);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "ingredient_type", PROPERTY_HINT_ENUM, "Generic,Tomato,Lettuce,Onion,Bun,Cheese,Plate"), "set_ingredient_type", "get_ingredient_type");
+	ADD_PROPERTY(
+			PropertyInfo(
+					Variant::INT, "ingredient_type", PROPERTY_HINT_ENUM, "Generic,Tomato,Lettuce,Onion,Bun,Cheese,Plate"
+			),
+			"set_ingredient_type", "get_ingredient_type"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_state", "state"), &OCIngredient::set_state);
 	ClassDB::bind_method(D_METHOD("get_state"), &OCIngredient::get_state);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "current_state", PROPERTY_HINT_ENUM, "Raw,Chopped,Cooked,Blended,Frozen,Burnt"), "set_state", "get_state");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::INT, "current_state", PROPERTY_HINT_ENUM, "Raw,Chopped,Cooked,Blended,Frozen,Burnt"),
+			"set_state", "get_state"
+	);
 }
 
 OCIngredient::OCIngredient() {}
@@ -46,7 +54,10 @@ void OCIngredient::_process(double delta) {
 			progress_text = UtilityFunctions::str(" (", (int)(process_progress * 100), "%)");
 		}
 
-		dm->draw_text("ing_" + get_name(), type_name + ": " + state_name + progress_text, get_global_position() + Vector3(0, 1.6f, 0), 0.001f, Color(1, 1, 1));
+		dm->draw_text(
+				"ing_" + get_name(), type_name + ": " + state_name + progress_text,
+				get_global_position() + Vector3(0, 1.6f, 0), 0.001f, Color(1, 1, 1)
+		);
 	}
 }
 
@@ -132,18 +143,14 @@ void OCIngredient::set_state(IngredientState p_state) {
 	update_visuals();
 }
 
-IngredientState OCIngredient::get_state() const {
-	return current_state;
-}
+IngredientState OCIngredient::get_state() const { return current_state; }
 
 void OCIngredient::set_process_progress(float p_progress) {
 	process_progress = p_progress;
 	update_visuals();
 }
 
-float OCIngredient::get_process_progress() const {
-	return process_progress;
-}
+float OCIngredient::get_process_progress() const { return process_progress; }
 
 void OCIngredient::set_ingredient_type(IngredientType p_type) { ingredient_type = p_type; }
 IngredientType OCIngredient::get_ingredient_type() const { return ingredient_type; }

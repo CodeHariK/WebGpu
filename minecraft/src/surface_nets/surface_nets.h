@@ -43,7 +43,14 @@ public:
 		PackedInt32Array indices;
 	};
 
-	static MeshData generate_mesh(const SNGrid *p_grid, const Vector3i &p_chunk_loc, const Vector3i &p_chunk_size, SurfaceNetsBuffer &p_buffer, bool p_cell_center = false, bool p_smooth_normal = true);
+	static MeshData generate_mesh(
+			const SNGrid *p_grid,
+			const Vector3i &p_chunk_loc,
+			const Vector3i &p_chunk_size,
+			SurfaceNetsBuffer &p_buffer,
+			bool p_cell_center = false,
+			bool p_smooth_normal = true
+	);
 };
 
 } // namespace godot

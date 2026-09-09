@@ -7,7 +7,12 @@ namespace godot {
 void MovingPlatform::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_preset", "preset"), &MovingPlatform::set_preset);
 	ClassDB::bind_method(D_METHOD("get_preset"), &MovingPlatform::get_preset);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "preset", PROPERTY_HINT_ENUM, "Ping-Pong,Circular,Helios (Spiral),Custom Expressions"), "set_preset", "get_preset");
+	ADD_PROPERTY(
+			PropertyInfo(
+					Variant::INT, "preset", PROPERTY_HINT_ENUM, "Ping-Pong,Circular,Helios (Spiral),Custom Expressions"
+			),
+			"set_preset", "get_preset"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_x_expression", "expr"), &MovingPlatform::set_x_expression);
 	ClassDB::bind_method(D_METHOD("get_x_expression"), &MovingPlatform::get_x_expression);
@@ -34,9 +39,7 @@ void MovingPlatform::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "circular_radius"), "set_circular_radius", "get_circular_radius");
 }
 
-MovingPlatform::MovingPlatform() {
-	velocity = Vector3(0, 0, 0);
-}
+MovingPlatform::MovingPlatform() { velocity = Vector3(0, 0, 0); }
 MovingPlatform::~MovingPlatform() {}
 
 void MovingPlatform::_ready() {
@@ -62,9 +65,12 @@ void MovingPlatform::compile_expressions() {
 
 	if (err_x != OK || err_y != OK || err_z != OK) {
 		UtilityFunctions::print("MovingPlatform: Parse error in custom expressions!");
-		if (err_x != OK) UtilityFunctions::print("  X error: ", x_expr->get_error_text());
-		if (err_y != OK) UtilityFunctions::print("  Y error: ", y_expr->get_error_text());
-		if (err_z != OK) UtilityFunctions::print("  Z error: ", z_expr->get_error_text());
+		if (err_x != OK)
+			UtilityFunctions::print("  X error: ", x_expr->get_error_text());
+		if (err_y != OK)
+			UtilityFunctions::print("  Y error: ", y_expr->get_error_text());
+		if (err_z != OK)
+			UtilityFunctions::print("  Z error: ", z_expr->get_error_text());
 		expr_parse_success = false;
 	} else {
 		expr_parse_success = true;
@@ -98,7 +104,7 @@ Vector3 MovingPlatform::calculate_relative_position(float t) {
 			if (!expr_parse_success) {
 				break;
 			}
-			
+
 			Array inputs;
 			inputs.append(t);
 
@@ -106,9 +112,12 @@ Vector3 MovingPlatform::calculate_relative_position(float t) {
 			Variant y_val = y_expr->execute(inputs, nullptr, false);
 			Variant z_val = z_expr->execute(inputs, nullptr, false);
 
-			if (!x_expr->has_execute_failed()) offset.x = (float)x_val;
-			if (!y_expr->has_execute_failed()) offset.y = (float)y_val;
-			if (!z_expr->has_execute_failed()) offset.z = (float)z_val;
+			if (!x_expr->has_execute_failed())
+				offset.x = (float)x_val;
+			if (!y_expr->has_execute_failed())
+				offset.y = (float)y_val;
+			if (!z_expr->has_execute_failed())
+				offset.z = (float)z_val;
 			break;
 		}
 	}
@@ -134,20 +143,16 @@ void MovingPlatform::_physics_process(double delta) {
 		velocity = Vector3(0, 0, 0);
 	}
 
-	// Update our global position. Because AnimatableBody3D computes linear velocity 
-	// based on frame-to-frame position delta, setting the position here automatically 
+	// Update our global position. Because AnimatableBody3D computes linear velocity
+	// based on frame-to-frame position delta, setting the position here automatically
 	// provides correct physical velocity to carrying/colliding CharacterBody3D actors.
 	set_global_position(next_pos);
 }
 
 // Getters and Setters
-void MovingPlatform::set_preset(int p_preset) {
-	preset = (MovementPreset)p_preset;
-}
+void MovingPlatform::set_preset(int p_preset) { preset = (MovementPreset)p_preset; }
 
-int MovingPlatform::get_preset() const {
-	return (int)preset;
-}
+int MovingPlatform::get_preset() const { return (int)preset; }
 
 void MovingPlatform::set_x_expression(const String &p_expr) {
 	x_expr_str = p_expr;
@@ -156,9 +161,7 @@ void MovingPlatform::set_x_expression(const String &p_expr) {
 	}
 }
 
-String MovingPlatform::get_x_expression() const {
-	return x_expr_str;
-}
+String MovingPlatform::get_x_expression() const { return x_expr_str; }
 
 void MovingPlatform::set_y_expression(const String &p_expr) {
 	y_expr_str = p_expr;
@@ -167,9 +170,7 @@ void MovingPlatform::set_y_expression(const String &p_expr) {
 	}
 }
 
-String MovingPlatform::get_y_expression() const {
-	return y_expr_str;
-}
+String MovingPlatform::get_y_expression() const { return y_expr_str; }
 
 void MovingPlatform::set_z_expression(const String &p_expr) {
 	z_expr_str = p_expr;
@@ -178,32 +179,18 @@ void MovingPlatform::set_z_expression(const String &p_expr) {
 	}
 }
 
-String MovingPlatform::get_z_expression() const {
-	return z_expr_str;
-}
+String MovingPlatform::get_z_expression() const { return z_expr_str; }
 
-void MovingPlatform::set_time_scale(float p_scale) {
-	time_scale = p_scale;
-}
+void MovingPlatform::set_time_scale(float p_scale) { time_scale = p_scale; }
 
-float MovingPlatform::get_time_scale() const {
-	return time_scale;
-}
+float MovingPlatform::get_time_scale() const { return time_scale; }
 
-void MovingPlatform::set_ping_pong_offset(Vector3 p_offset) {
-	ping_pong_offset = p_offset;
-}
+void MovingPlatform::set_ping_pong_offset(Vector3 p_offset) { ping_pong_offset = p_offset; }
 
-Vector3 MovingPlatform::get_ping_pong_offset() const {
-	return ping_pong_offset;
-}
+Vector3 MovingPlatform::get_ping_pong_offset() const { return ping_pong_offset; }
 
-void MovingPlatform::set_circular_radius(float p_radius) {
-	circular_radius = p_radius;
-}
+void MovingPlatform::set_circular_radius(float p_radius) { circular_radius = p_radius; }
 
-float MovingPlatform::get_circular_radius() const {
-	return circular_radius;
-}
+float MovingPlatform::get_circular_radius() const { return circular_radius; }
 
 } // namespace godot

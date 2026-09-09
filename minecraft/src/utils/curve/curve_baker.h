@@ -15,21 +15,27 @@ public:
 			const Ref<Curve3D> &p_slice_low,
 			const Ref<Curve3D> &p_slice_high,
 			float p_t,
-			int p_resolution);
+			int p_resolution
+	);
 	static PackedVector3Array bake_curve(
 			const Ref<Curve3D> &p_curve,
 			float p_interval,
-			const Transform3D &p_transform = Transform3D());
+			const Transform3D &p_transform = Transform3D()
+	);
 	static std::vector<Transform3D> bake_transforms(
 			const Ref<Curve3D> &p_curve,
 			float p_interval,
-			const Transform3D &p_transform = Transform3D());
+			const Transform3D &p_transform = Transform3D()
+	);
 	static std::vector<Transform3D> bake_transforms_adaptive(
 			const Ref<Curve3D> &p_curve,
-			float p_start_dist, float p_end_dist,
-			float p_max_step, float p_min_step,
+			float p_start_dist,
+			float p_end_dist,
+			float p_max_step,
+			float p_min_step,
 			float p_angle_tol_degrees,
-			const Transform3D &p_transform = Transform3D());
+			const Transform3D &p_transform = Transform3D()
+	);
 };
 
 } // namespace godot

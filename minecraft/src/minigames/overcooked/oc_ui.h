@@ -15,7 +15,8 @@ namespace godot {
  * @brief HUD for displaying active orders and current score.
  */
 class OCOrderUI : public CUI {
-	GDCLASS(OCOrderUI, CUI)
+	GDCLASS(OCOrderUI,
+			CUI)
 
 private:
 	VBoxContainer *order_list = nullptr;
@@ -40,7 +41,8 @@ public:
  * @brief Admin tool for creating recipes and managing global inventory.
  */
 class OCRecipeEditorUI : public CUI {
-	GDCLASS(OCRecipeEditorUI, CUI)
+	GDCLASS(OCRecipeEditorUI,
+			CUI)
 
 private:
 	VBoxContainer *ingredients_container = nullptr;

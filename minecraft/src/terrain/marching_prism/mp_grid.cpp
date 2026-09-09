@@ -24,7 +24,13 @@
 namespace godot {
 
 void MPGrid::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y", "chunk_size_z"), &MPGrid::initialize_grid);
+	ClassDB::bind_method(
+			D_METHOD(
+					"initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y",
+					"chunk_size_z"
+			),
+			&MPGrid::initialize_grid
+	);
 	ClassDB::bind_method(D_METHOD("refresh_grid"), &MPGrid::refresh_grid);
 	ClassDB::bind_method(D_METHOD("modify_corner", "p_grid_pos", "p_active"), &MPGrid::modify_corner);
 	ClassDB::bind_method(D_METHOD("set_grid_size", "size"), &MPGrid::set_grid_size);
@@ -45,9 +51,16 @@ void MPGrid::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_size"), "set_grid_size", "get_grid_size");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "chunk_size"), "set_chunk_size", "get_chunk_size");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "debug_draw_mode", PROPERTY_HINT_ENUM, "None,Corner,CornerAndEdge"), "set_debug_draw_mode", "get_debug_draw_mode");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "mp_node", PROPERTY_HINT_NODE_TYPE, "MPNode"), "set_mp_node", "get_mp_node");
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "hover_cylinder_alpha"), "set_hover_cylinder_alpha", "get_hover_cylinder_alpha");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::INT, "debug_draw_mode", PROPERTY_HINT_ENUM, "None,Corner,CornerAndEdge"),
+			"set_debug_draw_mode", "get_debug_draw_mode"
+	);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "mp_node", PROPERTY_HINT_NODE_TYPE, "MPNode"), "set_mp_node", "get_mp_node"
+	);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "hover_cylinder_alpha"), "set_hover_cylinder_alpha", "get_hover_cylinder_alpha"
+	);
 
 	BIND_ENUM_CONSTANT(DEBUG_SHOW_NONE);
 	BIND_ENUM_CONSTANT(DEBUG_SHOW_CORNER);
@@ -60,16 +73,22 @@ MPGrid::MPGrid() {
 	debug_draw_mode = DEBUG_SHOW_NONE;
 }
 
-MPGrid::~MPGrid() {
-	_clear_prism_edges();
-}
+MPGrid::~MPGrid() { _clear_prism_edges(); }
 
 void MPGrid::_ready() {
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
 }
 
-void MPGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, bool p_refresh) {
+void MPGrid::initialize_grid(
+		int p_chunks_x,
+		int p_chunks_y,
+		int p_chunks_z,
+		int p_chunk_size_x,
+		int p_chunk_size_y,
+		int p_chunk_size_z,
+		bool p_refresh
+) {
 	grid_size = Vector3i(p_chunks_x, p_chunks_y, p_chunks_z);
 	chunk_size = Vector3i(p_chunk_size_x, p_chunk_size_y, p_chunk_size_z);
 
@@ -123,10 +142,15 @@ void MPGrid::refresh_grid() {
 	}
 
 	if (debug_corners_container)
-		debug_corners_container->set_visible(debug_draw_mode == DEBUG_SHOW_CORNER || debug_draw_mode == DEBUG_SHOW_CORNER_AND_EDGE);
+		debug_corners_container->set_visible(
+				debug_draw_mode == DEBUG_SHOW_CORNER || debug_draw_mode == DEBUG_SHOW_CORNER_AND_EDGE
+		);
 }
 
-int MPGrid::_spawn_marching_prisms(const MPChunk &p_chunk, MPNode *p_mp_node) {
+int MPGrid::_spawn_marching_prisms(
+		const MPChunk &p_chunk,
+		MPNode *p_mp_node
+) {
 	if (!p_mp_node)
 		return 0;
 	int count = 0;
@@ -300,7 +324,11 @@ void MPGrid::_clear_children() {
 	total_cells = 0;
 }
 
-void MPGrid::_update_visual_at(int gx, int gy, int gz) {
+void MPGrid::_update_visual_at(
+		int gx,
+		int gy,
+		int gz
+) {
 	int cx = (gx < 0) ? -1 : gx / chunk_size.x;
 	int cy = (gy < 0) ? -1 : gy / chunk_size.y;
 	int cz = (gz < 0) ? -1 : gz / chunk_size.z;
@@ -481,7 +509,12 @@ void MPGrid::_initialize_boundaries(MPChunk &p_chunk) const {
 	}
 }
 
-bool MPGrid::_is_boundary_corner(int gx, int gy, int gz, bool &r_required_state) const {
+bool MPGrid::_is_boundary_corner(
+		int gx,
+		int gy,
+		int gz,
+		bool &r_required_state
+) const {
 	int max_gx = grid_size.x * chunk_size.x;
 	int max_gy = grid_size.y * chunk_size.y;
 	int max_gz = grid_size.z * chunk_size.z;
@@ -493,7 +526,10 @@ bool MPGrid::_is_boundary_corner(int gx, int gy, int gz, bool &r_required_state)
 	return false;
 }
 
-void MPGrid::modify_corner(const Vector3i &p_grid_pos, bool p_active) {
+void MPGrid::modify_corner(
+		const Vector3i &p_grid_pos,
+		bool p_active
+) {
 	int gx = p_grid_pos.x;
 	int gy = p_grid_pos.y;
 	int gz = p_grid_pos.z;
@@ -515,7 +551,9 @@ void MPGrid::modify_corner(const Vector3i &p_grid_pos, bool p_active) {
 			for (int cx = start_cx; cx <= end_cx; cx++) {
 				int idx = _get_chunk_index(cx, cy, cz);
 				MPChunk &chunk = chunks[idx];
-				chunk.set_corner(gx - (cx * chunk_size.x), gy - (cy * chunk_size.y), gz - (cz * chunk_size.z), p_active);
+				chunk.set_corner(
+						gx - (cx * chunk_size.x), gy - (cy * chunk_size.y), gz - (cz * chunk_size.z), p_active
+				);
 				actual_modified = true;
 			}
 		}
@@ -556,8 +594,6 @@ bool MPGrid::is_corner_active(const Vector3i &p_grid_pos) const {
 	return chunks[idx].get_corner(gx - (cx * chunk_size.x), gy - (cy * chunk_size.y), gz - (cz * chunk_size.z));
 }
 
-
-
 void MPGrid::set_cell_collision_enabled(bool p_enabled) {
 	uint32_t layer = p_enabled ? toLayer(LAYER_CELLS) : 0;
 	for (MPChunk &chunk : chunks) {
@@ -567,8 +603,5 @@ void MPGrid::set_cell_collision_enabled(bool p_enabled) {
 		}
 	}
 }
-
-
-
 
 } // namespace godot

@@ -51,8 +51,7 @@ void DrivingState::physics_update(float delta) {
 	float forward_speed = vehicle->get_linear_velocity().dot(forward_dir);
 	float steering_intensity = abs(vehicle->get_input().steering);
 
-	if (vehicle->get_vehicle_config().is_valid() &&
-		vehicle->get_input().handbrake &&
+	if (vehicle->get_vehicle_config().is_valid() && vehicle->get_input().handbrake &&
 		forward_speed > vehicle->get_vehicle_config()->get_drift_speed_threshold() &&
 		steering_intensity > vehicle->get_vehicle_config()->get_drift_steering_threshold()) {
 		vehicle->change_state(vehicle->drifting_state);
@@ -94,7 +93,8 @@ void DriftingState::physics_update(float delta) {
 	vehicle->_apply_stability(delta);
 
 	// Accumulate nitro fuel over time while drifting
-	vehicle->nitro_fuel = MIN(config->get_nitro_max_fuel(), vehicle->nitro_fuel + config->get_nitro_refuel_rate() * delta);
+	vehicle->nitro_fuel =
+			MIN(config->get_nitro_max_fuel(), vehicle->nitro_fuel + config->get_nitro_refuel_rate() * delta);
 
 	// 3. Transition check: exit drift if handbrake released or speed falls below threshold
 	Transform3D trans = vehicle->get_global_transform();
@@ -113,9 +113,7 @@ void GlidingState::enter() {
 	}
 }
 
-void GlidingState::exit() {
-	UtilityFunctions::print("ArcadeVehicle: Exited GlidingState");
-}
+void GlidingState::exit() { UtilityFunctions::print("ArcadeVehicle: Exited GlidingState"); }
 
 void GlidingState::physics_update(float delta) {
 	if (!vehicle || vehicle->get_vehicle_config().is_null())
@@ -157,7 +155,8 @@ void GlidingState::physics_update(float delta) {
 		vehicle->apply_central_force(forward_thrust);
 	}
 
-	// Apply drag only to the lateral velocity component to reduce sideways slip/momentum when steering, preserving forward and falling momentum
+	// Apply drag only to the lateral velocity component to reduce sideways slip/momentum when steering, preserving
+	// forward and falling momentum
 	float lateral_speed = vel.dot(right_dir);
 	float lateral_drag_coeff = 4.0f; // Rapidly kills sideways slide for responsive steering control
 	Vector3 drag = -right_dir * lateral_speed * lateral_drag_coeff * mass;
@@ -171,9 +170,7 @@ void GlidingState::physics_update(float delta) {
 
 // --- RAMP SPIN STATE ---
 
-void RampSpinState::enter() {
-	UtilityFunctions::print("ArcadeVehicle: Entered RampSpinState");
-}
+void RampSpinState::enter() { UtilityFunctions::print("ArcadeVehicle: Entered RampSpinState"); }
 
 void RampSpinState::physics_update(float delta) {
 	if (!vehicle || vehicle->get_vehicle_config().is_null())
@@ -195,9 +192,7 @@ void RampSpinState::physics_update(float delta) {
 
 // --- RAMP ROLL STATE ---
 
-void RampRollState::enter() {
-	UtilityFunctions::print("ArcadeVehicle: Entered RampRollState");
-}
+void RampRollState::enter() { UtilityFunctions::print("ArcadeVehicle: Entered RampRollState"); }
 
 void RampRollState::physics_update(float delta) {
 	if (!vehicle || vehicle->get_vehicle_config().is_null())

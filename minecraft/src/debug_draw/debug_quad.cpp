@@ -25,11 +25,9 @@ void DebugLineQuad::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::COLOR, "color"), "set_color", "get_color");
 }
 
-DebugLineQuad::DebugLineQuad() {
-}
+DebugLineQuad::DebugLineQuad() {}
 
-DebugLineQuad::~DebugLineQuad() {
-}
+DebugLineQuad::~DebugLineQuad() {}
 
 void DebugLineQuad::_ready() {
 	if (Engine::get_singleton()->is_editor_hint())
@@ -51,7 +49,10 @@ void DebugLineQuad::_ready() {
 	} else {
 		Ref<Shader> default_shader;
 		default_shader.instantiate();
-		default_shader->set_code("shader_type spatial; render_mode unshaded, cull_disabled, depth_test_disabled; uniform vec4 color: source_color; void fragment() { ALBEDO = color.rgb; ALPHA = color.a; }");
+		default_shader->set_code(
+				"shader_type spatial; render_mode unshaded, cull_disabled, depth_test_disabled; uniform vec4 color: "
+				"source_color; void fragment() { ALBEDO = color.rgb; ALPHA = color.a; }"
+		);
 		shader_material->set_shader(default_shader);
 	}
 	shader_material->set_shader_parameter("color", color);
@@ -59,7 +60,11 @@ void DebugLineQuad::_ready() {
 	_update_geometry();
 }
 
-void DebugLineQuad::set_line(const Vector3 &p_start, const Vector3 &p_end, float p_thickness) {
+void DebugLineQuad::set_line(
+		const Vector3 &p_start,
+		const Vector3 &p_end,
+		float p_thickness
+) {
 	start_pos = p_start;
 	end_pos = p_end;
 	thickness = p_thickness;

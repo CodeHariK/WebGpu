@@ -34,31 +34,60 @@ struct MCRay {
 /**
  * Helper to get a ray from a screen/mouse position using the current camera.
  */
-MCRay get_ray_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos);
+MCRay get_ray_from_mouse(
+		Node3D *p_context,
+		const Vector2 &p_mouse_pos
+);
 
 /**
  * Generic raycast helper to perform a 3D raycast from a 2D screen/mouse position.
  * Returns a typed MCRaycastHit struct.
  */
-MCRaycastHit raycast_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos, uint32_t p_mask = 0xFFFFFFFF, float p_dist = 1000.0f, const TypedArray<RID> &p_exclude = TypedArray<RID>());
+MCRaycastHit raycast_from_mouse(
+		Node3D *p_context,
+		const Vector2 &p_mouse_pos,
+		uint32_t p_mask = 0xFFFFFFFF,
+		float p_dist = 1000.0f,
+		const TypedArray<RID> &p_exclude = TypedArray<RID>()
+);
 
 /**
  * Generic point-to-point 3D raycast.
  * Returns a typed MCRaycastHit struct.
  */
-MCRaycastHit raycast_3d(Node3D *p_context, const Vector3 &p_from, const Vector3 &p_to, uint32_t p_mask = 0xFFFFFFFF, const TypedArray<RID> &p_exclude = TypedArray<RID>());
+MCRaycastHit raycast_3d(
+		Node3D *p_context,
+		const Vector3 &p_from,
+		const Vector3 &p_to,
+		uint32_t p_mask = 0xFFFFFFFF,
+		const TypedArray<RID> &p_exclude = TypedArray<RID>()
+);
 
 /**
  * Generic sphere cast (sweep) in 3D.
  * Useful for fat objects like monster truck tires.
  */
-MCRaycastHit spherecast_3d(Node3D *p_context, const Vector3 &p_start, const Vector3 &p_direction, float p_dist, float p_radius, uint32_t p_mask = 0xFFFFFFFF, const TypedArray<RID> &p_exclude = TypedArray<RID>());
+MCRaycastHit spherecast_3d(
+		Node3D *p_context,
+		const Vector3 &p_start,
+		const Vector3 &p_direction,
+		float p_dist,
+		float p_radius,
+		uint32_t p_mask = 0xFFFFFFFF,
+		const TypedArray<RID> &p_exclude = TypedArray<RID>()
+);
 
 /**
  * Helper to perform a 3D raycast directly from a mouse InputEvent.
  * Returns a typed MCRaycastHit struct.
  */
-MCRaycastHit raycast_from_event(Node3D *p_context, const Ref<InputEvent> &p_event, uint32_t p_mask = 0xFFFFFFFF, float p_dist = 1000.0f, const TypedArray<RID> &p_exclude = TypedArray<RID>());
+MCRaycastHit raycast_from_event(
+		Node3D *p_context,
+		const Ref<InputEvent> &p_event,
+		uint32_t p_mask = 0xFFFFFFFF,
+		float p_dist = 1000.0f,
+		const TypedArray<RID> &p_exclude = TypedArray<RID>()
+);
 
 } // namespace godot
 

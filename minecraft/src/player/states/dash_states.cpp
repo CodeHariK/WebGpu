@@ -25,7 +25,7 @@ void CelesteDashState::enter() {
 		Transform3D transform = controller->get_global_transform();
 		Vector3 forward = -transform.basis.get_column(2).normalized();
 		Vector3 right = transform.basis.get_column(0).normalized();
-		
+
 		controller->dash_direction = (forward * -move_axis.y + right * move_axis.x).normalized();
 	}
 
@@ -34,8 +34,9 @@ void CelesteDashState::enter() {
 }
 
 void CelesteDashState::physics_update(float delta) {
-	if (!controller) return;
-	
+	if (!controller)
+		return;
+
 	controller->dash_timer -= delta;
 
 	// Constant Velocity Dash (ignores gravity)

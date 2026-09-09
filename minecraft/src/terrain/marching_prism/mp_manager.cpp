@@ -56,9 +56,7 @@ void MPManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_load_terrain"), &MPManager::_on_load_terrain);
 }
 
-MPManager::MPManager() {
-	current_placement_size = Vector3i(2, 3, 4);
-}
+MPManager::MPManager() { current_placement_size = Vector3i(2, 3, 4); }
 
 MPManager::~MPManager() {}
 
@@ -104,8 +102,10 @@ void MPManager::initialize_all() {
 	mp_node->initialize_library();
 
 	terrain_node->set_mp_node(mp_node);
-	terrain_node->initialize_grid(terrain_node->get_grid_size().x, terrain_node->get_grid_size().y, terrain_node->get_grid_size().z,
-								  terrain_node->get_chunk_size().x, terrain_node->get_chunk_size().y, terrain_node->get_chunk_size().z);
+	terrain_node->initialize_grid(
+			terrain_node->get_grid_size().x, terrain_node->get_grid_size().y, terrain_node->get_grid_size().z,
+			terrain_node->get_chunk_size().x, terrain_node->get_chunk_size().y, terrain_node->get_chunk_size().z
+	);
 
 	ui.manager = CUI::create_on_new_layer(this);
 	if (ui.manager)
@@ -150,7 +150,8 @@ uint8_t MPManager::_get_cell_hash(const Vector3i &p_grid_pos) {
 	int chunk_y = y / chunk_sz.y;
 	int chunk_z = z / chunk_sz.z;
 
-	if (chunk_x < 0 || chunk_x >= grid_sz.x || chunk_y < 0 || chunk_y >= grid_sz.y || chunk_z < 0 || chunk_z >= grid_sz.z) {
+	if (chunk_x < 0 || chunk_x >= grid_sz.x || chunk_y < 0 || chunk_y >= grid_sz.y || chunk_z < 0 ||
+		chunk_z >= grid_sz.z) {
 		return 0;
 	}
 
@@ -374,17 +375,14 @@ void MPManager::_input(const Ref<InputEvent> &p_event) {
 	}
 }
 
-Vector3i MPManager::_get_staggered_normal_dir(const Vector3 &p_hit_normal, const Vector3i &p_grid_pos) const {
-	Vector3 directions[8] = {
-		Vector3(1.0f, 0.0f, 0.0f),
-		Vector3(-1.0f, 0.0f, 0.0f),
-		Vector3(0.5f, 0.0f, 0.866025f),
-		Vector3(-0.5f, 0.0f, 0.866025f),
-		Vector3(0.5f, 0.0f, -0.866025f),
-		Vector3(-0.5f, 0.0f, -0.866025f),
-		Vector3(0.0f, 1.0f, 0.0f),
-		Vector3(0.0f, -1.0f, 0.0f)
-	};
+Vector3i MPManager::_get_staggered_normal_dir(
+		const Vector3 &p_hit_normal,
+		const Vector3i &p_grid_pos
+) const {
+	Vector3 directions[8] = { Vector3(1.0f, 0.0f, 0.0f),	   Vector3(-1.0f, 0.0f, 0.0f),
+							  Vector3(0.5f, 0.0f, 0.866025f),  Vector3(-0.5f, 0.0f, 0.866025f),
+							  Vector3(0.5f, 0.0f, -0.866025f), Vector3(-0.5f, 0.0f, -0.866025f),
+							  Vector3(0.0f, 1.0f, 0.0f),	   Vector3(0.0f, -1.0f, 0.0f) };
 
 	Vector3 closest_dir = directions[0];
 	float max_dot = -2.0f;

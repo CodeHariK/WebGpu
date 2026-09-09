@@ -1,19 +1,19 @@
 #include "oc_station.h"
 #include "../../debug_draw/debug_manager.h"
+#include "../../game_manager/game_manager.h"
+#include "../../game_manager/player_input.h"
 #include "oc_ingredient.h"
 #include "oc_manager.h"
 #include "oc_plate.h"
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>
+#include <godot_cpp/classes/character_body3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/marker3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
-#include "../../game_manager/game_manager.h"
-#include "../../game_manager/player_input.h"
-#include <godot_cpp/classes/character_body3d.hpp>
 #include <vector>
 
 namespace godot {
@@ -21,7 +21,13 @@ namespace godot {
 void OCStation::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_station_type", "type"), &OCStation::set_station_type);
 	ClassDB::bind_method(D_METHOD("get_station_type"), &OCStation::get_station_type);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "station_type", PROPERTY_HINT_ENUM, "Counter,Cutting,Cooking,Blender,Crate,Delivery,Trash"), "set_station_type", "get_station_type");
+	ADD_PROPERTY(
+			PropertyInfo(
+					Variant::INT, "station_type", PROPERTY_HINT_ENUM,
+					"Counter,Cutting,Cooking,Blender,Crate,Delivery,Trash"
+			),
+			"set_station_type", "get_station_type"
+	);
 
 	ClassDB::bind_method(D_METHOD("place_item", "item"), &OCStation::place_item);
 	ClassDB::bind_method(D_METHOD("take_item"), &OCStation::take_item);
@@ -119,8 +125,9 @@ void OCStation::_ready() {
 		Interactable *child = Object::cast_to<Interactable>(get_child(i));
 		if (child && child->is_inside_tree() && !child->get_is_picked_up()) {
 			// Skip internal children if they happen to be interactable
-			if (child->get_name() == String("ItemSlot")) continue;
-			
+			if (child->get_name() == String("ItemSlot"))
+				continue;
+
 			place_item(child);
 			break; // Only one item per station
 		}
@@ -134,7 +141,9 @@ void OCStation::_process(double delta) {
 		if (held_item) {
 			label += " ^^(" + held_item->get_name() + ")";
 		}
-		dm->draw_text("station_" + get_name(), label, get_global_position() + Vector3(0, 3.0f, 0), 0.001f, Color(1, 1, 1));
+		dm->draw_text(
+				"station_" + get_name(), label, get_global_position() + Vector3(0, 3.0f, 0), 0.001f, Color(1, 1, 1)
+		);
 	}
 
 	// AUTOMATIC PROCESSING
@@ -177,7 +186,10 @@ void OCStation::_process(double delta) {
 	}
 }
 
-void OCStation::_process_ingredient(OCIngredient *ingredient, float delta) {
+void OCStation::_process_ingredient(
+		OCIngredient *ingredient,
+		float delta
+) {
 	IngredientState current_state = ingredient->get_state();
 	float progress = ingredient->get_process_progress();
 
@@ -195,7 +207,9 @@ void OCStation::_process_ingredient(OCIngredient *ingredient, float delta) {
 			if (new_progress >= 1.0f) {
 				ingredient->set_state(step.output_state);
 				ingredient->set_process_progress(0.0f);
-				UtilityFunctions::print("OCStation: Auto-step complete on ", ingredient->get_name(), " -> ", step.output_state);
+				UtilityFunctions::print(
+						"OCStation: Auto-step complete on ", ingredient->get_name(), " -> ", step.output_state
+				);
 			} else {
 				ingredient->set_process_progress(new_progress);
 			}
@@ -228,7 +242,9 @@ bool OCStation::_interact_ingredient(OCIngredient *ingredient) {
 			if (new_progress >= 1.0f) {
 				ingredient->set_state(step.output_state);
 				ingredient->set_process_progress(0.0f);
-				UtilityFunctions::print("OCStation: Manual-step complete on ", ingredient->get_name(), " -> ", step.output_state);
+				UtilityFunctions::print(
+						"OCStation: Manual-step complete on ", ingredient->get_name(), " -> ", step.output_state
+				);
 			} else {
 				ingredient->set_process_progress(new_progress);
 			}
@@ -267,9 +283,7 @@ void OCStation::pickup(Node3D *p_actor) {
 	// We don't actually pick up the station itself
 }
 
-bool OCStation::can_place_item(Interactable *item) {
-	return held_item == nullptr && item != nullptr;
-}
+bool OCStation::can_place_item(Interactable *item) { return held_item == nullptr && item != nullptr; }
 
 void OCStation::place_item(Interactable *item) {
 	if (!item)
@@ -344,26 +358,26 @@ Interactable *OCStation::take_item() {
 		Interactable *child = Object::cast_to<Interactable>(get_child(i));
 		if (child && child->is_inside_tree() && !child->get_is_picked_up() && child != item_slot) {
 			place_item(child);
-			break; 
+			break;
 		}
 	}
 
 	return item;
 }
 
-void OCStation::set_station_type(StationType p_type) {
-	station_type = p_type;
-}
-StationType OCStation::get_station_type() const {
-	return station_type;
-}
+void OCStation::set_station_type(StationType p_type) { station_type = p_type; }
+StationType OCStation::get_station_type() const { return station_type; }
 
-void OCStation::add_step(IngredientState p_input, IngredientState p_output, float p_speed, bool p_auto, ProcessOperation p_op) {
+void OCStation::add_step(
+		IngredientState p_input,
+		IngredientState p_output,
+		float p_speed,
+		bool p_auto,
+		ProcessOperation p_op
+) {
 	steps.push_back({ p_input, p_output, p_speed, p_auto, p_op });
 }
 
-void OCStation::clear_steps() {
-	steps.clear();
-}
+void OCStation::clear_steps() { steps.clear(); }
 
 } // namespace godot

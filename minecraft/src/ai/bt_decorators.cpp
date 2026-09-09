@@ -7,21 +7,22 @@ namespace godot {
 void BTDecorator::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_child", "child"), &BTDecorator::set_child);
 	ClassDB::bind_method(D_METHOD("get_child"), &BTDecorator::get_child);
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "child", PROPERTY_HINT_RESOURCE_TYPE, "BTTask"), "set_child", "get_child");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "child", PROPERTY_HINT_RESOURCE_TYPE, "BTTask"), "set_child", "get_child"
+	);
 }
 
 BTDecorator::BTDecorator() {}
 BTDecorator::~BTDecorator() {}
 
-void BTDecorator::set_child(const Ref<BTTask> &p_child) {
-	child = p_child;
-}
+void BTDecorator::set_child(const Ref<BTTask> &p_child) { child = p_child; }
 
-Ref<BTTask> BTDecorator::get_child() const {
-	return child;
-}
+Ref<BTTask> BTDecorator::get_child() const { return child; }
 
-void BTDecorator::abort(Node *p_actor, const Ref<BTStore> &p_btstore) {
+void BTDecorator::abort(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (get_status() == RUNNING && child.is_valid()) {
 		child->abort(p_actor, p_btstore);
 	}
@@ -29,7 +30,10 @@ void BTDecorator::abort(Node *p_actor, const Ref<BTStore> &p_btstore) {
 }
 
 // BTInverter
-BTTask::Status BTInverter::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTInverter::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (child.is_null())
 		return SUCCESS;
 
@@ -42,7 +46,10 @@ BTTask::Status BTInverter::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
 }
 
 // BTForceSuccess
-BTTask::Status BTForceSuccess::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTForceSuccess::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (child.is_null())
 		return SUCCESS;
 
@@ -53,7 +60,10 @@ BTTask::Status BTForceSuccess::_tick(Node *p_actor, const Ref<BTStore> &p_btstor
 }
 
 // BTForceFailure
-BTTask::Status BTForceFailure::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTForceFailure::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (child.is_null())
 		return FAILURE;
 
@@ -70,7 +80,10 @@ void BTProbability::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "run_chance"), "set_run_chance", "get_run_chance");
 }
 
-BTTask::Status BTProbability::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTProbability::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (child.is_null())
 		return SUCCESS;
 
@@ -91,7 +104,10 @@ void BTRepeat::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "repeat_times"), "set_repeat_times", "get_repeat_times");
 }
 
-BTTask::Status BTRepeat::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTRepeat::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (child.is_null())
 		return SUCCESS;
 
@@ -110,7 +126,10 @@ BTTask::Status BTRepeat::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
 }
 
 // BTRepeatUntilSuccess
-BTTask::Status BTRepeatUntilSuccess::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTRepeatUntilSuccess::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (child.is_null())
 		return SUCCESS;
 
@@ -124,7 +143,10 @@ BTTask::Status BTRepeatUntilSuccess::_tick(Node *p_actor, const Ref<BTStore> &p_
 }
 
 // BTRepeatUntilFailure
-BTTask::Status BTRepeatUntilFailure::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTRepeatUntilFailure::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (child.is_null())
 		return FAILURE;
 
@@ -144,7 +166,10 @@ void BTDelay::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "delay"), "set_delay", "get_delay");
 }
 
-BTTask::Status BTDelay::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTDelay::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (elapsed < delay) {
 		elapsed += p_actor->get_process_delta_time();
 		return RUNNING;
@@ -161,7 +186,10 @@ void BTCooldown::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "cooldown"), "set_cooldown", "get_cooldown");
 }
 
-BTTask::Status BTCooldown::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTCooldown::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	uint64_t current_ticks = godot::Time::get_singleton()->get_ticks_msec();
 	if (is_in_cooldown) {
 		float elapsed_sec = (current_ticks - last_run_ticks) / 1000.0f;
@@ -190,7 +218,10 @@ void BTRunLimit::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "run_limit"), "set_run_limit", "get_run_limit");
 }
 
-BTTask::Status BTRunLimit::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTRunLimit::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (num_runs >= run_limit)
 		return FAILURE;
 
@@ -211,7 +242,10 @@ void BTTimeLimit::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "time_limit"), "set_time_limit", "get_time_limit");
 }
 
-BTTask::Status BTTimeLimit::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTTimeLimit::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (child.is_null())
 		return SUCCESS;
 

@@ -6,7 +6,8 @@
 namespace godot {
 
 class SpringDoor : public RigidBody3D {
-	GDCLASS(SpringDoor, RigidBody3D)
+	GDCLASS(SpringDoor,
+			RigidBody3D)
 
 private:
 	float stiffness = 30.0f;

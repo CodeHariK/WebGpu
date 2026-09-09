@@ -270,7 +270,7 @@ void OCRecipeEditorUI::_on_save_inventory_pressed() {
 			// Try Label (existing) or OptionButton (new)
 			Label *lbl = Object::cast_to<Label>(row->find_child("ItemName", false, false));
 			OptionButton *opt = Object::cast_to<OptionButton>(row->find_child("ItemName", false, false));
-			
+
 			if (lbl) {
 				name = lbl->get_text();
 			} else if (opt) {
@@ -337,7 +337,9 @@ void OCRecipeEditorUI::_on_save_recipe_pressed() {
 	recipe->set_requirements(requirements);
 
 	OvercookedManager::get_singleton()->save_recipe_to_json(recipe);
-	UtilityFunctions::print("OCManager: Recipe Editor saved '", dish_name, "' with ", (int)requirements.size(), " ingredients.");
+	UtilityFunctions::print(
+			"OCManager: Recipe Editor saved '", dish_name, "' with ", (int)requirements.size(), " ingredients."
+	);
 
 	rebuild_menu_ui();
 }
@@ -370,7 +372,8 @@ void OCRecipeEditorUI::rebuild_menu_ui() {
 
 		add_button(row, "SPAWN", Callable(this, "_on_spawn_order_pressed").bind(i), "SpawnBtn");
 		add_button(row, "EDIT", Callable(this, "_on_edit_recipe_pressed").bind(i), "EditBtn");
-		add_button(row, "DELETE", Callable(this, "_on_delete_recipe_pressed").bind(i), "DelRecipeBtn")->set_modulate(Color(1, 0.3, 0.3));
+		add_button(row, "DELETE", Callable(this, "_on_delete_recipe_pressed").bind(i), "DelRecipeBtn")
+				->set_modulate(Color(1, 0.3, 0.3));
 	}
 }
 

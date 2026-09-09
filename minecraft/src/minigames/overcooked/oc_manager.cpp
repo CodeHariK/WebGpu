@@ -120,11 +120,17 @@ void OvercookedManager::save_inventory() {
 	}
 }
 
-bool OvercookedManager::has_inventory(IngredientType p_type, int p_amount) const {
+bool OvercookedManager::has_inventory(
+		IngredientType p_type,
+		int p_amount
+) const {
 	return inventory->has_item(toString(p_type), p_amount);
 }
 
-bool OvercookedManager::try_consume_inventory(IngredientType p_type, int p_amount) {
+bool OvercookedManager::try_consume_inventory(
+		IngredientType p_type,
+		int p_amount
+) {
 	if (inventory->try_consume(toString(p_type), p_amount)) {
 		save_inventory();
 		return true;
@@ -224,7 +230,10 @@ void OvercookedManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("cancel_order", "index"), &OvercookedManager::cancel_order);
 	ClassDB::bind_method(D_METHOD("delete_recipe", "index"), &OvercookedManager::delete_recipe);
 
-	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "available_recipes", PROPERTY_HINT_RESOURCE_TYPE, "OCRecipe"), "set_available_recipes", "get_available_recipes");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::ARRAY, "available_recipes", PROPERTY_HINT_RESOURCE_TYPE, "OCRecipe"),
+			"set_available_recipes", "get_available_recipes"
+	);
 }
 
 OvercookedManager::OvercookedManager() {}
@@ -235,9 +244,7 @@ OvercookedManager::~OvercookedManager() {
 	}
 }
 
-OvercookedManager *OvercookedManager::get_singleton() {
-	return singleton;
-}
+OvercookedManager *OvercookedManager::get_singleton() { return singleton; }
 
 void OvercookedManager::register_station(OCStation *p_station) {
 	if (std::find(stations.begin(), stations.end(), p_station) == stations.end()) {
@@ -265,7 +272,10 @@ void OvercookedManager::unregister_ingredient(OCIngredient *p_ing) {
 	}
 }
 
-OCStation *OvercookedManager::get_closest_station(const Vector3 &p_from, float p_max_dist) {
+OCStation *OvercookedManager::get_closest_station(
+		const Vector3 &p_from,
+		float p_max_dist
+) {
 	OCStation *closest = nullptr;
 	float min_dist_sq = p_max_dist * p_max_dist;
 
@@ -282,7 +292,10 @@ OCStation *OvercookedManager::get_closest_station(const Vector3 &p_from, float p
 	return closest;
 }
 
-OCStation *OvercookedManager::get_closest_station_for_ingredient(const Vector3 &p_from, OCIngredient *p_ing) {
+OCStation *OvercookedManager::get_closest_station_for_ingredient(
+		const Vector3 &p_from,
+		OCIngredient *p_ing
+) {
 	OCStation *closest = nullptr;
 	float min_dist_sq = 1000000.0f; // Large search radius
 
@@ -305,7 +318,10 @@ OCStation *OvercookedManager::get_closest_station_for_ingredient(const Vector3 &
 	return closest;
 }
 
-OCIngredient *OvercookedManager::get_closest_ingredient(const Vector3 &p_from, float p_max_dist) {
+OCIngredient *OvercookedManager::get_closest_ingredient(
+		const Vector3 &p_from,
+		float p_max_dist
+) {
 	OCIngredient *closest = nullptr;
 	float min_dist_sq = p_max_dist * p_max_dist;
 
@@ -513,7 +529,9 @@ bool OvercookedManager::submit_ingredient(OCIngredient *p_ing) {
 			// Success!
 			score += active_orders[i]->get_points();
 			last_revenue = active_orders[i]->get_points();
-			UtilityFunctions::print("OCManager: Order Complete! +", active_orders[i]->get_points(), " pts. Total: ", score);
+			UtilityFunctions::print(
+					"OCManager: Order Complete! +", active_orders[i]->get_points(), " pts. Total: ", score
+			);
 
 			active_orders.erase(active_orders.begin() + i);
 

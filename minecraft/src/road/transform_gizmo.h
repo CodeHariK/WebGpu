@@ -12,18 +12,11 @@
 namespace godot {
 
 class TransformGizmo : public Node3D {
-	GDCLASS(TransformGizmo, Node3D)
+	GDCLASS(TransformGizmo,
+			Node3D)
 
 public:
-	enum ManipulationMode : uint8_t {
-		NONE,
-		MOVE,
-		MOVE_PLANAR,
-		MOVE_OR_ROTATE,
-		MOVE_OR_SCALE,
-		ROTATE,
-		SCALE
-	};
+	enum ManipulationMode : uint8_t { NONE, MOVE, MOVE_PLANAR, MOVE_OR_ROTATE, MOVE_OR_SCALE, ROTATE, SCALE };
 
 private:
 	Callable update_callback;
@@ -47,11 +40,29 @@ private:
 	Ref<Shader> circle_shader;
 	Ref<Shader> grid_shader;
 
-	void _create_box_gizmo(const String &p_name, const Color &p_color, const Transform3D &p_transform,
-			ManipulationMode p_mode, const Vector3 &p_offset, const Vector2 &size);
-	void _create_plane_gizmo(const String &p_name, const Color &p_color, const Transform3D &p_transform);
+	void _create_box_gizmo(
+			const String &p_name,
+			const Color &p_color,
+			const Transform3D &p_transform,
+			ManipulationMode p_mode,
+			const Vector3 &p_offset,
+			const Vector2 &size
+	);
+	void _create_plane_gizmo(
+			const String &p_name,
+			const Color &p_color,
+			const Transform3D &p_transform
+	);
 
-	void _on_gizmo_input_start(Node *camera, Ref<InputEvent> event, Vector3 position, Vector3 normal, int shape_idx, MeshInstance3D *mesh_node, int mode);
+	void _on_gizmo_input_start(
+			Node *camera,
+			Ref<InputEvent> event,
+			Vector3 position,
+			Vector3 normal,
+			int shape_idx,
+			MeshInstance3D *mesh_node,
+			int mode
+	);
 	Transform3D _calculate_new_transform(const Vector3 &p_intersection_point);
 
 protected:

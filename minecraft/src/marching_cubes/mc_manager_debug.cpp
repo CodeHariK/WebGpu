@@ -55,7 +55,10 @@ void MCManager::_initialize_previews() {
 	}
 }
 
-void MCManager::_update_hover_box(const Vector3i &p_grid_pos, bool p_is_blocked) {
+void MCManager::_update_hover_box(
+		const Vector3i &p_grid_pos,
+		bool p_is_blocked
+) {
 	if (!hover_box_node)
 		return;
 
@@ -97,7 +100,8 @@ void MCManager::_update_hover_raycast() {
 		}
 	}
 
-	bool ctrl_held = Input::get_singleton()->is_key_pressed(KEY_CTRL) || Input::get_singleton()->is_key_pressed(KEY_META);
+	bool ctrl_held =
+			Input::get_singleton()->is_key_pressed(KEY_CTRL) || Input::get_singleton()->is_key_pressed(KEY_META);
 
 	uint32_t mask = toLayer(LAYER_OBJECTS) | toLayer(LAYER_CORNERS);
 	if (ctrl_held && interaction_mode == MODE_TERRAIN) {
@@ -132,7 +136,9 @@ void MCManager::_update_hover_raycast() {
 					}
 
 					if (!is_blocked) {
-						Vector3i check_size_obj = is_dragging ? (drag_group.empty() ? current_placement_size : drag_group[0].size) : current_placement_size;
+						Vector3i check_size_obj = is_dragging
+								? (drag_group.empty() ? current_placement_size : drag_group[0].size)
+								: current_placement_size;
 						AABB volume = AABB(Vector3(grid_pos), Vector3(check_size_obj));
 						if (terrain_node->is_area_blocked_by_objects(volume)) {
 							is_blocked = true;
@@ -145,7 +151,9 @@ void MCManager::_update_hover_raycast() {
 							Vector3i target_pos = grid_pos + obj.relative_offset;
 							obj.node->set_position(Vector3(target_pos) + (Vector3(obj.size) * 0.5f));
 							if (terrain_node->is_area_blocked_by_grid(target_pos, obj.size) ||
-								terrain_node->is_area_blocked_by_objects(AABB(Vector3(target_pos), Vector3(obj.size)))) {
+								terrain_node->is_area_blocked_by_objects(
+										AABB(Vector3(target_pos), Vector3(obj.size))
+								)) {
 								group_blocked = true;
 							}
 						}
@@ -162,7 +170,9 @@ void MCManager::_update_hover_raycast() {
 						}
 					} else if (interaction_mode == MODE_TERRAIN) {
 						if (ctrl_held) {
-							terrain_node->update_hover_preview(Vector3(locked_grid_pos) + Vector3(0.5, 0.5, 0.5), hit.normal, camera);
+							terrain_node->update_hover_preview(
+									Vector3(locked_grid_pos) + Vector3(0.5, 0.5, 0.5), hit.normal, camera
+							);
 						} else {
 							Node *parent = collider_node->get_parent();
 							Node3D *parent_node = Object::cast_to<Node3D>(parent);

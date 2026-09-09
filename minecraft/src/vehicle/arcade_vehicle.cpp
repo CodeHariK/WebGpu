@@ -12,7 +12,13 @@
 
 namespace godot {
 
-float ArcadeVehicle::_calculate_suspension_force(Ref<WheelConfig> wheel, float hit_distance, float delta, Vector3 hardpoint_world, Vector3 local_up) {
+float ArcadeVehicle::_calculate_suspension_force(
+		Ref<WheelConfig> wheel,
+		float hit_distance,
+		float delta,
+		Vector3 hardpoint_world,
+		Vector3 local_up
+) {
 	float rest_length = wheel->get_suspension_rest_length();
 	float radius = wheel->get_radius();
 
@@ -84,7 +90,8 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		TypedArray<RID> exclude;
 		exclude.push_back(get_rid());
 
-		MCRaycastHit hit = spherecast_3d(this, cast_start, local_down, max_dist, wc->get_radius() * 0.4f, 0xFFFFFFFF, exclude);
+		MCRaycastHit hit =
+				spherecast_3d(this, cast_start, local_down, max_dist, wc->get_radius() * 0.4f, 0xFFFFFFFF, exclude);
 
 		CSGSphere3D *visual = wheel_visuals[active_wheel_count];
 
@@ -141,7 +148,8 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		}
 	} else {
 		// In the air
-		bool can_glide = local_up.y > 0.7f && forward_speed > 10.0f && current_state != ramp_roll_state && current_state != ramp_spin_state;
+		bool can_glide = local_up.y > 0.7f && forward_speed > 10.0f && current_state != ramp_roll_state &&
+				current_state != ramp_spin_state;
 
 		if (is_active && current_input.glide && can_glide) {
 			if (current_state != gliding_state) {
@@ -150,11 +158,15 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		} else {
 			if (current_state == gliding_state) {
 				change_state(airborne_state);
-			} else if (current_state != ramp_spin_state && current_state != ramp_roll_state && current_state != airborne_state) {
+			} else if (
+					current_state != ramp_spin_state && current_state != ramp_roll_state &&
+					current_state != airborne_state
+			) {
 				change_state(airborne_state);
 			}
 
-			if (was_on_ramp && current_state != ramp_spin_state && current_state != ramp_roll_state && current_state != gliding_state && forward_speed > 10.0f) {
+			if (was_on_ramp && current_state != ramp_spin_state && current_state != ramp_roll_state &&
+				current_state != gliding_state && forward_speed > 10.0f) {
 				if (abs(last_roll_tilt) > 0.4f) {
 					ramp_roll_state->set_roll_direction(last_roll_tilt > 0.0f ? -1.0f : 1.0f);
 					change_state(ramp_roll_state);
@@ -325,7 +337,8 @@ void ArcadeVehicle::_apply_steering(float delta) {
 
 	// Relax steering angle damping at high speeds when drifting for tighter turns
 	float min_steer_clamp = is_drifting ? 0.6f : 0.3f;
-	float steer_speed_factor = CLAMP(1.0f - (abs(current_forward_speed) / config->get_max_speed()), min_steer_clamp, 1.0f);
+	float steer_speed_factor =
+			CLAMP(1.0f - (abs(current_forward_speed) / config->get_max_speed()), min_steer_clamp, 1.0f);
 	float steer_angle = current_input.steering * max_steer_rad * steer_speed_factor;
 
 	if (abs(current_forward_speed) > 1.0f && abs(steer_angle) > 0.01f) {
@@ -444,7 +457,12 @@ void ArcadeVehicle::_apply_longitudinal_force_with_pitch(Vector3 p_force_global)
 	apply_force(p_force_global, force_offset_global);
 }
 
-void ArcadeVehicle::_handle_wall_collision_and_spin(int p_wheel_index, const MCRaycastHit &p_hit, Vector3 &r_force_dir, float &r_force_mag) {
+void ArcadeVehicle::_handle_wall_collision_and_spin(
+		int p_wheel_index,
+		const MCRaycastHit &p_hit,
+		Vector3 &r_force_dir,
+		float &r_force_mag
+) {
 	Transform3D trans = get_global_transform();
 	Vector3 local_up = trans.basis.get_column(1).normalized();
 

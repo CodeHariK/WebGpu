@@ -2,7 +2,14 @@
 
 namespace godot {
 
-Vector3 CatmullRomCurve::evaluate(const Vector3 &p0, const Vector3 &p1, const Vector3 &p2, const Vector3 &p3, float t, float s) {
+Vector3 CatmullRomCurve::evaluate(
+		const Vector3 &p0,
+		const Vector3 &p1,
+		const Vector3 &p2,
+		const Vector3 &p3,
+		float t,
+		float s
+) {
 	float t2 = t * t;
 	float t3 = t2 * t;
 
@@ -15,7 +22,14 @@ Vector3 CatmullRomCurve::evaluate(const Vector3 &p0, const Vector3 &p1, const Ve
 	return p0 * b0 + p1 * b1 + p2 * b2 + p3 * b3;
 }
 
-Vector3 CatmullRomCurve::evaluate_derivative(const Vector3 &p0, const Vector3 &p1, const Vector3 &p2, const Vector3 &p3, float t, float s) {
+Vector3 CatmullRomCurve::evaluate_derivative(
+		const Vector3 &p0,
+		const Vector3 &p1,
+		const Vector3 &p2,
+		const Vector3 &p3,
+		float t,
+		float s
+) {
 	float t2 = t * t;
 
 	// Derivatives of basis functions

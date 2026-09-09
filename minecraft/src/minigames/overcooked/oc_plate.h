@@ -7,11 +7,12 @@
 namespace godot {
 
 class OCPlate : public OCIngredient {
-	GDCLASS(OCPlate, OCIngredient)
+	GDCLASS(OCPlate,
+			OCIngredient)
 
 private:
-	std::vector<OCIngredient*> contents;
-	Node3D* content_parent = nullptr;
+	std::vector<OCIngredient *> contents;
+	Node3D *content_parent = nullptr;
 
 protected:
 	static void _bind_methods();
@@ -22,10 +23,10 @@ public:
 
 	void _ready() override;
 	void _process(double delta) override;
-	
-	bool add_ingredient(OCIngredient* p_ing);
-	const std::vector<OCIngredient*>& get_contents() const { return contents; }
-	
+
+	bool add_ingredient(OCIngredient *p_ing);
+	const std::vector<OCIngredient *> &get_contents() const { return contents; }
+
 	void clear_contents();
 };
 

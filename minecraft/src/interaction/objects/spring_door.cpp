@@ -32,7 +32,7 @@ void SpringDoor::_ready() {
 	set_axis_lock(PhysicsServer3D::BODY_AXIS_ANGULAR_X, true);
 	set_axis_lock(PhysicsServer3D::BODY_AXIS_ANGULAR_Z, true);
 
-	// If a hinge offset is provided, we tell the physics engine that the 
+	// If a hinge offset is provided, we tell the physics engine that the
 	// center of mass is shifted. This makes it rotate around the Origin (the hinge).
 	if (!hinge_offset.is_zero_approx()) {
 		set_center_of_mass_mode(CENTER_OF_MASS_MODE_CUSTOM);

@@ -6,7 +6,8 @@
 namespace godot {
 
 class BTDecorator : public BTTask {
-	GDCLASS(BTDecorator, BTTask)
+	GDCLASS(BTDecorator,
+			BTTask)
 
 protected:
 	Ref<BTTask> child;
@@ -20,42 +21,56 @@ public:
 	void set_child(const Ref<BTTask> &p_child);
 	Ref<BTTask> get_child() const;
 
-	virtual void abort(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual void
+	abort(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTInverter : public BTDecorator {
-	GDCLASS(BTInverter, BTDecorator)
+	GDCLASS(BTInverter,
+			BTDecorator)
 
 protected:
 	static void _bind_methods() {}
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTForceSuccess : public BTDecorator {
-	GDCLASS(BTForceSuccess, BTDecorator)
+	GDCLASS(BTForceSuccess,
+			BTDecorator)
 
 protected:
 	static void _bind_methods() {}
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTForceFailure : public BTDecorator {
-	GDCLASS(BTForceFailure, BTDecorator)
+	GDCLASS(BTForceFailure,
+			BTDecorator)
 
 protected:
 	static void _bind_methods() {}
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTProbability : public BTDecorator {
-	GDCLASS(BTProbability, BTDecorator)
+	GDCLASS(BTProbability,
+			BTDecorator)
 
 private:
 	float run_chance = 0.5f;
 
 protected:
 	static void _bind_methods();
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 
 public:
 	void set_run_chance(float p_chance) { run_chance = p_chance; }
@@ -63,7 +78,8 @@ public:
 };
 
 class BTRepeat : public BTDecorator {
-	GDCLASS(BTRepeat, BTDecorator)
+	GDCLASS(BTRepeat,
+			BTDecorator)
 
 private:
 	int repeat_times = -1;
@@ -76,28 +92,41 @@ public:
 	void set_repeat_times(int p_times) { repeat_times = p_times; }
 	int get_repeat_times() const { return repeat_times; }
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override { current_count = 0; }
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override {
+		current_count = 0;
+	}
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTRepeatUntilSuccess : public BTDecorator {
-	GDCLASS(BTRepeatUntilSuccess, BTDecorator)
+	GDCLASS(BTRepeatUntilSuccess,
+			BTDecorator)
 
 protected:
 	static void _bind_methods() {}
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTRepeatUntilFailure : public BTDecorator {
-	GDCLASS(BTRepeatUntilFailure, BTDecorator)
+	GDCLASS(BTRepeatUntilFailure,
+			BTDecorator)
 
 protected:
 	static void _bind_methods() {}
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTDelay : public BTDecorator {
-	GDCLASS(BTDelay, BTDecorator)
+	GDCLASS(BTDelay,
+			BTDecorator)
 
 private:
 	float delay = 1.0f;
@@ -110,12 +139,19 @@ public:
 	void set_delay(float p_delay) { delay = p_delay; }
 	float get_delay() const { return delay; }
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override { elapsed = 0.0f; }
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override {
+		elapsed = 0.0f;
+	}
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTCooldown : public BTDecorator {
-	GDCLASS(BTCooldown, BTDecorator)
+	GDCLASS(BTCooldown,
+			BTDecorator)
 
 private:
 	float cooldown = 1.0f;
@@ -129,11 +165,14 @@ public:
 	void set_cooldown(float p_cooldown) { cooldown = p_cooldown; }
 	float get_cooldown() const { return cooldown; }
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTRunLimit : public BTDecorator {
-	GDCLASS(BTRunLimit, BTDecorator)
+	GDCLASS(BTRunLimit,
+			BTDecorator)
 
 private:
 	int run_limit = 1;
@@ -146,11 +185,14 @@ public:
 	void set_run_limit(int p_limit) { run_limit = p_limit; }
 	int get_run_limit() const { return run_limit; }
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTTimeLimit : public BTDecorator {
-	GDCLASS(BTTimeLimit, BTDecorator)
+	GDCLASS(BTTimeLimit,
+			BTDecorator)
 
 private:
 	float time_limit = 1.0f;
@@ -163,8 +205,14 @@ public:
 	void set_time_limit(float p_limit) { time_limit = p_limit; }
 	float get_time_limit() const { return time_limit; }
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override { elapsed = 0.0f; }
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override {
+		elapsed = 0.0f;
+	}
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 } // namespace godot

@@ -1,9 +1,13 @@
 #include "tennis_manager.h"
-#include "tennis_ball.h"
+#include "../../game_manager/game_manager.h"
 #include "../../game_manager/player_input.h"
+#include "../../player/celeste_controller.h"
+#include "tennis_ai_player.h"
+#include "tennis_ball.h"
+#include "tennis_player.h"
 #include <godot_cpp/classes/box_mesh.hpp>
-#include <godot_cpp/classes/capsule_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>
+#include <godot_cpp/classes/capsule_mesh.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
@@ -11,10 +15,6 @@
 #include <godot_cpp/classes/sphere_shape3d.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/classes/static_body3d.hpp>
-#include "../../game_manager/game_manager.h"
-#include "../../player/celeste_controller.h"
-#include "tennis_player.h"
-#include "tennis_ai_player.h"
 
 namespace godot {
 
@@ -130,27 +130,35 @@ void TennisManager::_spawn_court() {
 
 void TennisManager::_spawn_walls() {
 	// 1. Back Wall (+Z)
-	_create_wall(Vector3(court_width, wall_height, wall_thickness),
-			Vector3(0, wall_height / 2.0f, court_length / 2.0f + wall_thickness / 2.0f),
-			"BackWall");
+	_create_wall(
+			Vector3(court_width, wall_height, wall_thickness),
+			Vector3(0, wall_height / 2.0f, court_length / 2.0f + wall_thickness / 2.0f), "BackWall"
+	);
 
 	// 2. Front Wall (-Z)
-	_create_wall(Vector3(court_width, wall_height, wall_thickness),
-			Vector3(0, wall_height / 2.0f, -court_length / 2.0f - wall_thickness / 2.0f),
-			"FrontWall");
+	_create_wall(
+			Vector3(court_width, wall_height, wall_thickness),
+			Vector3(0, wall_height / 2.0f, -court_length / 2.0f - wall_thickness / 2.0f), "FrontWall"
+	);
 
 	// 3. Left Wall (-X)
-	_create_wall(Vector3(wall_thickness, wall_height, court_length + wall_thickness * 2.0f),
-			Vector3(-court_width / 2.0f - wall_thickness / 2.0f, wall_height / 2.0f, 0),
-			"LeftWall");
+	_create_wall(
+			Vector3(wall_thickness, wall_height, court_length + wall_thickness * 2.0f),
+			Vector3(-court_width / 2.0f - wall_thickness / 2.0f, wall_height / 2.0f, 0), "LeftWall"
+	);
 
 	// 4. Right Wall (+X)
-	_create_wall(Vector3(wall_thickness, wall_height, court_length + wall_thickness * 2.0f),
-			Vector3(court_width / 2.0f + wall_thickness / 2.0f, wall_height / 2.0f, 0),
-			"RightWall");
+	_create_wall(
+			Vector3(wall_thickness, wall_height, court_length + wall_thickness * 2.0f),
+			Vector3(court_width / 2.0f + wall_thickness / 2.0f, wall_height / 2.0f, 0), "RightWall"
+	);
 }
 
-void TennisManager::_create_wall(Vector3 size, Vector3 position, String name) {
+void TennisManager::_create_wall(
+		Vector3 size,
+		Vector3 position,
+		String name
+) {
 	StaticBody3D *wall = memnew(StaticBody3D);
 	wall->set_name(name);
 
@@ -178,14 +186,14 @@ void TennisManager::_create_wall(Vector3 size, Vector3 position, String name) {
 void TennisManager::_spawn_ball() {
 	TennisBall *ball = memnew(TennisBall);
 	ball->set_name("TennisBall");
-	
+
 	// Add visual for the ball
 	MeshInstance3D *mesh = memnew(MeshInstance3D);
 	Ref<SphereMesh> sm = memnew(SphereMesh);
 	sm->set_radius(0.15f);
 	sm->set_height(0.3f);
 	mesh->set_mesh(sm);
-	
+
 	Ref<StandardMaterial3D> mat = memnew(StandardMaterial3D);
 	mat->set_albedo(Color(0.8f, 0.9f, 0.1f)); // Yellow tennis ball
 	mesh->set_material_override(mat);
@@ -228,12 +236,12 @@ void TennisManager::_spawn_human_player() {
 void TennisManager::_spawn_ai_player() {
 	TennisAIPlayer *ai = memnew(TennisAIPlayer);
 	ai->set_name("AI_Opponent");
-	
+
 	// Add visual for AI (Red Capsule)
 	MeshInstance3D *mesh = memnew(MeshInstance3D);
 	Ref<CapsuleMesh> cm = memnew(CapsuleMesh);
 	mesh->set_mesh(cm);
-	
+
 	Ref<StandardMaterial3D> mat = memnew(StandardMaterial3D);
 	mat->set_albedo(Color(0.8f, 0.2f, 0.2f)); // Red AI
 	mesh->set_material_override(mat);
@@ -242,7 +250,7 @@ void TennisManager::_spawn_ai_player() {
 	add_child(ai);
 	ai->set_global_position(Vector3(0, 1.0f, -18.0f)); // Opposite baseline
 	ai->rotate_y(Math::PI); // Face the player
-	
+
 	// Register as player 2
 	register_player(ai);
 }

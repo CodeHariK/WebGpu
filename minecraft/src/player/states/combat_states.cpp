@@ -1,9 +1,9 @@
 #include "combat_states.h"
-#include "../celeste_controller.h"
+#include "../../enemy/enemy_base.h"
 #include "../../game_manager/player_input.h"
+#include "../celeste_controller.h"
 #include "airborne_states.h"
 #include "grounded_states.h"
-#include "../../enemy/enemy_base.h"
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 

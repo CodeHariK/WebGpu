@@ -1,7 +1,8 @@
 /*
  * Module Path: src/utils/polygon/polygon.cpp
- * Explicit System Responsibility: Implements utility functions for polygon operations including point-in-polygon checks and convexity/winding verification.
- * Build Dependencies: polygon.h, godot_cpp/variant/packed_vector2_array.hpp, godot_cpp/variant/vector2.hpp, godot_cpp/variant/utility_functions.hpp.
+ * Explicit System Responsibility: Implements utility functions for polygon operations including point-in-polygon checks
+ * and convexity/winding verification. Build Dependencies: polygon.h, godot_cpp/variant/packed_vector2_array.hpp,
+ * godot_cpp/variant/vector2.hpp, godot_cpp/variant/utility_functions.hpp.
  */
 
 #include "polygon.h"
@@ -11,7 +12,10 @@
 
 namespace godot {
 
-bool Polygon::is_point_inside(const Vector2 &p, const PackedVector3Array &polygon) {
+bool Polygon::is_point_inside(
+		const Vector2 &p,
+		const PackedVector3Array &polygon
+) {
 	int num_pts = polygon.size();
 	if (num_pts < 3)
 		return false;
@@ -26,7 +30,11 @@ bool Polygon::is_point_inside(const Vector2 &p, const PackedVector3Array &polygo
 	return inside;
 }
 
-bool Polygon::is_point_inside_convex(const Vector2 &p, const PackedVector3Array &polygon, bool clockwise) {
+bool Polygon::is_point_inside_convex(
+		const Vector2 &p,
+		const PackedVector3Array &polygon,
+		bool clockwise
+) {
 	int num_pts = polygon.size();
 	for (int i = 0; i < num_pts; ++i) {
 		Vector2 a = Vector2(polygon[i].x, polygon[i].z);
@@ -45,7 +53,10 @@ bool Polygon::is_point_inside_convex(const Vector2 &p, const PackedVector3Array 
 	return true;
 }
 
-bool Polygon::check_convexity(const PackedVector3Array &polygon, bool &r_is_clockwise) {
+bool Polygon::check_convexity(
+		const PackedVector3Array &polygon,
+		bool &r_is_clockwise
+) {
 	int num_pts = polygon.size();
 	if (num_pts < 3) {
 		return false;

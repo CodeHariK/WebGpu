@@ -39,12 +39,21 @@ void ProceduralLofter::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "custom_padding"), "set_custom_padding", "get_custom_padding");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "slice_resolution"), "set_slice_resolution", "get_slice_resolution");
-	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "slices_array", PROPERTY_HINT_ARRAY_TYPE, "Curve3D"), "set_slices_array", "get_slices_array");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_material", "get_material");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::ARRAY, "slices_array", PROPERTY_HINT_ARRAY_TYPE, "Curve3D"), "set_slices_array",
+			"get_slices_array"
+	);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_material",
+			"get_material"
+	);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "flat_shaded"), "set_flat_shaded", "get_flat_shaded");
 
 	ADD_GROUP("Deformation", "");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "scale_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_scale_curve", "get_scale_curve");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "scale_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_scale_curve",
+			"get_scale_curve"
+	);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "wave_amplitude"), "set_wave_amplitude", "get_wave_amplitude");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "wave_frequency"), "set_wave_frequency", "get_wave_frequency");
 }
@@ -69,9 +78,7 @@ ProceduralLofter::~ProceduralLofter() {
 	}
 }
 
-void ProceduralLofter::_on_parent_spline_changed() {
-	queue_update();
-}
+void ProceduralLofter::_on_parent_spline_changed() { queue_update(); }
 
 void ProceduralLofter::set_slices_array(const TypedArray<Curve3D> &p_slices) {
 	slices_array = p_slices;
@@ -94,7 +101,10 @@ void ProceduralLofter::set_flat_shaded(bool p_flat) {
 }
 bool ProceduralLofter::get_flat_shaded() const { return flat_shaded; }
 
-void ProceduralLofter::add_slice(Ref<Curve3D> p_slice, float p_position) {
+void ProceduralLofter::add_slice(
+		Ref<Curve3D> p_slice,
+		float p_position
+) {
 	if (p_slice.is_valid()) {
 		slices_array.push_back(p_slice);
 		_update_slice_connections();
@@ -133,12 +143,16 @@ void ProceduralLofter::set_wave_frequency(float p_freq) {
 }
 float ProceduralLofter::get_wave_frequency() const { return wave_frequency; }
 
-Ref<ArrayMesh> ProceduralLofter::generate_lofted_mesh(const std::vector<PackedVector3Array> &rings, const std::vector<Transform3D> &transforms) const {
+Ref<ArrayMesh> ProceduralLofter::generate_lofted_mesh(
+		const std::vector<PackedVector3Array> &rings,
+		const std::vector<Transform3D> &transforms
+) const {
 	int num_slices = rings.size();
 	if (num_slices < 2 || transforms.size() < num_slices)
 		return Ref<ArrayMesh>();
 
-	ProceduralSpline3D *parent_spline = Object::cast_to<ProceduralSpline3D>(const_cast<ProceduralLofter *>(this)->get_parent());
+	ProceduralSpline3D *parent_spline =
+			Object::cast_to<ProceduralSpline3D>(const_cast<ProceduralLofter *>(this)->get_parent());
 	bool is_closed = parent_spline ? (parent_spline->get_is_closed() && num_slices > 2) : false;
 
 	MeshData mesh_data;
@@ -546,12 +560,8 @@ void ProceduralLofter::set_custom_padding(float p_pad) {
 	}
 }
 
-float ProceduralLofter::get_custom_padding() const {
-	return custom_padding;
-}
+float ProceduralLofter::get_custom_padding() const { return custom_padding; }
 
-float ProceduralLofter::get_spline_padding() const {
-	return custom_padding;
-}
+float ProceduralLofter::get_spline_padding() const { return custom_padding; }
 
 } // namespace godot

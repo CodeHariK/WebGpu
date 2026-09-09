@@ -15,7 +15,8 @@ class PlayerInput;
 class GameManager;
 
 class GameCamera : public Camera3D {
-	GDCLASS(GameCamera, Camera3D)
+	GDCLASS(GameCamera,
+			Camera3D)
 
 	friend class GameManager;
 
@@ -26,12 +27,7 @@ class GameCamera : public Camera3D {
 	friend class CameraStateFixed;
 
 public:
-	enum Mode {
-		MODE_FLY,
-		MODE_CAR,
-		MODE_TPS,
-		MODE_FIXED
-	};
+	enum Mode { MODE_FLY, MODE_CAR, MODE_TPS, MODE_FIXED };
 
 private:
 	// State & Targeting
@@ -83,7 +79,10 @@ private:
 
 	void _update_follow_node();
 	Vector3 _calculate_ideal_position();
-	float _solve_collision(const Vector3 &p_from, const Vector3 &p_to);
+	float _solve_collision(
+			const Vector3 &p_from,
+			const Vector3 &p_to
+	);
 
 protected:
 	static void _bind_methods();
@@ -143,7 +142,10 @@ public:
 	bool is_pos_smoothing_enabled() const { return pos_smoothing_enabled; }
 
 	// Raycasting
-	MCRaycastHit get_center_raycast_hit(uint32_t p_mask = 0xFFFFFFFF, float p_dist = 1000.0f);
+	MCRaycastHit get_center_raycast_hit(
+			uint32_t p_mask = 0xFFFFFFFF,
+			float p_dist = 1000.0f
+	);
 
 	float get_current_target_distance() const;
 

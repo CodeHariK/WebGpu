@@ -22,7 +22,8 @@ struct MeshData {
 };
 
 class ProceduralLofter : public SplineComponent {
-	GDCLASS(ProceduralLofter, SplineComponent)
+	GDCLASS(ProceduralLofter,
+			SplineComponent)
 
 private:
 	float custom_padding = 10.0f;
@@ -71,7 +72,10 @@ public:
 	Ref<Material> get_material() const;
 	void set_flat_shaded(bool p_flat);
 	bool get_flat_shaded() const;
-	void add_slice(Ref<Curve3D> p_slice, float p_position);
+	void add_slice(
+			Ref<Curve3D> p_slice,
+			float p_position
+	);
 	void set_blend_factor(float p_factor);
 	float get_blend_factor() const;
 
@@ -89,7 +93,10 @@ public:
 	}
 	int get_slice_resolution() const { return slice_resolution; }
 
-	Ref<ArrayMesh> generate_lofted_mesh(const std::vector<PackedVector3Array> &rings, const std::vector<Transform3D> &transforms) const;
+	Ref<ArrayMesh> generate_lofted_mesh(
+			const std::vector<PackedVector3Array> &rings,
+			const std::vector<Transform3D> &transforms
+	) const;
 	MeshInstance3D *bake() const;
 
 	virtual float get_spline_padding() const override;

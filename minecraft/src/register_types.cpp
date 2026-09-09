@@ -7,7 +7,6 @@
 
 #include "camera/camera.h"
 
-
 #include "cui/cui.h"
 #include "cui/cui_line_graph.h"
 
@@ -22,25 +21,28 @@
 #include "marching_cubes/mc_grid.h"
 #include "marching_cubes/mc_heightmap.h"
 #include "marching_cubes/mc_manager.h"
+#include "surface_nets/sn_grid.h"
 #include "terrain/marching_prism/mp.h"
 #include "terrain/marching_prism/mp_grid.h"
 #include "terrain/marching_prism/mp_manager.h"
-#include "surface_nets/sn_grid.h"
 
 #include "player/celeste_controller.h"
 #include "player/celeste_ui.h"
 
-#include "terrain/loafter/procedural_lofter.h"
-#include "terrain/minecraft.h"
 #include "environment/crystal_cluster.h"
+#include "environment/crystal_cluster_mesh.h"
+#include "environment/prop_material.h"
 #include "environment/rock.h"
 #include "environment/rock_mesh.h"
 #include "environment/spline_rocks.h"
-#include "environment/tree.h"
-#include "environment/tree_mesh.h"
-#include "environment/crystal_cluster_mesh.h"
 #include "racing/race_track.h"
+#include "sky/flashlight.h"
+#include "sky/sky_cycle.h"
+#include "terrain/loafter/procedural_lofter.h"
+#include "terrain/minecraft.h"
 #include "terrain/terraspline/terraspline.h"
+#include "terrain/terraspline/tr_toon.h"
+#include "terrain/terraspline/tr_water.h"
 
 #include "utils/spline3d/procedural_spline3d.h"
 #include "vehicle/arcade_vehicle.h"
@@ -155,7 +157,6 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(RoadGenerator);
 	GDREGISTER_CLASS(ProceduralLofter);
 
-
 	GDREGISTER_CLASS(TerrainHeightmap);
 	GDREGISTER_CLASS(TerrainChunk);
 	GDREGISTER_CLASS(ScatterJob);
@@ -172,11 +173,11 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(RaceTrack);
 	GDREGISTER_CLASS(CrystalClusterMesh);
 	GDREGISTER_CLASS(CrystalCluster);
-	GDREGISTER_CLASS(FoliageTreeMesh);
-	GDREGISTER_CLASS(FoliageTree);
 	GDREGISTER_CLASS(RockMesh);
 	GDREGISTER_CLASS(Rock);
 	GDREGISTER_CLASS(SplineRocks);
+	GDREGISTER_CLASS(SkyCycle);
+	GDREGISTER_CLASS(Flashlight);
 	GDREGISTER_CLASS(TerrainSplineCompositor);
 	GDREGISTER_CLASS(TerrainSplineCompositorUI);
 	GDREGISTER_CLASS(TerrainSplineStreamMap);
@@ -208,11 +209,21 @@ void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
+	// Release the shared, cached Shaders while the rendering server is still alive. Otherwise these
+	// file-scope Refs outlive it (freed at C++ runtime teardown) and Godot reports them leaked at exit.
+	clear_prop_material_cache();
+	clear_toon_material_cache();
+	clear_water_material_cache();
+	clear_sky_shader_cache();
 }
 
 extern "C" {
 // Initialization
-GDExtensionBool GDE_EXPORT minecraft_library_init(GDExtensionInterfaceGetProcAddress p_get_proc_address, GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) {
+GDExtensionBool GDE_EXPORT minecraft_library_init(
+		GDExtensionInterfaceGetProcAddress p_get_proc_address,
+		GDExtensionClassLibraryPtr p_library,
+		GDExtensionInitialization *r_initialization
+) {
 	GDExtensionBinding::InitObject init_obj(p_get_proc_address, p_library, r_initialization);
 	init_obj.register_initializer(initialize_gdextension_types);
 	init_obj.register_terminator(uninitialize_gdextension_types);

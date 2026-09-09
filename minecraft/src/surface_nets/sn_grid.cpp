@@ -15,12 +15,13 @@ namespace godot {
 SNGrid::SNGrid() {
 	Ref<StandardMaterial3D> mat;
 	mat.instantiate();
-	mat->set_shading_mode(smooth_normal ? BaseMaterial3D::SHADING_MODE_PER_PIXEL : BaseMaterial3D::SHADING_MODE_PER_VERTEX);
+	mat->set_shading_mode(
+			smooth_normal ? BaseMaterial3D::SHADING_MODE_PER_PIXEL : BaseMaterial3D::SHADING_MODE_PER_VERTEX
+	);
 	terrain_material = mat;
 }
 
-SNGrid::~SNGrid() {
-}
+SNGrid::~SNGrid() {}
 
 void SNGrid::_clear_chunk_visuals(SNChunk &p_chunk) {
 	if (p_chunk.visual_node) {
@@ -67,16 +68,16 @@ void SNGrid::set_terrain_material(const Ref<Material> &p_material) {
 	terrain_material = p_material;
 	Ref<BaseMaterial3D> base_mat = terrain_material;
 	if (base_mat.is_valid()) {
-		base_mat->set_shading_mode(smooth_normal ? BaseMaterial3D::SHADING_MODE_PER_PIXEL : BaseMaterial3D::SHADING_MODE_PER_VERTEX);
+		base_mat->set_shading_mode(
+				smooth_normal ? BaseMaterial3D::SHADING_MODE_PER_PIXEL : BaseMaterial3D::SHADING_MODE_PER_VERTEX
+		);
 	}
 	if (is_inside_tree()) {
 		refresh_grid();
 	}
 }
 
-Ref<Material> SNGrid::get_terrain_material() const {
-	return terrain_material;
-}
+Ref<Material> SNGrid::get_terrain_material() const { return terrain_material; }
 
 void SNGrid::set_terrain_noise(const Ref<Noise> &p_noise) {
 	terrain_noise = p_noise;
@@ -85,9 +86,7 @@ void SNGrid::set_terrain_noise(const Ref<Noise> &p_noise) {
 	}
 }
 
-Ref<Noise> SNGrid::get_terrain_noise() const {
-	return terrain_noise;
-}
+Ref<Noise> SNGrid::get_terrain_noise() const { return terrain_noise; }
 
 void SNGrid::set_cell_center(bool p_enabled) {
 	if (cell_center == p_enabled) {
@@ -106,14 +105,24 @@ void SNGrid::set_smooth_normal(bool p_enabled) {
 	smooth_normal = p_enabled;
 	Ref<BaseMaterial3D> base_mat = terrain_material;
 	if (base_mat.is_valid()) {
-		base_mat->set_shading_mode(smooth_normal ? BaseMaterial3D::SHADING_MODE_PER_PIXEL : BaseMaterial3D::SHADING_MODE_PER_VERTEX);
+		base_mat->set_shading_mode(
+				smooth_normal ? BaseMaterial3D::SHADING_MODE_PER_PIXEL : BaseMaterial3D::SHADING_MODE_PER_VERTEX
+		);
 	}
 	if (is_inside_tree()) {
 		refresh_grid();
 	}
 }
 
-void SNGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, bool p_refresh) {
+void SNGrid::initialize_grid(
+		int p_chunks_x,
+		int p_chunks_y,
+		int p_chunks_z,
+		int p_chunk_size_x,
+		int p_chunk_size_y,
+		int p_chunk_size_z,
+		bool p_refresh
+) {
 	for (SNChunk &chunk : chunks) {
 		_clear_chunk_visuals(chunk);
 	}
@@ -126,7 +135,10 @@ void SNGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int
 
 	int num_corners = (chunk_size.x + 1) * (chunk_size.y + 1) * (chunk_size.z + 1);
 
-	UtilityFunctions::print("SNGrid: Initializing: chunks(", p_chunks_x, ", ", p_chunks_y, ", ", p_chunks_z, ") chunk_size(", p_chunk_size_x, ", ", p_chunk_size_y, ", ", p_chunk_size_z, ")");
+	UtilityFunctions::print(
+			"SNGrid: Initializing: chunks(", p_chunks_x, ", ", p_chunks_y, ", ", p_chunks_z, ") chunk_size(",
+			p_chunk_size_x, ", ", p_chunk_size_y, ", ", p_chunk_size_z, ")"
+	);
 
 	for (int y = 0; y < grid_size.y; y++) {
 		for (int z = 0; z < grid_size.z; z++) {
@@ -159,7 +171,12 @@ void SNGrid::refresh_grid() {
 	}
 }
 
-bool SNGrid::_is_boundary_corner(int gx, int gy, int gz, int8_t &r_required_density) const {
+bool SNGrid::_is_boundary_corner(
+		int gx,
+		int gy,
+		int gz,
+		int8_t &r_required_density
+) const {
 	int max_gx = grid_size.x * chunk_size.x;
 	int max_gy = grid_size.y * chunk_size.y;
 	int max_gz = grid_size.z * chunk_size.z;
@@ -204,7 +221,8 @@ void SNGrid::_update_chunk_mesh(int p_chunk_idx) {
 
 	Vector3i chunk_loc(chunk.loc_x, chunk.loc_y, chunk.loc_z);
 
-	SurfaceNets::MeshData data = SurfaceNets::generate_mesh(this, chunk_loc, chunk_size, mesh_buffer, cell_center, smooth_normal);
+	SurfaceNets::MeshData data =
+			SurfaceNets::generate_mesh(this, chunk_loc, chunk_size, mesh_buffer, cell_center, smooth_normal);
 	if (data.vertices.is_empty() || data.indices.is_empty()) {
 		return;
 	}
@@ -257,7 +275,10 @@ void SNGrid::_update_chunk_mesh(int p_chunk_idx) {
 	chunk.collision_body = sb;
 }
 
-void SNGrid::modify_density(const Vector3i &p_grid_pos, int8_t p_density) {
+void SNGrid::modify_density(
+		const Vector3i &p_grid_pos,
+		int8_t p_density
+) {
 	int gx = p_grid_pos.x;
 	int gy = p_grid_pos.y;
 	int gz = p_grid_pos.z;
@@ -283,7 +304,9 @@ void SNGrid::modify_density(const Vector3i &p_grid_pos, int8_t p_density) {
 			for (int cx = start_cx; cx <= end_cx; cx++) {
 				int idx = _get_chunk_index(cx, cy, cz);
 				SNChunk &chunk = chunks[static_cast<size_t>(idx)];
-				chunk.set_corner(gx - (cx * chunk_size.x), gy - (cy * chunk_size.y), gz - (cz * chunk_size.z), p_density);
+				chunk.set_corner(
+						gx - (cx * chunk_size.x), gy - (cy * chunk_size.y), gz - (cz * chunk_size.z), p_density
+				);
 				actual_modified = true;
 			}
 		}
@@ -311,7 +334,9 @@ int8_t SNGrid::get_density(const Vector3i &p_grid_pos) const {
 	}
 
 	int idx = _get_chunk_index(cx, cy, cz);
-	return chunks[static_cast<size_t>(idx)].get_corner(p_grid_pos.x - (cx * chunk_size.x), p_grid_pos.y - (cy * chunk_size.y), p_grid_pos.z - (cz * chunk_size.z));
+	return chunks[static_cast<size_t>(idx)].get_corner(
+			p_grid_pos.x - (cx * chunk_size.x), p_grid_pos.y - (cy * chunk_size.y), p_grid_pos.z - (cz * chunk_size.z)
+	);
 }
 
 bool SNGrid::is_solid(const Vector3i &p_grid_pos) const {

@@ -8,7 +8,9 @@ namespace godot {
 class CameraStateTPS : public CameraState {
 public:
 	virtual void enter(GameCamera *p_camera) override;
-	virtual void update(GameCamera *p_camera, float p_delta) override;
+	virtual void
+	update(GameCamera *p_camera,
+		   float p_delta) override;
 };
 
 } // namespace godot

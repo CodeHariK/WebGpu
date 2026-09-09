@@ -2,7 +2,13 @@
 
 namespace godot {
 
-Vector3 BSplineCurve::evaluate_cubic(const Vector3 &p0, const Vector3 &p1, const Vector3 &p2, const Vector3 &p3, float t) {
+Vector3 BSplineCurve::evaluate_cubic(
+		const Vector3 &p0,
+		const Vector3 &p1,
+		const Vector3 &p2,
+		const Vector3 &p3,
+		float t
+) {
 	float t2 = t * t;
 	float t3 = t2 * t;
 
@@ -15,7 +21,13 @@ Vector3 BSplineCurve::evaluate_cubic(const Vector3 &p0, const Vector3 &p1, const
 	return (p0 * b0 + p1 * b1 + p2 * b2 + p3 * b3) / 6.0f;
 }
 
-Vector3 BSplineCurve::evaluate_derivative(const Vector3 &p0, const Vector3 &p1, const Vector3 &p2, const Vector3 &p3, float t) {
+Vector3 BSplineCurve::evaluate_derivative(
+		const Vector3 &p0,
+		const Vector3 &p1,
+		const Vector3 &p2,
+		const Vector3 &p3,
+		float t
+) {
 	float t2 = t * t;
 
 	// Derivatives of basis functions

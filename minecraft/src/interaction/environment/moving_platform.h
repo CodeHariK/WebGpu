@@ -8,7 +8,8 @@
 namespace godot {
 
 class MovingPlatform : public AnimatableBody3D {
-	GDCLASS(MovingPlatform, AnimatableBody3D)
+	GDCLASS(MovingPlatform,
+			AnimatableBody3D)
 
 public:
 	enum MovementPreset : uint8_t {

@@ -1,29 +1,27 @@
 #include "tennis_ai_player.h"
+#include "../../game_manager/game_manager.h"
 #include "tennis_ball.h"
 #include "tennis_manager.h"
-#include "../../game_manager/game_manager.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
 
-void TennisAIPlayer::_bind_methods() {
-}
+void TennisAIPlayer::_bind_methods() {}
 
-TennisAIPlayer::TennisAIPlayer() {
-}
+TennisAIPlayer::TennisAIPlayer() {}
 
-TennisAIPlayer::~TennisAIPlayer() {
-}
+TennisAIPlayer::~TennisAIPlayer() {}
 
 void TennisAIPlayer::_ready() {
 	TennisPlayer::_ready();
-	
+
 	// AI shouldn't be the active target for camera usually
 }
 
 void TennisAIPlayer::_physics_process(double delta) {
-	if (Engine::get_singleton()->is_editor_hint()) return;
+	if (Engine::get_singleton()->is_editor_hint())
+		return;
 
 	// 1. Find ball if we don't have it
 	if (!ball_ref) {
@@ -33,17 +31,19 @@ void TennisAIPlayer::_physics_process(double delta) {
 		}
 	}
 
-	if (!ball_ref) return;
+	if (!ball_ref)
+		return;
 
 	// 2. Simple AI Movement: Follow ball X
 	Vector3 ball_pos = ball_ref->get_global_position();
 	Vector3 my_pos = get_global_position();
-	
+
 	// Move toward ball X, but stay on our side (Z is negative for opponent)
 	float target_x = ball_pos.x;
 	float target_z = -20.0f; // Opponent baseline area
-	
-	Vector3 direction = Vector3(target_x - my_pos.x, 0, target_z - my_pos.y); // Wait, my_pos.y is wrong, should be my_pos.z
+
+	Vector3 direction =
+			Vector3(target_x - my_pos.x, 0, target_z - my_pos.y); // Wait, my_pos.y is wrong, should be my_pos.z
 	direction.z = target_z - my_pos.z;
 	direction.y = 0;
 
@@ -70,9 +70,10 @@ void TennisAIPlayer::_physics_process(double delta) {
 		// Hit direction based on relative position
 		Vector3 hit_dir = (ball_pos - my_pos);
 		hit_dir.y = 0.2f;
-		
+
 		// Ensure hit goes toward player's side (AI is at Z-, so hit toward Z+)
-		if (hit_dir.z < 0.5f) hit_dir.z = 1.0f;
+		if (hit_dir.z < 0.5f)
+			hit_dir.z = 1.0f;
 
 		ball_ref->hit(hit_dir.normalized(), get_hitting_speed(), TennisBall::SHOT_FLAT);
 		UtilityFunctions::print("AI Player: DX-Ball Style Hit!");

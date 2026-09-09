@@ -22,6 +22,10 @@ Ref<ShaderMaterial> make_prop_material(bool p_two_sided = false);
 /// The prop material tuned for matte stone (low wrap, a whisper of specular, no transmission / glow).
 Ref<ShaderMaterial> make_stone_material();
 
+/// Release the cached prop Shaders. Call once at extension deinitialization, before Godot's renderer
+/// shuts down, or it reports the shared Shaders as leaked at exit.
+void clear_prop_material_cache();
+
 } // namespace godot
 
 #endif // PROP_MATERIAL_H

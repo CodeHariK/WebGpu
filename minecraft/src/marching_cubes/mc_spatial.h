@@ -30,11 +30,11 @@ public:
 	void add_object(const PlacedObject &p_obj);
 	void remove_object_at(const Vector3i &p_grid_pos);
 	void remove_object_by_node(Object *p_node);
-	
+
 	bool is_area_blocked(const AABB &p_aabb) const;
-	const PlacedObject* get_object_by_node(Object *p_node) const;
-	const std::vector<PlacedObject>& get_objects() const { return objects; }
-	
+	const PlacedObject *get_object_by_node(Object *p_node) const;
+	const std::vector<PlacedObject> &get_objects() const { return objects; }
+
 	void clear();
 };
 

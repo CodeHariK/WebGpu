@@ -12,13 +12,22 @@ namespace godot {
 DebugManager *DebugManager::singleton = nullptr;
 
 void DebugManager::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("draw_line", "id", "start", "end", "thickness", "color", "duration"), &DebugManager::draw_line, DEFVAL(0.05f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f));
+	ClassDB::bind_method(
+			D_METHOD("draw_line", "id", "start", "end", "thickness", "color", "duration"), &DebugManager::draw_line,
+			DEFVAL(0.05f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f)
+	);
 	ClassDB::bind_method(D_METHOD("clear_line", "id"), &DebugManager::clear_line);
 
-	ClassDB::bind_method(D_METHOD("draw_text", "id", "text", "pos", "size", "color", "duration"), &DebugManager::draw_text, DEFVAL(0.05f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f));
+	ClassDB::bind_method(
+			D_METHOD("draw_text", "id", "text", "pos", "size", "color", "duration"), &DebugManager::draw_text,
+			DEFVAL(0.05f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f)
+	);
 	ClassDB::bind_method(D_METHOD("clear_text", "id"), &DebugManager::clear_text);
 
-	ClassDB::bind_method(D_METHOD("draw_sphere", "id", "pos", "radius", "color", "duration"), &DebugManager::draw_sphere, DEFVAL(0.5f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f));
+	ClassDB::bind_method(
+			D_METHOD("draw_sphere", "id", "pos", "radius", "color", "duration"), &DebugManager::draw_sphere,
+			DEFVAL(0.5f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f)
+	);
 	ClassDB::bind_method(D_METHOD("clear_sphere", "id"), &DebugManager::clear_sphere);
 
 	ClassDB::bind_method(D_METHOD("clear_all"), &DebugManager::clear_all);
@@ -34,14 +43,15 @@ DebugManager::~DebugManager() {
 	}
 }
 
-DebugManager *DebugManager::get_singleton() {
-	return singleton;
-}
+DebugManager *DebugManager::get_singleton() { return singleton; }
 
 Ref<Shader> DebugManager::get_line_shader() {
 	if (line_shader.is_null()) {
 		line_shader.instantiate();
-		line_shader->set_code("shader_type spatial; render_mode unshaded, cull_disabled, depth_test_disabled; uniform vec4 color: source_color; void fragment() { ALBEDO = color.rgb; ALPHA = color.a; }");
+		line_shader->set_code(
+				"shader_type spatial; render_mode unshaded, cull_disabled, depth_test_disabled; uniform vec4 color: "
+				"source_color; void fragment() { ALBEDO = color.rgb; ALPHA = color.a; }"
+		);
 	}
 	return line_shader;
 }
@@ -145,7 +155,14 @@ void DebugManager::_physics_process(double delta) {
 	}
 }
 
-void DebugManager::draw_line(const String &p_id, const Vector3 &p_start, const Vector3 &p_end, float p_thickness, const Color &p_color, float p_duration) {
+void DebugManager::draw_line(
+		const String &p_id,
+		const Vector3 &p_start,
+		const Vector3 &p_end,
+		float p_thickness,
+		const Color &p_color,
+		float p_duration
+) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
@@ -179,7 +196,14 @@ void DebugManager::clear_line(const String &p_id) {
 	}
 }
 
-void DebugManager::draw_text(const String &p_id, const String &p_text, const Vector3 &p_pos, float p_size, const Color &p_color, float p_duration) {
+void DebugManager::draw_text(
+		const String &p_id,
+		const String &p_text,
+		const Vector3 &p_pos,
+		float p_size,
+		const Color &p_color,
+		float p_duration
+) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
@@ -252,7 +276,14 @@ void DebugManager::clear_all() {
 	trajectories.clear();
 }
 
-void DebugManager::draw_trajectory(const String &p_id, const Vector3 &p_point, float p_delta, float p_interval, int p_max_points, const Color &p_color) {
+void DebugManager::draw_trajectory(
+		const String &p_id,
+		const Vector3 &p_point,
+		float p_delta,
+		float p_interval,
+		int p_max_points,
+		const Color &p_color
+) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
@@ -274,7 +305,9 @@ void DebugManager::draw_trajectory(const String &p_id, const Vector3 &p_point, f
 
 	if (traj.points.size() > 1) {
 		for (size_t i = 0; i < traj.points.size() - 1; ++i) {
-			draw_line(p_id + String("_") + String::num_int64(i), traj.points[i], traj.points[i + 1], 0.1f, p_color, 0.15f);
+			draw_line(
+					p_id + String("_") + String::num_int64(i), traj.points[i], traj.points[i + 1], 0.1f, p_color, 0.15f
+			);
 		}
 	}
 }
@@ -289,7 +322,13 @@ void DebugManager::clear_trajectory(const String &p_id) {
 	}
 }
 
-void DebugManager::draw_sphere(const String &p_id, const Vector3 &p_pos, float p_radius, const Color &p_color, float p_duration) {
+void DebugManager::draw_sphere(
+		const String &p_id,
+		const Vector3 &p_pos,
+		float p_radius,
+		const Color &p_color,
+		float p_duration
+) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}

@@ -9,15 +9,11 @@
 namespace godot {
 
 class BTTask : public RefCounted {
-	GDCLASS(BTTask, RefCounted)
+	GDCLASS(BTTask,
+			RefCounted)
 
 public:
-	enum Status {
-		IDLE,
-		RUNNING,
-		SUCCESS,
-		FAILURE
-	};
+	enum Status { IDLE, RUNNING, SUCCESS, FAILURE };
 
 private:
 	Status status = IDLE;
@@ -25,20 +21,32 @@ private:
 protected:
 	static void _bind_methods();
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) {}
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) { return SUCCESS; }
-	virtual void _exit(Node *p_actor, const Ref<BTStore> &p_btstore) {}
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) {}
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) {
+		return SUCCESS;
+	}
+	virtual void
+	_exit(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) {}
 
 public:
 	BTTask();
 	virtual ~BTTask();
 
-	Status execute(Node *p_actor, const Ref<BTStore> &p_btstore);
+	Status
+	execute(Node *p_actor,
+			const Ref<BTStore> &p_btstore);
 
 	Status get_status() const { return status; }
 	void set_status(Status p_status) { status = p_status; }
 
-	virtual void abort(Node *p_actor, const Ref<BTStore> &p_btstore);
+	virtual void
+	abort(Node *p_actor,
+		  const Ref<BTStore> &p_btstore);
 };
 
 } // namespace godot

@@ -13,24 +13,24 @@ void BTStore::_bind_methods() {
 BTStore::BTStore() {}
 BTStore::~BTStore() {}
 
-void BTStore::set_value(const String &p_key, const Variant &p_value) {
+void BTStore::set_value(
+		const String &p_key,
+		const Variant &p_value
+) {
 	data[p_key] = p_value;
 }
 
-Variant BTStore::get_value(const String &p_key, const Variant &p_default) const {
+Variant BTStore::get_value(
+		const String &p_key,
+		const Variant &p_default
+) const {
 	return data.get(p_key, p_default);
 }
 
-bool BTStore::has_value(const String &p_key) const {
-	return data.has(p_key);
-}
+bool BTStore::has_value(const String &p_key) const { return data.has(p_key); }
 
-void BTStore::erase_value(const String &p_key) {
-	data.erase(p_key);
-}
+void BTStore::erase_value(const String &p_key) { data.erase(p_key); }
 
-void BTStore::clear() {
-	data.clear();
-}
+void BTStore::clear() { data.clear(); }
 
 } // namespace godot

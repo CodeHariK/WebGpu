@@ -131,7 +131,13 @@ void SNChunk::deserialize_rle(const PackedByteArray &p_data) {
 // --- SNGrid Implementation ---
 
 void SNGrid::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y", "chunk_size_z"), &SNGrid::initialize_grid);
+	ClassDB::bind_method(
+			D_METHOD(
+					"initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y",
+					"chunk_size_z"
+			),
+			&SNGrid::initialize_grid
+	);
 	ClassDB::bind_method(D_METHOD("refresh_grid"), &SNGrid::refresh_grid);
 	ClassDB::bind_method(D_METHOD("modify_density", "p_grid_pos", "p_density"), &SNGrid::modify_density);
 	ClassDB::bind_method(D_METHOD("get_density", "p_grid_pos"), &SNGrid::get_density);
@@ -147,11 +153,17 @@ void SNGrid::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_terrain_material", "material"), &SNGrid::set_terrain_material);
 	ClassDB::bind_method(D_METHOD("get_terrain_material"), &SNGrid::get_terrain_material);
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_terrain_material", "get_terrain_material");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"),
+			"set_terrain_material", "get_terrain_material"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_terrain_noise", "noise"), &SNGrid::set_terrain_noise);
 	ClassDB::bind_method(D_METHOD("get_terrain_noise"), &SNGrid::get_terrain_noise);
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_noise", PROPERTY_HINT_RESOURCE_TYPE, "Noise"), "set_terrain_noise", "get_terrain_noise");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "terrain_noise", PROPERTY_HINT_RESOURCE_TYPE, "Noise"), "set_terrain_noise",
+			"get_terrain_noise"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_cell_center", "enabled"), &SNGrid::set_cell_center);
 	ClassDB::bind_method(D_METHOD("is_cell_center"), &SNGrid::is_cell_center);

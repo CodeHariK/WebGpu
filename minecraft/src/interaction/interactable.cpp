@@ -2,8 +2,7 @@
 
 namespace godot {
 
-void Interactable::_bind_methods() {
-}
+void Interactable::_bind_methods() {}
 
 Interactable::Interactable() {
 	// Default to static/frozen behavior (e.g. for Stations)

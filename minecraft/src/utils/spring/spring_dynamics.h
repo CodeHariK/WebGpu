@@ -12,12 +12,12 @@ namespace godot {
  * Can be used for smoothing Camera, Doors, Punching Bags, etc.
 
  * [Instant "Game Feel" Tutorial - Secrets of Springs Explained](https://www.youtube.com/watch?v=bFOAipGJGA0)
- * [3Blue1Brown | The Physics of Euler's Formula | Laplace Transform Prelude](https://www.youtube.com/watch?v=-j8PzkZ70Lg)
+ * [3Blue1Brown | The Physics of Euler's Formula | Laplace Transform
+ Prelude](https://www.youtube.com/watch?v=-j8PzkZ70Lg)
  * [Example Second-Order ODE: Spring-Mass-Damper](https://www.youtube.com/watch?v=r1eWerqrcqo)
  * [Understanding Vibration and Resonance](https://www.youtube.com/watch?v=vLaFAKnaRJU)
  */
-template <typename T>
-struct SpringDynamics {
+template <typename T> struct SpringDynamics {
 	T current = T();
 	T velocity = T();
 	T target = T();
@@ -28,7 +28,11 @@ struct SpringDynamics {
 		velocity = T() * 0.0f; // Handle potential Vector types
 	}
 
-	void step(float p_delta, float p_frequency, float p_damping, float p_response) {
+	void
+	step(float p_delta,
+		 float p_frequency,
+		 float p_damping,
+		 float p_response) {
 		if (p_delta <= 0.0f)
 			return;
 
@@ -52,8 +56,7 @@ struct SpringDynamics {
  * Provides perfect stability even at low frame rates.
  * https://www.ryanjuckett.com/damped-springs/
  */
-template <typename T>
-struct AnalyticalSpring {
+template <typename T> struct AnalyticalSpring {
 	T current = T();
 	T velocity = T();
 	T target = T();
@@ -69,7 +72,10 @@ struct AnalyticalSpring {
 	 * @param p_frequency Frequency in Hertz (converted to rad/s internally)
 	 * @param p_damping Damping ratio (1.0 = critically damped)
 	 */
-	void step(float p_delta, float p_frequency, float p_damping) {
+	void
+	step(float p_delta,
+		 float p_frequency,
+		 float p_damping) {
 		if (p_delta <= 0.0f)
 			return;
 

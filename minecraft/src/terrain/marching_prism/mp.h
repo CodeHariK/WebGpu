@@ -15,7 +15,8 @@ struct PrismMeshConfig {
 };
 
 class MPNode : public Node3D {
-	GDCLASS(MPNode, Node3D)
+	GDCLASS(MPNode,
+			Node3D)
 
 private:
 	String mesh_library_path;
@@ -53,9 +54,7 @@ public:
 	static String hash_to_binary(uint8_t p_hash);
 	Dictionary get_variant_counts() const;
 
-	PrismMeshConfig get_mesh_config(uint8_t p_hash) const {
-		return mesh_library[p_hash];
-	}
+	PrismMeshConfig get_mesh_config(uint8_t p_hash) const { return mesh_library[p_hash]; }
 };
 
 } // namespace godot

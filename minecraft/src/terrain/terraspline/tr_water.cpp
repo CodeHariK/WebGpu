@@ -7,15 +7,22 @@
 
 namespace godot {
 
+// Compiled once and shared by every river and lake. File scope (not a function-local static) so
+// clear_water_material_cache() can release the RID before Godot's renderer shuts down.
+namespace {
+Ref<Shader> s_water_shader;
+}
+
 /**
  * @brief Built-in cartoon water: flat colour from the vertex colour, quantized stripes scrolled along UV.y by
  * `speed`, thin foam lines, bank foam from UV.x, a gentle vertex bob. Shared by rivers (TerrainSplineRoad
  * WATER profile) and lakes (TerrainSplineLake).
  */
 Ref<ShaderMaterial> make_toon_water_material() {
-	Ref<Shader> shader;
-	shader.instantiate();
-	shader->set_code(R"(
+	Ref<Shader> &shader = s_water_shader;
+	if (shader.is_null()) {
+		shader.instantiate();
+		shader->set_code(R"(
 shader_type spatial;
 render_mode cull_back, depth_draw_opaque, specular_disabled;
 
@@ -60,10 +67,13 @@ void fragment() {
 	}
 }
 )");
+	}
 	Ref<ShaderMaterial> m;
 	m.instantiate();
 	m->set_shader(shader);
 	return m;
 }
+
+void clear_water_material_cache() { s_water_shader = Ref<Shader>(); }
 
 } // namespace godot

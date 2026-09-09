@@ -12,7 +12,8 @@ namespace godot {
  * Can be used for ingredients, ammo, crafting materials, etc.
  */
 class Inventory : public Node {
-	GDCLASS(Inventory, Node)
+	GDCLASS(Inventory,
+			Node)
 
 private:
 	Dictionary items;
@@ -25,11 +26,20 @@ public:
 	~Inventory();
 
 	// Core API
-	void add_item(const String &p_name, int p_quantity);
-	bool try_consume(const String &p_name, int p_quantity);
+	void add_item(
+			const String &p_name,
+			int p_quantity
+	);
+	bool try_consume(
+			const String &p_name,
+			int p_quantity
+	);
 	int get_item_quantity(const String &p_name) const;
-	bool has_item(const String &p_name, int p_min_quantity = 1) const;
-	
+	bool has_item(
+			const String &p_name,
+			int p_min_quantity = 1
+	) const;
+
 	void clear();
 
 	// Bulk Operations

@@ -45,13 +45,9 @@ void MPNode::initialize_library() {
 	is_initialized = true;
 }
 
-void MPNode::set_mesh_library_path(const String &p_path) {
-	mesh_library_path = p_path;
-}
+void MPNode::set_mesh_library_path(const String &p_path) { mesh_library_path = p_path; }
 
-String MPNode::get_mesh_library_path() const {
-	return mesh_library_path;
-}
+String MPNode::get_mesh_library_path() const { return mesh_library_path; }
 
 // Meta struct to parse 6-bit binary strings (e.g., "000100")
 struct PrismLoadMeta {
@@ -60,10 +56,17 @@ struct PrismLoadMeta {
 	int ones_count = 0;
 	bool is_valid = true;
 
-	PrismLoadMeta(Node *p_child, MeshInstance3D *p_mi) : child(p_child), mi(p_mi) {
+	PrismLoadMeta(
+			Node *p_child,
+			MeshInstance3D *p_mi
+	) :
+			child(p_child),
+			mi(p_mi) {
 		if (child) {
 			String p_bin = child->get_name().substr(0, 6);
-			UtilityFunctions::print("MPNode Debug: Parsing name '", child->get_name(), "', extracted prefix '", p_bin, "'");
+			UtilityFunctions::print(
+					"MPNode Debug: Parsing name '", child->get_name(), "', extracted prefix '", p_bin, "'"
+			);
 			if (p_bin.length() < 6) {
 				is_valid = false;
 				UtilityFunctions::print("  - Invalid: prefix length too short (", p_bin.length(), ")");
@@ -84,9 +87,7 @@ struct PrismLoadMeta {
 		}
 	}
 
-	bool operator<(const PrismLoadMeta &p_other) const {
-		return ones_count < p_other.ones_count;
-	}
+	bool operator<(const PrismLoadMeta &p_other) const { return ones_count < p_other.ones_count; }
 };
 
 void MPNode::load_mesh_library() {
@@ -110,7 +111,8 @@ void MPNode::load_mesh_library() {
 
 	for (int i = 0; i < children.size(); i++) {
 		Node *child = Object::cast_to<Node>(children[i]);
-		if (!child) continue;
+		if (!child)
+			continue;
 
 		UtilityFunctions::print("MPNode: Top-level child [", i, "] name: '", child->get_name(), "'");
 		MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(child);
@@ -120,7 +122,10 @@ void MPNode::load_mesh_library() {
 			for (int j = 0; j < child->get_child_count(); j++) {
 				Node *sub_child = child->get_child(j);
 				if (sub_child) {
-					UtilityFunctions::print("    - Sub-child [", j, "] name: '", sub_child->get_name(), "' (Class: ", sub_child->get_class(), ")");
+					UtilityFunctions::print(
+							"    - Sub-child [", j, "] name: '", sub_child->get_name(),
+							"' (Class: ", sub_child->get_class(), ")"
+					);
 					MeshInstance3D *sub_mi = Object::cast_to<MeshInstance3D>(sub_child);
 					if (sub_mi) {
 						mi = sub_mi;
@@ -135,7 +140,9 @@ void MPNode::load_mesh_library() {
 			UtilityFunctions::print("  - Found MeshInstance3D. Mesh valid: ", mi->get_mesh().is_valid() ? "YES" : "NO");
 			if (mi->get_mesh().is_valid()) {
 				PrismLoadMeta meta(child, mi);
-				UtilityFunctions::print("  - PrismLoadMeta valid: ", meta.is_valid ? "YES" : "NO", ", ones_count: ", meta.ones_count);
+				UtilityFunctions::print(
+						"  - PrismLoadMeta valid: ", meta.is_valid ? "YES" : "NO", ", ones_count: ", meta.ones_count
+				);
 				if (meta.is_valid) {
 					candidates.push_back(meta);
 				}
@@ -180,7 +187,9 @@ void MPNode::generate_variants_by_120Y_rotation() {
 				mesh_library[h120].mesh = mesh_library[i].mesh;
 				mesh_library[h120].transform = base_t.rotated(Vector3(0, 1, 0), rad_120);
 				mesh_library[h120].source_mesh = i;
-				UtilityFunctions::print("Generated Variant (120deg): ", hash_to_binary(h120), " from ", hash_to_binary(i));
+				UtilityFunctions::print(
+						"Generated Variant (120deg): ", hash_to_binary(h120), " from ", hash_to_binary(i)
+				);
 			}
 
 			// Generate 240-degree rotation if it doesn't exist
@@ -188,7 +197,9 @@ void MPNode::generate_variants_by_120Y_rotation() {
 				mesh_library[h240].mesh = mesh_library[i].mesh;
 				mesh_library[h240].transform = base_t.rotated(Vector3(0, 1, 0), rad_120 * 2.0f);
 				mesh_library[h240].source_mesh = i;
-				UtilityFunctions::print("Generated Variant (240deg): ", hash_to_binary(h240), " from ", hash_to_binary(i));
+				UtilityFunctions::print(
+						"Generated Variant (240deg): ", hash_to_binary(h240), " from ", hash_to_binary(i)
+				);
 			}
 		}
 	}

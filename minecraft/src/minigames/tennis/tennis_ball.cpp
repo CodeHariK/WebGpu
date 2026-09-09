@@ -8,10 +8,10 @@ void TennisBall::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("hit", "direction", "speed", "type"), &TennisBall::hit);
 	ClassDB::bind_method(D_METHOD("serve", "position", "direction", "speed"), &TennisBall::serve);
 	ClassDB::bind_method(D_METHOD("reset", "position"), &TennisBall::reset);
-	
+
 	ClassDB::bind_method(D_METHOD("set_velocity", "velocity"), &TennisBall::set_velocity);
 	ClassDB::bind_method(D_METHOD("get_velocity"), &TennisBall::get_velocity);
-	
+
 	ClassDB::bind_method(D_METHOD("set_state", "state"), &TennisBall::set_state);
 	ClassDB::bind_method(D_METHOD("get_state"), &TennisBall::get_state);
 
@@ -31,19 +31,20 @@ void TennisBall::_bind_methods() {
 	BIND_ENUM_CONSTANT(STATE_DEAD);
 }
 
-TennisBall::TennisBall() {
-	velocity = Vector3(0, 0, 0);
-}
+TennisBall::TennisBall() { velocity = Vector3(0, 0, 0); }
 
 TennisBall::~TennisBall() {}
 
 void TennisBall::_ready() {
-	if (Engine::get_singleton()->is_editor_hint()) return;
+	if (Engine::get_singleton()->is_editor_hint())
+		return;
 }
 
 void TennisBall::_physics_process(double delta) {
-	if (Engine::get_singleton()->is_editor_hint()) return;
-	if (state == STATE_IDLE) return;
+	if (Engine::get_singleton()->is_editor_hint())
+		return;
+	if (state == STATE_IDLE)
+		return;
 
 	// Apply Gravity
 	velocity.y -= gravity * delta;
@@ -56,7 +57,7 @@ void TennisBall::_physics_process(double delta) {
 
 	if (collision.is_valid()) {
 		Vector3 normal = collision->get_normal();
-		
+
 		// Bounce
 		velocity = velocity.bounce(normal) * elasticity;
 
@@ -64,7 +65,7 @@ void TennisBall::_physics_process(double delta) {
 		if (normal.y > 0.7f) {
 			bounce_count++;
 			state = STATE_BOUNCED;
-			
+
 			// If it bounces twice, it's dead
 			if (bounce_count >= 2) {
 				state = STATE_DEAD;
@@ -74,10 +75,14 @@ void TennisBall::_physics_process(double delta) {
 	}
 }
 
-void TennisBall::hit(Vector3 p_direction, float p_speed, ShotType p_type) {
+void TennisBall::hit(
+		Vector3 p_direction,
+		float p_speed,
+		ShotType p_type
+) {
 	bounce_count = 0;
 	state = STATE_IN_PLAY;
-	
+
 	Vector3 base_dir = p_direction.normalized();
 	float final_speed = p_speed;
 	float vertical_bias = 0.0f;
@@ -109,7 +114,11 @@ void TennisBall::hit(Vector3 p_direction, float p_speed, ShotType p_type) {
 	velocity = (base_dir + Vector3(0, vertical_bias, 0)).normalized() * final_speed;
 }
 
-void TennisBall::serve(Vector3 p_position, Vector3 p_direction, float p_speed) {
+void TennisBall::serve(
+		Vector3 p_position,
+		Vector3 p_direction,
+		float p_speed
+) {
 	reset(p_position);
 	state = STATE_SERVING;
 	velocity = p_direction.normalized() * p_speed;

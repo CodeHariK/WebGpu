@@ -8,7 +8,8 @@
 namespace godot {
 
 class BTPlayer : public Node {
-	GDCLASS(BTPlayer, Node)
+	GDCLASS(BTPlayer,
+			Node)
 
 private:
 	Ref<BTTask> bt_tree;

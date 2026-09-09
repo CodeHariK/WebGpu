@@ -2,9 +2,7 @@
 
 namespace godot {
 
-void MCSpatial::add_object(const PlacedObject &p_obj) {
-	objects.push_back(p_obj);
-}
+void MCSpatial::add_object(const PlacedObject &p_obj) { objects.push_back(p_obj); }
 
 void MCSpatial::remove_object_at(const Vector3i &p_grid_pos) {
 	for (auto it = objects.begin(); it != objects.end(); ++it) {
@@ -34,7 +32,7 @@ bool MCSpatial::is_area_blocked(const AABB &p_aabb) const {
 	return false;
 }
 
-const PlacedObject* MCSpatial::get_object_by_node(Object *p_node) const {
+const PlacedObject *MCSpatial::get_object_by_node(Object *p_node) const {
 	for (const auto &obj : objects) {
 		if (obj.visual_node == p_node) {
 			return &obj;
@@ -43,8 +41,6 @@ const PlacedObject* MCSpatial::get_object_by_node(Object *p_node) const {
 	return nullptr;
 }
 
-void MCSpatial::clear() {
-	objects.clear();
-}
+void MCSpatial::clear() { objects.clear(); }
 
 } // namespace godot

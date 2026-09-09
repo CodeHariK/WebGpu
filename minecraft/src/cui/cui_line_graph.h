@@ -8,7 +8,8 @@
 namespace godot {
 
 class CUILineGraph : public Control {
-	GDCLASS(CUILineGraph, Control)
+	GDCLASS(CUILineGraph,
+			Control)
 
 private:
 	std::vector<float> data_points;
@@ -27,9 +28,18 @@ public:
 
 	void add_value(float p_value);
 	void set_data(const std::vector<float> &p_data);
-	void set_range(float p_min, float p_max);
-	void set_line_color(const Color &p_color) { line_color = p_color; queue_redraw(); }
-	void set_max_points(int p_count) { max_points = p_count; queue_redraw(); }
+	void set_range(
+			float p_min,
+			float p_max
+	);
+	void set_line_color(const Color &p_color) {
+		line_color = p_color;
+		queue_redraw();
+	}
+	void set_max_points(int p_count) {
+		max_points = p_count;
+		queue_redraw();
+	}
 	void clear();
 
 	void _draw() override;

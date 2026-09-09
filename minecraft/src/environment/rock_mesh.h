@@ -109,6 +109,8 @@ private:
 
 protected:
 	static void _bind_methods();
+	/// Keep the baked geometry out of the .tscn: it rebuilds from the parameters at load.
+	void _validate_property(PropertyInfo &p_property) const;
 
 public:
 	RockMesh();

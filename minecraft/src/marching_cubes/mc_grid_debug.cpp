@@ -22,9 +22,7 @@ void MCGrid::set_show_debug_corners(bool p_show) {
 	set_debug_corners_visible(show_debug_corners);
 }
 
-bool MCGrid::get_show_debug_corners() const {
-	return show_debug_corners;
-}
+bool MCGrid::get_show_debug_corners() const { return show_debug_corners; }
 
 void MCGrid::set_debug_corners_visible(bool p_visible) {
 	if (debug_corners_container) {
@@ -63,7 +61,10 @@ void MCGrid::set_corner_collision_enabled(bool p_enabled) {
 	}
 }
 
-int MCGrid::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_box_mesh) {
+int MCGrid::_spawn_debug_cubes(
+		const Chunk &p_chunk,
+		const Ref<BoxMesh> &p_box_mesh
+) {
 	int nx = p_chunk.size_x + 1;
 	int ny = p_chunk.size_y + 1;
 	int nz = p_chunk.size_z + 1;
@@ -97,10 +98,10 @@ int MCGrid::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_box_m
 					continue;
 				}
 
-				Vector3 world_pos = Vector3(
-						static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx),
-						static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly),
-						static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz));
+				Vector3 world_pos =
+						Vector3(static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx),
+								static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly),
+								static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz));
 
 				MeshInstance3D *mi = memnew(MeshInstance3D);
 				mi->set_mesh(_debug_box_mesh);
@@ -118,16 +119,13 @@ int MCGrid::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_box_m
 
 				// Store for granular updates
 				int corner_idx = (ly * nx * nz) + (lz * nx) + lx;
-				const_cast<Chunk&>(p_chunk).debug_visuals[corner_idx] = mi;
+				const_cast<Chunk &>(p_chunk).debug_visuals[corner_idx] = mi;
 
 				if (state) {
 					mi->set_material_override(_debug_mat_red);
 
 					if (has_inactive) {
-						MCPhysics::create_static_box_collider(
-								mi,
-								toLayer(LAYER_CORNERS),
-								Vector3(1.0, 1.0, 1.0));
+						MCPhysics::create_static_box_collider(mi, toLayer(LAYER_CORNERS), Vector3(1.0, 1.0, 1.0));
 					}
 				} else {
 					mi->set_material_override(_debug_mat_blue);
@@ -142,7 +140,11 @@ int MCGrid::_spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_box_m
 	return count;
 }
 
-void MCGrid::_update_debug_at(int gx, int gy, int gz) {
+void MCGrid::_update_debug_at(
+		int gx,
+		int gy,
+		int gz
+) {
 	int cx = (gx >= grid_size.x * chunk_size.x) ? grid_size.x - 1 : gx / chunk_size.x;
 	int cy = (gy >= grid_size.y * chunk_size.y) ? grid_size.y - 1 : gy / chunk_size.y;
 	int cz = (gz >= grid_size.z * chunk_size.z) ? grid_size.z - 1 : gz / chunk_size.z;
@@ -241,7 +243,11 @@ void MCGrid::_initialize_hover_previews() {
 	hover_root->hide();
 }
 
-void MCGrid::update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_hit_normal, Camera3D *p_camera) {
+void MCGrid::update_hover_preview(
+		const Vector3 &p_corner_pos,
+		const Vector3 &p_hit_normal,
+		Camera3D *p_camera
+) {
 	if (!p_camera) {
 		return;
 	}
@@ -254,11 +260,9 @@ void MCGrid::update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_
 	Vector3 dir_to_cam = cam_pos - p_corner_pos;
 
 	// Visible normals (3 faces) based on camera position relative to corner
-	Vector3 normals[3] = {
-		Vector3(dir_to_cam.x >= 0 ? 1.0f : -1.0f, 0.0f, 0.0f),
-		Vector3(0.0f, dir_to_cam.y >= 0 ? 1.0f : -1.0f, 0.0f),
-		Vector3(0.0f, 0.0f, dir_to_cam.z >= 0 ? 1.0f : -1.0f)
-	};
+	Vector3 normals[3] = { Vector3(dir_to_cam.x >= 0 ? 1.0f : -1.0f, 0.0f, 0.0f),
+						   Vector3(0.0f, dir_to_cam.y >= 0 ? 1.0f : -1.0f, 0.0f),
+						   Vector3(0.0f, 0.0f, dir_to_cam.z >= 0 ? 1.0f : -1.0f) };
 
 	hover_root->set_position(p_corner_pos);
 	hover_root->show();

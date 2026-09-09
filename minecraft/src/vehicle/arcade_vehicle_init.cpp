@@ -167,9 +167,7 @@ void ArcadeVehicle::set_config(const Ref<VehicleConfig> &p_config) {
 	}
 }
 
-Ref<VehicleConfig> ArcadeVehicle::get_config() const {
-	return config;
-}
+Ref<VehicleConfig> ArcadeVehicle::get_config() const { return config; }
 
 void ArcadeVehicle::set_debug_visuals_enabled(bool p_enabled) {
 	debug_visuals_enabled = p_enabled;
@@ -178,9 +176,7 @@ void ArcadeVehicle::set_debug_visuals_enabled(bool p_enabled) {
 	}
 }
 
-bool ArcadeVehicle::get_debug_visuals_enabled() const {
-	return debug_visuals_enabled;
-}
+bool ArcadeVehicle::get_debug_visuals_enabled() const { return debug_visuals_enabled; }
 
 void ArcadeVehicle::_on_ui_toggle() {
 	if (ui_helper) {
@@ -188,7 +184,10 @@ void ArcadeVehicle::_on_ui_toggle() {
 	}
 }
 
-void ArcadeVehicle::_on_ui_slider_value_changed(double p_value, String p_property) {
+void ArcadeVehicle::_on_ui_slider_value_changed(
+		double p_value,
+		String p_property
+) {
 	set_ui_var(p_property, (float)p_value);
 }
 
@@ -237,7 +236,9 @@ void ArcadeVehicle::load_settings() {
 	config->set_max_accel_force(cfg->get_value("Vehicle", "max_accel_force", config->get_max_accel_force()));
 	config->set_brake_decel(cfg->get_value("Vehicle", "brake_decel", config->get_brake_decel()));
 	config->set_arcade_assist(cfg->get_value("Vehicle", "arcade_assist", config->get_arcade_assist()));
-	config->set_max_steer_angle_deg(cfg->get_value("Vehicle", "max_steer_angle_deg", config->get_max_steer_angle_deg()));
+	config->set_max_steer_angle_deg(
+			cfg->get_value("Vehicle", "max_steer_angle_deg", config->get_max_steer_angle_deg())
+	);
 	config->set_base_grip(cfg->get_value("Vehicle", "base_grip", config->get_base_grip()));
 	config->set_drift_grip(cfg->get_value("Vehicle", "drift_grip", config->get_drift_grip()));
 	config->set_downforce(cfg->get_value("Vehicle", "downforce", config->get_downforce()));
@@ -245,7 +246,9 @@ void ArcadeVehicle::load_settings() {
 	config->set_velocity_alignment(cfg->get_value("Vehicle", "velocity_alignment", config->get_velocity_alignment()));
 	config->set_nitro_max_fuel(cfg->get_value("Vehicle", "nitro_max_fuel", config->get_nitro_max_fuel()));
 	config->set_nitro_refuel_rate(cfg->get_value("Vehicle", "nitro_refuel_rate", config->get_nitro_refuel_rate()));
-	config->set_nitro_depletion_rate(cfg->get_value("Vehicle", "nitro_depletion_rate", config->get_nitro_depletion_rate()));
+	config->set_nitro_depletion_rate(
+			cfg->get_value("Vehicle", "nitro_depletion_rate", config->get_nitro_depletion_rate())
+	);
 	config->set_roll_influence(cfg->get_value("Vehicle", "roll_influence", config->get_roll_influence()));
 	config->set_pitch_influence(cfg->get_value("Vehicle", "pitch_influence", config->get_pitch_influence()));
 
@@ -304,7 +307,10 @@ float ArcadeVehicle::get_ui_var(const String &p_name) const {
 	return 0.0f;
 }
 
-void ArcadeVehicle::set_ui_var(const String &p_name, float p_value) {
+void ArcadeVehicle::set_ui_var(
+		const String &p_name,
+		float p_value
+) {
 	if (config.is_null())
 		return;
 	if (p_name == "max_speed")
@@ -342,16 +348,24 @@ void ArcadeVehicle::set_ui_var(const String &p_name, float p_value) {
 void ArcadeVehicle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_config", "config"), &ArcadeVehicle::set_config);
 	ClassDB::bind_method(D_METHOD("get_config"), &ArcadeVehicle::get_config);
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "config", PROPERTY_HINT_RESOURCE_TYPE, "VehicleConfig"), "set_config", "get_config");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "config", PROPERTY_HINT_RESOURCE_TYPE, "VehicleConfig"), "set_config",
+			"get_config"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_debug_visuals_enabled", "enabled"), &ArcadeVehicle::set_debug_visuals_enabled);
 	ClassDB::bind_method(D_METHOD("get_debug_visuals_enabled"), &ArcadeVehicle::get_debug_visuals_enabled);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_visuals_enabled"), "set_debug_visuals_enabled", "get_debug_visuals_enabled");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::BOOL, "debug_visuals_enabled"), "set_debug_visuals_enabled",
+			"get_debug_visuals_enabled"
+	);
 
 	ClassDB::bind_method(D_METHOD("_on_ui_toggle"), &ArcadeVehicle::_on_ui_toggle);
 	ClassDB::bind_method(D_METHOD("save_settings"), &ArcadeVehicle::save_settings);
 	ClassDB::bind_method(D_METHOD("load_settings"), &ArcadeVehicle::load_settings);
-	ClassDB::bind_method(D_METHOD("_on_ui_slider_value_changed", "value", "property"), &ArcadeVehicle::_on_ui_slider_value_changed);
+	ClassDB::bind_method(
+			D_METHOD("_on_ui_slider_value_changed", "value", "property"), &ArcadeVehicle::_on_ui_slider_value_changed
+	);
 }
 
 } //namespace godot

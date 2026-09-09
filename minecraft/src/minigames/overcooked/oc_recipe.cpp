@@ -1,8 +1,8 @@
 #include "oc_recipe.h"
 #include "oc_ingredient.h"
+#include <algorithm>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
-#include <algorithm>
 
 namespace godot {
 
@@ -36,7 +36,7 @@ Ref<OCRecipe> OCRecipe::clone() const {
 Dictionary OCRecipe::to_dict() const {
 	Dictionary dict;
 	dict["name"] = dish_name;
-	
+
 	Array types;
 	Array states;
 	for (const auto &req : requirements) {
@@ -54,7 +54,7 @@ Dictionary OCRecipe::to_dict() const {
 void OCRecipe::from_dict(const Dictionary &p_dict) {
 	if (p_dict.has("name"))
 		dish_name = p_dict["name"];
-	
+
 	requirements.clear();
 	if (p_dict.has("types") && p_dict.has("states")) {
 		Array types = p_dict["types"];

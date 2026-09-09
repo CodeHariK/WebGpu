@@ -68,7 +68,8 @@ struct ActionState {
 };
 
 class PlayerInput : public Object {
-	GDCLASS(PlayerInput, Object)
+	GDCLASS(PlayerInput,
+			Object)
 
 private:
 	static PlayerInput *singleton;

@@ -9,7 +9,8 @@ class TennisBall;
 class TennisPlayer;
 
 class TennisManager : public Node3D {
-	GDCLASS(TennisManager, Node3D)
+	GDCLASS(TennisManager,
+			Node3D)
 
 private:
 	void _spawn_court();
@@ -17,7 +18,11 @@ private:
 	void _spawn_ball();
 	void _spawn_human_player();
 	void _spawn_ai_player();
-	void _create_wall(Vector3 size, Vector3 position, String name);
+	void _create_wall(
+			Vector3 size,
+			Vector3 position,
+			String name
+	);
 
 	TennisBall *ball_ref = nullptr;
 	TennisPlayer *player1 = nullptr;

@@ -7,12 +7,21 @@
 
 namespace godot {
 
+// One compiled Shader per cull mode, shared by every prop material (file scope, not a function-local
+// static, so clear_prop_material_cache() can release the RIDs before Godot's renderer shuts down).
+namespace {
+Ref<Shader> s_prop_shaders[2];
+}
+
 Ref<ShaderMaterial> make_prop_material(bool p_two_sided) {
-	Ref<Shader> shader;
-	shader.instantiate();
-	String head =
-			p_two_sided ? "render_mode cull_disabled, depth_draw_opaque;" : "render_mode cull_back, depth_draw_opaque;";
-	shader->set_code(String("shader_type spatial;\n") + head + R"(
+	// Per-object differences (colour, stone matte-ness, glow) are uniforms on the returned
+	// ShaderMaterial, not new shader code.
+	Ref<Shader> &shader = s_prop_shaders[p_two_sided ? 1 : 0];
+	if (shader.is_null()) {
+		shader.instantiate();
+		String head = p_two_sided ? "render_mode cull_disabled, depth_draw_opaque;"
+								  : "render_mode cull_back, depth_draw_opaque;";
+		shader->set_code(String("shader_type spatial;\n") + head + R"(
 
 uniform float wrap : hint_range(0.0, 1.0) = 0.35;              // Diffuse wrap past the terminator
 uniform float specular_strength : hint_range(0.0, 2.0) = 0.3;
@@ -76,6 +85,7 @@ void light() {
 	}
 }
 )");
+	}
 	Ref<ShaderMaterial> m;
 	m.instantiate();
 	m->set_shader(shader);
@@ -90,6 +100,11 @@ Ref<ShaderMaterial> make_stone_material() {
 	m->set_shader_parameter("transmission", 0.0f);
 	m->set_shader_parameter("glow", 0.0f);
 	return m;
+}
+
+void clear_prop_material_cache() {
+	s_prop_shaders[0] = Ref<Shader>();
+	s_prop_shaders[1] = Ref<Shader>();
 }
 
 } // namespace godot

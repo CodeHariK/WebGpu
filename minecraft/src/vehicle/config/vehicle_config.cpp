@@ -10,7 +10,10 @@ void VehicleConfig::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_center_of_mass_offset", "offset"), &VehicleConfig::set_center_of_mass_offset);
 	ClassDB::bind_method(D_METHOD("get_center_of_mass_offset"), &VehicleConfig::get_center_of_mass_offset);
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3, "center_of_mass_offset"), "set_center_of_mass_offset", "get_center_of_mass_offset");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::VECTOR3, "center_of_mass_offset"), "set_center_of_mass_offset",
+			"get_center_of_mass_offset"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_mass", "mass"), &VehicleConfig::set_mass);
 	ClassDB::bind_method(D_METHOD("get_mass"), &VehicleConfig::get_mass);
@@ -34,7 +37,9 @@ void VehicleConfig::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_max_steer_angle_deg", "angle"), &VehicleConfig::set_max_steer_angle_deg);
 	ClassDB::bind_method(D_METHOD("get_max_steer_angle_deg"), &VehicleConfig::get_max_steer_angle_deg);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_steer_angle_deg"), "set_max_steer_angle_deg", "get_max_steer_angle_deg");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "max_steer_angle_deg"), "set_max_steer_angle_deg", "get_max_steer_angle_deg"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_base_grip", "grip"), &VehicleConfig::set_base_grip);
 	ClassDB::bind_method(D_METHOD("get_base_grip"), &VehicleConfig::get_base_grip);
@@ -46,11 +51,19 @@ void VehicleConfig::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_drift_speed_threshold", "speed"), &VehicleConfig::set_drift_speed_threshold);
 	ClassDB::bind_method(D_METHOD("get_drift_speed_threshold"), &VehicleConfig::get_drift_speed_threshold);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_speed_threshold"), "set_drift_speed_threshold", "get_drift_speed_threshold");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "drift_speed_threshold"), "set_drift_speed_threshold",
+			"get_drift_speed_threshold"
+	);
 
-	ClassDB::bind_method(D_METHOD("set_drift_steering_threshold", "steer"), &VehicleConfig::set_drift_steering_threshold);
+	ClassDB::bind_method(
+			D_METHOD("set_drift_steering_threshold", "steer"), &VehicleConfig::set_drift_steering_threshold
+	);
 	ClassDB::bind_method(D_METHOD("get_drift_steering_threshold"), &VehicleConfig::get_drift_steering_threshold);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_steering_threshold"), "set_drift_steering_threshold", "get_drift_steering_threshold");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "drift_steering_threshold"), "set_drift_steering_threshold",
+			"get_drift_steering_threshold"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_downforce", "force"), &VehicleConfig::set_downforce);
 	ClassDB::bind_method(D_METHOD("get_downforce"), &VehicleConfig::get_downforce);
@@ -62,31 +75,54 @@ void VehicleConfig::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_velocity_alignment", "alignment"), &VehicleConfig::set_velocity_alignment);
 	ClassDB::bind_method(D_METHOD("get_velocity_alignment"), &VehicleConfig::get_velocity_alignment);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "velocity_alignment"), "set_velocity_alignment", "get_velocity_alignment");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "velocity_alignment"), "set_velocity_alignment", "get_velocity_alignment"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_show_debug_velocity", "show"), &VehicleConfig::set_show_debug_velocity);
 	ClassDB::bind_method(D_METHOD("get_show_debug_velocity"), &VehicleConfig::get_show_debug_velocity);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_debug_velocity"), "set_show_debug_velocity", "get_show_debug_velocity");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::BOOL, "show_debug_velocity"), "set_show_debug_velocity", "get_show_debug_velocity"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_debug_velocity_scale", "scale"), &VehicleConfig::set_debug_velocity_scale);
 	ClassDB::bind_method(D_METHOD("get_debug_velocity_scale"), &VehicleConfig::get_debug_velocity_scale);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "debug_velocity_scale"), "set_debug_velocity_scale", "get_debug_velocity_scale");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "debug_velocity_scale"), "set_debug_velocity_scale", "get_debug_velocity_scale"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_debug_velocity_width", "width"), &VehicleConfig::set_debug_velocity_width);
 	ClassDB::bind_method(D_METHOD("get_debug_velocity_width"), &VehicleConfig::get_debug_velocity_width);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "debug_velocity_width"), "set_debug_velocity_width", "get_debug_velocity_width");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "debug_velocity_width"), "set_debug_velocity_width", "get_debug_velocity_width"
+	);
 
-	ClassDB::bind_method(D_METHOD("set_drift_steer_torque_multiplier", "val"), &VehicleConfig::set_drift_steer_torque_multiplier);
-	ClassDB::bind_method(D_METHOD("get_drift_steer_torque_multiplier"), &VehicleConfig::get_drift_steer_torque_multiplier);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_steer_torque_multiplier"), "set_drift_steer_torque_multiplier", "get_drift_steer_torque_multiplier");
+	ClassDB::bind_method(
+			D_METHOD("set_drift_steer_torque_multiplier", "val"), &VehicleConfig::set_drift_steer_torque_multiplier
+	);
+	ClassDB::bind_method(
+			D_METHOD("get_drift_steer_torque_multiplier"), &VehicleConfig::get_drift_steer_torque_multiplier
+	);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "drift_steer_torque_multiplier"), "set_drift_steer_torque_multiplier",
+			"get_drift_steer_torque_multiplier"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_drift_slowdown_factor", "val"), &VehicleConfig::set_drift_slowdown_factor);
 	ClassDB::bind_method(D_METHOD("get_drift_slowdown_factor"), &VehicleConfig::get_drift_slowdown_factor);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_slowdown_factor"), "set_drift_slowdown_factor", "get_drift_slowdown_factor");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "drift_slowdown_factor"), "set_drift_slowdown_factor",
+			"get_drift_slowdown_factor"
+	);
 
-	ClassDB::bind_method(D_METHOD("set_drift_boost_max_speed_bonus", "val"), &VehicleConfig::set_drift_boost_max_speed_bonus);
+	ClassDB::bind_method(
+			D_METHOD("set_drift_boost_max_speed_bonus", "val"), &VehicleConfig::set_drift_boost_max_speed_bonus
+	);
 	ClassDB::bind_method(D_METHOD("get_drift_boost_max_speed_bonus"), &VehicleConfig::get_drift_boost_max_speed_bonus);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "drift_boost_max_speed_bonus"), "set_drift_boost_max_speed_bonus", "get_drift_boost_max_speed_bonus");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "drift_boost_max_speed_bonus"), "set_drift_boost_max_speed_bonus",
+			"get_drift_boost_max_speed_bonus"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_nitro_max_fuel", "val"), &VehicleConfig::set_nitro_max_fuel);
 	ClassDB::bind_method(D_METHOD("get_nitro_max_fuel"), &VehicleConfig::get_nitro_max_fuel);
@@ -98,7 +134,9 @@ void VehicleConfig::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_nitro_depletion_rate", "val"), &VehicleConfig::set_nitro_depletion_rate);
 	ClassDB::bind_method(D_METHOD("get_nitro_depletion_rate"), &VehicleConfig::get_nitro_depletion_rate);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "nitro_depletion_rate"), "set_nitro_depletion_rate", "get_nitro_depletion_rate");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "nitro_depletion_rate"), "set_nitro_depletion_rate", "get_nitro_depletion_rate"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_roll_influence", "val"), &VehicleConfig::set_roll_influence);
 	ClassDB::bind_method(D_METHOD("get_roll_influence"), &VehicleConfig::get_roll_influence);
@@ -110,7 +148,10 @@ void VehicleConfig::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_wheel_configs", "configs"), &VehicleConfig::set_wheel_configs);
 	ClassDB::bind_method(D_METHOD("get_wheel_configs"), &VehicleConfig::get_wheel_configs);
-	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "wheel_configs", PROPERTY_HINT_ARRAY_TYPE, "WheelConfig"), "set_wheel_configs", "get_wheel_configs");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::ARRAY, "wheel_configs", PROPERTY_HINT_ARRAY_TYPE, "WheelConfig"), "set_wheel_configs",
+			"get_wheel_configs"
+	);
 }
 
 VehicleConfig::VehicleConfig() {
@@ -133,32 +174,19 @@ VehicleConfig::VehicleConfig() {
 	wheel_configs.push_back(rr_wheel);
 }
 
-VehicleConfig::~VehicleConfig() {
-}
+VehicleConfig::~VehicleConfig() {}
 
-void VehicleConfig::set_chassis_size(const Vector3 &p_size) {
-	chassis_size = p_size;
-}
+void VehicleConfig::set_chassis_size(const Vector3 &p_size) { chassis_size = p_size; }
 
-Vector3 VehicleConfig::get_chassis_size() const {
-	return chassis_size;
-}
+Vector3 VehicleConfig::get_chassis_size() const { return chassis_size; }
 
-void VehicleConfig::set_center_of_mass_offset(const Vector3 &p_offset) {
-	center_of_mass_offset = p_offset;
-}
+void VehicleConfig::set_center_of_mass_offset(const Vector3 &p_offset) { center_of_mass_offset = p_offset; }
 
-Vector3 VehicleConfig::get_center_of_mass_offset() const {
-	return center_of_mass_offset;
-}
+Vector3 VehicleConfig::get_center_of_mass_offset() const { return center_of_mass_offset; }
 
-void VehicleConfig::set_mass(float p_mass) {
-	mass = p_mass;
-}
+void VehicleConfig::set_mass(float p_mass) { mass = p_mass; }
 
-float VehicleConfig::get_mass() const {
-	return mass;
-}
+float VehicleConfig::get_mass() const { return mass; }
 
 void VehicleConfig::set_max_speed(float p_val) { max_speed = p_val; }
 float VehicleConfig::get_max_speed() const { return max_speed; }
@@ -229,12 +257,8 @@ float VehicleConfig::get_roll_influence() const { return roll_influence; }
 void VehicleConfig::set_pitch_influence(float p_val) { pitch_influence = p_val; }
 float VehicleConfig::get_pitch_influence() const { return pitch_influence; }
 
-void VehicleConfig::set_wheel_configs(const TypedArray<WheelConfig> &p_configs) {
-	wheel_configs = p_configs;
-}
+void VehicleConfig::set_wheel_configs(const TypedArray<WheelConfig> &p_configs) { wheel_configs = p_configs; }
 
-TypedArray<WheelConfig> VehicleConfig::get_wheel_configs() const {
-	return wheel_configs;
-}
+TypedArray<WheelConfig> VehicleConfig::get_wheel_configs() const { return wheel_configs; }
 
 } // namespace godot

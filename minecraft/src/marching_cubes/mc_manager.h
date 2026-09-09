@@ -24,7 +24,8 @@ class Camera3D;
 class QuadMesh;
 
 class MCManager : public Node3D {
-	GDCLASS(MCManager, Node3D)
+	GDCLASS(MCManager,
+			Node3D)
 
 public:
 	struct MCUI {
@@ -123,7 +124,10 @@ public:
 	void save_terrain(const String &p_path);
 	void load_terrain(const String &p_path);
 	void _initialize_previews();
-	void _update_hover_box(const Vector3i &p_grid_pos, bool p_is_blocked);
+	void _update_hover_box(
+			const Vector3i &p_grid_pos,
+			bool p_is_blocked
+	);
 	void _update_hover_raycast();
 	uint8_t _get_cell_hash(const Vector3i &p_grid_pos);
 };

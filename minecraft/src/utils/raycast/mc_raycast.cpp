@@ -12,7 +12,10 @@
 
 namespace godot {
 
-MCRay get_ray_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos) {
+MCRay get_ray_from_mouse(
+		Node3D *p_context,
+		const Vector2 &p_mouse_pos
+) {
 	MCRay ray;
 	if (!p_context || !p_context->is_inside_tree()) {
 		return ray;
@@ -33,7 +36,13 @@ MCRay get_ray_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos) {
 	return ray;
 }
 
-MCRaycastHit raycast_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos, uint32_t p_mask, float p_dist, const TypedArray<RID> &p_exclude) {
+MCRaycastHit raycast_from_mouse(
+		Node3D *p_context,
+		const Vector2 &p_mouse_pos,
+		uint32_t p_mask,
+		float p_dist,
+		const TypedArray<RID> &p_exclude
+) {
 	MCRay ray = get_ray_from_mouse(p_context, p_mouse_pos);
 	if (ray.normal.is_zero_approx()) {
 		return MCRaycastHit();
@@ -43,7 +52,13 @@ MCRaycastHit raycast_from_mouse(Node3D *p_context, const Vector2 &p_mouse_pos, u
 	return raycast_3d(p_context, ray.origin, to, p_mask, p_exclude);
 }
 
-MCRaycastHit raycast_3d(Node3D *p_context, const Vector3 &p_from, const Vector3 &p_to, uint32_t p_mask, const TypedArray<RID> &p_exclude) {
+MCRaycastHit raycast_3d(
+		Node3D *p_context,
+		const Vector3 &p_from,
+		const Vector3 &p_to,
+		uint32_t p_mask,
+		const TypedArray<RID> &p_exclude
+) {
 	MCRaycastHit hit;
 
 	if (!p_context || !p_context->is_inside_tree()) {
@@ -78,7 +93,15 @@ MCRaycastHit raycast_3d(Node3D *p_context, const Vector3 &p_from, const Vector3 
 	return hit;
 }
 
-MCRaycastHit spherecast_3d(Node3D *p_context, const Vector3 &p_start, const Vector3 &p_direction, float p_dist, float p_radius, uint32_t p_mask, const TypedArray<RID> &p_exclude) {
+MCRaycastHit spherecast_3d(
+		Node3D *p_context,
+		const Vector3 &p_start,
+		const Vector3 &p_direction,
+		float p_dist,
+		float p_radius,
+		uint32_t p_mask,
+		const TypedArray<RID> &p_exclude
+) {
 	MCRaycastHit hit;
 
 	if (!p_context || !p_context->is_inside_tree()) {
@@ -103,24 +126,24 @@ MCRaycastHit spherecast_3d(Node3D *p_context, const Vector3 &p_start, const Vect
 	params->set_transform(Transform3D(Basis(), p_start));
 	params->set_motion(p_direction * p_dist);
 	params->set_collision_mask(p_mask);
-	
+
 	if (p_exclude.size() > 0) {
 		params->set_exclude(p_exclude);
 	}
-	
+
 	// Use small margin for stability
 	params->set_margin(0.01f);
 
 	PackedFloat32Array cast_result = space_state->cast_motion(params);
-	
+
 	if (cast_result.size() >= 2 && cast_result[0] < 1.0f) {
 		// Hit something
 		hit.is_hit = true;
-		
+
 		// Move shape to contact point for rest info querying
 		Vector3 contact_point = p_start + p_direction * (p_dist * cast_result[0]);
 		params->set_transform(Transform3D(Basis(), contact_point));
-		
+
 		Dictionary rest_info = space_state->get_rest_info(params);
 		if (!rest_info.is_empty()) {
 			hit.position = rest_info["point"];
@@ -138,7 +161,13 @@ MCRaycastHit spherecast_3d(Node3D *p_context, const Vector3 &p_start, const Vect
 	return hit;
 }
 
-MCRaycastHit raycast_from_event(Node3D *p_context, const Ref<InputEvent> &p_event, uint32_t p_mask, float p_dist, const TypedArray<RID> &p_exclude) {
+MCRaycastHit raycast_from_event(
+		Node3D *p_context,
+		const Ref<InputEvent> &p_event,
+		uint32_t p_mask,
+		float p_dist,
+		const TypedArray<RID> &p_exclude
+) {
 	Ref<InputEventMouse> mouse_event = p_event;
 	if (mouse_event.is_null()) {
 		return MCRaycastHit();

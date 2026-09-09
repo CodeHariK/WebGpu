@@ -5,7 +5,14 @@
 
 namespace godot {
 
-SurfaceNets::MeshData SurfaceNets::generate_mesh(const SNGrid *p_grid, const Vector3i &p_chunk_loc, const Vector3i &p_chunk_size, SurfaceNetsBuffer &p_buffer, bool p_cell_center, bool p_smooth_normal) {
+SurfaceNets::MeshData SurfaceNets::generate_mesh(
+		const SNGrid *p_grid,
+		const Vector3i &p_chunk_loc,
+		const Vector3i &p_chunk_size,
+		SurfaceNetsBuffer &p_buffer,
+		bool p_cell_center,
+		bool p_smooth_normal
+) {
 	Vector3i start_cell = p_chunk_loc * p_chunk_size - Vector3i(1, 1, 1);
 	Vector3i end_cell = (p_chunk_loc + Vector3i(1, 1, 1)) * p_chunk_size;
 	Vector3i cache_end = end_cell + Vector3i(1, 1, 1);
@@ -32,14 +39,8 @@ SurfaceNets::MeshData SurfaceNets::generate_mesh(const SNGrid *p_grid, const Vec
 
 	const int cell_edges[12][2] = {
 		{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 0 }, // Bottom face
-		{ 4, 5 },
-		{ 5, 6 },
-		{ 6, 7 },
-		{ 7, 4 }, // Top face
-		{ 0, 4 },
-		{ 1, 5 },
-		{ 2, 6 },
-		{ 3, 7 } // Vertical edges
+		{ 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 4 }, // Top face
+		{ 0, 4 }, { 1, 5 }, { 2, 6 }, { 3, 7 } // Vertical edges
 	};
 
 	// 1. Cache all density values for the volume to minimize grid checks

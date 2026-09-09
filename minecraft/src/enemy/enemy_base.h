@@ -7,14 +7,15 @@
 namespace godot {
 
 class EnemyBase : public CharacterBody3D {
-	GDCLASS(EnemyBase, CharacterBody3D)
+	GDCLASS(EnemyBase,
+			CharacterBody3D)
 
 private:
 	String enemy_kind = "Thug";
 
 protected:
 	static void _bind_methods();
-	
+
 	float health = 3.0f;
 	float max_health = 3.0f;
 	bool is_dead = false;

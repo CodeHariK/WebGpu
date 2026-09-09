@@ -9,12 +9,16 @@ void CameraStateFixed::enter(GameCamera *p_camera) {
 	Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
 }
 
-void CameraStateFixed::update(GameCamera *p_camera, float p_delta) {
+void CameraStateFixed::update(
+		GameCamera *p_camera,
+		float p_delta
+) {
 	// 1. Position Calculation
-	Vector3 raw_pivot = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_position() : p_camera->get_global_position();
-	
+	Vector3 raw_pivot = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_position()
+															 : p_camera->get_global_position();
+
 	// A standard top-down offset if none is specified
-	Vector3 offset = Vector3(0, 12, 12); 
+	Vector3 offset = Vector3(0, 12, 12);
 	if (p_camera->get_follow_offset().length_squared() > 0.001f) {
 		offset = p_camera->get_follow_offset();
 	}

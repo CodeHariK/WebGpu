@@ -8,7 +8,12 @@ namespace godot {
 void RoadGenerator::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_interpolation_mode", "mode"), &RoadGenerator::set_interpolation_mode);
 	ClassDB::bind_method(D_METHOD("get_interpolation_mode"), &RoadGenerator::get_interpolation_mode);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "interpolation_mode", PROPERTY_HINT_ENUM, "Linear,Cubic,BSpline,CatmullRom,Natural"), "set_interpolation_mode", "get_interpolation_mode");
+	ADD_PROPERTY(
+			PropertyInfo(
+					Variant::INT, "interpolation_mode", PROPERTY_HINT_ENUM, "Linear,Cubic,BSpline,CatmullRom,Natural"
+			),
+			"set_interpolation_mode", "get_interpolation_mode"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_scale", "scale"), &RoadGenerator::set_scale);
 	ClassDB::bind_method(D_METHOD("get_scale"), &RoadGenerator::get_scale);
@@ -16,7 +21,10 @@ void RoadGenerator::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_distance_between_planks", "dist"), &RoadGenerator::set_distance_between_planks);
 	ClassDB::bind_method(D_METHOD("get_distance_between_planks"), &RoadGenerator::get_distance_between_planks);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "distance_between_planks"), "set_distance_between_planks", "get_distance_between_planks");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "distance_between_planks"), "set_distance_between_planks",
+			"get_distance_between_planks"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_show_debug_points", "show"), &RoadGenerator::set_show_debug_points);
 	ClassDB::bind_method(D_METHOD("get_show_debug_points"), &RoadGenerator::get_show_debug_points);
@@ -29,11 +37,9 @@ void RoadGenerator::_bind_methods() {
 	BIND_ENUM_CONSTANT(NATURAL);
 }
 
-RoadGenerator::RoadGenerator() {
-}
+RoadGenerator::RoadGenerator() {}
 
-RoadGenerator::~RoadGenerator() {
-}
+RoadGenerator::~RoadGenerator() {}
 
 void RoadGenerator::_ready() {
 	debug_path = Object::cast_to<Path3D>(get_node_or_null("DebugPath"));
@@ -51,7 +57,7 @@ void RoadGenerator::_ready() {
 		plank_multimesh->set_name("MultiMeshInstance3D");
 		add_child(plank_multimesh);
 		plank_multimesh->set_owner(get_owner());
-		
+
 		Ref<MultiMesh> mm;
 		mm.instantiate();
 		mm->set_transform_format(MultiMesh::TRANSFORM_3D);
@@ -72,13 +78,16 @@ void RoadGenerator::_process(double delta) {
 }
 
 void RoadGenerator::_update_curve() {
-	if (!debug_path) return;
+	if (!debug_path)
+		return;
 
 	Ref<Curve3D> source_curve = get_curve();
-	if (source_curve.is_null()) return;
+	if (source_curve.is_null())
+		return;
 
 	int point_count = source_curve->get_point_count();
-	if (point_count < 2) return;
+	if (point_count < 2)
+		return;
 
 	Ref<Curve3D> new_curve;
 	new_curve.instantiate();
@@ -121,16 +130,23 @@ void RoadGenerator::_update_curve() {
 			break;
 		}
 		case BSPLINE: {
-			if (point_count < 4) break;
+			if (point_count < 4)
+				break;
 			int segments = point_count - 3;
 			int samples_per_segment = 10;
 			for (int i = 0; i < segments; ++i) {
 				for (int j = 0; j < samples_per_segment; ++j) {
 					float t = (float)j / (float)samples_per_segment;
-					new_curve->add_point(BSplineCurve::evaluate_cubic(points[i], points[i+1], points[i+2], points[i+3], t));
+					new_curve->add_point(
+							BSplineCurve::evaluate_cubic(points[i], points[i + 1], points[i + 2], points[i + 3], t)
+					);
 				}
 			}
-			new_curve->add_point(BSplineCurve::evaluate_cubic(points[segments-1], points[segments], points[segments+1], points[segments+2], 1.0f));
+			new_curve->add_point(
+					BSplineCurve::evaluate_cubic(
+							points[segments - 1], points[segments], points[segments + 1], points[segments + 2], 1.0f
+					)
+			);
 			break;
 		}
 		case NATURAL: {
@@ -153,13 +169,16 @@ void RoadGenerator::_update_curve() {
 }
 
 void RoadGenerator::_update_planks() {
-	if (!debug_path || !plank_multimesh) return;
+	if (!debug_path || !plank_multimesh)
+		return;
 
 	Ref<Curve3D> curve = debug_path->get_curve();
-	if (curve.is_null()) return;
+	if (curve.is_null())
+		return;
 
 	Ref<MultiMesh> mm = plank_multimesh->get_multimesh();
-	if (mm.is_null()) return;
+	if (mm.is_null())
+		return;
 
 	float path_length = curve->get_baked_length();
 	int count = (int)Math::floor(path_length / distance_between_planks);
@@ -193,35 +212,27 @@ void RoadGenerator::set_interpolation_mode(CurveInterpolation p_mode) {
 	is_dirty = true;
 }
 
-RoadGenerator::CurveInterpolation RoadGenerator::get_interpolation_mode() const {
-	return interpolation_mode;
-}
+RoadGenerator::CurveInterpolation RoadGenerator::get_interpolation_mode() const { return interpolation_mode; }
 
 void RoadGenerator::set_scale(float p_scale) {
 	scale = p_scale;
 	is_dirty = true;
 }
 
-float RoadGenerator::get_scale() const {
-	return scale;
-}
+float RoadGenerator::get_scale() const { return scale; }
 
 void RoadGenerator::set_distance_between_planks(float p_dist) {
 	distance_between_planks = p_dist;
 	is_dirty = true;
 }
 
-float RoadGenerator::get_distance_between_planks() const {
-	return distance_between_planks;
-}
+float RoadGenerator::get_distance_between_planks() const { return distance_between_planks; }
 
 void RoadGenerator::set_show_debug_points(bool p_show) {
 	show_debug_points = p_show;
 	is_dirty = true;
 }
 
-bool RoadGenerator::get_show_debug_points() const {
-	return show_debug_points;
-}
+bool RoadGenerator::get_show_debug_points() const { return show_debug_points; }
 
 } // namespace godot

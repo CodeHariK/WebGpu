@@ -81,7 +81,10 @@ void OCInteractor::_physics_process(double delta) {
 		if (held_ing && dm) {
 			OCStation *target = om->get_closest_station_for_ingredient(get_global_position(), held_ing);
 			if (target) {
-				dm->draw_text("target_highlight", "GO HERE", target->get_global_position() + Vector3(0, 2.5f, 0), 0.001f, Color(0, 1, 0));
+				dm->draw_text(
+						"target_highlight", "GO HERE", target->get_global_position() + Vector3(0, 2.5f, 0), 0.001f,
+						Color(0, 1, 0)
+				);
 			}
 		}
 
@@ -97,7 +100,10 @@ void OCInteractor::_physics_process(double delta) {
 			}
 
 			if (nearby_ing) {
-				dm->draw_text("plate_add_prompt", "[G] to add to plate", get_global_position() + Vector3(0, 2.5f, 0), 0.001f, Color(0, 1, 1));
+				dm->draw_text(
+						"plate_add_prompt", "[G] to add to plate", get_global_position() + Vector3(0, 2.5f, 0), 0.001f,
+						Color(0, 1, 1)
+				);
 			} else {
 				dm->clear_text("plate_add_prompt");
 			}
@@ -137,7 +143,10 @@ void OCInteractor::_physics_process(double delta) {
 			}
 
 			if (prompt != "" && dm) {
-				dm->draw_text("interact_prompt", prompt, station->get_global_position() + Vector3(0, 2.0f, 0), 0.001f, Color(1, 1, 0));
+				dm->draw_text(
+						"interact_prompt", prompt, station->get_global_position() + Vector3(0, 2.0f, 0), 0.001f,
+						Color(1, 1, 0)
+				);
 			}
 		}
 	}

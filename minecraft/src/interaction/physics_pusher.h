@@ -6,7 +6,8 @@
 namespace godot {
 
 class PhysicsPusher : public Node {
-	GDCLASS(PhysicsPusher, Node)
+	GDCLASS(PhysicsPusher,
+			Node)
 
 private:
 	float push_force = 5.0f;

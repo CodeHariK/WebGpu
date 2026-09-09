@@ -31,7 +31,10 @@ void CelesteController::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_ui_toggle"), &CelesteController::_on_ui_toggle);
 	ClassDB::bind_method(D_METHOD("save_settings"), &CelesteController::save_settings);
 	ClassDB::bind_method(D_METHOD("load_settings"), &CelesteController::load_settings);
-	ClassDB::bind_method(D_METHOD("_on_ui_slider_value_changed", "value", "property"), &CelesteController::_on_ui_slider_value_changed);
+	ClassDB::bind_method(
+			D_METHOD("_on_ui_slider_value_changed", "value", "property"),
+			&CelesteController::_on_ui_slider_value_changed
+	);
 	ClassDB::bind_method(D_METHOD("get_speed_percent"), &CelesteController::get_speed_percent);
 }
 
@@ -234,7 +237,9 @@ void CelesteController::_physics_process(double delta) {
 #if DEBUG
 		DebugManager::get_singleton()->clear_line("forward_ray");
 		if (forward_speed > 0.5f && is_obstacle) {
-			DebugManager::get_singleton()->draw_line("forward_ray", bottom + Vector3(0, 0.2f, 0), f_hit.position, 0.1f, Color(1, 1, 0), 0.1f);
+			DebugManager::get_singleton()->draw_line(
+					"forward_ray", bottom + Vector3(0, 0.2f, 0), f_hit.position, 0.1f, Color(1, 1, 0), 0.1f
+			);
 		}
 #endif
 
@@ -282,11 +287,13 @@ void CelesteController::_physics_process(double delta) {
 			// }
 
 #if DEBUG
-			// DebugManager::get_singleton()->draw_line("hover_ray", ray_origin, b_hit.position, 0.05f, Color(1, 0, 1, 0.8f), 0.1f);
+			// DebugManager::get_singleton()->draw_line("hover_ray", ray_origin, b_hit.position, 0.05f, Color(1, 0, 1,
+			// 0.8f), 0.1f);
 
 			// // Draw velocity vector
 			// Vector3 current_vel = get_velocity();
-			// DebugManager::get_singleton()->draw_line("velocity_vec", get_global_position(), get_global_position() + current_vel * 0.5f, 0.1f, Color(0, 1, 0), 0.1f);
+			// DebugManager::get_singleton()->draw_line("velocity_vec", get_global_position(), get_global_position() +
+			// current_vel * 0.5f, 0.1f, Color(0, 1, 0), 0.1f);
 #endif
 		}
 	}
@@ -314,7 +321,10 @@ void CelesteController::_physics_process(double delta) {
 #endif
 }
 
-void CelesteController::_on_ui_slider_value_changed(double p_value, String p_property) {
+void CelesteController::_on_ui_slider_value_changed(
+		double p_value,
+		String p_property
+) {
 	if (ui_vars.count(p_property)) {
 		*ui_vars[p_property] = (float)p_value;
 
@@ -412,7 +422,10 @@ Node3D *CelesteController::_find_melee_target() {
 	return em->get_best_target(get_global_position(), input_dir, melee_range);
 }
 
-Vector3 CelesteController::_collide_and_slide(const Vector3 &p_velocity, const Vector3 &p_normal) {
+Vector3 CelesteController::_collide_and_slide(
+		const Vector3 &p_velocity,
+		const Vector3 &p_normal
+) {
 	float dot = p_velocity.dot(p_normal);
 	if (dot < 0.0f) {
 		// Project velocity onto the plane perpendicular to the normal

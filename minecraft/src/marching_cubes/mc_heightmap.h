@@ -9,8 +9,8 @@
 #define MC_HEIGHTMAP_H
 
 #include <godot_cpp/classes/node3d.hpp>
-#include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/noise.hpp>
+#include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
@@ -20,7 +20,8 @@ namespace godot {
 class MCNode;
 
 class MCHeightmap : public Node3D {
-	GDCLASS(MCHeightmap, Node3D)
+	GDCLASS(MCHeightmap,
+			Node3D)
 
 private:
 	// Raw heightmap data containing grid_size.x * grid_size.y byte height values.
@@ -48,16 +49,31 @@ private:
 	Ref<Noise> noise_source;
 
 	// Internal helper to determine if a corner is active at a given coordinates.
-	bool _is_corner_active(int x, int y, int z, const uint8_t *data_ptr) const;
+	bool _is_corner_active(
+			int x,
+			int y,
+			int z,
+			const uint8_t *data_ptr
+	) const;
 
 	// Internal helper to calculate the marching cubes case hash for a cell.
-	uint8_t _get_cell_hash(int x, int y, int z, const uint8_t *data_ptr) const;
+	uint8_t _get_cell_hash(
+			int x,
+			int y,
+			int z,
+			const uint8_t *data_ptr
+	) const;
 
 	// Internal helper to clear all dynamically spawned mesh instances.
 	void _clear_terrain_meshes();
 
 	// Internal helper to spawn a single marching cubes cell mesh at the specified location.
-	void _spawn_cell_mesh(int x, int y, int z, uint8_t hash);
+	void _spawn_cell_mesh(
+			int x,
+			int y,
+			int z,
+			uint8_t hash
+	);
 
 	// Spawns debug spheres at heightmap corner elevations.
 	void _spawn_debug_spheres(const uint8_t *data_ptr);
