@@ -65,6 +65,9 @@ run_mp:
 	$(GODOT) --path project/ --scene scene/marching/prism.tscn
 run_tr:
 	$(GODOT) --path project/ --scene scene/terraspline/chunked_terrain_demo.tscn
+
+run_stylized:
+	$(GODOT) --path project/ --scene scene/stylized/stylized_terrain.tscn
 run_pg:
 	$(GODOT) --path project/ --scene scene/terraspline/procgen.tscn
 run_octo:

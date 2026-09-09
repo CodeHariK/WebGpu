@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://cstyl1terr0a1"]
+
+[sub_resource type="Environment" id="Env"]
+background_mode = 1
+background_color = Color(0.55, 0.76, 0.9, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.72, 0.79, 0.9, 1)
+ambient_light_energy = 0.55
+
+[sub_resource type="StylizedTerrainMesh" id="TerrainMesh"]
+seed = 7
+size = Vector2(160, 160)
+height_scale = 30.0
+island_falloff = 0.72
+low_color = Color(0.44, 0.56, 0.24, 1)
+high_color = Color(0.78, 0.82, 0.5, 1)
+edge_color = Color(0.82, 0.75, 0.52, 1)
+
+[node name="StylizedDemo" type="Node3D" unique_id=1363763033]
+
+[node name="GameManager" type="GameManager" parent="." unique_id=552739524]
+
+[node name="GameCamera" type="GameCamera" parent="." unique_id=1433055666]
+pos_smoothing_enabled = false
+transform = Transform3D(1, 0, 0, 0, 0.81915, 0.57358, 0, -0.57358, 0.81915, 0, 105, 150)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=275206445]
+environment = SubResource("Env")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=75511614]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 120, 0)
+light_energy = 1.5
+shadow_enabled = true
+
+[node name="StylizedTerrain" type="StylizedTerrain" parent="." unique_id=1211461735]
+terrain_mesh = SubResource("TerrainMesh")

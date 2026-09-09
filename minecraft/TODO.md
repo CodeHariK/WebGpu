@@ -164,6 +164,35 @@ Area3D base with car / player filtering. Build those three first; the rest are m
 
 - [ ] Procedural map generator: roads from a graph, rivers by downhill walk on the noise,
       mountains as blobs, towns as arrays → emits splines only
+- [ ] StylizedTerrain (self-generated, no Terrain3D — `src/terrain/stylized/Stylized.md`): terraced
+      (marching-squares contour extract → extrude, `get_contours()` exposes the loops) + faceted done
+      (`make run_stylized`). Next up:
+      - [ ] Spline-deformer shaping: drive the height field with placed `ProceduralSpline3D` +
+            `TerrainSplineDeformer` (reuse `blend_height` + `evaluate_spline_point_segmented`) so roads /
+            cliffs / lakes / painter tooling work on this backend as they do on Terrain3D
+      - [ ] Chunked streaming around the player (as the TerraSpline compositor does) instead of one patch
+      - [ ] Cap cleanup: min-area cull for the tiny single-cell nubs where height just tips a band
+      - More styles on the same generator (all heightmap, no overhangs, mobile-cheap):
+      - [ ] Faceted low-poly hills (Alto's Odyssey / Monument Valley): smooth noise, vertices snapped to a
+            coarse grid, flat-shaded (per-tri normals) — no quantization, big flat tris catching light.
+            Cheapest stylization; basic version already the `terrace=false` path, add coarse-snap control
+      - [ ] Hex / tile plateaus (Islanders / board-game): sample the field on a hex or square lattice,
+            flatten each cell to one quantized height, short vertical sides — terracing at 1-cell res;
+            placement / turn-based feel. Borrow lattice topology from `marching_prism`
+      - [ ] Mesa / plateau sculpting (BOTW Great Plateau / Odyssey): keep smooth terrain but clamp slope —
+            flatten below a threshold, steepen above — flat meadows meeting near-vertical walls. Natural
+            partner to `TerrainSplineCliff` (gives it flat tops to hang walls off). NOTE: pure slope-clamp
+            just rounds smooth fbm (no walls to keep); the look needs the steps created — e.g. quantize
+            with a slow per-region height offset (varied-height plateaus) + a bilateral flatten of the tops
+      - [ ] Dunes / ridged desert (Journey): feed the existing ridged fbm (`prop_geometry.h`) into the
+            field for sharp ridges / soft troughs; sand shading via a slope/height gradient. Nearly free
+      - [ ] Painterly banded slopes (Ghibli / Wind Waker): smooth hills, colour by height + slope bands in
+            the shader (grass low, rock on steep faces, snow high) as flat cel bands not blends. A shared
+            material layer over any style, not a separate terrain
+      - [ ] Patchwork farmland (Animal Crossing / Stardew): gentle terrace steps + checkerboard/field cell
+            tint for cultivated land — the lived-in village look
+      - [ ] Floating shelf islands (Skyward Sword): discrete heightmap patches with a skirt/flat bottom,
+            separated by gaps — no overhangs, just island chunks at different elevations; distinct zones
 - [ ] Cliff extras: caprock/grass overhang over the wall, darker crack strips at column boundaries,
       finer columns preset, tunnels/portals through a cliff wall (skip wall between two arc lengths)
 - [ ] Scatter: exclusion from road/river corridors (needs the ribbon's mask), grass via Terrain3D instancer
