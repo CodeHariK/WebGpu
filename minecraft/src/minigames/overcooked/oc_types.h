@@ -46,12 +46,7 @@ struct OCRecipeRequirement {
 	IngredientState state;
 };
 
-enum ProcessOperation : uint8_t {
-	PROCESS_NONE = 0,
-	PROCESS_CUT,
-	PROCESS_COOK,
-	PROCESS_BLEND
-};
+enum ProcessOperation : uint8_t { PROCESS_NONE = 0, PROCESS_CUT, PROCESS_COOK, PROCESS_BLEND };
 
 struct OCProcessStep {
 	IngredientState input_state;

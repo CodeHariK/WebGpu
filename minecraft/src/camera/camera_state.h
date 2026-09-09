@@ -17,7 +17,9 @@ public:
 	virtual void enter(GameCamera *p_camera) {}
 	virtual void exit(GameCamera *p_camera) {}
 
-	virtual void update(GameCamera *p_camera, float p_delta) = 0;
+	virtual void
+	update(GameCamera *p_camera,
+		   float p_delta) = 0;
 };
 
 } // namespace godot

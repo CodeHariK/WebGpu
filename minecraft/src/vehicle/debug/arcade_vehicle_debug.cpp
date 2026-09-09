@@ -19,7 +19,9 @@ void ArcadeVehicle::_update_debug_arrows() {
 	}
 
 	Vector3 text_pos = trans.xform(Vector3(0.0f, 1.5f, 0.0f));
-	String txt = String::num(get_input().steering) + " + " + current_state->state_name + " : (" + String::num(current_vel.x, 1) + " | " + String::num(current_vel.y, 1) + " | " + String::num(current_vel.z, 1) + ") ";
+	String txt = String::num(get_input().steering) + " + " + current_state->state_name + " : (" +
+			String::num(current_vel.x, 1) + " | " + String::num(current_vel.y, 1) + " | " +
+			String::num(current_vel.z, 1) + ") ";
 
 	if (is_drifting) {
 		txt += "DRIFT NITRO: " + String::num(nitro_fuel, 1) + "%";

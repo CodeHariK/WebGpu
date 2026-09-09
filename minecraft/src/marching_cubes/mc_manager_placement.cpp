@@ -89,9 +89,9 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 			if (parent_node) {
 				Vector3 hit_pos = parent_node->get_position();
 				grid_pos = Vector3i(
-						static_cast<int32_t>(Math::round(hit_pos.x)),
-						static_cast<int32_t>(Math::round(hit_pos.y)),
-						static_cast<int32_t>(Math::round(hit_pos.z)));
+						static_cast<int32_t>(Math::round(hit_pos.x)), static_cast<int32_t>(Math::round(hit_pos.y)),
+						static_cast<int32_t>(Math::round(hit_pos.z))
+				);
 			}
 		}
 
@@ -116,7 +116,8 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 			} else if (interaction_mode == MODE_DRAG_OBJECT) {
 				// 2. DRAG OBJECT MODE (PICK UP & SELECTION)
 				if (!is_dragging) {
-					MeshInstance3D *clicked_mi = target_object_node ? Object::cast_to<MeshInstance3D>(target_object_node) : nullptr;
+					MeshInstance3D *clicked_mi =
+							target_object_node ? Object::cast_to<MeshInstance3D>(target_object_node) : nullptr;
 					bool shift = mouse_event->is_shift_pressed();
 
 					if (clicked_mi) {
@@ -190,7 +191,8 @@ void MCManager::_input(const Ref<InputEvent> &p_event) {
 				}
 			} else if (interaction_mode == MODE_TERRAIN) {
 				// 3. TERRAIN MODE: Activate neighbor
-				Vector3i target_pos = grid_pos + Vector3i(Math::round(hit.normal.x), Math::round(hit.normal.y), Math::round(hit.normal.z));
+				Vector3i target_pos = grid_pos +
+						Vector3i(Math::round(hit.normal.x), Math::round(hit.normal.y), Math::round(hit.normal.z));
 				terrain_node->modify_corner(target_pos, true);
 			}
 		} else if (button_index == MOUSE_BUTTON_RIGHT) {

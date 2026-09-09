@@ -17,8 +17,12 @@ protected:
 	CelesteState *parent = nullptr;
 
 public:
-	CelesteState(CelesteController *p_ctrl, CelesteState *p_parent = nullptr) :
-			controller(p_ctrl), parent(p_parent) {}
+	CelesteState(
+			CelesteController *p_ctrl,
+			CelesteState *p_parent = nullptr
+	) :
+			controller(p_ctrl),
+			parent(p_parent) {}
 	virtual ~CelesteState() {}
 
 	virtual String get_name() const = 0;

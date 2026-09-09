@@ -20,10 +20,15 @@ bool MCGrid::is_corner_active(const Vector3i &p_grid_pos) const {
 	}
 
 	int idx = _get_chunk_index(cx, cy, cz);
-	return chunks[idx].get_corner(p_grid_pos.x - (cx * chunk_size.x), p_grid_pos.y - (cy * chunk_size.y), p_grid_pos.z - (cz * chunk_size.z));
+	return chunks[idx].get_corner(
+			p_grid_pos.x - (cx * chunk_size.x), p_grid_pos.y - (cy * chunk_size.y), p_grid_pos.z - (cz * chunk_size.z)
+	);
 }
 
-bool MCGrid::is_area_blocked_by_grid(const Vector3i &p_dual_grid_pos, const Vector3i &p_size) const {
+bool MCGrid::is_area_blocked_by_grid(
+		const Vector3i &p_dual_grid_pos,
+		const Vector3i &p_size
+) const {
 	for (int y = 0; y <= p_size.y; ++y) {
 		for (int z = 0; z <= p_size.z; ++z) {
 			for (int x = 0; x <= p_size.x; ++x) {
@@ -37,11 +42,12 @@ bool MCGrid::is_area_blocked_by_grid(const Vector3i &p_dual_grid_pos, const Vect
 	return false;
 }
 
-bool MCGrid::is_area_blocked_by_objects(const AABB &p_aabb) const {
-	return spatial.is_area_blocked(p_aabb);
-}
+bool MCGrid::is_area_blocked_by_objects(const AABB &p_aabb) const { return spatial.is_area_blocked(p_aabb); }
 
-void MCGrid::add_placed_object(const Vector3i &p_dual_grid_pos, const Vector3i &p_size) {
+void MCGrid::add_placed_object(
+		const Vector3i &p_dual_grid_pos,
+		const Vector3i &p_size
+) {
 	PlacedObject obj;
 	obj.grid_pos = p_dual_grid_pos;
 	obj.size = p_size;
@@ -59,10 +65,7 @@ void MCGrid::add_placed_object(const Vector3i &p_dual_grid_pos, const Vector3i &
 	mi->set_name("PlacedObject_" + String::num_int64(p_dual_grid_pos.x) + "_" + String::num_int64(p_dual_grid_pos.y));
 
 	// Collision instantiation
-	StaticBody3D *sb = MCPhysics::create_static_box_collider(
-			mi,
-			toLayer(LAYER_OBJECTS),
-			Vector3(p_size));
+	StaticBody3D *sb = MCPhysics::create_static_box_collider(mi, toLayer(LAYER_OBJECTS), Vector3(p_size));
 
 	obj.visual_node = mi;
 	spatial.add_object(obj);

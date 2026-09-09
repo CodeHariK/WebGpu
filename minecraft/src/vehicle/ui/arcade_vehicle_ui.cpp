@@ -16,7 +16,10 @@ namespace godot {
 ArcadeVehicleUI::ArcadeVehicleUI() {}
 ArcadeVehicleUI::~ArcadeVehicleUI() {}
 
-void ArcadeVehicleUI::setup(ArcadeVehicle *p_vehicle, CUI *p_ui_root) {
+void ArcadeVehicleUI::setup(
+		ArcadeVehicle *p_vehicle,
+		CUI *p_ui_root
+) {
 	vehicle = p_vehicle;
 	ui_root = p_ui_root;
 
@@ -77,7 +80,14 @@ void ArcadeVehicleUI::setup(ArcadeVehicle *p_vehicle, CUI *p_ui_root) {
 	}
 }
 
-void ArcadeVehicleUI::_add_variable_slider(Node *p_parent, const String &p_label, const String &p_property, float p_min, float p_max, float p_step) {
+void ArcadeVehicleUI::_add_variable_slider(
+		Node *p_parent,
+		const String &p_label,
+		const String &p_property,
+		float p_min,
+		float p_max,
+		float p_step
+) {
 	HBoxContainer *hbox = ui_root->add_hbox(p_parent, p_property + String("_box"));
 
 	Label *label = ui_root->add_label(hbox, p_label);
@@ -85,9 +95,10 @@ void ArcadeVehicleUI::_add_variable_slider(Node *p_parent, const String &p_label
 
 	float current_val = vehicle->get_ui_var(p_property);
 
-	ui_root->add_hslider(hbox, p_min, p_max, p_step, current_val,
-						 Callable(vehicle, "_on_ui_slider_value_changed").bind(p_property),
-						 p_property);
+	ui_root->add_hslider(
+			hbox, p_min, p_max, p_step, current_val, Callable(vehicle, "_on_ui_slider_value_changed").bind(p_property),
+			p_property
+	);
 }
 
 void ArcadeVehicleUI::toggle_visibility() {
@@ -116,8 +127,6 @@ void ArcadeVehicleUI::update_graph(float p_val) {
 	}
 }
 
-bool ArcadeVehicleUI::is_visible() const {
-	return main_panel && main_panel->is_visible();
-}
+bool ArcadeVehicleUI::is_visible() const { return main_panel && main_panel->is_visible(); }
 
 } // namespace godot

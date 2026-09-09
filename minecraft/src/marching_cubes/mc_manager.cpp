@@ -46,9 +46,7 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_load_terrain"), &MCManager::_on_load_terrain);
 }
 
-MCManager::MCManager() {
-	current_placement_size = Vector3i(2, 3, 4);
-}
+MCManager::MCManager() { current_placement_size = Vector3i(2, 3, 4); }
 
 MCManager::~MCManager() {}
 
@@ -62,13 +60,9 @@ void MCManager::_ready() {
 	set_process(true);
 }
 
-void MCManager::set_mc_node_path(const NodePath &p_path) {
-	mc_node_path = p_path;
-}
+void MCManager::set_mc_node_path(const NodePath &p_path) { mc_node_path = p_path; }
 
-NodePath MCManager::get_mc_node_path() const {
-	return mc_node_path;
-}
+NodePath MCManager::get_mc_node_path() const { return mc_node_path; }
 
 void MCManager::_process(double p_delta) {
 	if (Engine::get_singleton()->is_editor_hint()) {
@@ -84,13 +78,9 @@ void MCManager::_process(double p_delta) {
 	_update_hover_raycast();
 }
 
-NodePath MCManager::get_terrain_path() const {
-	return terrain.path;
-}
+NodePath MCManager::get_terrain_path() const { return terrain.path; }
 
-void MCManager::set_terrain_path(const NodePath &p_path) {
-	terrain.path = p_path;
-}
+void MCManager::set_terrain_path(const NodePath &p_path) { terrain.path = p_path; }
 
 void MCManager::initialize_all() {
 	if (!is_inside_tree()) {
@@ -115,8 +105,10 @@ void MCManager::initialize_all() {
 
 		// 2. Link nodes and trigger Terrain generation
 		terrain_node->set_mc_node(mc_node);
-		terrain_node->initialize_grid(terrain_node->get_grid_size().x, terrain_node->get_grid_size().y, terrain_node->get_grid_size().z,
-									  terrain_node->get_chunk_size().x, terrain_node->get_chunk_size().y, terrain_node->get_chunk_size().z);
+		terrain_node->initialize_grid(
+				terrain_node->get_grid_size().x, terrain_node->get_grid_size().y, terrain_node->get_grid_size().z,
+				terrain_node->get_chunk_size().x, terrain_node->get_chunk_size().y, terrain_node->get_chunk_size().z
+		);
 
 		// 3. Setup UI
 		ui.manager = CUI::create_on_new_layer(this);
@@ -139,13 +131,9 @@ void MCManager::initialize_all() {
 	}
 }
 
-void MCManager::_on_load_terrain() {
-	load_terrain("user://terrain.mct");
-}
+void MCManager::_on_load_terrain() { load_terrain("user://terrain.mct"); }
 
-void MCManager::_on_save_terrain() {
-	save_terrain("user://terrain.mct");
-}
+void MCManager::_on_save_terrain() { save_terrain("user://terrain.mct"); }
 
 void MCManager::save_terrain(const String &p_path) {
 	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));

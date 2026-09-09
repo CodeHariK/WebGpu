@@ -36,7 +36,6 @@ public:
 	void physics_update(float delta) override;
 };
 
-
 } // namespace godot
 
 #endif // CELESTE_AIRBORNE_STATES_H

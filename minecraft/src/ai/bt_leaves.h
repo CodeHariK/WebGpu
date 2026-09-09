@@ -10,7 +10,8 @@ namespace godot {
 
 // BTActionWait
 class BTWait : public BTTask {
-	GDCLASS(BTWait, BTTask)
+	GDCLASS(BTWait,
+			BTTask)
 
 private:
 	float duration = 0.0f;
@@ -34,11 +35,15 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override {
 		elapsed = 0.0f;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override {
 		elapsed += p_actor->get_process_delta_time();
 		if (elapsed >= duration) {
 			return SUCCESS;
@@ -49,7 +54,8 @@ public:
 
 // BTConditionInRange
 class BTIsInRange : public BTTask {
-	GDCLASS(BTIsInRange, BTTask)
+	GDCLASS(BTIsInRange,
+			BTTask)
 
 private:
 	float range = 10.0f;
@@ -72,7 +78,9 @@ public:
 		return node;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override {
 		Node3D *actor3d = Object::cast_to<Node3D>(p_actor);
 		if (!actor3d)
 			return FAILURE;
@@ -89,7 +97,8 @@ public:
 
 // BTActionShoot
 class BTActionShoot : public BTTask {
-	GDCLASS(BTActionShoot, BTTask)
+	GDCLASS(BTActionShoot,
+			BTTask)
 
 protected:
 	static void _bind_methods() {}
@@ -101,7 +110,9 @@ public:
 		return node;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override {
 		EnemyBase *enemy = Object::cast_to<EnemyBase>(p_actor);
 		if (enemy) {
 			enemy->shoot();
@@ -113,7 +124,8 @@ public:
 
 // BTActionApproach
 class BTActionApproach : public BTTask {
-	GDCLASS(BTActionApproach, BTTask)
+	GDCLASS(BTActionApproach,
+			BTTask)
 
 private:
 	float speed = 5.0f;
@@ -136,7 +148,9 @@ public:
 	void set_stop_distance(float p_dist) { stop_distance = p_dist; }
 	float get_stop_distance() const { return stop_distance; }
 
-	static Ref<BTActionApproach> create(float p_speed, float p_stop_distance) {
+	static Ref<BTActionApproach>
+	create(float p_speed,
+		   float p_stop_distance) {
 		Ref<BTActionApproach> node;
 		node.instantiate();
 		node->set_speed(p_speed);
@@ -144,7 +158,9 @@ public:
 		return node;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override {
 		CharacterBody3D *actor3d = Object::cast_to<CharacterBody3D>(p_actor);
 		if (!actor3d)
 			return FAILURE;
@@ -181,7 +197,8 @@ public:
 
 // BTPatrol
 class BTPatrol : public BTTask {
-	GDCLASS(BTPatrol, BTTask)
+	GDCLASS(BTPatrol,
+			BTTask)
 
 private:
 	float speed = 2.0f;
@@ -208,7 +225,9 @@ public:
 	void set_patrol_radius(float p_radius) { patrol_radius = p_radius; }
 	float get_patrol_radius() const { return patrol_radius; }
 
-	static Ref<BTPatrol> create(float p_speed, float p_patrol_radius = 10.0f) {
+	static Ref<BTPatrol>
+	create(float p_speed,
+		   float p_patrol_radius = 10.0f) {
 		Ref<BTPatrol> node;
 		node.instantiate();
 		node->set_speed(p_speed);
@@ -216,7 +235,9 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override {
 		CharacterBody3D *actor3d = Object::cast_to<CharacterBody3D>(p_actor);
 		if (actor3d && !home_set) {
 			home_pos = actor3d->get_global_position();
@@ -224,7 +245,9 @@ public:
 		}
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override {
 		CharacterBody3D *actor3d = Object::cast_to<CharacterBody3D>(p_actor);
 		if (!actor3d)
 			return FAILURE;
@@ -262,7 +285,8 @@ public:
 
 // BTActionMelee
 class BTActionMelee : public BTTask {
-	GDCLASS(BTActionMelee, BTTask)
+	GDCLASS(BTActionMelee,
+			BTTask)
 
 protected:
 	static void _bind_methods() {}
@@ -274,7 +298,9 @@ public:
 		return node;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override {
 		EnemyBase *enemy = Object::cast_to<EnemyBase>(p_actor);
 		if (enemy) {
 			enemy->melee_attack();

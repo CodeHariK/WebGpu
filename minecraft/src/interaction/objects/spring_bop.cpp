@@ -44,19 +44,19 @@ void SpringBop::_ready() {
 
 void SpringBop::_physics_process(double delta) {
 	// --- STABLE VECTOR SPRING LOGIC ---
-	
+
 	// Get our current local UP vector in global space
 	Vector3 current_up = get_global_transform().basis.get_column(1).normalized();
-	
+
 	// Target is world UP (hanging perfectly straight)
 	Vector3 target_up = Vector3(0, 1, 0);
-	
+
 	// The cross product gives us the axis and magnitude of rotation needed to return to center
 	Vector3 error = current_up.cross(target_up);
-	
+
 	// Calculate spring torque
 	Vector3 spring_torque = error * stiffness;
-	
+
 	// Apply damping based on angular velocity
 	Vector3 current_ang_vel = get_angular_velocity();
 	spring_torque -= current_ang_vel * damping;

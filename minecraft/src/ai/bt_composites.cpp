@@ -12,20 +12,17 @@ void BTComposite::_bind_methods() {
 BTComposite::BTComposite() {}
 BTComposite::~BTComposite() {}
 
-void BTComposite::add_child(const Ref<BTTask> &p_child) {
-	children.push_back(p_child);
-}
+void BTComposite::add_child(const Ref<BTTask> &p_child) { children.push_back(p_child); }
 
-void BTComposite::remove_child(const Ref<BTTask> &p_child) {
-	children.erase(p_child);
-}
+void BTComposite::remove_child(const Ref<BTTask> &p_child) { children.erase(p_child); }
 
-void BTComposite::clear_children() {
-	children.clear();
-}
+void BTComposite::clear_children() { children.clear(); }
 
 // BTSequence implementation
-BTTask::Status BTSequence::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTSequence::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	for (; current_child_index < children.size(); current_child_index++) {
 		Status status = children.write[current_child_index]->execute(p_actor, p_btstore);
 
@@ -42,7 +39,10 @@ BTTask::Status BTSequence::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
 }
 
 // BTSelector implementation
-BTTask::Status BTSelector::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTSelector::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	for (; current_child_index < children.size(); current_child_index++) {
 		Status status = children.write[current_child_index]->execute(p_actor, p_btstore);
 
@@ -59,7 +59,10 @@ BTTask::Status BTSelector::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
 }
 
 // BTRandomSelector implementation
-void BTRandomSelector::_enter(Node *p_actor, const Ref<BTStore> &p_btstore) {
+void BTRandomSelector::_enter(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	current_child_index = 0;
 	if (indices.size() != children.size()) {
 		indices.resize(children.size());
@@ -76,7 +79,10 @@ void BTRandomSelector::_enter(Node *p_actor, const Ref<BTStore> &p_btstore) {
 	}
 }
 
-BTTask::Status BTRandomSelector::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTRandomSelector::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	for (; current_child_index < indices.size(); current_child_index++) {
 		Status status = children.write[indices[current_child_index]]->execute(p_actor, p_btstore);
 
@@ -93,7 +99,10 @@ BTTask::Status BTRandomSelector::_tick(Node *p_actor, const Ref<BTStore> &p_btst
 }
 
 // BTRandomSequence implementation
-void BTRandomSequence::_enter(Node *p_actor, const Ref<BTStore> &p_btstore) {
+void BTRandomSequence::_enter(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	current_child_index = 0;
 	if (indices.size() != children.size()) {
 		indices.resize(children.size());
@@ -110,7 +119,10 @@ void BTRandomSequence::_enter(Node *p_actor, const Ref<BTStore> &p_btstore) {
 	}
 }
 
-BTTask::Status BTRandomSequence::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTRandomSequence::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	for (; current_child_index < indices.size(); current_child_index++) {
 		Status status = children.write[indices[current_child_index]]->execute(p_actor, p_btstore);
 
@@ -127,13 +139,17 @@ BTTask::Status BTRandomSequence::_tick(Node *p_actor, const Ref<BTStore> &p_btst
 }
 
 // BTReactiveSelector implementation
-BTTask::Status BTReactiveSelector::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTReactiveSelector::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	for (int i = 0; i < children.size(); i++) {
 		Status status = children.write[i]->execute(p_actor, p_btstore);
 
 		if (status == RUNNING) {
 			if (current_child_index != i) {
-				if (current_child_index < children.size() && children.write[current_child_index]->get_status() == RUNNING) {
+				if (current_child_index < children.size() &&
+					children.write[current_child_index]->get_status() == RUNNING) {
 					children.write[current_child_index]->abort(p_actor, p_btstore);
 				}
 				current_child_index = i;
@@ -143,7 +159,8 @@ BTTask::Status BTReactiveSelector::_tick(Node *p_actor, const Ref<BTStore> &p_bt
 
 		if (status == SUCCESS) {
 			if (current_child_index != i) {
-				if (current_child_index < children.size() && children.write[current_child_index]->get_status() == RUNNING) {
+				if (current_child_index < children.size() &&
+					children.write[current_child_index]->get_status() == RUNNING) {
 					children.write[current_child_index]->abort(p_actor, p_btstore);
 				}
 				current_child_index = i;
@@ -156,13 +173,17 @@ BTTask::Status BTReactiveSelector::_tick(Node *p_actor, const Ref<BTStore> &p_bt
 }
 
 // BTReactiveSequence implementation
-BTTask::Status BTReactiveSequence::_tick(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTReactiveSequence::_tick(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	for (int i = 0; i < children.size(); i++) {
 		Status status = children.write[i]->execute(p_actor, p_btstore);
 
 		if (status == RUNNING) {
 			if (current_child_index != i) {
-				if (current_child_index < children.size() && children.write[current_child_index]->get_status() == RUNNING) {
+				if (current_child_index < children.size() &&
+					children.write[current_child_index]->get_status() == RUNNING) {
 					children.write[current_child_index]->abort(p_actor, p_btstore);
 				}
 				current_child_index = i;
@@ -172,7 +193,8 @@ BTTask::Status BTReactiveSequence::_tick(Node *p_actor, const Ref<BTStore> &p_bt
 
 		if (status == FAILURE) {
 			if (current_child_index != i) {
-				if (current_child_index < children.size() && children.write[current_child_index]->get_status() == RUNNING) {
+				if (current_child_index < children.size() &&
+					children.write[current_child_index]->get_status() == RUNNING) {
 					children.write[current_child_index]->abort(p_actor, p_btstore);
 				}
 				current_child_index = i;

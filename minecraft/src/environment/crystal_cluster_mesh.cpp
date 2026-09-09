@@ -94,6 +94,14 @@ void CrystalClusterMesh::_bind_methods() {
 CrystalClusterMesh::CrystalClusterMesh() { _queue_rebuild(); }
 CrystalClusterMesh::~CrystalClusterMesh() {}
 
+void CrystalClusterMesh::_validate_property(PropertyInfo &p_property) const {
+	// Drop the inherited ArrayMesh "_surfaces" from storage so the baked geometry is never written into
+	// a .tscn — the mesh regenerates deterministically from its parameters on load.
+	if (p_property.name == StringName("_surfaces")) {
+		p_property.usage &= ~PROPERTY_USAGE_STORAGE;
+	}
+}
+
 void CrystalClusterMesh::_queue_rebuild() {
 	if (!_rebuild_queued) {
 		_rebuild_queued = true;

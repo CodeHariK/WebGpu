@@ -56,14 +56,19 @@ void vertex() {
 
 // Diffuse: NdotL * shadow attenuation, quantized into `bands` steps between shadow_level and 1.
 void light() {
-	float ndl = clamp(dot(NORMAL, LIGHT), 0.0, 1.0) * ATTENUATION;
+	// Band the surface ANGLE only (the toon look). Do NOT quantize ATTENUATION, or a spot/omni light's
+	// distance & cone falloff turn into hard rings and blow out on flat-shaded generated meshes.
+	float ndl = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
 	float n = float(bands);
 	float stepped = floor(ndl * n) / n;
 	float edge = fract(ndl * n);
 	stepped += smoothstep(1.0 - band_softness * n, 1.0, edge) / n; // soften the step edges
-	float lit = mix(shadow_level, 1.0, clamp(stepped, 0.0, 1.0));
-	vec3 tint = mix(shadow_tint, vec3(1.0), clamp(stepped, 0.0, 1.0));
-	DIFFUSE_LIGHT += ALBEDO * (LIGHT_COLOR / PI) * lit * tint; // LIGHT_COLOR carries energy * PI
+	stepped = clamp(stepped, 0.0, 1.0);
+	float lit = mix(shadow_level, 1.0, stepped);
+	vec3 tint = mix(shadow_tint, vec3(1.0), stepped);
+	// Apply attenuation smoothly: the directional sun is ~1 in lit areas (toon look unchanged), while
+	// point / spot lights (flashlight, headlights, lamps) fade as soft pools instead of quantized bands.
+	DIFFUSE_LIGHT += ALBEDO * (LIGHT_COLOR / PI) * lit * tint * ATTENUATION; // LIGHT_COLOR carries energy * PI
 }
 )";
 
@@ -142,29 +147,51 @@ void fragment() {
 }
 )";
 
-Ref<ShaderMaterial> make_material(const String &p_code) {
+Ref<Shader> compile(const String &p_code) {
 	Ref<Shader> shader;
 	shader.instantiate();
 	shader->set_code(p_code);
+	return shader;
+}
+
+/// A fresh ShaderMaterial pointing at an already-compiled, shared Shader.
+Ref<ShaderMaterial> material_for(const Ref<Shader> &p_shader) {
 	Ref<ShaderMaterial> m;
 	m.instantiate();
-	m->set_shader(shader);
+	m->set_shader(p_shader);
 	return m;
 }
 
+// Each compiled once and shared by all its materials. File scope (not function-local statics) so
+// clear_toon_material_cache() can release the RIDs before Godot's renderer shuts down.
+Ref<Shader> s_solid_shader;
+Ref<Shader> s_road_shader;
+Ref<Shader> s_outline_shader;
+
 } // namespace
 
-Ref<ShaderMaterial> make_toon_solid_material() { return make_material(String(TOON_COMMON) + TOON_SOLID_FRAGMENT); }
+Ref<ShaderMaterial> make_toon_solid_material() {
+	// Compiled once; every solid material shares this one Shader (per-object differences are uniforms).
+	if (s_solid_shader.is_null()) {
+		s_solid_shader = compile(String(TOON_COMMON) + TOON_SOLID_FRAGMENT);
+	}
+	return material_for(s_solid_shader);
+}
 
-Ref<ShaderMaterial> make_toon_road_material() { return make_material(String(TOON_COMMON) + TOON_ROAD_FRAGMENT); }
+Ref<ShaderMaterial> make_toon_road_material() {
+	if (s_road_shader.is_null()) {
+		s_road_shader = compile(String(TOON_COMMON) + TOON_ROAD_FRAGMENT);
+	}
+	return material_for(s_road_shader);
+}
 
 Ref<ShaderMaterial> make_toon_outline_material(
 		float p_width,
 		const Color &p_color
 ) {
-	Ref<Shader> shader;
-	shader.instantiate();
-	shader->set_code(R"(
+	// Width and colour are uniforms, so every outline shares one compiled Shader.
+	if (s_outline_shader.is_null()) {
+		s_outline_shader = compile(R"(
 shader_type spatial;
 render_mode cull_front, unshaded, depth_draw_opaque;
 
@@ -179,12 +206,17 @@ void fragment() {
 	ALBEDO = color;
 }
 )");
-	Ref<ShaderMaterial> m;
-	m.instantiate();
-	m->set_shader(shader);
+	}
+	Ref<ShaderMaterial> m = material_for(s_outline_shader);
 	m->set_shader_parameter("width", p_width);
 	m->set_shader_parameter("color", p_color);
 	return m;
+}
+
+void clear_toon_material_cache() {
+	s_solid_shader = Ref<Shader>();
+	s_road_shader = Ref<Shader>();
+	s_outline_shader = Ref<Shader>();
 }
 
 } // namespace godot

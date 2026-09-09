@@ -30,7 +30,10 @@ void MCNode::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_import_mode", "p_mode"), &MCNode::set_import_mode);
 	ClassDB::bind_method(D_METHOD("get_import_mode"), &MCNode::get_import_mode);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "import_mode", PROPERTY_HINT_ENUM, "16 BaseMeshes,68 BaseMeshes,Complete (256)"), "set_import_mode", "get_import_mode");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::INT, "import_mode", PROPERTY_HINT_ENUM, "16 BaseMeshes,68 BaseMeshes,Complete (256)"),
+			"set_import_mode", "get_import_mode"
+	);
 
 	BIND_ENUM_CONSTANT(IMPORT_21_BASEMESH);
 	BIND_ENUM_CONSTANT(IMPORT_68_BASEMESH);
@@ -39,8 +42,7 @@ void MCNode::_bind_methods() {
 
 MCNode::MCNode() = default;
 
-MCNode::~MCNode() {
-}
+MCNode::~MCNode() {}
 
 void MCNode::_ready() {
 	if (Engine::get_singleton()->is_editor_hint()) {
@@ -72,21 +74,13 @@ void MCNode::initialize_library() {
 	is_initialized = true;
 }
 
-void MCNode::set_import_mode(MCImportMode p_mode) {
-	import_mode = p_mode;
-}
+void MCNode::set_import_mode(MCImportMode p_mode) { import_mode = p_mode; }
 
-MCImportMode MCNode::get_import_mode() const {
-	return import_mode;
-}
+MCImportMode MCNode::get_import_mode() const { return import_mode; }
 
-void MCNode::set_mesh_library_path(const String &p_path) {
-	mesh_library_path = p_path;
-}
+void MCNode::set_mesh_library_path(const String &p_path) { mesh_library_path = p_path; }
 
-String MCNode::get_mesh_library_path() const {
-	return mesh_library_path;
-}
+String MCNode::get_mesh_library_path() const { return mesh_library_path; }
 
 struct LoadMeta {
 	Node *child = nullptr;
@@ -94,8 +88,12 @@ struct LoadMeta {
 	int ones_count = 0;
 	bool is_valid = true;
 
-	LoadMeta(Node *p_child, MeshInstance3D *p_mi) :
-			child(p_child), mi(p_mi) {
+	LoadMeta(
+			Node *p_child,
+			MeshInstance3D *p_mi
+	) :
+			child(p_child),
+			mi(p_mi) {
 		if (child) {
 			String p_bin = child->get_name().substr(0, 8);
 			if (p_bin.length() < 8) {
@@ -114,9 +112,7 @@ struct LoadMeta {
 		}
 	}
 
-	bool operator<(const LoadMeta &p_other) const {
-		return ones_count < p_other.ones_count;
-	}
+	bool operator<(const LoadMeta &p_other) const { return ones_count < p_other.ones_count; }
 };
 
 void MCNode::load_mesh_library() {
@@ -176,7 +172,9 @@ void MCNode::load_mesh_library() {
 		config.source_mesh = h;
 		mesh_library[h] = config;
 		base_mesh_order.push_back(h);
-		UtilityFunctions::print("MCNode: Loaded mesh: ", truncated_name, " (Hash: ", h, ", Corners: ", meta.ones_count, ")");
+		UtilityFunctions::print(
+				"MCNode: Loaded mesh: ", truncated_name, " (Hash: ", h, ", Corners: ", meta.ones_count, ")"
+		);
 	}
 
 	int loaded_count = 0;
@@ -473,7 +471,14 @@ void MCNode::validate_full_library() {
 	}
 }
 
-void MCNode::apply_4_axis_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, Vector3::Axis p_axis, const String &p_prefix, bool p_include_base) {
+void MCNode::apply_4_axis_rotations(
+		uint8_t p_base_hash,
+		uint8_t p_variant_hash,
+		const Transform3D &p_base_t,
+		Vector3::Axis p_axis,
+		const String &p_prefix,
+		bool p_include_base
+) {
 	if (p_include_base) {
 		apply_transform_sequence(p_base_hash, p_variant_hash, p_base_t, {}, p_prefix);
 	}
@@ -507,7 +512,11 @@ void MCNode::apply_4_axis_rotations(uint8_t p_base_hash, uint8_t p_variant_hash,
 	apply_transform_sequence(p_base_hash, p_variant_hash, p_base_t, { r270 }, p_prefix + axis_name + "270");
 }
 
-void MCNode::apply_6_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
+void MCNode::apply_6_rotations(
+		uint8_t p_base_hash,
+		const Transform3D &p_base_t,
+		const String &p_prefix
+) {
 	apply_4_axis_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_X, p_prefix, false);
 
 	uint8_t h90 = p_base_hash;
@@ -517,7 +526,11 @@ void MCNode::apply_6_rotations(uint8_t p_base_hash, const Transform3D &p_base_t,
 	apply_transform_sequence(p_base_hash, h90, t90, { RY270 }, p_prefix + String(" Rx90 Ry270"));
 }
 
-void MCNode::apply_8_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
+void MCNode::apply_8_rotations(
+		uint8_t p_base_hash,
+		const Transform3D &p_base_t,
+		const String &p_prefix
+) {
 	apply_4_axis_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
 
 	for (MCTransform base_rot : { RX270, RX180 }) {
@@ -529,7 +542,12 @@ void MCNode::apply_8_rotations(uint8_t p_base_hash, const Transform3D &p_base_t,
 	}
 }
 
-void MCNode::apply_12_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const String &p_prefix) {
+void MCNode::apply_12_rotations(
+		uint8_t p_base_hash,
+		uint8_t p_variant_hash,
+		const Transform3D &p_base_t,
+		const String &p_prefix
+) {
 	apply_4_axis_rotations(p_base_hash, p_variant_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
 
 	for (MCTransform axis_rot : { RX180, RX90, RZ90 }) {
@@ -541,7 +559,11 @@ void MCNode::apply_12_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, con
 	}
 }
 
-void MCNode::apply_12_mirror_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
+void MCNode::apply_12_mirror_rotations(
+		uint8_t p_base_hash,
+		const Transform3D &p_base_t,
+		const String &p_prefix
+) {
 	uint8_t h = p_base_hash;
 	Transform3D t = p_base_t;
 	apply_mct_transform(h, t, SX);
@@ -549,7 +571,11 @@ void MCNode::apply_12_mirror_rotations(uint8_t p_base_hash, const Transform3D &p
 	apply_12_rotations(p_base_hash, h, t, p_prefix);
 }
 
-void MCNode::apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix) {
+void MCNode::apply_24_rotations(
+		uint8_t p_base_hash,
+		const Transform3D &p_base_t,
+		const String &p_prefix
+) {
 	apply_4_axis_rotations(p_base_hash, p_base_hash, p_base_t, Vector3::AXIS_Y, p_prefix, false);
 
 	// Rx180 -> Ry rotations
@@ -565,7 +591,9 @@ void MCNode::apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t
 		uint8_t h = p_base_hash;
 		Transform3D t = p_base_t;
 		apply_mct_transform(h, t, rx);
-		apply_4_axis_rotations(p_base_hash, h, t, Vector3::AXIS_Z, p_prefix + String(rx == RX90 ? " Rx90" : " Rx270"), true);
+		apply_4_axis_rotations(
+				p_base_hash, h, t, Vector3::AXIS_Z, p_prefix + String(rx == RX90 ? " Rx90" : " Rx270"), true
+		);
 	}
 
 	// Rz90/270 -> Rx rotations
@@ -573,11 +601,17 @@ void MCNode::apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t
 		uint8_t h = p_base_hash;
 		Transform3D t = p_base_t;
 		apply_mct_transform(h, t, rz);
-		apply_4_axis_rotations(p_base_hash, h, t, Vector3::AXIS_X, p_prefix + String(rz == RZ90 ? " Rz90" : " Rz270"), true);
+		apply_4_axis_rotations(
+				p_base_hash, h, t, Vector3::AXIS_X, p_prefix + String(rz == RZ90 ? " Rz90" : " Rz270"), true
+		);
 	}
 }
 
-void MCNode::apply_mct_transform(uint8_t &p_hash, Transform3D &p_transform, MCTransform p_op) {
+void MCNode::apply_mct_transform(
+		uint8_t &p_hash,
+		Transform3D &p_transform,
+		MCTransform p_op
+) {
 	float p90 = Math::PI / 2.0;
 	float m90 = -Math::PI / 2.0;
 
@@ -628,7 +662,13 @@ void MCNode::apply_mct_transform(uint8_t &p_hash, Transform3D &p_transform, MCTr
 	}
 }
 
-void MCNode::apply_transform_sequence(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const std::vector<MCTransform> &p_sequence, const String &p_name) {
+void MCNode::apply_transform_sequence(
+		uint8_t p_base_hash,
+		uint8_t p_variant_hash,
+		const Transform3D &p_base_t,
+		const std::vector<MCTransform> &p_sequence,
+		const String &p_name
+) {
 	uint8_t h = p_variant_hash;
 	Transform3D t = p_base_t;
 
@@ -777,9 +817,7 @@ String MCNode::hash_to_binary(uint8_t p_hash) {
 	return s;
 }
 
-MeshConfig MCNode::get_mesh_config(uint8_t p_hash) const {
-	return mesh_library[p_hash];
-}
+MeshConfig MCNode::get_mesh_config(uint8_t p_hash) const { return mesh_library[p_hash]; }
 
 Dictionary MCNode::get_variant_counts() const {
 	Dictionary counts;

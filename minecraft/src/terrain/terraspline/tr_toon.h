@@ -36,6 +36,10 @@ Ref<ShaderMaterial> make_toon_outline_material(
 		const Color &p_color
 );
 
+/// Release the cached toon Shaders (solid, road, outline). Call once at extension deinitialization,
+/// before Godot's renderer shuts down, or it reports the shared Shaders as leaked at exit.
+void clear_toon_material_cache();
+
 } // namespace godot
 
 #endif // TR_TOON_H

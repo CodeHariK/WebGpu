@@ -33,7 +33,10 @@ struct Chunk {
 		return (corner_states[static_cast<size_t>(p_index / 8)] & (1 << (p_index % 8))) != 0;
 	}
 
-	void set_corner_bit(int p_index, bool p_state) {
+	void set_corner_bit(
+			int p_index,
+			bool p_state
+	) {
 		if (p_state) {
 			corner_states[static_cast<size_t>(p_index / 8)] |= (1 << (p_index % 8));
 		} else {
@@ -41,21 +44,34 @@ struct Chunk {
 		}
 	}
 
-	bool get_corner(int x, int y, int z) const {
+	bool get_corner(
+			int x,
+			int y,
+			int z
+	) const {
 		int nx = size_x + 1;
 		int nz = size_z + 1;
 		int index = (y * nx * nz) + (z * nx) + x;
 		return get_corner_bit(index);
 	}
 
-	void set_corner(int x, int y, int z, bool value) {
+	void set_corner(
+			int x,
+			int y,
+			int z,
+			bool value
+	) {
 		int nx = size_x + 1;
 		int nz = size_z + 1;
 		int index = (y * nx * nz) + (z * nx) + x;
 		set_corner_bit(index, value);
 	}
 
-	uint8_t get_cell_hash(int x, int y, int z) const {
+	uint8_t get_cell_hash(
+			int x,
+			int y,
+			int z
+	) const {
 		uint8_t hash = 0;
 		// c0: x, y, z+1 (LSB)
 		if (get_corner(x, y, z + 1)) {
@@ -92,7 +108,11 @@ struct Chunk {
 		return hash;
 	}
 
-	bool has_active_neighbor(int x, int y, int z) const {
+	bool has_active_neighbor(
+			int x,
+			int y,
+			int z
+	) const {
 		if (x > 0 && get_corner(x - 1, y, z))
 			return true;
 		if (x < size_x && get_corner(x + 1, y, z))
@@ -108,7 +128,11 @@ struct Chunk {
 		return false;
 	}
 
-	bool has_inactive_neighbor(int x, int y, int z) const {
+	bool has_inactive_neighbor(
+			int x,
+			int y,
+			int z
+	) const {
 		if (x > 0 && !get_corner(x - 1, y, z))
 			return true;
 		if (x < size_x && !get_corner(x + 1, y, z))
@@ -124,15 +148,16 @@ struct Chunk {
 		return false;
 	}
 
-	std::vector<MeshInstance3D*> cell_visuals;
-	std::vector<MeshInstance3D*> debug_visuals;
+	std::vector<MeshInstance3D *> cell_visuals;
+	std::vector<MeshInstance3D *> debug_visuals;
 
 	PackedByteArray serialize_rle() const;
 	void deserialize_rle(const PackedByteArray &p_data);
 };
 
 class MCGrid : public Node3D {
-	GDCLASS(MCGrid, Node3D)
+	GDCLASS(MCGrid,
+			Node3D)
 
 private:
 	Vector3i grid_size = Vector3i(1, 1, 1);
@@ -154,18 +179,41 @@ private:
 	Ref<StandardMaterial3D> hover_mat_yellow;
 	Ref<StandardMaterial3D> hover_mat_white;
 
-	int _get_chunk_index(int x, int y, int z) const {
+	int _get_chunk_index(
+			int x,
+			int y,
+			int z
+	) const {
 		return (y * grid_size.x * grid_size.z) + (z * grid_size.x) + x;
 	}
 
-	void _update_visual_at(int gx, int gy, int gz);
-	void _update_debug_at(int gx, int gy, int gz);
+	void _update_visual_at(
+			int gx,
+			int gy,
+			int gz
+	);
+	void _update_debug_at(
+			int gx,
+			int gy,
+			int gz
+	);
 
 	void _clear_children();
-	bool _is_boundary_corner(int gx, int gy, int gz, bool &r_required_state) const;
+	bool _is_boundary_corner(
+			int gx,
+			int gy,
+			int gz,
+			bool &r_required_state
+	) const;
 	void _initialize_boundaries(Chunk &p_chunk) const;
-	int _spawn_debug_cubes(const Chunk &p_chunk, const Ref<BoxMesh> &p_box_mesh);
-	int _spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node);
+	int _spawn_debug_cubes(
+			const Chunk &p_chunk,
+			const Ref<BoxMesh> &p_box_mesh
+	);
+	int _spawn_marching_cubes(
+			const Chunk &p_chunk,
+			MCNode *p_mc_node
+	);
 
 	void _initialize_hover_previews();
 
@@ -176,13 +224,30 @@ public:
 	MCGrid();
 	~MCGrid() override;
 
-	void initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, bool p_refresh = true);
+	void initialize_grid(
+			int p_chunks_x,
+			int p_chunks_y,
+			int p_chunks_z,
+			int p_chunk_size_x,
+			int p_chunk_size_y,
+			int p_chunk_size_z,
+			bool p_refresh = true
+	);
 	void refresh_grid();
-	void modify_corner(const Vector3i &p_grid_pos, bool p_active);
+	void modify_corner(
+			const Vector3i &p_grid_pos,
+			bool p_active
+	);
 	bool is_corner_active(const Vector3i &p_grid_pos) const;
-	bool is_area_blocked_by_grid(const Vector3i &p_dual_grid_pos, const Vector3i &p_size) const;
+	bool is_area_blocked_by_grid(
+			const Vector3i &p_dual_grid_pos,
+			const Vector3i &p_size
+	) const;
 	bool is_area_blocked_by_objects(const AABB &p_aabb) const;
-	void add_placed_object(const Vector3i &p_dual_grid_pos, const Vector3i &p_size);
+	void add_placed_object(
+			const Vector3i &p_dual_grid_pos,
+			const Vector3i &p_size
+	);
 	void remove_placed_object(Node *p_node);
 	void detach_placed_object(Node *p_node);
 	const PlacedObject *get_placed_object(Node *p_node) const;
@@ -191,33 +256,27 @@ public:
 	void save_grid(const String &p_path);
 	void load_grid(const String &p_path);
 
-	void update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_hit_normal, Camera3D *p_camera);
+	void update_hover_preview(
+			const Vector3 &p_corner_pos,
+			const Vector3 &p_hit_normal,
+			Camera3D *p_camera
+	);
 	void hide_hover_preview();
 	void _ready() override;
 
 	void set_grid_size(const Vector3i &p_size);
-	Vector3i get_grid_size() const {
-		return grid_size;
-	}
+	Vector3i get_grid_size() const { return grid_size; }
 
 	void set_chunk_size(const Vector3i &p_size);
-	Vector3i get_chunk_size() const {
-		return chunk_size;
-	}
+	Vector3i get_chunk_size() const { return chunk_size; }
 
 	void set_debug_corners_visible(bool p_visible);
 	bool is_debug_corners_visible() const;
 	void set_corner_collision_enabled(bool p_enabled);
 
-	int get_total_mc_meshes() const {
-		return total_mc_meshes;
-	}
-	int get_total_debug_corners() const {
-		return total_debug_corners;
-	}
-	int get_total_cells() const {
-		return total_cells;
-	}
+	int get_total_mc_meshes() const { return total_mc_meshes; }
+	int get_total_debug_corners() const { return total_debug_corners; }
+	int get_total_cells() const { return total_cells; }
 
 	void set_mc_node(MCNode *p_node);
 	MCNode *get_mc_node() const;

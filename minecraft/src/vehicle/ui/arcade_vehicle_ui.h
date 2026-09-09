@@ -18,13 +18,22 @@ private:
 	Panel *main_panel = nullptr;
 	CUILineGraph *velocity_graph = nullptr;
 
-	void _add_variable_slider(Node *p_parent, const String &p_label, const String &p_property, float p_min, float p_max, float p_step);
+	void _add_variable_slider(
+			Node *p_parent,
+			const String &p_label,
+			const String &p_property,
+			float p_min,
+			float p_max,
+			float p_step
+	);
 
 public:
 	ArcadeVehicleUI();
 	~ArcadeVehicleUI();
 
-	void setup(ArcadeVehicle *p_vehicle, CUI *p_ui_root);
+	void
+	setup(ArcadeVehicle *p_vehicle,
+		  CUI *p_ui_root);
 	void toggle_visibility();
 	void update_graph(float p_val);
 	bool is_visible() const;

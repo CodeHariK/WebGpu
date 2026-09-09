@@ -8,8 +8,7 @@
 
 namespace godot {
 
-void PatrolMeleeEnemy::_bind_methods() {
-}
+void PatrolMeleeEnemy::_bind_methods() {}
 
 PatrolMeleeEnemy::PatrolMeleeEnemy() {
 	set_enemy_kind("PatrolMelee");

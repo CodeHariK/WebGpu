@@ -38,10 +38,7 @@ struct MinecraftUI {
 	Label *terrain_debug_label = nullptr;
 
 	bool is_valid() const {
-		return health_bar != nullptr &&
-				content != nullptr &&
-				header_button != nullptr &&
-				terrain_slider != nullptr &&
+		return health_bar != nullptr && content != nullptr && header_button != nullptr && terrain_slider != nullptr &&
 				terrain_debug_label != nullptr;
 	}
 };
@@ -54,7 +51,8 @@ struct Part {
 };
 
 class MinecraftNode : public Node3D {
-	GDCLASS(MinecraftNode, Node3D);
+	GDCLASS(MinecraftNode,
+			Node3D);
 
 private:
 	bool generate_on_ready = true;
@@ -77,13 +75,33 @@ private:
 
 	MinecraftUI ui;
 
-	bool is_part_visible(const Vector2i &part_pos, const Vector2i &camera_part_pos) const;
+	bool is_part_visible(
+			const Vector2i &part_pos,
+			const Vector2i &camera_part_pos
+	) const;
 
-	PackedInt32Array generate_terrain_heights(Vector2i indexPos, int dim, float freq, bool height_curve_sampling);
+	PackedInt32Array generate_terrain_heights(
+			Vector2i indexPos,
+			int dim,
+			float freq,
+			bool height_curve_sampling
+	);
 
-	MeshInstance3D *generate_smooth_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling);
-	void generate_cube_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling);
-	MeshInstance3D *generate_voxel_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling);
+	MeshInstance3D *generate_smooth_part_mesh(
+			String name,
+			Vector2i indexPos,
+			bool height_curve_sampling
+	);
+	void generate_cube_part_mesh(
+			String name,
+			Vector2i indexPos,
+			bool height_curve_sampling
+	);
+	MeshInstance3D *generate_voxel_part_mesh(
+			String name,
+			Vector2i indexPos,
+			bool height_curve_sampling
+	);
 
 	void minHeapTest();
 
@@ -91,11 +109,15 @@ protected:
 	static void _bind_methods() {
 		ClassDB::bind_method(D_METHOD("set_generate_on_ready", "enable"), &MinecraftNode::set_generate_on_ready);
 		ClassDB::bind_method(D_METHOD("get_generate_on_ready"), &MinecraftNode::get_generate_on_ready);
-		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "generate_on_ready"), "set_generate_on_ready", "get_generate_on_ready");
+		ADD_PROPERTY(
+				PropertyInfo(Variant::BOOL, "generate_on_ready"), "set_generate_on_ready", "get_generate_on_ready"
+		);
 
 		ClassDB::bind_method(D_METHOD("set_use_smooth_terrain", "enable"), &MinecraftNode::set_use_smooth_terrain);
 		ClassDB::bind_method(D_METHOD("get_use_smooth_terrain"), &MinecraftNode::get_use_smooth_terrain);
-		ADD_PROPERTY(PropertyInfo(Variant::BOOL, "use_smooth_terrain"), "set_use_smooth_terrain", "get_use_smooth_terrain");
+		ADD_PROPERTY(
+				PropertyInfo(Variant::BOOL, "use_smooth_terrain"), "set_use_smooth_terrain", "get_use_smooth_terrain"
+		);
 
 		ClassDB::bind_method(D_METHOD("set_part_size", "width"), &MinecraftNode::set_part_size);
 		ClassDB::bind_method(D_METHOD("get_part_size"), &MinecraftNode::get_part_size);
@@ -103,18 +125,29 @@ protected:
 
 		ClassDB::bind_method(D_METHOD("set_terrain_noise", "noise"), &MinecraftNode::set_terrain_noise);
 		ClassDB::bind_method(D_METHOD("get_terrain_noise"), &MinecraftNode::get_terrain_noise);
-		ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_noise", PROPERTY_HINT_RESOURCE_TYPE, "Noise"), "set_terrain_noise", "get_terrain_noise");
+		ADD_PROPERTY(
+				PropertyInfo(Variant::OBJECT, "terrain_noise", PROPERTY_HINT_RESOURCE_TYPE, "Noise"),
+				"set_terrain_noise", "get_terrain_noise"
+		);
 
 		ClassDB::bind_method(D_METHOD("set_terrain_material", "material"), &MinecraftNode::set_terrain_material);
 		ClassDB::bind_method(D_METHOD("get_terrain_material"), &MinecraftNode::get_terrain_material);
-		ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"), "set_terrain_material", "get_terrain_material");
+		ADD_PROPERTY(
+				PropertyInfo(Variant::OBJECT, "terrain_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"),
+				"set_terrain_material", "get_terrain_material"
+		);
 
 		ClassDB::bind_method(D_METHOD("set_height_curve", "curve"), &MinecraftNode::set_height_curve);
 		ClassDB::bind_method(D_METHOD("get_height_curve"), &MinecraftNode::get_height_curve);
-		ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "height_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_height_curve", "get_height_curve");
+		ADD_PROPERTY(
+				PropertyInfo(Variant::OBJECT, "height_curve", PROPERTY_HINT_RESOURCE_TYPE, "Curve"), "set_height_curve",
+				"get_height_curve"
+		);
 
 		ClassDB::bind_method(D_METHOD("ui_on_header_button_pressed"), &MinecraftNode::ui_on_header_button_pressed);
-		ClassDB::bind_method(D_METHOD("ui_on_terrain_slider_change", "value"), &MinecraftNode::ui_on_terrain_slider_change);
+		ClassDB::bind_method(
+				D_METHOD("ui_on_terrain_slider_change", "value"), &MinecraftNode::ui_on_terrain_slider_change
+		);
 		ClassDB::bind_method(D_METHOD("ui_on_header_mouse_entered"), &MinecraftNode::ui_on_header_mouse_entered);
 		ClassDB::bind_method(D_METHOD("ui_on_header_mouse_exited"), &MinecraftNode::ui_on_header_mouse_exited);
 	}
@@ -132,38 +165,22 @@ public:
 	void ui_on_header_mouse_exited();
 	void ui_on_terrain_slider_change(double value);
 
-	void set_generate_on_ready(bool p_enable) {
-		generate_on_ready = p_enable;
-	}
-	bool get_generate_on_ready() const {
-		return generate_on_ready;
-	}
+	void set_generate_on_ready(bool p_enable) { generate_on_ready = p_enable; }
+	bool get_generate_on_ready() const { return generate_on_ready; }
 
-	void set_use_smooth_terrain(bool p_enable) {
-		use_smooth_terrain = p_enable;
-	}
-	bool get_use_smooth_terrain() const {
-		return use_smooth_terrain;
-	}
+	void set_use_smooth_terrain(bool p_enable) { use_smooth_terrain = p_enable; }
+	bool get_use_smooth_terrain() const { return use_smooth_terrain; }
 
-	void set_part_size(int w) {
-		part_size = w;
-	}
+	void set_part_size(int w) { part_size = w; }
 	int get_part_size() const { return part_size; }
 
-	void set_terrain_noise(const Ref<Noise> &n) {
-		noise = n;
-	}
+	void set_terrain_noise(const Ref<Noise> &n) { noise = n; }
 	Ref<Noise> get_terrain_noise() const { return noise; }
 
-	void set_terrain_material(const Ref<Material> &mat) {
-		terrain_material = mat;
-	}
+	void set_terrain_material(const Ref<Material> &mat) { terrain_material = mat; }
 	Ref<Material> get_terrain_material() const { return terrain_material; }
 
-	void set_height_curve(const Ref<Curve> &c) {
-		height_curve = c;
-	}
+	void set_height_curve(const Ref<Curve> &c) { height_curve = c; }
 	Ref<Curve> get_height_curve() const { return height_curve; }
 };
 

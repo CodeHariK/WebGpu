@@ -3,14 +3,15 @@
 
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/quad_mesh.hpp>
-#include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/classes/shader.hpp>
+#include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/core/class_db.hpp>
 
 namespace godot {
 
 class DebugLineQuad : public MeshInstance3D {
-	GDCLASS(DebugLineQuad, MeshInstance3D)
+	GDCLASS(DebugLineQuad,
+			MeshInstance3D)
 
 private:
 	Vector3 start_pos;
@@ -32,9 +33,13 @@ public:
 
 	void _ready() override;
 
-	void set_line(const Vector3 &p_start, const Vector3 &p_end, float p_thickness);
+	void set_line(
+			const Vector3 &p_start,
+			const Vector3 &p_end,
+			float p_thickness
+	);
 	void set_shader(const Ref<Shader> &p_shader);
-	
+
 	void set_color(const Color &p_color);
 	Color get_color() const;
 

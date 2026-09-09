@@ -5,10 +5,10 @@
  * Build Dependencies: godot-cpp, mp.h, mp_grid.h
  */
 
+#include "debug_draw/debug_manager.h"
 #include "marching_cubes/mc_physics.h" // Use MCPhysics helper
 #include "mp.h"
 #include "mp_grid.h"
-#include "debug_draw/debug_manager.h"
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/camera3d.hpp>
@@ -25,16 +25,24 @@
 
 namespace godot {
 
-Vector3 MPGrid::_get_corner_world_pos(const MPChunk &p_chunk, int lx, int ly, int lz) const {
+Vector3 MPGrid::_get_corner_world_pos(
+		const MPChunk &p_chunk,
+		int lx,
+		int ly,
+		int lz
+) const {
 	int global_z = (p_chunk.loc_z * p_chunk.size_z) + lz;
 	float stagger = (global_z % 2 != 0) ? 0.5f : 0.0f;
 	return Vector3(
 			static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx) + stagger,
-			static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly),
-			static_cast<float>(global_z) * 0.866025f);
+			static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly), static_cast<float>(global_z) * 0.866025f
+	);
 }
 
-int MPGrid::_spawn_debug_spheres(const MPChunk &p_chunk, const Ref<SphereMesh> &p_sphere_mesh) {
+int MPGrid::_spawn_debug_spheres(
+		const MPChunk &p_chunk,
+		const Ref<SphereMesh> &p_sphere_mesh
+) {
 	int nx = p_chunk.size_x + 1;
 	int ny = p_chunk.size_y + 1;
 	int nz = p_chunk.size_z + 1;
@@ -64,10 +72,10 @@ int MPGrid::_spawn_debug_spheres(const MPChunk &p_chunk, const Ref<SphereMesh> &
 				int global_z = (p_chunk.loc_z * p_chunk.size_z) + lz;
 				float stagger = (global_z % 2 != 0) ? 0.5f : 0.0f;
 
-				Vector3 world_pos = Vector3(
-						static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx) + stagger,
-						static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly),
-						static_cast<float>(global_z) * 0.866025f);
+				Vector3 world_pos =
+						Vector3(static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx) + stagger,
+								static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly),
+								static_cast<float>(global_z) * 0.866025f);
 
 				MeshInstance3D *mi = memnew(MeshInstance3D);
 				mi->set_mesh(p_sphere_mesh);
@@ -103,7 +111,11 @@ int MPGrid::_spawn_debug_spheres(const MPChunk &p_chunk, const Ref<SphereMesh> &
 	return count;
 }
 
-void MPGrid::_update_debug_at(int gx, int gy, int gz) {
+void MPGrid::_update_debug_at(
+		int gx,
+		int gy,
+		int gz
+) {
 	int cx = (gx >= grid_size.x * chunk_size.x) ? grid_size.x - 1 : gx / chunk_size.x;
 	int cy = (gy >= grid_size.y * chunk_size.y) ? grid_size.y - 1 : gy / chunk_size.y;
 	int cz = (gz >= grid_size.z * chunk_size.z) ? grid_size.z - 1 : gz / chunk_size.z;
@@ -136,10 +148,8 @@ void MPGrid::_update_debug_at(int gx, int gy, int gz) {
 
 	if (!mi) {
 		float stagger = (gz % 2 != 0) ? 0.5f : 0.0f;
-		Vector3 world_pos = Vector3(
-				static_cast<float>(gx) + stagger,
-				static_cast<float>(gy),
-				static_cast<float>(gz) * 0.866025f);
+		Vector3 world_pos =
+				Vector3(static_cast<float>(gx) + stagger, static_cast<float>(gy), static_cast<float>(gz) * 0.866025f);
 
 		mi = memnew(MeshInstance3D);
 		mi->set_mesh(_debug_corner_mesh);
@@ -216,7 +226,12 @@ void MPGrid::_initialize_hover_previews() {
 	hover_root->hide();
 }
 
-void MPGrid::update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_hit_normal, Camera3D *p_camera, bool p_is_cell) {
+void MPGrid::update_hover_preview(
+		const Vector3 &p_corner_pos,
+		const Vector3 &p_hit_normal,
+		Camera3D *p_camera,
+		bool p_is_cell
+) {
 	if (!p_camera)
 		return;
 	if (!hover_root)
@@ -233,16 +248,10 @@ void MPGrid::update_hover_preview(const Vector3 &p_corner_pos, const Vector3 &p_
 	} else {
 		hover_cylinder->show();
 
-		Vector3 directions[8] = {
-			Vector3(1.0f, 0.0f, 0.0f),
-			Vector3(-1.0f, 0.0f, 0.0f),
-			Vector3(0.5f, 0.0f, 0.866025f),
-			Vector3(-0.5f, 0.0f, 0.866025f),
-			Vector3(0.5f, 0.0f, -0.866025f),
-			Vector3(-0.5f, 0.0f, -0.866025f),
-			Vector3(0.0f, 1.0f, 0.0f),
-			Vector3(0.0f, -1.0f, 0.0f)
-		};
+		Vector3 directions[8] = { Vector3(1.0f, 0.0f, 0.0f),	   Vector3(-1.0f, 0.0f, 0.0f),
+								  Vector3(0.5f, 0.0f, 0.866025f),  Vector3(-0.5f, 0.0f, 0.866025f),
+								  Vector3(0.5f, 0.0f, -0.866025f), Vector3(-0.5f, 0.0f, -0.866025f),
+								  Vector3(0.0f, 1.0f, 0.0f),	   Vector3(0.0f, -1.0f, 0.0f) };
 
 		Vector3 closest_dir = directions[0];
 		float max_dot = -2.0f;
@@ -429,9 +438,7 @@ void MPGrid::set_hover_cylinder_alpha(float p_alpha) {
 }
 
 // Gets the opacity (alpha) of the hover cylinder visual preview.
-float MPGrid::get_hover_cylinder_alpha() const {
-	return hover_cylinder_alpha;
-}
+float MPGrid::get_hover_cylinder_alpha() const { return hover_cylinder_alpha; }
 
 // Clears all active cell wireframe debug lines registered in the DebugManager.
 void MPGrid::_clear_prism_edges() {
@@ -454,7 +461,18 @@ void MPGrid::_clear_prism_edges() {
 }
 
 // Draws debug wireframe lines for a specific cell.
-void MPGrid::_draw_cell_wireframe(const MPChunk &p_chunk, int cx, int y, int z, int v0_x, int v0_z, int v1_x, int v1_z, int v2_x, int v2_z) {
+void MPGrid::_draw_cell_wireframe(
+		const MPChunk &p_chunk,
+		int cx,
+		int y,
+		int z,
+		int v0_x,
+		int v0_z,
+		int v1_x,
+		int v1_z,
+		int v2_x,
+		int v2_z
+) {
 	DebugManager *dm = DebugManager::get_singleton();
 	if (!dm)
 		return;
@@ -490,7 +508,12 @@ void MPGrid::_draw_cell_wireframe(const MPChunk &p_chunk, int cx, int y, int z, 
 }
 
 // Clears debug wireframe lines for a specific cell.
-void MPGrid::_clear_cell_wireframe(const MPChunk &p_chunk, int cx, int y, int z) {
+void MPGrid::_clear_cell_wireframe(
+		const MPChunk &p_chunk,
+		int cx,
+		int y,
+		int z
+) {
 	DebugManager *dm = DebugManager::get_singleton();
 	if (!dm)
 		return;

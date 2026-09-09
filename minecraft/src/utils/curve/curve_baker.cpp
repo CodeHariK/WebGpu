@@ -3,7 +3,12 @@
 
 namespace godot {
 
-PackedVector3Array CurveBaker::bake_blended_ring(const Ref<Curve3D> &p_slice_low, const Ref<Curve3D> &p_slice_high, float p_t, int p_resolution) {
+PackedVector3Array CurveBaker::bake_blended_ring(
+		const Ref<Curve3D> &p_slice_low,
+		const Ref<Curve3D> &p_slice_high,
+		float p_t,
+		int p_resolution
+) {
 	PackedVector3Array current_ring;
 	current_ring.resize(p_resolution);
 
@@ -27,7 +32,11 @@ PackedVector3Array CurveBaker::bake_blended_ring(const Ref<Curve3D> &p_slice_low
 	return current_ring;
 }
 
-PackedVector3Array CurveBaker::bake_curve(const Ref<Curve3D> &p_curve, float p_interval, const Transform3D &p_transform) {
+PackedVector3Array CurveBaker::bake_curve(
+		const Ref<Curve3D> &p_curve,
+		float p_interval,
+		const Transform3D &p_transform
+) {
 	if (p_curve.is_null()) {
 		return PackedVector3Array();
 	}
@@ -41,7 +50,11 @@ PackedVector3Array CurveBaker::bake_curve(const Ref<Curve3D> &p_curve, float p_i
 	return pts;
 }
 
-std::vector<Transform3D> CurveBaker::bake_transforms(const Ref<Curve3D> &p_curve, float p_interval, const Transform3D &p_transform) {
+std::vector<Transform3D> CurveBaker::bake_transforms(
+		const Ref<Curve3D> &p_curve,
+		float p_interval,
+		const Transform3D &p_transform
+) {
 	if (p_curve.is_null()) {
 		return std::vector<Transform3D>();
 	}
@@ -57,9 +70,14 @@ std::vector<Transform3D> CurveBaker::bake_transforms(const Ref<Curve3D> &p_curve
 
 // In CurveBaker.cpp
 std::vector<Transform3D> CurveBaker::bake_transforms_adaptive(
-		const Ref<Curve3D> &curve, float start_dist, float end_dist,
-		float max_step, float min_step, float angle_tol_degrees,
-		const Transform3D &global_transform) {
+		const Ref<Curve3D> &curve,
+		float start_dist,
+		float end_dist,
+		float max_step,
+		float min_step,
+		float angle_tol_degrees,
+		const Transform3D &global_transform
+) {
 	std::vector<Transform3D> result;
 	if (curve.is_null() || start_dist >= end_dist)
 		return result;

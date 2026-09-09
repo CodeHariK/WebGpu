@@ -25,7 +25,8 @@ class OvercookedManager;
 class TennisManager;
 
 class GameManager : public Node {
-	GDCLASS(GameManager, Node)
+	GDCLASS(GameManager,
+			Node)
 
 private:
 	int _ts_debug_view = 0; // F3: current TerraSpline shader debug view (ts_debug_view shader global)
@@ -71,7 +72,6 @@ public:
 
 	void register_vehicle(ArcadeVehicle *p_vehicle);
 	ArcadeVehicle *get_vehicle() const;
-
 
 	void register_celeste_controller(Node *p_character);
 	Node *get_celeste_controller() const;

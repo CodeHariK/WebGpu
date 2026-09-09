@@ -2,11 +2,11 @@
 #define OVERCOOKED_MANAGER_H
 
 #include "../../game_manager/inventory.h"
+#include "oc_types.h"
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/variant/vector3.hpp>
-#include "oc_types.h"
 #include <vector>
 
 namespace godot {
@@ -23,7 +23,8 @@ class OCOrderUI;
 class OCRecipeEditorUI;
 
 class OvercookedManager : public Node {
-	GDCLASS(OvercookedManager, Node)
+	GDCLASS(OvercookedManager,
+			Node)
 
 private:
 	static OvercookedManager *singleton;
@@ -61,8 +62,14 @@ public:
 	void save_inventory();
 	Inventory *get_inventory_node() const { return inventory; }
 
-	bool has_inventory(IngredientType p_type, int p_amount = 1) const;
-	bool try_consume_inventory(IngredientType p_type, int p_amount = 1);
+	bool has_inventory(
+			IngredientType p_type,
+			int p_amount = 1
+	) const;
+	bool try_consume_inventory(
+			IngredientType p_type,
+			int p_amount = 1
+	);
 
 	void register_station(OCStation *p_station);
 	void unregister_station(OCStation *p_station);
@@ -70,9 +77,18 @@ public:
 	void register_ingredient(OCIngredient *p_ing);
 	void unregister_ingredient(OCIngredient *p_ing);
 
-	OCStation *get_closest_station(const Vector3 &p_from, float p_max_dist);
-	OCStation *get_closest_station_for_ingredient(const Vector3 &p_from, OCIngredient *p_ing);
-	OCIngredient *get_closest_ingredient(const Vector3 &p_from, float p_max_dist);
+	OCStation *get_closest_station(
+			const Vector3 &p_from,
+			float p_max_dist
+	);
+	OCStation *get_closest_station_for_ingredient(
+			const Vector3 &p_from,
+			OCIngredient *p_ing
+	);
+	OCIngredient *get_closest_ingredient(
+			const Vector3 &p_from,
+			float p_max_dist
+	);
 
 	virtual void _ready() override;
 	virtual void _process(double p_delta) override;

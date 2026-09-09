@@ -75,6 +75,7 @@ public:
 class RampRollState : public AirborneState {
 private:
 	float roll_direction = 1.0f;
+
 public:
 	using AirborneState::AirborneState;
 	virtual void enter() override;

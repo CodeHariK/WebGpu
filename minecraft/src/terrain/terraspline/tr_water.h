@@ -13,6 +13,10 @@ namespace godot {
 /// stripe_repeat, bank_foam, bob.
 Ref<ShaderMaterial> make_toon_water_material();
 
+/// Release the cached water Shader. Call once at extension deinitialization, before Godot's renderer
+/// shuts down, or it reports the shared Shader as leaked at exit.
+void clear_water_material_cache();
+
 } // namespace godot
 
 #endif // TR_WATER_H

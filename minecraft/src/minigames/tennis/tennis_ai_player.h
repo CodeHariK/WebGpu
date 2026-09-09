@@ -6,7 +6,8 @@
 namespace godot {
 
 class TennisAIPlayer : public TennisPlayer {
-	GDCLASS(TennisAIPlayer, TennisPlayer)
+	GDCLASS(TennisAIPlayer,
+			TennisPlayer)
 
 private:
 	TennisBall *ball_ref = nullptr;

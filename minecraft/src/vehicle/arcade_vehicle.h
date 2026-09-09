@@ -32,7 +32,8 @@ class ArcadeVehicleUI;
 class CUI;
 
 class ArcadeVehicle : public RigidBody3D {
-	GDCLASS(ArcadeVehicle, RigidBody3D)
+	GDCLASS(ArcadeVehicle,
+			RigidBody3D)
 
 private:
 	GameManager *game_manager = nullptr;
@@ -71,7 +72,13 @@ private:
 
 	void _setup_vehicle();
 	void _update_visuals();
-	float _calculate_suspension_force(Ref<WheelConfig> wheel, float hit_distance, float delta, Vector3 hardpoint_world, Vector3 local_up);
+	float _calculate_suspension_force(
+			Ref<WheelConfig> wheel,
+			float hit_distance,
+			float delta,
+			Vector3 hardpoint_world,
+			Vector3 local_up
+	);
 
 	void _process_inputs();
 	void _apply_acceleration(float delta);
@@ -83,7 +90,12 @@ private:
 	float _get_average_contact_patch_y() const;
 	void _apply_lateral_force_with_roll(Vector3 p_force_global);
 	void _apply_longitudinal_force_with_pitch(Vector3 p_force_global);
-	void _handle_wall_collision_and_spin(int p_wheel_index, const MCRaycastHit &p_hit, Vector3 &r_force_dir, float &r_force_mag);
+	void _handle_wall_collision_and_spin(
+			int p_wheel_index,
+			const MCRaycastHit &p_hit,
+			Vector3 &r_force_dir,
+			float &r_force_mag
+	);
 
 	// HSM States
 	friend class VehicleState;
@@ -133,11 +145,17 @@ public:
 
 	// UI Logic
 	void _on_ui_toggle();
-	void _on_ui_slider_value_changed(double p_value, String p_property);
+	void _on_ui_slider_value_changed(
+			double p_value,
+			String p_property
+	);
 	void save_settings();
 	void load_settings();
 	float get_ui_var(const String &p_name) const;
-	void set_ui_var(const String &p_name, float p_value);
+	void set_ui_var(
+			const String &p_name,
+			float p_value
+	);
 
 	void debug_draw_trajectory(float p_delta);
 

@@ -8,7 +8,8 @@
 namespace godot {
 
 class PatrolMeleeEnemy : public EnemyBase {
-	GDCLASS(PatrolMeleeEnemy, EnemyBase)
+	GDCLASS(PatrolMeleeEnemy,
+			EnemyBase)
 
 private:
 	float patrol_speed = 2.0f;

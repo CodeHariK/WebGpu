@@ -6,7 +6,8 @@
 namespace godot {
 
 class Interactable : public RigidBody3D {
-	GDCLASS(Interactable, RigidBody3D)
+	GDCLASS(Interactable,
+			RigidBody3D)
 
 private:
 	bool is_interactable = true;

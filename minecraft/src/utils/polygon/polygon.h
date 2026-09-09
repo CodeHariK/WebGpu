@@ -1,7 +1,8 @@
 /*
  * Module Path: src/utils/polygon/polygon.h
- * Explicit System Responsibility: Declares utility functions for polygon operations including point-in-polygon checks and convexity/winding verification.
- * Build Dependencies: godot_cpp/variant/packed_vector2_array.hpp, godot_cpp/variant/vector2.hpp.
+ * Explicit System Responsibility: Declares utility functions for polygon operations including point-in-polygon checks
+ * and convexity/winding verification. Build Dependencies: godot_cpp/variant/packed_vector2_array.hpp,
+ * godot_cpp/variant/vector2.hpp.
  */
 
 #include "godot_cpp/variant/packed_vector2_array.hpp"
@@ -22,7 +23,10 @@ public:
 	 *   - polygon: Set of vertices representing the polygon.
 	 * Behavioral bounds: Works for arbitrary non-self-intersecting polygons.
 	 */
-	static bool is_point_inside(const Vector2 &p, const PackedVector3Array &polygon);
+	static bool is_point_inside(
+			const Vector2 &p,
+			const PackedVector3Array &polygon
+	);
 
 	/**
 	 * Purpose: Fast-path point-in-convex-polygon check using an early-exit half-plane test.
@@ -37,7 +41,11 @@ public:
 	 *   - clockwise: True if polygon is wound clockwise, false otherwise.
 	 * Behavioral bounds: Returns true if point is inside, false otherwise.
 	 */
-	static bool is_point_inside_convex(const Vector2 &p, const PackedVector3Array &polygon, bool clockwise);
+	static bool is_point_inside_convex(
+			const Vector2 &p,
+			const PackedVector3Array &polygon,
+			bool clockwise
+	);
 
 	/**
 	 * Purpose: Checks if a polygon is convex and determines if it is wound clockwise.
@@ -51,6 +59,9 @@ public:
 	 *   - r_is_clockwise: Output reference parameter to store winding direction.
 	 * Behavioral bounds: Returns true if the polygon is convex, false otherwise.
 	 */
-	static bool check_convexity(const PackedVector3Array &polygon, bool &r_is_clockwise);
+	static bool check_convexity(
+			const PackedVector3Array &polygon,
+			bool &r_is_clockwise
+	);
 };
 } //namespace godot

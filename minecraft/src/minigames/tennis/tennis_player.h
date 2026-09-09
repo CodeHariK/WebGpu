@@ -12,7 +12,8 @@ class TennisBall;
 class PlayerInput;
 
 class TennisPlayer : public CharacterBody3D {
-	GDCLASS(TennisPlayer, CharacterBody3D)
+	GDCLASS(TennisPlayer,
+			CharacterBody3D)
 
 private:
 	PlayerInput *player_input = nullptr;

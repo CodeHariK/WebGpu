@@ -53,12 +53,14 @@ void MCManager::setup_ui() {
 	help_btn->set_custom_minimum_size(Vector2(80, 40));
 
 	// 4. Create Help Dialog
-	ui.help_dialog = ui.manager->add_dialog(ui.manager, "Marching Cubes Info",
-											"This project visualizes the 256 voxel configurations of the Marching Cubes algorithm.\n\n"
-											"- 21 base meshes generate all 256 variants via rotations/reflections.\n"
-											"- Transformations are applied via bitwise-mapped rotation matrices.\n"
-											"- Current UI tracks real-time performance and generation stats.\n\n"
-											"- Stats Button: Toggle sidebar visibility");
+	ui.help_dialog = ui.manager->add_dialog(
+			ui.manager, "Marching Cubes Info",
+			"This project visualizes the 256 voxel configurations of the Marching Cubes algorithm.\n\n"
+			"- 21 base meshes generate all 256 variants via rotations/reflections.\n"
+			"- Transformations are applied via bitwise-mapped rotation matrices.\n"
+			"- Current UI tracks real-time performance and generation stats.\n\n"
+			"- Stats Button: Toggle sidebar visibility"
+	);
 	ui.help_dialog->set_min_size(Vector2(400, 300));
 
 	// 5. Create Scroll Container (inside SidePanel)
@@ -83,7 +85,8 @@ void MCManager::setup_ui() {
 
 	ui.manager->add_label(ui.stats_vbox, "--- DIAGNOSTICS ---");
 
-	Button *vis_btn = ui.manager->add_button(ui.stats_vbox, "Toggle Visual Corners", Callable(this, "_on_toggle_visual_corners"));
+	Button *vis_btn =
+			ui.manager->add_button(ui.stats_vbox, "Toggle Visual Corners", Callable(this, "_on_toggle_visual_corners"));
 	vis_btn->set_custom_minimum_size(Vector2(0, 30));
 
 	ui.manager->add_label(ui.stats_vbox, "--- TERRAIN STATS ---");
@@ -99,7 +102,8 @@ void MCManager::setup_ui() {
 	load_btn->set_custom_minimum_size(Vector2(0, 30));
 
 	ui.manager->add_label(ui.stats_vbox, "--- PLACEMENT ---");
-	Button *mode_btn = ui.manager->add_button(ui.stats_vbox, "Mode: Terrain", Callable(this, "_on_toggle_placement_mode"));
+	Button *mode_btn =
+			ui.manager->add_button(ui.stats_vbox, "Mode: Terrain", Callable(this, "_on_toggle_placement_mode"));
 	mode_btn->set_name("PlacementModeButton"); // For easy lookup if needed
 	mode_btn->set_custom_minimum_size(Vector2(0, 30));
 
@@ -152,7 +156,8 @@ void MCManager::_on_toggle_ui() {
 void MCManager::_on_gui_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> mb = p_event;
 	if (mb.is_valid()) {
-		if (mb->get_button_index() == MouseButton::MOUSE_BUTTON_WHEEL_UP || mb->get_button_index() == MouseButton::MOUSE_BUTTON_WHEEL_DOWN) {
+		if (mb->get_button_index() == MouseButton::MOUSE_BUTTON_WHEEL_UP ||
+			mb->get_button_index() == MouseButton::MOUSE_BUTTON_WHEEL_DOWN) {
 			get_viewport()->set_input_as_handled();
 		}
 	}
@@ -173,19 +178,33 @@ void MCManager::update_ui() {
 	if (perf.fps_label)
 		perf.fps_label->set_text("FPS: " + String::num(perf_singleton->get_monitor(Performance::TIME_FPS), 1));
 	if (perf.draw_calls_label)
-		perf.draw_calls_label->set_text("Draw Calls: " + String::num_int64((int64_t)perf_singleton->get_monitor(Performance::RENDER_TOTAL_DRAW_CALLS_IN_FRAME)));
+		perf.draw_calls_label->set_text(
+				"Draw Calls: " +
+				String::num_int64((int64_t)perf_singleton->get_monitor(Performance::RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+		);
 	if (perf.meshes_label)
-		perf.meshes_label->set_text("Engine Objects: " + String::num_int64((int64_t)perf_singleton->get_monitor(Performance::RENDER_TOTAL_OBJECTS_IN_FRAME)));
+		perf.meshes_label->set_text(
+				"Engine Objects: " +
+				String::num_int64((int64_t)perf_singleton->get_monitor(Performance::RENDER_TOTAL_OBJECTS_IN_FRAME))
+		);
 	if (perf.collision_label)
-		perf.collision_label->set_text("Collision Pairs: " + String::num_int64((int64_t)perf_singleton->get_monitor(Performance::PHYSICS_3D_COLLISION_PAIRS)));
+		perf.collision_label->set_text(
+				"Collision Pairs: " +
+				String::num_int64((int64_t)perf_singleton->get_monitor(Performance::PHYSICS_3D_COLLISION_PAIRS))
+		);
 	if (perf.memory_label)
-		perf.memory_label->set_text("Static Memory: " + String::num(perf_singleton->get_monitor(Performance::MEMORY_STATIC) / 1024.0 / 1024.0, 2) + " MB");
+		perf.memory_label->set_text(
+				"Static Memory: " +
+				String::num(perf_singleton->get_monitor(Performance::MEMORY_STATIC) / 1024.0 / 1024.0, 2) + " MB"
+		);
 
 	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (terrain_node && terrain.stats_label) {
-		terrain.stats_label->set_text("MC Meshes: " + String::num_int64(terrain_node->get_total_mc_meshes()) +
-									  "\nMC Cells: " + String::num_int64(terrain_node->get_total_cells()) +
-									  "\nDebug Corners: " + String::num_int64(terrain_node->get_total_debug_corners()));
+		terrain.stats_label->set_text(
+				"MC Meshes: " + String::num_int64(terrain_node->get_total_mc_meshes()) +
+				"\nMC Cells: " + String::num_int64(terrain_node->get_total_cells()) +
+				"\nDebug Corners: " + String::num_int64(terrain_node->get_total_debug_corners())
+		);
 	}
 
 	if (ui.hash_label) {
@@ -193,8 +212,9 @@ void MCManager::update_ui() {
 			uint8_t h = _get_cell_hash(locked_grid_pos);
 			String bin = MCNode::hash_to_binary(h);
 			Vector3 display_pos = Vector3(locked_grid_pos);
-			ui.hash_label->set_text("Hash: " + bin + " (" + String::num_int64(h) + ")" +
-									"\nPos: " + String(display_pos));
+			ui.hash_label->set_text(
+					"Hash: " + bin + " (" + String::num_int64(h) + ")" + "\nPos: " + String(display_pos)
+			);
 		} else {
 			ui.hash_label->set_text("Hash: N/A\nPos: N/A");
 		}
@@ -227,7 +247,10 @@ void MCManager::update_ui() {
 					if ((base_h >> i) & 1)
 						bit_count++;
 				}
-				ui.manager->add_label(ui.variant_stats_vbox, String::num_int64(bit_count) + " : " + base_name + " : " + String::num_int64(count));
+				ui.manager->add_label(
+						ui.variant_stats_vbox,
+						String::num_int64(bit_count) + " : " + base_name + " : " + String::num_int64(count)
+				);
 			}
 			ui.manager->add_label(ui.variant_stats_vbox, "Cumulative: " + String::num_int64(total));
 		}

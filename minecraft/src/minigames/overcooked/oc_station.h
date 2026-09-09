@@ -15,7 +15,8 @@ class OCIngredient;
 class OCPlate;
 
 class OCStation : public Interactable {
-	GDCLASS(OCStation, Interactable)
+	GDCLASS(OCStation,
+			Interactable)
 
 private:
 	StationType station_type = TYPE_COUNTER;
@@ -26,7 +27,10 @@ protected:
 	Interactable *held_item = nullptr;
 	Node3D *item_slot = nullptr;
 
-	void _process_ingredient(OCIngredient *p_ingredient, float p_delta);
+	void _process_ingredient(
+			OCIngredient *p_ingredient,
+			float p_delta
+	);
 	bool _interact_ingredient(OCIngredient *p_ingredient);
 
 	static void _bind_methods();
@@ -59,7 +63,13 @@ public:
 	void set_station_type(StationType p_type);
 	StationType get_station_type() const;
 
-	void add_step(IngredientState p_input, IngredientState p_output, float p_speed, bool p_auto, ProcessOperation p_op = PROCESS_NONE);
+	void add_step(
+			IngredientState p_input,
+			IngredientState p_output,
+			float p_speed,
+			bool p_auto,
+			ProcessOperation p_op = PROCESS_NONE
+	);
 	void clear_steps();
 };
 

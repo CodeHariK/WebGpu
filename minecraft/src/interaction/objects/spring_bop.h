@@ -6,13 +6,14 @@
 namespace godot {
 
 class SpringBop : public RigidBody3D {
-	GDCLASS(SpringBop, RigidBody3D)
+	GDCLASS(SpringBop,
+			RigidBody3D)
 
 private:
 	float stiffness = 40.0f;
 	float damping = 4.0f;
 	bool lock_y_rotation = false;
-	
+
 	Vector3 rest_rotation;
 	Vector3 hinge_offset = Vector3(0, 0, 0);
 

@@ -11,8 +11,7 @@ namespace godot {
 
 PlayerInput *PlayerInput::singleton = nullptr;
 
-void PlayerInput::_bind_methods() {
-}
+void PlayerInput::_bind_methods() {}
 
 PlayerInput::PlayerInput() {
 	if (singleton == nullptr) {
@@ -39,9 +38,7 @@ PlayerInput::~PlayerInput() {
 	}
 }
 
-PlayerInput *PlayerInput::get_singleton() {
-	return singleton;
-}
+PlayerInput *PlayerInput::get_singleton() { return singleton; }
 
 void PlayerInput::update() {
 	Input *input = Input::get_singleton();

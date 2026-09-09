@@ -8,7 +8,8 @@
 namespace godot {
 
 class BTComposite : public BTTask {
-	GDCLASS(BTComposite, BTTask)
+	GDCLASS(BTComposite,
+			BTTask)
 
 protected:
 	Vector<Ref<BTTask>> children;
@@ -30,7 +31,9 @@ public:
 		}
 	}
 
-	virtual void abort(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual void
+	abort(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override {
 		if (get_status() == RUNNING) {
 			if (current_child_index >= 0 && current_child_index < children.size()) {
 				children.write[current_child_index]->abort(p_actor, p_btstore);
@@ -41,7 +44,8 @@ public:
 };
 
 class BTSequence : public BTComposite {
-	GDCLASS(BTSequence, BTComposite)
+	GDCLASS(BTSequence,
+			BTComposite)
 
 protected:
 	static void _bind_methods() {}
@@ -54,15 +58,20 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override {
 		current_child_index = 0;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTSelector : public BTComposite {
-	GDCLASS(BTSelector, BTComposite)
+	GDCLASS(BTSelector,
+			BTComposite)
 
 protected:
 	static void _bind_methods() {}
@@ -75,15 +84,20 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override {
 		current_child_index = 0;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTRandomSelector : public BTComposite {
-	GDCLASS(BTRandomSelector, BTComposite)
+	GDCLASS(BTRandomSelector,
+			BTComposite)
 
 private:
 	Vector<int> indices;
@@ -99,12 +113,17 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override;
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTRandomSequence : public BTComposite {
-	GDCLASS(BTRandomSequence, BTComposite)
+	GDCLASS(BTRandomSequence,
+			BTComposite)
 
 private:
 	Vector<int> indices;
@@ -120,12 +139,17 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override;
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTReactiveSelector : public BTComposite {
-	GDCLASS(BTReactiveSelector, BTComposite)
+	GDCLASS(BTReactiveSelector,
+			BTComposite)
 
 protected:
 	static void _bind_methods() {}
@@ -138,15 +162,20 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override {
 		current_child_index = 0;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 class BTReactiveSequence : public BTComposite {
-	GDCLASS(BTReactiveSequence, BTComposite)
+	GDCLASS(BTReactiveSequence,
+			BTComposite)
 
 protected:
 	static void _bind_methods() {}
@@ -159,11 +188,15 @@ public:
 		return node;
 	}
 
-	virtual void _enter(Node *p_actor, const Ref<BTStore> &p_btstore) override {
+	virtual void
+	_enter(Node *p_actor,
+		   const Ref<BTStore> &p_btstore) override {
 		current_child_index = 0;
 	}
 
-	virtual Status _tick(Node *p_actor, const Ref<BTStore> &p_btstore) override;
+	virtual Status
+	_tick(Node *p_actor,
+		  const Ref<BTStore> &p_btstore) override;
 };
 
 } // namespace godot

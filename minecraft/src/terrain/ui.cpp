@@ -17,10 +17,15 @@ void MinecraftNode::setup_ui() {
 
 	String ui_root = "/root/World/UiMinecraft/";
 	ui.health_bar = Object::cast_to<ProgressBar>(get_node_or_null(ui_root + "HealthBar"));
-	ui.header_button = Object::cast_to<Button>(get_node_or_null(ui_root + "TerrainPanel/TerrainProperties/TerrainHeaderButton"));
+	ui.header_button =
+			Object::cast_to<Button>(get_node_or_null(ui_root + "TerrainPanel/TerrainProperties/TerrainHeaderButton"));
 	ui.content = Object::cast_to<Control>(get_node_or_null(ui_root + "TerrainPanel/TerrainProperties/TerrainContent"));
-	ui.terrain_slider = Object::cast_to<Slider>(get_node_or_null(ui_root + "TerrainPanel/TerrainProperties/TerrainContent/TerrainSizeSlider"));
-	ui.terrain_debug_label = Object::cast_to<Label>(get_node_or_null(ui_root + "TerrainPanel/TerrainProperties/ScrollContainer/TerrainDebug"));
+	ui.terrain_slider = Object::cast_to<Slider>(
+			get_node_or_null(ui_root + "TerrainPanel/TerrainProperties/TerrainContent/TerrainSizeSlider")
+	);
+	ui.terrain_debug_label = Object::cast_to<Label>(
+			get_node_or_null(ui_root + "TerrainPanel/TerrainProperties/ScrollContainer/TerrainDebug")
+	);
 	if (ui.is_valid()) {
 		ui.header_button->connect("pressed", Callable(this, "ui_on_header_button_pressed"));
 		ui.terrain_slider->connect("value_changed", Callable(this, "ui_on_terrain_slider_change"));
@@ -39,9 +44,7 @@ void MinecraftNode::ui_on_header_button_pressed() {
 	ui.health_bar->set_value(rand() % 101);
 }
 
-void MinecraftNode::ui_on_terrain_slider_change(double value) {
-	part_size = (int)value;
-}
+void MinecraftNode::ui_on_terrain_slider_change(double value) { part_size = (int)value; }
 
 void MinecraftNode::ui_on_header_mouse_entered() {
 	if (!tween->is_valid())

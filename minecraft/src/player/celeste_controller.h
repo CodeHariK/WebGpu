@@ -20,7 +20,8 @@ class CelesteDoubleJumpState;
 class CelesteJumpKickState;
 
 class CelesteController : public CharacterBody3D {
-	GDCLASS(CelesteController, CharacterBody3D)
+	GDCLASS(CelesteController,
+			CharacterBody3D)
 
 	friend class CelesteState;
 	friend class CelesteGroundedState;
@@ -122,7 +123,10 @@ public:
 	void change_state(CelesteState *p_new_state);
 
 	// UI Logic
-	void _on_ui_slider_value_changed(double p_value, String p_property);
+	void _on_ui_slider_value_changed(
+			double p_value,
+			String p_property
+	);
 	void _on_ui_toggle();
 	void save_settings();
 	void load_settings();
@@ -142,7 +146,10 @@ private:
 	void debug_draw_label();
 	void debug_draw_bottom();
 
-	Vector3 _collide_and_slide(const Vector3 &p_velocity, const Vector3 &p_normal);
+	Vector3 _collide_and_slide(
+			const Vector3 &p_velocity,
+			const Vector3 &p_normal
+	);
 };
 
 } // namespace godot

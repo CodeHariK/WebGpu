@@ -8,7 +8,8 @@
 namespace godot {
 
 class OCRecipe : public RefCounted {
-	GDCLASS(OCRecipe, RefCounted)
+	GDCLASS(OCRecipe,
+			RefCounted)
 
 private:
 	String dish_name = "New Dish";

@@ -20,8 +20,14 @@ protected:
 public:
 	String state_name = "";
 
-	VehicleState(String p_name, ArcadeVehicle *p_vehicle, VehicleState *p_parent = nullptr) :
-			state_name(p_name), vehicle(p_vehicle), parent(p_parent) {}
+	VehicleState(
+			String p_name,
+			ArcadeVehicle *p_vehicle,
+			VehicleState *p_parent = nullptr
+	) :
+			state_name(p_name),
+			vehicle(p_vehicle),
+			parent(p_parent) {}
 	virtual ~VehicleState() {}
 
 	// Called when this specific state is entered

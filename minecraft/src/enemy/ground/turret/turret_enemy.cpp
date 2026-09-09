@@ -8,8 +8,7 @@
 
 namespace godot {
 
-void TurretEnemy::_bind_methods() {
-}
+void TurretEnemy::_bind_methods() {}
 
 TurretEnemy::TurretEnemy() {
 	set_enemy_kind("Turret");

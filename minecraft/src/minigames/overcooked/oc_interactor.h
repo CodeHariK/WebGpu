@@ -12,7 +12,8 @@ class GameManager;
 class PlayerInput;
 
 class OCInteractor : public Node3D {
-	GDCLASS(OCInteractor, Node3D)
+	GDCLASS(OCInteractor,
+			Node3D)
 
 private:
 	float interaction_range = InteractionDefaults::RANGE;

@@ -29,21 +29,34 @@ struct SNChunk {
 	MeshInstance3D *visual_node = nullptr;
 	StaticBody3D *collision_body = nullptr;
 
-	int8_t get_corner(int x, int y, int z) const {
+	int8_t get_corner(
+			int x,
+			int y,
+			int z
+	) const {
 		int nx = size_x + 1;
 		int nz = size_z + 1;
 		int index = (y * nx * nz) + (z * nx) + x;
 		return corner_densities[index];
 	}
 
-	void set_corner(int x, int y, int z, int8_t value) {
+	void set_corner(
+			int x,
+			int y,
+			int z,
+			int8_t value
+	) {
 		int nx = size_x + 1;
 		int nz = size_z + 1;
 		int index = (y * nx * nz) + (z * nx) + x;
 		corner_densities[index] = value;
 	}
 
-	bool is_corner_active(int x, int y, int z) const {
+	bool is_corner_active(
+			int x,
+			int y,
+			int z
+	) const {
 		return get_corner(x, y, z) < 0; // Negative values are inside/solid
 	}
 
@@ -52,7 +65,8 @@ struct SNChunk {
 };
 
 class SNGrid : public Node3D {
-	GDCLASS(SNGrid, Node3D)
+	GDCLASS(SNGrid,
+			Node3D)
 
 private:
 	Vector3i grid_size = Vector3i(1, 1, 1);
@@ -65,11 +79,20 @@ private:
 	bool cell_center = false;
 	bool smooth_normal = true;
 
-	int _get_chunk_index(int x, int y, int z) const {
+	int _get_chunk_index(
+			int x,
+			int y,
+			int z
+	) const {
 		return (y * grid_size.x * grid_size.z) + (z * grid_size.x) + x;
 	}
 
-	bool _is_boundary_corner(int gx, int gy, int gz, int8_t &r_required_density) const;
+	bool _is_boundary_corner(
+			int gx,
+			int gy,
+			int gz,
+			int8_t &r_required_density
+	) const;
 	void _initialize_boundaries(SNChunk &p_chunk) const;
 
 	void _update_chunk_mesh(int p_chunk_idx);
@@ -84,10 +107,21 @@ public:
 
 	void _ready() override;
 
-	void initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, bool p_refresh = true);
+	void initialize_grid(
+			int p_chunks_x,
+			int p_chunks_y,
+			int p_chunks_z,
+			int p_chunk_size_x,
+			int p_chunk_size_y,
+			int p_chunk_size_z,
+			bool p_refresh = true
+	);
 	void refresh_grid();
 
-	void modify_density(const Vector3i &p_grid_pos, int8_t p_density);
+	void modify_density(
+			const Vector3i &p_grid_pos,
+			int8_t p_density
+	);
 	int8_t get_density(const Vector3i &p_grid_pos) const;
 	bool is_solid(const Vector3i &p_grid_pos) const;
 
@@ -95,14 +129,10 @@ public:
 	void load_grid(const String &p_path);
 
 	void set_grid_size(const Vector3i &p_size);
-	Vector3i get_grid_size() const {
-		return grid_size;
-	}
+	Vector3i get_grid_size() const { return grid_size; }
 
 	void set_chunk_size(const Vector3i &p_size);
-	Vector3i get_chunk_size() const {
-		return chunk_size;
-	}
+	Vector3i get_chunk_size() const { return chunk_size; }
 
 	void set_terrain_material(const Ref<Material> &p_material);
 	Ref<Material> get_terrain_material() const;

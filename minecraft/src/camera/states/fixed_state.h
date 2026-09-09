@@ -8,7 +8,9 @@ namespace godot {
 class CameraStateFixed : public CameraState {
 public:
 	void enter(GameCamera *p_camera) override;
-	void update(GameCamera *p_camera, float p_delta) override;
+	void
+	update(GameCamera *p_camera,
+		   float p_delta) override;
 };
 
 } // namespace godot

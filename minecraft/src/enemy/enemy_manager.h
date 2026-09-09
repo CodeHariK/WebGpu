@@ -4,8 +4,8 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/vector3.hpp>
-#include <vector>
 #include <map>
+#include <vector>
 
 namespace godot {
 
@@ -17,7 +17,8 @@ struct EnemyData {
 };
 
 class EnemyManager : public Object {
-	GDCLASS(EnemyManager, Object)
+	GDCLASS(EnemyManager,
+			Object)
 
 private:
 	static EnemyManager *singleton;
@@ -32,12 +33,19 @@ public:
 
 	static EnemyManager *get_singleton();
 
-	void register_enemy(Node3D *p_node, const String &p_kind);
+	void register_enemy(
+			Node3D *p_node,
+			const String &p_kind
+	);
 	void unregister_enemy(Node3D *p_node);
 
-	Node3D *get_best_target(Vector3 p_origin, Vector3 p_input_dir, float p_max_range);
-	
-	const std::vector<EnemyData>& get_enemies() const { return enemies; }
+	Node3D *get_best_target(
+			Vector3 p_origin,
+			Vector3 p_input_dir,
+			float p_max_range
+	);
+
+	const std::vector<EnemyData> &get_enemies() const { return enemies; }
 };
 
 } // namespace godot

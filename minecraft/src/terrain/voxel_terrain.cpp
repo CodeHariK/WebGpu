@@ -31,29 +31,23 @@ enum FaceDirection : int8_t {
 
 const FaceData face_lookup_arr[6] = {
 	// FACE_TOP (+Y)
-	{
-			{ Vector3i(0, 1, 0), Vector3i(1, 1, 0), Vector3i(1, 1, 1), Vector3i(0, 1, 1) },
-			{ Vector2(0, 0), Vector2(0.125, 0), Vector2(0.125, 0.125), Vector2(0, 0.125) } },
+	{ { Vector3i(0, 1, 0), Vector3i(1, 1, 0), Vector3i(1, 1, 1), Vector3i(0, 1, 1) },
+	  { Vector2(0, 0), Vector2(0.125, 0), Vector2(0.125, 0.125), Vector2(0, 0.125) } },
 	// FACE_BOTTOM (-Y)
-	{
-			{ Vector3i(0, 0, 0), Vector3i(0, 0, 1), Vector3i(1, 0, 1), Vector3i(1, 0, 0) },
-			{ Vector2(0.125, 0), Vector2(0.125, 0.125), Vector2(0.25, 0.125), Vector2(0.25, 0) } },
+	{ { Vector3i(0, 0, 0), Vector3i(0, 0, 1), Vector3i(1, 0, 1), Vector3i(1, 0, 0) },
+	  { Vector2(0.125, 0), Vector2(0.125, 0.125), Vector2(0.25, 0.125), Vector2(0.25, 0) } },
 	// FACE_RIGHT (+X)
-	{
-			{ Vector3i(1, 1, 1), Vector3i(1, 1, 0), Vector3i(1, 0, 0), Vector3i(1, 0, 1) },
-			{ Vector2(0.25, 0), Vector2(0.375, 0), Vector2(0.375, 0.125), Vector2(0.25, 0.125) } },
+	{ { Vector3i(1, 1, 1), Vector3i(1, 1, 0), Vector3i(1, 0, 0), Vector3i(1, 0, 1) },
+	  { Vector2(0.25, 0), Vector2(0.375, 0), Vector2(0.375, 0.125), Vector2(0.25, 0.125) } },
 	// FACE_LEFT (-X)
-	{
-			{ Vector3i(0, 1, 0), Vector3i(0, 1, 1), Vector3i(0, 0, 1), Vector3i(0, 0, 0) },
-			{ Vector2(0.375, 0), Vector2(0.5, 0), Vector2(0.5, 0.125), Vector2(0.375, 0.125) } },
+	{ { Vector3i(0, 1, 0), Vector3i(0, 1, 1), Vector3i(0, 0, 1), Vector3i(0, 0, 0) },
+	  { Vector2(0.375, 0), Vector2(0.5, 0), Vector2(0.5, 0.125), Vector2(0.375, 0.125) } },
 	// FACE_FRONT (+Z)
-	{
-			{ Vector3i(0, 1, 1), Vector3i(1, 1, 1), Vector3i(1, 0, 1), Vector3i(0, 0, 1) },
-			{ Vector2(0.5, 0), Vector2(0.625, 0), Vector2(0.625, 0.125), Vector2(0.5, 0.125) } },
+	{ { Vector3i(0, 1, 1), Vector3i(1, 1, 1), Vector3i(1, 0, 1), Vector3i(0, 0, 1) },
+	  { Vector2(0.5, 0), Vector2(0.625, 0), Vector2(0.625, 0.125), Vector2(0.5, 0.125) } },
 	// FACE_BACK (-Z)
-	{
-			{ Vector3i(1, 1, 0), Vector3i(0, 1, 0), Vector3i(0, 0, 0), Vector3i(1, 0, 0) },
-			{ Vector2(0.625, 0), Vector2(0.75, 0), Vector2(0.75, 0.125), Vector2(0.625, 0.125) } }
+	{ { Vector3i(1, 1, 0), Vector3i(0, 1, 0), Vector3i(0, 0, 0), Vector3i(1, 0, 0) },
+	  { Vector2(0.625, 0), Vector2(0.75, 0), Vector2(0.75, 0.125), Vector2(0.625, 0.125) } }
 };
 
 inline int direction_to_face_index(const Vector3i &dir) {
@@ -72,9 +66,15 @@ inline int direction_to_face_index(const Vector3i &dir) {
 	return -1; // Invalid direction
 }
 
-void add_face(PackedVector3Array &vertices, PackedVector3Array &normals,
-		PackedVector2Array &uvs, PackedInt32Array &indices,
-		const Vector3i &pos, const Vector3i &dir, int &index_offset) {
+void add_face(
+		PackedVector3Array &vertices,
+		PackedVector3Array &normals,
+		PackedVector2Array &uvs,
+		PackedInt32Array &indices,
+		const Vector3i &pos,
+		const Vector3i &dir,
+		int &index_offset
+) {
 	int face_index = direction_to_face_index(dir);
 	if (face_index != -1) {
 		const FaceData &face_data = face_lookup_arr[face_index];
@@ -102,7 +102,11 @@ void add_face(PackedVector3Array &vertices, PackedVector3Array &normals,
 	}
 }
 
-MeshInstance3D *MinecraftNode::generate_voxel_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling) {
+MeshInstance3D *MinecraftNode::generate_voxel_part_mesh(
+		String name,
+		Vector2i indexPos,
+		bool height_curve_sampling
+) {
 	PackedVector3Array vertices;
 	PackedVector3Array normals;
 	PackedVector2Array uvs;
@@ -119,14 +123,10 @@ MeshInstance3D *MinecraftNode::generate_voxel_part_mesh(String name, Vector2i in
 			int h = heights[x + z * query_dim];
 
 			// Top face
-			add_face(vertices, normals, uvs, indices,
-					Vector3i(x, h, z), Vector3i(0, 1, 0), index_offset);
+			add_face(vertices, normals, uvs, indices, Vector3i(x, h, z), Vector3i(0, 1, 0), index_offset);
 
 			// Side faces
-			const Vector3i dirs[4] = {
-				Vector3i(-1, 0, 0), Vector3i(1, 0, 0),
-				Vector3i(0, 0, -1), Vector3i(0, 0, 1)
-			};
+			const Vector3i dirs[4] = { Vector3i(-1, 0, 0), Vector3i(1, 0, 0), Vector3i(0, 0, -1), Vector3i(0, 0, 1) };
 			const int dx[4] = { -1, 1, 0, 0 };
 			const int dz[4] = { 0, 0, -1, 1 };
 
@@ -136,8 +136,7 @@ MeshInstance3D *MinecraftNode::generate_voxel_part_mesh(String name, Vector2i in
 				int neighbor_h = heights[nx + nz * query_dim];
 				if (h > neighbor_h) {
 					for (int y = neighbor_h + 1; y <= h; y++) {
-						add_face(vertices, normals, uvs, indices,
-								Vector3i(x, y, z), dirs[dir_idx], index_offset);
+						add_face(vertices, normals, uvs, indices, Vector3i(x, y, z), dirs[dir_idx], index_offset);
 					}
 				}
 			}

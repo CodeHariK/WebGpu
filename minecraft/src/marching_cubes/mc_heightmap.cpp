@@ -17,15 +17,21 @@ namespace godot {
 
 void MCHeightmap::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("initialize_random_noise"), &MCHeightmap::initialize_random_noise);
-	ClassDB::bind_method(D_METHOD("initialize_random_noise_and_generate"), &MCHeightmap::initialize_random_noise_and_generate);
+	ClassDB::bind_method(
+			D_METHOD("initialize_random_noise_and_generate"), &MCHeightmap::initialize_random_noise_and_generate
+	);
 
 	ClassDB::bind_method(D_METHOD("set_heightmap_data", "data"), &MCHeightmap::set_heightmap_data);
 	ClassDB::bind_method(D_METHOD("get_heightmap_data"), &MCHeightmap::get_heightmap_data);
-	ADD_PROPERTY(PropertyInfo(Variant::PACKED_BYTE_ARRAY, "heightmap_data"), "set_heightmap_data", "get_heightmap_data");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::PACKED_BYTE_ARRAY, "heightmap_data"), "set_heightmap_data", "get_heightmap_data"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_mc_node", "node"), &MCHeightmap::set_mc_node);
 	ClassDB::bind_method(D_METHOD("get_mc_node"), &MCHeightmap::get_mc_node);
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "mc_node", PROPERTY_HINT_NODE_TYPE, "MCNode"), "set_mc_node", "get_mc_node");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "mc_node", PROPERTY_HINT_NODE_TYPE, "MCNode"), "set_mc_node", "get_mc_node"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_cell_spacing", "spacing"), &MCHeightmap::set_cell_spacing);
 	ClassDB::bind_method(D_METHOD("get_cell_spacing"), &MCHeightmap::get_cell_spacing);
@@ -45,7 +51,10 @@ void MCHeightmap::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_noise_source", "noise"), &MCHeightmap::set_noise_source);
 	ClassDB::bind_method(D_METHOD("get_noise_source"), &MCHeightmap::get_noise_source);
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "noise_source", PROPERTY_HINT_RESOURCE_TYPE, "Noise"), "set_noise_source", "get_noise_source");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "noise_source", PROPERTY_HINT_RESOURCE_TYPE, "Noise"), "set_noise_source",
+			"get_noise_source"
+	);
 
 	ClassDB::bind_method(D_METHOD("generate_terrain"), &MCHeightmap::generate_terrain);
 	ClassDB::bind_method(D_METHOD("clear_terrain"), &MCHeightmap::clear_terrain);
@@ -53,9 +62,7 @@ void MCHeightmap::_bind_methods() {
 
 MCHeightmap::MCHeightmap() = default;
 
-MCHeightmap::~MCHeightmap() {
-	clear_terrain();
-}
+MCHeightmap::~MCHeightmap() { clear_terrain(); }
 
 void MCHeightmap::set_noise_source(const Ref<Noise> &p_noise) {
 	if (noise_source == p_noise) {
@@ -97,14 +104,20 @@ void MCHeightmap::generate_terrain() {
 			uint8_t h01 = data[x + (z + 1) * grid_size.x];
 
 			uint8_t h_min = h00;
-			if (h10 < h_min) h_min = h10;
-			if (h11 < h_min) h_min = h11;
-			if (h01 < h_min) h_min = h01;
+			if (h10 < h_min)
+				h_min = h10;
+			if (h11 < h_min)
+				h_min = h11;
+			if (h01 < h_min)
+				h_min = h01;
 
 			uint8_t h_max = h00;
-			if (h10 > h_max) h_max = h10;
-			if (h11 > h_max) h_max = h11;
-			if (h01 > h_max) h_max = h01;
+			if (h10 > h_max)
+				h_max = h10;
+			if (h11 > h_max)
+				h_max = h11;
+			if (h01 > h_max)
+				h_max = h01;
 
 			int start_y = (h_min > 0) ? (h_min - 1) : 0;
 			int end_y = (h_max < 255) ? h_max : 254;
@@ -123,9 +136,7 @@ void MCHeightmap::generate_terrain() {
 	}
 }
 
-void MCHeightmap::clear_terrain() {
-	_clear_terrain_meshes();
-}
+void MCHeightmap::clear_terrain() { _clear_terrain_meshes(); }
 
 void MCHeightmap::_clear_terrain_meshes() {
 	TypedArray<Node> children = get_children();
@@ -139,25 +150,48 @@ void MCHeightmap::_clear_terrain_meshes() {
 	debug_spheres_container = nullptr;
 }
 
-bool MCHeightmap::_is_corner_active(int x, int y, int z, const uint8_t *data_ptr) const {
+bool MCHeightmap::_is_corner_active(
+		int x,
+		int y,
+		int z,
+		const uint8_t *data_ptr
+) const {
 	uint8_t height = data_ptr[x + z * grid_size.x];
 	return y <= height;
 }
 
-uint8_t MCHeightmap::_get_cell_hash(int x, int y, int z, const uint8_t *data_ptr) const {
+uint8_t MCHeightmap::_get_cell_hash(
+		int x,
+		int y,
+		int z,
+		const uint8_t *data_ptr
+) const {
 	uint8_t hash = 0;
-	if (_is_corner_active(x, y, z + 1, data_ptr)) hash |= (1 << 0);
-	if (_is_corner_active(x + 1, y, z + 1, data_ptr)) hash |= (1 << 1);
-	if (_is_corner_active(x + 1, y, z, data_ptr)) hash |= (1 << 2);
-	if (_is_corner_active(x, y, z, data_ptr)) hash |= (1 << 3);
-	if (_is_corner_active(x, y + 1, z + 1, data_ptr)) hash |= (1 << 4);
-	if (_is_corner_active(x + 1, y + 1, z + 1, data_ptr)) hash |= (1 << 5);
-	if (_is_corner_active(x + 1, y + 1, z, data_ptr)) hash |= (1 << 6);
-	if (_is_corner_active(x, y + 1, z, data_ptr)) hash |= (1 << 7);
+	if (_is_corner_active(x, y, z + 1, data_ptr))
+		hash |= (1 << 0);
+	if (_is_corner_active(x + 1, y, z + 1, data_ptr))
+		hash |= (1 << 1);
+	if (_is_corner_active(x + 1, y, z, data_ptr))
+		hash |= (1 << 2);
+	if (_is_corner_active(x, y, z, data_ptr))
+		hash |= (1 << 3);
+	if (_is_corner_active(x, y + 1, z + 1, data_ptr))
+		hash |= (1 << 4);
+	if (_is_corner_active(x + 1, y + 1, z + 1, data_ptr))
+		hash |= (1 << 5);
+	if (_is_corner_active(x + 1, y + 1, z, data_ptr))
+		hash |= (1 << 6);
+	if (_is_corner_active(x, y + 1, z, data_ptr))
+		hash |= (1 << 7);
 	return hash;
 }
 
-void MCHeightmap::_spawn_cell_mesh(int x, int y, int z, uint8_t hash) {
+void MCHeightmap::_spawn_cell_mesh(
+		int x,
+		int y,
+		int z,
+		uint8_t hash
+) {
 	MeshConfig conf = mc_node->get_mesh_config(hash);
 	if (conf.mesh.is_null()) {
 		return;
@@ -234,7 +268,8 @@ void MCHeightmap::initialize_random_noise() {
 	}
 
 	auto noise2d = [](float x, float z) {
-		unsigned int h = static_cast<unsigned int>(floor(x)) * 374761393 + static_cast<unsigned int>(floor(z)) * 668265263;
+		unsigned int h =
+				static_cast<unsigned int>(floor(x)) * 374761393 + static_cast<unsigned int>(floor(z)) * 668265263;
 		h = (h ^ (h >> 13)) * 12741261;
 		return static_cast<float>(h & 0x7fffffff) / 2147483647.0f;
 	};

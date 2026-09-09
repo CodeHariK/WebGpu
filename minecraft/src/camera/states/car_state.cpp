@@ -2,9 +2,9 @@
 #include "../../game_manager/player_input.h"
 #include "../camera.h"
 #include "godot_cpp/variant/utility_functions.hpp"
+#include <cmath>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
-#include <cmath>
 
 namespace godot {
 
@@ -13,7 +13,10 @@ void CameraStateCar::enter(GameCamera *p_camera) {
 	first_frame = true;
 }
 
-void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
+void CameraStateCar::update(
+		GameCamera *p_camera,
+		float p_delta
+) {
 	RigidBody3D *rb = Object::cast_to<RigidBody3D>(p_camera->get_follow_target_node());
 
 	Vector3 target_pivot = (rb) ? rb->get_global_position() : p_camera->get_global_position();
@@ -40,7 +43,9 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 		}
 
 		if (std::abs(state.camera.zoom_delta) > 0.001f) {
-			p_camera->target_distance = CLAMP(p_camera->target_distance - (state.camera.zoom_delta * p_camera->zoom_speed), p_camera->min_distance, p_camera->max_distance);
+			p_camera->target_distance =
+					CLAMP(p_camera->target_distance - (state.camera.zoom_delta * p_camera->zoom_speed),
+						  p_camera->min_distance, p_camera->max_distance);
 		}
 
 		// Car orientation tracking
@@ -107,7 +112,8 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 
 	// Final Ideal Position Calculation
 	Basis ideal_rot_basis = Basis::from_euler(Vector3(p_camera->pitch, p_camera->yaw, 0));
-	Vector3 base_dir = p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset.normalized() : Vector3(0, 0, 1);
+	Vector3 base_dir =
+			p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset.normalized() : Vector3(0, 0, 1);
 	Vector3 ideal_pos = pivot + ideal_rot_basis.xform(base_dir * p_camera->get_current_target_distance());
 
 	float actual_dist = p_camera->get_current_target_distance();
@@ -122,7 +128,9 @@ void CameraStateCar::update(GameCamera *p_camera, float p_delta) {
 		p_camera->dist_spring.velocity = 0.0f;
 	} else {
 		// Smoothly recover distance when moving away from obstacles
-		p_camera->dist_spring.step(p_delta, p_camera->get_frequency() * 1.5f, p_camera->get_damping(), p_camera->response);
+		p_camera->dist_spring.step(
+				p_delta, p_camera->get_frequency() * 1.5f, p_camera->get_damping(), p_camera->response
+		);
 	}
 
 	Basis rot_basis = Basis::from_euler(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));

@@ -16,7 +16,10 @@ namespace godot {
 CelesteUI::CelesteUI() {}
 CelesteUI::~CelesteUI() {}
 
-void CelesteUI::setup(CelesteController *p_controller, CUI *p_ui_root) {
+void CelesteUI::setup(
+		CelesteController *p_controller,
+		CUI *p_ui_root
+) {
 	controller = p_controller;
 	ui_root = p_ui_root;
 
@@ -88,7 +91,14 @@ void CelesteUI::setup(CelesteController *p_controller, CUI *p_ui_root) {
 	}
 }
 
-void CelesteUI::_add_variable_slider(Node *p_parent, const String &p_label, const String &p_property, float p_min, float p_max, float p_step) {
+void CelesteUI::_add_variable_slider(
+		Node *p_parent,
+		const String &p_label,
+		const String &p_property,
+		float p_min,
+		float p_max,
+		float p_step
+) {
 	HBoxContainer *hbox = ui_root->add_hbox(p_parent, p_property + String("_box"));
 
 	Label *label = ui_root->add_label(hbox, p_label);
@@ -96,9 +106,10 @@ void CelesteUI::_add_variable_slider(Node *p_parent, const String &p_label, cons
 
 	float current_val = controller->get_ui_var(p_property);
 
-	ui_root->add_hslider(hbox, p_min, p_max, p_step, current_val,
-			Callable(controller, "_on_ui_slider_value_changed").bind(p_property),
-			p_property);
+	ui_root->add_hslider(
+			hbox, p_min, p_max, p_step, current_val,
+			Callable(controller, "_on_ui_slider_value_changed").bind(p_property), p_property
+	);
 }
 
 void CelesteUI::toggle_visibility() {
@@ -131,8 +142,6 @@ void CelesteUI::update_graph(float p_val) {
 	}
 }
 
-bool CelesteUI::is_visible() const {
-	return main_panel && main_panel->is_visible();
-}
+bool CelesteUI::is_visible() const { return main_panel && main_panel->is_visible(); }
 
 } // namespace godot

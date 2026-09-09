@@ -2,7 +2,10 @@
 
 namespace godot {
 
-PackedByteArray RLE::encode_bit_rle(int p_num_bits, const BitGetter &p_getter) {
+PackedByteArray RLE::encode_bit_rle(
+		int p_num_bits,
+		const BitGetter &p_getter
+) {
 	PackedByteArray output;
 	if (p_num_bits == 0) {
 		return output;
@@ -49,7 +52,11 @@ PackedByteArray RLE::encode_bit_rle(int p_num_bits, const BitGetter &p_getter) {
 	return output;
 }
 
-void RLE::decode_bit_rle(const PackedByteArray &p_data, int p_num_bits, const BitSetter &p_setter) {
+void RLE::decode_bit_rle(
+		const PackedByteArray &p_data,
+		int p_num_bits,
+		const BitSetter &p_setter
+) {
 	int corner_index = 0;
 	int byte_index = 0;
 

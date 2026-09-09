@@ -8,7 +8,8 @@
 namespace godot {
 
 class TurretEnemy : public EnemyBase {
-	GDCLASS(TurretEnemy, EnemyBase)
+	GDCLASS(TurretEnemy,
+			EnemyBase)
 
 private:
 	float shoot_interval = 2.0f;

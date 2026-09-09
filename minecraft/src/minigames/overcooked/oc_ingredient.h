@@ -9,10 +9,10 @@
 namespace godot {
 
 class OCIngredient : public Interactable {
-	GDCLASS(OCIngredient, Interactable)
+	GDCLASS(OCIngredient,
+			Interactable)
 
 public:
-
 private:
 	IngredientState current_state = INGREDIENT_STATE_RAW;
 	float process_progress = 0.0f;

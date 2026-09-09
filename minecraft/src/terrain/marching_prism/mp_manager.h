@@ -24,7 +24,8 @@ class Camera3D;
 class QuadMesh;
 
 class MPManager : public Node3D {
-	GDCLASS(MPManager, Node3D)
+	GDCLASS(MPManager,
+			Node3D)
 
 public:
 	// Structure defs unchanged
@@ -118,11 +119,17 @@ public:
 	void save_terrain(const String &p_path);
 	void load_terrain(const String &p_path);
 	void _initialize_previews();
-	void _update_hover_box(const Vector3i &p_grid_pos, bool p_is_blocked);
+	void _update_hover_box(
+			const Vector3i &p_grid_pos,
+			bool p_is_blocked
+	);
 	void _update_hover_raycast();
 	uint8_t _get_cell_hash(const Vector3i &p_grid_pos);
 	// Snaps the hit normal to the nearest staggered grid neighbor direction in the triangular grid.
-	Vector3i _get_staggered_normal_dir(const Vector3 &p_hit_normal, const Vector3i &p_grid_pos) const;
+	Vector3i _get_staggered_normal_dir(
+			const Vector3 &p_hit_normal,
+			const Vector3i &p_grid_pos
+	) const;
 };
 
 } // namespace godot

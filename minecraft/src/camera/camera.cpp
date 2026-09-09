@@ -22,15 +22,23 @@ namespace godot {
 void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_camera_mode", "mode"), &GameCamera::set_camera_mode);
 	ClassDB::bind_method(D_METHOD("get_camera_mode"), &GameCamera::get_camera_mode);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "camera_mode", PROPERTY_HINT_ENUM, "Fly,Car,TPS,Fixed"), "set_camera_mode", "get_camera_mode");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::INT, "camera_mode", PROPERTY_HINT_ENUM, "Fly,Car,TPS,Fixed"), "set_camera_mode",
+			"get_camera_mode"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_follow_target_path", "path"), &GameCamera::set_follow_target_path);
 	ClassDB::bind_method(D_METHOD("get_follow_target_path"), &GameCamera::get_follow_target_path);
-	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "follow_target_path"), "set_follow_target_path", "get_follow_target_path");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::NODE_PATH, "follow_target_path"), "set_follow_target_path", "get_follow_target_path"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_pos_smoothing_enabled", "enabled"), &GameCamera::set_pos_smoothing_enabled);
 	ClassDB::bind_method(D_METHOD("is_pos_smoothing_enabled"), &GameCamera::is_pos_smoothing_enabled);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "pos_smoothing_enabled"), "set_pos_smoothing_enabled", "is_pos_smoothing_enabled");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::BOOL, "pos_smoothing_enabled"), "set_pos_smoothing_enabled",
+			"is_pos_smoothing_enabled"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_frequency", "frequency"), &GameCamera::set_frequency);
 	ClassDB::bind_method(D_METHOD("get_frequency"), &GameCamera::get_frequency);
@@ -70,19 +78,28 @@ void GameCamera::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_dynamic_zoom_enabled", "enabled"), &GameCamera::set_dynamic_zoom_enabled);
 	ClassDB::bind_method(D_METHOD("is_dynamic_zoom_enabled"), &GameCamera::is_dynamic_zoom_enabled);
-	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "dynamic_zoom_enabled"), "set_dynamic_zoom_enabled", "is_dynamic_zoom_enabled");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::BOOL, "dynamic_zoom_enabled"), "set_dynamic_zoom_enabled", "is_dynamic_zoom_enabled"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_speed_threshold", "threshold"), &GameCamera::set_speed_threshold);
 	ClassDB::bind_method(D_METHOD("get_speed_threshold"), &GameCamera::get_speed_threshold);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "speed_threshold"), "set_speed_threshold", "get_speed_threshold");
 
-	ClassDB::bind_method(D_METHOD("set_dynamic_zoom_extra_distance", "distance"), &GameCamera::set_dynamic_zoom_extra_distance);
+	ClassDB::bind_method(
+			D_METHOD("set_dynamic_zoom_extra_distance", "distance"), &GameCamera::set_dynamic_zoom_extra_distance
+	);
 	ClassDB::bind_method(D_METHOD("get_dynamic_zoom_extra_distance"), &GameCamera::get_dynamic_zoom_extra_distance);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "dynamic_zoom_extra_distance"), "set_dynamic_zoom_extra_distance", "get_dynamic_zoom_extra_distance");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "dynamic_zoom_extra_distance"), "set_dynamic_zoom_extra_distance",
+			"get_dynamic_zoom_extra_distance"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_max_speed_for_zoom", "speed"), &GameCamera::set_max_speed_for_zoom);
 	ClassDB::bind_method(D_METHOD("get_max_speed_for_zoom"), &GameCamera::get_max_speed_for_zoom);
-	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_speed_for_zoom"), "set_max_speed_for_zoom", "get_max_speed_for_zoom");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "max_speed_for_zoom"), "set_max_speed_for_zoom", "get_max_speed_for_zoom"
+	);
 
 	BIND_ENUM_CONSTANT(MODE_FLY);
 	BIND_ENUM_CONSTANT(MODE_CAR);
@@ -210,7 +227,10 @@ Vector3 GameCamera::_calculate_ideal_position() {
 	return target_origin + rot_basis.xform(base_dir * get_current_target_distance());
 }
 
-float GameCamera::_solve_collision(const Vector3 &p_from, const Vector3 &p_to) {
+float GameCamera::_solve_collision(
+		const Vector3 &p_from,
+		const Vector3 &p_to
+) {
 	TypedArray<RID> exclude;
 	if (follow_target_node) {
 		CollisionObject3D *co = Object::cast_to<CollisionObject3D>(follow_target_node);
@@ -252,7 +272,10 @@ void GameCamera::set_follow_target_node(Node3D *p_node) {
 	}
 }
 
-MCRaycastHit GameCamera::get_center_raycast_hit(uint32_t p_mask, float p_dist) {
+MCRaycastHit GameCamera::get_center_raycast_hit(
+		uint32_t p_mask,
+		float p_dist
+) {
 	Vector3 from = get_global_position();
 	Vector3 to = from - get_global_transform().basis.get_column(2).normalized() * p_dist;
 

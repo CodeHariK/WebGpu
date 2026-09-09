@@ -3,9 +3,9 @@
 #include "../../game_manager/game_manager.h"
 #include "../../game_manager/player_input.h"
 #include "../celeste_controller.h"
+#include "combat_states.h"
 #include "dash_states.h"
 #include "grounded_states.h"
-#include "combat_states.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -94,7 +94,8 @@ void CelesteAirborneState::physics_update(float delta) {
 	if (state.character.jump_just_pressed && controller->is_on_wall()) {
 		Vector3 wall_normal = controller->get_wall_normal();
 		// Use max_speed for horizontal push and normal jump velocity for vertical
-		Vector3 wall_jump_vel = (wall_normal * controller->max_speed) + (Vector3(0, 1, 0) * controller->_jump_velocity0);
+		Vector3 wall_jump_vel =
+				(wall_normal * controller->max_speed) + (Vector3(0, 1, 0) * controller->_jump_velocity0);
 		controller->set_velocity(wall_jump_vel);
 		controller->is_jumping = true;
 		controller->can_double_jump = true; // Reset double jump on wall jump
@@ -140,9 +141,7 @@ void CelesteAirborneState::physics_update(float delta) {
 
 // --- JUMP STATE ---
 
-void CelesteJumpState::enter() {
-	controller->is_jumping = true;
-}
+void CelesteJumpState::enter() { controller->is_jumping = true; }
 
 void CelesteJumpState::physics_update(float delta) {
 	CelesteAirborneState::physics_update(delta);
@@ -161,13 +160,9 @@ void CelesteJumpState::physics_update(float delta) {
 
 // --- FALL STATE ---
 
-void CelesteFallState::enter() {
-	controller->is_jumping = false;
-}
+void CelesteFallState::enter() { controller->is_jumping = false; }
 
-void CelesteFallState::physics_update(float delta) {
-	CelesteAirborneState::physics_update(delta);
-}
+void CelesteFallState::physics_update(float delta) { CelesteAirborneState::physics_update(delta); }
 
 // --- DOUBLE JUMP STATE ---
 

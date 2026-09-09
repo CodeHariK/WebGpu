@@ -18,7 +18,10 @@ BTTask::BTTask() {}
 
 BTTask::~BTTask() {}
 
-BTTask::Status BTTask::execute(Node *p_actor, const Ref<BTStore> &p_btstore) {
+BTTask::Status BTTask::execute(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (status != RUNNING) {
 		_enter(p_actor, p_btstore);
 	}
@@ -32,7 +35,10 @@ BTTask::Status BTTask::execute(Node *p_actor, const Ref<BTStore> &p_btstore) {
 	return status;
 }
 
-void BTTask::abort(Node *p_actor, const Ref<BTStore> &p_btstore) {
+void BTTask::abort(
+		Node *p_actor,
+		const Ref<BTStore> &p_btstore
+) {
 	if (status == RUNNING) {
 		_exit(p_actor, p_btstore);
 	}

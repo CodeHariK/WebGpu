@@ -4,19 +4,19 @@
 #include "../debug_draw/debug_manager.h"
 #include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
-#include "../terrain/marching_prism/mp_manager.h"
 #include "../minigames/tennis/tennis_manager.h"
 #include "../player/celeste_controller.h"
+#include "../terrain/marching_prism/mp_manager.h"
 #include "../vehicle/arcade_vehicle.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
-#include <godot_cpp/classes/rendering_server.hpp>
-#include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/label.hpp>
 #include <godot_cpp/classes/panel_container.hpp>
+#include <godot_cpp/classes/rendering_server.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -68,9 +68,7 @@ GameManager::~GameManager() {
 	}
 }
 
-GameManager *GameManager::get_singleton() {
-	return singleton;
-}
+GameManager *GameManager::get_singleton() { return singleton; }
 
 void GameManager::_enter_tree() {
 	if (singleton != nullptr && singleton != this) {
@@ -118,27 +116,21 @@ void GameManager::register_mc_manager(MCManager *p_manager) {
 	UtilityFunctions::print("GameManager: Registered MCManager (Marching Cubes System).");
 }
 
-MCManager *GameManager::get_mc_manager() const {
-	return mc_manager;
-}
+MCManager *GameManager::get_mc_manager() const { return mc_manager; }
 
 void GameManager::register_mp_manager(MPManager *p_manager) {
 	mp_manager = p_manager;
 	UtilityFunctions::print("GameManager: Registered MPManager (Marching Prism System).");
 }
 
-MPManager *GameManager::get_mp_manager() const {
-	return mp_manager;
-}
+MPManager *GameManager::get_mp_manager() const { return mp_manager; }
 
 void GameManager::register_tennis_manager(TennisManager *p_manager) {
 	tennis_manager = p_manager;
 	UtilityFunctions::print("GameManager: Registered TennisManager.");
 }
 
-TennisManager *GameManager::get_tennis_manager() const {
-	return tennis_manager;
-}
+TennisManager *GameManager::get_tennis_manager() const { return tennis_manager; }
 
 void GameManager::register_vehicle(ArcadeVehicle *p_vehicle) {
 	vehicle = p_vehicle;
@@ -154,9 +146,7 @@ void GameManager::register_vehicle(ArcadeVehicle *p_vehicle) {
 	UtilityFunctions::print("GameManager: Registered ArcadeVehicle.");
 }
 
-ArcadeVehicle *GameManager::get_vehicle() const {
-	return vehicle;
-}
+ArcadeVehicle *GameManager::get_vehicle() const { return vehicle; }
 
 void GameManager::register_celeste_controller(Node *p_character) {
 	if (p_character == nullptr) {
@@ -175,9 +165,7 @@ void GameManager::register_celeste_controller(Node *p_character) {
 	}
 }
 
-Node *GameManager::get_celeste_controller() const {
-	return celeste_character;
-}
+Node *GameManager::get_celeste_controller() const { return celeste_character; }
 
 void GameManager::register_camera(GameCamera *p_camera) {
 	if (p_camera == nullptr) {
@@ -191,9 +179,7 @@ void GameManager::register_camera(GameCamera *p_camera) {
 	UtilityFunctions::print("GameManager: Registered GameCamera.");
 }
 
-GameCamera *GameManager::get_camera() const {
-	return main_camera;
-}
+GameCamera *GameManager::get_camera() const { return main_camera; }
 
 void GameManager::set_active_target(Node *p_target) {
 	active_target = p_target;
@@ -219,9 +205,7 @@ void GameManager::set_active_target(Node *p_target) {
 	}
 }
 
-Node *GameManager::get_active_target() const {
-	return active_target;
-}
+Node *GameManager::get_active_target() const { return active_target; }
 
 void GameManager::_physics_process(double delta) {
 	if (Engine::get_singleton()->is_editor_hint())

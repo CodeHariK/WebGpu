@@ -88,14 +88,8 @@ Geology
       - [ ] later: SplineRocks picking heights from a sibling cliff (rocks at the wall's foot automatically)
 - [ ] Ice blocks / icicles, snow piles, lava rocks with emissive cracks
 Vegetation
-- [x] Trees — `FoliageTreeMesh` / `FoliageTree`: trunk + buttress roots + **multi-sphere canopy shell**
-      clad in MultiMesh-instanced `leaf_mesh` / `fruit_mesh` (placeholder quad/sphere until authored in
-      Blender), leaves/blossom + hanging fruit, per-instance gradient colour, prop material. Demo grove.
-      - [ ] author leaf.blend + cherry.blend (and a green-leaf, autumn-leaf) → drop into the mesh slots
-      - [ ] more species / presets: palm, willow (droopy cards), shrubby, autumn, bare-winter; expose a preset enum
-      - [ ] LOD (fewer leaves / drop fruit far away), wind sway (vertex shader on the instances),
-            place through TerrainSplineScatter with per-instance season colour
-- [ ] Bushes, hedges, tall grass / reed clumps, flowers patches, mushrooms (Odyssey-size), cacti
+- [x] ~~Procedural trees~~ removed — trees / leaves / detailed foliage are authored in Blender and
+      placed by `TerrainSplineScatter` / `TerrainSplineArray` (macro system places, Blender supplies detail)
 - [ ] Bushes, hedges, tall grass / reed clumps, flowers patches, mushrooms (Odyssey-size), cacti
 - [ ] Fallen logs, stumps, roots; lily pads, cattails, vines hanging from cliff lips
 Man-made
@@ -152,8 +146,16 @@ Collectibles & exploration (Odyssey moons, Link's Awakening seashells, Banjo)
 - [ ] Flowers / grass that react (bend) to the car; birds that scatter; sheep to herd into a pen
 
 Ambient / world
-- [ ] Day-night + weather zones (snow on the cliff `top_material`), waterfalls at cliff edges
-      (ribbon shader), lava rivers (water preset, orange, damage), geysers on a timer, hot air balloons
+- [x] Day / dusk / night cycle — `SkyCycle` (`src/sky/`, extends WorldEnvironment): procedural toon sky
+      shader (banded gradient, horizon glow, flat sun, invented ringed moon, twinkling stars), drives the
+      sun DirectionalLight3D (→ dim coloured moonlight at night) + ambient from `time_of_day` / `day_length`;
+      three tweakable phase palettes. Demo scene uses it. Docs `src/sky/Sky.md`
+      - [x] dark night: low ambient + dark depth fog (distance → black), `SkyCycle::is_night()` hook; `Flashlight`
+            (SpotLight3D, F toggle, flicker, battery, `auto_night`) — handheld on GameCamera + headlights on the
+            vehicle; `StreetLamp` (pole + head + downward light, auto-on at night) — demo has three by the lake
+      - [ ] later: second moon / ringed planet, drifting toon clouds, aurora, weather zones, gameplay hooks
+            (headlights at night, shop hours); snow on cliff `top_material` by season
+- [ ] Waterfalls at cliff edges (ribbon shader), lava rivers (water preset, orange, damage), geysers on a timer, hot air balloons
 
 Infrastructure these need: a `BeatClock` autoload, a `Respawnable` interface (position + rotation +
 what to reset), an `Activator`/`Activatable` signal pattern (switch → any target), and an `InteractZone`

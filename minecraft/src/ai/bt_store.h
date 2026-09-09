@@ -8,7 +8,8 @@
 namespace godot {
 
 class BTStore : public RefCounted {
-	GDCLASS(BTStore, RefCounted)
+	GDCLASS(BTStore,
+			RefCounted)
 
 private:
 	Dictionary data;
@@ -20,8 +21,14 @@ public:
 	BTStore();
 	~BTStore();
 
-	void set_value(const String &p_key, const Variant &p_value);
-	Variant get_value(const String &p_key, const Variant &p_default = Variant()) const;
+	void set_value(
+			const String &p_key,
+			const Variant &p_value
+	);
+	Variant get_value(
+			const String &p_key,
+			const Variant &p_default = Variant()
+	) const;
 	bool has_value(const String &p_key) const;
 	void erase_value(const String &p_key);
 	void clear();

@@ -9,7 +9,8 @@
 namespace godot {
 
 class VehicleConfig : public Resource {
-	GDCLASS(VehicleConfig, Resource)
+	GDCLASS(VehicleConfig,
+			Resource)
 
 private:
 	Vector3 chassis_size = Vector3(2.0f, 1.0f, 4.0f);

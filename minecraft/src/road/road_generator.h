@@ -15,16 +15,11 @@
 namespace godot {
 
 class RoadGenerator : public Path3D {
-	GDCLASS(RoadGenerator, Path3D)
+	GDCLASS(RoadGenerator,
+			Path3D)
 
 public:
-	enum CurveInterpolation : uint8_t {
-		LINEAR,
-		CUBIC,
-		BSPLINE,
-		CATMULLROM,
-		NATURAL
-	};
+	enum CurveInterpolation : uint8_t { LINEAR, CUBIC, BSPLINE, CATMULLROM, NATURAL };
 
 private:
 	CurveInterpolation interpolation_mode = CATMULLROM;

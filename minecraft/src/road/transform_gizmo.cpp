@@ -21,7 +21,13 @@ namespace godot {
 void TransformGizmo::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_manipulation_mode", "mode"), &TransformGizmo::set_manipulation_mode);
 	ClassDB::bind_method(D_METHOD("get_manipulation_mode"), &TransformGizmo::get_manipulation_mode);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "manipulation_mode", PROPERTY_HINT_ENUM, "None,Move,MovePlanar,MoveOrRotate,MoveOrScale,Rotate,Scale"), "set_manipulation_mode", "get_manipulation_mode");
+	ADD_PROPERTY(
+			PropertyInfo(
+					Variant::INT, "manipulation_mode", PROPERTY_HINT_ENUM,
+					"None,Move,MovePlanar,MoveOrRotate,MoveOrScale,Rotate,Scale"
+			),
+			"set_manipulation_mode", "get_manipulation_mode"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_update_callback", "callback"), &TransformGizmo::set_update_callback);
 	ClassDB::bind_method(D_METHOD("get_update_callback"), &TransformGizmo::get_update_callback);
@@ -50,23 +56,26 @@ void TransformGizmo::_bind_methods() {
 	BIND_ENUM_CONSTANT(SCALE);
 }
 
-TransformGizmo::TransformGizmo() {
-	set_process_mode(PROCESS_MODE_PAUSABLE);
-}
+TransformGizmo::TransformGizmo() { set_process_mode(PROCESS_MODE_PAUSABLE); }
 
-TransformGizmo::~TransformGizmo() {
-}
+TransformGizmo::~TransformGizmo() {}
 
 void TransformGizmo::_ready() {
 	ResourceLoader *rl = ResourceLoader::get_singleton();
 	circle_shader = rl->load("res://scene/road/circle_gizmo.gdshader");
 
-	_create_box_gizmo("MoveX", Color(1, 0.2f, 0.2f, 1), Transform3D(Basis(Vector3(0, 0, -1), Math::PI / 2.0f)),
-			MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(0.06f, MOVE_GIZMO_LEN));
-	_create_box_gizmo("MoveY", Color(0.6f, 1, 0.2f, 1), Transform3D(),
-			MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(0.06f, MOVE_GIZMO_LEN));
-	_create_box_gizmo("MoveZ", Color(0.5f, 0.5f, 1, 1), Transform3D(Basis(Vector3(1, 0, 0), Math::PI / 2.0f)),
-			MOVE, Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(0.06f, MOVE_GIZMO_LEN));
+	_create_box_gizmo(
+			"MoveX", Color(1, 0.2f, 0.2f, 1), Transform3D(Basis(Vector3(0, 0, -1), Math::PI / 2.0f)), MOVE,
+			Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(0.06f, MOVE_GIZMO_LEN)
+	);
+	_create_box_gizmo(
+			"MoveY", Color(0.6f, 1, 0.2f, 1), Transform3D(), MOVE,
+			Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(0.06f, MOVE_GIZMO_LEN)
+	);
+	_create_box_gizmo(
+			"MoveZ", Color(0.5f, 0.5f, 1, 1), Transform3D(Basis(Vector3(1, 0, 0), Math::PI / 2.0f)), MOVE,
+			Vector3(0, MOVE_GIZMO_LEN / 2 + SCALE_GIZMO_LEN / 2, 0), Vector2(0.06f, MOVE_GIZMO_LEN)
+	);
 
 	_create_plane_gizmo("RotateX", Color(1, 0.2f, 0.2f, 1), Transform3D(Basis(Vector3(0, 1, 0), Math::PI / 2.0f)));
 	_create_plane_gizmo("RotateY", Color(0.6f, 1, 0.2f, 1), Transform3D(Basis(Vector3(1, 0, 0), Math::PI / 2.0f)));
@@ -102,7 +111,9 @@ void TransformGizmo::_input(const Ref<InputEvent> &event) {
 		Vector3 intersection_point;
 		if (drag_plane.intersects_ray(ray.origin, ray.normal, &intersection_point)) {
 			Transform3D new_transform = _calculate_new_transform(intersection_point);
-			DebugManager::get_singleton()->draw_line("gizmo", get_global_transform().origin, intersection_point, .05f, Color(1, 1, 0));
+			DebugManager::get_singleton()->draw_line(
+					"gizmo", get_global_transform().origin, intersection_point, .05f, Color(1, 1, 0)
+			);
 			set_gizmo_transform(new_transform);
 		}
 	}
@@ -122,8 +133,14 @@ void TransformGizmo::set_gizmo_transform(const Transform3D &p_transform) {
 	last_transform = p_transform;
 }
 
-void TransformGizmo::_create_box_gizmo(const String &p_name, const Color &p_color, const Transform3D &p_transform,
-		ManipulationMode p_mode, const Vector3 &p_offset, const Vector2 &size) {
+void TransformGizmo::_create_box_gizmo(
+		const String &p_name,
+		const Color &p_color,
+		const Transform3D &p_transform,
+		ManipulationMode p_mode,
+		const Vector3 &p_offset,
+		const Vector2 &size
+) {
 	Ref<SurfaceTool> st;
 	st.instantiate();
 	st->begin(Mesh::PRIMITIVE_TRIANGLES);
@@ -150,7 +167,9 @@ void TransformGizmo::_create_box_gizmo(const String &p_name, const Color &p_colo
 	mesh_instance->set_transform(p_transform);
 
 	Area3D *area = memnew(Area3D);
-	area->connect("input_event", callable_mp(this, &TransformGizmo::_on_gizmo_input_start).bind(mesh_instance, MOVE_OR_SCALE));
+	area->connect(
+			"input_event", callable_mp(this, &TransformGizmo::_on_gizmo_input_start).bind(mesh_instance, MOVE_OR_SCALE)
+	);
 	mesh_instance->add_child(area);
 
 	CollisionShape3D *collision_shape = memnew(CollisionShape3D);
@@ -164,7 +183,11 @@ void TransformGizmo::_create_box_gizmo(const String &p_name, const Color &p_colo
 	add_child(mesh_instance);
 }
 
-void TransformGizmo::_create_plane_gizmo(const String &p_name, const Color &p_color, const Transform3D &p_transform) {
+void TransformGizmo::_create_plane_gizmo(
+		const String &p_name,
+		const Color &p_color,
+		const Transform3D &p_transform
+) {
 	Ref<QuadMesh> disc;
 	disc.instantiate();
 	disc->set_size(Vector2(SCALE_GIZMO_LEN, SCALE_GIZMO_LEN));
@@ -181,7 +204,9 @@ void TransformGizmo::_create_plane_gizmo(const String &p_name, const Color &p_co
 	mesh_instance->set_material_override(mat);
 
 	Area3D *area = memnew(Area3D);
-	area->connect("input_event", callable_mp(this, &TransformGizmo::_on_gizmo_input_start).bind(mesh_instance, MOVE_OR_ROTATE));
+	area->connect(
+			"input_event", callable_mp(this, &TransformGizmo::_on_gizmo_input_start).bind(mesh_instance, MOVE_OR_ROTATE)
+	);
 	mesh_instance->add_child(area);
 
 	CollisionShape3D *collision_shape = memnew(CollisionShape3D);
@@ -194,7 +219,15 @@ void TransformGizmo::_create_plane_gizmo(const String &p_name, const Color &p_co
 	add_child(mesh_instance);
 }
 
-void TransformGizmo::_on_gizmo_input_start(Node *p_camera, Ref<InputEvent> p_event, Vector3 position, Vector3 normal, int shape_idx, MeshInstance3D *mesh_node, int mode) {
+void TransformGizmo::_on_gizmo_input_start(
+		Node *p_camera,
+		Ref<InputEvent> p_event,
+		Vector3 position,
+		Vector3 normal,
+		int shape_idx,
+		MeshInstance3D *mesh_node,
+		int mode
+) {
 	Camera3D *camera = Object::cast_to<Camera3D>(p_camera);
 	Ref<InputEventMouseButton> mb = p_event;
 
@@ -258,7 +291,9 @@ void TransformGizmo::_on_gizmo_input_start(Node *p_camera, Ref<InputEvent> p_eve
 			drag_start_vector = (drag_start_position - get_global_transform().origin).normalized();
 
 			if (grid_mesh_instance) {
-				grid_mesh_instance->set_global_transform(Transform3D(Basis::looking_at(plane_normal), get_global_transform().origin));
+				grid_mesh_instance->set_global_transform(
+						Transform3D(Basis::looking_at(plane_normal), get_global_transform().origin)
+				);
 				grid_mesh_instance->set_visible(true);
 			}
 		}

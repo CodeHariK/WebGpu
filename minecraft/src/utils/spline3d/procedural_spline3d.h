@@ -23,7 +23,8 @@ namespace godot {
 class ProceduralSpline3D;
 
 class SplineComponent : public Node3D {
-	GDCLASS(SplineComponent, Node3D)
+	GDCLASS(SplineComponent,
+			Node3D)
 
 protected:
 	static void _bind_methods() {}
@@ -38,15 +39,11 @@ public:
 };
 
 class ProceduralSpline3D : public Path3D {
-	GDCLASS(ProceduralSpline3D, Path3D)
+	GDCLASS(ProceduralSpline3D,
+			Path3D)
 
 public:
-	enum InterpolationMode {
-		INTERP_NEAREST = 0,
-		INTERP_IDW_LINE = 1,
-		INTERP_IDW_VERTEX = 2,
-		INTERP_PEAK_RIDGE = 3
-	};
+	enum InterpolationMode { INTERP_NEAREST = 0, INTERP_IDW_LINE = 1, INTERP_IDW_VERTEX = 2, INTERP_PEAK_RIDGE = 3 };
 
 	struct SplineEval {
 		// Distance from query point to the closest point on the spline.
@@ -129,7 +126,8 @@ private:
 	 * Purpose: Monitored connection state verification between the spline node and its Curve3D resource.
 	 * Execution steps:
 	 *   1. Retrieve current curve from Path3D.
-	 *   2. If it is different from connected_curve, disconnect the old one and connect the new one to the "changed" signal.
+	 *   2. If it is different from connected_curve, disconnect the old one and connect the new one to the "changed"
+	 * signal.
 	 *   3. Set connected_curve to the new curve and mark the spline dirty.
 	 * Parameters: None.
 	 * Behavioral bounds: Safely manages connection signals without double connecting or leaking connections.
@@ -148,7 +146,10 @@ private:
 	 *   - closest_y: The Y value of the closest point.
 	 * Behavioral bounds: Returns closest_y if no points fall within the search radius.
 	 */
-	float _interpolate_idw_vertex(const Vector2 &p, float closest_y) const;
+	float _interpolate_idw_vertex(
+			const Vector2 &p,
+			float closest_y
+	) const;
 
 	/**
 	 * Purpose: Interpolate Y-coordinate using distance-based mountain peak/ridge algorithm.
@@ -162,7 +163,11 @@ private:
 	 *   - is_inside: True if query point is inside the spline shape.
 	 * Behavioral bounds: Returns closest_y when is_inside is false.
 	 */
-	float _interpolate_peak_ridge(float closest_y, float distance, bool is_inside) const;
+	float _interpolate_peak_ridge(
+			float closest_y,
+			float distance,
+			bool is_inside
+	) const;
 
 protected:
 	/**
@@ -181,7 +186,8 @@ protected:
 	 * Purpose: Handle Godot engine lifecycle notifications.
 	 * Execution steps:
 	 *   1. Check if the notification is NOTIFICATION_TRANSFORM_CHANGED and mark dirty if so.
-	 *   2. Handle NOTIFICATION_READY by verifying curve connection, updating padding, caching states, and setting up process.
+	 *   2. Handle NOTIFICATION_READY by verifying curve connection, updating padding, caching states, and setting up
+	 * process.
 	 *   3. Handle NOTIFICATION_PROCESS to check curve connection.
 	 *   4. Handle NOTIFICATION_CHILD_ORDER_CHANGED by re-updating padding and marking dirty.
 	 * Parameters:
@@ -250,9 +256,7 @@ public:
 	 * Parameters: None.
 	 * Behavioral bounds: Returns the active InterpolationMode.
 	 */
-	InterpolationMode get_interpolation_mode() const {
-		return interpolation_mode;
-	}
+	InterpolationMode get_interpolation_mode() const { return interpolation_mode; }
 
 	/**
 	 * Purpose: Set the bake interval and mark the spline dirty.
@@ -270,9 +274,7 @@ public:
 	 * Parameters: None.
 	 * Behavioral bounds: Returns the bake interval value.
 	 */
-	float get_bake_interval() const {
-		return bake_interval;
-	}
+	float get_bake_interval() const { return bake_interval; }
 
 	/**
 	 * Purpose: Set the ridge steepness scale factor and mark dirty.
@@ -290,18 +292,14 @@ public:
 	 * Parameters: None.
 	 * Behavioral bounds: Returns the ridge_steepness value.
 	 */
-	float get_ridge_steepness() const {
-		return ridge_steepness;
-	}
+	float get_ridge_steepness() const { return ridge_steepness; }
 
 	/**
 	 * Purpose: Get whether the spline is currently marked dirty.
 	 * Parameters: None.
 	 * Behavioral bounds: Returns true if dirty, false otherwise.
 	 */
-	bool get_is_dirty() const {
-		return is_dirty;
-	}
+	bool get_is_dirty() const { return is_dirty; }
 
 	/**
 	 * Purpose: Set the Curve3D resource and connect change listener signals.
@@ -398,7 +396,10 @@ public:
 	 *   - p_segment_indices: List of baked segment indices to query.
 	 * Behavioral bounds: Safely returns SplineEval struct containing height, distance, and inside status.
 	 */
-	SplineEval evaluate_spline_point_segmented(const Vector2 &p, const std::vector<int> &p_segment_indices) const;
+	SplineEval evaluate_spline_point_segmented(
+			const Vector2 &p,
+			const std::vector<int> &p_segment_indices
+	) const;
 
 	// Flag indicating if the closed spline forms a convex polygon.
 	bool is_convex = false;

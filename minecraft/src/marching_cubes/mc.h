@@ -25,27 +25,13 @@ struct MeshConfig {
 	uint8_t source_mesh = 0; // Which base GLB mesh this came from
 };
 
-enum MCTransform : uint8_t {
-	RX90,
-	RX180,
-	RX270,
-	RY90,
-	RY180,
-	RY270,
-	RZ90,
-	RZ180,
-	RZ270,
-	SX
-};
+enum MCTransform : uint8_t { RX90, RX180, RX270, RY90, RY180, RY270, RZ90, RZ180, RZ270, SX };
 
-enum MCImportMode : uint8_t {
-	IMPORT_21_BASEMESH,
-	IMPORT_68_BASEMESH,
-	IMPORT_COMPLETE
-};
+enum MCImportMode : uint8_t { IMPORT_21_BASEMESH, IMPORT_68_BASEMESH, IMPORT_COMPLETE };
 
 class MCNode : public Node3D {
-	GDCLASS(MCNode, Node3D)
+	GDCLASS(MCNode,
+			Node3D)
 
 private:
 	String mesh_library_path = "res://assets/MarchingCubes.glb";
@@ -85,16 +71,54 @@ public:
 	std::vector<uint8_t> get_base_mesh_order() const { return base_mesh_order; }
 
 	// Enum-driven generation
-	void apply_transform_sequence(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const std::vector<MCTransform> &p_sequence, const String &p_name);
-	void apply_6_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
-	void apply_8_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
-	void apply_12_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, const String &p_prefix);
-	void apply_12_mirror_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
-	void apply_4_axis_rotations(uint8_t p_base_hash, uint8_t p_variant_hash, const Transform3D &p_base_t, Vector3::Axis p_axis, const String &p_prefix, bool p_include_base);
-	void apply_24_rotations(uint8_t p_base_hash, const Transform3D &p_base_t, const String &p_prefix);
+	void apply_transform_sequence(
+			uint8_t p_base_hash,
+			uint8_t p_variant_hash,
+			const Transform3D &p_base_t,
+			const std::vector<MCTransform> &p_sequence,
+			const String &p_name
+	);
+	void apply_6_rotations(
+			uint8_t p_base_hash,
+			const Transform3D &p_base_t,
+			const String &p_prefix
+	);
+	void apply_8_rotations(
+			uint8_t p_base_hash,
+			const Transform3D &p_base_t,
+			const String &p_prefix
+	);
+	void apply_12_rotations(
+			uint8_t p_base_hash,
+			uint8_t p_variant_hash,
+			const Transform3D &p_base_t,
+			const String &p_prefix
+	);
+	void apply_12_mirror_rotations(
+			uint8_t p_base_hash,
+			const Transform3D &p_base_t,
+			const String &p_prefix
+	);
+	void apply_4_axis_rotations(
+			uint8_t p_base_hash,
+			uint8_t p_variant_hash,
+			const Transform3D &p_base_t,
+			Vector3::Axis p_axis,
+			const String &p_prefix,
+			bool p_include_base
+	);
+	void apply_24_rotations(
+			uint8_t p_base_hash,
+			const Transform3D &p_base_t,
+			const String &p_prefix
+	);
 
 	// Hash transformations
-	static void apply_mct_transform(uint8_t &p_hash, Transform3D &p_transform, MCTransform p_op);
+	static void apply_mct_transform(
+			uint8_t &p_hash,
+			Transform3D &p_transform,
+			MCTransform p_op
+	);
 	static uint8_t rotate_y(uint8_t p_hash);
 	static uint8_t rotate_x(uint8_t p_hash);
 	static uint8_t rotate_z(uint8_t p_hash);

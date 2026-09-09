@@ -12,7 +12,11 @@
 
 #include <cstdlib>
 
-MeshInstance3D *MinecraftNode::generate_smooth_part_mesh(String name, Vector2i indexPos, bool height_curve_sampling) {
+MeshInstance3D *MinecraftNode::generate_smooth_part_mesh(
+		String name,
+		Vector2i indexPos,
+		bool height_curve_sampling
+) {
 	PackedVector3Array vertices;
 	PackedInt32Array indices;
 

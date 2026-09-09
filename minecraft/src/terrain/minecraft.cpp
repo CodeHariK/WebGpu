@@ -41,11 +41,9 @@ void MinecraftNode::_process(double delta) {
 		return;
 	}
 
-
-
 	Vector2i camera_part_pos(
-			floor(camera->get_global_position().x / part_size),
-			floor(camera->get_global_position().z / part_size));
+			floor(camera->get_global_position().x / part_size), floor(camera->get_global_position().z / part_size)
+	);
 
 	Transform3D current_camera_transform = camera->get_global_transform();
 
@@ -76,7 +74,8 @@ void MinecraftNode::_process(double delta) {
 
 			// --- Dynamic Collision Management ---
 			// Define a collision distance (e.g., 3x3 grid around camera)
-			bool should_have_collision = (abs(part_pos.x - camera_part_pos.x) <= 1 && abs(part_pos.y - camera_part_pos.y) <= 1);
+			bool should_have_collision =
+					(abs(part_pos.x - camera_part_pos.x) <= 1 && abs(part_pos.y - camera_part_pos.y) <= 1);
 
 			if (should_have_collision && !part_data.has_collision) {
 				// Add collision to a nearby part that doesn't have it
@@ -106,8 +105,9 @@ void MinecraftNode::_process(double delta) {
 			}
 		}
 
-		typedef MeshInstance3D* (MinecraftNode::*PartMeshGenerator)(String, Vector2i, bool);
-		PartMeshGenerator generator = use_smooth_terrain ? &MinecraftNode::generate_smooth_part_mesh : &MinecraftNode::generate_voxel_part_mesh;
+		typedef MeshInstance3D *(MinecraftNode::*PartMeshGenerator)(String, Vector2i, bool);
+		PartMeshGenerator generator = use_smooth_terrain ? &MinecraftNode::generate_smooth_part_mesh
+														 : &MinecraftNode::generate_voxel_part_mesh;
 
 		// Loop 2: Iterate over all parts that should be visible and load new ones
 		for (int z = -render_distance; z <= render_distance; ++z) {
@@ -126,7 +126,8 @@ void MinecraftNode::_process(double delta) {
 
 					if (new_mesh) {
 						add_child(new_mesh);
-						m_parts[part_pos] = { new_mesh, true, false, 0.0 }; // Initialize Part struct, has_collision is always false initially.
+						m_parts[part_pos] = { new_mesh, true, false,
+											  0.0 }; // Initialize Part struct, has_collision is always false initially.
 					}
 				}
 			}
@@ -169,7 +170,8 @@ void MinecraftNode::_process(double delta) {
 			String time_str;
 
 			if (!part_data.visible && part_data.last_visible_time > 0.0) {
-				double time_left = part_visibility_time_out_duration - (current_system_time - part_data.last_visible_time);
+				double time_left =
+						part_visibility_time_out_duration - (current_system_time - part_data.last_visible_time);
 				time_str = String::num(time_left > 0 ? time_left : 0, 1);
 			} else {
 				time_str = " - ";
@@ -180,7 +182,10 @@ void MinecraftNode::_process(double delta) {
 	}
 }
 
-bool MinecraftNode::is_part_visible(const Vector2i &part_pos, const Vector2i &camera_part_pos) const {
+bool MinecraftNode::is_part_visible(
+		const Vector2i &part_pos,
+		const Vector2i &camera_part_pos
+) const {
 	// 1. Distance check (cheap)
 	if (abs(part_pos.x - camera_part_pos.x) > render_distance ||
 		abs(part_pos.y - camera_part_pos.y) > render_distance) {
@@ -198,7 +203,8 @@ bool MinecraftNode::is_part_visible(const Vector2i &part_pos, const Vector2i &ca
 	cam_forward.normalize();
 
 	// Get vector from camera to chunk center
-	Vector3 part_world_pos = Vector3(part_pos.x * part_size + part_size / 2.0f, 0, part_pos.y * part_size + part_size / 2.0f);
+	Vector3 part_world_pos =
+			Vector3(part_pos.x * part_size + part_size / 2.0f, 0, part_pos.y * part_size + part_size / 2.0f);
 	Vector3 cam_world_pos = camera->get_global_position();
 	cam_world_pos.y = 0;
 

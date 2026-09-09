@@ -17,7 +17,13 @@
 namespace godot {
 
 void MCGrid::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y", "chunk_size_z"), &MCGrid::initialize_grid);
+	ClassDB::bind_method(
+			D_METHOD(
+					"initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y",
+					"chunk_size_z"
+			),
+			&MCGrid::initialize_grid
+	);
 	ClassDB::bind_method(D_METHOD("refresh_grid"), &MCGrid::refresh_grid);
 	ClassDB::bind_method(D_METHOD("modify_corner", "p_grid_pos", "p_active"), &MCGrid::modify_corner);
 
@@ -40,11 +46,9 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("load_grid", "path"), &MCGrid::load_grid);
 }
 
-MCGrid::MCGrid() {
-}
+MCGrid::MCGrid() {}
 
-MCGrid::~MCGrid() {
-}
+MCGrid::~MCGrid() {}
 
 void MCGrid::set_grid_size(const Vector3i &p_size) {
 	if (grid_size == p_size) {
@@ -62,13 +66,9 @@ void MCGrid::set_chunk_size(const Vector3i &p_size) {
 	initialize_grid(grid_size.x, grid_size.y, grid_size.z, chunk_size.x, chunk_size.y, chunk_size.z);
 }
 
-void MCGrid::set_mc_node(MCNode *p_node) {
-	mc_node = p_node;
-}
+void MCGrid::set_mc_node(MCNode *p_node) { mc_node = p_node; }
 
-MCNode *MCGrid::get_mc_node() const {
-	return mc_node;
-}
+MCNode *MCGrid::get_mc_node() const { return mc_node; }
 
 void MCGrid::_ready() {
 	if (Engine::get_singleton()->is_editor_hint()) {
@@ -78,7 +78,15 @@ void MCGrid::_ready() {
 	UtilityFunctions::print("MCGrid: _ready() called, waiting for MCManager...");
 }
 
-void MCGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int p_chunk_size_x, int p_chunk_size_y, int p_chunk_size_z, bool p_refresh) {
+void MCGrid::initialize_grid(
+		int p_chunks_x,
+		int p_chunks_y,
+		int p_chunks_z,
+		int p_chunk_size_x,
+		int p_chunk_size_y,
+		int p_chunk_size_z,
+		bool p_refresh
+) {
 	grid_size = Vector3i(p_chunks_x, p_chunks_y, p_chunks_z);
 	chunk_size = Vector3i(p_chunk_size_x, p_chunk_size_y, p_chunk_size_z);
 
@@ -88,7 +96,10 @@ void MCGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int
 	int num_corners = (chunk_size.x + 1) * (chunk_size.y + 1) * (chunk_size.z + 1);
 	int num_bytes = (num_corners + 7) / 8;
 
-	UtilityFunctions::print("Initializing grid: chunks(", p_chunks_x, ", ", p_chunks_y, ", ", p_chunks_z, ") chunk_size(", p_chunk_size_x, ", ", p_chunk_size_y, ", ", p_chunk_size_z, ")");
+	UtilityFunctions::print(
+			"Initializing grid: chunks(", p_chunks_x, ", ", p_chunks_y, ", ", p_chunks_z, ") chunk_size(",
+			p_chunk_size_x, ", ", p_chunk_size_y, ", ", p_chunk_size_z, ")"
+	);
 
 	for (int y = 0; y < grid_size.y; y++) {
 		for (int z = 0; z < grid_size.z; z++) {
@@ -102,10 +113,10 @@ void MCGrid::initialize_grid(int p_chunks_x, int p_chunks_y, int p_chunks_z, int
 				c.loc_y = y;
 				c.loc_z = z;
 				c.corner_states.assign(static_cast<size_t>(num_bytes), 0); // Initialize all bits to 0
-				
+
 				int num_cells = chunk_size.x * chunk_size.y * chunk_size.z;
 				c.cell_visuals.assign(static_cast<size_t>(num_cells), nullptr);
-				
+
 				c.debug_visuals.assign(static_cast<size_t>(num_corners), nullptr);
 			}
 		}
@@ -150,7 +161,10 @@ void MCGrid::refresh_grid() {
 	UtilityFunctions::print("MCGrid Refresh: ", spawn_count, " visual nodes spawned.");
 }
 
-int MCGrid::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
+int MCGrid::_spawn_marching_cubes(
+		const Chunk &p_chunk,
+		MCNode *p_mc_node
+) {
 	int count = 0;
 
 	for (int ly = 0; ly < p_chunk.size_y; ly++) {
@@ -169,10 +183,10 @@ int MCGrid::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
 				}
 
 				// Spawn at center of the 8 corners (cell center)
-				Vector3 world_pos = Vector3(
-						static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx) + 0.5f,
-						static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly) + 0.5f,
-						static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz) + 0.5f);
+				Vector3 world_pos =
+						Vector3(static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx) + 0.5f,
+								static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly) + 0.5f,
+								static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz) + 0.5f);
 
 				MeshInstance3D *mi = memnew(MeshInstance3D);
 				mi->set_mesh(conf.mesh);
@@ -185,10 +199,10 @@ int MCGrid::_spawn_marching_cubes(const Chunk &p_chunk, MCNode *p_mc_node) {
 				if (is_inside_tree()) {
 					mi->set_owner(get_owner() ? get_owner() : this);
 				}
-				
+
 				// Store the pointer for granular updates
 				int cell_idx = (ly * p_chunk.size_x * p_chunk.size_z) + (lz * p_chunk.size_x) + lx;
-				const_cast<Chunk&>(p_chunk).cell_visuals[cell_idx] = mi;
+				const_cast<Chunk &>(p_chunk).cell_visuals[cell_idx] = mi;
 
 				count++;
 				total_mc_meshes++;
@@ -228,7 +242,11 @@ void MCGrid::_clear_children() {
 	total_cells = 0;
 }
 
-void MCGrid::_update_visual_at(int gx, int gy, int gz) {
+void MCGrid::_update_visual_at(
+		int gx,
+		int gy,
+		int gz
+) {
 	int cx = (gx < 0) ? -1 : gx / chunk_size.x;
 	int cy = (gy < 0) ? -1 : gy / chunk_size.y;
 	int cz = (gz < 0) ? -1 : gz / chunk_size.z;
@@ -261,10 +279,8 @@ void MCGrid::_update_visual_at(int gx, int gy, int gz) {
 		return;
 	}
 
-	Vector3 world_pos = Vector3(
-			static_cast<float>(gx) + 0.5f,
-			static_cast<float>(gy) + 0.5f,
-			static_cast<float>(gz) + 0.5f);
+	Vector3 world_pos =
+			Vector3(static_cast<float>(gx) + 0.5f, static_cast<float>(gy) + 0.5f, static_cast<float>(gz) + 0.5f);
 
 	MeshInstance3D *mi = memnew(MeshInstance3D);
 	mi->set_mesh(conf.mesh);
@@ -320,7 +336,12 @@ void MCGrid::_initialize_boundaries(Chunk &p_chunk) const {
 	}
 }
 
-bool MCGrid::_is_boundary_corner(int gx, int gy, int gz, bool &r_required_state) const {
+bool MCGrid::_is_boundary_corner(
+		int gx,
+		int gy,
+		int gz,
+		bool &r_required_state
+) const {
 	int max_gx = grid_size.x * chunk_size.x;
 	int max_gy = grid_size.y * chunk_size.y;
 	int max_gz = grid_size.z * chunk_size.z;
@@ -336,7 +357,10 @@ bool MCGrid::_is_boundary_corner(int gx, int gy, int gz, bool &r_required_state)
 	return false;
 }
 
-void MCGrid::modify_corner(const Vector3i &p_grid_pos, bool p_active) {
+void MCGrid::modify_corner(
+		const Vector3i &p_grid_pos,
+		bool p_active
+) {
 	int gx = p_grid_pos.x;
 	int gy = p_grid_pos.y;
 	int gz = p_grid_pos.z;
@@ -363,7 +387,9 @@ void MCGrid::modify_corner(const Vector3i &p_grid_pos, bool p_active) {
 			for (int cx = start_cx; cx <= end_cx; cx++) {
 				int idx = _get_chunk_index(cx, cy, cz);
 				Chunk &chunk = chunks[idx];
-				chunk.set_corner(gx - (cx * chunk_size.x), gy - (cy * chunk_size.y), gz - (cz * chunk_size.z), p_active);
+				chunk.set_corner(
+						gx - (cx * chunk_size.x), gy - (cy * chunk_size.y), gz - (cz * chunk_size.z), p_active
+				);
 				actual_modified = true;
 			}
 		}

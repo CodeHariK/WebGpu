@@ -7,7 +7,8 @@
 namespace godot {
 
 class WheelConfig : public Resource {
-	GDCLASS(WheelConfig, Resource)
+	GDCLASS(WheelConfig,
+			Resource)
 
 private:
 	Vector3 hardpoint_offset;

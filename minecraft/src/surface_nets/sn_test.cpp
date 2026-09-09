@@ -10,11 +10,17 @@ void SNGrid::generate_test_sdf() {
 	int max_z = grid_size.z * chunk_size.z;
 
 	// Center coordinates for sphere (left half) and box (right half)
-	Vector3 sphere_center(static_cast<float>(max_x) * 0.3f, static_cast<float>(max_y) * 0.5f, static_cast<float>(max_z) * 0.5f);
+	Vector3 sphere_center(
+			static_cast<float>(max_x) * 0.3f, static_cast<float>(max_y) * 0.5f, static_cast<float>(max_z) * 0.5f
+	);
 	float sphere_radius = static_cast<float>(max_y) * 0.35f;
 
-	Vector3 box_center(static_cast<float>(max_x) * 0.7f, static_cast<float>(max_y) * 0.5f, static_cast<float>(max_z) * 0.5f);
-	Vector3 box_half_size(static_cast<float>(max_y) * 0.25f, static_cast<float>(max_y) * 0.25f, static_cast<float>(max_y) * 0.25f);
+	Vector3 box_center(
+			static_cast<float>(max_x) * 0.7f, static_cast<float>(max_y) * 0.5f, static_cast<float>(max_z) * 0.5f
+	);
+	Vector3 box_half_size(
+			static_cast<float>(max_y) * 0.25f, static_cast<float>(max_y) * 0.25f, static_cast<float>(max_y) * 0.25f
+	);
 
 	SDFSphere sphere(sphere_center, sphere_radius);
 	SDFBox box(box_center, box_half_size);
