@@ -40,6 +40,8 @@
 #include "sky/sky_cycle.h"
 #include "terrain/loafter/procedural_lofter.h"
 #include "terrain/minecraft.h"
+#include "terrain/stylized/stylized_terrain.h"
+#include "terrain/stylized/stylized_terrain_mesh.h"
 #include "terrain/terraspline/terraspline.h"
 #include "terrain/terraspline/tr_toon.h"
 #include "terrain/terraspline/tr_water.h"
@@ -176,6 +178,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(RockMesh);
 	GDREGISTER_CLASS(Rock);
 	GDREGISTER_CLASS(SplineRocks);
+	GDREGISTER_CLASS(StylizedTerrainMesh);
+	GDREGISTER_CLASS(StylizedTerrain);
 	GDREGISTER_CLASS(SkyCycle);
 	GDREGISTER_CLASS(Flashlight);
 	GDREGISTER_CLASS(TerrainSplineCompositor);
