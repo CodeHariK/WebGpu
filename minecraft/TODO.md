@@ -1,3 +1,10 @@
+* [I Added Realistic Water And Rivers To My Game - Village Builder Devlog #12
+](https://www.youtube.com/watch?v=xWrk-0hW62U)
+* https://watabou.itch.io/
+* https://www.reddit.com/r/Unity3D/comments/1al1yku/terraced_terrain_generator_a_free_opensource_tool/
+* https://gamedev.stackexchange.com/questions/115554/how-to-achieve-a-layered-terrain-simlar-to-godus
+
+
 # TerraSpline roadmap
 
 Cartoon open world for mobile: car racing + Zelda-like exploration. Everything is authored as
