@@ -37,6 +37,10 @@ void StylizedTerrainMesh::_bind_methods() {
 	ADD_GROUP("Style", "");
 	ST_BIND(BOOL, terrace, PROPERTY_HINT_NONE, "");
 	ST_BIND(FLOAT, step_height, PROPERTY_HINT_RANGE, "0.25,64,0.25");
+	ST_BIND(INT, grid, PROPERTY_HINT_ENUM, "Square,Triangular");
+	ADD_GROUP("Detail", "detail_");
+	ST_BIND(FLOAT, detail_amount, PROPERTY_HINT_RANGE, "0,16,0.05");
+	ST_BIND(FLOAT, detail_frequency, PROPERTY_HINT_RANGE, "0.005,1,0.005");
 	ADD_GROUP("Colour", "");
 	ST_BIND(COLOR, low_color, PROPERTY_HINT_NONE, "");
 	ST_BIND(COLOR, high_color, PROPERTY_HINT_NONE, "");
@@ -46,6 +50,8 @@ void StylizedTerrainMesh::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("rebuild"), &StylizedTerrainMesh::rebuild);
 	ClassDB::bind_method(D_METHOD("sample_height", "world"), &StylizedTerrainMesh::sample_height);
 	ClassDB::bind_method(D_METHOD("get_contours"), &StylizedTerrainMesh::get_contours);
+	BIND_ENUM_CONSTANT(GRID_SQUARE);
+	BIND_ENUM_CONSTANT(GRID_TRIANGULAR);
 }
 #undef ST_BIND
 // clang-format on
@@ -86,6 +92,17 @@ float StylizedTerrainMesh::_height_raw(
 		hn *= mask;
 	}
 	return base_height + hn * height_scale;
+}
+
+float StylizedTerrainMesh::_displace(
+		float p_wx,
+		float p_wz
+) const {
+	if (detail_amount <= 0.0f) {
+		return 0.0f;
+	}
+	const Vector3 p(p_wx * detail_frequency, 0.0f, p_wz * detail_frequency);
+	return detail_amount * prop::fbm(p, 2, 2.0f, 0.5f, (uint32_t)seed + 313u, false);
 }
 
 Color StylizedTerrainMesh::_surface_color(
@@ -244,11 +261,17 @@ void StylizedTerrainMesh::_emit_triangle(
 		const float hn = (flat + step_height * 0.5f - _min_h) / span;
 		const Vector2 cc = centroid2(poly);
 		const Color col = _surface_color(hn, cc.x * 0.5f, cc.y * 0.5f);
+		auto vtx = [&](const PV &p) { return Vector3(p.p.x, flat + _displace(p.p.x, p.p.y), p.p.y); };
 		for (size_t i = 1; i + 1 < poly.size(); ++i) {
-			push_tri(
-					Vector3(poly[0].p.x, flat, poly[0].p.y), Vector3(poly[i].p.x, flat, poly[i].p.y),
-					Vector3(poly[i + 1].p.x, flat, poly[i + 1].p.y), Vector3(0, 1, 0), col, r_v, r_n, r_uv, r_c
-			);
+			const Vector3 a = vtx(poly[0]);
+			const Vector3 b = vtx(poly[i]);
+			const Vector3 c = vtx(poly[i + 1]);
+			// Real face normal (oriented up) so displaced tops catch the light; ~(0,1,0) when flat.
+			Vector3 ng = (b - a).cross(c - a);
+			if (ng.y < 0.0f) {
+				ng = -ng;
+			}
+			push_tri(a, b, c, ng.length_squared() > 1e-9f ? ng : Vector3(0, 1, 0), col, r_v, r_n, r_uv, r_c);
 		}
 		// Skirt any polygon edge that lies on the patch border straight down to p_bottom.
 		const int n = (int)poly.size();
@@ -267,8 +290,10 @@ void StylizedTerrainMesh::_emit_triangle(
 			} else {
 				continue;
 			}
+			const float t0 = flat + _displace(q0.x, q0.y);
+			const float t1 = flat + _displace(q1.x, q1.y);
 			push_quad(
-					Vector3(q0.x, p_bottom, q0.y), Vector3(q0.x, flat, q0.y), Vector3(q1.x, flat, q1.y),
+					Vector3(q0.x, p_bottom, q0.y), Vector3(q0.x, t0, q0.y), Vector3(q1.x, t1, q1.y),
 					Vector3(q1.x, p_bottom, q1.y), want, col.darkened(riser_darken), r_v, r_n, r_uv, r_c
 			);
 		}
@@ -305,34 +330,75 @@ void StylizedTerrainMesh::_build_terraced(
 		PackedVector2Array &r_uv,
 		PackedColorArray &r_c
 ) {
-	const float cx = size.x / (float)p_nx;
-	const float cz = size.y / (float)p_nz;
 	const float ox = -0.5f * size.x;
 	const float oz = -0.5f * size.y;
 	const float bottom = _min_h - 4.0f;
 
-	// Heights at shared grid corners, so contour crossings match across cells (seamless terraces).
-	std::vector<float> h((size_t)(p_nx + 1) * (p_nz + 1));
-	for (int j = 0; j <= p_nz; ++j) {
-		for (int i = 0; i <= p_nx; ++i) {
-			h[(size_t)j * (p_nx + 1) + i] = _height_raw(ox + i * cx, oz + j * cz);
-		}
-	}
-	auto P = [&](int i, int j) { return Vector2(ox + i * cx, oz + j * cz); };
-	auto H = [&](int i, int j) { return h[(size_t)j * (p_nx + 1) + i]; };
-
 	// Caps + border skirts per triangle; every band-boundary crossing is collected as a contour segment.
+	// The slicing / stitch / extrude is lattice-agnostic, so only the triangulation below differs.
 	std::vector<LevSeg> segs;
-	for (int j = 0; j < p_nz; ++j) {
-		for (int i = 0; i < p_nx; ++i) {
+
+	if (grid == GRID_TRIANGULAR) {
+		// Offset-row equilateral lattice: rows spaced dz = cell * sqrt(3)/2, odd rows shifted half a cell,
+		// so triangles are near-equilateral and there is no uniform diagonal grain. Border X is clamped to
+		// keep a clean rectangular edge (so skirts still fire).
+		const int ncols = MAX(1, (int)Math::round(size.x / cell_size));
+		const int nrows = MAX(1, (int)Math::round(size.y / (cell_size * 0.8660254f)));
+		const float dx = size.x / (float)ncols;
+		const float dz = size.y / (float)nrows;
+		const int w = ncols + 1;
+		auto P = [&](int i, int j) {
+			const float x = ox + i * dx + ((j & 1) ? 0.5f * dx : 0.0f);
+			return Vector2(CLAMP(x, ox, ox + size.x), oz + j * dz);
+		};
+		std::vector<float> h((size_t)w * (nrows + 1));
+		for (int j = 0; j <= nrows; ++j) {
+			for (int i = 0; i <= ncols; ++i) {
+				const Vector2 p = P(i, j);
+				h[(size_t)j * w + i] = _height_raw(p.x, p.y);
+			}
+		}
+		auto H = [&](int i, int j) { return h[(size_t)j * w + i]; };
+		auto tri = [&](int i0, int j0, int i1, int j1, int i2, int j2) {
 			_emit_triangle(
-					P(i, j), H(i, j), P(i + 1, j), H(i + 1, j), P(i + 1, j + 1), H(i + 1, j + 1), bottom, r_v, r_n,
-					r_uv, r_c, segs
+					P(i0, j0), H(i0, j0), P(i1, j1), H(i1, j1), P(i2, j2), H(i2, j2), bottom, r_v, r_n, r_uv, r_c, segs
 			);
-			_emit_triangle(
-					P(i, j), H(i, j), P(i + 1, j + 1), H(i + 1, j + 1), P(i, j + 1), H(i, j + 1), bottom, r_v, r_n,
-					r_uv, r_c, segs
-			);
+		};
+		for (int j = 0; j < nrows; ++j) {
+			for (int i = 0; i < ncols; ++i) {
+				if ((j & 1) == 0) {
+					tri(i, j, i + 1, j, i, j + 1);
+					tri(i + 1, j, i + 1, j + 1, i, j + 1);
+				} else {
+					tri(i, j, i + 1, j, i + 1, j + 1);
+					tri(i, j, i + 1, j + 1, i, j + 1);
+				}
+			}
+		}
+	} else {
+		// Square cells, each split into two right triangles along a shared diagonal.
+		const float cx = size.x / (float)p_nx;
+		const float cz = size.y / (float)p_nz;
+		const int w = p_nx + 1;
+		std::vector<float> h((size_t)w * (p_nz + 1));
+		for (int j = 0; j <= p_nz; ++j) {
+			for (int i = 0; i <= p_nx; ++i) {
+				h[(size_t)j * w + i] = _height_raw(ox + i * cx, oz + j * cz);
+			}
+		}
+		auto P = [&](int i, int j) { return Vector2(ox + i * cx, oz + j * cz); };
+		auto H = [&](int i, int j) { return h[(size_t)j * w + i]; };
+		for (int j = 0; j < p_nz; ++j) {
+			for (int i = 0; i < p_nx; ++i) {
+				_emit_triangle(
+						P(i, j), H(i, j), P(i + 1, j), H(i + 1, j), P(i + 1, j + 1), H(i + 1, j + 1), bottom, r_v, r_n,
+						r_uv, r_c, segs
+				);
+				_emit_triangle(
+						P(i, j), H(i, j), P(i + 1, j + 1), H(i + 1, j + 1), P(i, j + 1), H(i, j + 1), bottom, r_v, r_n,
+						r_uv, r_c, segs
+				);
+			}
 		}
 	}
 
@@ -439,7 +505,7 @@ void StylizedTerrainMesh::_build_walls(
 		for (const std::vector<Vector2> &loop : loops) {
 			PackedVector3Array loop3;
 			for (const Vector2 &p : loop) {
-				loop3.push_back(Vector3(p.x, y_hi, p.y));
+				loop3.push_back(Vector3(p.x, y_hi + _displace(p.x, p.y), p.y)); // follow the surface detail
 			}
 			_contour_loops.push_back(loop3);
 
@@ -460,9 +526,12 @@ void StylizedTerrainMesh::_build_walls(
 				const Vector2 low = (h_pos < h_neg) ? perp : -perp; // wall faces the lower plateau
 				const Color col =
 						_surface_color((y_hi - _min_h) / span, mid.x * 0.5f, mid.y * 0.5f).darkened(riser_darken);
+				// Displace both ends by the shared XZ detail, so wall tops/bottoms meet the caps (no cracks).
+				const float d0 = _displace(p0.x, p0.y);
+				const float d1 = _displace(p1.x, p1.y);
 				push_quad(
-						Vector3(p0.x, y_lo, p0.y), Vector3(p0.x, y_hi, p0.y), Vector3(p1.x, y_hi, p1.y),
-						Vector3(p1.x, y_lo, p1.y), Vector3(low.x, 0, low.y), col, r_v, r_n, r_uv, r_c
+						Vector3(p0.x, y_lo + d0, p0.y), Vector3(p0.x, y_hi + d0, p0.y), Vector3(p1.x, y_hi + d1, p1.y),
+						Vector3(p1.x, y_lo + d1, p1.y), Vector3(low.x, 0, low.y), col, r_v, r_n, r_uv, r_c
 				);
 			}
 		}

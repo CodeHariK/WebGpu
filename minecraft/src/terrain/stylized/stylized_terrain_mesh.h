@@ -30,6 +30,12 @@ class StylizedTerrainMesh : public ArrayMesh {
 	GDCLASS(StylizedTerrainMesh,
 			ArrayMesh)
 
+public:
+	enum GridKind {
+		GRID_SQUARE = 0, // Square cells split into 2 right triangles (uniform diagonal → slight grain)
+		GRID_TRIANGULAR = 1 // Offset-row equilateral lattice (isotropic, no diagonal grain, even facets)
+	};
+
 private:
 	int seed = 1337;
 	Vector2 size = Vector2(128.0f, 128.0f); // Patch extent in metres (centred on the origin)
@@ -48,6 +54,14 @@ private:
 	// Style
 	bool terrace = true;
 	float step_height = 3.0f; // Terrace band height in metres
+	GridKind grid = GRID_SQUARE; // Lattice: square (grained) vs triangular (isotropic)
+
+	// Surface detail: a low-amplitude noise displacement applied AFTER terracing, so the flat tops get
+	// gentle height variation. The caps and the top/bottom of the extruded walls share the same XZ
+	// displacement (they meet at the stitched contour points), so terrace edges stay welded — no cracks.
+	// Keep `detail_amount` below `step_height` or it washes the terraces out.
+	float detail_amount = 0.0f; // Metres of vertical variation on the surface (0 = dead-flat tops)
+	float detail_frequency = 0.08f; // Cycles per metre of the detail noise
 
 	// Colour
 	Color low_color = Color(0.42f, 0.55f, 0.24f); // Valleys / lowest band
@@ -73,6 +87,10 @@ private:
 			float p_wx,
 			float p_wz
 	) const; // Continuous height (noise + island), metres
+	float _displace(
+			float p_wx,
+			float p_wz
+	) const; // Post-terrace surface detail (metres); 0 when off
 	Color _surface_color(
 			float p_h_norm,
 			float p_cx,
@@ -162,6 +180,9 @@ public:
 	ST_PROP(float, island_falloff, CLAMP(p_value, 0.0f, 1.0f))
 	ST_PROP(bool, terrace, p_value)
 	ST_PROP(float, step_height, CLAMP(p_value, 0.25f, 64.0f))
+	ST_PROP(GridKind, grid, p_value)
+	ST_PROP(float, detail_amount, MAX(0.0f, p_value))
+	ST_PROP(float, detail_frequency, CLAMP(p_value, 0.005f, 1.0f))
 	ST_PROP(Color, low_color, p_value)
 	ST_PROP(Color, high_color, p_value)
 	ST_PROP(Color, edge_color, p_value)
@@ -172,5 +193,7 @@ public:
 };
 
 } // namespace godot
+
+VARIANT_ENUM_CAST(godot::StylizedTerrainMesh::GridKind);
 
 #endif // STYLIZED_TERRAIN_MESH_H
