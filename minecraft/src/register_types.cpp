@@ -29,6 +29,8 @@
 #include "player/celeste_controller.h"
 #include "player/celeste_ui.h"
 
+#include "environment/cliff.h"
+#include "environment/cliff_mesh.h"
 #include "environment/crystal_cluster.h"
 #include "environment/crystal_cluster_mesh.h"
 #include "environment/prop_material.h"
@@ -177,6 +179,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(CrystalCluster);
 	GDREGISTER_CLASS(RockMesh);
 	GDREGISTER_CLASS(Rock);
+	GDREGISTER_CLASS(CliffMesh);
+	GDREGISTER_CLASS(Cliff);
 	GDREGISTER_CLASS(SplineRocks);
 	GDREGISTER_CLASS(StylizedTerrainMesh);
 	GDREGISTER_CLASS(StylizedTerrain);

@@ -205,6 +205,43 @@ blob_size_variation = 0.8
 strata = 3
 moss_amount = 0.35
 
+[sub_resource type="CliffMesh" id="CliffMesh_faceted"]
+seed = 42
+extents = Vector3(14, 16, 8)
+subdivisions_x = 28
+subdivisions_y = 36
+subdivisions_z = 20
+style = 0
+wall_noise_amp = 1.8
+wall_noise_freq = 0.28
+warp_strength = 0.45
+moss_amount = 0.5
+
+[sub_resource type="CliffMesh" id="CliffMesh_basalt"]
+seed = 19
+extents = Vector3(12, 18, 10)
+subdivisions_x = 24
+subdivisions_y = 36
+subdivisions_z = 24
+style = 2
+wall_noise_amp = 1.2
+wall_noise_freq = 0.45
+flat_shaded = true
+moss_amount = 0.3
+
+[sub_resource type="CliffMesh" id="CliffMesh_crevassed"]
+seed = 77
+extents = Vector3(16, 14, 8)
+subdivisions_x = 32
+subdivisions_y = 30
+subdivisions_z = 18
+style = 1
+wall_noise_amp = 1.6
+wall_noise_freq = 0.35
+strata_count = 6
+strata_depth = 0.4
+moss_amount = 0.4
+
 [sub_resource type="CrystalClusterMesh" id="CrystalClusterMesh_big"]
 seed = 3
 height = 6.0
@@ -630,6 +667,18 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -140, 40, 372)
 rock_mesh = SubResource("RockMesh_stack")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -196, 40, 352)
 
+[node name="CliffFaceted" type="Cliff" parent="." unique_id=1723548970]
+cliff_mesh = SubResource("CliffMesh_faceted")
+transform = Transform3D(0.965926, 0, 0.258819, 0, 1, 0, -0.258819, 0, 0.965926, -165, 48, 290)
+
+[node name="CliffBasalt" type="Cliff" parent="." unique_id=1723548971]
+cliff_mesh = SubResource("CliffMesh_basalt")
+transform = Transform3D(0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866025, -205, 49, 310)
+
+[node name="CliffCrevassed" type="Cliff" parent="." unique_id=1723548972]
+cliff_mesh = SubResource("CliffMesh_crevassed")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -145, 47, 260)
+
 [node name="CrystalBig" type="CrystalCluster" parent="." unique_id=1723548910]
 crystal_mesh = SubResource("CrystalClusterMesh_big")
 glow = 0.8
@@ -713,7 +762,6 @@ mouse_filter = 2
 [node name="StreamMap" type="TerrainSplineStreamMap" parent="SplinePreviewLayer" unique_id=1723548813]
 compositor = NodePath("../../SplineManager")
 toggle_key = 77
-anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 16.0
