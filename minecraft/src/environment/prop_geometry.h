@@ -1,6 +1,6 @@
 /**
  * @file prop_geometry.h
- * @brief Header-only helpers shared by the procedural props: seeded RNG, icosphere, value noise.
+ * @brief Header-only helpers shared by the procedural props: seeded RNG, icosphere, value noise, Voronoi noise.
  *
  * Everything here is `inline` / internal-linkage so each prop .cpp gets its own copy; there is no
  * prop_geometry.cpp. Keep it small — anything that grows a lifecycle belongs in its own file.
@@ -90,7 +90,7 @@ struct IcoSphere {
 	}
 };
 
-/// Integer lattice hash → [0, 1).
+/// Integer lattice hash -> [0, 1).
 inline float
 hash3(int x,
 	  int y,
@@ -139,6 +139,66 @@ fbm(Vector3 p,
 		p *= lacunarity;
 	}
 	return norm > 0.0f ? sum / norm : 0.0f;
+}
+
+/// 3D Voronoi / Worley Noise
+struct VoronoiResult {
+	float f1 = 1e9f;          // Distance to closest cell center (convex plates)
+	float f2 = 1e9f;          // Distance to 2nd closest center
+	float crack = 0.0f;       // (f2 - f1): high near borders, 0 at center (rock crevasses)
+	Vector3 cell_center;      // Position of closest seed point
+	uint32_t cell_id = 0;     // Unique hash ID of the cell
+};
+
+/// Deterministic 3D unit offset within cell
+inline Vector3 hash3_vec(int x, int y, int z, uint32_t seed) {
+	float rx = hash3(x, y, z, seed);
+	float ry = hash3(x + 31, y + 17, z + 73, seed + 1013u);
+	float rz = hash3(x + 127, y + 251, z + 509, seed + 2017u);
+	return Vector3(rx, ry, rz);
+}
+
+/// 3D Voronoi sampling 27 neighboring cells
+inline VoronoiResult voronoi_3d(const Vector3 &p, uint32_t seed, float jitter = 0.85f) {
+	int ix = (int)Math::floor(p.x);
+	int iy = (int)Math::floor(p.y);
+	int iz = (int)Math::floor(p.z);
+
+	float f1 = 1e9f;
+	float f2 = 1e9f;
+	Vector3 best_center = Vector3();
+	uint32_t best_id = 0;
+
+	for (int dz = -1; dz <= 1; ++dz) {
+		for (int dy = -1; dy <= 1; ++dy) {
+			for (int dx = -1; dx <= 1; ++dx) {
+				int cx = ix + dx;
+				int cy = iy + dy;
+				int cz = iz + dz;
+
+				Vector3 offset = hash3_vec(cx, cy, cz, seed);
+				Vector3 seed_pos = Vector3(cx, cy, cz) + offset * jitter;
+				float dist = (p - seed_pos).length();
+
+				if (dist < f1) {
+					f2 = f1;
+					f1 = dist;
+					best_center = seed_pos;
+					best_id = (uint32_t)(cx * 73856093 ^ cy * 19349663 ^ cz * 83492791 ^ (int)seed);
+				} else if (dist < f2) {
+					f2 = dist;
+				}
+			}
+		}
+	}
+
+	VoronoiResult res;
+	res.f1 = f1;
+	res.f2 = f2;
+	res.crack = Math::clamp(f2 - f1, 0.0f, 1.0f);
+	res.cell_center = best_center;
+	res.cell_id = best_id;
+	return res;
 }
 
 } // namespace prop
