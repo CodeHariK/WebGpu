@@ -31,6 +31,8 @@ import Map15 from '../maps/Map15';
 import Map15Explanation from '../maps/Map15Explanation';
 import Map16 from '../maps/Map16';
 import Map16Explanation from '../maps/Map16Explanation';
+import Map17 from '../maps/Map17';
+import Map17Explanation from '../maps/Map17Explanation';
 
 import './MapSelector.css';
 
@@ -39,7 +41,7 @@ export default function MapSelector() {
         <div className="selector-container">
             <h1 className="selector-title">Generative Maps Showcase</h1>
 
-            <Tabs.Root defaultValue="map16" className="tabs-root">
+            <Tabs.Root defaultValue="map17" className="tabs-root">
                 <Tabs.List className="tabs-list">
                     <Tabs.Tab value="map1" className="tabs-tab">
                         Algorithmic Curves
@@ -88,6 +90,9 @@ export default function MapSelector() {
                     </Tabs.Tab>
                     <Tabs.Tab value="map16" className="tabs-tab">
                         Shape Packer
+                    </Tabs.Tab>
+                    <Tabs.Tab value="map17" className="tabs-tab">
+                        Watabou City
                     </Tabs.Tab>
                     <Tabs.Indicator className="tabs-indicator" />
                 </Tabs.List>
@@ -257,6 +262,16 @@ export default function MapSelector() {
                         </div>
                         <div className="explanation-container">
                             <Map16Explanation />
+                        </div>
+                    </div>
+                </Tabs.Panel>
+                <Tabs.Panel value="map17" className="tabs-panel">
+                    <div className="panel-layout">
+                        <div className="canvas-container">
+                            <Map17 width={800} height={800} />
+                        </div>
+                        <div className="explanation-container">
+                            <Map17Explanation />
                         </div>
                     </div>
                 </Tabs.Panel>
