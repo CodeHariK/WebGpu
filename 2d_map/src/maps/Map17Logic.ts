@@ -86,6 +86,15 @@ function polygonCentroid(pts: Vector2[]): Vector2 {
     return new Vector2(cx / (6 * signedArea), cy / (6 * signedArea));
 }
 
+function pointSegDist(p: Vector2, a: Vector2, b: Vector2): number {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    let t = len2 > 1e-9 ? ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
 function insetPolygon(pts: Vector2[], distance: number): Vector2[] {
     if (pts.length < 3) return pts;
     const n = pts.length;
@@ -237,9 +246,12 @@ export function generateWatabouCity(options: {
         const { triangles, halfedges } = delaunay;
         const circumcenters: Vector2[] = [];
         for (let i = 0; i < triangles.length; i += 3) {
-            circumcenters.push(
-                getCircumcenter(points[triangles[i]], points[triangles[i + 1]], points[triangles[i + 2]])
-            );
+            const cc = getCircumcenter(points[triangles[i]], points[triangles[i + 1]], points[triangles[i + 2]]);
+            // Clamp hull circumcenters to the canvas so border cells stay bounded instead of shooting
+            // off-screen into giant blobs (the Voronoi is not clipped to the bounds otherwise).
+            cc.x = Math.max(0, Math.min(width, cc.x));
+            cc.y = Math.max(0, Math.min(height, cc.y));
+            circumcenters.push(cc);
         }
 
         cellVerticesMap.clear();
@@ -291,15 +303,17 @@ export function generateWatabouCity(options: {
     const isWater: boolean[] = [];
 
     points.forEach((p, idx) => {
-        const nx = p.x * 0.003;
-        const ny = p.y * 0.003;
-        const n = noise2D(nx, ny) + 0.5 * noise2D(nx * 2, ny * 2);
+        const nx = p.x * 0.004;
+        const ny = p.y * 0.004;
+        const n = noise2D(nx, ny) + 0.5 * noise2D(nx * 2, ny * 2); // ~[-1.5, 1.5]
+        elevation[idx] = n;
 
-        const coastGrad = hasCoast ? (p.x + p.y * 0.6) / (width * 1.2) : 0;
-        const elev = n - coastGrad;
-        elevation[idx] = elev;
-
-        isWater[idx] = hasCoast && (elev < -0.35 || p.x > width * 0.88);
+        // A single contiguous sea on the east, with a jagged noise-perturbed coastline. Crucially this
+        // keeps the LAND (and the city on it) connected. The old model subtracted a strong radial coast
+        // gradient from per-cell elevation, so >half the map — and ~90% of the east — flooded, drowning
+        // the town into scattered islands.
+        const coastX = width * 0.72;
+        isWater[idx] = hasCoast && p.x + n * width * 0.08 > coastX;
     });
 
     // 4. River Generation (Steepest Descent from Inland to Coast / Sea)
@@ -333,13 +347,15 @@ export function generateWatabouCity(options: {
 
                 const neighbors = cellNeighborsMap.get(curr) || [];
                 let next = -1;
-                let lowestElev = elevation[curr];
+                let bestScore = Infinity;
 
+                // Flow strongly toward the eastern sea (lower x-score) with some downhill influence, so the
+                // river actually reaches the coast instead of stalling in a local noise minimum.
                 neighbors.forEach(nIdx => {
                     if (!visitedRiver.has(nIdx)) {
-                        const score = elevation[nIdx] - (points[nIdx].x / width) * 0.2;
-                        if (score < lowestElev) {
-                            lowestElev = score;
+                        const score = elevation[nIdx] * 0.5 - (points[nIdx].x / width) * 1.6;
+                        if (score < bestScore) {
+                            bestScore = score;
                             next = nIdx;
                         }
                     }
@@ -437,6 +453,89 @@ export function generateWatabouCity(options: {
         }
     }
 
+    // --- Street graph: nodes are Voronoi vertices, edges are cell boundaries (the gaps between blocks).
+    // Arterial roads are routed along this graph so they follow real streets instead of cutting straight
+    // across town. Only land cells contribute edges, so roads never run through the sea.
+    const nodePos: Vector2[] = [];
+    const nodeId = new Map<string, number>();
+    const adj: number[][] = [];
+    const adjW: number[][] = [];
+    const getNode = (v: Vector2): number => {
+        const k = `${Math.round(v.x)},${Math.round(v.y)}`;
+        let id = nodeId.get(k);
+        if (id === undefined) {
+            id = nodePos.length;
+            nodeId.set(k, id);
+            nodePos.push(v);
+            adj.push([]);
+            adjW.push([]);
+        }
+        return id;
+    };
+    const addEdge = (a: number, b: number) => {
+        if (a === b) return;
+        const w = Math.hypot(nodePos[a].x - nodePos[b].x, nodePos[a].y - nodePos[b].y);
+        adj[a].push(b);
+        adjW[a].push(w);
+        adj[b].push(a);
+        adjW[b].push(w);
+    };
+    for (let i = 0; i < points.length; i++) {
+        if (isWater[i]) continue;
+        const verts = cellVerticesMap.get(i) || [];
+        if (verts.length < 2) continue;
+        for (let j = 0; j < verts.length; j++) {
+            addEdge(getNode(verts[j]), getNode(verts[(j + 1) % verts.length]));
+        }
+    }
+    const nearestNode = (p: Vector2): number => {
+        let best = -1;
+        let bd = Infinity;
+        for (let i = 0; i < nodePos.length; i++) {
+            const d = (nodePos[i].x - p.x) ** 2 + (nodePos[i].y - p.y) ** 2;
+            if (d < bd) {
+                bd = d;
+                best = i;
+            }
+        }
+        return best;
+    };
+    // Dijkstra along the street graph from the node nearest `from` to the node nearest `to`.
+    const routeAlongStreets = (from: Vector2, to: Vector2): Vector2[] => {
+        const start = nearestNode(from);
+        const goal = nearestNode(to);
+        if (start < 0 || goal < 0) return [];
+        const dist = new Array(nodePos.length).fill(Infinity);
+        const prev = new Array(nodePos.length).fill(-1);
+        const done = new Array(nodePos.length).fill(false);
+        dist[start] = 0;
+        for (;;) {
+            let u = -1;
+            let bd = Infinity;
+            for (let i = 0; i < nodePos.length; i++) {
+                if (!done[i] && dist[i] < bd) {
+                    bd = dist[i];
+                    u = i;
+                }
+            }
+            if (u === -1 || u === goal) break;
+            done[u] = true;
+            for (let e = 0; e < adj[u].length; e++) {
+                const v = adj[u][e];
+                const nd = dist[u] + adjW[u][e];
+                if (nd < dist[v]) {
+                    dist[v] = nd;
+                    prev[v] = u;
+                }
+            }
+        }
+        if (dist[goal] === Infinity) return [];
+        const path: Vector2[] = [];
+        for (let c = goal; c !== -1; c = prev[c]) path.push(nodePos[c]);
+        path.reverse();
+        return path;
+    };
+
     const arterialRoads: Vector2[][] = [];
     const gateDirections = [0.2, 1.8, 3.6, 5.2];
 
@@ -457,14 +556,21 @@ export function generateWatabouCity(options: {
             const gatePos = cityWallVertices[bestWallIdx];
             gates.push({ point: gatePos, angle });
 
-            const extX = gatePos.x + Math.cos(angle) * (width * 0.45);
-            const extY = gatePos.y + Math.sin(angle) * (height * 0.45);
+            // Short stub leading out through the gate into the countryside (not all the way to the edge).
+            const extX = gatePos.x + Math.cos(angle) * (width * 0.09);
+            const extY = gatePos.y + Math.sin(angle) * (height * 0.09);
             const exitPoint = new Vector2(
-                Math.max(20, Math.min(width - 20, extX)),
-                Math.max(20, Math.min(height - 20, extY))
+                Math.max(10, Math.min(width - 10, extX)),
+                Math.max(10, Math.min(height - 10, extY))
             );
 
-            arterialRoads.push([points[marketIdx], gatePos, exitPoint]);
+            // Route market -> gate along the street graph, then the short stub out. Falls back to a
+            // straight line only if the graph route fails (disconnected).
+            const street = routeAlongStreets(points[marketIdx], gatePos);
+            const road: Vector2[] =
+                street.length >= 2 ? [points[marketIdx], ...street] : [points[marketIdx], gatePos];
+            road.push(exitPoint);
+            arterialRoads.push(road);
         }
     });
 
@@ -519,6 +625,21 @@ export function generateWatabouCity(options: {
                     if (poly.length >= 3) {
                         const buildingPoly = insetPolygon(poly, 1.8);
                         if (buildingPoly.length >= 3) {
+                            // Keep arterial roads and the river as clear corridors: drop any building whose
+                            // footprint sits on one, so streets run through gaps instead of cutting houses.
+                            const bc = polygonCentroid(buildingPoly);
+                            let onCorridor = false;
+                            for (const road of arterialRoads) {
+                                for (let s = 0; s + 1 < road.length && !onCorridor; s++) {
+                                    if (pointSegDist(bc, road[s], road[s + 1]) < 8) onCorridor = true;
+                                }
+                                if (onCorridor) break;
+                            }
+                            for (let s = 0; s + 1 < riverPath.length && !onCorridor; s++) {
+                                if (pointSegDist(bc, riverPath[s], riverPath[s + 1]) < 13) onCorridor = true;
+                            }
+                            if (onCorridor) return;
+
                             const roofColor = ROOF_COLORS[Math.floor(rand() * ROOF_COLORS.length)];
                             const wallColor = WALL_COLORS[Math.floor(rand() * WALL_COLORS.length)];
                             buildings.push({

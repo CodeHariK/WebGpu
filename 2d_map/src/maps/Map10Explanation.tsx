@@ -3,7 +3,7 @@
 export default function Map10Explanation() {
     return (
         <div style={EXPLANATION_STYLES.container}>
-            <h2 style={EXPLANATION_STYLES.title}>Voronoi Territory Generation</h2>
+            <h2 style={EXPLANATION_STYLES.title}>Voronoi Zone Generation</h2>
             <h3 style={EXPLANATION_STYLES.subtitle}>1. Stable Jittered Grid</h3>
             <p style={EXPLANATION_STYLES.paragraph}>
                 In contrast to pure random distribution, we use a <strong>Jittered Grid</strong>. Points are sampled
@@ -30,7 +30,7 @@ export default function Map10Explanation() {
             <p style={EXPLANATION_STYLES.paragraph}>
                 Grand infrastructure is created using a <strong>Global BFS</strong> across the entire Voronoi
                 mesh to find the shortest topological route between epicenters. This forms a high-level
-                <strong>Regional Network</strong> that bridges different territory hubs.
+                <strong>Regional Network</strong> that bridges different zone hubs.
             </p>
 
             <h3 style={EXPLANATION_STYLES.subtitle}>4. Black Boundary Rendering</h3>

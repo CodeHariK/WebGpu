@@ -1,3 +1,5 @@
+* https://fortnite.gg/map-evolution
+* https://i.insider.com/5b47c2667708e960932a27d6?width=1148&format=jpeg&auto=avif&quality=85%2C80
 * Volcano/Crafter with particle effects/Floating rocks on lave/water
 * overcooked hex map
 * [I Added Realistic Water And Rivers To My Game - Village Builder Devlog #12

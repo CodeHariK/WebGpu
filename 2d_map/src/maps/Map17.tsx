@@ -142,28 +142,41 @@ export default function Map17({ width = 800, height = 800 }: { width?: number; h
             });
         }
 
-        // 4. Draw River (Curved Ribbon)
+        // 4. Draw River (smooth curved ribbon)
         if (showWater && hasRiver && cityData.riverPath.length >= 2) {
-            // River Bed / Deep Outline
-            ctx.beginPath();
-            cityData.riverPath.forEach((p, i) => {
-                if (i === 0) ctx.moveTo(p.x, p.y);
-                else ctx.lineTo(p.x, p.y);
-            });
+            const river = cityData.riverPath;
+            // Build a smooth path by drawing quadratic curves through the segment midpoints, using each
+            // river point as the control point — this rounds off the cell-to-cell zig-zag into a flowing curve.
+            const smoothRiver = () => {
+                ctx.beginPath();
+                ctx.moveTo(river[0].x, river[0].y);
+                for (let i = 1; i < river.length - 1; i++) {
+                    const mx = (river[i].x + river[i + 1].x) / 2;
+                    const my = (river[i].y + river[i + 1].y) / 2;
+                    ctx.quadraticCurveTo(river[i].x, river[i].y, mx, my);
+                }
+                ctx.lineTo(river[river.length - 1].x, river[river.length - 1].y);
+            };
+
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.strokeStyle = PALETTE.river;
-            ctx.lineWidth = 14;
+
+            // Bank outline
+            smoothRiver();
+            ctx.strokeStyle = PALETTE.riverBank;
+            ctx.lineWidth = 17;
             ctx.stroke();
 
-            // River Water Highlight
-            ctx.beginPath();
-            cityData.riverPath.forEach((p, i) => {
-                if (i === 0) ctx.moveTo(p.x, p.y);
-                else ctx.lineTo(p.x, p.y);
-            });
+            // Water body
+            smoothRiver();
+            ctx.strokeStyle = PALETTE.river;
+            ctx.lineWidth = 12;
+            ctx.stroke();
+
+            // Center highlight
+            smoothRiver();
             ctx.strokeStyle = '#7dd3fc';
-            ctx.lineWidth = 6;
+            ctx.lineWidth = 4;
             ctx.stroke();
         }
 
