@@ -37,7 +37,7 @@ function mulberry32(a: number) {
     }
 }
 
-const TERRITORY_COLORS = [
+const ZONE_COLORS = [
     '#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#f97316'
 ];
 
@@ -50,6 +50,7 @@ export default function Map10({ width = 800, height = 800 }: { width?: number, h
     const [numEpicenters, setNumEpicenters] = useState(5);
     const [falloffLimit, setFalloffLimit] = useState(8);
     const [minSpacing, setMinSpacing] = useState(180);
+    const [relaxation, setRelaxation] = useState(1);
     const [showGeometry, setShowGeometry] = useState(false);
     const [showRings, setShowRings] = useState(true);
     const [showHighways, setShowHighways] = useState(true);
@@ -76,6 +77,34 @@ export default function Map10({ width = 800, height = 800 }: { width?: number, h
                 const y = (gy + 0.5) * spacingY + (rand() - 0.5) * spacingY * 0.8;
                 points.push(new Vector2(x, y));
                 coords.push(x, y);
+            }
+        }
+
+        // 1b. Lloyd Relaxation — move each site to its Voronoi cell centroid and
+        // re-triangulate. Each pass makes the cells rounder and more uniform in size
+        // (a centroidal Voronoi tessellation), taming the last jitter irregularities.
+        for (let pass = 0; pass < relaxation; pass++) {
+            const dRelax = new Delaunator(coords);
+            const tRelax = dRelax.triangles;
+            const sumX = new Float64Array(points.length);
+            const sumY = new Float64Array(points.length);
+            const cnt = new Int32Array(points.length);
+            for (let i = 0; i < tRelax.length; i += 3) {
+                const cc = getCircumcenter(points[tRelax[i]], points[tRelax[i + 1]], points[tRelax[i + 2]]);
+                for (let k = 0; k < 3; k++) {
+                    const pIdx = tRelax[i + k];
+                    sumX[pIdx] += cc.x; sumY[pIdx] += cc.y; cnt[pIdx]++;
+                }
+            }
+            // New site = average of the incident circumcenters (cell-vertex centroid),
+            // clamped to the canvas so border sites don't drift off to infinity.
+            for (let i = 0; i < points.length; i++) {
+                if (cnt[i] === 0) continue;
+                const nx = Math.max(0, Math.min(width, sumX[i] / cnt[i]));
+                const ny = Math.max(0, Math.min(height, sumY[i] / cnt[i]));
+                points[i].set(nx, ny);
+                coords[i * 2] = nx;
+                coords[i * 2 + 1] = ny;
             }
         }
 
@@ -119,7 +148,7 @@ export default function Map10({ width = 800, height = 800 }: { width?: number, h
             const candidate = cellArray[idx];
             if (!epicenters.some(eIdx => Vector2.dist(candidate.point, cellArray[eIdx].point) < curMinDist)) {
                 epicenters.push(idx);
-                cellArray[idx].color = TERRITORY_COLORS[Math.floor(rand() * TERRITORY_COLORS.length)];
+                cellArray[idx].color = ZONE_COLORS[Math.floor(rand() * ZONE_COLORS.length)];
                 cellArray[idx].minDepth = 0;
                 cellArray[idx].epicenterIndex = idx;
                 queue.push([idx, 0, idx]);
@@ -127,7 +156,7 @@ export default function Map10({ width = 800, height = 800 }: { width?: number, h
             } else if (++attempts > 50) { curMinDist *= 0.9; attempts = 0; }
         }
 
-        // 6. BFS Territory Expansion
+        // 6. BFS Zone Expansion
         const bfsQueue = [...queue];
         while (bfsQueue.length > 0) {
             const [currIdx, depth, eIdx] = bfsQueue.shift()!;
@@ -162,7 +191,7 @@ export default function Map10({ width = 800, height = 800 }: { width?: number, h
                     if (next === startIdx && chain.length >= 4) {
                         const loopPoints = chain.map(idx => cellMap.get(idx)!.point);
                         loopPoints.push(cellMap.get(startIdx)!.point);
-                        newRingRoads.push(new Spline(loopPoints).getPath(12));
+                        newRingRoads.push(new Spline(loopPoints, 0.5).getPath(12));
                         break;
                     }
                     if (next && !visited.has(next)) { currentIdx = next; chain.push(currentIdx); visited.add(currentIdx); } else { break; }
@@ -170,61 +199,83 @@ export default function Map10({ width = 800, height = 800 }: { width?: number, h
             });
         });
 
-        // 8. Non-Overlapping Inter-Cluster Highways
+        // 8. Inter-Cluster Highways — planar, shared-corridor network.
+        //
+        // Routing is a Dijkstra shortest path (by Euclidean edge length) over the
+        // Delaunay adjacency graph, so every hop is a Delaunay edge and every node
+        // it visits is a cell CENTER. Highways may freely reuse cells and edges —
+        // several can run the same corridor and they merge cleanly at the shared
+        // centres. Because the Delaunay graph is planar, two straight paths meet
+        // only at shared centre nodes, never crossing in open space.
         const newHighwayRoads: Vector2[][] = [];
-        const globalHighwayOccupied = new Set<number>();
         const connectedPairs = new Set<string>();
+
+        const dijkstra = (startIdx: number, targetIdx: number): number[] | null => {
+            const dist = new Map<number, number>();
+            const prev = new Map<number, number>();
+            dist.set(startIdx, 0);
+            // Small array-scan priority queue (mesh is a few hundred nodes).
+            const pq: [number, number][] = [[0, startIdx]];
+            while (pq.length > 0) {
+                let bi = 0;
+                for (let i = 1; i < pq.length; i++) if (pq[i][0] < pq[bi][0]) bi = i;
+                const [dCur, curr] = pq.splice(bi, 1)[0];
+                if (curr === targetIdx) break;
+                if (dCur > (dist.get(curr) ?? Infinity)) continue;
+                const cell = cellMap.get(curr)!;
+                for (const nIdx of cell.neighborIndices) {
+                    const w = Vector2.dist(cell.point, cellMap.get(nIdx)!.point);
+                    const nd = dCur + w;
+                    if (nd < (dist.get(nIdx) ?? Infinity)) {
+                        dist.set(nIdx, nd);
+                        prev.set(nIdx, curr);
+                        pq.push([nd, nIdx]);
+                    }
+                }
+            }
+            if (startIdx !== targetIdx && !prev.has(targetIdx)) return null;
+            const path: number[] = [targetIdx];
+            let c = targetIdx;
+            while (c !== startIdx) {
+                c = prev.get(c)!;
+                path.push(c);
+            }
+            path.reverse();
+            return path;
+        };
+
+        // Densify the node path with edge midpoints before splining. The centripetal
+        // spline then interpolates through every centre AND every midpoint, so the
+        // curve hugs the straight Delaunay corridor and cannot bulge across a
+        // neighbouring edge — keeping the drawn network planar (no crossings), while
+        // still rounding each junction smoothly through the cell centre.
+        const highwayControlPoints = (path: number[]): Vector2[] => {
+            const pts: Vector2[] = [];
+            for (let i = 0; i < path.length; i++) {
+                const cur = cellMap.get(path[i])!.point;
+                pts.push(cur);
+                if (i < path.length - 1) {
+                    const nxt = cellMap.get(path[i + 1])!.point;
+                    pts.push(new Vector2((cur.x + nxt.x) / 2, (cur.y + nxt.y) / 2));
+                }
+            }
+            return pts;
+        };
 
         epicenters.forEach(startIdx => {
             const neighbors = epicenters
                 .filter(eIdx => eIdx !== startIdx)
                 .sort((a, b) => Vector2.dist(cellArray[startIdx].point, cellArray[a].point) - Vector2.dist(cellArray[startIdx].point, cellArray[b].point))
-                .slice(0, 3); // Slightly connect more neighbors
+                .slice(0, 3);
 
             neighbors.forEach(targetIdx => {
                 const pairKey = [startIdx, targetIdx].sort().join('-');
                 if (connectedPairs.has(pairKey)) return;
                 connectedPairs.add(pairKey);
 
-                // Global BFS with Exclusion Logic
-                let finalPath: number[] | null = null;
-
-                const runBFS = (useExclusion: boolean) => {
-                    const q: [number, number[]][] = [[startIdx, [startIdx]]];
-                    const localVisited = new Set<number>([startIdx]);
-
-                    while (q.length > 0) {
-                        const [curr, p] = q.shift()!;
-                        if (curr === targetIdx) return p;
-
-                        const neighbors = cellMap.get(curr)!.neighborIndices;
-                        for (const nIdx of neighbors) {
-                            const isAvailable = nIdx === targetIdx || (!localVisited.has(nIdx) && (!useExclusion || !globalHighwayOccupied.has(nIdx)));
-                            if (isAvailable) {
-                                localVisited.add(nIdx);
-                                q.push([nIdx, [...p, nIdx]]);
-                            }
-                        }
-                    }
-                    return null;
-                };
-
-                // Attempt 1: Strict Exclusion
-                finalPath = runBFS(true);
-
-                // Attempt 2: Fallback (Ignore exclusion if no path exists)
-                if (!finalPath) {
-                    finalPath = runBFS(false);
-                }
-
-                if (finalPath && finalPath.length >= 2) {
-                    newHighwayRoads.push(new Spline(finalPath.map(idx => cellMap.get(idx)!.point)).getPath(10));
-                    // Mark all nodes in this path (except the start/end hubs) as occupied
-                    finalPath.forEach((idx, i) => {
-                        if (i !== 0 && i !== finalPath!.length - 1) {
-                            globalHighwayOccupied.add(idx);
-                        }
-                    });
+                const path = dijkstra(startIdx, targetIdx);
+                if (path && path.length >= 2) {
+                    newHighwayRoads.push(new Spline(highwayControlPoints(path), 0.5).getPath(6));
                 }
             });
         });
@@ -232,7 +283,7 @@ export default function Map10({ width = 800, height = 800 }: { width?: number, h
         setCells(cellArray);
         setRingRoads(newRingRoads);
         setHighwayRoads(newHighwayRoads);
-    }, [seed, pointCount, numEpicenters, falloffLimit, minSpacing, width, height]);
+    }, [seed, pointCount, numEpicenters, falloffLimit, minSpacing, relaxation, width, height]);
 
     useEffect(() => { generateVoronoi(); }, [generateVoronoi]);
 
@@ -284,6 +335,7 @@ export default function Map10({ width = 800, height = 800 }: { width?: number, h
                 <div style={UI_STYLES.group}><label style={UI_STYLES.label}>EPICENTERS: {numEpicenters}</label><input type="range" min="1" max="15" value={numEpicenters} onChange={(e) => setNumEpicenters(parseInt(e.target.value))} style={UI_STYLES.slider} /></div>
                 <div style={UI_STYLES.group}><label style={UI_STYLES.label}>FALLOFF: {falloffLimit}</label><input type="range" min="2" max="25" value={falloffLimit} onChange={(e) => setFalloffLimit(parseInt(e.target.value))} style={UI_STYLES.slider} /></div>
                 <div style={UI_STYLES.group}><label style={UI_STYLES.label}>MIN SPACING: {minSpacing}</label><input type="range" min="50" max="400" value={minSpacing} onChange={(e) => setMinSpacing(parseInt(e.target.value))} style={UI_STYLES.slider} /></div>
+                <div style={UI_STYLES.group}><label style={UI_STYLES.label}>LLOYD RELAX: {relaxation}</label><input type="range" min="0" max="8" value={relaxation} onChange={(e) => setRelaxation(parseInt(e.target.value))} style={UI_STYLES.slider} /></div>
 
                 <div style={UI_STYLES.group}>
                     <label style={UI_STYLES.label}>VISUALS</label>

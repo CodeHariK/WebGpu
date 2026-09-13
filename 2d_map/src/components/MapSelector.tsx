@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Tabs } from '@base-ui/react/tabs';
 import Map1 from '../maps/Map1';
 import Map1Explanation from '../maps/Map1Explanation';
@@ -33,250 +34,78 @@ import Map16 from '../maps/Map16';
 import Map16Explanation from '../maps/Map16Explanation';
 import Map17 from '../maps/Map17';
 import Map17Explanation from '../maps/Map17Explanation';
+import Map18 from '../maps/Map18';
+import Map18Explanation from '../maps/Map18Explanation';
 
 import './MapSelector.css';
 
+type MapEntry = {
+    value: string;
+    label: string;
+    Comp: React.ComponentType<{ width: number; height: number }>;
+    Expl: React.ComponentType;
+};
+
+const MAPS: MapEntry[] = [
+    { value: 'map1', label: 'Algorithmic Curves', Comp: Map1, Expl: Map1Explanation },
+    { value: 'map2', label: 'City Roads', Comp: Map2, Expl: Map2Explanation },
+    { value: 'map3', label: 'Hedge Maze', Comp: Map3, Expl: Map3Explanation },
+    { value: 'map4', label: 'Seamless Tile', Comp: Map4, Expl: Map4Explanation },
+    { value: 'map5', label: 'Grid Tiling', Comp: Map5, Expl: Map5Explanation },
+    { value: 'map6', label: 'Plant Growth', Comp: Map6, Expl: Map6Explanation },
+    { value: 'map7', label: 'Procedural City', Comp: Map7, Expl: Map7Explanation },
+    { value: 'map8', label: 'Multi-Tree', Comp: Map8, Expl: Map8Explanation },
+    { value: 'map9', label: 'Mansion Layout', Comp: Map9, Expl: Map9Explanation },
+    { value: 'map10', label: 'Voronoi Zone', Comp: Map10, Expl: Map10Explanation },
+    { value: 'map11', label: 'Topographic Map', Comp: Map11, Expl: Map11Explanation },
+    { value: 'map12', label: 'Marching Squares', Comp: Map12, Expl: Map12Explanation },
+    { value: 'map13', label: 'Hex Growth', Comp: Map13, Expl: Map13Explanation },
+    { value: 'map14', label: 'Hex Truchet', Comp: Map14, Expl: Map14Explanation },
+    { value: 'map15', label: 'Street Growth', Comp: Map15, Expl: Map15Explanation },
+    { value: 'map16', label: 'Shape Packer', Comp: Map16, Expl: Map16Explanation },
+    { value: 'map17', label: 'Watabou City', Comp: Map17, Expl: Map17Explanation },
+    { value: 'map18', label: 'Hex Biomes', Comp: Map18, Expl: Map18Explanation },
+];
+
 export default function MapSelector() {
+    const [value, setValue] = useState<string>('map17');
+
     return (
         <div className="selector-container">
-            <h1 className="selector-title">Generative Maps Showcase</h1>
+            <nav className="sidebar">
+                <h1 className="sidebar-title">Generative Maps</h1>
+                <ul className="sidebar-nav">
+                    {MAPS.map((m) => (
+                        <li key={m.value}>
+                            <button
+                                type="button"
+                                className={`sidebar-item${value === m.value ? ' active' : ''}`}
+                                aria-current={value === m.value ? 'page' : undefined}
+                                onClick={() => setValue(m.value)}
+                            >
+                                {m.label}
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            </nav>
 
-            <Tabs.Root defaultValue="map17" className="tabs-root">
-                <Tabs.List className="tabs-list">
-                    <Tabs.Tab value="map1" className="tabs-tab">
-                        Algorithmic Curves
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map2" className="tabs-tab">
-                        City Roads
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map3" className="tabs-tab">
-                        Hedge Maze
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map4" className="tabs-tab">
-                        Seamless Tile
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map5" className="tabs-tab">
-                        Grid Tiling
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map6" className="tabs-tab">
-                        Plant Growth
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map7" className="tabs-tab">
-                        Procedural City
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map8" className="tabs-tab">
-                        Multi-Tree
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map9" className="tabs-tab">
-                        Mansion Layout
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map10" className="tabs-tab">
-                        Voronoi Territories
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map11" className="tabs-tab">
-                        Topographic Map
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map12" className="tabs-tab">
-                        Marching Squares
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map13" className="tabs-tab">
-                        Hex Growth
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map14" className="tabs-tab">
-                        Hex Truchet
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map15" className="tabs-tab">
-                        Street Growth
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map16" className="tabs-tab">
-                        Shape Packer
-                    </Tabs.Tab>
-                    <Tabs.Tab value="map17" className="tabs-tab">
-                        Watabou City
-                    </Tabs.Tab>
-                    <Tabs.Indicator className="tabs-indicator" />
-                </Tabs.List>
-
-                <Tabs.Panel value="map1" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map1 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map1Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-
-                <Tabs.Panel value="map2" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map2 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map2Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-
-                <Tabs.Panel value="map3" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map3 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map3Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-
-                <Tabs.Panel value="map4" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map4 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map4Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-
-                <Tabs.Panel value="map5" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map5 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map5Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-
-                <Tabs.Panel value="map6" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map6 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map6Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-
-                <Tabs.Panel value="map7" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map7 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map7Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-
-                <Tabs.Panel value="map8" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map8 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map8Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-
-                <Tabs.Panel value="map9" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map9 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map9Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-                <Tabs.Panel value="map10" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map10 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map10Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-                <Tabs.Panel value="map11" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map11 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map11Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-                <Tabs.Panel value="map12" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map12 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map12Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-                <Tabs.Panel value="map13" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map13 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map13Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-                <Tabs.Panel value="map14" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map14 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map14Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-                <Tabs.Panel value="map15" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map15 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map15Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-                <Tabs.Panel value="map16" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map16 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map16Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-                <Tabs.Panel value="map17" className="tabs-panel">
-                    <div className="panel-layout">
-                        <div className="canvas-container">
-                            <Map17 width={800} height={800} />
-                        </div>
-                        <div className="explanation-container">
-                            <Map17Explanation />
-                        </div>
-                    </div>
-                </Tabs.Panel>
-            </Tabs.Root>
-
+            <main className="content">
+                <Tabs.Root value={value} onValueChange={(v) => setValue(v as string)} className="tabs-root">
+                    {MAPS.map(({ value: v, Comp, Expl }) => (
+                        <Tabs.Panel key={v} value={v} className="tabs-panel">
+                            <div className="panel-layout">
+                                <div className="canvas-container">
+                                    <Comp width={800} height={800} />
+                                </div>
+                                <div className="explanation-container">
+                                    <Expl />
+                                </div>
+                            </div>
+                        </Tabs.Panel>
+                    ))}
+                </Tabs.Root>
+            </main>
         </div>
     );
 }
