@@ -14,8 +14,8 @@ import type { RoadNetwork } from './Map18Roads';
  * weaving between the buildings and ponds rather than through them.
  */
 
-export type FeatureKind = 'house' | 'cottage' | 'hall' | 'tree' | 'pine' | 'park' | 'pond';
-export interface Feature { kind: FeatureKind; p: Vector2; s: number; hue: number; }
+export type FeatureKind = 'house' | 'cottage' | 'hall' | 'tree' | 'pine' | 'snowpine' | 'cactus' | 'rock' | 'park' | 'pond' | 'farm';
+export interface Feature { kind: FeatureKind; p: Vector2; s: number; hue: number; variant?: 'adobe' | 'cabin'; }
 
 const key = (q: number, r: number) => `${q},${r}`;
 
@@ -68,12 +68,37 @@ export function computeFeatures(world: BiomeWorld, rivers: RiverArc[], roads: Ro
     const feats: Feature[] = [];
     const place = (f: Feature) => { feats.push(f); itemBlock.add(f.p.x, f.p.y, f.s * 0.7); };
     const free = (x: number, y: number, rad: number) => !roadBlock.blocked(x, y, rad) && !itemBlock.blocked(x, y, rad);
+    // world point -> is it dry land? (invert the pointy-top hex transform, cube-round)
+    const axialRound = (q: number, r: number) => {
+        let x = q, z = r, y = -x - z;
+        let rx = Math.round(x), ry = Math.round(y), rz = Math.round(z);
+        const xd = Math.abs(rx - x), yd = Math.abs(ry - y), zd = Math.abs(rz - z);
+        if (xd > yd && xd > zd) rx = -ry - rz; else if (yd > zd) ry = -rx - rz; else rz = -rx - ry;
+        return { q: rx, r: rz };
+    };
+    const landAt = (x: number, y: number) => {
+        const r = y / (1.5 * hexSize);
+        const q = x / (Math.sqrt(3) * hexSize) - r / 2;
+        const rr = axialRound(q, r);
+        const cell = cells.get(key(rr.q, rr.r));
+        return !!cell && cell.regionId >= 0 && !isWaterBiome(cell.biome);
+    };
+    const biomeAt = (x: number, y: number): string => {
+        const r = y / (1.5 * hexSize);
+        const q = x / (Math.sqrt(3) * hexSize) - r / 2;
+        const rr = axialRound(q, r);
+        return cells.get(key(rr.q, rr.r))?.biome ?? '';
+    };
+    const isDesert = (b: string) => b === 'SUBTROPICAL_DESERT' || b === 'TEMPERATE_DESERT';
+    const isSnowy = (b: string) => b === 'SNOW' || b === 'TUNDRA';
 
 
     // ---- Villages around each town ----
     if (opts.villages) {
         const bTypes: FeatureKind[] = ['house', 'cottage', 'hall'];
         for (const t of roads.towns) {
+            const tb = biomeAt(t.x, t.y);
+            const bstyle: 'adobe' | 'cabin' | undefined = isDesert(tb) ? 'adobe' : isSnowy(tb) ? 'cabin' : undefined;
             const n = 6 + Math.floor(rng() * 7);
             let placed = 0, tries = 0;
             // buildings clustered near centre
@@ -85,7 +110,7 @@ export function computeFeatures(world: BiomeWorld, rivers: RiverArc[], roads: Ro
                 const bs = hexSize * (0.34 + rng() * 0.16);
                 if (!free(x, y, bs)) continue;
                 const kind = rng() < 0.15 ? 'hall' : bTypes[Math.floor(rng() * 2)];
-                place({ kind, p: new Vector2(x, y), s: kind === 'hall' ? bs * 1.5 : bs, hue: rng() });
+                place({ kind, p: new Vector2(x, y), s: kind === 'hall' ? bs * 1.5 : bs, hue: rng(), variant: bstyle });
                 placed++;
             }
             // a park at the village fringe
@@ -94,6 +119,16 @@ export function computeFeatures(world: BiomeWorld, rivers: RiverArc[], roads: Ro
                 const x = t.x + Math.cos(ang) * rad, y = t.y + Math.sin(ang) * rad;
                 const ps = hexSize * (0.7 + rng() * 0.4);
                 if (free(x, y, ps)) { place({ kind: 'park', p: new Vector2(x, y), s: ps, hue: rng() }); break; }
+            }
+            // farm fields ringing the village
+            const nf = 2 + Math.floor(rng() * 3);
+            let fp = 0, ft = 0;
+            while (fp < nf && ft < nf * 10) {
+                ft++;
+                const ang = rng() * Math.PI * 2, rad = hexSize * (2.6 + rng() * 1.8);
+                const x = t.x + Math.cos(ang) * rad, y = t.y + Math.sin(ang) * rad;
+                const fs = hexSize * (0.85 + rng() * 0.4);
+                if (landAt(x, y) && free(x, y, fs)) { place({ kind: 'farm', p: new Vector2(x, y), s: fs, hue: rng() }); fp++; }
             }
         }
     }
@@ -111,6 +146,30 @@ export function computeFeatures(world: BiomeWorld, rivers: RiverArc[], roads: Ro
                 const ts = hexSize * (0.26 + rng() * 0.14);
                 if (free(x, y, ts * 0.8)) place({ kind: b === 'TAIGA' || rng() < 0.3 ? 'pine' : 'tree', p: new Vector2(x, y), s: ts, hue: rng() });
             }
+        }
+        const desert = b === 'SUBTROPICAL_DESERT' || b === 'TEMPERATE_DESERT';
+        const snowy = b === 'SNOW' || b === 'TUNDRA';
+        const barren = b === 'BARE' || b === 'SCORCHED';
+        if (desert && rng() < natureP * 0.8) {
+            const cl = 1 + Math.floor(rng() * 2);
+            for (let i = 0; i < cl; i++) {
+                const x = c.center.x + (rng() - 0.5) * hexSize * 1.2, y = c.center.y + (rng() - 0.5) * hexSize * 1.2;
+                const ts = hexSize * (0.24 + rng() * 0.12);
+                if (free(x, y, ts * 0.8)) place({ kind: rng() < 0.6 ? 'cactus' : 'rock', p: new Vector2(x, y), s: ts, hue: rng() });
+            }
+        }
+        if (snowy && rng() < natureP * 0.7) {
+            const cl = 1 + Math.floor(rng() * 2);
+            for (let i = 0; i < cl; i++) {
+                const x = c.center.x + (rng() - 0.5) * hexSize * 1.2, y = c.center.y + (rng() - 0.5) * hexSize * 1.2;
+                const ts = hexSize * (0.26 + rng() * 0.12);
+                if (free(x, y, ts * 0.8)) place({ kind: rng() < 0.7 ? 'snowpine' : 'rock', p: new Vector2(x, y), s: ts, hue: rng() });
+            }
+        }
+        if (barren && rng() < natureP * 0.5) {
+            const x = c.center.x + (rng() - 0.5) * hexSize, y = c.center.y + (rng() - 0.5) * hexSize;
+            const ts = hexSize * (0.28 + rng() * 0.12);
+            if (free(x, y, ts * 0.8)) place({ kind: 'rock', p: new Vector2(x, y), s: ts, hue: rng() });
         }
     }
 
@@ -134,7 +193,7 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 
 export function drawFeatures(ctx: CanvasRenderingContext2D, feats: Feature[]) {
     // parks & ponds first (ground), then trees, then buildings on top
-    const order: FeatureKind[] = ['park', 'pond', 'tree', 'pine', 'house', 'cottage', 'hall'];
+    const order: FeatureKind[] = ['farm', 'park', 'pond', 'rock', 'cactus', 'tree', 'pine', 'snowpine', 'house', 'cottage', 'hall'];
     const byKind = new Map<FeatureKind, Feature[]>();
     for (const f of feats) { const a = byKind.get(f.kind); if (a) a.push(f); else byKind.set(f.kind, [f]); }
     for (const kind of order) {
@@ -146,6 +205,18 @@ export function drawFeatures(ctx: CanvasRenderingContext2D, feats: Feature[]) {
 function drawOne(ctx: CanvasRenderingContext2D, f: Feature) {
     const { p: { x, y }, s } = f;
     switch (f.kind) {
+        case 'farm': {
+            const w = s * 1.9, h = s * 1.5;
+            ctx.save();
+            roundRect(ctx, x - w / 2, y - h / 2, w, h, s * 0.22); ctx.clip();
+            ctx.translate(x, y); ctx.rotate((f.hue - 0.5) * 1.2);
+            const stripe = s * 0.34;
+            for (let i = -5; i <= 5; i++) { ctx.fillStyle = i % 2 === 0 ? '#a9bd63' : '#cbb884'; ctx.fillRect(i * stripe, -2 * s, stripe, 4 * s); }
+            ctx.restore();
+            roundRect(ctx, x - w / 2, y - h / 2, w, h, s * 0.22);
+            ctx.strokeStyle = '#7d8a4f'; ctx.lineWidth = Math.max(1, s * 0.12); ctx.stroke();
+            break;
+        }
         case 'park': {
             ctx.fillStyle = '#8ec98a';
             ctx.beginPath(); ctx.ellipse(x, y, s, s * 0.85, 0, 0, Math.PI * 2); ctx.fill();
@@ -162,6 +233,32 @@ function drawOne(ctx: CanvasRenderingContext2D, f: Feature) {
             treeTop(ctx, x, y, s, '#3f7d4f', '#63ab63');
             break;
         }
+        case 'cactus': {
+            shadow(ctx, x, y, s * 0.6);
+            ctx.fillStyle = '#57a15f';
+            roundRect(ctx, x - s * 0.16, y - s, s * 0.32, s * 1.7, s * 0.16); ctx.fill();
+            roundRect(ctx, x - s * 0.5, y - s * 0.15, s * 0.34, s * 0.2, s * 0.09); ctx.fill();
+            roundRect(ctx, x - s * 0.5, y - s * 0.55, s * 0.2, s * 0.5, s * 0.09); ctx.fill();
+            roundRect(ctx, x + s * 0.16, y - s * 0.35, s * 0.34, s * 0.2, s * 0.09); ctx.fill();
+            roundRect(ctx, x + s * 0.3, y - s * 0.85, s * 0.2, s * 0.55, s * 0.09); ctx.fill();
+            break;
+        }
+        case 'rock': {
+            shadow(ctx, x, y, s * 0.5);
+            ctx.fillStyle = '#8b8b86'; ctx.beginPath(); ctx.ellipse(x, y, s * 0.72, s * 0.5, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#a3a39b'; ctx.beginPath(); ctx.ellipse(x - s * 0.2, y - s * 0.16, s * 0.4, s * 0.28, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#75756e'; ctx.beginPath(); ctx.ellipse(x + s * 0.34, y + s * 0.12, s * 0.32, s * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+            break;
+        }
+        case 'snowpine': {
+            shadow(ctx, x, y, s * 0.7);
+            ctx.fillStyle = '#4d6b57';
+            ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.7, y + s * 0.6); ctx.lineTo(x - s * 0.7, y + s * 0.6); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = '#eaf3f6'; // snow load
+            ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.36, y - s * 0.1); ctx.lineTo(x - s * 0.36, y - s * 0.1); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.ellipse(x, y - s, s * 0.14, s * 0.14, 0, 0, Math.PI * 2); ctx.fill();
+            break;
+        }
         case 'pine': {
             shadow(ctx, x, y, s * 0.7);
             ctx.fillStyle = '#356b45';
@@ -173,14 +270,18 @@ function drawOne(ctx: CanvasRenderingContext2D, f: Feature) {
         default: { // buildings
             const w = s * 1.1, h = s * 1.1;
             shadow(ctx, x, y, s);
-            const roof = ROOFS[Math.floor(f.hue * ROOFS.length) % ROOFS.length];
+            let wall = '#efe6d6';
+            let roof = ROOFS[Math.floor(f.hue * ROOFS.length) % ROOFS.length];
+            if (f.variant === 'adobe') { wall = '#e7d3ac'; roof = ['#c98a4c', '#b9825a', '#cf9a5f'][Math.floor(f.hue * 3) % 3]; }
+            else if (f.variant === 'cabin') { wall = '#dfe7ee'; roof = '#6f5442'; }
             // wall
-            ctx.fillStyle = '#efe6d6'; roundRect(ctx, x - w / 2, y - h / 2, w, h, s * 0.18); ctx.fill();
+            ctx.fillStyle = wall; roundRect(ctx, x - w / 2, y - h / 2, w, h, s * 0.18); ctx.fill();
             // roof (top half)
             ctx.fillStyle = roof; roundRect(ctx, x - w / 2, y - h / 2, w, h * 0.62, s * 0.18); ctx.fill();
-            if (f.kind === 'hall') { // a small tower dot
-                ctx.fillStyle = roof; ctx.beginPath(); ctx.arc(x + w * 0.28, y - h * 0.28, s * 0.16, 0, Math.PI * 2); ctx.fill();
+            if (f.variant === 'cabin') { // snow load on the roof
+                ctx.fillStyle = '#f2f7fb'; roundRect(ctx, x - w / 2, y - h / 2, w, h * 0.26, s * 0.18); ctx.fill();
             }
+            if (f.kind === 'hall') { ctx.fillStyle = roof; ctx.beginPath(); ctx.arc(x + w * 0.28, y - h * 0.28, s * 0.16, 0, Math.PI * 2); ctx.fill(); }
             // door
             ctx.fillStyle = 'rgba(0,0,0,0.25)'; roundRect(ctx, x - s * 0.12, y + h * 0.08, s * 0.24, h * 0.34, s * 0.06); ctx.fill();
         }
