@@ -8,8 +8,6 @@ import Map3 from '../maps/Map3';
 import Map3Explanation from '../maps/Map3Explanation';
 import Map4 from '../maps/Map4';
 import Map4Explanation from '../maps/Map4Explanation';
-import Map5 from '../maps/Map5';
-import Map5Explanation from '../maps/Map5Explanation';
 import Map6 from '../maps/Map6';
 import Map6Explanation from '../maps/Map6Explanation';
 import Map7 from '../maps/Map7';
@@ -51,7 +49,6 @@ const MAPS: MapEntry[] = [
     { value: 'map2', label: 'City Roads', Comp: Map2, Expl: Map2Explanation },
     { value: 'map3', label: 'Hedge Maze', Comp: Map3, Expl: Map3Explanation },
     { value: 'map4', label: 'Seamless Tile', Comp: Map4, Expl: Map4Explanation },
-    { value: 'map5', label: 'Grid Tiling', Comp: Map5, Expl: Map5Explanation },
     { value: 'map6', label: 'Plant Growth', Comp: Map6, Expl: Map6Explanation },
     { value: 'map7', label: 'Procedural City', Comp: Map7, Expl: Map7Explanation },
     { value: 'map8', label: 'Multi-Tree', Comp: Map8, Expl: Map8Explanation },
