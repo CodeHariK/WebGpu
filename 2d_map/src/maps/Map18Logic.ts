@@ -1,5 +1,6 @@
 import { Vector2 } from '../lib/Vector2';
 import { createNoise2D } from 'simplex-noise';
+import Delaunator from 'delaunator';
 import { getHexCenter, getHexVertices, getNeighborPos } from './Map14Logic';
 
 /**
@@ -40,7 +41,10 @@ export type Biome =
     | 'SCORCHED' | 'BARE' | 'TUNDRA' | 'SNOW'
     | 'TEMPERATE_DESERT' | 'SHRUBLAND' | 'TAIGA'
     | 'GRASSLAND' | 'TEMPERATE_FOREST' | 'TEMPERATE_RAINFOREST'
-    | 'SUBTROPICAL_DESERT' | 'TROPICAL_FOREST' | 'TROPICAL_RAINFOREST';
+    | 'SUBTROPICAL_DESERT' | 'TROPICAL_FOREST' | 'TROPICAL_RAINFOREST'
+    | 'LAVA'
+    | 'CANDY' | 'CHOCOLATE' | 'MINT' | 'LICORICE'
+    | 'PUMPKIN' | 'HAUNTED' | 'BONE';
 
 export const BIOME_COLORS: Record<Biome, string> = {
     DEEP_OCEAN: '#2b3a67',
@@ -62,6 +66,9 @@ export const BIOME_COLORS: Record<Biome, string> = {
     TEMPERATE_FOREST: '#5f9a54',
     TEMPERATE_RAINFOREST: '#3f7f52',
 
+    LAVA: '#7c3b2e',
+    CANDY: '#f4a6c6', CHOCOLATE: '#d46aa6', MINT: '#c9b0ec', LICORICE: '#7b52b0',
+    PUMPKIN: '#e07b39', HAUNTED: '#4b3f63', BONE: '#d8d0bb',
     SUBTROPICAL_DESERT: '#dcc98f',
     TROPICAL_FOREST: '#67a95a',
     TROPICAL_RAINFOREST: '#2f8f5b',
@@ -72,11 +79,13 @@ export const BIOME_LABELS: Record<Biome, string> = {
     SCORCHED: 'Scorched', BARE: 'Bare Rock', TUNDRA: 'Tundra', SNOW: 'Snow',
     TEMPERATE_DESERT: 'Temperate Desert', SHRUBLAND: 'Shrubland', TAIGA: 'Taiga',
     GRASSLAND: 'Grassland', TEMPERATE_FOREST: 'Temperate Forest', TEMPERATE_RAINFOREST: 'Temperate Rainforest',
-    SUBTROPICAL_DESERT: 'Subtropical Desert', TROPICAL_FOREST: 'Tropical Forest', TROPICAL_RAINFOREST: 'Tropical Rainforest',
+    LAVA: 'Lava', SUBTROPICAL_DESERT: 'Subtropical Desert', TROPICAL_FOREST: 'Tropical Forest', TROPICAL_RAINFOREST: 'Tropical Rainforest',
+    CANDY: 'Candy', CHOCOLATE: 'Chocolate', MINT: 'Mint', LICORICE: 'Licorice', PUMPKIN: 'Pumpkin Patch', HAUNTED: 'Haunted', BONE: 'Boneyard',
 };
 
 /** Whittaker classification for a *land* hex from normalised elevation & moisture. */
 export function classifyLand(e: number, m: number): Biome {
+    if (e > 0.9 && m < 0.25) return 'LAVA'; // volcanic peaks (very high, dry)
     if (e > 0.82) {
         if (m < 0.1) return 'SCORCHED';
         if (m < 0.2) return 'BARE';
@@ -99,6 +108,32 @@ export function classifyLand(e: number, m: number): Biome {
     if (m < 0.66) return 'TROPICAL_FOREST';
     return 'TROPICAL_RAINFOREST';
 }
+
+/**
+ * Region biome for the stylized Voronoi split: a coarse Whittaker on a
+ * latitude-driven TEMPERATURE (north cold -> snow, south hot -> desert/tropics)
+ * and a region MOISTURE. Used per Voronoi seed so each biome is a bold zone.
+ */
+export function classifyRegion(temp: number, moist: number, rng: () => number): Biome {
+    if (temp < 0.18) return moist < 0.5 ? 'TUNDRA' : 'SNOW';
+    if (temp < 0.40) return moist < 0.35 ? 'SHRUBLAND' : 'TAIGA';
+    if (temp < 0.72) {
+        if (moist < 0.26) return 'TEMPERATE_DESERT';
+        if (moist < 0.52) return 'GRASSLAND';
+        if (moist < 0.74) return 'TEMPERATE_FOREST';
+        return 'TEMPERATE_RAINFOREST';
+    }
+    if (moist < 0.22) return rng() < 0.18 ? 'LAVA' : 'SUBTROPICAL_DESERT';
+    if (moist < 0.50) return 'GRASSLAND';
+    if (moist < 0.78) return 'TROPICAL_FOREST';
+    return 'TROPICAL_RAINFOREST';
+}
+
+/** Themed biome pools for the whimsical themes, ordered so relaxation blends nicely. */
+export const THEME_POOLS: Record<string, Biome[]> = {
+    candy: ['MINT', 'CANDY', 'CHOCOLATE', 'LICORICE'],
+    spooky: ['BONE', 'PUMPKIN', 'HAUNTED'],
+};
 
 export function isWaterBiome(b: Biome): boolean {
     return b === 'DEEP_OCEAN' || b === 'OCEAN' || b === 'SHALLOW' || b === 'LAKE';
@@ -137,6 +172,9 @@ export interface BiomeOptions {
     seaLevel: number;   // [0,1] threshold on shaped elevation
     noiseScale?: number;
     minIslandArea?: number;
+    biomes?: boolean; // false = ordinary green temperate map (no snow/desert/lava regions)
+    theme?: string;   // 'realistic' | 'candy' | 'spooky' | 'chaos'
+    coherence?: number; // 0..1 adjacency smoothing (0 = random neighbours, 1 = smooth bands)
 }
 
 const key = (q: number, r: number) => `${q},${r}`;
@@ -165,6 +203,9 @@ function makeFbm(noise: (x: number, y: number) => number, octaves = 5, lacunarit
 export function generateBiomeWorld(opts: BiomeOptions): BiomeWorld {
     const { width, height, seed, hexSize, seaLevel } = opts;
     const noiseScale = opts.noiseScale ?? 1;
+    const biomesOn = opts.biomes ?? true;
+    const theme = opts.theme ?? 'realistic';
+    const coherence = opts.coherence ?? 0.6;
     const minIslandArea = opts.minIslandArea ?? 4;
 
     const rand = mulberry32(seed);
@@ -187,10 +228,135 @@ export function generateBiomeWorld(opts: BiomeOptions): BiomeWorld {
         const d = Math.sqrt(x * x + y * y) / mapRadius;
         // Subtract a smooth radial bowl so edges fall below sea level.
         const shaped = base - Math.pow(Math.max(0, d), 2.2) * 0.55;
-        return Math.max(0, Math.min(1, shaped));
+        // Inland mountain ranges: a low-frequency ridge that only rises well away
+        // from the coast, so interiors can reach bare rock / snow elevations.
+        const ridge = Math.max(0, fbmE(x * fe * 0.5 + 500, y * fe * 0.5 + 500) - 0.62) * 1.8;
+        const peak = ridge * (1 - Math.min(1, d));
+        return Math.max(0, Math.min(1, shaped + peak));
     };
     const sampleMoisture = (x: number, y: number): number => {
-        return fbmM(x * fm + 1000, y * fm - 1000);
+        // Contrast-stretched so dry regions reach desert and wet regions rainforest.
+        const m = fbmM(x * fm + 1000, y * fm - 1000);
+        return Math.max(0, Math.min(1, (m - 0.5) * 1.55 + 0.5));
+    };
+
+    // ---- Stylized biome REGIONS: domain-warped Voronoi -------------------------
+    // Scatter biome seeds across the map; each land hex takes the biome of the
+    // nearest seed, with the lookup point warped by low-frequency noise so region
+    // borders wiggle organically instead of being straight Voronoi edges.
+    const maxDim = Math.max(width, height);
+    const seedSpacing = maxDim / 5.2;
+    const warpAmp = seedSpacing * 0.6;
+    const fw = 0.004 / noiseScale;
+    // Scatter seed positions with a per-seed climate (temperature by latitude, moisture by noise).
+    const rawSeeds: { x: number; y: number; temp: number; moist: number }[] = [];
+    {
+        const half = maxDim * 0.62;
+        let attempts = 0;
+        while (rawSeeds.length < 24 && attempts < 3000) {
+            attempts++;
+            const x = (rand() * 2 - 1) * half;
+            const y = (rand() * 2 - 1) * half;
+            if (rawSeeds.every((s) => Math.hypot(s.x - x, s.y - y) > seedSpacing * 0.82)) {
+                const temp = Math.max(0, Math.min(1, (y / half) * 0.65 + 0.5 + (fbmM(x * 0.0018 - 5, y * 0.0018 + 5) - 0.5) * 0.28));
+                const mraw = fbmM(x * 0.003 + 50, y * 0.003 - 50);
+                const moist = Math.max(0, Math.min(1, (mraw - 0.5) * 1.5 + 0.5));
+                rawSeeds.push({ x, y, temp, moist });
+            }
+        }
+    }
+    // Seed adjacency (Delaunay) so we can smooth biome choices between touching regions.
+    const neighbors: Set<number>[] = rawSeeds.map(() => new Set<number>());
+    if (rawSeeds.length >= 3) {
+        const coords: number[] = [];
+        for (const s of rawSeeds) coords.push(s.x, s.y);
+        const del = new Delaunator(Float64Array.from(coords));
+        const tri = del.triangles;
+        for (let i = 0; i < tri.length; i += 3) {
+            const a = tri[i], b = tri[i + 1], c = tri[i + 2];
+            neighbors[a].add(b); neighbors[a].add(c);
+            neighbors[b].add(a); neighbors[b].add(c);
+            neighbors[c].add(a); neighbors[c].add(b);
+        }
+    }
+    // Assign biomes by strategy, with a coherence-controlled adjacency relaxation.
+    // --- Always compute the realistic climate biomes first (extremes come from here). ---
+    let biomeArr: Biome[];
+    {
+        let tp = rawSeeds.map((s) => s.temp);
+        let mp = rawSeeds.map((s) => s.moist);
+        const f = coherence * 0.5;
+        for (let pass = 0; pass < 3; pass++) {
+            const nt = tp.slice(), nm = mp.slice();
+            for (let i = 0; i < rawSeeds.length; i++) {
+                const nb = [...neighbors[i]]; if (!nb.length) continue;
+                let st = 0, sm = 0; for (const j of nb) { st += tp[j]; sm += mp[j]; }
+                nt[i] = tp[i] + (st / nb.length - tp[i]) * f;
+                nm[i] = mp[i] + (sm / nb.length - mp[i]) * f;
+            }
+            tp = nt; mp = nm;
+        }
+        if (rawSeeds.length) {
+            const meanT = tp.reduce((a, b) => a + b, 0) / tp.length;
+            const meanM = mp.reduce((a, b) => a + b, 0) / mp.length;
+            const k = 1 + coherence * 0.7;
+            for (let i = 0; i < tp.length; i++) {
+                tp[i] = Math.max(0, Math.min(1, meanT + (tp[i] - meanT) * k));
+                mp[i] = Math.max(0, Math.min(1, meanM + (mp[i] - meanM) * k));
+            }
+        }
+        biomeArr = rawSeeds.map((_, i) => classifyRegion(tp[i], mp[i], rand));
+        if (rawSeeds.length) {
+            let hi = 0;
+            for (let i = 1; i < tp.length; i++) if (tp[i] > tp[hi]) hi = i;
+            if (tp[hi] > 0.76 && rand() < 0.7) biomeArr[hi] = 'LAVA';
+            let di = -1, dm = 2;
+            for (let i = 0; i < tp.length; i++) if (tp[i] > 0.45 && mp[i] < dm && biomeArr[i] !== 'LAVA') { dm = mp[i]; di = i; }
+            if (di >= 0 && mp[di] < 0.42) biomeArr[di] = tp[di] > 0.72 ? 'SUBTROPICAL_DESERT' : 'TEMPERATE_DESERT';
+        }
+    }
+
+    // --- Non-realistic themes reskin ONLY the forest/vegetation regions. ---
+    // Snow, tundra, bare, desert, lava, beach and water always keep their realistic biome.
+    if (theme !== 'realistic') {
+        const FOREST = new Set<Biome>(['GRASSLAND', 'SHRUBLAND', 'TAIGA', 'TEMPERATE_FOREST', 'TEMPERATE_RAINFOREST', 'TROPICAL_FOREST', 'TROPICAL_RAINFOREST']);
+        const isForest = biomeArr.map((b) => FOREST.has(b));
+        if (theme === 'chaos') {
+            // Wild vegetation: each forest region a random whimsical biome (no snow/lava/desert).
+            const cpool: Biome[] = ['CANDY', 'CHOCOLATE', 'MINT', 'LICORICE', 'PUMPKIN', 'HAUNTED', 'BONE', 'TROPICAL_RAINFOREST', 'GRASSLAND'];
+            for (let i = 0; i < biomeArr.length; i++) if (isForest[i]) biomeArr[i] = cpool[Math.floor(rand() * cpool.length)];
+        } else {
+            const pool = THEME_POOLS[theme] ?? THEME_POOLS.candy;
+            let idx = rawSeeds.map((_, i) => (isForest[i] ? Math.floor(rand() * pool.length) : -1));
+            const ff = coherence * 0.55;
+            for (let pass = 0; pass < 3; pass++) {
+                const ni = idx.slice();
+                for (let i = 0; i < rawSeeds.length; i++) {
+                    if (!isForest[i]) continue;
+                    const nb = [...neighbors[i]].filter((j) => isForest[j]);
+                    if (!nb.length) continue;
+                    let s2 = 0; for (const j of nb) s2 += idx[j];
+                    ni[i] = Math.max(0, Math.min(pool.length - 1, Math.round(idx[i] + (s2 / nb.length - idx[i]) * ff)));
+                }
+                idx = ni;
+            }
+            for (let i = 0; i < biomeArr.length; i++) if (isForest[i]) biomeArr[i] = pool[idx[i]];
+        }
+    }
+
+    const seeds = rawSeeds.map((s, i) => ({ x: s.x, y: s.y, biome: biomeArr[i] }));
+    // Ordinary (biomes-off) land: just greens, no desert/snow/lava.
+    const ordinaryLand = (eAbove: number, m: number): Biome => {
+        if (eAbove > 0.72) return 'TEMPERATE_FOREST';
+        if (m > 0.55) return 'TEMPERATE_FOREST';
+        return 'GRASSLAND';
+    };
+    const regionBiomeAt = (x: number, y: number): Biome => {
+        const wx = x + (fbmE(x * fw, y * fw) - 0.5) * warpAmp;
+        const wy = y + (fbmE(x * fw + 100, y * fw + 100) - 0.5) * warpAmp;
+        let best = seeds[0], bd = Infinity;
+        for (const s of seeds) { const dx = s.x - wx, dy = s.y - wy; const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = s; } }
+        return best ? best.biome : 'GRASSLAND';
     };
 
     // Axial range covering the viewport (+ margin) centred on origin.
@@ -216,9 +382,8 @@ export function generateBiomeWorld(opts: BiomeOptions): BiomeWorld {
         if (c.elevation < seaLevel) {
             c.biome = 'OCEAN'; // refined below
         } else {
-            // Renormalise elevation above sea level to [0,1] for classification.
-            const e = (c.elevation - seaLevel) / (1 - seaLevel);
-            c.biome = classifyLand(e, c.moisture);
+            const eAbove = (c.elevation - seaLevel) / (1 - seaLevel);
+            c.biome = biomesOn ? regionBiomeAt(c.center.x, c.center.y) : ordinaryLand(eAbove, c.moisture);
         }
     }
 
@@ -326,7 +491,6 @@ export function generateBiomeWorld(opts: BiomeOptions): BiomeWorld {
     // ocean-vs-lake connectivity; a thin BEACH band sits just above sea level.
     const categoryAt = (x: number, y: number): Biome => {
         const e = sampleElevation(x, y);
-        const m = sampleMoisture(x, y);
         if (e < seaLevel) {
             if (e < seaLevel * 0.5) return 'DEEP_OCEAN';
             if (e > seaLevel * 0.85) return 'SHALLOW';
@@ -334,7 +498,7 @@ export function generateBiomeWorld(opts: BiomeOptions): BiomeWorld {
         }
         const eAbove = (e - seaLevel) / (1 - seaLevel);
         if (eAbove < 0.06) return 'BEACH';
-        return classifyLand(eAbove, m);
+        return biomesOn ? regionBiomeAt(x, y) : ordinaryLand(eAbove, sampleMoisture(x, y));
     };
 
     return {

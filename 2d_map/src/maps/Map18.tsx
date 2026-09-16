@@ -7,7 +7,9 @@ import {
     marchHexCoastline,
     hexColorRuns,
     BIOME_COLORS,
+    isWaterBiome,
     type BiomeWorld,
+    type Biome,
 } from './Map18Logic';
 import { computeRiverArcs, drawRivers } from './Map18Rivers';
 import { computeRoadNetwork, drawRoads } from './Map18Roads';
@@ -19,6 +21,60 @@ const UI = {
     grid: 'rgba(0, 0, 0, 0.10)',
     text: '#94a3b8',
 };
+
+// Flat macro-zone view (the BIOME MAP toggle)
+type Macro = 'water' | 'snow' | 'tundra' | 'desert' | 'grass' | 'forest' | 'jungle' | 'lava';
+const MACRO_COLORS: Record<Macro | 'city', string> = {
+    water: '#3a6ea5', snow: '#e9eff6', tundra: '#c3cbb0', desert: '#e3ca92',
+    grass: '#93c85e', forest: '#409a4f', jungle: '#2b7d5a', lava: '#d24a2a', city: '#9aa0a6',
+};
+const LEGEND_BIOME: { label: string; color: string }[] = [
+    { label: 'Snow', color: MACRO_COLORS.snow },
+    { label: 'Tundra', color: MACRO_COLORS.tundra },
+    { label: 'Desert', color: MACRO_COLORS.desert },
+    { label: 'Grassland', color: MACRO_COLORS.grass },
+    { label: 'Forest', color: MACRO_COLORS.forest },
+    { label: 'Jungle', color: MACRO_COLORS.jungle },
+    { label: 'Lava', color: MACRO_COLORS.lava },
+];
+// Not biomes: sea is a sea-level terrain state, city is a settlement overlay.
+const LEGEND_TERRAIN: { label: string; color: string }[] = [
+    { label: 'Sea', color: MACRO_COLORS.water },
+    { label: 'City', color: MACRO_COLORS.city },
+];
+function macroKey(b: Biome): Macro {
+    if (isWaterBiome(b)) return 'water';
+    if (b === 'LAVA' || b === 'SCORCHED') return 'lava';
+    if (b === 'SNOW') return 'snow';
+    if (b === 'TUNDRA' || b === 'BARE') return 'tundra';
+    if (b === 'TEMPERATE_DESERT' || b === 'SUBTROPICAL_DESERT') return 'desert';
+    if (b === 'GRASSLAND' || b === 'SHRUBLAND') return 'grass';
+    if (b === 'TROPICAL_FOREST' || b === 'TROPICAL_RAINFOREST') return 'jungle';
+    return 'forest'; // temperate forest/rainforest, taiga, themed
+}
+
+type ViewMode = 'normal' | 'biome' | 'elevation' | 'moisture';
+const hx = (c: string) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+function ramp(stops: [number, string][], t: number): string {
+    const u = Math.max(0, Math.min(1, t));
+    let a = stops[0], b = stops[stops.length - 1];
+    for (let i = 0; i < stops.length - 1; i++) { if (u >= stops[i][0] && u <= stops[i + 1][0]) { a = stops[i]; b = stops[i + 1]; break; } }
+    const f = b[0] === a[0] ? 0 : (u - a[0]) / (b[0] - a[0]);
+    const ca = hx(a[1]), cb = hx(b[1]);
+    const r = Math.round(ca[0] + (cb[0] - ca[0]) * f), g = Math.round(ca[1] + (cb[1] - ca[1]) * f), bl = Math.round(ca[2] + (cb[2] - ca[2]) * f);
+    return `rgb(${r},${g},${bl})`;
+}
+const ELEV_STOPS: [number, string][] = [[0, '#3f7d4f'], [0.4, '#c9b36a'], [0.72, '#8a5a3a'], [1, '#ffffff']];
+const SEA_STOPS: [number, string][] = [[0, '#0a2540'], [1, '#4a90c0']];
+const MOIST_STOPS: [number, string][] = [[0, '#e2c98a'], [0.5, '#7dbf72'], [1, '#2b7fae']];
+function elevColor(e: number, sea: number): string {
+    return e < sea ? ramp(SEA_STOPS, e / sea) : ramp(ELEV_STOPS, (e - sea) / (1 - sea));
+}
+const moistColor = (m: number) => ramp(MOIST_STOPS, m);
+
+// Biomes produced only by a theme (candy/spooky/chaos) — shown with their own
+// colour in the biome-map overview instead of the realistic macro categories.
+const THEMED_BIOMES = new Set<Biome>(['CANDY', 'CHOCOLATE', 'MINT', 'LICORICE', 'PUMPKIN', 'HAUNTED', 'BONE']);
 
 const Map18 = ({ width = 800, height = 800 }: { width?: number; height?: number }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -37,11 +93,15 @@ const Map18 = ({ width = 800, height = 800 }: { width?: number; height?: number 
     const [townCount, setTownCount] = useState(11);
     const [showFeatures, setShowFeatures] = useState(true);
     const [natureLevel, setNatureLevel] = useState(45);
+    const [biomesOn, setBiomesOn] = useState(true);
+    const [theme, setTheme] = useState('realistic');
+    const [coherence, setCoherence] = useState(60); // %
+    const [view, setView] = useState<ViewMode>('normal');
     const [renderTrigger, setRenderTrigger] = useState(0);
 
     const world: BiomeWorld = useMemo(
-        () => generateBiomeWorld({ width, height, seed, hexSize, seaLevel: seaLevelPct / 100 }),
-        [seed, hexSize, seaLevelPct, width, height]
+        () => generateBiomeWorld({ width, height, seed, hexSize, seaLevel: seaLevelPct / 100, biomes: biomesOn, theme, coherence: coherence / 100 }),
+        [seed, hexSize, seaLevelPct, biomesOn, theme, coherence, width, height]
     );
 
     // Init canvas + pan/zoom
@@ -64,7 +124,29 @@ const Map18 = ({ width = 800, height = 800 }: { width?: number; height?: number 
         canvas.save();
         canvas.translate(new Vector2(width / 2, height / 2));
 
+        // Data-map views: flat per-hex fills for biome zones / elevation / moisture.
+        if (view !== 'normal') {
+            const net = view === 'biome' ? computeRoadNetwork(world, townCount, seed) : null;
+            const cityR = hexSize * 2.2;
+            for (const c of world.cells.values()) {
+                const verts = getHexVertices(c.center, hexSize);
+                let col: string;
+                if (view === 'elevation') col = elevColor(c.elevation, world.seaLevel);
+                else if (view === 'moisture') col = moistColor(c.moisture);
+                else {
+                    const isCity = c.regionId >= 0 && net!.towns.some((t) => Vector2.dist(t, c.center) < cityR);
+                    col = isCity ? MACRO_COLORS.city : (THEMED_BIOMES.has(c.biome) ? BIOME_COLORS[c.biome] : MACRO_COLORS[macroKey(c.biome)]);
+                }
+                canvas.polygon(verts, { fill: col, stroke: 'rgba(0,0,0,0.05)', lineWidth: 0.5 });
+            }
+            canvas.restore();
+            return;
+        }
+
         const ctxFill = canvas.ctx;
+        // Colour every hex by its actual biome. Theme reskinning now happens in the
+        // generator (forest regions become themed biomes), so no render-side skin.
+        const fillOf = (b: Biome) => BIOME_COLORS[b];
 
         if (smooth) {
             const edgeMid = (verts: Vector2[], e: number): Vector2 =>
@@ -79,7 +161,7 @@ const Map18 = ({ width = 800, height = 800 }: { width?: number; height?: number 
                 ctxFill.moveTo(verts[0].x, verts[0].y);
                 for (let i = 1; i < 6; i++) ctxFill.lineTo(verts[i].x, verts[i].y);
                 ctxFill.closePath();
-                ctxFill.fillStyle = BIOME_COLORS[base];
+                ctxFill.fillStyle = fillOf(base);
                 ctxFill.fill();
 
                 for (const run of runs) {
@@ -106,7 +188,7 @@ const Map18 = ({ width = 800, height = 800 }: { width?: number; height?: number 
                     ctxFill.lineTo(mOut.x, mOut.y);
                     ctxFill.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, mIn.x, mIn.y);
                     ctxFill.closePath();
-                    ctxFill.fillStyle = BIOME_COLORS[run.biome];
+                    ctxFill.fillStyle = fillOf(run.biome);
                     ctxFill.fill();
 
                     ctxFill.beginPath();
@@ -114,14 +196,14 @@ const Map18 = ({ width = 800, height = 800 }: { width?: number; height?: number 
                     ctxFill.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, mIn.x, mIn.y);
                     ctxFill.lineWidth = Math.max(1, hexSize * 0.08);
                     ctxFill.lineCap = 'round';
-                    ctxFill.strokeStyle = BIOME_COLORS[run.biome];
+                    ctxFill.strokeStyle = fillOf(run.biome);
                     ctxFill.stroke();
                 }
             }
         } else {
             for (const c of world.cells.values()) {
                 const verts = getHexVertices(c.center, hexSize);
-                canvas.polygon(verts, { fill: BIOME_COLORS[c.biome] });
+                canvas.polygon(verts, { fill: fillOf(c.biome) });
             }
         }
 
@@ -160,7 +242,7 @@ const Map18 = ({ width = 800, height = 800 }: { width?: number; height?: number 
         }
 
         canvas.restore();
-    }, [world, hexSize, showCoast, smooth, showGrid, showRivers, riverDensity, showRoads, townCount, showFeatures, natureLevel, seed, renderTrigger, width, height]);
+    }, [world, hexSize, showCoast, smooth, showGrid, showRivers, riverDensity, showRoads, townCount, showFeatures, natureLevel, seed, theme, view, renderTrigger, width, height]);
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', background: UI.bg, fontFamily: 'Outfit, sans-serif', borderRadius: 8, overflow: 'hidden' }}>
@@ -173,6 +255,37 @@ const Map18 = ({ width = 800, height = 800 }: { width?: number; height?: number 
                     <h1 style={{ color: 'white', margin: 0, fontSize: '1.6rem', fontWeight: 800, letterSpacing: '1px' }}>HEX BIOMES</h1>
                     <p style={{ color: UI.text, margin: 0, fontSize: '0.8rem' }}>NOISE &middot; WHITTAKER &middot; FLOOD-FILL</p>
                 </div>
+                {view !== 'normal' && (
+                    <div style={{ position: 'absolute', top: 16, left: 16, background: 'rgba(10,11,18,0.72)', backdropFilter: 'blur(6px)', padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {view === 'biome' && (
+                            <>
+                                <div style={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Biomes</div>
+                                {LEGEND_BIOME.map((l) => (
+                                    <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#e2e8f0', fontSize: '0.72rem', fontWeight: 600 }}>
+                                        <span style={{ width: 14, height: 14, borderRadius: 3, background: l.color, border: '1px solid rgba(0,0,0,0.2)' }} />
+                                        {l.label}
+                                    </div>
+                                ))}
+                                <div style={{ color: '#94a3b8', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: 4 }}>Terrain</div>
+                                {LEGEND_TERRAIN.map((l) => (
+                                    <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#e2e8f0', fontSize: '0.72rem', fontWeight: 600 }}>
+                                        <span style={{ width: 14, height: 14, borderRadius: 3, background: l.color, border: '1px solid rgba(0,0,0,0.2)' }} />
+                                        {l.label}
+                                    </div>
+                                ))}
+                            </>
+                        )}
+                        {view !== 'biome' && (
+                            <>
+                                <div style={{ color: '#e2e8f0', fontSize: '0.75rem', fontWeight: 700 }}>{view === 'elevation' ? 'Elevation' : 'Moisture'}</div>
+                                <div style={{ width: 120, height: 12, borderRadius: 3, border: '1px solid rgba(0,0,0,0.2)', background: view === 'elevation' ? 'linear-gradient(90deg,#0a2540,#4a90c0,#3f7d4f,#c9b36a,#8a5a3a,#ffffff)' : 'linear-gradient(90deg,#e2c98a,#7dbf72,#2b7fae)' }} />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8', fontSize: '0.68rem' }}>
+                                    <span>{view === 'elevation' ? 'Deep' : 'Dry'}</span><span>{view === 'elevation' ? 'Peak' : 'Wet'}</span>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
@@ -187,6 +300,17 @@ const Map18 = ({ width = 800, height = 800 }: { width?: number; height?: number 
                 <Slider label="TOWNS" min={2} max={20} value={townCount} onChange={setTownCount} />
                 <Slider label="NATURE" min={0} max={80} value={natureLevel} onChange={setNatureLevel} />
 
+                <Toggle label={`BIOMES ${biomesOn ? 'ON' : 'OFF'}`} on={biomesOn} onClick={() => setBiomesOn((v) => !v)} />
+                <button
+                    onClick={() => setTheme((t) => { const order = ['realistic', 'candy', 'spooky', 'chaos']; return order[(order.indexOf(t) + 1) % order.length]; })}
+                    style={{ background: 'rgba(255,255,255,0.08)', color: '#e2e8f0', border: '1px solid rgba(255,255,255,0.14)', padding: '9px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem' }}
+                >
+                    THEME: {theme.toUpperCase()}
+                </button>
+                <Slider label="COHERENCE" min={0} max={100} value={coherence} onChange={setCoherence} />
+                <Toggle label="BIOME MAP" on={view === 'biome'} onClick={() => setView((v) => (v === 'biome' ? 'normal' : 'biome'))} />
+                <Toggle label="ELEVATION" on={view === 'elevation'} onClick={() => setView((v) => (v === 'elevation' ? 'normal' : 'elevation'))} />
+                <Toggle label="MOISTURE" on={view === 'moisture'} onClick={() => setView((v) => (v === 'moisture' ? 'normal' : 'moisture'))} />
                 <Toggle label={`FILL ${smooth ? 'SMOOTH' : 'MOSAIC'}`} on={smooth} onClick={() => setSmooth((v) => !v)} />
                 <Toggle label={`GRID ${showGrid ? 'ON' : 'OFF'}`} on={showGrid} onClick={() => setShowGrid((v) => !v)} />
                 <Toggle label={`COASTLINE ${showCoast ? 'ON' : 'OFF'}`} on={showCoast} onClick={() => setShowCoast((v) => !v)} />
