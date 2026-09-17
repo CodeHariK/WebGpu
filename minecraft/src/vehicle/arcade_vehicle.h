@@ -4,13 +4,9 @@
 #include "../utils/raycast/mc_raycast.h"
 #include "config/vehicle_config.h"
 #include "game_manager/player_input.h"
-#include "godot_cpp/classes/capsule_shape3d.hpp"
-#include "godot_cpp/classes/csg_cylinder3d.hpp"
 #include "godot_cpp/classes/mesh_instance3d.hpp"
 #include "godot_cpp/classes/sphere_shape3d.hpp"
-#include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
-#include <godot_cpp/classes/csg_box3d.hpp>
 #include <godot_cpp/classes/csg_sphere3d.hpp>
 #include <godot_cpp/classes/physics_direct_body_state3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
@@ -75,7 +71,6 @@ private:
 	float _calculate_suspension_force(
 			Ref<WheelConfig> wheel,
 			float hit_distance,
-			float delta,
 			Vector3 hardpoint_world,
 			Vector3 local_up
 	);
@@ -91,7 +86,7 @@ private:
 	void _apply_lateral_force_with_roll(Vector3 p_force_global);
 	void _apply_longitudinal_force_with_pitch(Vector3 p_force_global);
 	void _handle_wall_collision_and_spin(
-			int p_wheel_index,
+			const Ref<WheelConfig> &p_wheel,
 			const MCRaycastHit &p_hit,
 			Vector3 &r_force_dir,
 			float &r_force_mag

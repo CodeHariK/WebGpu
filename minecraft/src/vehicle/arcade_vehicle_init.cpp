@@ -13,6 +13,27 @@
 
 namespace godot {
 
+// Config properties persisted to user://vehicle_settings.cfg and mirrored by the
+// tuning UI. Single source of truth: save/load and the UI iterate this list, so a
+// new tunable only needs adding here (plus the bound property on VehicleConfig).
+namespace {
+const char *VEHICLE_TUNABLES[] = { "max_speed",
+								   "max_accel_force",
+								   "brake_decel",
+								   "arcade_assist",
+								   "max_steer_angle_deg",
+								   "base_grip",
+								   "drift_grip",
+								   "downforce",
+								   "angular_damping",
+								   "velocity_alignment",
+								   "nitro_max_fuel",
+								   "nitro_refuel_rate",
+								   "nitro_depletion_rate",
+								   "roll_influence",
+								   "pitch_influence" };
+} // namespace
+
 ArcadeVehicle::ArcadeVehicle() {
 	is_boosting = false;
 	boost_speed_bonus = 0.0f;
@@ -47,6 +68,12 @@ ArcadeVehicle::~ArcadeVehicle() {
 void ArcadeVehicle::_ready() {
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
+
+	// Work on a per-instance copy of the config so runtime tuning and loaded
+	// settings never mutate the shared VehicleConfig asset on disk.
+	if (config.is_valid()) {
+		config = Ref<VehicleConfig>(Object::cast_to<VehicleConfig>(config->duplicate().ptr()));
+	}
 
 	// 1. Setup HSM
 	grounded_state = new GroundedState("grounded", this, nullptr);
@@ -199,21 +226,9 @@ void ArcadeVehicle::save_settings() {
 	Ref<ConfigFile> cfg;
 	cfg.instantiate();
 
-	cfg->set_value("Vehicle", "max_speed", config->get_max_speed());
-	cfg->set_value("Vehicle", "max_accel_force", config->get_max_accel_force());
-	cfg->set_value("Vehicle", "brake_decel", config->get_brake_decel());
-	cfg->set_value("Vehicle", "arcade_assist", config->get_arcade_assist());
-	cfg->set_value("Vehicle", "max_steer_angle_deg", config->get_max_steer_angle_deg());
-	cfg->set_value("Vehicle", "base_grip", config->get_base_grip());
-	cfg->set_value("Vehicle", "drift_grip", config->get_drift_grip());
-	cfg->set_value("Vehicle", "downforce", config->get_downforce());
-	cfg->set_value("Vehicle", "angular_damping", config->get_angular_damping());
-	cfg->set_value("Vehicle", "velocity_alignment", config->get_velocity_alignment());
-	cfg->set_value("Vehicle", "nitro_max_fuel", config->get_nitro_max_fuel());
-	cfg->set_value("Vehicle", "nitro_refuel_rate", config->get_nitro_refuel_rate());
-	cfg->set_value("Vehicle", "nitro_depletion_rate", config->get_nitro_depletion_rate());
-	cfg->set_value("Vehicle", "roll_influence", config->get_roll_influence());
-	cfg->set_value("Vehicle", "pitch_influence", config->get_pitch_influence());
+	for (const char *key : VEHICLE_TUNABLES) {
+		cfg->set_value("Vehicle", key, config->get(key));
+	}
 
 	cfg->save("user://vehicle_settings.cfg");
 	UtilityFunctions::print("ArcadeVehicle: Settings saved to user://vehicle_settings.cfg");
@@ -232,40 +247,16 @@ void ArcadeVehicle::load_settings() {
 		return;
 	}
 
-	config->set_max_speed(cfg->get_value("Vehicle", "max_speed", config->get_max_speed()));
-	config->set_max_accel_force(cfg->get_value("Vehicle", "max_accel_force", config->get_max_accel_force()));
-	config->set_brake_decel(cfg->get_value("Vehicle", "brake_decel", config->get_brake_decel()));
-	config->set_arcade_assist(cfg->get_value("Vehicle", "arcade_assist", config->get_arcade_assist()));
-	config->set_max_steer_angle_deg(
-			cfg->get_value("Vehicle", "max_steer_angle_deg", config->get_max_steer_angle_deg())
-	);
-	config->set_base_grip(cfg->get_value("Vehicle", "base_grip", config->get_base_grip()));
-	config->set_drift_grip(cfg->get_value("Vehicle", "drift_grip", config->get_drift_grip()));
-	config->set_downforce(cfg->get_value("Vehicle", "downforce", config->get_downforce()));
-	config->set_angular_damping(cfg->get_value("Vehicle", "angular_damping", config->get_angular_damping()));
-	config->set_velocity_alignment(cfg->get_value("Vehicle", "velocity_alignment", config->get_velocity_alignment()));
-	config->set_nitro_max_fuel(cfg->get_value("Vehicle", "nitro_max_fuel", config->get_nitro_max_fuel()));
-	config->set_nitro_refuel_rate(cfg->get_value("Vehicle", "nitro_refuel_rate", config->get_nitro_refuel_rate()));
-	config->set_nitro_depletion_rate(
-			cfg->get_value("Vehicle", "nitro_depletion_rate", config->get_nitro_depletion_rate())
-	);
-	config->set_roll_influence(cfg->get_value("Vehicle", "roll_influence", config->get_roll_influence()));
-	config->set_pitch_influence(cfg->get_value("Vehicle", "pitch_influence", config->get_pitch_influence()));
-
-	// Update UI values if UI exists
-	if (ui_root) {
-		ui_root->set_value("max_speed", config->get_max_speed());
-		ui_root->set_value("max_accel_force", config->get_max_accel_force());
-		ui_root->set_value("brake_decel", config->get_brake_decel());
-		ui_root->set_value("arcade_assist", config->get_arcade_assist());
-		ui_root->set_value("max_steer_angle_deg", config->get_max_steer_angle_deg());
-		ui_root->set_value("base_grip", config->get_base_grip());
-		ui_root->set_value("drift_grip", config->get_drift_grip());
-		ui_root->set_value("downforce", config->get_downforce());
-		ui_root->set_value("angular_damping", config->get_angular_damping());
-		ui_root->set_value("velocity_alignment", config->get_velocity_alignment());
-		ui_root->set_value("roll_influence", config->get_roll_influence());
-		ui_root->set_value("pitch_influence", config->get_pitch_influence());
+	// Load only keys that are present, falling back to the current value, and mirror
+	// each into the tuning UI (set_value no-ops for keys without a matching slider).
+	for (const char *key : VEHICLE_TUNABLES) {
+		if (!cfg->has_section_key("Vehicle", key)) {
+			continue;
+		}
+		config->set(key, cfg->get_value("Vehicle", key, config->get(key)));
+		if (ui_root) {
+			ui_root->set_value(key, (float)config->get(key));
+		}
 	}
 
 	UtilityFunctions::print("ArcadeVehicle: Settings loaded from user://vehicle_settings.cfg");
@@ -274,37 +265,8 @@ void ArcadeVehicle::load_settings() {
 float ArcadeVehicle::get_ui_var(const String &p_name) const {
 	if (config.is_null())
 		return 0.0f;
-	if (p_name == "max_speed")
-		return config->get_max_speed();
-	if (p_name == "max_accel_force")
-		return config->get_max_accel_force();
-	if (p_name == "brake_decel")
-		return config->get_brake_decel();
-	if (p_name == "arcade_assist")
-		return config->get_arcade_assist();
-	if (p_name == "max_steer_angle_deg")
-		return config->get_max_steer_angle_deg();
-	if (p_name == "base_grip")
-		return config->get_base_grip();
-	if (p_name == "drift_grip")
-		return config->get_drift_grip();
-	if (p_name == "downforce")
-		return config->get_downforce();
-	if (p_name == "angular_damping")
-		return config->get_angular_damping();
-	if (p_name == "velocity_alignment")
-		return config->get_velocity_alignment();
-	if (p_name == "nitro_max_fuel")
-		return config->get_nitro_max_fuel();
-	if (p_name == "nitro_refuel_rate")
-		return config->get_nitro_refuel_rate();
-	if (p_name == "nitro_depletion_rate")
-		return config->get_nitro_depletion_rate();
-	if (p_name == "roll_influence")
-		return config->get_roll_influence();
-	if (p_name == "pitch_influence")
-		return config->get_pitch_influence();
-	return 0.0f;
+	// Bound VehicleConfig properties are addressable by name via the object system.
+	return (float)config->get(p_name);
 }
 
 void ArcadeVehicle::set_ui_var(
@@ -313,36 +275,8 @@ void ArcadeVehicle::set_ui_var(
 ) {
 	if (config.is_null())
 		return;
-	if (p_name == "max_speed")
-		config->set_max_speed(p_value);
-	else if (p_name == "max_accel_force")
-		config->set_max_accel_force(p_value);
-	else if (p_name == "brake_decel")
-		config->set_brake_decel(p_value);
-	else if (p_name == "arcade_assist")
-		config->set_arcade_assist(p_value);
-	else if (p_name == "max_steer_angle_deg")
-		config->set_max_steer_angle_deg(p_value);
-	else if (p_name == "base_grip")
-		config->set_base_grip(p_value);
-	else if (p_name == "drift_grip")
-		config->set_drift_grip(p_value);
-	else if (p_name == "downforce")
-		config->set_downforce(p_value);
-	else if (p_name == "angular_damping")
-		config->set_angular_damping(p_value);
-	else if (p_name == "velocity_alignment")
-		config->set_velocity_alignment(p_value);
-	else if (p_name == "nitro_max_fuel")
-		config->set_nitro_max_fuel(p_value);
-	else if (p_name == "nitro_refuel_rate")
-		config->set_nitro_refuel_rate(p_value);
-	else if (p_name == "nitro_depletion_rate")
-		config->set_nitro_depletion_rate(p_value);
-	else if (p_name == "roll_influence")
-		config->set_roll_influence(p_value);
-	else if (p_name == "pitch_influence")
-		config->set_pitch_influence(p_value);
+	// Bound VehicleConfig properties are addressable by name via the object system.
+	config->set(p_name, p_value);
 }
 
 void ArcadeVehicle::_bind_methods() {
