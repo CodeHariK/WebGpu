@@ -25,7 +25,11 @@ WebGPU / TSL + Rapier) into this Godot 4 GDExtension project.
 - [x] `Events` — ordered pub/sub bus (RefCounted; `src/folio/events.{h,cpp}`).
 - [ ] `Game` boot orchestrator — construct subsystems in folio's init() order;
       staged resource load (intro batch → full batch → physics).
-- [ ] `Time`, `Viewport`, `View` (camera), `Quality`, `ResourcesLoader`.
+- [x] `Time` → `FolioTime` (time scale + bullet-time; `src/folio/time.{h,cpp}`).
+- [x] `Viewport` → `FolioViewport` (size + DPR + resize events; `src/folio/viewport.{h,cpp}`).
+- [x] `Quality` (quality tier 0/1 + `change` event; `src/folio/quality.{h,cpp}`).
+- [x] `ResourcesLoader` → `FolioResources` (keyed batch loader; `src/folio/resources.{h,cpp}`).
+- [x] `View` (camera) — SPLIT into `src/folio/view/` (orchestrator + 6 helpers; deferred trio remains).
 - [ ] Global shader clock: expose `elapsed`/`delta` (+ `scale = 2`) as Godot
       **global shader uniforms** (folio publishes these via TSL `uniform()`).
 
@@ -178,3 +182,140 @@ to stay dependency-free; both share the same ordered-snapshot dispatch idea.
 **Port files so far:**
 - `src/folio/ticker.{h,cpp}` + `project/scene/folio/ticker.tscn` (registered, scene-verified).
 - `src/folio/events.{h,cpp}` (registered).
+
+
+## Tier 0 · Time  (folio `Game/Time.js`, 85 lines)  ✅ ported
+
+**Purpose.** Time-scale controller + bullet-time (slow-mo). Does NOT hold a clock —
+it OWNS the Ticker's `scale`. Normal = `default_scale` (2x); `activate_bullet_time()`
+eases scale to `bullet_scale` (0.5) and back via a 0..1 `progress`. Ticks at
+priority **0** (before physics) so the scaled delta is set for the frame.
+
+**Port.** `src/folio/time.{h,cpp}`, class **`FolioTime` : Node** (renamed — Godot
+already has a core `Time` singleton; `godot::Time` would collide). Subscribes to
+`Ticker::connect_tick(update, 0)` in `_ready` (retries via `call_deferred` if the
+Ticker singleton is not up yet). Registered in `register_types.cpp`.
+
+**Not ported:** folio also scales `gsap.globalTimeline.timeScale()` so tweens slow
+with the world — no Godot GSAP equivalent; mirror the scale when a tween layer lands.
+
+**Status:** built + linked + registered; runs clean in `project/scene/folio/core.tscn`
+(Ticker + FolioTime), 10 frames headless, subscription verified.
+
+**Port files so far (Tier 0):**
+- `src/folio/ticker.{h,cpp}`  + `project/scene/folio/ticker.tscn`
+- `src/folio/events.{h,cpp}`
+- `src/folio/time.{h,cpp}`
+- `project/scene/folio/core.tscn` (Ticker + FolioTime; the growing core composition)
+
+
+## Tier 0 · Viewport  (folio `Game/Viewport.js`, 55 lines)  ✅ ported
+
+**Purpose.** Measures drawable size + device pixel ratio and broadcasts resize
+events. First real consumer of the ported `Events` bus (folio does `new Events()`).
+
+**Events (1:1 names):** `change` (every resize — Rendering resizes on it),
+`throttleChange` (once, 400 ms after resizing stops — heavy rebuilds like Floor).
+
+**Web → Godot mapping:** DOM rect size → `DisplayServer::window_get_size()`;
+`devicePixelRatio` → `DisplayServer::screen_get_scale()` clamped to max 2; the DOM
+`resize` listener → root `Window::size_changed` signal; debounce → one-shot `Timer`.
+
+**Port.** `src/folio/viewport.{h,cpp}`, class **`FolioViewport` : Node** (renamed —
+Godot has a core `Viewport`). Owns a `Ref<Events>` exposed via `get_events()`, so
+ported consumers call `viewport->get_events()->on("change", ...)`. Registered.
+
+**Status:** built + linked + registered; runs clean in `core.tscn` (now Ticker +
+FolioTime + FolioViewport), 10 frames headless.
+
+**Port files so far (Tier 0):**
+- `src/folio/ticker.{h,cpp}` + `project/scene/folio/ticker.tscn`
+- `src/folio/events.{h,cpp}`
+- `src/folio/time.{h,cpp}`
+- `src/folio/viewport.{h,cpp}`
+- `project/scene/folio/core.tscn` (Ticker + FolioTime + FolioViewport)
+
+
+## Tier 0 · Quality  (folio `Game/Quality.js`, 49 lines)  ✅ ported
+
+**Purpose.** Global quality tier. `level` 0 = highest, 1 = low (default 1 on
+mobile). ~15 systems branch on it (bloom mips, cheap-DOF, pre-render, antialias);
+they subscribe to `change` to rebuild when it flips.
+
+**Port.** `src/folio/quality.{h,cpp}`, class **`Quality` : Node** (no collision).
+Owns a `Ref<Events>`; `change_level(level)` no-ops if unchanged else triggers
+`change` with `[ level ]`. Mobile sniff `navigator.userAgent` → `OS::has_feature("mobile")`.
+Registered; in `core.tscn`.
+
+**Status:** built + linked + registered; `core.tscn` (Ticker + Time + Viewport +
+Quality) runs clean, 10 frames headless.
+
+**Tier 0 remaining:** `View` (camera), `ResourcesLoader`, then the `Game` orchestrator.
+
+
+## Tier 0 · ResourcesLoader  (folio `Game/ResourcesLoader.js`, 124 lines)  ✅ ported
+
+**Purpose.** Keyed batch loader: load `[key, path, type, modifier?]` entries,
+cache by path, run an optional modifier per resource, report progress, return
+`{ key: resource }`.
+
+**Godot reality.** Most of folio's machinery is dropped: the editor import
+pipeline turns `.glb`→PackedScene, `.png`/`.ktx`→Texture2D, and `ResourceLoader`
+picks the importer — so no loader-type system, no Draco/KTX setup. Kept only the
+observable behaviour: batch spec, path cache, modifier Callable, progress, dict.
+
+**Port.** `src/folio/resources.{h,cpp}`, class **`FolioResources` : RefCounted`**
+(renamed to avoid confusion with Godot core `ResourceLoader`). `type` (entry[2])
+accepted but ignored. Load is synchronous (folio is async) — threaded upgrade =
+`ResourceLoader::load_threaded_request` + polling, to wire to the loading screen
+at boot. Failed load logs + skips (folio rejects the batch). Registered.
+
+**Verified (runtime, Mac):** loaded `res://scene/folio/core.tscn` →
+`is_packedscene=true`, progress callback fired `0/1`, path cache populated, and a
+second load returned the SAME cached object. Smoke test kept at
+`docs/folio_port/res_smoke_test.gd` (outside `res://`).
+
+**Note.** Most folio texture modifiers (filters/wrap/flipY/colorSpace/mipmaps) are
+IMPORT settings in Godot (.import), not runtime — set them there; the `modifier`
+Callable remains for genuine runtime post-processing.
+
+**Tier 0 remaining:** `View` (camera, ~789 lines), then the `Game` orchestrator.
+
+
+## Tier 0 · View  (folio `Game/View.js`, 788 lines)  🔨 SPLIT in progress
+
+Too big for one file — decomposed into `src/folio/view/`. `View : Node3D` is the
+one registered node (the camera rig); the sub-parts are lightweight non-GDCLASS
+helpers it owns (mirrors folio's `this.spherical = {}` sub-objects; keeps ClassDB
+clean).
+
+| file | responsibility | deps ready? | status |
+|---|---|---|---|
+| `spherical.{h,cpp}` | orbit angles + radius → camera offset | pure math | ✅ done |
+| `roll.{h,cpp}` | camera z-roll spring + kick | pure | ✅ done |
+| `optimal_area.{h,cpp}` | ground framing quad (frustum→floor raycast) | pure | ✅ done |
+| `zoom.{h,cpp}` | zoom ratio state + smoothing | input hooks stubbed | ✅ done |
+| `focus_point.{h,cpp}` | tracked/smoothed follow target + magnet | hooks stubbed | ✅ done |
+| `cinematic.{h,cpp}` | scripted camera moves | tween/DOF hooks | ✅ done |
+| `view.{h,cpp}` | orchestrator: camera, mode, tick(7), update() | composes above | ✅ done |
+| `map_controls`, `free_mode`, `speed_lines` | pointer/pinch, free-fly, VFX | need Inputs/CameraControls/TSL | ⛔ deferred |
+
+**`spherical` (done).** `ViewSpherical` (plain). Holds phi (down-tilt, 0.31π hi /
+0.27π low quality), theta (0.25π yaw), radius edges 15..30 + `non_ideal_ratio_offset`
+9. `update(smoothed_ratio, ratio_overflow)` → `radius_current` (lerp) + `offset`
+(via `from_spherical`, = THREE `setFromSphericalCoords`). Compiles + links.
+Note: `Math_PI` isn't in godot-cpp — use `Math::PI` (the constexpr the project uses).
+
+**`roll` (done).** `ViewRoll` (plain). 1-D damped spring → camera.rotation.z; `kick(strength)` random-dir impulse. Integrated with SCALED delta (slows in bullet time). Note: no `Math::randf` in godot-cpp — use `UtilityFunctions::randf()`.
+
+**`optimal_area` (done).** `ViewOptimalArea` (plain). Projects the camera frustum onto y=0 to get the visible ground: `recompute(phi,theta,radius_max,fov_y,aspect)` (heavy; init + throttled resize) fills `base_position`/`radius`/near+far distances/`quad_base`; `apply_focus(smoothed,raw)` (cheap per-frame) offsets to the focus (position uses smoothed focus, quads use raw). Computed ANALYTICALLY from the camera transform+fov+aspect (no Raycaster/screen-size), so it is self-contained.
+
+**`zoom` (done).** `ViewZoom` (plain). base_ratio (player) + speed-reactive term (smoothstep on focus speed, high-quality only) → smoothed_ratio (drives spherical radius). Input hooks `scroll()`/`set_toggle_active()`/`add_base_ratio()` left public for Inputs wiring. Smoothing uses UNSCALED delta.
+
+**`focus_point` (done).** `ViewFocusPoint` (plain). Follows `tracked_position` (player copies its pos in each frame → hook `set_tracked_position`), magnet-eases, low-passes into `smoothed_position` (camera look-at). `update(delta)` returns focus travel speed (feeds zoom). Hooks: `resume_tracking`/`pan`/`set_position`/`set_tracking` (inputs + areas). X/Z only, Y=0.
+
+**`cinematic` (done).** `ViewCinematic` (plain). `start(pos,target,ratio_overflow)` locks a target pose (with non-ideal-ratio pushback); `apply(default_cam_xform)` blends camera pose toward it by `progress` (lerp origin + slerp rotation). Hooks: `progress` driven by an external tween (→1 over ~1.5s on start, →0 over ~1s on end), `dof_target` (0 during / 1.5 after) for the render DOF pass.
+
+**`view` (done).** `View : Node3D` (registered). Owns one Camera3D (fov 25, near .1, far 200), mode, ratio_overflow; composes the 6 helpers; ticks at priority 7. update() sequence: focus → zoom → spherical → position → look+roll (roll post-multiplied about local Z, scaled delta) → cinematic blend → camera transform → optimal area. Standalone: aspect from Godot viewport, resize on window size_changed; hooks `set_target_position` (player), `set_quality_level`, `cinematic_*`, `roll_kick`. In `core.tscn`.
+**Verified (runtime, Mac):** core.tscn (Ticker+Time+Viewport+Quality+View) runs clean; camera solves to pos≈(13.9,13.4,13.9) (radius≈24 looking at origin), optimal_radius≈20.4. Smoke test at docs/folio_port/view_smoke_test.gd.
+**Deferred (need Inputs/CameraControls/TSL):** `map_controls`, `free_mode`, `speed_lines` — plus wiring `View` through FolioViewport/Quality/Inputs once the Game orchestrator lands. TIER 0 CORE COMPLETE except these.

@@ -1,0 +1,13 @@
+[gd_scene format=4]
+
+[node name="FolioCore" type="Node"]
+
+[node name="Ticker" type="Ticker" parent="."]
+
+[node name="Time" type="FolioTime" parent="."]
+
+[node name="Viewport" type="FolioViewport" parent="."]
+
+[node name="Quality" type="Quality" parent="."]
+
+[node name="View" type="View" parent="."]
