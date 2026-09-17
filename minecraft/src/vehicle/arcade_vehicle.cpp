@@ -9,13 +9,44 @@
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/core/math.hpp>
 
 namespace godot {
+
+// ---------------------------------------------------------------------------
+// Handling-feel constants. Named here (rather than inline magic numbers) so the
+// force/torque scales that shape game feel are documented and easy to retune.
+// ---------------------------------------------------------------------------
+namespace {
+constexpr float SUSPENSION_CAST_OFFSET = 0.3f; // ray start lifted above the hardpoint to avoid ground clipping
+constexpr float STEER_TORQUE_FACTOR = 5.0f; // yaw torque per (mass * steer angle)
+constexpr float STEER_SPEED_CLAMP_DRIFT = 0.6f; // min steering authority retained at speed while drifting
+constexpr float STEER_SPEED_CLAMP_BASE = 0.3f; // min steering authority retained at speed while driving
+constexpr float LONGITUDINAL_FORCE_SCALE = 0.7f; // fraction of drive force routed through the pitch-offset point
+constexpr float ENGINE_BRAKE_FORCE = 1000.0f; // passive deceleration force when coasting (no throttle)
+constexpr float ACCEL_CURVE_MIN = 0.1f; // floor on the accel falloff curve near top speed
+constexpr float BOOST_ACCEL_FORCE_MULT = 2.0f; // extra drive force while nitro boosting
+constexpr float BOOST_NUDGE_STRENGTH = 0.6f; // arcade-assist nudge strength while boosting
+constexpr float BASE_NUDGE_STRENGTH = 0.3f; // arcade-assist nudge strength normally
+constexpr float BOOST_INITIAL_KICK_FRACTION = 0.2f; // instant forward kick on boost start (fraction of bonus)
+constexpr float DRIFT_ALIGNMENT_SCALE = 0.15f; // velocity-alignment reduction while drifting (allows sliding)
+constexpr float MAX_LATERAL_GRIP_ACCEL = 50.0f; // cap on lateral grip accel (* mass / delta) to keep stable
+constexpr float RAMP_NORMAL_Y_THRESHOLD = 0.9f; // avg ground-normal.y below this counts as a ramp
+constexpr float GLIDE_MIN_UP_DOT = 0.7f; // min local-up.y required to start gliding
+constexpr float MIN_TRICK_SPEED = 10.0f; // min forward speed to trigger glide / ramp tricks
+constexpr float ROLL_TRICK_TILT_THRESHOLD = 0.4f; // |roll tilt| above this picks a barrel roll over a backflip
+constexpr float WALL_NORMAL_UP_DOT = 0.6f; // hit-normal . up below this is treated as a wall, not ground
+constexpr float WALL_PUSH_FORCE_SOFTEN = 0.5f; // soften wall push to avoid abrupt bounces
+constexpr float WALL_PUSH_FORCE_CAP = 30.0f; // cap on wall push force (* mass)
+constexpr float WALL_SPIN_TORQUE_FACTOR = 25.0f; // wall-scrape spin-assist torque (* mass)
+constexpr float WALL_SPIN_MIN_SPEED = 3.0f; // min forward speed for wall-spin assist
+constexpr float WALL_SPIN_SPEED_REF = 10.0f; // reference speed for scaling wall-spin assist
+constexpr float MIN_SPEED_EPSILON = 0.001f; // guard against divide-by-zero on config speeds
+} // namespace
 
 float ArcadeVehicle::_calculate_suspension_force(
 		Ref<WheelConfig> wheel,
 		float hit_distance,
-		float delta,
 		Vector3 hardpoint_world,
 		Vector3 local_up
 ) {
@@ -80,7 +111,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		Vector3 hardpoint_world = trans.xform(hardpoint_local);
 
 		// Offset starting point upward to prevent clipping below ground
-		float cast_offset = 0.3f;
+		float cast_offset = SUSPENSION_CAST_OFFSET;
 		Vector3 cast_start = hardpoint_world + local_up * cast_offset;
 
 		// 2. Raycast/Spherecast straight down
@@ -93,23 +124,24 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		MCRaycastHit hit =
 				spherecast_3d(this, cast_start, local_down, max_dist, wc->get_radius() * 0.4f, 0xFFFFFFFF, exclude);
 
-		CSGSphere3D *visual = wheel_visuals[active_wheel_count];
+		CSGSphere3D *visual =
+				(active_wheel_count < (int)wheel_visuals.size()) ? wheel_visuals[active_wheel_count] : nullptr;
 
 		if (hit.is_hit) {
 			// Project the hit position relative to the hardpoint along local_down
 			float hit_dist = (hit.position - hardpoint_world).dot(local_down);
 
 			// Compute force
-			float force_mag = _calculate_suspension_force(wc, hit_dist, p_delta, hardpoint_world, local_up);
+			float force_mag = _calculate_suspension_force(wc, hit_dist, hardpoint_world, local_up);
 
 			if (force_mag > 0.0f) {
 				Vector3 force_dir;
-				_handle_wall_collision_and_spin(i, hit, force_dir, force_mag);
+				_handle_wall_collision_and_spin(wc, hit, force_dir, force_mag);
 				apply_force(force_dir * force_mag, hardpoint_world - trans.origin);
 			}
 
 			// Position visual along the suspension axis, clamped to avoid clipping into chassis
-			if (debug_visuals_enabled) {
+			if (debug_visuals_enabled && visual) {
 				Vector3 target_pos = hit.position + hit.normal * wc->get_radius();
 				float displacement = (target_pos - hardpoint_world).dot(local_down);
 				displacement = CLAMP(displacement, 0.0f, wc->get_suspension_rest_length());
@@ -119,7 +151,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 			avg_normal += hit.normal;
 		} else {
 			// Wheel is fully extended
-			if (debug_visuals_enabled) {
+			if (debug_visuals_enabled && visual) {
 				visual->set_global_position(hardpoint_world + local_down * wc->get_suspension_rest_length());
 			}
 		}
@@ -134,7 +166,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 
 	if (grounded_wheels > 0) {
 		avg_normal /= (float)grounded_wheels;
-		if (avg_normal.y < 0.9f) {
+		if (avg_normal.y < RAMP_NORMAL_Y_THRESHOLD) {
 			is_on_ramp = true;
 		}
 
@@ -148,8 +180,8 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		}
 	} else {
 		// In the air
-		bool can_glide = local_up.y > 0.7f && forward_speed > 10.0f && current_state != ramp_roll_state &&
-				current_state != ramp_spin_state;
+		bool can_glide = local_up.y > GLIDE_MIN_UP_DOT && forward_speed > MIN_TRICK_SPEED &&
+				current_state != ramp_roll_state && current_state != ramp_spin_state;
 
 		if (is_active && current_input.glide && can_glide) {
 			if (current_state != gliding_state) {
@@ -166,8 +198,8 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 			}
 
 			if (was_on_ramp && current_state != ramp_spin_state && current_state != ramp_roll_state &&
-				current_state != gliding_state && forward_speed > 10.0f) {
-				if (abs(last_roll_tilt) > 0.4f) {
+				current_state != gliding_state && forward_speed > MIN_TRICK_SPEED) {
+				if (Math::abs(last_roll_tilt) > ROLL_TRICK_TILT_THRESHOLD) {
 					ramp_roll_state->set_roll_direction(last_roll_tilt > 0.0f ? -1.0f : 1.0f);
 					change_state(ramp_roll_state);
 				} else {
@@ -225,7 +257,8 @@ void ArcadeVehicle::_integrate_forces(PhysicsDirectBodyState3D *state) {
 			Vector3 current_vel_dir = vel.normalized();
 			float alignment_speed = config->get_velocity_alignment();
 			if (is_drifting) {
-				alignment_speed *= 0.15f; // Reduce velocity alignment when drifting to allow sliding sideways
+				alignment_speed *=
+						DRIFT_ALIGNMENT_SCALE; // Reduce velocity alignment when drifting to allow sliding sideways
 			}
 			Vector3 new_vel_dir = current_vel_dir.lerp(target_vel_dir, alignment_speed * state->get_step());
 
@@ -289,41 +322,41 @@ void ArcadeVehicle::_apply_acceleration(float delta) {
 	float speed_diff = target_speed - current_forward_speed;
 	float accel_force = 0.0f;
 
-	if (abs(input_drive) > 0.01f) {
+	if (Math::abs(input_drive) > 0.01f) {
 		bool is_braking = (input_drive * current_forward_speed) < -0.1f;
 		float force_limit = is_braking ? config->get_brake_decel() : config->get_max_accel_force();
 
 		float accel_curve = 1.0f;
 		if (is_boosting) {
 			// Increase acceleration force during boost to push past normal speed quickly
-			force_limit *= 2.0f;
+			force_limit *= BOOST_ACCEL_FORCE_MULT;
 			// Keep full acceleration force during boost (no drop off as we approach max speed)
 			accel_curve = 1.0f;
 		} else {
-			float speed_ratio = abs(current_forward_speed) / max_speed;
+			float speed_ratio = Math::abs(current_forward_speed) / MAX(max_speed, MIN_SPEED_EPSILON);
 			accel_curve = 1.0f - (speed_ratio * speed_ratio);
-			accel_curve = MAX(0.1f, accel_curve);
+			accel_curve = MAX(ACCEL_CURVE_MIN, accel_curve);
 		}
 
 		accel_force = force_limit * accel_curve * input_drive;
 	} else {
-		if (abs(current_forward_speed) > 0.1f) {
+		if (Math::abs(current_forward_speed) > 0.1f) {
 			// If boosting, preserve momentum and do not apply standard heavy engine brake
 			if (!is_boosting) {
-				accel_force = -1000.0f * (current_forward_speed > 0.0f ? 1.0f : -1.0f);
+				accel_force = -ENGINE_BRAKE_FORCE * (current_forward_speed > 0.0f ? 1.0f : -1.0f);
 			}
 		}
 	}
 
-	_apply_longitudinal_force_with_pitch(forward_dir * accel_force * 0.7f);
+	_apply_longitudinal_force_with_pitch(forward_dir * accel_force * LONGITUDINAL_FORCE_SCALE);
 
 	// Apply arcade assist nudge; make it stronger during Nitro boost to help reach top speed quickly
-	float nudge_strength = is_boosting ? 0.6f : 0.3f;
+	float nudge_strength = is_boosting ? BOOST_NUDGE_STRENGTH : BASE_NUDGE_STRENGTH;
 	velocity_nudge_accumulator += forward_dir * speed_diff * config->get_arcade_assist() * delta * nudge_strength;
 
 	if (started_boosting) {
 		// Initial speed kick forward to feel responsive and punchy
-		velocity_nudge_accumulator += forward_dir * (boost_speed_bonus * 0.2f);
+		velocity_nudge_accumulator += forward_dir * (boost_speed_bonus * BOOST_INITIAL_KICK_FRACTION);
 	}
 }
 
@@ -336,12 +369,13 @@ void ArcadeVehicle::_apply_steering(float delta) {
 	float max_steer_rad = Math::deg_to_rad(config->get_max_steer_angle_deg());
 
 	// Relax steering angle damping at high speeds when drifting for tighter turns
-	float min_steer_clamp = is_drifting ? 0.6f : 0.3f;
+	float min_steer_clamp = is_drifting ? STEER_SPEED_CLAMP_DRIFT : STEER_SPEED_CLAMP_BASE;
 	float steer_speed_factor =
-			CLAMP(1.0f - (abs(current_forward_speed) / config->get_max_speed()), min_steer_clamp, 1.0f);
+			CLAMP(1.0f - (Math::abs(current_forward_speed) / MAX(config->get_max_speed(), MIN_SPEED_EPSILON)),
+				  min_steer_clamp, 1.0f);
 	float steer_angle = current_input.steering * max_steer_rad * steer_speed_factor;
 
-	if (abs(current_forward_speed) > 1.0f && abs(steer_angle) > 0.01f) {
+	if (Math::abs(current_forward_speed) > 1.0f && Math::abs(steer_angle) > 0.01f) {
 		float dir_sign = (current_forward_speed > 0.0f) ? 1.0f : -1.0f;
 
 		// Apply drift turning force multiplier if drifting
@@ -351,7 +385,7 @@ void ArcadeVehicle::_apply_steering(float delta) {
 		}
 
 		// Positive steer turns Right (CW), which is Negative Y rotation in Godot
-		float steering_torque = -steer_angle * config->get_mass() * 5.0f * dir_sign * steer_multiplier;
+		float steering_torque = -steer_angle * config->get_mass() * STEER_TORQUE_FACTOR * dir_sign * steer_multiplier;
 
 		apply_torque(up_dir * steering_torque);
 	}
@@ -376,7 +410,7 @@ void ArcadeVehicle::_apply_lateral_friction(float delta) {
 	float lateral_force_magnitude = -lateral_velocity * config->get_mass() * current_grip / delta;
 
 	// Optional limit to prevent exploding physics if grip is too high
-	float max_lateral_grip_force = config->get_mass() * 50.0f / delta;
+	float max_lateral_grip_force = config->get_mass() * MAX_LATERAL_GRIP_ACCEL / delta;
 	lateral_force_magnitude = CLAMP(lateral_force_magnitude, -max_lateral_grip_force, max_lateral_grip_force);
 
 	//----------- Roll
@@ -397,7 +431,7 @@ void ArcadeVehicle::_apply_stability(float delta) {
 	Vector3 ang_vel = get_angular_velocity();
 	float yaw_vel = ang_vel.dot(up_dir);
 
-	bool is_steering = abs(current_input.steering) > 0.01f;
+	bool is_steering = Math::abs(current_input.steering) > 0.01f;
 	float damping_multiplier = is_steering ? 1.0f : config->get_angular_damping();
 
 	// Apply counter-torque proportional to yaw velocity
@@ -458,7 +492,7 @@ void ArcadeVehicle::_apply_longitudinal_force_with_pitch(Vector3 p_force_global)
 }
 
 void ArcadeVehicle::_handle_wall_collision_and_spin(
-		int p_wheel_index,
+		const Ref<WheelConfig> &p_wheel,
 		const MCRaycastHit &p_hit,
 		Vector3 &r_force_dir,
 		float &r_force_mag
@@ -469,24 +503,29 @@ void ArcadeVehicle::_handle_wall_collision_and_spin(
 	float up_dot = p_hit.normal.dot(local_up);
 	r_force_dir = local_up;
 
-	if (up_dot < 0.6f) {
+	if (up_dot < WALL_NORMAL_UP_DOT) {
 		// Wall/slope collision: push away from the wall horizontally
 		r_force_dir = p_hit.normal;
-		r_force_mag *= 0.5f; // Soften the force to avoid abrupt bounces
-		r_force_mag = MIN(r_force_mag, config->get_mass() * 30.0f); // Cap the force to keep it smooth and stable
+		r_force_mag *= WALL_PUSH_FORCE_SOFTEN; // Soften the force to avoid abrupt bounces
+		r_force_mag =
+				MIN(r_force_mag,
+					config->get_mass() * WALL_PUSH_FORCE_CAP); // Cap the force to keep it smooth and stable
 
 		// Spin assist: apply horizontal torque when front wheels scrape a wall
 		Vector3 forward_dir = -trans.basis.get_column(2).normalized();
 		float forward_speed = get_linear_velocity().dot(forward_dir);
-		if (forward_speed > 3.0f) {
-			float speed_scale = CLAMP(forward_speed / 10.0f, 0.5f, 1.5f);
-			float assist_torque = config->get_mass() * 25.0f * speed_scale;
-			if (p_wheel_index == 0) {
-				// Front-Left hits wall -> spin clockwise (positive yaw torque)
-				apply_torque(local_up * assist_torque);
-			} else if (p_wheel_index == 1) {
-				// Front-Right hits wall -> spin counter-clockwise (negative yaw torque)
-				apply_torque(-local_up * assist_torque);
+		if (forward_speed > WALL_SPIN_MIN_SPEED) {
+			float speed_scale = CLAMP(forward_speed / WALL_SPIN_SPEED_REF, 0.5f, 1.5f);
+			float assist_torque = config->get_mass() * WALL_SPIN_TORQUE_FACTOR * speed_scale;
+			// Only front wheels drive the wall-scrape spin. Forward is local -Z, so a
+			// front wheel has hardpoint.z < 0; right is local +X. Front-left scrapes
+			// spin clockwise (+yaw), front-right counter-clockwise (-yaw). Deriving this
+			// from the hardpoint position keeps it correct regardless of wheel ordering.
+			Vector3 hardpoint = p_wheel.is_valid() ? p_wheel->get_hardpoint_offset() : Vector3();
+			bool is_front = hardpoint.z < 0.0f;
+			if (is_front && Math::abs(hardpoint.x) > 0.01f) {
+				float spin_sign = (hardpoint.x < 0.0f) ? 1.0f : -1.0f;
+				apply_torque(local_up * assist_torque * spin_sign);
 			}
 		}
 	}
