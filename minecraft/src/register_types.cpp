@@ -7,6 +7,9 @@
 
 #include "camera/camera.h"
 
+#include "folio/events.h"
+#include "folio/ticker.h"
+
 #include "cui/cui.h"
 #include "cui/cui_line_graph.h"
 
@@ -92,6 +95,10 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
+	// Folio-2025 port
+	GDREGISTER_CLASS(Events);
+	GDREGISTER_CLASS(Ticker);
+
 	GDREGISTER_CLASS(MinecraftNode);
 
 	GDREGISTER_CLASS(MCNode);
