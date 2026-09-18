@@ -55,13 +55,28 @@ Analyze these together as ONE unit — they define the whole look.
 - [x] Day `Cycles` ✅ (`FolioCycle` interpolator + `FolioDayCycles` → Lighting/Fog/Reveal).
 - [ ] `Overlay`, `YearCycles` (deferred: consumers foliage/weather unported), `Weather`, `Wind`.
 
-## Tier 3 — Car
-- [ ] `PhysicsVehicle` (Rapier raycast controller) vs existing `ArcadeVehicle` —
-      decide keep-ours vs match-theirs.
-- [ ] `VisualVehicle`, `Player`, `Inputs/*`, `Tracks`, `Trails`.
+## Tier 3 — Car   ⏸️ DECISION: keep existing ArcadeVehicle (do NOT port folio physics)
+- [x] Decision: **use the project's `ArcadeVehicle` as-is.** Both are custom raycast
+      vehicles on a dynamic rigid body with spring suspension, so the *feel* is already
+      in the same family — folio uses Rapier's built-in `DynamicRayCastVehicleController`
+      (`world.createVehicleController` + per-wheel engine/brake/steer/suspension),
+      ArcadeVehicle hand-rolls raycast springs on a `RigidBody3D` with an HSM
+      (grounded/airborne/driving/drifting/gliding/ramp) and its own `VehicleConfig`.
+      Porting folio's would mean swapping physics engines (Rapier→Godot) for no feel
+      win. Keep ours; borrow only specific *ideas* later if wanted (flip/upside-down/
+      stuck detection, suspension height presets, ice-slip friction).
+- [~] Deferred folio car pieces (revisit only if needed): `VisualVehicle` (car mesh +
+      squash/lean — could dress ArcadeVehicle in the folio look later), `Player`
+      (boost/suspension state machine), `Inputs/*` (nipple/wheel — project has its own),
+      `Tracks` (wheel marks carved into terrain data — ties to FolioTerrain's deferred
+      track map), `Trails` (ribbon behind car).
 
 ## Tier 4 — Environment
-- [ ] `Floor`, `WaterSurface`, `Grass`, `Foliage`, `Flowers`, `Trees`, `Bushes`,
+- [x] Terrain content data map loaded ✅ (folio `terrain.png` as swappable test asset).
+- [~] `Floor` — visual slice done ✅ (`FolioFloor` + `mesh_floor.gdshader`). Physics
+      heightfield/bedrock, camera-follow recenter, and the `terrain.glb` macro shape deferred.
+- [~] `WaterSurface` — visual slice done ✅ (ripples + shore mask, transparent, lit+fogged).
+- [ ] `Grass`, `Foliage`, `Flowers`, `Trees`, `Bushes`,
       `Leaves`, `Snow`, `RainLines`, `WindLines`, `Whispers`, `Scenery`,
       `InstancedGroup` (instanced-mesh helper).
 
@@ -609,9 +624,11 @@ Screenshot `docs/folio_port/post_preview.png`; scene `project/scene/folio/post_p
 (`--nodof` sets quality low to A/B the DOF).
 
 **Deferred / next:**
-- **Fog background** — folio sets `scene.backgroundNode` to the radial fog colour; our
-  Environment still uses a flat clear colour. Add a sky/fullscreen-quad radial fill
-  (belongs with Fog + Rendering) so distances fade into fog colour, not grey.
+- **Fog background** — DONE ✅. `material/shaders/folio/background.gdshader` draws the
+  radial fog gradient on a fullscreen quad pinned to the reverse-Z far plane
+  (`POSITION.z = 0`, `render_priority -100`, huge custom AABB so it is never culled),
+  owned by FolioRendering. Empty/sky pixels now fade into the (cycle-animated) fog
+  colour. Verified day (cyan→lavender) + night (deep blue→magenta).
 - Bloom is threshold-gated at 1.0 (folio value) — only HDR-bright (>1) pixels bloom;
   tune threshold/strength once real content + day cycles land.
 - `Monitoring`/stats overlay (folio `#stats` hash) not ported (dev-only).
@@ -647,4 +664,63 @@ blue (brighter), dawn = warm orange, with the sun rotating through each. Screens
   Weather aren't ported yet; add when Tier-4 environment lands.
 - `electricField` / `temperature` day tracks + night/deepNight interval events (no
   consumers yet).
-- Fog background still flat grey (radial fog colour as sky/quad) — pairs with this.
+- Fog background ✅ (see FolioRendering) — sky now fades into the animated fog colour.
+
+## Tier 4 · Terrain data map + Floor  ✅ data map / 🔨 Floor (visual)
+
+**Terrain data map.** FolioTerrain now loads `project/material/textures/folio/terrain_data.png`
+(folio's `terrain/terrain.png`, copied in as a **placeholder/test asset**) as the content
+data map — RGBA: R=road/slab, G=grass coverage, B=land elevation. Loaded via a raw
+`Image::load_from_file` + `ImageTexture::create_from_image` so the channels stay linear
+DATA (not sRGB-decoded by the import pipeline). Swappable at runtime via
+`set_terrain_data()` — a procedural map can replace it later. Falls back to the 1×1
+all-grass default if the file is missing. `floor/slabs.png` copied in as `floor_slabs.png`.
+
+**Floor (folio `World/Floor.js`, visual slice).** `src/folio/world/floor.{h,cpp}`,
+`FolioFloor : Node3D`, + `material/shaders/folio/mesh_floor.gdshader`. A subdivided
+192² plane whose material reads the data map and paints the island:
+`base = terrain.colorNode(data)`, slab detail `mix(base, mix(slabLow,slabHigh,slabsTex),
+data.r * perlinNoise)`, vertex displacement `y += data.b * -1.5 * edgeFade`. Reuses the
+shared `folio_material.gdshaderinc` pipeline (custom base → `folio_shade` / `folio_light_shadow`)
+with light-bounce + water OFF and a flat up normal (folio Floor params). Registered;
+`make run_folio_floor` (`--phase=` day phase, `--nofog` to bypass fog framing, `--shot=`).
+
+**Verified (Mac, real Metal Forward+):** island renders with grass/road/gradient +
+visible slab-texture tiling (see `docs/folio_port/floor_nofog.png`). Validates the
+`#include` refactor a second time (a fully custom base material sharing the pipeline).
+
+**Deferred / next:**
+- Physics heightfield collider + bedrock (need the physics system + player).
+- Camera-follow recentring (`update()` snaps mesh to optimalArea each frame) + resize.
+- `terrain.glb` macro terrain shape (folio displaces a real mesh; we only do the data-map
+  micro displacement). The big island relief comes from that glb.
+- `shadowNode = data.g` extra shadow term (our pipeline has no _shadowNode input yet).
+- Fog near/far are tuned to FolioView's framing; a standalone far camera fogs the whole
+  floor (framing artifact, not a bug).
+
+## Tier 4 · WaterSurface  🔨 visual slice (ripples + shore)
+
+**Source.** folio `World/WaterSurface.js`. A transparent plane at the water elevation
+whose ALPHA is a "details mask" — the union of animated ripple bands + a shoreline
+band, both read from the terrain data map's B channel. Where the mask is ~0 the
+surface is see-through; where ~1 it paints the white water surface, lit through the
+shared folio pipeline.
+
+**Port.** `src/folio/world/water_surface.{h,cpp}` (`FolioWaterSurface : Node3D`) +
+`material/shaders/folio/water_surface.gdshader`. Large plane pinned to
+`folio_water_surface_elevation` in the vertex shader; transparent (writes ALPHA);
+reuses `folio_material.gdshaderinc` (base = white, bounce/water/core-shadow/reveal OFF,
+fog + drop shadows ON). Ripples (`ripplesNode`) animate from `folio_elapsed_scaled`
+(stands in for the unported Wind.localTime); shore = `step(0.17, b)`. Registered; in
+`floor_preview.tscn` (`make run_folio_floor`).
+
+**Verified (Mac, real Metal Forward+):** water fills the island's low basins with a
+rippling white surface (animated), transparent over land; drop shadows + fog apply.
+Screenshot `docs/folio_port/water_view.png`.
+
+**Deferred / next:**
+- **Screen-blur refraction** (folio quality-0 `viewportSharedTexture` hashBlur) — this
+  is what makes the water read as translucent tinted depth instead of flat white.
+- **Ice + splashes + weather gating** (need Weather): ripplesRatio/iceRatio/splashesRatio
+  are driven by temperature/rain; we default ripples on, ice/splashes off.
+- Ice physics collider, and camera-follow recentring/resize.

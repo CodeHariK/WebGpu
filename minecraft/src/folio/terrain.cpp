@@ -62,7 +62,17 @@ void FolioTerrain::_generate_gradient() {
 }
 
 void FolioTerrain::_generate_default_data() {
-	// Neutral biome data: all grass (G=1), height 0 (B=0) — bounce ≈ grass color.
+	// Try the (placeholder/test) folio content data map first — RGBA where
+	// R=road/slab, G=grass coverage, B=land elevation. Loaded as a raw Image (not
+	// via the .import pipeline) so its channels stay linear data, not sRGB-decoded.
+	// Swappable at runtime via set_terrain_data() (e.g. a procedural map later).
+	Ref<Image> loaded = Image::load_from_file("res://material/textures/folio/terrain_data.png");
+	if (loaded.is_valid() && loaded->get_width() > 1) {
+		data_texture = ImageTexture::create_from_image(loaded);
+		return;
+	}
+
+	// Fallback: neutral biome — all grass (G=1), height 0 (B=0).
 	Ref<Image> img = Image::create_empty(1, 1, false, Image::FORMAT_RGBA8);
 	img->set_pixel(0, 0, Color(0, 1, 0, 1));
 	data_texture = ImageTexture::create_from_image(img);
