@@ -17,3 +17,9 @@
 [node name="Fog" type="FolioFog" parent="."]
 
 [node name="Reveal" type="FolioReveal" parent="."]
+
+[node name="Water" type="FolioWater" parent="."]
+
+[node name="Noises" type="FolioNoises" parent="."]
+
+[node name="Terrain" type="FolioTerrain" parent="."]

@@ -1,0 +1,9 @@
+extends Node3D
+
+# Boots the folio globals, renders the shader-test sphere for a few frames,
+# saves a screenshot, then quits. Verification-only (docs).
+func _ready() -> void:
+	await get_tree().create_timer(0.6).timeout
+	var img := get_viewport().get_texture().get_image()
+	img.save_png("res://../docs/folio_port/shader_preview.png")
+	get_tree().quit()

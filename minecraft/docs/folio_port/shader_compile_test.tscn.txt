@@ -1,0 +1,22 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Shader" path="res://material/shaders/folio/mesh_default.gdshader" id="1"]
+[ext_resource type="Script" path="res://scene/folio/shader_preview.gd" id="2"]
+
+[sub_resource type="ShaderMaterial" id="mat"]
+shader = ExtResource("1")
+
+[sub_resource type="SphereMesh" id="mesh"]
+
+[node name="Root" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Game" type="FolioGame" parent="."]
+
+[node name="Sphere" type="MeshInstance3D" parent="."]
+mesh = SubResource("mesh")
+surface_material_override/0 = SubResource("mat")
+
+[node name="Cam" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
+current = true

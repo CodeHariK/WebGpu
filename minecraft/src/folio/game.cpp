@@ -2,9 +2,12 @@
 
 #include "fog.h"
 #include "lighting.h"
+#include "noises.h"
 #include "reveal.h"
+#include "terrain.h"
 #include "ticker.h"
 #include "view/view.h"
+#include "water.h"
 
 #include <godot_cpp/core/class_db.hpp>
 
@@ -73,6 +76,21 @@ void FolioGame::_boot() {
 	reveal = memnew(FolioReveal);
 	reveal->set_name("Reveal");
 	add_child(reveal);
+
+	// Water (water-line uniforms).
+	water = memnew(FolioWater);
+	water->set_name("Water");
+	add_child(water);
+
+	// Noises (shared voronoi/perlin/hash textures as global samplers).
+	noises = memnew(FolioNoises);
+	noises->set_name("Noises");
+	add_child(noises);
+
+	// Terrain (ground-bounce gradient + data map as global samplers).
+	terrain = memnew(FolioTerrain);
+	terrain->set_name("Terrain");
+	add_child(terrain);
 
 	// Keep FolioView's quality in sync when it changes.
 	if (quality->get_events().is_valid()) {

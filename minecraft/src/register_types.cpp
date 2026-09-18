@@ -11,13 +11,16 @@
 #include "folio/fog.h"
 #include "folio/game.h"
 #include "folio/lighting.h"
+#include "folio/noises.h"
 #include "folio/quality.h"
 #include "folio/resources.h"
 #include "folio/reveal.h"
+#include "folio/terrain.h"
 #include "folio/ticker.h"
 #include "folio/time.h"
 #include "folio/view/view.h"
 #include "folio/viewport.h"
+#include "folio/water.h"
 
 #include "cui/cui.h"
 #include "cui/cui_line_graph.h"
@@ -115,6 +118,9 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FolioLighting);
 	GDREGISTER_CLASS(FolioFog);
 	GDREGISTER_CLASS(FolioReveal);
+	GDREGISTER_CLASS(FolioWater);
+	GDREGISTER_CLASS(FolioNoises);
+	GDREGISTER_CLASS(FolioTerrain);
 	GDREGISTER_CLASS(FolioGame);
 
 	GDREGISTER_CLASS(MinecraftNode);

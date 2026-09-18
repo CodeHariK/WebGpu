@@ -1,0 +1,38 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Shader" path="res://material/shaders/folio/mesh_default.gdshader" id="1"]
+[ext_resource type="Script" path="res://scene/folio/material_preview.gd" id="2"]
+
+[sub_resource type="ShaderMaterial" id="mat"]
+shader = ExtResource("1")
+
+[sub_resource type="PlaneMesh" id="ground"]
+size = Vector2(20, 20)
+
+[sub_resource type="SphereMesh" id="sphere"]
+
+[sub_resource type="BoxMesh" id="box"]
+size = Vector3(1.4, 1.4, 1.4)
+
+[node name="Root" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Game" type="FolioGame" parent="."]
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("ground")
+surface_material_override/0 = SubResource("mat")
+
+[node name="Sphere" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 1.1, 0)
+mesh = SubResource("sphere")
+surface_material_override/0 = SubResource("mat")
+
+[node name="Box" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 0.7, 0.5)
+mesh = SubResource("box")
+surface_material_override/0 = SubResource("mat")
+
+[node name="Cam" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.87, 0.5, 0, -0.5, 0.87, 0, 4.5, 7.5)
+current = true
