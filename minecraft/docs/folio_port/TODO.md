@@ -46,14 +46,14 @@ Analyze these together as ONE unit — they define the whole look.
 - [x] Shared uniform owners: `FolioLighting` ✅ · `FolioFog` ✅ · `FolioReveal` ✅ · `FolioWater` ✅ · `FolioNoises` ✅ · `FolioTerrain` ✅. **All Tier-1 uniform owners complete.**
 - [x] **Keystone:** base Godot spatial shader `material/shaders/folio/mesh_default.gdshader`
       reproduces the full pipeline against the global uniforms, incl. real cast (drop)
-      shadows via a `light()` pass ✅. Next: refactor into a `#include` so per-material
-      shaders (MeshGridMaterial, …) share it.
-- [ ] `MeshGridMaterial`.
+      shadows via a `light()` pass ✅. Refactored into a shared `#include` ✅.
+- [x] `MeshGridMaterial` ✅ (standalone unlit triplanar grid).
 
 ## Tier 2 — Render pipeline
-- [ ] `Rendering`: scene pass + bloom + cheapDOF composite, quality-switched.
+- [x] `FolioRendering`: native glow bloom + cheap-DOF tilt-shift, quality-switched ✅.
       Map to `WorldEnvironment` glow + custom DOF `CompositorEffect`/post shader.
-- [ ] `Overlay`, day/year `Cycles`, `Weather`, `Wind`.
+- [x] Day `Cycles` ✅ (`FolioCycle` interpolator + `FolioDayCycles` → Lighting/Fog/Reveal).
+- [ ] `Overlay`, `YearCycles` (deferred: consumers foliage/weather unported), `Weather`, `Wind`.
 
 ## Tier 3 — Car
 - [ ] `PhysicsVehicle` (Rapier raycast controller) vs existing `ArcadeVehicle` —
@@ -554,4 +554,97 @@ ground bounce. Screenshot `docs/folio_port/material_preview.png`.
 - Note the minor reorder: drop shadow is applied after fragment's fog/reveal (light()
   runs post-fragment). Visible only where fog is strong / during the reveal wipe;
   near-field steady-state matches folio.
-- Refactor the pipeline into a shared `#include` so `MeshGridMaterial` etc. reuse it.
+- Refactored into `material/shaders/folio/folio_material.gdshaderinc` ✅ — `mesh_default.gdshader`
+  is now ~26 lines over it (verified byte-identical render). New materials include it,
+  set the two varyings in their own `vertex()` (Godot forbids varying writes from a
+  helper), then call `folio_shade()` / `folio_light_shadow()`.
+
+## Tier 1/Materials · MeshGridMaterial  ✅ ported (standalone)
+
+**Source.** `folio-2025/sources/Game/Materials/MeshGridMaterial.js` — a `NodeMaterial`
+with `lights=false, normals=false`: a pure UNLIT triplanar grid (background colour +
+grid lines). NOT part of the lit MeshDefault pipeline, so it does **not** use the
+shared include.
+
+**Port.** `project/material/shaders/folio/mesh_grid.gdshader`, `shader_type spatial`,
+`render_mode unshaded, cull_back`. Faithful ports of `toMask` (dominant-axis triplanar
+select), `toTriplanarUv`, `toGrid` (cheap) and `toAntialiasedGrid` (Ben Golus method,
+folio default). Reference modes via `grid_reference` int (0 uv · 1 worldTriplanar ·
+2-4 worldX/Y/Z · 5 localTriplanar · 6-8 localX/Y/Z), `grid_scale` global multiplier,
+`grid_background`, and two configurable line sets (`line0_*`, `line1_*`, `line_count`)
+covering major/minor. `deriv_mask = clamp(1 - length(fwidth(mask)), 0, 1)`.
+
+**Verified (Mac, real Metal Forward+):** `make run_folio_grid` — antialiased ground grid,
+crisp minor + bold major lines, no moiré into the distance. Screenshot
+`docs/folio_port/grid_preview.png`; scene `project/scene/folio/grid_preview.tscn`.
+
+**Deferred:** folio supports an arbitrary array of lines; the port fixes it at 2 (extend
+with more `lineN_*` sets if a material needs them).
+
+## Tier 2 · FolioRendering  ✅ ported (post-processing)
+
+**Source.** `folio-2025/sources/Game/Rendering.js` (+ `Passes/cheapDOF.js`). folio's
+Rendering owns the WebGPU renderer AND the post chain; Godot owns the renderer, so
+this ports only the portable part — the composite, quality-switched:
+  level 0 (high): cheapDOF(scene) + bloom   -> DOF on, wider glow
+  level 1 (low):  scene           + bloom   -> DOF off, narrow glow
+
+**Port.** `src/folio/rendering.{h,cpp}`, `FolioRendering : Node`.
+- **Bloom** -> a `WorldEnvironment` with Godot's native additive glow (closest 1:1,
+  cheap): `glow_strength = 0.25`, `glow_hdr_bleed_threshold = 1.0` (folio values),
+  additive blend. Glow mip spread widened at high quality (levels 0-4) vs low (0-1)
+  to mirror folio's nMips 5 vs 2. NOTE glow levels are 0-indexed (0..6).
+- **cheapDOF** -> `project/material/shaders/folio/cheap_dof.gdshader`, a fullscreen
+  `canvas_item` `ColorRect` on a `CanvasLayer` (layer 100) reading the screen texture.
+  Fake tilt-shift: `strength = smoothstep(start,end,|SCREEN_UV.y-0.5|)`, hash-blur
+  (golden-angle disk, `repeats` taps) of radius `strength*amount`, `mix(screen,blur,
+  strength)`. folio defaults start 0.2 / end 0.5 / repeats 25 / amount 0.003. Toggled
+  visible only at level 0.
+- Registered; in `FolioGame::_boot()` (last), synced to `quality.level` and subscribed
+  to FolioQuality `change`. `get_rendering()` accessor. In `core.tscn`.
+
+**Verified (Mac, real Metal Forward+):** `make run_folio_post` — sharp central band,
+grid blurring toward top/bottom (tilt-shift), bright line shows a soft bloom halo.
+Screenshot `docs/folio_port/post_preview.png`; scene `project/scene/folio/post_preview.tscn`
+(`--nodof` sets quality low to A/B the DOF).
+
+**Deferred / next:**
+- **Fog background** — folio sets `scene.backgroundNode` to the radial fog colour; our
+  Environment still uses a flat clear colour. Add a sky/fullscreen-quad radial fill
+  (belongs with Fog + Rendering) so distances fade into fog colour, not grey.
+- Bloom is threshold-gated at 1.0 (folio value) — only HDR-bright (>1) pixels bloom;
+  tune threshold/strength once real content + day cycles land.
+- `Monitoring`/stats overlay (folio `#stats` hash) not ported (dev-only).
+
+## Tier 2 · Day Cycles  ✅ ported (FolioCycle + FolioDayCycles)
+
+**Source.** `folio-2025/sources/Game/Cycles/{Cycles,DayCycles}.js`.
+
+**FolioCycle** (`src/folio/cycles/cycle.{h,cpp}`, plain helper). Time-driven keyframe
+interpolator: named float + colour tracks share one list of `stops` (0..1). `update
+(elapsed)` computes `progress = fmod(elapsed/duration)` (or a forced value), finds the
+surrounding stops, smoothstep-interpolates every track. Seamless loop via folio's
+"fake steps" (append copy of first past 1.0, prepend copy of last below 0.0) in
+`finalize()`. Deferred vs folio: gsap override tweens + punctual/interval events.
+
+**FolioDayCycles** (`src/folio/cycles/day_cycles.{h,cpp}`, `Node`). Owns a FolioCycle
+with the four folio presets (day/dusk/night/dawn) over a 4-min loop; ticks at order 8
+(before Lighting 9, Fog/Reveal 10) and pushes into the existing day-cycle hooks:
+Lighting (`set_day_progress` → sun angle, `set_day_light_color/intensity`,
+`set_day_shadow_color`), Fog (`set_day_fog_colors`, `set_day_fog_ratios`), Reveal
+(`set_day_reveal_color/intensity`). Registered; in `FolioGame::_boot()` after Rendering;
+`get_day_cycles()` accessor (also bound the other subsystem getters for GDScript). In
+`core.tscn`.
+
+**Verified (Mac, real Metal Forward+):** `make run_folio_cycles` (live 4-min loop;
+`--phase=<0..1>` locks a phase). day = warm cream, dusk = pink/salmon, night = cool
+blue (brighter), dawn = warm orange, with the sun rotating through each. Screenshots
+`docs/folio_port/cycle_{day,dusk,night,dawn}.png`; scene
+`project/scene/folio/cycles_preview.tscn`.
+
+**Deferred / next:**
+- **YearCycles** — its consumers (foliage leaves/temperature/humidity/clouds/wind) and
+  Weather aren't ported yet; add when Tier-4 environment lands.
+- `electricField` / `temperature` day tracks + night/deepNight interval events (no
+  consumers yet).
+- Fog background still flat grey (radial fog colour as sky/quad) — pairs with this.

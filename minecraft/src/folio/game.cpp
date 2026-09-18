@@ -1,8 +1,10 @@
 #include "game.h"
 
+#include "cycles/day_cycles.h"
 #include "fog.h"
 #include "lighting.h"
 #include "noises.h"
+#include "rendering.h"
 #include "reveal.h"
 #include "terrain.h"
 #include "ticker.h"
@@ -92,6 +94,20 @@ void FolioGame::_boot() {
 	terrain->set_name("Terrain");
 	add_child(terrain);
 
+	// Rendering (post: native glow bloom + cheap-DOF tilt-shift, quality-switched).
+	rendering = memnew(FolioRendering);
+	rendering->set_name("Rendering");
+	add_child(rendering);
+	rendering->apply_quality(quality->get_level());
+	if (quality->get_events().is_valid()) {
+		quality->get_events()->on("change", callable_mp(rendering, &FolioRendering::apply_quality), 1);
+	}
+
+	// Day cycles (interpolate day/dusk/night/dawn -> lighting/fog/reveal).
+	day_cycles = memnew(FolioDayCycles);
+	day_cycles->set_name("DayCycles");
+	add_child(day_cycles);
+
 	// Keep FolioView's quality in sync when it changes.
 	if (quality->get_events().is_valid()) {
 		quality->get_events()->on("change", callable_mp(view, &FolioView::set_quality_level), 1);
@@ -109,6 +125,14 @@ void FolioGame::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_viewport_system"), &FolioGame::get_viewport_system);
 	ClassDB::bind_method(D_METHOD("get_view"), &FolioGame::get_view);
 	ClassDB::bind_method(D_METHOD("get_resources"), &FolioGame::get_resources);
+	ClassDB::bind_method(D_METHOD("get_lighting"), &FolioGame::get_lighting);
+	ClassDB::bind_method(D_METHOD("get_fog"), &FolioGame::get_fog);
+	ClassDB::bind_method(D_METHOD("get_reveal"), &FolioGame::get_reveal);
+	ClassDB::bind_method(D_METHOD("get_water"), &FolioGame::get_water);
+	ClassDB::bind_method(D_METHOD("get_noises"), &FolioGame::get_noises);
+	ClassDB::bind_method(D_METHOD("get_terrain"), &FolioGame::get_terrain);
+	ClassDB::bind_method(D_METHOD("get_rendering"), &FolioGame::get_rendering);
+	ClassDB::bind_method(D_METHOD("get_day_cycles"), &FolioGame::get_day_cycles);
 }
 
 } // namespace godot

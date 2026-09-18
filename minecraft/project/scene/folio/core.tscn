@@ -23,3 +23,7 @@
 [node name="Noises" type="FolioNoises" parent="."]
 
 [node name="Terrain" type="FolioTerrain" parent="."]
+
+[node name="Rendering" type="FolioRendering" parent="."]
+
+[node name="DayCycles" type="FolioDayCycles" parent="."]

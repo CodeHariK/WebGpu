@@ -94,3 +94,12 @@ run_folio_core:
 # Base material preview: casters on a ground plane using mesh_default.gdshader.
 run_folio_mat:
 	$(GODOT) --path project/ --scene scene/folio/material_preview.tscn
+# Grid material preview (mesh_grid.gdshader).
+run_folio_grid:
+	$(GODOT) --path project/ --scene scene/folio/grid_preview.tscn
+# Post-processing preview (glow + cheap-DOF over a receding grid).
+run_folio_post:
+	$(GODOT) --path project/ --scene scene/folio/post_preview.tscn
+# Day/night cycle preview (live 4-min loop; --phase=<0..1> to lock a phase).
+run_folio_cycles:
+	$(GODOT) --path project/ --scene scene/folio/cycles_preview.tscn
