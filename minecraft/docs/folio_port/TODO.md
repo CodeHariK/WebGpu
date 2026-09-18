@@ -43,7 +43,7 @@ WebGPU / TSL + Rapier) into this Godot 4 GDExtension project.
 Analyze these together as ONE unit — they define the whole look.
 - [ ] Catalog `MeshDefaultMaterial` output pipeline: light bounce → water tint →
       lambert light → core+drop shadow → fog → reveal discard.
-- [ ] Shared uniform owners: `Lighting`, `Fog`, `Reveal`, `Water`, `Noises`, `Terrain`.
+- [~] Shared uniform owners: `FolioLighting` ✅ · `FolioFog` ✅ · `FolioReveal` ✅ · Water · Noises · Terrain.
 - [ ] **Keystone:** build ONE Godot base spatial shader (an include) reproducing
       that pipeline against matching global uniforms; every material `#include`s it.
 - [ ] `MeshGridMaterial`.
@@ -358,3 +358,76 @@ Deferred within Tier 0: View's `map_controls`/`free_mode`/`speed_lines` (need
 Inputs/CameraControls/TSL). Next milestone: **Tier 1 — shared visual state**
 (Lighting/Fog/Reveal/Water/Terrain + MeshDefaultMaterial → base .gdshader), the
 1:1 fidelity keystone.
+
+
+## Tier 1 · Lighting  (folio `Game/Ligthing.js` [sic])  ✅ ported (FolioLighting)
+
+**Purpose.** The sun: a `DirectionalLight3D` that aims from a spherical (phi,theta)
+direction at the View's optimal-area centre, PLUS the shared lighting uniforms the
+base material reads. Ticks at priority 9.
+
+**Global shader uniforms published (consumed by the base .gdshader next):**
+`folio_light_direction/_color/_intensity`, `folio_light_bounce_edge_low/_high/
+_distance/_multiplier`, `folio_bounce_color`, `folio_core_shadow_edge_low/_high`,
+`folio_shadow_color`.
+
+**Port.** `src/folio/lighting.{h,cpp}`, `FolioLighting : Node3D`. Direction via
+`FolioViewSpherical::from_spherical` (reused). Light follows `FolioGame->get_view()`
+optimal radius/position; energy/bias/blur/max-distance approximate folio's manual
+ortho shadow box (Godot fits directional shadows to the camera). Registered; added
+to `FolioGame::_boot()` (after View) and `core.tscn`.
+
+**Deps deferred (hooks):** DayCycles drives direction sway + color/intensity/shadow
+color — `use_day_cycles` defaults false; `set_day_progress/ _light_color/
+_light_intensity/ _shadow_color` wire it later.
+
+**Verified (Mac, real Metal):** boots clean, sun dir (0.39,0.81,0.44), DirectionalLight3D
+present. Smoke: docs/folio_port/light_smoke_test.gd.
+
+**⚠️ Gotcha (fixed here + retro-fixed FolioTicker):** `RenderingServer.
+global_shader_parameter_get` / `_get_list` are EDITOR-ONLY and spam "should never be
+used outside the editor" at runtime. Register globals with `global_shader_parameter_add`
+guarded by a process-static bool (never check existence via `_get`); only `_set` after.
+Can't read globals back at runtime — verify them via a shader that consumes them.
+
+
+## Tier 1 · Fog  (folio `Game/Fog.js`)  ✅ ported (FolioFog)
+
+**Purpose.** Distance fog + sky-gradient uniforms the base material reads
+(`fog.strength.mix(outputColor, fog.color)`). Ticks at 10.
+
+**Published globals:** `folio_fog_color_a/_b` (COLOR), `folio_fog_radial_center`
+(VEC2), `folio_fog_radial_start/_end` (FLOAT), `folio_fog_near/_far` (FLOAT).
+Shader computes: `mix = smoothstep(start,end, len(SCREEN_UV-center))`,
+`fogColor = mix(colorA,colorB,mix)`, `fogFactor = smoothstep(near,far, viewDist)`.
+
+**Port.** `src/folio/fog.{h,cpp}`, `FolioFog : Node`. near/far pulled from
+`FolioView` optimal near/far distances (added getters), compressed by day-cycle
+ratios (hooks `set_day_fog_colors`/`set_day_fog_ratios`). Registered; in
+`FolioGame::_boot()` (after Lighting) and `core.tscn`.
+
+**Deferred:** rendering the actual background gradient (WorldEnvironment/sky/full-
+screen pass) — uniforms here are enough to build it at the scene/render tier.
+
+**Verified (Mac, real Metal):** game.tscn boots clean, no errors.
+
+## Tier 1 · Reveal  (folio `Game/Reveal.js`)  ✅ ported (FolioReveal)
+
+**Purpose.** Intro reveal-ring: world draws only within a growing radius; bright
+ring at the edge; beyond = discarded. Base material reads:
+`d=len(pos.xz-center); if d>distance discard; mix=step(distance-thickness,d);
+out=mix(out, color*intensity, mix)`. Ticks at 10.
+
+**Published globals:** `folio_reveal_center` (VEC2), `folio_reveal_distance/
+_thickness/_intensity` (FLOAT), `folio_reveal_color` (COLOR).
+
+**Port.** `src/folio/reveal.{h,cpp}`, `FolioReveal : Node`. Default distance =
+99999 (fully revealed, so nothing hidden without an intro). Hooks: `set_center`,
+`set_distance` (intro/tween animates 0→3.5→30→99999), `set_thickness`,
+`set_intensity_multiplier`, `set_day_reveal_color/intensity`. Registered; in
+`FolioGame::_boot()` (after Fog) and `core.tscn`.
+
+**Deferred:** the intro step machine (world.step/grid/inputs/audio/zoom) — port
+with the intro/UI tier; the uniforms + set_distance are enough to drive it.
+
+**Verified (Mac, real Metal):** game.tscn boots clean.

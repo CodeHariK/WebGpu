@@ -1,5 +1,8 @@
 #include "game.h"
 
+#include "fog.h"
+#include "lighting.h"
+#include "reveal.h"
 #include "ticker.h"
 #include "view/view.h"
 
@@ -55,6 +58,21 @@ void FolioGame::_boot() {
 	view->set_name("FolioView");
 	view->set_quality_level(quality->get_level());
 	add_child(view);
+
+	// Lighting (the sun + shared lighting uniforms; reads View optimal area).
+	lighting = memnew(FolioLighting);
+	lighting->set_name("Lighting");
+	add_child(lighting);
+
+	// Fog (distance fog + sky-gradient uniforms; reads View near/far).
+	fog = memnew(FolioFog);
+	fog->set_name("Fog");
+	add_child(fog);
+
+	// Reveal (intro reveal-ring uniforms; fully revealed by default).
+	reveal = memnew(FolioReveal);
+	reveal->set_name("Reveal");
+	add_child(reveal);
 
 	// Keep FolioView's quality in sync when it changes.
 	if (quality->get_events().is_valid()) {

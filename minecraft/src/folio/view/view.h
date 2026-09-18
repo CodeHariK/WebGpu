@@ -101,6 +101,9 @@ public:
 	Camera3D *get_camera() const { return camera; }
 	Vector3 get_position() const { return position; }
 	double get_optimal_radius() const { return optimal_area.radius; }
+	Vector3 get_optimal_area_position() const { return optimal_area.position; }
+	double get_optimal_near_distance() const { return optimal_area.near_distance; }
+	double get_optimal_far_distance() const { return optimal_area.far_distance; }
 };
 
 } // namespace godot

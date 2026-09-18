@@ -11,3 +11,9 @@
 [node name="Quality" type="FolioQuality" parent="."]
 
 [node name="View" type="FolioView" parent="."]
+
+[node name="Lighting" type="FolioLighting" parent="."]
+
+[node name="Fog" type="FolioFog" parent="."]
+
+[node name="Reveal" type="FolioReveal" parent="."]
