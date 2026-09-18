@@ -4,11 +4,11 @@
 
 namespace godot {
 
-Events::Events() {}
+FolioEvents::FolioEvents() {}
 
-Events::~Events() {}
+FolioEvents::~FolioEvents() {}
 
-void Events::on(
+void FolioEvents::on(
 		const StringName &p_name,
 		const Callable &p_callable,
 		int p_order
@@ -34,7 +34,7 @@ void Events::on(
 	list.insert(index, sub);
 }
 
-void Events::off(
+void FolioEvents::off(
 		const StringName &p_name,
 		const Callable &p_callable
 ) {
@@ -61,7 +61,7 @@ void Events::off(
 	}
 }
 
-void Events::trigger(
+void FolioEvents::trigger(
 		const StringName &p_name,
 		const Array &p_arguments
 ) {
@@ -85,16 +85,16 @@ void Events::trigger(
 	}
 }
 
-bool Events::has(const StringName &p_name) const { return callbacks.has(p_name); }
+bool FolioEvents::has(const StringName &p_name) const { return callbacks.has(p_name); }
 
-void Events::clear() { callbacks.clear(); }
+void FolioEvents::clear() { callbacks.clear(); }
 
-void Events::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("on", "name", "callable", "order"), &Events::on, DEFVAL(1));
-	ClassDB::bind_method(D_METHOD("off", "name", "callable"), &Events::off, DEFVAL(Callable()));
-	ClassDB::bind_method(D_METHOD("trigger", "name", "arguments"), &Events::trigger, DEFVAL(Array()));
-	ClassDB::bind_method(D_METHOD("has", "name"), &Events::has);
-	ClassDB::bind_method(D_METHOD("clear"), &Events::clear);
+void FolioEvents::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("on", "name", "callable", "order"), &FolioEvents::on, DEFVAL(1));
+	ClassDB::bind_method(D_METHOD("off", "name", "callable"), &FolioEvents::off, DEFVAL(Callable()));
+	ClassDB::bind_method(D_METHOD("trigger", "name", "arguments"), &FolioEvents::trigger, DEFVAL(Array()));
+	ClassDB::bind_method(D_METHOD("has", "name"), &FolioEvents::has);
+	ClassDB::bind_method(D_METHOD("clear"), &FolioEvents::clear);
 }
 
 } // namespace godot

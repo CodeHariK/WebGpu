@@ -7,7 +7,7 @@
 namespace godot {
 
 /**
- * Folio port — View / OptimalArea  (from `Game/View.js` setOptimalArea + update)
+ * Folio port — FolioView / OptimalArea  (from `Game/View.js` setOptimalArea + update)
  * ------------------------------------------------------------------------------
  * Single responsibility: figure out the patch of ground the default camera can
  * see. It projects the camera's frustum corners onto the floor plane (y = 0) and
@@ -24,7 +24,7 @@ namespace godot {
  *   - `recompute(...)` — heavy: run on init and on throttled resize.
  *   - `apply_focus(...)` — cheap per-frame: slide the base geometry to the focus.
  */
-class ViewOptimalArea {
+class FolioViewOptimalArea {
 public:
 	bool needs_update = true;
 

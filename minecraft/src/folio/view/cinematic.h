@@ -7,7 +7,7 @@
 namespace godot {
 
 /**
- * Folio port — View / Cinematic  (from `Game/View.js` setCinematic + update)
+ * Folio port — FolioView / Cinematic  (from `Game/View.js` setCinematic + update)
  * --------------------------------------------------------------------------
  * Single responsibility: scripted camera moves. `start()` locks a target pose
  * (position + look target); as `progress` animates 0→1 the default camera blends
@@ -21,7 +21,7 @@ namespace godot {
  *   - `dof_target` is the depth-of-field strength the render layer should ease to
  *     (0 while cinematic, 1.5 otherwise). Read it from the DOF pass when ported.
  */
-class ViewCinematic {
+class FolioViewCinematic {
 public:
 	bool active = false;
 	double progress = 0.0; // 0 = live camera, 1 = full cinematic pose (external tween)
@@ -39,7 +39,7 @@ public:
 	void end();
 
 	// Blend the given default-camera transform toward the cinematic pose by
-	// `progress`. No-op while progress <= 0. Call each frame from View::update.
+	// `progress`. No-op while progress <= 0. Call each frame from FolioView::update.
 	void apply(Transform3D &r_default_cam) const;
 
 	void set_progress(double p_progress) { progress = p_progress; }

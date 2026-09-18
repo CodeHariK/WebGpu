@@ -1,5 +1,10 @@
 # Folio-2025 → Godot C++ Port — TODO
 
+> **Naming convention:** every ported class is prefixed `Folio` (FolioGame, FolioTicker,
+> FolioEvents, FolioTime, FolioViewport, FolioQuality, FolioResources, FolioView + its
+> FolioView* helpers). Apply this to ALL future ported classes. Filenames stay lowercase;
+> `Game/*.js` citations in comments are the JS source and keep their original names.
+
 Porting the reusable game tech from Bruno Simon's folio-2025 (Three.js r183
 WebGPU / TSL + Rapier) into this Godot 4 GDExtension project.
 
@@ -23,7 +28,8 @@ WebGPU / TSL + Rapier) into this Godot 4 GDExtension project.
       (inputs low → physics pre(2) → physics post(5) → gameplay → render(998)).
       Do NOT rely on Godot per-node `_process` order; build an explicit sorted bus.
 - [x] `Events` — ordered pub/sub bus (RefCounted; `src/folio/events.{h,cpp}`).
-- [ ] `Game` boot orchestrator — construct subsystems in folio's init() order;
+- [x] `Game` → `FolioGame` — composition root; builds+wires the spine (`src/folio/game.{h,cpp}`).
+- [ ] (later) `Game` boot orchestrator — construct subsystems in folio's init() order;
       staged resource load (intro batch → full batch → physics).
 - [x] `Time` → `FolioTime` (time scale + bullet-time; `src/folio/time.{h,cpp}`).
 - [x] `Viewport` → `FolioViewport` (size + DPR + resize events; `src/folio/viewport.{h,cpp}`).
@@ -319,3 +325,36 @@ Note: `Math_PI` isn't in godot-cpp — use `Math::PI` (the constexpr the project
 **`view` (done).** `View : Node3D` (registered). Owns one Camera3D (fov 25, near .1, far 200), mode, ratio_overflow; composes the 6 helpers; ticks at priority 7. update() sequence: focus → zoom → spherical → position → look+roll (roll post-multiplied about local Z, scaled delta) → cinematic blend → camera transform → optimal area. Standalone: aspect from Godot viewport, resize on window size_changed; hooks `set_target_position` (player), `set_quality_level`, `cinematic_*`, `roll_kick`. In `core.tscn`.
 **Verified (runtime, Mac):** core.tscn (Ticker+Time+Viewport+Quality+View) runs clean; camera solves to pos≈(13.9,13.4,13.9) (radius≈24 looking at origin), optimal_radius≈20.4. Smoke test at docs/folio_port/view_smoke_test.gd.
 **Deferred (need Inputs/CameraControls/TSL):** `map_controls`, `free_mode`, `speed_lines` — plus wiring `View` through FolioViewport/Quality/Inputs once the Game orchestrator lands. TIER 0 CORE COMPLETE except these.
+
+
+## Tier 0 · Game  (folio `Game/Game.js`, orchestrator — Tier-0 slice)  ✅ ported
+
+**Purpose.** Boot orchestrator + singleton. folio's Game is the composition root
+(`Game.getInstance()` + `this.ticker`/`this.view`/... that all systems reach
+through). This slice constructs and wires the ported spine and owns them.
+
+**Port.** `src/folio/game.{h,cpp}`, class **`FolioGame` : Node** (renamed — project
+already has `GameManager`). `_boot()` creates children in code (folio style) in
+dependency order: **Quality → Ticker → Time → Viewport → Resources → View**, feeds
+View its quality level before add_child, and subscribes View to Quality `change`.
+Accessors `get_ticker/get_time/get_viewport_system/get_quality/get_view/get_resources`
++ `get_singleton()`. Registered. Scene: `project/scene/folio/game.tscn` (one node).
+
+**Verified (runtime, Mac):** game.tscn boots clean (10 frames headless);
+`get_ticker()`/`get_view()` return live objects; View solves pos≈(13.9,13.4,13.9),
+optimal_radius≈20.4 — same as manual core.tscn, so the full boot+wiring path works.
+Smoke test: docs/folio_port/game_smoke_test.gd.
+
+**TODO in `_boot()` (as tiers land, folio order):** staged resource load + loading
+screen, Rendering/post, Lighting/Fog/Reveal/Water, Materials, Physics, World,
+Player, Inputs, Audio, UI.
+
+---
+
+## ✅ TIER 0 COMPLETE (spine)
+Ticker, Events, Time, Viewport, Quality, ResourcesLoader, View (split), Game — all
+built, registered, format-clean, and runtime-verified. `game.tscn` = one-node boot.
+Deferred within Tier 0: View's `map_controls`/`free_mode`/`speed_lines` (need
+Inputs/CameraControls/TSL). Next milestone: **Tier 1 — shared visual state**
+(Lighting/Fog/Reveal/Water/Terrain + MeshDefaultMaterial → base .gdshader), the
+1:1 fidelity keystone.

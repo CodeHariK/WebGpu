@@ -7,20 +7,20 @@
 namespace godot {
 
 /**
- * Folio port — View / Spherical  (from `Game/View.js` setSpherical + update)
+ * Folio port — FolioView / Spherical  (from `Game/View.js` setSpherical + update)
  * --------------------------------------------------------------------------
  * Single responsibility: the orbit geometry of the default camera. Holds the
  * orbit angles (phi = down-tilt, theta = yaw) and the zoom-driven radius, and
  * produces the world-space `offset` added to the focus point to place the camera.
  *
- * Plain helper (no GDCLASS): it is an internal part of `View`, mirroring folio's
+ * Plain helper (no GDCLASS): it is an internal part of `FolioView`, mirroring folio's
  * `this.spherical = {}` sub-object. No scene-tree involvement.
  *
  * Radius: lerps between `radius_min` and a ratio-corrected `radius_max` by the
  * (inverted) smoothed zoom ratio. `non_ideal_ratio_offset` pushes the camera back
  * on non-ideal aspect ratios so framing stays consistent.
  */
-class ViewSpherical {
+class FolioViewSpherical {
 public:
 	// Orbit angles (radians). phi from +Y down, theta yaw around Y.
 	double phi = 0.0;

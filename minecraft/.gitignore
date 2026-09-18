@@ -66,3 +66,6 @@ godot-cpp
 .cache/*
 
 **/terrain3d/terrain3d*.res
+
+# FUSE mount leftovers (orphaned when an open file is replaced over the bridge)
+.fuse_hidden*

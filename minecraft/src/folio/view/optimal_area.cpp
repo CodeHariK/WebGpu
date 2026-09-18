@@ -23,7 +23,7 @@ static bool intersect_floor(
 	return true;
 }
 
-void ViewOptimalArea::recompute(
+void FolioViewOptimalArea::recompute(
 		double p_phi,
 		double p_theta,
 		double p_radius_max,
@@ -31,7 +31,7 @@ void ViewOptimalArea::recompute(
 		double p_aspect
 ) {
 	// Virtual camera at the orbit's max radius, looking at the origin.
-	const Vector3 pos = ViewSpherical::from_spherical(p_radius_max, p_phi, p_theta);
+	const Vector3 pos = FolioViewSpherical::from_spherical(p_radius_max, p_phi, p_theta);
 	const Transform3D cam = Transform3D(Basis(), pos).looking_at(Vector3(0, 0, 0), Vector3(0, 1, 0));
 	const Basis b = cam.basis;
 
@@ -80,7 +80,7 @@ void ViewOptimalArea::recompute(
 	needs_update = false;
 }
 
-void ViewOptimalArea::apply_focus(
+void FolioViewOptimalArea::apply_focus(
 		const Vector3 &p_smoothed_focus,
 		const Vector3 &p_raw_focus
 ) {

@@ -10,14 +10,14 @@
 namespace godot {
 
 /**
- * Folio port — Events
+ * Folio port — FolioEvents
  * -------------------
  * Faithful port of folio-2025 `Game/Events.js`: a tiny named pub/sub bus.
  *
- * Every folio "system" owns an `Events` instance and other systems subscribe to
+ * Every folio "system" owns an `FolioEvents` instance and other systems subscribe to
  * it by name — `stop`/`start`, `change`, `enter`/`leave`, `muteChange`, etc. It
  * is the generic message bus that sits underneath (and is separate from) the
- * per-frame `Ticker` tick.
+ * per-frame `FolioTicker` tick.
  *
  * Semantics (identical to the JS original):
  *   - `on(name, callable, order)` registers a listener. Listeners fire in
@@ -27,16 +27,16 @@ namespace godot {
  *   - `off(name, callable)` removes one listener; `off(name)` removes them all.
  *
  * Why RefCounted (not a Node): folio's systems are plain objects, not scene
- * nodes, and each simply holds an `Events`. A RefCounted mirrors that — create
- * with `Events.new()`, store it, no scene tree involvement. (This is the same
- * ordered-dispatch idea the `Ticker` uses internally; `Ticker` keeps its own
+ * nodes, and each simply holds an `FolioEvents`. A RefCounted mirrors that — create
+ * with `FolioEvents.new()`, store it, no scene tree involvement. (This is the same
+ * ordered-dispatch idea the `FolioTicker` uses internally; `FolioTicker` keeps its own
  * copy to stay dependency-free, but any other system uses this class.)
  *
  * Dispatch safety: `trigger` iterates over a snapshot, so a listener may
  * `on`/`off` during the callback without invalidating the running dispatch.
  */
-class Events : public RefCounted {
-	GDCLASS(Events,
+class FolioEvents : public RefCounted {
+	GDCLASS(FolioEvents,
 			RefCounted)
 
 private:
@@ -52,8 +52,8 @@ protected:
 	static void _bind_methods();
 
 public:
-	Events();
-	~Events();
+	FolioEvents();
+	~FolioEvents();
 
 	void on(const StringName &p_name,
 			const Callable &p_callable,

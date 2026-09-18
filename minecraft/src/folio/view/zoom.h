@@ -4,7 +4,7 @@
 namespace godot {
 
 /**
- * Folio port — View / Zoom  (from `Game/View.js` setZoom + update)
+ * Folio port — FolioView / Zoom  (from `Game/View.js` setZoom + update)
  * ----------------------------------------------------------------
  * Single responsibility: the camera zoom ratio (0 = closest, 1 = farthest),
  * which drives the spherical radius. Combines a player-controlled `base_ratio`
@@ -17,7 +17,7 @@ namespace godot {
  * `set_toggle_active()` = gamepad 'zoomToggle', `add_base_ratio()` = pinch / map
  * drag. Until then they are simply callable no-op-safe setters.
  */
-class ViewZoom {
+class FolioViewZoom {
 public:
 	double base_ratio = 0.6; // player-set target
 	double ratio = 0.6; // base + speed term

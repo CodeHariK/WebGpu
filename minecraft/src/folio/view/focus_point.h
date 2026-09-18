@@ -6,7 +6,7 @@
 namespace godot {
 
 /**
- * Folio port — View / FocusPoint  (from `Game/View.js` setFocusPoint + update)
+ * Folio port — FolioView / FocusPoint  (from `Game/View.js` setFocusPoint + update)
  * ----------------------------------------------------------------------------
  * Single responsibility: the point on the ground the camera frames. It follows a
  * `tracked_position` (the player copies its position into it each frame), applies
@@ -23,7 +23,7 @@ namespace godot {
  *   - `pan()`                  — map drag / right stick nudges the point freely.
  *   - `set_position()/set_tracking()` — areas can force a framing (podium, etc.).
  */
-class ViewFocusPoint {
+class FolioViewFocusPoint {
 public:
 	Vector3 tracked_position; // where we want to be (player position)
 	Vector3 position; // eased-with-magnet point

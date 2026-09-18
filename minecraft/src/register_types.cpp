@@ -8,6 +8,7 @@
 #include "camera/camera.h"
 
 #include "folio/events.h"
+#include "folio/game.h"
 #include "folio/quality.h"
 #include "folio/resources.h"
 #include "folio/ticker.h"
@@ -101,13 +102,14 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 		return;
 	}
 	// Folio-2025 port
-	GDREGISTER_CLASS(Events);
-	GDREGISTER_CLASS(Ticker);
+	GDREGISTER_CLASS(FolioEvents);
+	GDREGISTER_CLASS(FolioTicker);
 	GDREGISTER_CLASS(FolioTime);
 	GDREGISTER_CLASS(FolioViewport);
-	GDREGISTER_CLASS(Quality);
+	GDREGISTER_CLASS(FolioQuality);
 	GDREGISTER_CLASS(FolioResources);
-	GDREGISTER_CLASS(View);
+	GDREGISTER_CLASS(FolioView);
+	GDREGISTER_CLASS(FolioGame);
 
 	GDREGISTER_CLASS(MinecraftNode);
 

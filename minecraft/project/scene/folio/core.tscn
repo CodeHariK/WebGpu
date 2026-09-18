@@ -2,12 +2,12 @@
 
 [node name="FolioCore" type="Node"]
 
-[node name="Ticker" type="Ticker" parent="."]
+[node name="Ticker" type="FolioTicker" parent="."]
 
 [node name="Time" type="FolioTime" parent="."]
 
 [node name="Viewport" type="FolioViewport" parent="."]
 
-[node name="Quality" type="Quality" parent="."]
+[node name="Quality" type="FolioQuality" parent="."]
 
-[node name="View" type="View" parent="."]
+[node name="View" type="FolioView" parent="."]

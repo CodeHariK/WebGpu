@@ -5,11 +5,11 @@
 
 namespace godot {
 
-Quality::Quality() {}
+FolioQuality::FolioQuality() {}
 
-Quality::~Quality() {}
+FolioQuality::~FolioQuality() {}
 
-void Quality::_ready() {
+void FolioQuality::_ready() {
 	events.instantiate();
 
 	// Mobile defaults to the low tier (folio: userAgent sniff -> level 1).
@@ -17,7 +17,7 @@ void Quality::_ready() {
 	level = is_mobile ? 1 : 0;
 }
 
-void Quality::change_level(int p_level) {
+void FolioQuality::change_level(int p_level) {
 	if (p_level == level) {
 		return;
 	}
@@ -30,10 +30,10 @@ void Quality::change_level(int p_level) {
 	}
 }
 
-void Quality::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("change_level", "level"), &Quality::change_level, DEFVAL(0));
-	ClassDB::bind_method(D_METHOD("get_level"), &Quality::get_level);
-	ClassDB::bind_method(D_METHOD("get_events"), &Quality::get_events);
+void FolioQuality::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("change_level", "level"), &FolioQuality::change_level, DEFVAL(0));
+	ClassDB::bind_method(D_METHOD("get_level"), &FolioQuality::get_level);
+	ClassDB::bind_method(D_METHOD("get_events"), &FolioQuality::get_events);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "level"), "change_level", "get_level");
 }
 
