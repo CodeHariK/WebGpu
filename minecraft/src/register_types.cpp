@@ -8,9 +8,12 @@
 #include "camera/camera.h"
 
 #include "folio/events.h"
+#include "folio/fog.h"
 #include "folio/game.h"
+#include "folio/lighting.h"
 #include "folio/quality.h"
 #include "folio/resources.h"
+#include "folio/reveal.h"
 #include "folio/ticker.h"
 #include "folio/time.h"
 #include "folio/view/view.h"
@@ -109,6 +112,9 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FolioQuality);
 	GDREGISTER_CLASS(FolioResources);
 	GDREGISTER_CLASS(FolioView);
+	GDREGISTER_CLASS(FolioLighting);
+	GDREGISTER_CLASS(FolioFog);
+	GDREGISTER_CLASS(FolioReveal);
 	GDREGISTER_CLASS(FolioGame);
 
 	GDREGISTER_CLASS(MinecraftNode);

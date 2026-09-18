@@ -12,6 +12,9 @@ namespace godot {
 
 class FolioTicker;
 class FolioView;
+class FolioLighting;
+class FolioFog;
+class FolioReveal;
 
 /**
  * Folio port — Game  (registered as `FolioGame`)
@@ -46,6 +49,9 @@ private:
 	FolioTime *time = nullptr;
 	FolioViewport *viewport = nullptr;
 	FolioView *view = nullptr;
+	FolioLighting *lighting = nullptr;
+	FolioFog *fog = nullptr;
+	FolioReveal *reveal = nullptr;
 	Ref<FolioResources> resources;
 
 	static FolioGame *singleton;
@@ -66,6 +72,9 @@ public:
 	FolioTime *get_time() const { return time; }
 	FolioViewport *get_viewport_system() const { return viewport; }
 	FolioView *get_view() const { return view; }
+	FolioLighting *get_lighting() const { return lighting; }
+	FolioFog *get_fog() const { return fog; }
+	FolioReveal *get_reveal() const { return reveal; }
 	Ref<FolioResources> get_resources() const { return resources; }
 
 	static FolioGame *get_singleton() { return singleton; }

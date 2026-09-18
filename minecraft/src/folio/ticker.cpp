@@ -36,12 +36,16 @@ void FolioTicker::_register_shader_globals() {
 		return;
 	}
 
-	// Add each global only if it does not already exist (idempotent).
-	const char *names[] = { SG_ELAPSED, SG_DELTA, SG_ELAPSED_SCALED, SG_DELTA_SCALED };
-	for (const char *name : names) {
-		if (rs->global_shader_parameter_get(name).get_type() == Variant::NIL) {
+	// Register the globals once per process. NOTE: never use
+	// global_shader_parameter_get here — it is EDITOR-ONLY and errors at runtime.
+	// Adding is runtime-safe; a static guard avoids re-adding across instances.
+	static bool s_added = false;
+	if (!s_added) {
+		const char *names[] = { SG_ELAPSED, SG_DELTA, SG_ELAPSED_SCALED, SG_DELTA_SCALED };
+		for (const char *name : names) {
 			rs->global_shader_parameter_add(name, RenderingServer::GLOBAL_VAR_TYPE_FLOAT, 0.0f);
 		}
+		s_added = true;
 	}
 	globals_registered = true;
 }

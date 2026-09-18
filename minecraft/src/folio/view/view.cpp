@@ -145,6 +145,9 @@ void FolioView::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("roll_kick", "strength"), &FolioView::roll_kick);
 	ClassDB::bind_method(D_METHOD("get_position"), &FolioView::get_position);
 	ClassDB::bind_method(D_METHOD("get_optimal_radius"), &FolioView::get_optimal_radius);
+	ClassDB::bind_method(D_METHOD("get_optimal_area_position"), &FolioView::get_optimal_area_position);
+	ClassDB::bind_method(D_METHOD("get_optimal_near_distance"), &FolioView::get_optimal_near_distance);
+	ClassDB::bind_method(D_METHOD("get_optimal_far_distance"), &FolioView::get_optimal_far_distance);
 
 	BIND_ENUM_CONSTANT(MODE_DEFAULT);
 	BIND_ENUM_CONSTANT(MODE_FREE);
