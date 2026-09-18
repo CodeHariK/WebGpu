@@ -7,12 +7,14 @@
 
 #include "camera/camera.h"
 
+#include "folio/cycles/day_cycles.h"
 #include "folio/events.h"
 #include "folio/fog.h"
 #include "folio/game.h"
 #include "folio/lighting.h"
 #include "folio/noises.h"
 #include "folio/quality.h"
+#include "folio/rendering.h"
 #include "folio/resources.h"
 #include "folio/reveal.h"
 #include "folio/terrain.h"
@@ -121,6 +123,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FolioWater);
 	GDREGISTER_CLASS(FolioNoises);
 	GDREGISTER_CLASS(FolioTerrain);
+	GDREGISTER_CLASS(FolioRendering);
+	GDREGISTER_CLASS(FolioDayCycles);
 	GDREGISTER_CLASS(FolioGame);
 
 	GDREGISTER_CLASS(MinecraftNode);

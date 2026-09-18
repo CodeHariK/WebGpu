@@ -18,6 +18,8 @@ class FolioReveal;
 class FolioWater;
 class FolioNoises;
 class FolioTerrain;
+class FolioRendering;
+class FolioDayCycles;
 
 /**
  * Folio port — Game  (registered as `FolioGame`)
@@ -58,6 +60,8 @@ private:
 	FolioWater *water = nullptr;
 	FolioNoises *noises = nullptr;
 	FolioTerrain *terrain = nullptr;
+	FolioRendering *rendering = nullptr;
+	FolioDayCycles *day_cycles = nullptr;
 	Ref<FolioResources> resources;
 
 	static FolioGame *singleton;
@@ -84,6 +88,8 @@ public:
 	FolioWater *get_water() const { return water; }
 	FolioNoises *get_noises() const { return noises; }
 	FolioTerrain *get_terrain() const { return terrain; }
+	FolioRendering *get_rendering() const { return rendering; }
+	FolioDayCycles *get_day_cycles() const { return day_cycles; }
 	Ref<FolioResources> get_resources() const { return resources; }
 
 	static FolioGame *get_singleton() { return singleton; }

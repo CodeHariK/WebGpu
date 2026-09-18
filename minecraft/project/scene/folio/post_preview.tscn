@@ -1,0 +1,38 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Shader" path="res://material/shaders/folio/mesh_grid.gdshader" id="1"]
+[ext_resource type="Script" path="res://scene/folio/post_preview.gd" id="2"]
+
+[sub_resource type="ShaderMaterial" id="mat"]
+shader = ExtResource("1")
+shader_parameter/grid_reference = 3
+shader_parameter/antialiased = true
+shader_parameter/grid_background = Color(0.06, 0.09, 0.15, 1)
+shader_parameter/grid_scale = 1.0
+shader_parameter/line_count = 2
+shader_parameter/line0_color = Color(0.4, 0.5, 0.65, 1)
+shader_parameter/line0_line_scale = 1.0
+shader_parameter/line0_thickness = 0.04
+shader_parameter/line0_cross = 1.0
+shader_parameter/line0_offset = Vector2(0, 0)
+shader_parameter/line1_color = Color(1.6, 1.7, 2.0, 1)
+shader_parameter/line1_line_scale = 10.0
+shader_parameter/line1_thickness = 0.02
+shader_parameter/line1_cross = 1.0
+shader_parameter/line1_offset = Vector2(0, 0)
+
+[sub_resource type="PlaneMesh" id="ground"]
+size = Vector2(200, 200)
+
+[node name="Root" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Game" type="FolioGame" parent="."]
+
+[node name="Ground" type="MeshInstance3D" parent="."]
+mesh = SubResource("ground")
+surface_material_override/0 = SubResource("mat")
+
+[node name="Cam" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.28, 0.96, 0, -0.96, 0.28, 0, 3, 8)
+current = true

@@ -1,3 +1,4 @@
+* https://lettier.github.io/3d-game-shaders-for-beginners/index.html
 * https://fortnite.gg/map-evolution
 * https://i.insider.com/5b47c2667708e960932a27d6?width=1148&format=jpeg&auto=avif&quality=85%2C80
 * Volcano/Crafter with particle effects/Floating rocks on lave/water
