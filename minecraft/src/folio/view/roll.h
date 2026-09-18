@@ -4,14 +4,14 @@
 namespace godot {
 
 /**
- * Folio port — View / Roll  (from `Game/View.js` setRoll + update)
+ * Folio port — FolioView / Roll  (from `Game/View.js` setRoll + update)
  * ----------------------------------------------------------------
  * Single responsibility: a 1-D damped spring that produces a small camera z-roll
  * (bank). `value` is the current roll angle added to the default camera's
  * rotation.z each frame; `kick()` injects a random-direction impulse (used on
  * events like landings / hits) that springs back to zero.
  *
- * Plain helper (no GDCLASS): an internal part of `View` (folio's `this.roll = {}`).
+ * Plain helper (no GDCLASS): an internal part of `FolioView` (folio's `this.roll = {}`).
  *
  * Integration (folio, uses the SCALED delta so it slows in bullet time):
  *   velocity = -value * pull_strength * dt_scaled
@@ -19,7 +19,7 @@ namespace godot {
  *   value   += speed * dt_scaled
  *   speed   *= 1 - damping * dt_scaled
  */
-class ViewRoll {
+class FolioViewRoll {
 public:
 	double value = 0.0; // current roll angle (radians), applied to camera.rotation.z
 	double velocity = 0.0;

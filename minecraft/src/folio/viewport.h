@@ -16,7 +16,7 @@ namespace godot {
  * device pixel ratio, and broadcasts resize events that render/layout systems
  * react to.
  *
- * Events (on the owned `Events` bus, names kept 1:1 with folio):
+ * FolioEvents (on the owned `FolioEvents` bus, names kept 1:1 with folio):
  *   - "change"        fired immediately on every resize (Rendering resizes on it).
  *   - "throttleChange" fired once, 400 ms after resizing stops (heavy rebuilds,
  *                      e.g. Floor regenerates its plane on it).
@@ -45,7 +45,7 @@ private:
 	double throttle_duration = 0.4; // seconds (folio: 400 ms)
 	Timer *throttle_timer = nullptr;
 
-	Ref<Events> events;
+	Ref<FolioEvents> events;
 
 	void _on_resize();
 	void _on_throttle_timeout();
@@ -68,7 +68,7 @@ public:
 	double get_pixel_ratio() const { return pixel_ratio; }
 	Vector2i get_size() const { return Vector2i(width, height); }
 
-	Ref<Events> get_events() const { return events; }
+	Ref<FolioEvents> get_events() const { return events; }
 };
 
 } // namespace godot

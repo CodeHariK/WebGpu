@@ -6,7 +6,7 @@
 
 namespace godot {
 
-class Ticker;
+class FolioTicker;
 
 /**
  * Folio port — Time  (registered as `FolioTime`)
@@ -14,7 +14,7 @@ class Ticker;
  * Faithful port of folio-2025 `Game/Time.js`: the time-scale controller and
  * bullet-time (slow-motion) driver.
  *
- * It does NOT keep its own clock — it OWNS the `Ticker`'s `scale`. Normally the
+ * It does NOT keep its own clock — it OWNS the `FolioTicker`'s `scale`. Normally the
  * scale sits at `default_scale` (2 -> world runs at 2x wall-clock). Calling
  * `activate_bullet_time()` eases the scale down toward `bullet_scale` (0.5) and
  * back out, animated by a 0..1 `progress` moved each tick.
@@ -57,7 +57,7 @@ public:
 
 	void _ready() override;
 
-	// Advance one frame: eases progress and pushes the resulting scale to Ticker.
+	// Advance one frame: eases progress and pushes the resulting scale to FolioTicker.
 	void update();
 
 	// Trigger / extend bullet time for `duration` seconds.

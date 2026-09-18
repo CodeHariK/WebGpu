@@ -8,7 +8,7 @@
 namespace godot {
 
 /**
- * Folio port — Quality  (folio `Game/Quality.js`)
+ * Folio port — FolioQuality  (folio `Game/Quality.js`)
  * -----------------------------------------------
  * The global quality tier. `level` is 0 = highest, 1 = low; folio defaults it to
  * 1 on mobile and 0 elsewhere. Many systems branch on `quality.level` (bloom mip
@@ -17,23 +17,23 @@ namespace godot {
  *
  * Web -> Godot: `navigator.userAgent` mobile sniff -> `OS::has_feature("mobile")`.
  *
- * Emits on the owned `Events` bus: `change` with args `[ level ]`.
- * (Name kept as `Quality` — no core Godot class collides.)
+ * Emits on the owned `FolioEvents` bus: `change` with args `[ level ]`.
+ * (Name kept as `FolioQuality` — no core Godot class collides.)
  */
-class Quality : public Node {
-	GDCLASS(Quality,
+class FolioQuality : public Node {
+	GDCLASS(FolioQuality,
 			Node)
 
 private:
 	int level = 0; // 0 = highest quality, 1 = low
-	Ref<Events> events;
+	Ref<FolioEvents> events;
 
 protected:
 	static void _bind_methods();
 
 public:
-	Quality();
-	~Quality();
+	FolioQuality();
+	~FolioQuality();
 
 	void _ready() override;
 
@@ -42,7 +42,7 @@ public:
 
 	int get_level() const { return level; }
 
-	Ref<Events> get_events() const { return events; }
+	Ref<FolioEvents> get_events() const { return events; }
 };
 
 } // namespace godot

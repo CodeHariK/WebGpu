@@ -8,7 +8,7 @@
 namespace godot {
 
 /**
- * Folio port — Ticker
+ * Folio port — FolioTicker
  * -------------------
  * Faithful port of folio-2025 `Game/Ticker.js`: the single per-frame clock and
  * heartbeat that the whole engine hangs off.
@@ -28,17 +28,17 @@ namespace godot {
  *     so every ported shader shares one clock.
  */
 /**
- * Why a Ticker at all, when Godot already ticks?
+ * Why a FolioTicker at all, when Godot already ticks?
  * ----------------------------------------------
  * Godot calls `_process` (render/idle step) and `_physics_process` (fixed step)
- * automatically, so why funnel everything through one Ticker?
+ * automatically, so why funnel everything through one FolioTicker?
  *
  *  1. Deterministic CROSS-SYSTEM ordering. Godot only orders nodes coarsely
  *     (tree order + `process_priority`), per node, and idle vs physics live in
  *     separate callbacks. Folio needs one global, fine-grained pipeline where
  *     input -> physics-pre(2) -> physics step -> physics-post(5) -> gameplay(10)
  *     -> render(998) -> cleanup(2000) run in an exact, documented sequence,
- *     independent of where nodes sit in the scene tree. The Ticker owns that.
+ *     independent of where nodes sit in the scene tree. The FolioTicker owns that.
  *  2. One TIME AUTHORITY. A single place computes the clamped delta, the 2x world
  *     `scale`, the raw AND scaled timelines, the rolling delta average, and
  *     publishes the shader-time globals. Every system and shader reads the same
@@ -48,7 +48,7 @@ namespace godot {
  *  3. Non-Node systems can participate. Most folio "systems" are plain objects,
  *     not scene nodes; they subscribe to the tick without being in the tree, so
  *     the frame loop is decoupled from scene structure. Ported systems can be
- *     RefCounted/Object and register with the Ticker instead of each being a
+ *     RefCounted/Object and register with the FolioTicker instead of each being a
  *     Node with its own `_process`.
  *  4. Frame-count scheduling. `wait(frames)` defers work by an exact number of
  *     frames (e.g. 1-3 frames after physics settles). Godot timers are seconds,
@@ -58,12 +58,12 @@ namespace godot {
  *     it is what makes the port faithful.
  *
  * Trade-off: you *could* instead lean on Godot built-ins (`process_priority`,
- * `_physics_process`). The Ticker is chosen for faithful porting AND the genuine
+ * `_physics_process`). The FolioTicker is chosen for faithful porting AND the genuine
  * wins above. If deterministic physics becomes a priority, drive `update()` from
  * `_physics_process` rather than `_process`.
  */
-class Ticker : public Node {
-	GDCLASS(Ticker,
+class FolioTicker : public Node {
+	GDCLASS(FolioTicker,
 			Node)
 
 public:
@@ -106,14 +106,14 @@ private:
 	void _register_shader_globals();
 	void _update_shader_globals();
 
-	static Ticker *singleton;
+	static FolioTicker *singleton;
 
 protected:
 	static void _bind_methods();
 
 public:
-	Ticker();
-	~Ticker();
+	FolioTicker();
+	~FolioTicker();
 
 	void _ready() override;
 	void _process(double p_delta) override;
@@ -143,11 +143,11 @@ public:
 	void set_scale(double p_scale) { scale = p_scale; }
 	double get_scale() const { return scale; }
 
-	static Ticker *get_singleton() { return singleton; }
+	static FolioTicker *get_singleton() { return singleton; }
 };
 
 } // namespace godot
 
-VARIANT_ENUM_CAST(godot::Ticker::Priority);
+VARIANT_ENUM_CAST(godot::FolioTicker::Priority);
 
 #endif // FOLIO_TICKER_H

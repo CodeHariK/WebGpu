@@ -4,7 +4,7 @@
 
 namespace godot {
 
-Vector3 ViewSpherical::from_spherical(
+Vector3 FolioViewSpherical::from_spherical(
 		double p_radius,
 		double p_phi,
 		double p_theta
@@ -16,7 +16,7 @@ Vector3 ViewSpherical::from_spherical(
 	);
 }
 
-void ViewSpherical::init(
+void FolioViewSpherical::init(
 		int p_quality_level,
 		double p_initial_smoothed_ratio
 ) {
@@ -27,11 +27,11 @@ void ViewSpherical::init(
 	offset = from_spherical(radius_current, phi, theta);
 }
 
-double ViewSpherical::get_radius_max(double p_ratio_overflow) const {
+double FolioViewSpherical::get_radius_max(double p_ratio_overflow) const {
 	return radius_max + p_ratio_overflow * non_ideal_ratio_offset;
 }
 
-void ViewSpherical::update(
+void FolioViewSpherical::update(
 		double p_smoothed_ratio,
 		double p_ratio_overflow
 ) {

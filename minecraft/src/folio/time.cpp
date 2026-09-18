@@ -16,12 +16,12 @@ void FolioTime::_ready() {
 	_scale = default_scale;
 
 	// Apply the starting scale immediately (folio sets ticker.scale in ctor).
-	Ticker *ticker = Ticker::get_singleton();
+	FolioTicker *ticker = FolioTicker::get_singleton();
 	if (ticker) {
 		ticker->set_scale(_scale);
 	}
 
-	// Subscribe to the tick at priority 0 (before physics). If the Ticker is not
+	// Subscribe to the tick at priority 0 (before physics). If the FolioTicker is not
 	// ready yet (sibling order), retry once next frame.
 	if (!_subscribe()) {
 		call_deferred("_subscribe");
@@ -32,7 +32,7 @@ bool FolioTime::_subscribe() {
 	if (subscribed) {
 		return true;
 	}
-	Ticker *ticker = Ticker::get_singleton();
+	FolioTicker *ticker = FolioTicker::get_singleton();
 	if (!ticker) {
 		return false;
 	}
@@ -42,7 +42,7 @@ bool FolioTime::_subscribe() {
 }
 
 void FolioTime::update() {
-	Ticker *ticker = Ticker::get_singleton();
+	FolioTicker *ticker = FolioTicker::get_singleton();
 	if (!ticker) {
 		return;
 	}
@@ -72,7 +72,7 @@ void FolioTime::activate_bullet_time(double p_duration) {
 
 void FolioTime::set_scale(double p_scale) {
 	_scale = p_scale;
-	Ticker *ticker = Ticker::get_singleton();
+	FolioTicker *ticker = FolioTicker::get_singleton();
 	if (ticker) {
 		ticker->set_scale(_scale);
 	}

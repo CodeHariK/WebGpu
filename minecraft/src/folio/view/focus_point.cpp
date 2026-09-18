@@ -4,18 +4,18 @@
 
 namespace godot {
 
-void ViewFocusPoint::init(const Vector3 &p_initial) {
+void FolioViewFocusPoint::init(const Vector3 &p_initial) {
 	tracked_position = Vector3(p_initial.x, 0.0, p_initial.z);
 	position = tracked_position;
 	smoothed_position = tracked_position;
 }
 
-void ViewFocusPoint::set_tracked_position(const Vector3 &p_pos) {
+void FolioViewFocusPoint::set_tracked_position(const Vector3 &p_pos) {
 	tracked_position.x = p_pos.x;
 	tracked_position.z = p_pos.z;
 }
 
-void ViewFocusPoint::pan(
+void FolioViewFocusPoint::pan(
 		double p_dx,
 		double p_dz
 ) {
@@ -24,7 +24,7 @@ void ViewFocusPoint::pan(
 	position.z += p_dz;
 }
 
-double ViewFocusPoint::update(double p_delta) {
+double FolioViewFocusPoint::update(double p_delta) {
 	// Snap to the tracked point while following.
 	if (is_tracking) {
 		position.x = tracked_position.x;

@@ -10,16 +10,16 @@
 
 namespace godot {
 
-View::View() {}
+FolioView::FolioView() {}
 
-View::~View() {}
+FolioView::~FolioView() {}
 
-double View::_aspect() const {
+double FolioView::_aspect() const {
 	const Vector2 size = get_viewport()->get_visible_rect().size;
 	return (size.y > 0.0) ? ((double)size.x / (double)size.y) : ideal_ratio;
 }
 
-void View::_ready() {
+void FolioView::_ready() {
 	// Active camera child (folio: 25deg vertical fov, near 0.1, far 200).
 	camera = memnew(Camera3D);
 	camera->set_fov((float)fov_degrees);
@@ -42,10 +42,10 @@ void View::_ready() {
 	// React to window resizes (stands in for FolioViewport's change events).
 	Window *window = get_window();
 	if (window) {
-		window->connect("size_changed", callable_mp(this, &View::_on_window_resized));
+		window->connect("size_changed", callable_mp(this, &FolioView::_on_window_resized));
 	}
 
-	// Subscribe to the tick at priority 7 (folio's View update order).
+	// Subscribe to the tick at priority 7 (folio's FolioView update order).
 	if (!_subscribe()) {
 		call_deferred("_subscribe");
 	}
@@ -53,23 +53,23 @@ void View::_ready() {
 	update();
 }
 
-bool View::_subscribe() {
+bool FolioView::_subscribe() {
 	if (subscribed) {
 		return true;
 	}
-	Ticker *ticker = Ticker::get_singleton();
+	FolioTicker *ticker = FolioTicker::get_singleton();
 	if (!ticker) {
 		return false;
 	}
-	ticker->connect_tick(callable_mp(this, &View::update), 7);
+	ticker->connect_tick(callable_mp(this, &FolioView::update), 7);
 	subscribed = true;
 	return true;
 }
 
-void View::_on_window_resized() { resize(); }
+void FolioView::_on_window_resized() { resize(); }
 
-void View::update() {
-	Ticker *ticker = Ticker::get_singleton();
+void FolioView::update() {
+	FolioTicker *ticker = FolioTicker::get_singleton();
 	const double delta = ticker ? ticker->get_delta() : 1.0 / 60.0;
 	const double delta_scaled = ticker ? ticker->get_delta_scaled() : delta;
 
@@ -113,38 +113,38 @@ void View::update() {
 	optimal_area.apply_focus(focus_point.get_smoothed_position(), focus_point.get_position());
 }
 
-void View::resize() {
+void FolioView::resize() {
 	ratio_overflow = MAX(1.0, ideal_ratio / _aspect()) - 1.0;
 	optimal_area.needs_update = true; // reframe next update (folio: throttleResize)
 }
 
-void View::set_target_position(const Vector3 &p_pos) { focus_point.set_tracked_position(p_pos); }
+void FolioView::set_target_position(const Vector3 &p_pos) { focus_point.set_tracked_position(p_pos); }
 
-void View::cinematic_start(
+void FolioView::cinematic_start(
 		const Vector3 &p_pos,
 		const Vector3 &p_tgt
 ) {
 	cinematic.start(p_pos, p_tgt, ratio_overflow);
 }
 
-void View::cinematic_end() { cinematic.end(); }
+void FolioView::cinematic_end() { cinematic.end(); }
 
-void View::set_cinematic_progress(double p_progress) { cinematic.set_progress(p_progress); }
+void FolioView::set_cinematic_progress(double p_progress) { cinematic.set_progress(p_progress); }
 
-void View::roll_kick(double p_strength) { roll.kick(p_strength); }
+void FolioView::roll_kick(double p_strength) { roll.kick(p_strength); }
 
-void View::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("update"), &View::update);
-	ClassDB::bind_method(D_METHOD("resize"), &View::resize);
-	ClassDB::bind_method(D_METHOD("_subscribe"), &View::_subscribe);
-	ClassDB::bind_method(D_METHOD("set_target_position", "pos"), &View::set_target_position);
-	ClassDB::bind_method(D_METHOD("set_quality_level", "level"), &View::set_quality_level);
-	ClassDB::bind_method(D_METHOD("cinematic_start", "pos", "target"), &View::cinematic_start);
-	ClassDB::bind_method(D_METHOD("cinematic_end"), &View::cinematic_end);
-	ClassDB::bind_method(D_METHOD("set_cinematic_progress", "progress"), &View::set_cinematic_progress);
-	ClassDB::bind_method(D_METHOD("roll_kick", "strength"), &View::roll_kick);
-	ClassDB::bind_method(D_METHOD("get_position"), &View::get_position);
-	ClassDB::bind_method(D_METHOD("get_optimal_radius"), &View::get_optimal_radius);
+void FolioView::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("update"), &FolioView::update);
+	ClassDB::bind_method(D_METHOD("resize"), &FolioView::resize);
+	ClassDB::bind_method(D_METHOD("_subscribe"), &FolioView::_subscribe);
+	ClassDB::bind_method(D_METHOD("set_target_position", "pos"), &FolioView::set_target_position);
+	ClassDB::bind_method(D_METHOD("set_quality_level", "level"), &FolioView::set_quality_level);
+	ClassDB::bind_method(D_METHOD("cinematic_start", "pos", "target"), &FolioView::cinematic_start);
+	ClassDB::bind_method(D_METHOD("cinematic_end"), &FolioView::cinematic_end);
+	ClassDB::bind_method(D_METHOD("set_cinematic_progress", "progress"), &FolioView::set_cinematic_progress);
+	ClassDB::bind_method(D_METHOD("roll_kick", "strength"), &FolioView::roll_kick);
+	ClassDB::bind_method(D_METHOD("get_position"), &FolioView::get_position);
+	ClassDB::bind_method(D_METHOD("get_optimal_radius"), &FolioView::get_optimal_radius);
 
 	BIND_ENUM_CONSTANT(MODE_DEFAULT);
 	BIND_ENUM_CONSTANT(MODE_FREE);

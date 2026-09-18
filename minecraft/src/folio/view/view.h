@@ -14,7 +14,7 @@
 namespace godot {
 
 /**
- * Folio port — View  (from `Game/View.js`, orchestrator only)
+ * Folio port — FolioView  (from `Game/View.js`, orchestrator only)
  * -----------------------------------------------------------
  * The camera rig. Owns the active Camera3D and the `mode`, composes the six
  * helper parts (spherical / roll / zoom / focus_point / optimal_area / cinematic)
@@ -24,14 +24,14 @@ namespace godot {
  * The registered node of the split — the helpers are plain sub-objects it owns
  * (mirrors folio's `this.spherical = {}` etc.).
  *
- * Standalone for now (no Game/Inputs/Quality): aspect comes from Godot's own
+ * Standalone for now (no Game/Inputs/FolioQuality): aspect comes from Godot's own
  * viewport; player-follow and quality are public hooks:
  *   - `set_target_position()` — the vehicle/player calls this each frame.
- *   - `set_quality_level()`   — feed from Quality when Game wires it up.
+ *   - `set_quality_level()`   — feed from FolioQuality when Game wires it up.
  * Deferred (need un-ported deps): free-fly mode, map controls, speed lines.
  */
-class View : public Node3D {
-	GDCLASS(View,
+class FolioView : public Node3D {
+	GDCLASS(FolioView,
 			Node3D)
 
 public:
@@ -55,12 +55,12 @@ private:
 	Camera3D *camera = nullptr;
 
 	// Composed parts.
-	ViewSpherical spherical;
-	ViewRoll roll;
-	ViewZoom zoom;
-	ViewFocusPoint focus_point;
-	ViewOptimalArea optimal_area;
-	ViewCinematic cinematic;
+	FolioViewSpherical spherical;
+	FolioViewRoll roll;
+	FolioViewZoom zoom;
+	FolioViewFocusPoint focus_point;
+	FolioViewOptimalArea optimal_area;
+	FolioViewCinematic cinematic;
 
 	bool subscribed = false;
 	bool _subscribe();
@@ -72,12 +72,12 @@ protected:
 	static void _bind_methods();
 
 public:
-	View();
-	~View();
+	FolioView();
+	~FolioView();
 
 	void _ready() override;
 
-	// Per-frame camera solve (subscribed to Ticker at priority 7).
+	// Per-frame camera solve (subscribed to FolioTicker at priority 7).
 	void update();
 
 	// Aspect-driven recompute; heavier reframe deferred to next frame.
@@ -105,6 +105,6 @@ public:
 
 } // namespace godot
 
-VARIANT_ENUM_CAST(godot::View::Mode);
+VARIANT_ENUM_CAST(godot::FolioView::Mode);
 
 #endif // FOLIO_VIEW_VIEW_H

@@ -12,25 +12,25 @@ static const char *SG_DELTA = "folio_delta";
 static const char *SG_ELAPSED_SCALED = "folio_elapsed_scaled";
 static const char *SG_DELTA_SCALED = "folio_delta_scaled";
 
-Ticker *Ticker::singleton = nullptr;
+FolioTicker *FolioTicker::singleton = nullptr;
 
-Ticker::Ticker() { last_deltas.reserve(delta_average_count); }
+FolioTicker::FolioTicker() { last_deltas.reserve(delta_average_count); }
 
-Ticker::~Ticker() {
+FolioTicker::~FolioTicker() {
 	if (singleton == this) {
 		singleton = nullptr;
 	}
 }
 
-void Ticker::_ready() {
+void FolioTicker::_ready() {
 	singleton = this;
 	_register_shader_globals();
 	set_process(true);
 }
 
-void Ticker::_process(double p_delta) { update(p_delta); }
+void FolioTicker::_process(double p_delta) { update(p_delta); }
 
-void Ticker::_register_shader_globals() {
+void FolioTicker::_register_shader_globals() {
 	RenderingServer *rs = RenderingServer::get_singleton();
 	if (!rs) {
 		return;
@@ -46,7 +46,7 @@ void Ticker::_register_shader_globals() {
 	globals_registered = true;
 }
 
-void Ticker::_update_shader_globals() {
+void FolioTicker::_update_shader_globals() {
 	if (!globals_registered) {
 		return;
 	}
@@ -60,7 +60,7 @@ void Ticker::_update_shader_globals() {
 	rs->global_shader_parameter_set(SG_DELTA_SCALED, (float)delta_scaled);
 }
 
-void Ticker::update(double p_frame_delta) {
+void FolioTicker::update(double p_frame_delta) {
 	// Clamp the step to avoid a spiral of death after a stall (folio: maxDelta).
 	delta = MIN(p_frame_delta, max_delta);
 	elapsed += p_frame_delta; // elapsed tracks real wall time, like folio
@@ -107,7 +107,7 @@ void Ticker::update(double p_frame_delta) {
 	}
 }
 
-void Ticker::connect_tick(
+void FolioTicker::connect_tick(
 		const Callable &p_callable,
 		int p_order
 ) {
@@ -126,7 +126,7 @@ void Ticker::connect_tick(
 	tick_subscribers.insert(tick_subscribers.begin() + index, sub);
 }
 
-void Ticker::disconnect_tick(const Callable &p_callable) {
+void FolioTicker::disconnect_tick(const Callable &p_callable) {
 	for (int i = 0; i < (int)tick_subscribers.size(); i++) {
 		if (tick_subscribers[i].callable == p_callable) {
 			tick_subscribers.erase(tick_subscribers.begin() + i);
@@ -135,7 +135,7 @@ void Ticker::disconnect_tick(const Callable &p_callable) {
 	}
 }
 
-void Ticker::wait(
+void FolioTicker::wait(
 		int p_frames,
 		const Callable &p_callable
 ) {
@@ -145,22 +145,22 @@ void Ticker::wait(
 	waits.push_back(w);
 }
 
-void Ticker::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("update", "frame_delta"), &Ticker::update);
+void FolioTicker::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("update", "frame_delta"), &FolioTicker::update);
 	ClassDB::bind_method(
-			D_METHOD("connect_tick", "callable", "order"), &Ticker::connect_tick, DEFVAL(PRIORITY_DEFAULT)
+			D_METHOD("connect_tick", "callable", "order"), &FolioTicker::connect_tick, DEFVAL(PRIORITY_DEFAULT)
 	);
-	ClassDB::bind_method(D_METHOD("disconnect_tick", "callable"), &Ticker::disconnect_tick);
-	ClassDB::bind_method(D_METHOD("wait", "frames", "callable"), &Ticker::wait);
+	ClassDB::bind_method(D_METHOD("disconnect_tick", "callable"), &FolioTicker::disconnect_tick);
+	ClassDB::bind_method(D_METHOD("wait", "frames", "callable"), &FolioTicker::wait);
 
-	ClassDB::bind_method(D_METHOD("get_elapsed"), &Ticker::get_elapsed);
-	ClassDB::bind_method(D_METHOD("get_delta"), &Ticker::get_delta);
-	ClassDB::bind_method(D_METHOD("get_delta_scaled"), &Ticker::get_delta_scaled);
-	ClassDB::bind_method(D_METHOD("get_elapsed_scaled"), &Ticker::get_elapsed_scaled);
-	ClassDB::bind_method(D_METHOD("get_delta_average"), &Ticker::get_delta_average);
+	ClassDB::bind_method(D_METHOD("get_elapsed"), &FolioTicker::get_elapsed);
+	ClassDB::bind_method(D_METHOD("get_delta"), &FolioTicker::get_delta);
+	ClassDB::bind_method(D_METHOD("get_delta_scaled"), &FolioTicker::get_delta_scaled);
+	ClassDB::bind_method(D_METHOD("get_elapsed_scaled"), &FolioTicker::get_elapsed_scaled);
+	ClassDB::bind_method(D_METHOD("get_delta_average"), &FolioTicker::get_delta_average);
 
-	ClassDB::bind_method(D_METHOD("set_scale", "scale"), &Ticker::set_scale);
-	ClassDB::bind_method(D_METHOD("get_scale"), &Ticker::get_scale);
+	ClassDB::bind_method(D_METHOD("set_scale", "scale"), &FolioTicker::set_scale);
+	ClassDB::bind_method(D_METHOD("get_scale"), &FolioTicker::get_scale);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "scale"), "set_scale", "get_scale");
 
 	BIND_ENUM_CONSTANT(PRIORITY_DEFAULT);

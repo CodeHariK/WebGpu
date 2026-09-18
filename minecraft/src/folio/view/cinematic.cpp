@@ -6,7 +6,7 @@
 
 namespace godot {
 
-void ViewCinematic::start(
+void FolioViewCinematic::start(
 		const Vector3 &p_pos,
 		const Vector3 &p_tgt,
 		double p_ratio_overflow
@@ -25,13 +25,13 @@ void ViewCinematic::start(
 	dof_target = 0.0;
 }
 
-void ViewCinematic::end() {
+void FolioViewCinematic::end() {
 	active = false;
 	// Tween hooks (external): progress -> 0 over ~1s, DOF strength -> 1.5.
 	dof_target = 1.5;
 }
 
-void ViewCinematic::apply(Transform3D &r_default_cam) const {
+void FolioViewCinematic::apply(Transform3D &r_default_cam) const {
 	if (progress <= 0.0) {
 		return;
 	}
