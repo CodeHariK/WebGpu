@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/canvas_layer.hpp>
 #include <godot_cpp/classes/color_rect.hpp>
 #include <godot_cpp/classes/environment.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/classes/world_environment.hpp>
@@ -52,9 +53,12 @@ private:
 	CanvasLayer *dof_layer = nullptr;
 	ColorRect *dof_rect = nullptr;
 	Ref<ShaderMaterial> dof_material;
+	MeshInstance3D *background = nullptr;
+	Ref<ShaderMaterial> background_material;
 
 	void _build_environment();
 	void _build_dof();
+	void _build_background();
 
 protected:
 	static void _bind_methods();

@@ -103,3 +103,6 @@ run_folio_post:
 # Day/night cycle preview (live 4-min loop; --phase=<0..1> to lock a phase).
 run_folio_cycles:
 	$(GODOT) --path project/ --scene scene/folio/cycles_preview.tscn
+# Floor / island preview (terrain data map -> displaced folio floor).
+run_folio_floor:
+	$(GODOT) --path project/ --scene scene/folio/floor_preview.tscn
