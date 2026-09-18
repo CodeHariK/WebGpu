@@ -41,11 +41,13 @@ WebGPU / TSL + Rapier) into this Godot 4 GDExtension project.
 
 ## Tier 1 — Shared visual state  ★ HIGHEST FIDELITY RISK
 Analyze these together as ONE unit — they define the whole look.
-- [ ] Catalog `MeshDefaultMaterial` output pipeline: light bounce → water tint →
+- [x] Catalog `MeshDefaultMaterial` output pipeline: light bounce → water tint →
       lambert light → core+drop shadow → fog → reveal discard.
-- [~] Shared uniform owners: `FolioLighting` ✅ · `FolioFog` ✅ · `FolioReveal` ✅ · Water · Noises · Terrain.
-- [ ] **Keystone:** build ONE Godot base spatial shader (an include) reproducing
-      that pipeline against matching global uniforms; every material `#include`s it.
+- [x] Shared uniform owners: `FolioLighting` ✅ · `FolioFog` ✅ · `FolioReveal` ✅ · `FolioWater` ✅ · `FolioNoises` ✅ · `FolioTerrain` ✅. **All Tier-1 uniform owners complete.**
+- [x] **Keystone:** base Godot spatial shader `material/shaders/folio/mesh_default.gdshader`
+      reproduces the full pipeline against the global uniforms, incl. real cast (drop)
+      shadows via a `light()` pass ✅. Next: refactor into a `#include` so per-material
+      shaders (MeshGridMaterial, …) share it.
 - [ ] `MeshGridMaterial`.
 
 ## Tier 2 — Render pipeline
@@ -431,3 +433,125 @@ _thickness/_intensity` (FLOAT), `folio_reveal_color` (COLOR).
 with the intro/UI tier; the uniforms + set_distance are enough to drive it.
 
 **Verified (Mac, real Metal):** game.tscn boots clean.
+
+## Tier 1 · Water  (folio `Game/Water.js`)  ✅ ported (FolioWater)
+
+**Purpose.** Water-line params. Base material whitens geometry near the surface:
+`abs(pos.y - surface_elevation) > surface_thickness` keeps color, else white (foam).
+
+**Published globals (static, no tick):** `folio_water_surface_elevation`,
+`folio_water_surface_thickness` (FLOAT). `depth_elevation` (-1.5) is NOT a shader
+uniform — it's the deep-water level for the water-surface mesh (later); getter only.
+
+**Port.** `src/folio/water.{h,cpp}`, `FolioWater : Node`. Set once in _ready;
+setters re-push. Defaults: elevation -0.3, thickness 0.013. Registered; in
+`FolioGame::_boot()` (after Reveal) and `core.tscn`. Builds + boots clean.
+
+## Tier 1 · Noises  (folio `Game/Noises.js`)  ✅ ported (FolioNoises)
+
+**Purpose.** Shared tileable noise textures every material samples: voronoi (RGB =
+minDist/edgeDist/cellHash), perlin (R, remapped), hash (R). Folio bakes them via
+TSL into 128² render targets at boot.
+
+**Port.** `src/folio/noises.{h,cpp}`, `FolioNoises : Node`. CPU-generated at _ready
+from faithful ports of hash/random/voronoi/perlin (pure periodic math → tiles
+seamlessly), stored as `FORMAT_RGBAF` `ImageTexture`s, published as GLOBAL
+`sampler2D` uniforms: `folio_noise_voronoi/_perlin/_hash`. Also `get_voronoi/
+_perlin/_hash` getters. One-time CPU cost, deterministic, no GPU render targets.
+Registered; in `FolioGame::_boot()` (after Water) and `core.tscn`.
+
+**Verified (Mac, real Metal):** voronoi 128x128 valid, perlin valid, res 128, no
+errors. Smoke: docs/folio_port/noise_smoke_test.gd.
+
+**Note:** shaders sample these with `global uniform sampler2D folio_noise_perlin :
+repeat_enable, filter_linear;` (wrapping/filtering is sampler-side).
+
+## Tier 1 · Terrain  (folio `Game/Terrain.js`)  ✅ ported (FolioTerrain)
+
+**Purpose.** Provides the ground-bounce tint every `MeshDefaultMaterial` mixes in.
+Folio samples a vertical gradient by terrain elevation, then blends toward a flat
+grass color by the terrain data map's green channel. This is what gives shadowed
+undersides their warm/cool ground colour instead of flat black.
+
+**Port.** `src/folio/terrain.{h,cpp}`, `FolioTerrain : Node`. Generates on CPU at
+_ready: a 1×16 sRGB gradient texture (stops orange `#ffa94e`@0.1, teal
+`#5bc2b9`@0.3, deep blue `#13375f`@0.9) and a 1×1 all-grass default data texture;
+grass color `#b8b62e`. Published as GLOBAL uniforms: `folio_terrain_gradient`
+(sampler2D), `folio_terrain_data` (sampler2D), `folio_terrain_grass_color` (COLOR),
+`folio_terrain_subdivision` (FLOAT 128), `folio_terrain_size` (FLOAT 192). Hooks:
+`set_terrain_data(Ref<Texture2D>)`, `set_grass_color(Color)`. Registered via
+`global_shader_parameter_add` behind a file-static guard (never `_get` — editor-only).
+Registered in register_types.cpp; in `FolioGame::_boot()` (after Noises) with
+`get_terrain()` accessor; in `core.tscn`.
+
+**Shader logic (for the base .gdshader):**
+`uv = worldXZ / subdivision / 1.5 + 0.5; data = texture(terrain_data, uv);`
+`base = texture(gradient, vec2(0, 1.0 - data.b));`
+`bounceColor = mix(base, grass_color, data.g)`.
+
+**Verified (Mac, real Metal Forward+, Godot 4.7.1):** `make debug` clean,
+`game.tscn --quit-after 120` rc=0, no editor-only errors.
+
+**Deferred:** real content data map (`terrain/terrain.png`) + wheel tracks.
+
+## Tier 1 · Base shader — MeshDefaultMaterial  ✅ keystone (pipeline + cast shadows)
+
+**Source.** `folio-2025/sources/Game/Materials/MeshDefaultMaterial.js` — extends
+`MeshLambertNodeMaterial` but overrides `outputNode` to compute the final stylized
+colour itself.
+
+**Port.** `project/material/shaders/folio/mesh_default.gdshader`, `shader_type
+spatial`, `render_mode unshaded, cull_back`. We mirror folio's custom output by
+computing colour by hand in `fragment()` and writing straight to `ALBEDO` (no engine
+lighting). Pipeline is 1:1 with folio's `outputNode`:
+
+1. base = `base_color` (per-material `_colorNode`, white default)
+2. **light bounce** — `smoothstep(bounceLow, bounceHigh, dot(N, down))` ×
+   `pow(max(0,(bounceDist - max(0,posY))/bounceDist), 2)` × `bounceMultiplier`,
+   mixing toward `FolioTerrain.colorNode(terrainNode(worldXZ))` (gradient by
+   elevation, blended to grass by coverage).
+3. **water** — within `surfaceThickness` of `surfaceElevation`, flatten to white.
+4. **light tint** — `× light_color × light_intensity`.
+5. **core shadow** — `smoothstep(coreHigh, coreLow, dot(N, lightDir))`.
+6. **combined shadow** — `mix(out, baseColor × shadowColor, max(core, drop))`.
+7. **fog** — radial screen-space colour `mix(colorA, colorB, smoothstep(start,end,
+   |SCREEN_UV - center|))`, strength `smoothstep(near, far, -VERTEX.z)` (folio
+   `rangeFogFactor`).
+8. **alpha-test discard** (`alpha < alpha_test`, folio 0.1).
+9. **reveal** — discard beyond `distance`; `step(distance - thickness, dist)` ring
+   tinted `reveal_color × intensity` at the growing frontier.
+
+**Per-material inputs (folio parameters):** `base_color`, `alpha`, `alpha_test`, and
+feature toggles `has_light_bounce / has_water / has_core_shadows / has_fog /
+has_reveal` (default true).
+
+**Consumes globals:** all Tier-1 owners — `folio_light_*`, `folio_shadow_color`,
+`folio_core_shadow_edge_*`, `folio_terrain_gradient/_data/_grass_color/_subdivision`,
+`folio_water_surface_*`, `folio_fog_*`, `folio_reveal_*`. World pos/normal via
+varyings from `MODEL_MATRIX`.
+
+**Verified (Mac, real Metal Forward+, Godot 4.7.1):** compiles clean against the live
+globals; `shader_preview` renders the test sphere with warm sun tint on top and green
+ground-bounce on the underside (light-bounce + light-tint confirmed). Screenshot:
+`docs/folio_port/shader_preview.png`; archived test scene/script:
+`docs/folio_port/shader_compile_test.tscn.txt`, `shader_preview.gd.txt`. Live preview
+scene: `project/scene/folio/material_preview.tscn` (`make run_folio_mat`).
+
+**Cast (drop) shadows — DONE.** The shader is now shaded (`render_mode cull_back,
+ambient_light_disabled`); fragment() writes folio's colour (incl. core shadow, fog,
+reveal) to `ALBEDO`, and a `light()` pass reads the sun's `ATTENUATION` to fold the
+cast shadow in as folio's `max(core, drop)` — reproduced exactly by mixing toward the
+shadow colour a second time with `t = (drop-core)/(1-core)`. Single sun + ambient
+disabled means final pixel == `DIFFUSE_LIGHT`. Toggle `has_drop_shadows`.
+
+**Verified (Mac, real Metal Forward+):** `make run_folio_mat` — sphere + box cast
+folio-tinted drop shadows on the ground; box sun-away face shows core shadow + green
+ground bounce. Screenshot `docs/folio_port/material_preview.png`.
+
+**Deferred / next:**
+- **Colour space** — global colours are used raw; verify sRGB→linear vs folio.
+- **Wheel tracks** — `terrainNode` track-carving multiply (game.tracks) still stubbed.
+- Note the minor reorder: drop shadow is applied after fragment's fog/reveal (light()
+  runs post-fragment). Visible only where fog is strong / during the reveal wipe;
+  near-field steady-state matches folio.
+- Refactor the pipeline into a shared `#include` so `MeshGridMaterial` etc. reuse it.

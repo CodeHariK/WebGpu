@@ -82,3 +82,15 @@ run_tennis:
 	$(GODOT) --path project/ --scene scene/mini_games/Tennis.tscn
 run_sn:
 	$(GODOT) --path project/ --scene scene/minecraft/scene_minecraft.tscn
+
+# ---- Folio-2025 port -------------------------------------------------------
+# FolioGame self-boots the whole spine (Ticker/Time/Viewport/Quality/Resources/
+# View/Lighting/Fog/Reveal/Water/Noises/Terrain) from a single node.
+run_folio:
+	$(GODOT) --path project/ --scene scene/folio/game.tscn
+# Manual composition scene (each Folio* node placed explicitly in the tree).
+run_folio_core:
+	$(GODOT) --path project/ --scene scene/folio/core.tscn
+# Base material preview: casters on a ground plane using mesh_default.gdshader.
+run_folio_mat:
+	$(GODOT) --path project/ --scene scene/folio/material_preview.tscn

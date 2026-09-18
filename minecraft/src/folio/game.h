@@ -15,6 +15,9 @@ class FolioView;
 class FolioLighting;
 class FolioFog;
 class FolioReveal;
+class FolioWater;
+class FolioNoises;
+class FolioTerrain;
 
 /**
  * Folio port — Game  (registered as `FolioGame`)
@@ -52,6 +55,9 @@ private:
 	FolioLighting *lighting = nullptr;
 	FolioFog *fog = nullptr;
 	FolioReveal *reveal = nullptr;
+	FolioWater *water = nullptr;
+	FolioNoises *noises = nullptr;
+	FolioTerrain *terrain = nullptr;
 	Ref<FolioResources> resources;
 
 	static FolioGame *singleton;
@@ -75,6 +81,9 @@ public:
 	FolioLighting *get_lighting() const { return lighting; }
 	FolioFog *get_fog() const { return fog; }
 	FolioReveal *get_reveal() const { return reveal; }
+	FolioWater *get_water() const { return water; }
+	FolioNoises *get_noises() const { return noises; }
+	FolioTerrain *get_terrain() const { return terrain; }
 	Ref<FolioResources> get_resources() const { return resources; }
 
 	static FolioGame *get_singleton() { return singleton; }
