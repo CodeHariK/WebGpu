@@ -10,6 +10,7 @@
 #include "ticker.h"
 #include "view/view.h"
 #include "water.h"
+#include "wind.h"
 
 #include <godot_cpp/core/class_db.hpp>
 
@@ -94,6 +95,11 @@ void FolioGame::_boot() {
 	terrain->set_name("Terrain");
 	add_child(terrain);
 
+	// Wind (shared sway field for foliage).
+	wind = memnew(FolioWind);
+	wind->set_name("Wind");
+	add_child(wind);
+
 	// Rendering (post: native glow bloom + cheap-DOF tilt-shift, quality-switched).
 	rendering = memnew(FolioRendering);
 	rendering->set_name("Rendering");
@@ -133,6 +139,7 @@ void FolioGame::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_terrain"), &FolioGame::get_terrain);
 	ClassDB::bind_method(D_METHOD("get_rendering"), &FolioGame::get_rendering);
 	ClassDB::bind_method(D_METHOD("get_day_cycles"), &FolioGame::get_day_cycles);
+	ClassDB::bind_method(D_METHOD("get_wind"), &FolioGame::get_wind);
 }
 
 } // namespace godot

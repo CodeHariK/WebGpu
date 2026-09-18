@@ -3,6 +3,12 @@ extends Node3D
 # Folio floor/island preview. `make run_folio_floor`. `--phase=<0..1>` locks a
 # day phase; `--shot=<name>` saves a screenshot and quits.
 func _ready() -> void:
+	# Cap the framerate so the preview doesn't run flat-out (default 60; --fps=N).
+	var fps := 60
+	for a in OS.get_cmdline_args() + OS.get_cmdline_user_args():
+		if a.begins_with("--fps="):
+			fps = int(a.substr(6))
+	Engine.max_fps = fps
 	await get_tree().process_frame
 	if has_node("Cam"):
 		$Cam.current = true

@@ -23,7 +23,9 @@
 #include "folio/view/view.h"
 #include "folio/viewport.h"
 #include "folio/water.h"
+#include "folio/wind.h"
 #include "folio/world/floor.h"
+#include "folio/world/grass.h"
 #include "folio/world/water_surface.h"
 
 #include "cui/cui.h"
@@ -129,6 +131,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FolioDayCycles);
 	GDREGISTER_CLASS(FolioFloor);
 	GDREGISTER_CLASS(FolioWaterSurface);
+	GDREGISTER_CLASS(FolioWind);
+	GDREGISTER_CLASS(FolioGrass);
 	GDREGISTER_CLASS(FolioGame);
 
 	GDREGISTER_CLASS(MinecraftNode);

@@ -53,7 +53,8 @@ Analyze these together as ONE unit — they define the whole look.
 - [x] `FolioRendering`: native glow bloom + cheap-DOF tilt-shift, quality-switched ✅.
       Map to `WorldEnvironment` glow + custom DOF `CompositorEffect`/post shader.
 - [x] Day `Cycles` ✅ (`FolioCycle` interpolator + `FolioDayCycles` → Lighting/Fog/Reveal).
-- [ ] `Overlay`, `YearCycles` (deferred: consumers foliage/weather unported), `Weather`, `Wind`.
+- [x] `Wind` ✅ (`FolioWind` shared sway field; consumed by Grass).
+- [ ] `Overlay`, `YearCycles` (deferred: consumers foliage/weather unported), `Weather`.
 
 ## Tier 3 — Car   ⏸️ DECISION: keep existing ArcadeVehicle (do NOT port folio physics)
 - [x] Decision: **use the project's `ArcadeVehicle` as-is.** Both are custom raycast
@@ -75,8 +76,9 @@ Analyze these together as ONE unit — they define the whole look.
 - [x] Terrain content data map loaded ✅ (folio `terrain.png` as swappable test asset).
 - [~] `Floor` — visual slice done ✅ (`FolioFloor` + `mesh_floor.gdshader`). Physics
       heightfield/bedrock, camera-follow recenter, and the `terrain.glb` macro shape deferred.
-- [~] `WaterSurface` — visual slice done ✅ (ripples + shore mask, transparent, lit+fogged).
-- [ ] `Grass`, `Foliage`, `Flowers`, `Trees`, `Bushes`,
+- [~] `WaterSurface` — done ✅ (ripples + shore mask + screen-blur refraction, lit+fogged).
+- [x] `Grass` ✅ (`FolioGrass` GPU blade field, wind-swayed).
+- [ ] `Foliage`, `Flowers`, `Trees`, `Bushes`,
       `Leaves`, `Snow`, `RainLines`, `WindLines`, `Whispers`, `Scenery`,
       `InstancedGroup` (instanced-mesh helper).
 
@@ -715,12 +717,55 @@ fog + drop shadows ON). Ripples (`ripplesNode`) animate from `folio_elapsed_scal
 `floor_preview.tscn` (`make run_folio_floor`).
 
 **Verified (Mac, real Metal Forward+):** water fills the island's low basins with a
-rippling white surface (animated), transparent over land; drop shadows + fog apply.
+rippling white surface (animated); fog + light tint apply. (Refraction added later — see below.)
 Screenshot `docs/folio_port/water_view.png`.
 
+**Refraction — DONE ✅.** The material is now opaque and, per folio's quality-0 path,
+chooses colour per fragment: mask≥0.5 → white surface (lit+fogged via the pipeline),
+mask<0.5 → a golden-angle blur of the screen texture (the scene already rendered behind
+it) = translucent tinted deep water. Reading the screen texture puts it in the transparent
+pass (after the opaque floor/bg). Verified with a forced-refraction test
+(`docs/folio_port/water_forced.png`) — the floor blurs correctly through the whole plane.
+In the normal masked view the refraction is subtle here because folio water is mostly
+dense rippling foam and this flat-floor preview lacks real deep basins; it will read much
+more once `terrain.glb` lands.
+
 **Deferred / next:**
-- **Screen-blur refraction** (folio quality-0 `viewportSharedTexture` hashBlur) — this
-  is what makes the water read as translucent tinted depth instead of flat white.
+- **Drop shadows on the water surface** — the refraction path is `unshaded`, so no light()
+  pass runs; a shadow cast directly onto the foam won't show (deep/refraction areas still
+  carry the floor's baked shadows). Restore via a shaded variant if wanted.
 - **Ice + splashes + weather gating** (need Weather): ripplesRatio/iceRatio/splashesRatio
   are driven by temperature/rain; we default ripples on, ice/splashes off.
 - Ice physics collider, and camera-follow recentring/resize.
+
+## Tier 2 · Wind  ✅ + Tier 4 · Grass  ✅ (visual slice)
+
+**FolioWind** (`src/folio/wind.{h,cpp}`, folio `Game/Wind.js`). Publishes the shared
+wind field as globals — `folio_wind_direction` (VEC2, angle π·0.6), `_position_frequency`
+(0.5), `_strength` (0.5), `_time` (scrolls each tick by `deltaScaled·timeFrequency·strength`).
+The per-position sway offset (2-octave perlin along the wind dir, folio `offsetNode`) is
+computed in the consuming shaders. Ticks at order 9; in `FolioGame::_boot()`; `get_wind()`.
+Weather modulation of strength deferred.
+
+**FolioGrass** (`src/folio/world/grass.{h,cpp}` + `material/shaders/folio/grass.gdshader`,
+folio `World/Grass.js`). A GPU blade field: one `ArrayMesh` of subdiv² (200²=40k) blade
+triangles built on the CPU — each blade's ground XZ shared by its 3 verts, per-vertex
+height randomness in UV.x, loop index from `VERTEX_ID % 3`. The shader builds each blade:
+toroidal camera-follow wrap, triangle shape scaled by terrain grass coverage (g) + height
+(base·randomness·perlin·g), billboard rotation toward the camera, wind sway on the tip
+(FolioWind field), and a "hide" push (y += 100) where g ≤ 0.5. Colour = shared terrain
+colour, through the folio pipeline (bounce/water off, flat up normal, drop shadows + fog).
+Follows the framed area each tick (order 10). Registered; `FolioGrass` node in
+`floor_preview.tscn` (`make run_folio_floor`).
+
+**Verified (Mac, real Metal Forward+):** dense blades render only on grass-covered terrain
+(bare on roads), coloured to match the ground, per-blade height variation; tips sway with
+wind (animated). Screenshot `docs/folio_port/grass_view.png`.
+
+**Tunables added.** `FolioGrass` exposes node properties: `subdivisions` (blade grid, blades=n²),
+`field_size`, `blade_width`, `blade_height`, and `scale_with_quality` (low tier → ~60%
+subdivisions). Changing any rebuilds the field. `floor_preview.gd` caps FPS via
+`Engine.max_fps` (default 60, `--fps=N` override) so the preview isn't uncapped.
+
+**Deferred / next:** viewport-resize regen + surfaceOverflow blade sizing, the `shadowNode`
+tip/base darkening term, wheel-track flattening.
