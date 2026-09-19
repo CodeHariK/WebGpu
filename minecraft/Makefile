@@ -112,3 +112,6 @@ run_folio_scatter:
 # Full environment via FolioWorld (floor+water+grass+bushes+trees).
 run_folio_world:
 	$(GODOT) --path project/ --scene scene/folio/world_preview.tscn
+# FolioAudio verification (positional distance fade + mute).
+run_folio_audio:
+	$(GODOT) --path project/ --scene scene/folio/audio_preview.tscn

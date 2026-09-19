@@ -54,7 +54,10 @@ Analyze these together as ONE unit — they define the whole look.
       Map to `WorldEnvironment` glow + custom DOF `CompositorEffect`/post shader.
 - [x] Day `Cycles` ✅ (`FolioCycle` interpolator + `FolioDayCycles` → Lighting/Fog/Reveal).
 - [x] `Wind` ✅ (`FolioWind` shared sway field; consumed by Grass).
-- [ ] `Overlay`, `YearCycles` (deferred: consumers foliage/weather unported), `Weather`.
+- [x] `Weather` ✅ (`FolioWeather` — noise-driven temperature/humidity/clouds/wind/rain/snow
+      globals; drives Wind strength + water ripples/ice/splashes).
+- [ ] `Overlay`, `YearCycles` (deferred: annual baseline; `base_temperature`/`base_humidity`
+      stand in for it in Weather until it lands).
 
 ## Tier 3 — Car   ⏸️ DECISION: keep existing ArcadeVehicle (do NOT port folio physics)
 - [x] Decision: **use the project's `ArcadeVehicle` as-is.** Both are custom raycast
@@ -87,7 +90,8 @@ Analyze these together as ONE unit — they define the whole look.
       `InstancedGroup` (instanced-mesh helper).
 
 ## Tier 5 — Audio
-- [ ] `Audio` (Howler → `AudioStreamPlayer` + buses), music, engine/floor SFX.
+- [~] `Audio` — foundation ✅ (`FolioAudio`: groups/items registry + spatial distance fade
+      + persisted mute). Music playlist / ambiances / one-offs (content) deferred.
 
 ## Tier 6 — UI framework
 - [ ] `Menu`, `Modals`, `Notifications`, `Title`, `InteractivePoints`, `Map`
@@ -738,9 +742,78 @@ more once `terrain.glb` lands.
 - **Drop shadows on the water surface** — the refraction path is `unshaded`, so no light()
   pass runs; a shadow cast directly onto the foam won't show (deep/refraction areas still
   carry the floor's baked shadows). Restore via a shaded variant if wanted.
-- **Ice + splashes + weather gating** (need Weather): ripplesRatio/iceRatio/splashesRatio
-  are driven by temperature/rain; we default ripples on, ice/splashes off.
+- [x] **Ice + splashes + weather gating** ✅ — `ripples_ratio`/`ice_ratio` from
+  `folio_weather_temperature`, `splashes_ratio` = `folio_weather_rain²`. Ice = voronoi-broken
+  sheet growing from shore as it freezes; splashes = scattered rain rings. Verified: cold
+  override thickens pool ice; splashes are faithful but sparse/animated and need deeper water
+  bodies than this test map's shallow pools to read well.
 - Ice physics collider, and camera-follow recentring/resize.
+
+## Tier 2 · Weather  ✅ ported (FolioWeather)
+
+**FolioWeather** (`src/folio/weather.{h,cpp}`, folio `Game/Weather.js`). Each tick (order 8,
+before Wind's 9) it computes weather properties from a deterministic noise of a slow
+"day-count" clock and publishes them as global shader uniforms, then drives the shared wind
+field's strength.
+
+Properties (folio formulas, `noise(x)=sin(x)·sin(1.678x)·sin(2.345x)`):
+- `temperature` = `base_temperature` + `noise(p·0.4)·7.5`  (°C)
+- `humidity`    = `base_humidity` + `noise(p·0.36)·0.2`
+- `clouds`      = `noise(p·0.44)`                     (~[-1,1])
+- `wind`        = `noise(p)·0.5 + 0.5`                (0..1)
+- `rain`        = `remapClamp(humidity,0.65,1)·remapClamp(clouds,0,1)`
+- `snow`        = `remapClamp(rain,0.05,0.3)·remapClamp(temp,0,-5)` + `remapClamp(temp,0,10,0,-1)`
+
+Order matters: rain reads the humidity/clouds computed the same tick; snow reads rain/temp.
+
+Globals (all `GLOBAL_VAR_TYPE_FLOAT`): `folio_weather_temperature/_humidity/_clouds/_wind/
+_rain/_snow`. Consumers so far: `water_surface.gdshader` (temperature → ripples/ice, rain →
+splashes) and `FolioWind::set_strength`. Future Snow/RainLines/WindLines read the same globals.
+
+**Override** (folio `override.start`): `set_override(Dictionary, strength)` lerps any named
+property toward a forced value (`{"temperature": -6.0}` etc.); `clear_override()` releases it.
+The world preview exposes `--weather=cold|rain|clear` through this for testing.
+
+**Year/day baseline stand-in:** folio blends in `YearCycles`/`DayCycles` values; only DayCycles
+is ported, so `base_temperature=12`, `base_humidity=0.55` stand in for the annual baseline, and
+the noise is driven by an accumulated day-count (`elapsed_scaled / 240s`) in place of
+`dayCycles.absoluteProgress`. Swap both in when YearCycles lands.
+
+**Deferred / next:** `YearCycles` (real annual baseline + its own foliage consumers), the
+`electricField` property (needs Overlay/lightning), gsap-tweened override ramps (currently a
+hard strength), and the Snow/RainLines/WindLines particle systems that will consume these globals.
+
+## Tier 5 · Audio  🔨 foundation (FolioAudio)
+
+**FolioAudio** (`src/folio/audio.{h,cpp}`, folio `Game/Audio.js`). The reusable core of
+folio's Howler manager, backed by Godot audio nodes. Ticks at order 14; in `FolioGame::_boot()`;
+`get_audio()`.
+
+Model (folio-faithful):
+- **Groups → items.** `register_sound(Dictionary)` builds one item and returns an int handle.
+  Options: `path`, `group` (default "all"), `volume`, `rate`, `loop`, `autoplay`, `anti_spam`,
+  `positions` (Vector3 / PackedVector3Array), `distance_fade`. Items are filed into their group;
+  `play_group(name)` round-robins the next item (folio `group.play()`).
+- **play(id)** honors the init gate + anti-spam (skip if replayed within `anti_spam` s), then
+  records `last_play` and the group's `last_played_id`.
+- **update()** (tick 14): `global_rate = time.scale / time.default_scale`; per positional item it
+  finds the nearest of its positions to the camera, moves the 3D player there, and sets volume =
+  `volume · remapClamp(distance, 0, distance_fade, 1, 0)` (folio's linear fade), pitch =
+  `clamp(rate·global_rate, 0.5, 4)`.
+- **Backing.** Non-positional → `AudioStreamPlayer`; positional → `AudioStreamPlayer3D` with
+  `ATTENUATION_DISABLED` (folio's own fade governs volume) + an `AudioListener3D` pinned to the
+  view camera for correct panning.
+- **Mute** (folio soundToggle): `set_mute/toggle_mute/is_muted`, mutes the Master bus, persists to
+  `user://folio_audio.cfg`, emits `mute_changed`. `L` key toggles it (until FolioInputs lands).
+
+Verified (`make run_folio_audio`, `audio_preview.tscn`): a beep registered at the camera reads
+volume 0.5, an identical one 1000 u away reads 0.0 (linear fade over 20 u); mute toggles the
+Master bus on/off. Test asset: `project/audio/folio/test_beep.wav` (generated sine).
+
+**Deferred / next (folio content, per the port):** the concrete `setPlaylist` (music with
+crossfade), `setAmbiants` (day/night-gated spatial loops), `setOneOffs`, and their area logic;
+tab-focus pause; the `onPlaying`/`onPlay` per-item callbacks; wiring engine/tyre SFX to the
+vehicle. These call `register_sound()` — the engine slice is done.
 
 ## Tier 2 · Wind  ✅ + Tier 4 · Grass  ✅ (visual slice)
 
@@ -749,7 +822,7 @@ wind field as globals — `folio_wind_direction` (VEC2, angle π·0.6), `_positi
 (0.5), `_strength` (0.5), `_time` (scrolls each tick by `deltaScaled·timeFrequency·strength`).
 The per-position sway offset (2-octave perlin along the wind dir, folio `offsetNode`) is
 computed in the consuming shaders. Ticks at order 9; in `FolioGame::_boot()`; `get_wind()`.
-Weather modulation of strength deferred.
+Strength is now modulated by `FolioWeather` (`set_strength(remapClamp(wind,0,1,0.15,1))`).
 
 **FolioGrass** (`src/folio/world/grass.{h,cpp}` + `material/shaders/folio/grass.gdshader`,
 folio `World/Grass.js`). A GPU blade field: one `ArrayMesh` of subdiv² (200²=40k) blade
