@@ -72,13 +72,17 @@ Analyze these together as ONE unit — they define the whole look.
       `Tracks` (wheel marks carved into terrain data — ties to FolioTerrain's deferred
       track map), `Trails` (ribbon behind car).
 
-## Tier 4 — Environment
+## Tier 4 — Environment   (composed by FolioWorld ✅)
 - [x] Terrain content data map loaded ✅ (folio `terrain.png` as swappable test asset).
 - [~] `Floor` — visual slice done ✅ (`FolioFloor` + `mesh_floor.gdshader`). Physics
       heightfield/bedrock, camera-follow recenter, and the `terrain.glb` macro shape deferred.
 - [~] `WaterSurface` — done ✅ (ripples + shore mask + screen-blur refraction, lit+fogged).
 - [x] `Grass` ✅ (`FolioGrass` GPU blade field, wind-swayed).
-- [ ] `Foliage`, `Flowers`, `Trees`, `Bushes`,
+- [x] `InstancedGroup` ✅ (`FolioInstancedGroup` MultiMesh helper) + terrain-aware scatter demo.
+- [x] `Foliage` leaf material ✅ (`FolioFoliage` cross-quad leaf cloud) — demoed as bushes.
+- [x] `Trees` ✅ (`FolioTrees` = instanced trunk + FolioFoliage crown).
+- [x] `Flowers` ✅ (`FolioFlowers` tiny wind-swayed tufts).
+- [ ] `Snow`, `RainLines`, `WindLines`,
       `Leaves`, `Snow`, `RainLines`, `WindLines`, `Whispers`, `Scenery`,
       `InstancedGroup` (instanced-mesh helper).
 
@@ -769,3 +773,105 @@ subdivisions). Changing any rebuilds the field. `floor_preview.gd` caps FPS via
 
 **Deferred / next:** viewport-resize regen + surfaceOverflow blade sizing, the `shadowNode`
 tip/base darkening term, wheel-track flattening.
+
+## Tier 4 · InstancedGroup + scatter  ✅ (foundation)
+
+**FolioInstancedGroup** (`src/folio/world/instanced_group.{h,cpp}`, folio
+`Game/InstancedGroup.js`). Reusable GPU-instancing helper: `build(mesh, transforms)`
+creates a `MultiMeshInstance3D` that renders one mesh at many transforms in a single
+draw call (Godot `MultiMesh`, TRANSFORM_3D). The foundation for Trees / Bushes /
+Flowers / Foliage. Multi-surface source models deferred (call build() per source mesh).
+
+**Scatter demo** (`scatter_preview.gd`, `make run_folio_scatter`). Samples the terrain
+data map's G (grass) channel on the CPU and places ~350 bushes where g>0.6, with random
+yaw + scale, then instances them via FolioInstancedGroup. Placeholder bush = a squashed
+sphere with the folio `mesh_default` material (green), so it's lit/shadowed/fogged by the
+shared pipeline. Verified (Mac, Metal): bushes cover the grass, avoid roads/water, cast
+shadows, fade into fog. Screenshot `docs/folio_port/scatter_view.png`.
+
+**Deferred / next:**
+- **Foliage leaf material** (folio `World/Foliage.js`, ~220 lines): see-through leaf
+  edges, wind sway, colour-A/B gradient — the material that makes trees/bushes read as
+  foliage rather than solid blobs.
+- **Real models** — folio's tree/bush GLBs (content, load as test assets like terrain.png)
+  or stylized placeholders; multi-surface (trunk + leaves) via multiple MultiMeshes.
+- **Flowers**, and a reusable C++ biome-scatter (the demo scatters in GDScript for now).
+
+## Tier 4 · Foliage leaf material  ✅ (FolioFoliage)
+
+**Source.** folio `World/Foliage.js` + `foliage/foliageSDF.png` (leaf mask, copied in as
+`material/textures/folio/foliage_sdf.png`).
+
+**FolioFoliage** (`src/folio/world/foliage.{h,cpp}` + `material/shaders/folio/foliage.gdshader`).
+Builds the leaf-cluster mesh once on the CPU: ~80 small cross-quads scattered on a sphere
+(radius `1-rng³` so denser toward the shell, random Z-spin), normals blended 85% toward
+the outward direction so the blob shades round, merged into one ArrayMesh. `scatter(transforms)`
+instances it via one MultiMesh. The shader alpha-cuts a leaf from the mask (UV rotated by the
+wind field so it shimmers), 2-tones the colour by sun facing (`mix(colorA, colorB,
+smoothstep(dot(N, lightDir)))`), and lights it through the shared folio pipeline (fog + drop
+shadows, water off). Colours exposed as node properties. Registered.
+
+**Verified (Mac, real Metal Forward+):** `make run_folio_scatter` now scatters convincing
+leafy bushes on the grass (avoid roads/water), 2-toned, wind-shimmered, shadowed, fogged.
+Screenshot `docs/folio_port/foliage_view.png`.
+
+**Deferred / next:** near-vehicle see-through fade + per-cluster camera facing; `Trees`
+(trunk body mesh + this foliage as the crown, needs the tree GLB); `Flowers`; a reusable
+C++ biome scatter (still GDScript in the demo).
+
+## Tier 4 · Trees  ✅ (FolioTrees, stylized)
+
+**FolioTrees** (`src/folio/world/trees.{h,cpp}`, folio `World/Trees.js`). A tree =
+an instanced trunk + a FolioFoliage crown, composing the two scatter helpers:
+`FolioInstancedGroup` for the trunks (a tapered `CylinderMesh` with the folio
+`mesh_default` material, brown) and `FolioFoliage` for the leaf crowns (each tree's
+transform offset up by the trunk height and scaled up). `scatter(transforms)` plants
+a tree at each. folio loads a tree GLB (treeBody + treeLeaves); we build a stylized
+trunk so no content model is needed — swap in a GLB later if wanted.
+
+**Verified (Mac, real Metal Forward+):** `make run_folio_scatter` now plants ~60 min-spaced
+trees (larger, darker crowns) among the bushes on the grass; shadowed, fogged.
+Screenshot `docs/folio_port/trees_view.png`.
+
+**Deferred / next:** trunk physics colliders (folio adds cylinder bodies), real tree GLB,
+`Flowers`, and folding the whole scatter into the main scene + a reusable C++ biome scatter.
+
+## Tier 4 · FolioWorld  ✅ (environment composition + C++ biome scatter)
+
+**FolioWorld** (`src/folio/world/world.{h,cpp}`, folio `World/World.js` slice). One node
+that assembles the environment: creates FolioFloor + FolioWaterSurface + FolioGrass and
+scatters Bushes (FolioFoliage) + Trees (FolioTrees) across the grassy terrain. The scatter
+is now in C++ (reads `terrain_data.png` G channel, seeded RNG, min-spaced trees) — replacing
+the GDScript demo. The build is deferred one frame (`call_deferred`) so FolioGame has booted
+(globals / terrain data / view) first, so a FolioWorld can sit next to FolioGame in any scene.
+
+Wired into `game.tscn` (FolioGame + FolioWorld), so `make run_folio` renders the whole
+island. Also `make run_folio_world` (world_preview). Registered.
+
+**Verified (Mac, real Metal Forward+):** full world — floor, grass, bushes, trees, water —
+under day/night + fog + shadows; `game.tscn` boots clean (rc=0). Screenshot
+`docs/folio_port/world_view.png`.
+
+**Deferred / next:** physics colliders, real GLB models, `Flowers`, softening the dark tree
+undersides, and per-quality scatter counts.
+
+## Tier 4 · Flowers + polish pass  ✅
+
+**FolioFlowers** (`src/folio/world/flowers.{h,cpp}` + `material/shaders/folio/flowers.gdshader`,
+folio `World/Flowers.js`). Tiny solid-colour tufts (a few small quads per cluster) built once
+on the CPU, instanced on the grass in one MultiMesh draw; upper verts sway with the wind field.
+Colour exposed. Scattered by FolioWorld (~1200 on grass).
+
+**Polish pass:**
+- **Tree crowns lightened** — `FolioTrees` crown colours raised (colorA 0.42/0.50/0.22, colorB
+  0.62/0.70/0.30) so the shadow-side undersides read green instead of near-black.
+- **Trunk physics** — `FolioTrees` now builds a `StaticBody3D` of `CylinderShape3D` colliders
+  (one per trunk) so the car will collide with trees. Toggle `collide`.
+- **Per-quality scatter counts** — `FolioWorld` halves bush/tree/flower counts at the low
+  quality tier (on top of FolioGrass's existing per-quality subdivisions).
+
+**Verified (Mac, real Metal Forward+):** full world with flowers + lighter trees renders clean;
+screenshot `docs/folio_port/world_polished.png`.
+
+**Deferred / next:** `Snow`/`RainLines`/`WindLines` (need Weather), real GLB models, and
+folding physics colliders for the floor.

@@ -1,3 +1,5 @@
 [gd_scene format=4]
 
 [node name="FolioGame" type="FolioGame"]
+
+[node name="World" type="FolioWorld" parent="."]

@@ -25,8 +25,13 @@
 #include "folio/water.h"
 #include "folio/wind.h"
 #include "folio/world/floor.h"
+#include "folio/world/flowers.h"
+#include "folio/world/foliage.h"
 #include "folio/world/grass.h"
+#include "folio/world/instanced_group.h"
+#include "folio/world/trees.h"
 #include "folio/world/water_surface.h"
+#include "folio/world/world.h"
 
 #include "cui/cui.h"
 #include "cui/cui_line_graph.h"
@@ -133,6 +138,11 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FolioWaterSurface);
 	GDREGISTER_CLASS(FolioWind);
 	GDREGISTER_CLASS(FolioGrass);
+	GDREGISTER_CLASS(FolioInstancedGroup);
+	GDREGISTER_CLASS(FolioFoliage);
+	GDREGISTER_CLASS(FolioFlowers);
+	GDREGISTER_CLASS(FolioTrees);
+	GDREGISTER_CLASS(FolioWorld);
 	GDREGISTER_CLASS(FolioGame);
 
 	GDREGISTER_CLASS(MinecraftNode);

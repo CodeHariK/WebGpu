@@ -106,3 +106,9 @@ run_folio_cycles:
 # Floor / island preview (terrain data map -> displaced folio floor).
 run_folio_floor:
 	$(GODOT) --path project/ --scene scene/folio/floor_preview.tscn
+# Instanced scatter demo (bushes on grassy terrain via FolioInstancedGroup).
+run_folio_scatter:
+	$(GODOT) --path project/ --scene scene/folio/scatter_preview.tscn
+# Full environment via FolioWorld (floor+water+grass+bushes+trees).
+run_folio_world:
+	$(GODOT) --path project/ --scene scene/folio/world_preview.tscn
