@@ -10,6 +10,8 @@
 #include "ticker.h"
 #include "view/view.h"
 #include "water.h"
+#include "audio.h"
+#include "weather.h"
 #include "wind.h"
 
 #include <godot_cpp/core/class_db.hpp>
@@ -100,6 +102,11 @@ void FolioGame::_boot() {
 	wind->set_name("Wind");
 	add_child(wind);
 
+	// Weather (noise-driven temperature/humidity/clouds/rain/snow; drives wind strength).
+	weather = memnew(FolioWeather);
+	weather->set_name("Weather");
+	add_child(weather);
+
 	// Rendering (post: native glow bloom + cheap-DOF tilt-shift, quality-switched).
 	rendering = memnew(FolioRendering);
 	rendering->set_name("Rendering");
@@ -113,6 +120,11 @@ void FolioGame::_boot() {
 	day_cycles = memnew(FolioDayCycles);
 	day_cycles->set_name("DayCycles");
 	add_child(day_cycles);
+
+	// Audio (folio Audio.js reusable core: groups/items registry + spatial fade + mute).
+	audio = memnew(FolioAudio);
+	audio->set_name("Audio");
+	add_child(audio);
 
 	// Keep FolioView's quality in sync when it changes.
 	if (quality->get_events().is_valid()) {
@@ -140,6 +152,8 @@ void FolioGame::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_rendering"), &FolioGame::get_rendering);
 	ClassDB::bind_method(D_METHOD("get_day_cycles"), &FolioGame::get_day_cycles);
 	ClassDB::bind_method(D_METHOD("get_wind"), &FolioGame::get_wind);
+	ClassDB::bind_method(D_METHOD("get_weather"), &FolioGame::get_weather);
+	ClassDB::bind_method(D_METHOD("get_audio"), &FolioGame::get_audio);
 }
 
 } // namespace godot

@@ -27,6 +27,19 @@ func _ready() -> void:
 	var g := get_node_or_null("Game")
 	if g and g.has_method("get_day_cycles") and phase >= 0.0:
 		g.get_day_cycles().set_progress_override(phase)
+	# --weather=cold|rain|clear forces Weather so ice / rain splashes are testable.
+	var weather := ""
+	for a in OS.get_cmdline_args() + OS.get_cmdline_user_args():
+		if a.begins_with("--weather="):
+			weather = a.substr(10)
+	if g and g.has_method("get_weather") and weather != "":
+		var w = g.get_weather()
+		if weather == "cold":
+			w.set_override({"temperature": -6.0, "rain": 0.0}, 1.0)
+		elif weather == "rain":
+			w.set_override({"temperature": 14.0, "rain": 1.0, "humidity": 1.0, "clouds": 1.0}, 1.0)
+		elif weather == "clear":
+			w.clear_override()
 	if shot != "":
 		await get_tree().create_timer(0.8).timeout
 		var img := get_viewport().get_texture().get_image()
