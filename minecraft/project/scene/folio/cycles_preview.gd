@@ -19,5 +19,5 @@ func _ready() -> void:
 	if shot != "":
 		await get_tree().create_timer(0.6).timeout
 		var img := get_viewport().get_texture().get_image()
-		img.save_png("res://../docs/folio_port/" + shot + ".png")
+		img.save_png("res://../docs/png/" + shot + ".png")
 		get_tree().quit()

@@ -45,6 +45,7 @@ public:
 	void update(); // tick 9
 
 	void set_strength(double p_v) { strength = p_v; }
+	double get_angle() const { return angle; }
 	double get_strength() const { return strength; }
 };
 

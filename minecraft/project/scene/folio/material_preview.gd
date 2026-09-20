@@ -12,5 +12,5 @@ func _ready() -> void:
 	if args.has("--shot"):
 		await get_tree().create_timer(0.9).timeout
 		var img := get_viewport().get_texture().get_image()
-		img.save_png("res://../docs/folio_port/material_preview.png")
+		img.save_png("res://../docs/png/material_preview.png")
 		get_tree().quit()
