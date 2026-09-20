@@ -2,6 +2,8 @@
   "file_scan_exclusions": [
     "**/*.os",
     "**/*.o",
-    "..."
+    "...",
+    "**/.fuse_hidden*",
+    "**/*.uid"
   ]
 }

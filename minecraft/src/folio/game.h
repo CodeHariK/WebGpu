@@ -23,6 +23,7 @@ class FolioDayCycles;
 class FolioWind;
 class FolioWeather;
 class FolioAudio;
+class FolioUI;
 
 /**
  * Folio port — Game  (registered as `FolioGame`)
@@ -68,6 +69,7 @@ private:
 	FolioWind *wind = nullptr;
 	FolioWeather *weather = nullptr;
 	FolioAudio *audio = nullptr;
+	FolioUI *ui = nullptr;
 	Ref<FolioResources> resources;
 
 	static FolioGame *singleton;
@@ -99,6 +101,7 @@ public:
 	FolioWind *get_wind() const { return wind; }
 	FolioWeather *get_weather() const { return weather; }
 	FolioAudio *get_audio() const { return audio; }
+	FolioUI *get_ui() const { return ui; }
 	Ref<FolioResources> get_resources() const { return resources; }
 
 	static FolioGame *get_singleton() { return singleton; }

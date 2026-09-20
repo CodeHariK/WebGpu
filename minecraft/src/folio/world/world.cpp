@@ -5,6 +5,8 @@
 #include "foliage.h"
 #include "grass.h"
 #include "trees.h"
+#include "rain_lines.h"
+#include "wind_lines.h"
 #include "water_surface.h"
 
 #include "../game.h"
@@ -85,6 +87,16 @@ void FolioWorld::_build() {
 	trees = memnew(FolioTrees);
 	trees->set_name("Trees");
 	add_child(trees);
+
+	// Atmospheric wind streaks (pool of gust ribbons over the world).
+	wind_lines = memnew(FolioWindLines);
+	wind_lines->set_name("WindLines");
+	add_child(wind_lines);
+
+	// Rain / snow line-quads (weather-driven; snow when cold).
+	rain_lines = memnew(FolioRainLines);
+	rain_lines->set_name("RainLines");
+	add_child(rain_lines);
 
 	// Biome scatter from the terrain data map.
 	Ref<Image> data = Image::load_from_file("res://material/textures/folio/terrain_data.png");

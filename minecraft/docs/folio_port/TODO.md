@@ -85,8 +85,9 @@ Analyze these together as ONE unit — they define the whole look.
 - [x] `Foliage` leaf material ✅ (`FolioFoliage` cross-quad leaf cloud) — demoed as bushes.
 - [x] `Trees` ✅ (`FolioTrees` = instanced trunk + FolioFoliage crown).
 - [x] `Flowers` ✅ (`FolioFlowers` tiny wind-swayed tufts).
-- [ ] `Snow`, `RainLines`, `WindLines`,
-      `Leaves`, `Snow`, `RainLines`, `WindLines`, `Whispers`, `Scenery`,
+- [x] `WindLines` ✅ (`FolioWindLines` — pooled gust ribbons, weather-driven).
+- [x] `RainLines` ✅ (`FolioRainLines` — falling rain; becomes falling snow when cold).
+- [ ] `Snow` (ground accumulation), `Leaves`, `Whispers`, `Scenery`,
       `InstancedGroup` (instanced-mesh helper).
 
 ## Tier 5 — Audio
@@ -94,8 +95,10 @@ Analyze these together as ONE unit — they define the whole look.
       + persisted mute). Music playlist / ambiances / one-offs (content) deferred.
 
 ## Tier 6 — UI framework
-- [ ] `Menu`, `Modals`, `Notifications`, `Title`, `InteractivePoints`, `Map`
-      (their `CUI` DOM system → Godot `Control` nodes).
+- [~] Foundation ✅ (`FolioUI`: CanvasLayer above post + full-rect Control root + mute button;
+      `FolioMenu` centred overlay with fade + Esc toggle, rows driving Audio/Quality).
+- [ ] `Modals`, `Notifications`, `Title`, `InteractivePoints`, `Map`, gamepad focus nav
+      (their `CUI` DOM system → Godot `Control` nodes) — build on the FolioUI root.
 
 ## Tier 7 — Portfolio content  (DEFERRED / likely skip)
 - [ ] Areas/*, Achievements, Career, BlackFriday, KonamiCode, Easter.
@@ -782,6 +785,90 @@ the noise is driven by an accumulated day-count (`elapsed_scaled / 240s`) in pla
 **Deferred / next:** `YearCycles` (real annual baseline + its own foliage consumers), the
 `electricField` property (needs Overlay/lightning), gsap-tweened override ramps (currently a
 hard strength), and the Snow/RainLines/WindLines particle systems that will consume these globals.
+
+## Tier 4 · WindLines  ✅ (FolioWindLines)
+
+**FolioWindLines** (`src/folio/world/wind_lines.{h,cpp}` + `wind_line.gdshader`, folio
+`World/WindLines.js` + `Geometries/WindLineGeometry.js`). A small pool of wavy ribbon "gust"
+streaks over the world. Added by FolioWorld; ticks at order 10.
+
+- **Geometry** (shared by the pool): a Catmull-Rom curve through 4 alternating handles (length 10,
+  wavy in Y), sampled to 31 points, expanded to a ribbon strip — 2 verts/point, UV = (ratio, side).
+- **Shader**: the ribbon has zero width at rest; `base_thickness` tapers the two ends and a
+  travelling `progress` bulge widens one section, pushed along folio's fixed world tangent
+  `(0,1,-1)`. Unshaded white, alpha fades with the bulge (soft ends). `thickness` + `progress`
+  uniforms per pool slot (own ShaderMaterial each).
+- **Manager**: spawns on a random 0.3–2 s interval at a random point in the view's optimal area,
+  y = 2, rotated to the wind angle; drifts along the wind direction and animates `progress` 0→1
+  over `duration = remapClamp(weather.wind, 0,1, 8,2)` (stronger wind → faster), then frees the
+  slot. Replaces folio's gsap tweens + setTimeout with ticker-driven lerps + elapsed-time spawns.
+- Tunables exposed: `pool_size`, `thickness` (+ internal interval/translation/spawn_height).
+
+Verified (`make run_folio_wind`, `wind_preview.tscn`, thickness exaggerated for the still): the
+curved streak sweeps across the sky with soft tapered ends. Subtle by design, like folio's.
+
+**Deferred / next:** `RainLines` (same ribbon family, driven by weather.rain), `Leaves`, and the
+gsap-eased position tween (currently linear lerp).
+
+## Tier 4 · RainLines  ✅ (FolioRainLines — rain + falling snow)
+
+**FolioRainLines** (`src/folio/world/rain_lines.{h,cpp}` + `rain_lines.gdshader`, folio
+`World/RainLines.js`). A tiled field of `count` (2^11) falling line-quads in one mesh, displaced
+entirely in the vertex shader; the node owns mesh+material and pushes weather-driven uniforms each
+tick (order 10). Added by FolioWorld.
+
+- **Geometry**: per line a quad (base XZ in [0,1] + a per-line random); per-vertex `offset` (UV:
+  side x, top/bottom y); random in UV2.x.
+- **Shader**: tiles the field around the view centre (`size` = optimal radius ×2, `center` =
+  optimal-area xz), offsets thickness along tangent (0.707,-0.707), drops each line from
+  `elevation` on a looping `progress = mod(local_time + random, 1)`, clamps to [0, elevation],
+  hides a fraction via `step(visible_ratio, fract(random·99))`, and slants by `incline`.
+- **Weather bindings** (folio): `visible_ratio = rain²`; `line_length =
+  lerp(remapClamp(rain,0,1,1,3), 0.03, snowRatio)`; `speed = lerp(remapClamp(rain,0,1,0.2,0.4),
+  0.05, snowRatio)`; `incline = remapClamp(wind,0,1,0.1,0.4)`; `snowRatio = 1-(1-max(snow,0))⁴`;
+  `local_time += deltaScaled·speed`. Hidden when `visible_ratio ≈ 0`.
+- **Snow for free**: as `weather.snow` rises (cold), the streaks shrink to slow flecks — this IS
+  the atmospheric falling snow. Only folio's separate *ground-accumulation* Snow stays parked.
+
+Verified (`make run_folio_rain --mode=rain|snow`, forced weather override): rain = long
+wind-slanted white streaks tiled across the view; snow = small slow white flecks. `count` exposed
+for quality scaling.
+
+**Deferred vs folio:** the `weatherRain` achievement, the (commented) compute-shader path, and
+`hasCoreShadows` on the drops (kept unshaded to keep the moving-vertex pass cheap).
+
+## Tier 6 · UI  🔨 foundation (FolioUI)
+
+**FolioUI** (`src/folio/ui/ui.{h,cpp}`). folio's interface is HTML/CSS DOM (`Menu.js` →
+`.js-menu`, portfolio tabs) with nothing to translate 1:1, so this is the reusable Godot
+foundation the later HUD/menu build on. Singleton via FolioGame (`get_ui()`); created after
+FolioAudio in boot.
+
+- **Structure**: a `CanvasLayer` (layer 10, above the 3D viewport) with a full-rect `Control`
+  root (`get_root()`) that HUD widgets parent to (mouse-filter IGNORE so clicks pass through
+  except where a child grabs them). A generic open/closed `State` enum stands in for folio's
+  `Menu.OPEN/OPENING/CLOSED/CLOSING`.
+- **Mute button** (the one concrete widget this slice): a rounded pill bottom-left, pressing it
+  calls `FolioAudio::toggle_mute()`, and it re-labels itself ("Sound: On/Off") from FolioAudio's
+  `mute_changed` signal, so it always reflects the real state (incl. the persisted initial value).
+
+Verified (`make run_folio_ui`): the pill renders over the world; toggling audio flips the label
+via the signal (`Sound: On → Sound: Off`), confirming the button↔audio wiring both ways.
+
+**Menu overlay** (`src/folio/ui/menu.{h,cpp}`, `FolioMenu`): a centred panel in a full-rect
+CenterContainer over a dimming backdrop, faded open/closed with a Tween on the OPENING→OPEN /
+CLOSING→CLOSED state machine, toggled by Esc or the HUD "Menu" button. Rows demonstrate the
+framework driving real systems — Sound (FolioAudio mute, reflects `mute_changed`), Quality
+(FolioQuality.change_level, which grass/rendering react to), and Resume (close). Verified
+(`make run_folio_ui ARGS="--menu"`): centred panel, dim backdrop, crisp above the DOF.
+
+**HUD sits above post:** FolioUI is on CanvasLayer 200, above FolioRendering's cheap-DOF post
+layer (100), so the tilt-shift blur (strongest at screen top/bottom) no longer smears the HUD —
+matching folio, where the DOM UI is over the WebGL canvas entirely.
+
+**Deferred / next:** Modals, Notifications, Title, InteractivePoints, Map — plus a shared
+theme/`StyleBox` resource and gamepad/keyboard focus navigation. All parent onto
+`FolioUI::get_root()`; overlays reuse the FolioMenu open/close pattern.
 
 ## Tier 5 · Audio  🔨 foundation (FolioAudio)
 

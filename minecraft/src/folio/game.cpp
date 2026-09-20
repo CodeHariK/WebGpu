@@ -11,6 +11,7 @@
 #include "view/view.h"
 #include "water.h"
 #include "audio.h"
+#include "ui/ui.h"
 #include "weather.h"
 #include "wind.h"
 
@@ -126,6 +127,11 @@ void FolioGame::_boot() {
 	audio->set_name("Audio");
 	add_child(audio);
 
+	// UI (screen-space HUD root + mute button wired to FolioAudio).
+	ui = memnew(FolioUI);
+	ui->set_name("UI");
+	add_child(ui);
+
 	// Keep FolioView's quality in sync when it changes.
 	if (quality->get_events().is_valid()) {
 		quality->get_events()->on("change", callable_mp(view, &FolioView::set_quality_level), 1);
@@ -154,6 +160,7 @@ void FolioGame::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_wind"), &FolioGame::get_wind);
 	ClassDB::bind_method(D_METHOD("get_weather"), &FolioGame::get_weather);
 	ClassDB::bind_method(D_METHOD("get_audio"), &FolioGame::get_audio);
+	ClassDB::bind_method(D_METHOD("get_ui"), &FolioGame::get_ui);
 }
 
 } // namespace godot

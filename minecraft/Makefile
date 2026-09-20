@@ -102,16 +102,25 @@ run_folio_post:
 	$(GODOT) --path project/ --scene scene/folio/post_preview.tscn
 # Day/night cycle preview (live 4-min loop; --phase=<0..1> to lock a phase).
 run_folio_cycles:
-	$(GODOT) --path project/ --scene scene/folio/cycles_preview.tscn
+	$(GODOT) --path project/ --scene scene/folio/cycles_preview.tscn -- $(ARGS)
 # Floor / island preview (terrain data map -> displaced folio floor).
 run_folio_floor:
-	$(GODOT) --path project/ --scene scene/folio/floor_preview.tscn
+	$(GODOT) --path project/ --scene scene/folio/floor_preview.tscn -- $(ARGS)
 # Instanced scatter demo (bushes on grassy terrain via FolioInstancedGroup).
 run_folio_scatter:
 	$(GODOT) --path project/ --scene scene/folio/scatter_preview.tscn
 # Full environment via FolioWorld (floor+water+grass+bushes+trees).
 run_folio_world:
-	$(GODOT) --path project/ --scene scene/folio/world_preview.tscn
+	$(GODOT) --path project/ --scene scene/folio/world_preview.tscn -- $(ARGS)
 # FolioAudio verification (positional distance fade + mute).
 run_folio_audio:
-	$(GODOT) --path project/ --scene scene/folio/audio_preview.tscn
+	$(GODOT) --path project/ --scene scene/folio/audio_preview.tscn -- $(ARGS)
+# FolioWindLines focused preview (exaggerated gust ribbons).
+run_folio_wind:
+	$(GODOT) --path project/ --scene scene/folio/wind_preview.tscn -- $(ARGS)
+# FolioRainLines verification (--mode=rain|snow).
+run_folio_rain:
+	$(GODOT) --path project/ --scene scene/folio/rain_preview.tscn -- $(ARGS)
+# FolioUI verification (HUD root + mute button).
+run_folio_ui:
+	$(GODOT) --path project/ --scene scene/folio/ui_preview.tscn -- $(ARGS)

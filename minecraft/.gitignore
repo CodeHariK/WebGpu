@@ -69,3 +69,5 @@ godot-cpp
 
 # FUSE mount leftovers (orphaned when an open file is replaced over the bridge)
 .fuse_hidden*
+
+**/docs/**/*.png
