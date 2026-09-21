@@ -16,7 +16,7 @@ class MCGrid;
 class CUI;
 class VBoxContainer;
 class Panel;
-class AcceptDialog;
+class CUIModal;
 class Label;
 class InputEvent;
 class MeshInstance3D;
@@ -33,7 +33,7 @@ public:
 		VBoxContainer *stats_vbox = nullptr;
 		VBoxContainer *variant_stats_vbox = nullptr;
 		Panel *side_panel = nullptr;
-		AcceptDialog *help_dialog = nullptr;
+		CUIModal *help_dialog = nullptr;
 		Label *hash_label = nullptr;
 	};
 
@@ -110,6 +110,7 @@ public:
 
 	// UI & Performance
 	void setup_ui();
+	void _mc_capture(); // debug: save a screenshot + quit (--mcshot)
 	void update_ui();
 	void _process(double p_delta) override;
 	void _on_toggle_ui();

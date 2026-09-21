@@ -1,11 +1,17 @@
 #include "ui.h"
 
-#include <godot_cpp/classes/style_box_flat.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/scene_tree_timer.hpp>
 #include <godot_cpp/core/class_db.hpp>
 
 #include "../game.h"
 #include "../audio.h"
 #include "menu.h"
+#include "theme.h"
+#include "title.h"
+#include "../../cui/cui.h"
+#include "../../cui/cui_modal.h"
+#include "../../cui/cui_toast.h"
 
 using namespace godot;
 
@@ -29,7 +35,15 @@ void FolioUI::_ready() {
 	root->set_name("Root");
 	root->set_anchors_preset(Control::PRESET_FULL_RECT);
 	root->set_mouse_filter(Control::MOUSE_FILTER_IGNORE); // clicks pass unless a child grabs
+	root->set_theme(FolioTheme::build()); // one shared look for every HUD widget
 	add_child(root);
+
+	// Shared widget factory used by every screen for view construction (labels,
+	// buttons, containers). Screens keep the state/behaviour; CUI builds the nodes.
+	builder = memnew(CUI);
+	builder->set_name("Builder");
+	builder->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
+	root->add_child(builder);
 
 	_build_mute_button();
 	_build_menu_button();
@@ -37,7 +51,46 @@ void FolioUI::_ready() {
 	// Menu overlay lives under the root; toggled by the HUD button or Esc.
 	menu = memnew(FolioMenu);
 	menu->set_name("Menu");
+	menu->set_builder(builder);
 	root->add_child(menu);
+
+	// Transient toast stack.
+	notifications = memnew(CUIToast);
+	notifications->set_name("Notifications");
+	notifications->set_builder(builder);
+	root->add_child(notifications);
+
+	// Title / start screen, shown just after boot once layout has a real size.
+	title = memnew(FolioTitle);
+	title->set_name("Title");
+	title->set_builder(builder);
+	root->add_child(title);
+	title->connect("started", callable_mp(this, &FolioUI::_on_started));
+	set_hud_visible(false); // hide the in-game HUD until the player starts
+	// Confirm/alert dialog, on top of everything.
+	modal = memnew(CUIModal);
+	modal->set_name("Modal");
+	modal->set_builder(builder);
+	root->add_child(modal);
+
+	Ref<SceneTreeTimer> t = get_tree()->create_timer(0.1);
+	t->connect("timeout", callable_mp((CUIOverlay *)title, &CUIOverlay::open));
+}
+
+void FolioUI::set_hud_visible(bool p_v) {
+	if (mute_button) {
+		mute_button->set_visible(p_v);
+	}
+	if (menu_button) {
+		menu_button->set_visible(p_v);
+	}
+}
+
+void FolioUI::_on_started() {
+	set_hud_visible(true);
+	if (notifications) {
+		notifications->notify("Welcome to the island");
+	}
 }
 
 void FolioUI::_build_mute_button() {
@@ -48,21 +101,7 @@ void FolioUI::_build_mute_button() {
 	mute_button->set_offset(Side::SIDE_TOP, -64.0);
 	mute_button->set_offset(Side::SIDE_RIGHT, 160.0);
 	mute_button->set_offset(Side::SIDE_BOTTOM, -20.0);
-	mute_button->set_focus_mode(Control::FOCUS_NONE);
-
-	// Soft rounded pill (cartoon-friendly).
-	Ref<StyleBoxFlat> sb;
-	sb.instantiate();
-	sb->set_bg_color(Color(0.12, 0.14, 0.20, 0.75));
-	sb->set_corner_radius_all(16);
-	sb->set_content_margin_all(8);
-	mute_button->add_theme_stylebox_override("normal", sb);
-	Ref<StyleBoxFlat> sb_hover = sb->duplicate();
-	sb_hover->set_bg_color(Color(0.18, 0.21, 0.30, 0.85));
-	mute_button->add_theme_stylebox_override("hover", sb_hover);
-	mute_button->add_theme_stylebox_override("pressed", sb_hover);
-	mute_button->add_theme_color_override("font_color", Color(1, 1, 1));
-
+	mute_button->set_focus_mode(Control::FOCUS_NONE); // styling comes from the shared theme
 	root->add_child(mute_button);
 	mute_button->connect("pressed", callable_mp(this, &FolioUI::_on_mute_pressed));
 
@@ -93,6 +132,9 @@ void FolioUI::_on_mute_pressed() {
 
 void FolioUI::_on_mute_changed(bool p_active) {
 	_refresh_mute_button(p_active);
+	if (notifications) {
+		notifications->notify(p_active ? "Sound muted" : "Sound on");
+	}
 }
 
 void FolioUI::_build_menu_button() {
@@ -105,19 +147,6 @@ void FolioUI::_build_menu_button() {
 	menu_button->set_offset(Side::SIDE_BOTTOM, 64.0);
 	menu_button->set_focus_mode(Control::FOCUS_NONE);
 	menu_button->set_text("Menu");
-
-	Ref<StyleBoxFlat> sb;
-	sb.instantiate();
-	sb->set_bg_color(Color(0.12, 0.14, 0.20, 0.75));
-	sb->set_corner_radius_all(16);
-	sb->set_content_margin_all(8);
-	menu_button->add_theme_stylebox_override("normal", sb);
-	Ref<StyleBoxFlat> hov = sb->duplicate();
-	hov->set_bg_color(Color(0.18, 0.21, 0.30, 0.85));
-	menu_button->add_theme_stylebox_override("hover", hov);
-	menu_button->add_theme_stylebox_override("pressed", hov);
-	menu_button->add_theme_color_override("font_color", Color(1, 1, 1));
-
 	root->add_child(menu_button);
 	menu_button->connect("pressed", callable_mp(this, &FolioUI::_on_menu_pressed));
 }
@@ -131,6 +160,10 @@ void FolioUI::_on_menu_pressed() {
 void FolioUI::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_root"), &FolioUI::get_root);
 	ClassDB::bind_method(D_METHOD("get_menu"), &FolioUI::get_menu);
+	ClassDB::bind_method(D_METHOD("get_notifications"), &FolioUI::get_notifications);
+	ClassDB::bind_method(D_METHOD("get_title"), &FolioUI::get_title);
+	ClassDB::bind_method(D_METHOD("get_modal"), &FolioUI::get_modal);
+	ClassDB::bind_method(D_METHOD("set_hud_visible", "v"), &FolioUI::set_hud_visible);
 	ClassDB::bind_method(D_METHOD("get_state"), &FolioUI::get_state);
 
 	BIND_ENUM_CONSTANT(STATE_CLOSED);

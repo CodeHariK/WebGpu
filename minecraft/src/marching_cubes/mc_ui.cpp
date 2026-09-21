@@ -1,4 +1,10 @@
 #include "mc.h"
+#include <godot_cpp/classes/style_box_flat.hpp>
+#include <godot_cpp/classes/os.hpp>
+#include <godot_cpp/classes/texture2d.hpp>
+#include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/classes/scene_tree_timer.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
 #include "mc_grid.h"
 #include "mc_manager.h"
 #include <godot_cpp/classes/engine.hpp>
@@ -6,8 +12,8 @@
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/performance.hpp>
 #include <godot_cpp/classes/viewport.hpp>
+#include <godot_cpp/classes/viewport_texture.hpp>
 
-#include <godot_cpp/classes/accept_dialog.hpp>
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/h_box_container.hpp>
 #include <godot_cpp/classes/label.hpp>
@@ -18,6 +24,7 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include "cui/cui.h"
+#include "cui/cui_modal.h"
 #include <vector>
 
 namespace godot {
@@ -35,11 +42,23 @@ void MCManager::setup_ui() {
 	HBoxContainer *main_hbox = ui.manager->add_hbox(ui.manager, "MainLayout");
 	main_hbox->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
 	main_hbox->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
+	main_hbox->add_theme_constant_override("separation", 10);
 
 	// 2. Create Side Panel
 	ui.side_panel = ui.manager->add_panel(main_hbox, "SidePanel", Control::PRESET_TOP_LEFT, Vector2(320, 0));
 	ui.side_panel->set_v_size_flags(Control::SIZE_EXPAND_FILL);
-	ui.side_panel->hide();
+	// Sidebar background now comes from the shared theme (Panel style).
+	// Debug: `--mcshow` reveals the sidebar on boot (for screenshots).
+	PackedStringArray _args = OS::get_singleton()->get_cmdline_user_args();
+	if (_args.has("--mcshow") || _args.has("--mcshot")) {
+		ui.side_panel->show();
+	} else {
+		ui.side_panel->hide();
+	}
+	if (_args.has("--mcshot")) {
+		Ref<SceneTreeTimer> _t = get_tree()->create_timer(1.2);
+		_t->connect("timeout", callable_mp(this, &MCManager::_mc_capture));
+	}
 
 	// 3. Create Buttons
 	Button *stats_btn = ui.manager->add_button(main_hbox, "Stats", Callable(this, "_on_toggle_ui"));
@@ -52,47 +71,43 @@ void MCManager::setup_ui() {
 	help_btn->set_v_size_flags(Control::SIZE_SHRINK_BEGIN);
 	help_btn->set_custom_minimum_size(Vector2(80, 40));
 
-	// 4. Create Help Dialog
-	ui.help_dialog = ui.manager->add_dialog(
-			ui.manager, "Marching Cubes Info",
-			"This project visualizes the 256 voxel configurations of the Marching Cubes algorithm.\n\n"
-			"- 21 base meshes generate all 256 variants via rotations/reflections.\n"
-			"- Transformations are applied via bitwise-mapped rotation matrices.\n"
-			"- Current UI tracks real-time performance and generation stats.\n\n"
-			"- Stats Button: Toggle sidebar visibility"
-	);
-	ui.help_dialog->set_min_size(Vector2(400, 300));
+	// 4. Create Help Modal (reusable CUIModal — themed to match the sidebar,
+	//    with a header band and focus-free buttons; opened via _on_show_help).
+	ui.help_dialog = memnew(CUIModal);
+	ui.help_dialog->set_builder(ui.manager);
+	ui.manager->add_child(ui.help_dialog);
 
 	// 5. Create Scroll Container (inside SidePanel)
 	ScrollContainer *scroll = ui.manager->add_scroll(ui.side_panel, "ScrollList");
-	scroll->set_offset(Side::SIDE_TOP, 10);
-	scroll->set_offset(Side::SIDE_LEFT, 10);
-	scroll->set_offset(Side::SIDE_RIGHT, -10);
-	scroll->set_offset(Side::SIDE_BOTTOM, -10);
+	scroll->set_offset(Side::SIDE_TOP, 14);
+	scroll->set_offset(Side::SIDE_LEFT, 14);
+	scroll->set_offset(Side::SIDE_RIGHT, -14);
+	scroll->set_offset(Side::SIDE_BOTTOM, -14);
 
 	// Connect signals for input interception
 	ui.side_panel->connect("gui_input", Callable(this, "_on_gui_input"));
 
 	// 6. Create List Container
 	ui.stats_vbox = ui.manager->add_vbox(scroll, "StatsList");
+	ui.stats_vbox->add_theme_constant_override("separation", 7);
 
-	ui.manager->add_label(ui.stats_vbox, "--- PERFORMANCE ---");
+	ui.manager->add_header(ui.stats_vbox, "Performance");
 	perf.fps_label = ui.manager->add_label(ui.stats_vbox, "FPS: 0");
 	perf.draw_calls_label = ui.manager->add_label(ui.stats_vbox, "Draw Calls: 0");
 	perf.meshes_label = ui.manager->add_label(ui.stats_vbox, "Engine Objects: 0");
 	perf.collision_label = ui.manager->add_label(ui.stats_vbox, "Collision Pairs: 0");
 	perf.memory_label = ui.manager->add_label(ui.stats_vbox, "Memory: 0 MB");
 
-	ui.manager->add_label(ui.stats_vbox, "--- DIAGNOSTICS ---");
+	ui.manager->add_header(ui.stats_vbox, "Diagnostics");
 
 	Button *vis_btn =
 			ui.manager->add_button(ui.stats_vbox, "Toggle Visual Corners", Callable(this, "_on_toggle_visual_corners"));
 	vis_btn->set_custom_minimum_size(Vector2(0, 30));
 
-	ui.manager->add_label(ui.stats_vbox, "--- TERRAIN STATS ---");
+	ui.manager->add_header(ui.stats_vbox, "Terrain Stats");
 	terrain.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
 
-	ui.manager->add_label(ui.stats_vbox, "--- HASH INSPECTION ---");
+	ui.manager->add_header(ui.stats_vbox, "Hash Inspection");
 	ui.hash_label = ui.manager->add_label(ui.stats_vbox, "Hash: N/A\nPos: (0, 0, 0)");
 
 	Button *save_btn = ui.manager->add_button(ui.stats_vbox, "Save State", Callable(this, "_on_save_terrain"));
@@ -101,14 +116,18 @@ void MCManager::setup_ui() {
 	Button *load_btn = ui.manager->add_button(ui.stats_vbox, "Load State", Callable(this, "_on_load_terrain"));
 	load_btn->set_custom_minimum_size(Vector2(0, 30));
 
-	ui.manager->add_label(ui.stats_vbox, "--- PLACEMENT ---");
+	ui.manager->add_header(ui.stats_vbox, "Placement");
 	Button *mode_btn =
 			ui.manager->add_button(ui.stats_vbox, "Mode: Terrain", Callable(this, "_on_toggle_placement_mode"));
 	mode_btn->set_name("PlacementModeButton"); // For easy lookup if needed
 	mode_btn->set_custom_minimum_size(Vector2(0, 30));
 
-	ui.manager->add_label(ui.stats_vbox, "--- MESH VARIANTS ---");
+	ui.manager->add_header(ui.stats_vbox, "Mesh Variants");
 	ui.variant_stats_vbox = ui.manager->add_vbox(ui.stats_vbox, "VariantStats");
+
+	if (_args.has("--mcshot") && ui.help_dialog) {
+		call_deferred("_on_show_help");
+	}
 }
 
 void MCManager::_on_toggle_placement_mode() {
@@ -165,7 +184,14 @@ void MCManager::_on_gui_input(const Ref<InputEvent> &p_event) {
 
 void MCManager::_on_show_help() {
 	if (ui.help_dialog) {
-		ui.help_dialog->popup_centered();
+		ui.help_dialog->open_alert(
+				"Marching Cubes Info",
+				"This project visualizes the 256 voxel configurations of the Marching Cubes algorithm.\n\n"
+			"- 21 base meshes generate all 256 variants via rotations/reflections.\n"
+			"- Transformations are applied via bitwise-mapped rotation matrices.\n"
+			"- Current UI tracks real-time performance and generation stats.\n\n"
+			"- Stats Button: Toggle sidebar visibility",
+				"OK");
 	}
 }
 
@@ -255,6 +281,12 @@ void MCManager::update_ui() {
 			ui.manager->add_label(ui.variant_stats_vbox, "Cumulative: " + String::num_int64(total));
 		}
 	}
+}
+
+void MCManager::_mc_capture() {
+	Ref<Image> img = get_viewport()->get_texture()->get_image();
+	img->save_png("res://../docs/png/mc_pretty.png");
+	get_tree()->quit();
 }
 
 } //namespace godot
