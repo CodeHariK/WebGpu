@@ -25,6 +25,7 @@
 #include "folio/water.h"
 #include "folio/audio.h"
 #include "folio/ui/menu.h"
+#include "folio/ui/title.h"
 #include "folio/ui/ui.h"
 #include "folio/world/rain_lines.h"
 #include "folio/world/wind_lines.h"
@@ -40,6 +41,9 @@
 #include "folio/world/world.h"
 
 #include "cui/cui.h"
+#include "cui/cui_overlay.h"
+#include "cui/cui_modal.h"
+#include "cui/cui_toast.h"
 #include "cui/cui_line_graph.h"
 
 #include "debug_draw/debug_manager.h"
@@ -145,7 +149,11 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FolioWind);
 	GDREGISTER_CLASS(FolioWeather);
 	GDREGISTER_CLASS(FolioAudio);
+	GDREGISTER_CLASS(CUIOverlay);
+	GDREGISTER_CLASS(CUIModal);
+	GDREGISTER_CLASS(CUIToast);
 	GDREGISTER_CLASS(FolioMenu);
+	GDREGISTER_CLASS(FolioTitle);
 	GDREGISTER_CLASS(FolioUI);
 	GDREGISTER_CLASS(FolioWindLines);
 	GDREGISTER_CLASS(FolioRainLines);

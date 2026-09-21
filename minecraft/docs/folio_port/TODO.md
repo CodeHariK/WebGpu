@@ -97,8 +97,14 @@ Analyze these together as ONE unit — they define the whole look.
 ## Tier 6 — UI framework
 - [~] Foundation ✅ (`FolioUI`: CanvasLayer above post + full-rect Control root + mute button;
       `FolioMenu` centred overlay with fade + Esc toggle, rows driving Audio/Quality).
-- [ ] `Modals`, `Notifications`, `Title`, `InteractivePoints`, `Map`, gamepad focus nav
-      (their `CUI` DOM system → Godot `Control` nodes) — build on the FolioUI root.
+- [x] Shared theme ✅ — FolioUI now loads the game's editor-editable `ui_theme.tres` (same one
+      CUI uses); extended it with PanelContainer + Label so FolioUI panels/labels style from it.
+      `FolioTheme::build()` loads the .tres with a code fallback. Single source of truth for the look.
+- [x] `Notifications` ✅ (`FolioNotifications`: top-centre transient toast stack; mute changes toast).
+- [x] `Title` ✅ (`FolioTitle`: start overlay; Play → fade out + `started`; HUD hidden until start).
+- [x] `Modals` ✅ (`FolioModal`: reusable confirm/alert dialog; menu "Quit to title" routes through it).
+- [ ] `InteractivePoints`, `Map`, gamepad focus nav
+      (their `CUI` DOM system → Godot `Control` nodes) — build on the FolioUI root + theme.
 
 ## Tier 7 — Portfolio content  (DEFERRED / likely skip)
 - [ ] Areas/*, Achievements, Career, BlackFriday, KonamiCode, Easter.
@@ -866,8 +872,74 @@ framework driving real systems — Sound (FolioAudio mute, reflects `mute_change
 layer (100), so the tilt-shift blur (strongest at screen top/bottom) no longer smears the HUD —
 matching folio, where the DOM UI is over the WebGL canvas entirely.
 
-**Deferred / next:** Modals, Notifications, Title, InteractivePoints, Map — plus a shared
-theme/`StyleBox` resource and gamepad/keyboard focus navigation. All parent onto
+**Reusable UI layer extracted into `cui/`.** The overlay machinery + generic screens now live in the
+general UI library, not the folio port:
+- `CUIOverlay` (`cui/cui_overlay.{h,cpp}`) — base for fading full-screen overlays: OPEN/OPENING/
+  CLOSING/CLOSED state machine, `open`/`close`/`toggle` with a CUITween fade that kills the prior
+  one, optional dim backdrop + full-rect CenterContainer (`center`), fit-on-open, Esc → `_on_escape()`.
+  A `CUI` builder is injected (`set_builder`); subclasses override `_build_content()`.
+- `CUIModal` (`cui/cui_modal.{h,cpp}`) — confirm/alert dialog on the base (`open_confirm`/`open_alert`,
+  `confirmed`/`cancelled` signals + on_confirm Callable). Moved out of folio, decoupled from FolioUI.
+  Now renders an **accent-tinted header band** behind the title (rounded top corners) so every modal
+  reads with a proper titlebar, and its buttons are `FOCUS_NONE` (no stray focus outline).
+- `CUIToast` (`cui/cui_toast.{h,cpp}`) — the transient toast stack, decoupled likewise.
+- `FolioMenu` / `FolioTitle` now **extend `CUIOverlay`** and only build content + game wiring (audio/
+  quality/quit for the menu, branding/`started` for the title). Three hand-rolled state machines
+  collapsed into one.
+FolioUI owns the `CUI` builder + a `CUIModal` + `CUIToast` and injects the builder into every screen.
+Old `folio/ui/modal.*` + `notifications.*` moved to `attic/folio_ui/` (delete when convenient).
+
+**Dev tools adopt the shared UI.** The Marching Cubes help dialog was switched from a raw
+`AcceptDialog` (a `Window` whose frame styleboxes ignore per-node overrides — gray body, no header
+backing, focus outline on OK) to a `CUIModal` opened via `open_alert("Marching Cubes Info", …)`.
+It now matches the sidebar's dark theme, gets the header band, and drops the focus outline. The MC
+sidebar background was also moved off an inline stylebox override onto the shared `ui_theme.tres`
+`Panel/styles/panel` (StyleBoxFlat_sidePanel).
+
+**View / controller split (CUI reuse).** FolioUI screens no longer hand-build any widgets: FolioUI
+owns one shared `CUI` builder (`get_cui()`), and FolioMenu/FolioTitle/FolioModal/FolioNotifications
+construct their *entire* tree through it — `add_color_rect` (backdrop), `add_center_container`,
+`add_vbox`/`add_panel_container`, `add_label`, `add_button` — keeping only state + callbacks. New CUI
+factories (`add_color_rect`, `add_center_container`) were added and the container helpers' `name`
+made optional (empty = unregistered) so structural nodes don't pollute the registry; all are
+API-preserving for the ~10 existing callers. Fades go through a new **`CUITween`** helper
+(`src/cui/cui_tween.{h,cpp}`): `fade_alpha()` and `toast()` build the tween and hand back the `Ref`,
+and each screen stores it and `kill()`s the prior one before starting a new fade — which also fixes a
+latent double-tween bug when open/close overlap. So CUI = view construction + tween plumbing, FolioUI
+screens = behaviour, everything from the one shared `ui_theme.tres`.
+
+**Shared theme** (`src/folio/ui/theme.{h,cpp}`, `FolioTheme`): `build()` loads the game's canonical
+`res://scripts/ui/menu/ui_theme.tres` (the same resource CUI applies) and returns it; a code
+fallback (`BG`/`PANEL_BG`/… constants) covers the case where the .tres is missing so the HUD never
+renders unstyled. The .tres was extended with a `PanelContainer/styles/panel` StyleBoxFlat + `Label`
+font/color/size so FolioUI's panels and labels render from the same resource. Net: one
+editor-editable theme drives both CUI (dev HUDs) and FolioUI (game screens); tweak colours/font/
+styleboxes in the Godot editor, no recompile. (CUI dev tools now also inherit the Label + panel
+styling.)
+
+**Notifications** (`src/folio/ui/notifications.{h,cpp}`, `FolioNotifications`): a top-centre
+toast stack (VBoxContainer) under the root; `notify(text, duration=2.5)` drops a theme-styled
+pill that fades in → holds → fades out → frees itself (per-toast Tween chain). FolioUI emits one
+on `mute_changed` ("Sound muted" / "Sound on"), so it's exercised in the real flow. Verified
+(`make run_folio_ui ARGS="--notify"`).
+
+**Title / start screen** (`src/folio/ui/title.{h,cpp}`, `FolioTitle`): a full-screen start
+overlay (dim backdrop + centred title/subtitle/Play, configurable text) shown ~0.1s after boot
+once layout has a real size, using the same fade + state machine as FolioMenu. Play fades it out
+and emits `started`; FolioUI hides the in-game HUD (mute/menu buttons) while it's up and reveals
+them + toasts "Welcome to the island" on `started`. Verified (`make run_folio_ui ARGS="--play"`):
+boot shows title only → Play reveals the world + HUD.
+
+**Modals** (`src/folio/ui/modal.{h,cpp}`, `FolioModal`): one reusable centred dialog on top of the
+HUD. `open_confirm(title, message, confirm_label, cancel_label, on_confirm)` and `open_alert(...)`
+rebuild the button row per call, fade in on the shared state machine, emit `confirmed`/`cancelled`,
+and run an optional `on_confirm` Callable; Esc cancels. Wired: the menu's "Quit to title" row opens
+a confirm modal → on Quit, closes the menu, hides the HUD, and reopens the Title. FolioUI gained
+`set_hud_visible()` (used at boot, on `started`, and on quit). Verified (`make run_folio_ui
+ARGS="--modal"`).
+
+**Deferred / next:** InteractivePoints, Map — plus gamepad/keyboard focus navigation, and hooking
+`started` to the intro/reveal sequence. All parent onto
 `FolioUI::get_root()`; overlays reuse the FolioMenu open/close pattern.
 
 ## Tier 5 · Audio  🔨 foundation (FolioAudio)

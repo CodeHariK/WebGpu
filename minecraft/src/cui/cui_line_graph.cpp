@@ -1,28 +1,38 @@
 #include "cui_line_graph.h"
-#include <godot_cpp/variant/utility_functions.hpp>
-#include <vector>
+
+#include <godot_cpp/core/math.hpp>
 
 namespace godot {
 
 void CUILineGraph::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("add_value", "value"), &CUILineGraph::add_value);
+	ClassDB::bind_method(D_METHOD("set_data", "data"), &CUILineGraph::set_data);
+	ClassDB::bind_method(D_METHOD("set_range", "min", "max"), &CUILineGraph::set_range);
+	ClassDB::bind_method(D_METHOD("set_line_color", "color"), &CUILineGraph::set_line_color);
+	ClassDB::bind_method(D_METHOD("set_max_points", "count"), &CUILineGraph::set_max_points);
+	ClassDB::bind_method(D_METHOD("get_max_points"), &CUILineGraph::get_max_points);
 	ClassDB::bind_method(D_METHOD("clear"), &CUILineGraph::clear);
 }
 
-CUILineGraph::CUILineGraph() { set_custom_minimum_size(Vector2(0, 100)); }
+CUILineGraph::CUILineGraph() {
+	set_custom_minimum_size(Vector2(0, 100));
+}
 
 CUILineGraph::~CUILineGraph() {}
 
 void CUILineGraph::add_value(float p_value) {
 	data_points.push_back(p_value);
-	if (data_points.size() > (size_t)max_points) {
-		data_points.erase(data_points.begin());
+	while (data_points.size() > max_points) {
+		data_points.remove_at(0);
 	}
 	queue_redraw();
 }
 
-void CUILineGraph::set_data(const std::vector<float> &p_data) {
+void CUILineGraph::set_data(const PackedFloat32Array &p_data) {
 	data_points = p_data;
+	while (data_points.size() > max_points) {
+		data_points.remove_at(0);
+	}
 	queue_redraw();
 }
 
@@ -35,39 +45,48 @@ void CUILineGraph::set_range(
 	queue_redraw();
 }
 
+void CUILineGraph::set_line_color(const Color &p_color) {
+	line_color = p_color;
+	queue_redraw();
+}
+
+void CUILineGraph::set_max_points(int p_count) {
+	max_points = p_count < 2 ? 2 : p_count; // need >=2 for a segment / safe step
+	while (data_points.size() > max_points) {
+		data_points.remove_at(0);
+	}
+	queue_redraw();
+}
+
 void CUILineGraph::clear() {
 	data_points.clear();
 	queue_redraw();
 }
 
 void CUILineGraph::_draw() {
-	Vector2 size = get_size();
-
-	// Draw Background
+	const Vector2 size = get_size();
 	draw_rect(Rect2(Vector2(), size), bg_color);
 
 	if (data_points.size() < 2) {
 		return;
 	}
 
-	PackedVector2Array points;
-	float step_x = size.x / (max_points - 1);
+	const float step_x = size.x / (float)(max_points - 1); // max_points >= 2 guaranteed
 	float range = max_value - min_value;
-	if (range <= 0.0f)
+	if (range <= 0.0f) {
 		range = 1.0f;
+	}
 
-	// Start drawing from the right if we have fewer than max_points
-	float x_offset = (max_points - (int)data_points.size()) * step_x;
+	// Right-align the samples when fewer than max_points are present.
+	const float x_offset = (max_points - data_points.size()) * step_x;
 
-	for (size_t i = 0; i < data_points.size(); ++i) {
-		float px = x_offset + (i * step_x);
-
-		// Normalize value to 0-1 range based on min/max
-		float norm_val = (data_points[i] - min_value) / range;
-		norm_val = UtilityFunctions::clamp(norm_val, 0.0f, 1.0f);
-
-		float py = size.y - (norm_val * size.y);
-		points.push_back(Vector2(px, py));
+	PackedVector2Array points;
+	points.resize(data_points.size());
+	for (int i = 0; i < data_points.size(); ++i) {
+		const float px = x_offset + (i * step_x);
+		const float norm = Math::clamp((data_points[i] - min_value) / range, 0.0f, 1.0f);
+		const float py = size.y - (norm * size.y);
+		points[i] = Vector2(px, py);
 	}
 
 	draw_polyline(points, line_color, 1.5f, true);

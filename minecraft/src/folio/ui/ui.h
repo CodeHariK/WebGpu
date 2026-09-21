@@ -5,7 +5,7 @@
 #include <godot_cpp/classes/canvas_layer.hpp>
 #include <godot_cpp/classes/control.hpp>
 
-namespace godot { class FolioMenu; }
+namespace godot { class FolioMenu; class FolioTitle; class CUIModal; class CUIToast; class CUI; }
 
 namespace godot {
 
@@ -41,6 +41,10 @@ private:
 	Button *mute_button = nullptr;
 	Button *menu_button = nullptr;
 	FolioMenu *menu = nullptr;
+	CUIToast *notifications = nullptr;
+	FolioTitle *title = nullptr;
+	CUIModal *modal = nullptr;
+	CUI *builder = nullptr; // shared widget factory (view construction)
 	State state = STATE_CLOSED;
 
 	static FolioUI *singleton;
@@ -51,6 +55,7 @@ private:
 	void _on_mute_changed(bool p_active);
 	void _build_menu_button();
 	void _on_menu_pressed();
+	void _on_started();
 
 protected:
 	static void _bind_methods();
@@ -63,6 +68,11 @@ public:
 
 	Control *get_root() const { return root; }
 	FolioMenu *get_menu() const { return menu; }
+	CUIToast *get_notifications() const { return notifications; }
+	FolioTitle *get_title() const { return title; }
+	CUIModal *get_modal() const { return modal; }
+	CUI *get_cui() const { return builder; }
+	void set_hud_visible(bool p_v);
 	int get_state() const { return (int)state; }
 
 	static FolioUI *get_singleton() { return singleton; }
