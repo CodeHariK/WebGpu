@@ -1,3 +1,17 @@
+// GameCamera implementation — see camera.h for the rig overview and the doc
+// comments on every member and method. This file holds the Godot bindings, the
+// mode-switching state machine, and the shared follow maths the states call.
+//
+// Layout:
+//   _bind_methods           - expose properties / methods / Mode enum to Godot
+//   lifecycle               - _ready / _exit_tree / _physics_process
+//   set_camera_mode         - swap the active CameraState (exit old, enter new)
+//   shared follow helpers   - rebase_springs / base_offset_dir /
+//                             smooth_look_angles / orbit_position /
+//                             resolve_follow_distance / apply_position
+//   collision + targeting   - _solve_collision / follow-target setters /
+//                             get_center_raycast_hit / get_current_target_distance
+
 #include "camera.h"
 #include "../game_manager/game_manager.h"
 #include "../game_manager/player_input.h"
@@ -47,6 +61,10 @@ void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_damping", "damping"), &GameCamera::set_damping);
 	ClassDB::bind_method(D_METHOD("get_damping"), &GameCamera::get_damping);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "damping"), "set_damping", "get_damping");
+
+	ClassDB::bind_method(D_METHOD("set_response", "response"), &GameCamera::set_response);
+	ClassDB::bind_method(D_METHOD("get_response"), &GameCamera::get_response);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "response"), "set_response", "get_response");
 
 	ClassDB::bind_method(D_METHOD("set_pan_speed", "speed"), &GameCamera::set_pan_speed);
 	ClassDB::bind_method(D_METHOD("get_pan_speed"), &GameCamera::get_pan_speed);
@@ -101,6 +119,14 @@ void GameCamera::_bind_methods() {
 			PropertyInfo(Variant::FLOAT, "max_speed_for_zoom"), "set_max_speed_for_zoom", "get_max_speed_for_zoom"
 	);
 
+	ClassDB::bind_method(D_METHOD("set_car_look_ahead", "amount"), &GameCamera::set_car_look_ahead);
+	ClassDB::bind_method(D_METHOD("get_car_look_ahead"), &GameCamera::get_car_look_ahead);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "car_look_ahead"), "set_car_look_ahead", "get_car_look_ahead");
+
+	ClassDB::bind_method(D_METHOD("set_fixed_deadzone", "radius"), &GameCamera::set_fixed_deadzone);
+	ClassDB::bind_method(D_METHOD("get_fixed_deadzone"), &GameCamera::get_fixed_deadzone);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "fixed_deadzone"), "set_fixed_deadzone", "get_fixed_deadzone");
+
 	BIND_ENUM_CONSTANT(MODE_FLY);
 	BIND_ENUM_CONSTANT(MODE_CAR);
 	BIND_ENUM_CONSTANT(MODE_TPS);
@@ -113,12 +139,10 @@ GameCamera::GameCamera() {
 	response = 0.0f;
 }
 
-GameCamera::~GameCamera() {
-	if (current_mode_instance) {
-		delete current_mode_instance;
-	}
-}
+GameCamera::~GameCamera() {}
 
+// Resolve target, register with the GameManager, seat every spring on the
+// current transform, then enter the initial mode.
 void GameCamera::_ready() {
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
@@ -129,15 +153,12 @@ void GameCamera::_ready() {
 		gm->register_camera(this);
 	}
 
-	// Initialize springs
-	pos_spring.reset(get_global_position());
-	yaw_spring.reset(get_rotation().y);
-	pitch_spring.reset(get_rotation().x);
-
 	if (follow_offset.length_squared() > 0.001f) {
 		target_distance = follow_offset.length();
 	}
-	dist_spring.reset(target_distance);
+
+	// Seat every spring on the current transform before the first mode runs.
+	rebase_springs();
 
 	// Set initial mode
 	set_camera_mode(camera_mode);
@@ -164,6 +185,8 @@ void GameCamera::_physics_process(double p_delta) {
 	current_mode_instance->update(this, delta);
 }
 
+// Swap the active behaviour: exit + destroy the old state, construct + enter
+// the new one. No-op if already in `p_mode`. Editor guarded.
 void GameCamera::set_camera_mode(Mode p_mode) {
 	if (current_mode_instance && camera_mode == p_mode) {
 		return;
@@ -176,8 +199,7 @@ void GameCamera::set_camera_mode(Mode p_mode) {
 		if (!is_editor) {
 			current_mode_instance->exit(this);
 		}
-		delete current_mode_instance;
-		current_mode_instance = nullptr;
+		current_mode_instance.reset();
 	}
 
 	camera_mode = p_mode;
@@ -185,16 +207,16 @@ void GameCamera::set_camera_mode(Mode p_mode) {
 	// Enter new mode
 	switch (camera_mode) {
 		case MODE_FLY:
-			current_mode_instance = new CameraStateFly();
+			current_mode_instance = std::make_unique<CameraStateFly>();
 			break;
 		case MODE_CAR:
-			current_mode_instance = new CameraStateCar();
+			current_mode_instance = std::make_unique<CameraStateCar>();
 			break;
 		case MODE_TPS:
-			current_mode_instance = new CameraStateTPS();
+			current_mode_instance = std::make_unique<CameraStateTPS>();
 			break;
 		case MODE_FIXED:
-			current_mode_instance = new CameraStateFixed();
+			current_mode_instance = std::make_unique<CameraStateFixed>();
 			break;
 	}
 
@@ -210,37 +232,105 @@ void GameCamera::_update_follow_node() {
 		return;
 	}
 	follow_target_node = Object::cast_to<Node3D>(get_node_or_null(follow_target_path));
+	_refresh_follow_exclude();
 }
 
-Vector3 GameCamera::_calculate_ideal_position() {
-	if (camera_mode == MODE_FLY) {
-		return pos_spring.target;
+// Cache the ray-exclude list so the per-frame collision cast (car / TPS) does
+// not rebuild a TypedArray every tick. The target's RID is stable, so this only
+// needs to run when the follow target changes.
+void GameCamera::_refresh_follow_exclude() {
+	follow_exclude.clear();
+	if (follow_target_node) {
+		CollisionObject3D *co = Object::cast_to<CollisionObject3D>(follow_target_node);
+		if (co) {
+			follow_exclude.push_back(co->get_rid());
+		}
+	}
+}
+
+// --- Shared follow helpers -------------------------------------------------
+
+void GameCamera::rebase_springs() {
+	Vector3 rot = get_rotation();
+	yaw = rot.y;
+	pitch = rot.x;
+
+	pos_spring.reset(get_global_position());
+	yaw_spring.reset(yaw);
+	pitch_spring.reset(pitch);
+	dist_spring.reset(target_distance);
+}
+
+Vector3 GameCamera::base_offset_dir() const {
+	return follow_offset.length_squared() > 0.001f ? follow_offset.normalized() : Vector3(0, 0, 1);
+}
+
+void GameCamera::smooth_look_angles(float p_delta) {
+	yaw = UtilityFunctions::wrapf(yaw, -Math::PI, Math::PI);
+
+	// Follow the shortest arc so a +PI/-PI wrap never spins the camera.
+	float yaw_diff = UtilityFunctions::wrapf(yaw - yaw_spring.current, -Math::PI, Math::PI);
+	yaw_spring.target = yaw_spring.current + yaw_diff;
+	pitch_spring.target = pitch;
+
+	float rot_freq = frequency * rotation_freq_mult;
+	yaw_spring.step(p_delta, rot_freq, damping, response);
+	pitch_spring.step(p_delta, rot_freq, damping, response);
+
+	yaw_spring.current = UtilityFunctions::wrapf(yaw_spring.current, -Math::PI, Math::PI);
+}
+
+Vector3 GameCamera::orbit_position(
+		const Vector3 &p_pivot,
+		float p_dist
+) const {
+	Basis rot = Basis::from_euler(Vector3(pitch_spring.current, yaw_spring.current, 0));
+	return p_pivot + rot.xform(base_offset_dir() * p_dist);
+}
+
+float GameCamera::resolve_follow_distance(
+		const Vector3 &p_pivot,
+		const Vector3 &p_ideal_full,
+		float p_desired,
+		float p_delta
+) {
+	float actual = p_desired;
+	if (collision_enabled && follow_target_node) {
+		actual = _solve_collision(p_pivot, p_ideal_full);
 	}
 
-	if (!follow_target_node) {
-		return get_global_position();
+	dist_spring.target = actual;
+	if (actual < dist_spring.current) {
+		// Snap inward instantly so the camera never clips through the wall...
+		dist_spring.current = actual;
+		dist_spring.velocity = 0.0f;
+	} else {
+		// ...but ease back out once the obstruction clears.
+		dist_spring.step(p_delta, frequency * distance_freq_mult, damping, response);
 	}
+	return dist_spring.current;
+}
 
-	Vector3 target_origin = follow_target_node->get_global_position();
-	Basis rot_basis = Basis::from_euler(Vector3(pitch, yaw, 0));
-	Vector3 base_dir = follow_offset.length_squared() > 0.001f ? follow_offset.normalized() : Vector3(0, 0, 1);
-	return target_origin + rot_basis.xform(base_dir * get_current_target_distance());
+void GameCamera::apply_position(
+		const Vector3 &p_ideal_pos,
+		float p_delta
+) {
+	pos_spring.target = p_ideal_pos;
+	if (pos_smoothing_enabled) {
+		pos_spring.step(p_delta, frequency, damping, response);
+		set_global_position(pos_spring.current);
+	} else {
+		set_global_position(p_ideal_pos);
+	}
+	set_rotation(Vector3(pitch_spring.current, yaw_spring.current, 0));
 }
 
 float GameCamera::_solve_collision(
 		const Vector3 &p_from,
 		const Vector3 &p_to
 ) {
-	TypedArray<RID> exclude;
-	if (follow_target_node) {
-		CollisionObject3D *co = Object::cast_to<CollisionObject3D>(follow_target_node);
-		if (co) {
-			exclude.push_back(co->get_rid());
-		}
-	}
-
 	float baseline_dist = p_from.distance_to(p_to);
-	MCRaycastHit hit = raycast_3d(this, p_from, p_to, collision_mask, exclude);
+	MCRaycastHit hit = raycast_3d(this, p_from, p_to, collision_mask, follow_exclude);
 	if (hit.is_hit) {
 		float hit_dist = p_from.distance_to(hit.position);
 		return MAX(min_distance, hit_dist - collision_margin);
@@ -253,6 +343,8 @@ void GameCamera::set_follow_target_path(const NodePath &p_path) {
 	_update_follow_node();
 }
 
+// Side effects by design: the offset's length becomes the resting distance,
+// and max_distance grows to keep that distance reachable.
 void GameCamera::set_follow_offset(const Vector3 &p_offset) {
 	follow_offset = p_offset;
 	target_distance = follow_offset.length();
@@ -270,6 +362,7 @@ void GameCamera::set_follow_target_node(Node3D *p_node) {
 	} else {
 		follow_target_path = NodePath();
 	}
+	_refresh_follow_exclude();
 }
 
 MCRaycastHit GameCamera::get_center_raycast_hit(
@@ -279,16 +372,11 @@ MCRaycastHit GameCamera::get_center_raycast_hit(
 	Vector3 from = get_global_position();
 	Vector3 to = from - get_global_transform().basis.get_column(2).normalized() * p_dist;
 
-	TypedArray<RID> exclude;
-	if (follow_target_node) {
-		CollisionObject3D *co = Object::cast_to<CollisionObject3D>(follow_target_node);
-		if (co)
-			exclude.push_back(co->get_rid());
-	}
-
-	return raycast_3d(this, from, to, p_mask, exclude);
+	return raycast_3d(this, from, to, p_mask, follow_exclude);
 }
 
+// Base distance plus car dynamic zoom: pull back from speed_threshold up to
+// dynamic_zoom_extra_distance at max_speed_for_zoom (car mode + RigidBody only).
 float GameCamera::get_current_target_distance() const {
 	if (!dynamic_zoom_enabled || camera_mode != MODE_CAR || !follow_target_node) {
 		return target_distance;

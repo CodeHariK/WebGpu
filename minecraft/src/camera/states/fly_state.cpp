@@ -6,7 +6,12 @@
 
 namespace godot {
 
-void CameraStateFly::enter(GameCamera *p_camera) { Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_VISIBLE); }
+void CameraStateFly::enter(GameCamera *p_camera) {
+	Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
+	// Seat the springs on wherever the camera currently is so entering fly mode
+	// (or returning to it) never snaps.
+	p_camera->rebase_springs();
+}
 
 void CameraStateFly::update(
 		GameCamera *p_camera,
@@ -17,7 +22,7 @@ void CameraStateFly::update(
 
 		if (state.camera.is_orbiting) {
 			if (state.camera.is_panning) {
-				// Panning logic: translate instead of rotate
+				// Panning: translate the free-fly focus instead of rotating.
 				Transform3D t = p_camera->get_global_transform();
 				Vector3 right = t.basis.get_column(0);
 				Vector3 up = t.basis.get_column(1);
@@ -37,23 +42,10 @@ void CameraStateFly::update(
 		}
 	}
 
-	// Free look physics update
-	p_camera->yaw_spring.target = p_camera->yaw;
-	p_camera->pitch_spring.target = p_camera->pitch;
-
-	p_camera->yaw_spring.step(p_delta, p_camera->frequency * 2.0f, p_camera->damping, p_camera->response);
-	p_camera->pitch_spring.step(p_delta, p_camera->frequency * 2.0f, p_camera->damping, p_camera->response);
-
-	// Position physics update
-	Vector3 target_pos = p_camera->pos_spring.target;
-	if (p_camera->is_pos_smoothing_enabled()) {
-		p_camera->pos_spring.step(p_delta, p_camera->get_frequency(), p_camera->get_damping(), p_camera->response);
-		p_camera->set_global_position(p_camera->pos_spring.current);
-	} else {
-		p_camera->set_global_position(target_pos);
-	}
-
-	p_camera->set_rotation(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
+	// Shared rotation + position smoothing (free-fly keeps its own moving focus in
+	// pos_spring.target, so we just smooth toward it).
+	p_camera->smooth_look_angles(p_delta);
+	p_camera->apply_position(p_camera->pos_spring.target, p_delta);
 }
 
 } // namespace godot
