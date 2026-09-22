@@ -7,8 +7,24 @@
 namespace godot {
 
 /**
+ * @brief Frame-rate-independent smoothing factor for an exponential approach.
+ *
+ * Returns the lerp `t` in `current = lerp(current, target, t)` that makes a
+ * simple `a.lerp(b, t)` decay at a fixed rate regardless of frame time, i.e.
+ * `1 - e^(-rate * dt)`. Prefer this over the common `MIN(1, dt * k)` hack, which
+ * is only a first-order approximation and drifts (over-smooths at low fps,
+ * under-smooths at high fps). `rate` is roughly "how many e-folds per second".
+ */
+inline float spring_damp_factor(float p_rate, float p_delta) {
+	if (p_rate <= 0.0f || p_delta <= 0.0f) {
+		return 0.0f;
+	}
+	return 1.0f - std::exp(-p_rate * p_delta);
+}
+
+/**
  * @brief Second-Order Dynamics (Spring-Damper system)
- * Implementation based on Keijiro Takahashi's and Thomas Tangent's work.
+ * Implementation based on Keijiro Takahashi's and t3ssel8r's work.
  * Can be used for smoothing Camera, Doors, Punching Bags, etc.
 
  * [Instant "Game Feel" Tutorial - Secrets of Springs Explained](https://www.youtube.com/watch?v=bFOAipGJGA0)
@@ -25,26 +41,53 @@ template <typename T> struct SpringDynamics {
 	void reset(T p_value) {
 		current = p_value;
 		target = p_value;
-		velocity = T() * 0.0f; // Handle potential Vector types
+		velocity = T(); // zero for both float and Vector types
 	}
 
+	/**
+	 * Advance the spring by `p_delta` seconds.
+	 *
+	 * @param p_frequency Natural frequency in Hz (speed of response).
+	 * @param p_damping   Damping ratio (1 = critically damped, <1 bouncy, >1 sluggish).
+	 * @param p_response  Initial response / anticipation (0 = none, >0 overshoots
+	 *                    toward a moving target, <0 anticipates before reacting).
+	 *
+	 * Stability: the semi-implicit integrator can diverge when the frame time is
+	 * large relative to the spring period. We clamp `k2` to the smallest value
+	 * that keeps the poles inside the unit circle for this `p_delta`, so the
+	 * spring stays stable at any frame rate (hitches, low-end mobile) instead of
+	 * exploding. This is the standard t3ssel8r clamp.
+	 */
 	void
 	step(float p_delta,
 		 float p_frequency,
 		 float p_damping,
 		 float p_response) {
-		if (p_delta <= 0.0f)
+		if (p_delta <= 0.0f || p_frequency <= 0.0f)
 			return;
 
-		// Dynamics constants
-		float k1 = p_damping / (Math::PI * p_frequency);
-		float k2 = 1.0f / (pow(2.0f * Math::PI * p_frequency, 2.0f));
-		float k3 = p_response * p_damping / (2.0f * Math::PI * p_frequency);
+		const float two_pi_f = 2.0f * (float)Math::PI * p_frequency;
 
-		// Estimate target velocity (x_prime)
+		// Dynamics constants.
+		float k1 = p_damping / ((float)Math::PI * p_frequency);
+		float k2 = 1.0f / (two_pi_f * two_pi_f);
+		float k3 = p_response * p_damping / two_pi_f;
+
+		// Clamp k2 so the discrete system cannot go unstable for this delta.
+		const float k2_stable = p_delta * p_delta * 0.5f + p_delta * k1 * 0.5f;
+		if (k2 < k2_stable) {
+			k2 = k2_stable;
+		}
+		if (k2 < p_delta * k1) {
+			k2 = p_delta * k1;
+		}
+
+		// Estimate target velocity (x_prime).
 		T x_prime = (target - current) / p_delta;
 
-		// Update state
+		// Semi-implicit update: advance position with the *old* velocity, then the
+		// velocity with the *new* position (this ordering is what the clamp above
+		// keeps stable).
 		current += velocity * p_delta;
 		velocity += p_delta * (target + k3 * x_prime - current - k1 * velocity) / k2;
 	}
@@ -64,7 +107,7 @@ template <typename T> struct AnalyticalSpring {
 	void reset(T p_value) {
 		current = p_value;
 		target = p_value;
-		velocity = T() * 0.0f;
+		velocity = T();
 	}
 
 	/**

@@ -3,11 +3,13 @@
 #include "../camera.h"
 #include <cmath>
 #include <godot_cpp/classes/input.hpp>
-#include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
 
-void CameraStateTPS::enter(GameCamera *p_camera) { Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_CAPTURED); }
+void CameraStateTPS::enter(GameCamera *p_camera) {
+	Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
+	p_camera->rebase_springs();
+}
 
 void CameraStateTPS::update(
 		GameCamera *p_camera,
@@ -16,12 +18,11 @@ void CameraStateTPS::update(
 	if (p_camera->get_player_input()) {
 		const ActionState &state = p_camera->get_player_input()->get_state();
 
-		// 1. Update Rotation (TPS captures mouse, so we always look)
+		// Mouse is captured in TPS, so we always steer the look.
 		p_camera->yaw -= state.camera.look_delta.x * p_camera->orbit_sensitivity;
 		p_camera->pitch -= state.camera.look_delta.y * p_camera->orbit_sensitivity;
 		p_camera->pitch = CLAMP(p_camera->pitch, -Math::PI * 0.45f, Math::PI * 0.45f);
 
-		// 2. Zoom handling
 		if (std::abs(state.camera.zoom_delta) > 0.001f) {
 			p_camera->target_distance =
 					CLAMP(p_camera->target_distance - (state.camera.zoom_delta * p_camera->zoom_speed),
@@ -29,55 +30,22 @@ void CameraStateTPS::update(
 		}
 	}
 
-	// 3. Spring Smoothing for Rotation
-	p_camera->yaw = UtilityFunctions::wrapf(p_camera->yaw, -Math::PI, Math::PI);
+	// Shared rotation smoothing.
+	p_camera->smooth_look_angles(p_delta);
 
-	float yaw_diff = UtilityFunctions::wrapf(p_camera->yaw - p_camera->yaw_spring.current, -Math::PI, Math::PI);
-	p_camera->yaw_spring.target = p_camera->yaw_spring.current + yaw_diff;
-
-	p_camera->pitch_spring.target = p_camera->pitch;
-	p_camera->yaw_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
-	p_camera->pitch_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
-
-	p_camera->yaw_spring.current = UtilityFunctions::wrapf(p_camera->yaw_spring.current, -Math::PI, Math::PI);
-
-	// 4. Position Calculation
 	Vector3 pivot = (p_camera->get_follow_target_node()) ? p_camera->get_follow_target_node()->get_global_position()
 														 : p_camera->get_global_position();
 
-	// Apply rotation to the offset
-	Basis rot_basis = Basis::from_euler(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
+	// The shoulder/back framing lives in follow_offset: its direction is the
+	// orbit direction and its length is the resting distance. Collision now works
+	// in absolute metres (same units as Car), so switching TPS<->Car no longer
+	// jumps.
+	float desired = p_camera->target_distance;
+	Vector3 ideal_full = p_camera->orbit_position(pivot, desired);
+	float dist = p_camera->resolve_follow_distance(pivot, ideal_full, desired, p_delta);
+	Vector3 ideal_pos = p_camera->orbit_position(pivot, dist);
 
-	// Default Offset if none specified: slightly right and back
-	Vector3 local_offset =
-			p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset : Vector3(0.5f, 1.5f, 3.0f);
-	Vector3 target_pos = pivot + rot_basis.xform(local_offset);
-
-	// 5. Collision Solving
-	float dist_multiplier = 1.0f;
-	if (p_camera->is_collision_enabled() && p_camera->get_follow_target_node()) {
-		// We solve collision relative to the pivot
-		float actual_dist = p_camera->_solve_collision(pivot, target_pos);
-		dist_multiplier = actual_dist / local_offset.length();
-	}
-
-	// Smooth the distance factor
-	p_camera->dist_spring.target = dist_multiplier;
-	p_camera->dist_spring.step(p_delta, p_camera->get_frequency() * 1.5f, p_camera->get_damping(), p_camera->response);
-
-	// Final Ideal Position (where the camera wants to be)
-	Vector3 ideal_pos = pivot + rot_basis.xform(local_offset * p_camera->dist_spring.current);
-
-	// 6. Movement Smoothing
-	p_camera->pos_spring.target = ideal_pos;
-	if (p_camera->is_pos_smoothing_enabled()) {
-		p_camera->pos_spring.step(p_delta, p_camera->get_frequency(), p_camera->get_damping(), p_camera->response);
-		p_camera->set_global_position(p_camera->pos_spring.current);
-	} else {
-		p_camera->set_global_position(ideal_pos);
-	}
-
-	p_camera->set_rotation(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
+	p_camera->apply_position(ideal_pos, p_delta);
 }
 
 } // namespace godot

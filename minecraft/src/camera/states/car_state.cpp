@@ -1,16 +1,23 @@
 #include "car_state.h"
 #include "../../game_manager/player_input.h"
 #include "../camera.h"
-#include "godot_cpp/variant/utility_functions.hpp"
+#include "../../utils/spring/spring_dynamics.h"
 #include <cmath>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
+
+// Frame-rate-independent smoothing rates (e-folds per second).
+static const float PIVOT_RATE = 10.0f; // how fast the framing chases the car
+static const float VELOCITY_RATE = 5.0f; // how fast the "travel direction" settles
+static const float YAW_FOLLOW_RATE = 4.0f; // how fast yaw re-centres behind the car
 
 void CameraStateCar::enter(GameCamera *p_camera) {
 	Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
 	first_frame = true;
+	p_camera->rebase_springs();
 }
 
 void CameraStateCar::update(
@@ -27,11 +34,20 @@ void CameraStateCar::update(
 		smoothed_velocity = raw_velocity;
 		first_frame = false;
 	} else {
-		smoothed_pivot = smoothed_pivot.lerp(target_pivot, MIN(1.0f, p_delta * 10.0f));
-		smoothed_velocity = smoothed_velocity.lerp(raw_velocity, MIN(1.0f, p_delta * 5.0f));
+		smoothed_pivot = smoothed_pivot.lerp(target_pivot, spring_damp_factor(PIVOT_RATE, p_delta));
+		smoothed_velocity = smoothed_velocity.lerp(raw_velocity, spring_damp_factor(VELOCITY_RATE, p_delta));
 	}
 
+	Vector3 horizontal_vel = Vector3(smoothed_velocity.x, 0.0f, smoothed_velocity.z);
+	float h_speed = horizontal_vel.length();
+
+	// Look-ahead: lead the framing along the travel direction, scaled by speed,
+	// so the player sees more of where they are going.
 	Vector3 pivot = smoothed_pivot;
+	if (p_camera->car_look_ahead > 0.0f && h_speed > 0.1f) {
+		float lead = p_camera->car_look_ahead * CLAMP(h_speed / p_camera->max_speed_for_zoom, 0.0f, 1.0f);
+		pivot += (horizontal_vel / h_speed) * lead;
+	}
 
 	if (p_camera->get_player_input()) {
 		const ActionState &state = p_camera->get_player_input()->get_state();
@@ -48,17 +64,15 @@ void CameraStateCar::update(
 						  p_camera->min_distance, p_camera->max_distance);
 		}
 
-		// Car orientation tracking
+		// Auto re-centre behind the car when the player is not manually orbiting.
 		if (!state.camera.is_orbiting) {
-			float target_yaw = 0.0f;
+			float target_yaw = p_camera->yaw;
 
 			if (rb) {
-				Vector3 linear_vel = smoothed_velocity;
-				Vector3 horizontal_vel = Vector3(linear_vel.x, 0, linear_vel.z);
 				Vector3 target_forward = -rb->get_global_transform().basis.get_column(2).normalized();
 				Vector3 local_up = rb->get_global_transform().basis.get_column(1).normalized();
 
-				bool is_flipped = local_up.y < 0.5f; // Tilted more than ~60 degrees
+				bool is_flipped = local_up.y < 0.5f; // tilted past ~60 degrees
 				float speed_sq = horizontal_vel.length_squared();
 
 				bool is_reversing = false;
@@ -70,89 +84,43 @@ void CameraStateCar::update(
 				}
 
 				if (is_flipped) {
-					// If the car is flipped/tilted wildly, hold the camera's current yaw to prevent spinning/jittering
+					// Hold current yaw while the car is flipped to avoid a spin.
 					target_yaw = p_camera->yaw;
 				} else if (speed_sq > 1.0f && !is_reversing) {
-					// When upright and moving forward, follow the horizontal velocity vector (smooth drifting)
+					// Upright and moving forward: chase the velocity vector.
 					target_yaw = Math::atan2(-horizontal_vel.x, -horizontal_vel.z);
 				} else {
-					// When upright and slow/stationary or reversing, follow the car's forward orientation
+					// Slow / reversing: fall back to the car's facing.
 					float horizontal_forward_length = Vector2(target_forward.x, target_forward.z).length();
 					if (horizontal_forward_length > 0.001f) {
 						target_yaw = Math::atan2(-target_forward.x, -target_forward.z);
-					} else {
-						target_yaw = p_camera->yaw;
 					}
 				}
-			} else {
-				target_yaw = p_camera->yaw;
 			}
 
-			// Lerp p_camera->yaw towards target_yaw to avoid sudden snapping
-			float yaw_diff_raw = UtilityFunctions::wrapf(target_yaw - p_camera->yaw, -Math::PI, Math::PI);
-			p_camera->yaw += yaw_diff_raw * MIN(1.0f, p_delta * 4.0f);
+			// Ease yaw toward the target along the shortest arc (frame-rate independent).
+			float yaw_diff = UtilityFunctions::wrapf(target_yaw - p_camera->yaw, -Math::PI, Math::PI);
+			p_camera->yaw += yaw_diff * spring_damp_factor(YAW_FOLLOW_RATE, p_delta);
 
+			// Pitch from the follow offset, flattened a touch at speed for a
+			// stronger sense of velocity.
 			float h_dist = Vector2(p_camera->follow_offset.x, p_camera->follow_offset.z).length();
-			float target_pitch = (h_dist > 0.01f) ? -Math::atan2(p_camera->follow_offset.y, h_dist) : p_camera->pitch;
-			p_camera->pitch = target_pitch;
+			float base_pitch = (h_dist > 0.01f) ? -Math::atan2(p_camera->follow_offset.y, h_dist) : p_camera->pitch;
+			float speed_frac = CLAMP(h_speed / p_camera->max_speed_for_zoom, 0.0f, 1.0f);
+			p_camera->pitch = base_pitch * (1.0f - p_camera->car_speed_pitch_flatten * speed_frac);
 		}
 	}
 
-	// Shared Follow Logic (Orient + Collision + Springs)
-	p_camera->yaw = UtilityFunctions::wrapf(p_camera->yaw, -Math::PI, Math::PI);
+	// Shared rotation smoothing.
+	p_camera->smooth_look_angles(p_delta);
 
-	float yaw_diff = UtilityFunctions::wrapf(p_camera->yaw - p_camera->yaw_spring.current, -Math::PI, Math::PI);
-	p_camera->yaw_spring.target = p_camera->yaw_spring.current + yaw_diff;
+	// Distance (with dynamic zoom) + collision, then final position.
+	float desired = p_camera->get_current_target_distance();
+	Vector3 ideal_full = p_camera->orbit_position(pivot, desired);
+	float dist = p_camera->resolve_follow_distance(pivot, ideal_full, desired, p_delta);
+	Vector3 ideal_pos = p_camera->orbit_position(pivot, dist);
 
-	p_camera->pitch_spring.target = p_camera->pitch;
-	p_camera->yaw_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
-	p_camera->pitch_spring.step(p_delta, p_camera->get_frequency() * 2.0f, p_camera->get_damping(), p_camera->response);
-
-	p_camera->yaw_spring.current = UtilityFunctions::wrapf(p_camera->yaw_spring.current, -Math::PI, Math::PI);
-
-	// Final Ideal Position Calculation
-	Basis ideal_rot_basis = Basis::from_euler(Vector3(p_camera->pitch, p_camera->yaw, 0));
-	Vector3 base_dir =
-			p_camera->follow_offset.length_squared() > 0.001f ? p_camera->follow_offset.normalized() : Vector3(0, 0, 1);
-	Vector3 ideal_pos = pivot + ideal_rot_basis.xform(base_dir * p_camera->get_current_target_distance());
-
-	float actual_dist = p_camera->get_current_target_distance();
-	if (p_camera->is_collision_enabled() && rb) {
-		actual_dist = p_camera->_solve_collision(pivot, ideal_pos);
-	}
-
-	p_camera->dist_spring.target = actual_dist;
-	if (actual_dist < p_camera->dist_spring.current) {
-		// Snap instantly on collision to prevent wall clipping
-		p_camera->dist_spring.current = actual_dist;
-		p_camera->dist_spring.velocity = 0.0f;
-	} else {
-		// Smoothly recover distance when moving away from obstacles
-		p_camera->dist_spring.step(
-				p_delta, p_camera->get_frequency() * 1.5f, p_camera->get_damping(), p_camera->response
-		);
-	}
-
-	Basis rot_basis = Basis::from_euler(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
-	Vector3 spring_target_pos = pivot + rot_basis.xform(base_dir * p_camera->dist_spring.current);
-
-	// 6. Final Movement Smoothing
-	p_camera->pos_spring.target = spring_target_pos;
-	if (p_camera->is_pos_smoothing_enabled()) {
-		p_camera->pos_spring.step(p_delta, p_camera->get_frequency(), p_camera->get_damping(), p_camera->response);
-		p_camera->set_global_position(p_camera->pos_spring.current);
-	} else {
-		p_camera->set_global_position(spring_target_pos);
-	}
-	p_camera->set_rotation(Vector3(p_camera->pitch_spring.current, p_camera->yaw_spring.current, 0));
-
-	// UtilityFunctions::print(
-	// 		"CameraYaw ", p_camera->yaw,
-	// 		" CameraPitch ", p_camera->pitch,
-	// 		" CameraPitchSpring ", p_camera->pitch_spring.current,
-	// 		" CameraYawSpring ", p_camera->yaw_spring.current,
-	// 		" CameraPos ", p_camera->get_global_position(),
-	// 		" CameraRot ", p_camera->get_global_rotation());
+	p_camera->apply_position(ideal_pos, p_delta);
 }
 
 } // namespace godot
