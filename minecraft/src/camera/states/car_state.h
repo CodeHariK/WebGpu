@@ -26,6 +26,8 @@ private:
 public:
 	/// Show the mouse, reset smoothing, re-seat the springs on entry.
 	void enter(GameCamera *p_camera) override;
+	/// Restore the resting FOV so other modes aren't left zoomed.
+	void exit(GameCamera *p_camera) override;
 	/// Smooth the target, auto-frame behind it, then collide + smooth to place.
 	void
 	update(GameCamera *p_camera,

@@ -15,6 +15,7 @@
 #include "camera.h"
 #include "../game_manager/game_manager.h"
 #include "../game_manager/player_input.h"
+#include "effects/speed_lines.h"
 
 #include "states/car_state.h"
 #include "states/fixed_state.h"
@@ -24,7 +25,10 @@
 #include "../utils/raycast/mc_raycast.h"
 #include <godot_cpp/classes/collision_object3d.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/classes/input.hpp>
+#include <godot_cpp/classes/input_event_key.hpp>
+#include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -127,6 +131,24 @@ void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_fixed_deadzone"), &GameCamera::get_fixed_deadzone);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "fixed_deadzone"), "set_fixed_deadzone", "get_fixed_deadzone");
 
+	ClassDB::bind_method(D_METHOD("add_trauma", "amount"), &GameCamera::add_trauma);
+
+	ClassDB::bind_method(D_METHOD("set_car_fov_base", "fov"), &GameCamera::set_car_fov_base);
+	ClassDB::bind_method(D_METHOD("get_car_fov_base"), &GameCamera::get_car_fov_base);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "car_fov_base"), "set_car_fov_base", "get_car_fov_base");
+
+	ClassDB::bind_method(D_METHOD("set_car_fov_speed_add", "degrees"), &GameCamera::set_car_fov_speed_add);
+	ClassDB::bind_method(D_METHOD("get_car_fov_speed_add"), &GameCamera::get_car_fov_speed_add);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "car_fov_speed_add"), "set_car_fov_speed_add", "get_car_fov_speed_add"
+	);
+
+	ClassDB::bind_method(D_METHOD("set_speed_lines_path", "path"), &GameCamera::set_speed_lines_path);
+	ClassDB::bind_method(D_METHOD("get_speed_lines_path"), &GameCamera::get_speed_lines_path);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::NODE_PATH, "speed_lines_path"), "set_speed_lines_path", "get_speed_lines_path"
+	);
+
 	BIND_ENUM_CONSTANT(MODE_FLY);
 	BIND_ENUM_CONSTANT(MODE_CAR);
 	BIND_ENUM_CONSTANT(MODE_TPS);
@@ -137,6 +159,7 @@ GameCamera::GameCamera() {
 	frequency = 3.0f;
 	damping = 1.0f;
 	response = 0.0f;
+	shake.init();
 }
 
 GameCamera::~GameCamera() {}
@@ -159,6 +182,20 @@ void GameCamera::_ready() {
 
 	// Seat every spring on the current transform before the first mode runs.
 	rebase_springs();
+
+	// Capture the scene-authored FOV as the resting FOV for speed-FOV, unless a
+	// base was set explicitly.
+	if (car_fov_base <= 0.0f) {
+		car_fov_base = (float)get_fov();
+	}
+
+	// Resolve the optional speed-lines overlay.
+	_update_speed_lines();
+
+	// Debug test keys (opt-in): --fxtest enables K = camera shake.
+	if (OS::get_singleton()->get_cmdline_user_args().has("--fxtest")) {
+		debug_keys = true;
+	}
 
 	// Set initial mode
 	set_camera_mode(camera_mode);
@@ -183,6 +220,21 @@ void GameCamera::_physics_process(double p_delta) {
 
 	// Delegate to current mode
 	current_mode_instance->update(this, delta);
+
+	// Additive shake on top of the solved transform (all modes).
+	apply_shake(delta);
+}
+
+void GameCamera::_unhandled_key_input(const Ref<InputEvent> &p_event) {
+	if (!debug_keys) {
+		return;
+	}
+	Ref<InputEventKey> key = p_event;
+	if (key.is_valid() && key->is_pressed() && !key->is_echo()) {
+		if (key->get_keycode() == KEY_K) {
+			add_trauma(0.6f); // debug: kick the camera
+		}
+	}
 }
 
 // Swap the active behaviour: exit + destroy the old state, construct + enter
@@ -245,6 +297,32 @@ void GameCamera::_refresh_follow_exclude() {
 		if (co) {
 			follow_exclude.push_back(co->get_rid());
 		}
+	}
+}
+
+void GameCamera::_update_speed_lines() {
+	if (speed_lines_path.is_empty()) {
+		speed_lines = nullptr;
+		return;
+	}
+	speed_lines = Object::cast_to<SpeedLines>(get_node_or_null(speed_lines_path));
+}
+
+void GameCamera::set_speed_lines_path(const NodePath &p_path) {
+	speed_lines_path = p_path;
+	if (is_inside_tree()) {
+		_update_speed_lines();
+	}
+}
+
+// Forward a 0..1 speed ratio to the linked overlay (car cam calls this; other
+// modes push 0 so the streaks fade out).
+void GameCamera::drive_speed_lines(float p_ratio) {
+	if (!speed_lines && !speed_lines_path.is_empty()) {
+		_update_speed_lines();
+	}
+	if (speed_lines) {
+		speed_lines->set_speed_ratio(p_ratio);
 	}
 }
 
@@ -323,6 +401,39 @@ void GameCamera::apply_position(
 		set_global_position(p_ideal_pos);
 	}
 	set_rotation(Vector3(pitch_spring.current, yaw_spring.current, 0));
+}
+
+// Add a trauma impulse; the shake fades on its own.
+void GameCamera::add_trauma(float p_amount) {
+	shake.add_trauma(p_amount);
+}
+
+// Ease the FOV toward base + add*speed_frac (car mode). Disabled when add ~ 0.
+void GameCamera::apply_speed_fov(
+		float p_speed_frac,
+		float p_delta
+) {
+	if (car_fov_speed_add <= 0.001f) {
+		return;
+	}
+	float base = (car_fov_base > 0.0f) ? car_fov_base : (float)get_fov();
+	float target = base + car_fov_speed_add * CLAMP(p_speed_frac, 0.0f, 1.0f);
+	float current = Math::lerp((float)get_fov(), target, spring_damp_factor(fov_smooth_rate, p_delta));
+	set_fov(current);
+}
+
+// Sample the trauma shake and add it on top of the transform the state solved.
+// Because the state rewrites position + rotation from scratch every frame, the
+// offset added here is naturally cleared next frame and never feeds the springs.
+void GameCamera::apply_shake(float p_delta) {
+	shake.update(p_delta);
+	if (!shake.is_active()) {
+		return;
+	}
+	Transform3D t = get_global_transform();
+	Vector3 local_off = shake.local_position_offset();
+	set_global_position(get_global_position() + t.basis.xform(local_off));
+	set_rotation(get_rotation() + shake.rotation_offset());
 }
 
 float GameCamera::_solve_collision(

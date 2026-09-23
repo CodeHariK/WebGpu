@@ -2,6 +2,7 @@
 #define GAME_CAMERA_H
 
 #include "../utils/raycast/mc_raycast.h"
+#include "../utils/shake/camera_shake.h"
 #include "../utils/spring/spring_dynamics.h"
 #include "camera_state.h"
 #include <godot_cpp/classes/camera3d.hpp>
@@ -17,6 +18,7 @@
 namespace godot {
 class PlayerInput;
 class GameManager;
+class SpeedLines;
 
 /**
  * GameCamera — the game's main 3D camera rig.
@@ -128,12 +130,25 @@ private:
 	/// following (0 = rigid follow, the original behaviour).
 	float fixed_deadzone = 0.0f;
 
+	// --- Camera effects -----------------------------------------------------
+	CameraShake shake; ///< Trauma-based additive shake, applied on top in all modes.
+	float car_fov_base = 0.0f; ///< Resting FOV (deg); 0 = capture the authored fov at _ready.
+	float car_fov_speed_add = 15.0f; ///< Extra FOV degrees at max speed (0 disables speed-FOV).
+	float fov_smooth_rate = 6.0f; ///< FOV easing rate (frame-rate independent).
+
+	NodePath speed_lines_path; ///< Optional SpeedLines overlay the car cam drives.
+	SpeedLines *speed_lines = nullptr; ///< Resolved SpeedLines (cached).
+	bool debug_keys = false; ///< `--fxtest`: enable debug test keys (K = shake).
+
 	/// Resolve `follow_target_path` into `follow_target_node` (no-op if unset).
 	void _update_follow_node();
 
 	/// Rebuild `follow_exclude` from the current follow target. Call whenever the
 	/// follow target changes.
 	void _refresh_follow_exclude();
+
+	/// Resolve `speed_lines_path` into `speed_lines` (no-op if unset).
+	void _update_speed_lines();
 
 	// --- Shared follow helpers (called by the follow states) ----------------
 
@@ -173,6 +188,17 @@ private:
 			float p_delta
 	);
 
+	/// Widen the FOV with speed (car mode): eases toward
+	/// car_fov_base + car_fov_speed_add * p_speed_frac. No-op when disabled.
+	void apply_speed_fov(
+			float p_speed_frac,
+			float p_delta
+	);
+
+	/// Advance the shake and add its offset on top of the already-solved
+	/// transform (never feeds the follow springs). Runs every frame in every mode.
+	void apply_shake(float p_delta);
+
 	/// Cast from `p_from` toward `p_to`; return the safe distance to the first
 	/// hit (minus the margin, clamped to `min_distance`), or the full distance
 	/// when nothing is hit. Excludes the follow target from the ray.
@@ -195,6 +221,8 @@ public:
 	void _exit_tree() override;
 	/// Per-frame driver: delegates to the active state (physics tick).
 	void _physics_process(double p_delta) override;
+	/// Debug test keys when launched with `--fxtest` (K = trauma shake).
+	void _unhandled_key_input(const Ref<InputEvent> &p_event) override;
 
 	/// Switch behaviour. Exits the old state, enters the new one; no-op if same.
 	void set_camera_mode(Mode p_mode);
@@ -286,6 +314,23 @@ public:
 	/// Fixed: ground-plane dead-zone radius before the camera follows (0 = rigid).
 	void set_fixed_deadzone(float p_v) { fixed_deadzone = MAX(0.0f, p_v); }
 	float get_fixed_deadzone() const { return fixed_deadzone; }
+
+	/// Add a trauma impulse to the shake (0.2 small hit, 0.5 medium, 1.0 huge).
+	/// Bindable so gameplay/GDScript can shake the camera on impacts.
+	void add_trauma(float p_amount);
+
+	/// Car speed-FOV tuning. Base FOV (deg); 0 captures the authored fov at ready.
+	void set_car_fov_base(float p_v) { car_fov_base = p_v; }
+	float get_car_fov_base() const { return car_fov_base; }
+	/// Extra FOV degrees added at max speed (0 disables the effect).
+	void set_car_fov_speed_add(float p_v) { car_fov_speed_add = p_v; }
+	float get_car_fov_speed_add() const { return car_fov_speed_add; }
+
+	/// Optional SpeedLines overlay the car camera drives with its speed ratio.
+	void set_speed_lines_path(const NodePath &p_path);
+	NodePath get_speed_lines_path() const { return speed_lines_path; }
+	/// Forward a 0..1 speed ratio to the linked SpeedLines overlay, if any.
+	void drive_speed_lines(float p_ratio);
 };
 
 } // namespace godot
