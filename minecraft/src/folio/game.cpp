@@ -1,6 +1,7 @@
 #include "game.h"
 
 #include "cycles/day_cycles.h"
+#include "cycles/year_cycles.h"
 #include "fog.h"
 #include "lighting.h"
 #include "noises.h"
@@ -122,6 +123,10 @@ void FolioGame::_boot() {
 	day_cycles->set_name("DayCycles");
 	add_child(day_cycles);
 
+	year_cycles = memnew(FolioYearCycles);
+	year_cycles->set_name("YearCycles");
+	add_child(year_cycles);
+
 	// Audio (folio Audio.js reusable core: groups/items registry + spatial fade + mute).
 	audio = memnew(FolioAudio);
 	audio->set_name("Audio");
@@ -157,6 +162,7 @@ void FolioGame::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_terrain"), &FolioGame::get_terrain);
 	ClassDB::bind_method(D_METHOD("get_rendering"), &FolioGame::get_rendering);
 	ClassDB::bind_method(D_METHOD("get_day_cycles"), &FolioGame::get_day_cycles);
+	ClassDB::bind_method(D_METHOD("get_year_cycles"), &FolioGame::get_year_cycles);
 	ClassDB::bind_method(D_METHOD("get_wind"), &FolioGame::get_wind);
 	ClassDB::bind_method(D_METHOD("get_weather"), &FolioGame::get_weather);
 	ClassDB::bind_method(D_METHOD("get_audio"), &FolioGame::get_audio);

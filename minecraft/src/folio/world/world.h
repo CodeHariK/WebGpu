@@ -13,6 +13,8 @@ class FolioTrees;
 class FolioFlowers;
 class FolioWindLines;
 class FolioRainLines;
+class FolioLeaves;
+class FolioSnow;
 
 /**
  * Folio port — FolioWorld  (folio `World/World.js`, environment slice)
@@ -47,6 +49,8 @@ private:
 	FolioFlowers *flowers = nullptr;
 	FolioWindLines *wind_lines = nullptr;
 	FolioRainLines *rain_lines = nullptr;
+	FolioLeaves *leaves = nullptr;
+	FolioSnow *snow = nullptr;
 
 	bool built = false;
 	void _build();

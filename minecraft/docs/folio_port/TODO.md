@@ -36,8 +36,16 @@ WebGPU / TSL + Rapier) into this Godot 4 GDExtension project.
 - [x] `Quality` (quality tier 0/1 + `change` event; `src/folio/quality.{h,cpp}`).
 - [x] `ResourcesLoader` → `FolioResources` (keyed batch loader; `src/folio/resources.{h,cpp}`).
 - [x] `View` (camera) — SPLIT into `src/folio/view/` (orchestrator + 6 helpers; deferred trio remains).
-- [ ] Global shader clock: expose `elapsed`/`delta` (+ `scale = 2`) as Godot
-      **global shader uniforms** (folio publishes these via TSL `uniform()`).
+- [x] Global shader clock ✅ — `FolioTicker` publishes `folio_elapsed` / `folio_delta` /
+      `folio_elapsed_scaled` / `folio_delta_scaled` as `RenderingServer` global shader
+      uniforms every frame (`_register_shader_globals` / `_update_shader_globals`).
+      `*_scaled` carry the 2× world scale + bullet-time (driven by `FolioTime` → ticker
+      `scale`). Consumers: `water_surface` reads `folio_elapsed_scaled`; grass/flowers/
+      foliage read `folio_wind_time` (FolioWind's sub-clock, accumulated from
+      `delta_scaled`); rain/wind lines accumulate `local_time` from `get_delta_scaled()`.
+      No folio shader uses raw `TIME`. (Raw `scale` isn't exported as its own uniform —
+      it's baked into the `*_scaled` timelines; add `folio_scale` only if a shader ever
+      needs to read it directly.)
 
 ## Tier 1 — Shared visual state  ★ HIGHEST FIDELITY RISK
 Analyze these together as ONE unit — they define the whole look.
@@ -56,8 +64,47 @@ Analyze these together as ONE unit — they define the whole look.
 - [x] `Wind` ✅ (`FolioWind` shared sway field; consumed by Grass).
 - [x] `Weather` ✅ (`FolioWeather` — noise-driven temperature/humidity/clouds/wind/rain/snow
       globals; drives Wind strength + water ripples/ice/splashes).
-- [ ] `Overlay`, `YearCycles` (deferred: annual baseline; `base_temperature`/`base_humidity`
-      stand in for it in Weather until it lands).
+- [x] `YearCycles` ✅ (`FolioYearCycles` + `FolioCycle`) — seasonal baseline: interpolates
+      winter/spring/summer/fall presets (leaves/temperature/humidity/clouds/wind) over a
+      tunable year loop (tick 7, before Weather at 8). Pushes temperature + humidity into
+      Weather (retires its `base_temperature`/`base_humidity` stand-ins → weather drifts with
+      the season); `FolioLeaves` pulls its density from the `leaves` track (fall → full leaf
+      storm, spring → bare — verified). `set_progress_override`/`set_duration` tune/lock it;
+      demo `run_folio_world ARGS="--season=..."` or `--debug` keys 1-4 (seek+continue).
+      Beyond folio: winter baseline is cold enough to snow on its own, and a seasonal
+      vegetation tint (`folio_season_tint`, applied in grass/foliage) recolours the world
+      (winter cool, spring fresh-green, summer warm, fall golden). Weather now also takes a
+      seasonal cloud baseline (`base_clouds`) from YearCycles so winter is cloudy enough that
+      cold + rain coincide and it actually snows (the temp/cloud noise channels never lined up
+      before). `FolioCycle::seek()` jumps
+      a cycle to a phase and keeps it running. Deferred: seasonal
+      clouds/wind don't feed Weather (no baseline hook), and `Overlay`.
+- [ ] `Overlay` (folio Cycles sibling; deferred).
+
+### ⚠️ Weather/season system — known issues & planned rework (NOT fixing now)
+Observed via the `--debug` parameter logger + `docs/env_report.html` plot (2+ year run).
+Deferred deliberately; capture only:
+- **Too many coupled parameters.** Weather juggles 7 signals — humidity, temperature,
+  clouds, wind, rain, snow, leaves — on independent noise channels. Too complex to reason
+  about or tune; the seasons only "line up" by luck.
+- **Rain ≈ snow.** Rainfall and snowfall look/behave the same on the plot — snow is just
+  "rain while cold", so they track each other instead of reading as distinct events.
+- **Leaves never actually fall, but the stat says ~60%.** The `leaves` density track sits
+  high for much of the year (fall preset = 1.0) yet no visible leaf-fall event happens;
+  the % is "leaves track > 0.5 seconds", not a fall event.
+- **Snow stat vs line mismatch.** Report shows ~40% "snow active" while the snow line reads
+  ~0 for long stretches — the snow signal decays negative and the `snow>0.01` counter
+  over-reports. NOTE: `*_pct_of_year` also exceeds 100% on multi-year runs (rain 121.9%)
+  because the logger divides accumulated seconds by ONE year length — a reporting artifact,
+  not the sim.
+- **PLAN → simplified DETERMINISTIC weather.** Replace the noise soup with an explicit,
+  deterministic schedule keyed to the year phase, with proper named periods:
+  clear-summer / rainy / leaf-fall(autumn) / snow(winter). Each period has a defined
+  start/duration so snow, leaves, and rain are discrete, predictable, testable events —
+  not emergent noise overlaps. Collapse the 7 signals to the few that actually drive visuals.
+- **PLAN → tree & grass appear/disappear system.** Vegetation should spawn/despawn with the
+  season (trees + grass grow in / shed / go bare) rather than only tinting — tie to the new
+  deterministic schedule.
 
 ## Tier 3 — Car   ⏸️ DECISION: keep existing ArcadeVehicle (do NOT port folio physics)
 - [x] Decision: **use the project's `ArcadeVehicle` as-is.** Both are custom raycast
@@ -87,8 +134,22 @@ Analyze these together as ONE unit — they define the whole look.
 - [x] `Flowers` ✅ (`FolioFlowers` tiny wind-swayed tufts).
 - [x] `WindLines` ✅ (`FolioWindLines` — pooled gust ribbons, weather-driven).
 - [x] `RainLines` ✅ (`FolioRainLines` — falling rain; becomes falling snow when cold).
-- [ ] `Snow` (ground accumulation), `Leaves`, `Whispers`, `Scenery`,
-      `InstancedGroup` (instanced-mesh helper).
+- [x] `Leaves` ✅ (`FolioLeaves` + `leaves.gdshader`) — a field of autumn leaves
+      tumbling/drifting around the view, one mesh driven in the vertex stage; reads
+      the global shader clock (`folio_elapsed_scaled`, so it obeys scale/bullet-time)
+      and the global wind field, follows the view's optimal area, brown→orange per
+      leaf with an ambient floor. Folio's GPU-compute sim is captured as look, not
+      ported: vehicle push, explosion, terrain-aware damping/floor (clamps to y=0),
+      and YearCycles density are deferred (the `amount` gate is now driven by FolioYearCycles).
+- [x] `Snow` ✅ (ground accumulation) (`FolioSnow` + `snow_ground.gdshader`) — a
+      camera-following snow sheet that LIES ON the terrain (same `folio_terrain_data.b`
+      height source as the floor) via the shared `folio_material` pipeline (lit/shadow/
+      fog match the world). `coverage` accumulates from weather (cold+wet builds up,
+      warm melts; eased over time), fades in + scales perlin lumps, fades out over water
+      and at the roaming edges; hash/perlin glitter sparkle. Deferred vs folio: the RT
+      elevation field, wheel tracks (FolioTracks). Demo: `run_folio_world ARGS="--weather=snow"`.
+- [ ] `Whispers`, `Scenery` (remaining Tier-4 ambient; `InstancedGroup` mesh helper
+      already done above).
 
 ## Tier 5 — Audio
 - [~] `Audio` — foundation ✅ (`FolioAudio`: groups/items registry + spatial distance fade

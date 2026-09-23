@@ -27,6 +27,7 @@ class FolioWeather : public Node {
 private:
 	double base_temperature = 12.0; // stands in for YearCycles annual temperature
 	double base_humidity = 0.55; // stands in for YearCycles annual humidity
+	double base_clouds = 0.0; // seasonal cloud cover baseline (from YearCycles)
 
 	double temperature = 12.0;
 	double humidity = 0.55;
@@ -60,6 +61,7 @@ public:
 
 	void set_base_temperature(double v) { base_temperature = v; }
 	void set_base_humidity(double v) { base_humidity = v; }
+	void set_base_clouds(double v) { base_clouds = v; }
 
 	double get_temperature() const { return temperature; }
 	double get_humidity() const { return humidity; }
