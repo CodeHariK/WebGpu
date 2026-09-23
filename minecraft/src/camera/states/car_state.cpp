@@ -20,6 +20,15 @@ void CameraStateCar::enter(GameCamera *p_camera) {
 	p_camera->rebase_springs();
 }
 
+void CameraStateCar::exit(GameCamera *p_camera) {
+	// Leave a clean FOV behind for whatever mode comes next.
+	if (p_camera->car_fov_speed_add > 0.001f && p_camera->car_fov_base > 0.0f) {
+		p_camera->set_fov(p_camera->car_fov_base);
+	}
+	// Fade the speed lines out when leaving the car camera.
+	p_camera->drive_speed_lines(0.0f);
+}
+
 void CameraStateCar::update(
 		GameCamera *p_camera,
 		float p_delta
@@ -119,6 +128,11 @@ void CameraStateCar::update(
 	Vector3 ideal_full = p_camera->orbit_position(pivot, desired);
 	float dist = p_camera->resolve_follow_distance(pivot, ideal_full, desired, p_delta);
 	Vector3 ideal_pos = p_camera->orbit_position(pivot, dist);
+
+	// Widen the FOV and drive the speed-lines overlay with the same speed ratio.
+	float speed_frac = CLAMP(h_speed / p_camera->max_speed_for_zoom, 0.0f, 1.0f);
+	p_camera->apply_speed_fov(speed_frac, p_delta);
+	p_camera->drive_speed_lines(speed_frac);
 
 	p_camera->apply_position(ideal_pos, p_delta);
 }

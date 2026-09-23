@@ -72,6 +72,12 @@ run_pg:
 	$(GODOT) --path project/ --scene scene/terraspline/procgen.tscn
 run_octo:
 	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn
+
+# Same scene with FX debug test keys enabled:
+#   T = toggle time-slow (bullet-time)   G = toggle low-time red flash
+#   R = refill slow-mo meter             K = camera shake (trauma)
+run_octo_fx:
+	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn -- --fxtest
 run_road:
 	$(GODOT) --path project/ --scene scene/road/road.tscn
 run_gizmo:

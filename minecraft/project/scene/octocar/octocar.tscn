@@ -455,6 +455,7 @@ curve = SubResource("Curve3D_4kplg")
 
 [node name="GameCamera" type="GameCamera" parent="." unique_id=975855693]
 follow_target_path = NodePath("../CelesteController")
+speed_lines_path = NodePath("../SpeedLines")
 pos_smoothing_enabled = false
 follow_offset = Vector3(0, 3, 10)
 transform = Transform3D(1, 0, 0, 0, 0.8347999, 0.55055356, 0, -0.55055356, 0.8347999, 0, 7.7511787, 15.159767)
@@ -660,3 +661,11 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 9.23, 9.576)
 physics_material_override = SubResource("PhysicsMaterial_rafu7")
 
 [node name="suv2" parent="Car/TruckController2" unique_id=365126827 instance=ExtResource("1_1dqdu")]
+
+[node name="SpeedLines" type="SpeedLines" parent="."]
+speed_min = 6.0
+speed_max = 28.0
+intensity_max = 1.0
+
+[node name="TimeWarp" type="TimeWarp" parent="."]
+slow_scale = 0.35

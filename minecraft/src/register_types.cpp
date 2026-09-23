@@ -6,6 +6,8 @@
 #include <godot_cpp/godot.hpp>
 
 #include "camera/camera.h"
+#include "camera/effects/speed_lines.h"
+#include "camera/effects/time_warp.h"
 
 #include "folio/cycles/day_cycles.h"
 #include "folio/events.h"
@@ -180,6 +182,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(CUILineGraph);
 
 	GDREGISTER_CLASS(GameCamera);
+	GDREGISTER_CLASS(SpeedLines);
+	GDREGISTER_CLASS(TimeWarp);
 
 	GDREGISTER_CLASS(WheelConfig);
 	GDREGISTER_CLASS(VehicleConfig);
