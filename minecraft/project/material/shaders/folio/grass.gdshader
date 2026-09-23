@@ -18,6 +18,7 @@ render_mode cull_disabled, ambient_light_disabled;
 #include "res://material/shaders/folio/folio_material.gdshaderinc"
 
 // Wind field (published by FolioWind) + shared perlin (FolioNoises).
+global uniform vec3 folio_season_tint; // YearCycles seasonal vegetation tint
 global uniform vec2 folio_wind_direction;
 global uniform float folio_wind_position_frequency;
 global uniform float folio_wind_strength;
@@ -106,9 +107,9 @@ void vertex() {
 void fragment() {
 	// Base colour = shared terrain colour at the blade, through the folio pipeline.
 	vec4 data = folio_terrain_sample(v_blade_xz);
-	ALBEDO = folio_shade(folio_terrain_color(data), SCREEN_UV, -VERTEX.z);
+	ALBEDO = folio_shade(folio_terrain_color(data) * folio_season_tint, SCREEN_UV, -VERTEX.z);
 }
 
 void light() {
-	DIFFUSE_LIGHT = folio_light_shadow(ALBEDO, folio_terrain_color(folio_terrain_sample(v_blade_xz)), ATTENUATION);
+	DIFFUSE_LIGHT = folio_light_shadow(ALBEDO, folio_terrain_color(folio_terrain_sample(v_blade_xz)) * folio_season_tint, ATTENUATION);
 }

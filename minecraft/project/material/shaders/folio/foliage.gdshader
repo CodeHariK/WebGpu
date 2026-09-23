@@ -18,6 +18,7 @@ render_mode cull_disabled, ambient_light_disabled;
 #include "res://material/shaders/folio/folio_material.gdshaderinc"
 
 // Wind field (FolioWind) + shared perlin (FolioNoises); light dir is in the include.
+global uniform vec3 folio_season_tint; // YearCycles seasonal vegetation tint
 global uniform vec2 folio_wind_direction;
 global uniform float folio_wind_position_frequency;
 global uniform float folio_wind_strength;
@@ -67,12 +68,12 @@ void fragment() {
 
 	// 2-tone colour by sun facing (folio: mix by smoothstep(dot(N, lightDir))).
 	float m = smoothstep(0.0, 1.0, dot(normalize(v_world_normal), folio_light_direction));
-	vec3 base = mix(color_a.rgb, color_b.rgb, m);
+	vec3 base = mix(color_a.rgb, color_b.rgb, m) * folio_season_tint;
 	ALBEDO = folio_shade(base, SCREEN_UV, -VERTEX.z);
 }
 
 void light() {
 	float m = smoothstep(0.0, 1.0, dot(normalize(v_world_normal), folio_light_direction));
-	vec3 base = mix(color_a.rgb, color_b.rgb, m);
+	vec3 base = mix(color_a.rgb, color_b.rgb, m) * folio_season_tint;
 	DIFFUSE_LIGHT = folio_light_shadow(ALBEDO, base, ATTENUATION);
 }

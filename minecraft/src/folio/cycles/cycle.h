@@ -29,6 +29,7 @@ class FolioCycle {
 private:
 	double duration = 240.0; // seconds per full loop (folio day = 4 min)
 	double forced_progress = -1.0; // < 0 = derive from time; else locked
+	double phase_offset = 0.0; // shifts the time-driven progress (for seek())
 	double progress = 0.0;
 
 	Vector<double> stops;
@@ -46,6 +47,12 @@ public:
 
 	// < 0 derives progress from time; 0..1 locks it (testing / inspector).
 	void set_forced_progress(double p_progress) { forced_progress = p_progress; }
+	// Jump to `p_target_phase` NOW and keep advancing from there (unlike
+	// forced_progress, which freezes). `p_elapsed_seconds` is the current clock.
+	void seek(
+			double p_target_phase,
+			double p_elapsed_seconds
+	);
 	double get_progress() const { return progress; }
 
 	void set_stops(const Vector<double> &p_stops) { stops = p_stops; }

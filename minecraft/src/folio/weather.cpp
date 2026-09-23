@@ -107,8 +107,10 @@ void FolioWeather::update() {
 	humidity = base_humidity + noise(progress * 0.36) * 0.2;
 	humidity = apply_override(override_values, override_strength, "humidity", humidity);
 
-	// Clouds: pure noise (folio freq 0.44, range ~[-1,1]).
-	clouds = noise(progress * 0.44);
+	// Clouds: seasonal baseline (cloudier in winter) + noise variation, so cold
+	// and wet can coincide (folio left clouds as pure noise, which almost never
+	// lines up with a cold snap -> winter never snowed).
+	clouds = Math::clamp(base_clouds + noise(progress * 0.44) * 0.4, 0.0, 1.0);
 	clouds = apply_override(override_values, override_strength, "clouds", clouds);
 
 	// Wind: noise remapped to [0,1] (folio freq 1, *0.5+0.5).
@@ -146,6 +148,7 @@ void FolioWeather::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("clear_override"), &FolioWeather::clear_override);
 	ClassDB::bind_method(D_METHOD("set_base_temperature", "v"), &FolioWeather::set_base_temperature);
 	ClassDB::bind_method(D_METHOD("set_base_humidity", "v"), &FolioWeather::set_base_humidity);
+	ClassDB::bind_method(D_METHOD("set_base_clouds", "v"), &FolioWeather::set_base_clouds);
 	ClassDB::bind_method(D_METHOD("get_temperature"), &FolioWeather::get_temperature);
 	ClassDB::bind_method(D_METHOD("get_humidity"), &FolioWeather::get_humidity);
 	ClassDB::bind_method(D_METHOD("get_clouds"), &FolioWeather::get_clouds);

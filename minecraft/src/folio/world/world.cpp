@@ -6,6 +6,8 @@
 #include "grass.h"
 #include "trees.h"
 #include "rain_lines.h"
+#include "leaves.h"
+#include "snow.h"
 #include "wind_lines.h"
 #include "water_surface.h"
 
@@ -97,6 +99,14 @@ void FolioWorld::_build() {
 	rain_lines = memnew(FolioRainLines);
 	rain_lines->set_name("RainLines");
 	add_child(rain_lines);
+
+	leaves = memnew(FolioLeaves);
+	leaves->set_name("Leaves");
+	add_child(leaves);
+
+	snow = memnew(FolioSnow);
+	snow->set_name("Snow");
+	add_child(snow);
 
 	// Biome scatter from the terrain data map.
 	Ref<Image> data = Image::load_from_file("res://material/textures/folio/terrain_data.png");

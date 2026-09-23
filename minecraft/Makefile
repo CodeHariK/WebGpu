@@ -116,6 +116,13 @@ run_folio_floor:
 run_folio_scatter:
 	$(GODOT) --path project/ --scene scene/folio/scatter_preview.tscn
 # Full environment via FolioWorld (floor+water+grass+bushes+trees).
+# ARGS flags (combine freely):
+#   --weather=snow|cold|rain|clear   force weather  (SNOW is WEATHER, not a season)
+#   --season=winter|spring|summer|fall  lock the year cycle (winter alone rarely snows)
+#   --phase=0..1                     lock the day cycle
+#   --debug                          live env HUD + debug keys (S = instant snow)
+#   --shot=<name>                    screenshot then quit
+# e.g.  make run_folio_world ARGS="--weather=snow"   or   ARGS="--debug"
 run_folio_world:
 	$(GODOT) --path project/ --scene scene/folio/world_preview.tscn -- $(ARGS)
 # FolioAudio verification (positional distance fade + mute).

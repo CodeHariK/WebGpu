@@ -20,6 +20,7 @@ class FolioNoises;
 class FolioTerrain;
 class FolioRendering;
 class FolioDayCycles;
+class FolioYearCycles;
 class FolioWind;
 class FolioWeather;
 class FolioAudio;
@@ -66,6 +67,7 @@ private:
 	FolioTerrain *terrain = nullptr;
 	FolioRendering *rendering = nullptr;
 	FolioDayCycles *day_cycles = nullptr;
+	FolioYearCycles *year_cycles = nullptr;
 	FolioWind *wind = nullptr;
 	FolioWeather *weather = nullptr;
 	FolioAudio *audio = nullptr;
@@ -98,6 +100,7 @@ public:
 	FolioTerrain *get_terrain() const { return terrain; }
 	FolioRendering *get_rendering() const { return rendering; }
 	FolioDayCycles *get_day_cycles() const { return day_cycles; }
+	FolioYearCycles *get_year_cycles() const { return year_cycles; }
 	FolioWind *get_wind() const { return wind; }
 	FolioWeather *get_weather() const { return weather; }
 	FolioAudio *get_audio() const { return audio; }

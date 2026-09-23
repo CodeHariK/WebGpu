@@ -10,6 +10,7 @@
 #include "camera/effects/time_warp.h"
 
 #include "folio/cycles/day_cycles.h"
+#include "folio/cycles/year_cycles.h"
 #include "folio/events.h"
 #include "folio/fog.h"
 #include "folio/game.h"
@@ -30,6 +31,8 @@
 #include "folio/ui/title.h"
 #include "folio/ui/ui.h"
 #include "folio/world/rain_lines.h"
+#include "folio/world/leaves.h"
+#include "folio/world/snow.h"
 #include "folio/world/wind_lines.h"
 #include "folio/weather.h"
 #include "folio/wind.h"
@@ -146,6 +149,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FolioTerrain);
 	GDREGISTER_CLASS(FolioRendering);
 	GDREGISTER_CLASS(FolioDayCycles);
+	GDREGISTER_CLASS(FolioYearCycles);
 	GDREGISTER_CLASS(FolioFloor);
 	GDREGISTER_CLASS(FolioWaterSurface);
 	GDREGISTER_CLASS(FolioWind);
@@ -159,6 +163,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FolioUI);
 	GDREGISTER_CLASS(FolioWindLines);
 	GDREGISTER_CLASS(FolioRainLines);
+	GDREGISTER_CLASS(FolioLeaves);
+	GDREGISTER_CLASS(FolioSnow);
 	GDREGISTER_CLASS(FolioGrass);
 	GDREGISTER_CLASS(FolioInstancedGroup);
 	GDREGISTER_CLASS(FolioFoliage);

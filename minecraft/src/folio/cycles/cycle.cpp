@@ -51,7 +51,7 @@ void FolioCycle::update(double p_elapsed_seconds) {
 		progress = forced_progress;
 	} else {
 		double d = (duration > 0.0) ? duration : 1.0;
-		progress = std::fmod(p_elapsed_seconds / d, 1.0);
+		progress = std::fmod(p_elapsed_seconds / d + phase_offset, 1.0);
 		if (progress < 0.0) {
 			progress += 1.0;
 		}
@@ -92,6 +92,16 @@ void FolioCycle::update(double p_elapsed_seconds) {
 		const Vector<Color> &v = kv.value;
 		color_values[kv.key] = v[index_prev].lerp(v[index_next], s);
 	}
+}
+
+void FolioCycle::seek(double p_target_phase, double p_elapsed_seconds) {
+	forced_progress = -1.0; // resume time-driven progression
+	double d = (duration > 0.0) ? duration : 1.0;
+	double base = std::fmod(p_elapsed_seconds / d, 1.0);
+	if (base < 0.0) {
+		base += 1.0;
+	}
+	phase_offset = p_target_phase - base; // so progress == target right now
 }
 
 double FolioCycle::get_float(const String &p_name) const {
