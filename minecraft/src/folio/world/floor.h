@@ -24,11 +24,15 @@ class FolioFloor : public Node3D {
 private:
 	double plane_size = 192.0; // matches FolioTerrain.size (world ±96)
 	int subdivisions = 128; // displacement detail (folio ~ size / 1.5)
+	double displacement_amount = -1.5; // matches mesh_floor.gdshader
+	int collision_samples = 97; // heightfield grid resolution per side
 
 	MeshInstance3D *mesh = nullptr;
 	Ref<ShaderMaterial> material;
 
 	void _build();
+	void _build_collision(); // heightfield matching the shader displacement
+	void _build_bounds(); // invisible edge walls (folio bedrock) so the player stays on the island
 
 protected:
 	static void _bind_methods();

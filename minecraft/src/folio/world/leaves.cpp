@@ -95,7 +95,7 @@ void FolioLeaves::_ready() {
 	mesh_instance->set_name("LeavesMesh");
 	mesh_instance->set_mesh(mesh);
 	mesh_instance->set_material_override(material);
-	mesh_instance->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_ON);
+	mesh_instance->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
 	// The vertex stage relocates every leaf, so never frustum-cull the mesh.
 	mesh_instance->set_custom_aabb(AABB(Vector3(-1000, -1000, -1000), Vector3(2000, 2000, 2000)));
 	add_child(mesh_instance);

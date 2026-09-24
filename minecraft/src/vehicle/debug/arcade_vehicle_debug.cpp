@@ -8,6 +8,9 @@
 namespace godot {
 
 void ArcadeVehicle::_update_debug_arrows() {
+	if (!debug_visuals_enabled) {
+		return; // no debug text / arrows when debug visuals are off
+	}
 	DebugManager *dm = DebugManager::get_singleton();
 	String base_id = "veh_" + get_name() + "_";
 

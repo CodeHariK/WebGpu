@@ -94,10 +94,12 @@ void ArcadeVehicle::_ready() {
 		gm->register_vehicle(this);
 	}
 
-	// Setup UI
-	ui_root = CUI::create_on_new_layer(this);
-	ui_helper = new ArcadeVehicleUI();
-	ui_helper->setup(this, ui_root);
+	// Setup UI (debug tuning HUD; only when debug visuals are enabled)
+	if (debug_visuals_enabled) {
+		ui_root = CUI::create_on_new_layer(this);
+		ui_helper = new ArcadeVehicleUI();
+		ui_helper->setup(this, ui_root);
+	}
 	load_settings();
 
 	if (config.is_valid()) {
@@ -163,6 +165,7 @@ void ArcadeVehicle::_setup_vehicle() {
 	sphere->set_height(config->get_chassis_size().x * 2);
 	chassis_mesh->set_mesh(sphere);
 	add_child(chassis_mesh);
+	chassis_mesh->set_visible(debug_visuals_enabled); // debug-only; hide so the real car mesh shows
 
 	// 5. Create wheel debug visuals
 	TypedArray<WheelConfig> wconfigs = config->get_wheel_configs();
@@ -200,6 +203,9 @@ void ArcadeVehicle::set_debug_visuals_enabled(bool p_enabled) {
 	debug_visuals_enabled = p_enabled;
 	for (CSGSphere3D *visual : wheel_visuals) {
 		visual->set_visible(debug_visuals_enabled);
+	}
+	if (chassis_mesh) {
+		chassis_mesh->set_visible(debug_visuals_enabled);
 	}
 }
 

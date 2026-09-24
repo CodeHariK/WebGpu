@@ -125,6 +125,14 @@ run_folio_scatter:
 # e.g.  make run_folio_world ARGS="--weather=snow"   or   ARGS="--debug"
 run_folio_world:
 	$(GODOT) --path project/ --scene scene/folio/world_preview.tscn -- $(ARGS)
+# ArcadeVehicle dropped into the folio world, followed by the FolioView camera.
+#   ARGS="--drive"        auto-hold throttle (headless demo)   --shot=<name> screenshot+quit
+# e.g.  make run_folio_car ARGS="--drive"
+run_folio_car:
+	$(GODOT) --path project/ --scene scene/folio/car_world.tscn -- $(ARGS)
+# Folio scenery.glb preview (track + rocks + fences + road, isolated).
+run_folio_scenery:
+	$(GODOT) --path project/ --scene scene/folio/scenery_preview.tscn -- $(ARGS)
 # FolioAudio verification (positional distance fade + mute).
 run_folio_audio:
 	$(GODOT) --path project/ --scene scene/folio/audio_preview.tscn -- $(ARGS)

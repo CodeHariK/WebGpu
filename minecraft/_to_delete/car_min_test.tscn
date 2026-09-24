@@ -1,0 +1,38 @@
+[gd_scene load_steps=7 format=4]
+
+[ext_resource type="Script" path="res://scene/folio/car_world.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://bgq4dpehnmquk" path="res://assets/vehicle_env/suv.glb" id="2"]
+
+[sub_resource type="WheelConfig" id="Wheel_fl"]
+hardpoint_offset = Vector3(1, 0, 1.5)
+[sub_resource type="WheelConfig" id="Wheel_fr"]
+hardpoint_offset = Vector3(-1, 0, 1.5)
+[sub_resource type="WheelConfig" id="Wheel_rl"]
+hardpoint_offset = Vector3(1, 0, -1.5)
+[sub_resource type="WheelConfig" id="Wheel_rr"]
+hardpoint_offset = Vector3(-1, 0, -1.5)
+[sub_resource type="VehicleConfig" id="VehicleConfig_car"]
+max_speed = 60.0
+max_accel_force = 24000.0
+max_steer_angle_deg = 75.0
+wheel_configs = Array[WheelConfig]([SubResource("Wheel_fl"), SubResource("Wheel_fr"), SubResource("Wheel_rl"), SubResource("Wheel_rr")])
+
+[node name="Root" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Ground" type="CSGBox3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+use_collision = true
+size = Vector3(400, 2, 400)
+
+[node name="GameManager" type="GameManager" parent="."]
+
+[node name="Car" type="ArcadeVehicle" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+config = SubResource("VehicleConfig_car")
+debug_visuals_enabled = false
+
+[node name="suv2" parent="Car" instance=ExtResource("2")]
+
+[node name="Cam" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.8, 0.6, 0, -0.6, 0.8, 0, 6, 10)
