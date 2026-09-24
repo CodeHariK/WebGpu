@@ -154,9 +154,24 @@ Deferred deliberately; capture only:
 - [~] `Scenery` — STARTED ✅: `scenery.glb` (track curbs, basalt rocks, wooden fences,
       bridge, road) imported to `assets/folio/scenery/` and instanced via
       `scene/folio/scenery.gd` with auto trimesh colliders on the solid objects; drivable
-      in `car_world`. TODO: apply folio MeshDefaultMaterial (currently glb materials), and
-      bring the rest of the environment glbs (playground/ramps, birchTrees, bushes, areas,
-      poleLights, bricks, fences) for the full replica.
+      in `car_world`. Folio materials applied ✅ via `mesh_scenery.gdshader` (palette-texture
+      objects) + `mesh_default` (solid-colour road/hulls), all through the folio pipeline so
+      props match the world (`scenery.gd` picks per surface: textured→palette, solid→base_color).
+      Road glitter DONE. Standalone world-authored prop glbs now imported + placed at the
+      origin via `scenery.gd` loader nodes in `car_world` DONE: `playground` (ramps grounded at
+      origin -- the glb is authored in world space, node must stay at identity), `benches`,
+      `bricks`, `fences`, `lanterns`, `poleLights`, `explosiveCrates`. (bricks/fences/poleLights
+      shipped Draco-compressed -> decoded with `gltf-transform dedup` before import; each glb's
+      embedded `palette` image extracted to `<name>_palette.png` and fed to the loader.)
+      Lantern/poleLight/ramp/area emissive parts now GLOW: `scenery.gd` routes every source
+      material by its glb NAME -- `emissive*` -> `mesh_glow`, own-texture -> `mesh_scenery`
+      bound to that texture, solid -> `mesh_default`. `areas.glb` (career gates/signs/labels/
+      arrows) imported + placed at origin too. Car spawn moved to folio `respawnLanding`
+      (39.5, 37.8) so it starts on the open plaza by the BRUNO text, not inside a tree.
+- [ ] `Trees`/`Bushes`/`Flowers` -- currently PROCEDURAL scatter (weighted by terrain grass
+      coverage), NOT folio's authored positions. Replica TODO: load `*References.glb`
+      (per-instance transforms) + `*Visual.glb` (birch/oak/cherry + bush + flower meshes) and
+      place the visual mesh at each reference transform, replacing the random scatter.
 - [ ] `Whispers` (remaining Tier-4 ambient; `InstancedGroup` mesh helper already done above).
 
 ## Tier 5 — Audio
@@ -188,6 +203,24 @@ For each system, capture before writing code:
 - **Reads from:** other systems.
 - **Godot equivalent.**
 - **Port risk / notes.**
+
+## Car-world look pass (matching folio web)
+- [x] Camera pulled back to folio's diorama framing (spherical radius 24..46; our SUV is
+      bigger than folio's car so the shared 15..30 read too close).
+- [x] Leaves tuned to folio: small (leaf_size 0.32) and low (elevation 8) so they drift near
+      car height as confetti instead of big quads at the lens.
+- [x] Sharper steering (max_steer_angle_deg 58) for a tighter toy turn radius.
+- [x] Warm look — day/night colours already match folio exactly; car_world now locks the
+      DAWN phase (0.8) for the warm orange terrain + pink sky (was daytime/cool cyan).
+- [x] Folio road glitter ✅ — `mesh_road.gdshader` (dark #383039 + hash*perlin sparkle as
+      emission + a dim ambient floor so the road reads as asphalt, not a void); scenery.gd
+      routes the road mesh to it.
+- [x] Folio car ✅ — imported `default.glb` (the red roll-cage buggy) to assets/folio/vehicle,
+      `vehicle.gd` dresses it with folio materials (palette + solid), swapped in for the SUV
+      in car_world. Matches the web's red car.
+- [ ] Car refinements: emissive energy cells + head/stop lights (folio glows them; ours render
+      the black-albedo light parts unlit), and the car reads a bit dark at dawn (our no-ambient
+      folio grade is darker than folio's — a global look-grade pass could lift it).
 
 ## Open decisions
 - [ ] Car: keep `ArcadeVehicle` or adopt folio's Rapier-controller model?

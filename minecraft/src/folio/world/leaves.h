@@ -31,7 +31,7 @@ class FolioLeaves : public Node3D {
 
 private:
 	int count = 1024; // folio 2^7..2^11; a middle default
-	double elevation = 18.0;
+	double elevation = 8.0;
 	double amount = 0.6; // fraction of leaves shown (YearCycles stand-in)
 
 	MeshInstance3D *mesh_instance = nullptr;

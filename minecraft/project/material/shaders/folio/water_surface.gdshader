@@ -55,6 +55,11 @@ uniform float splashes_edge_high = 1.0;
 uniform float refraction_blur_amount = 0.012;
 uniform int refraction_blur_repeats : hint_range(1, 40) = 25;
 
+// Colour grade (not in folio; compensates for our brighter under-water terrain
+// and higher exposure so water reads folio-blue instead of white).
+uniform vec3 water_deep_tint : source_color = vec3(0.13, 0.42, 0.48);
+uniform vec3 water_foam_color : source_color = vec3(0.58, 0.80, 0.86);
+
 const float WATER_TAU = 6.28318530718;
 
 float water_hash(vec2 p) {
@@ -168,10 +173,16 @@ void vertex() {
 void fragment() {
 	float mask = details_mask(v_world_pos.xz);
 	if (mask < 0.5) {
-		// Deep water: blurred refraction of the scene behind.
-		ALBEDO = refraction_blur(SCREEN_UV);
+		// Deep water: folio shows the raw blurred scene behind the plane, which in
+		// its world reads as a dark teal pond bottom. Our terrain floor under the
+		// water is bright, so multiply the refraction by a teal so it reads as
+		// water (blue-green) instead of a washed-out bright blur.
+		vec3 refr = refraction_blur(SCREEN_UV);
+		ALBEDO = refr * water_deep_tint;
 	} else {
-		// Surface / foam / ice / splashes: white, lit + fogged through the pipeline.
-		ALBEDO = folio_shade(vec3(1.0), SCREEN_UV, -VERTEX.z);
+		// Surface / foam / shore / ripples / ice / splashes: folio paints these
+		// white. We tint them a pale blue so the shoreline/ripples read as water
+		// foam rather than a blown-out sheet under our exposure.
+		ALBEDO = folio_shade(water_foam_color, SCREEN_UV, -VERTEX.z);
 	}
 }

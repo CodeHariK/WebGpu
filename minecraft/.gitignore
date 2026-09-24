@@ -71,3 +71,4 @@ godot-cpp
 .fuse_hidden*
 
 **/docs/**/*.png
+_to_delete/**

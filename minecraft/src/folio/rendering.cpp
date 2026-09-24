@@ -34,6 +34,11 @@ void FolioRendering::_build_environment() {
 	env->set_glow_bloom(0.0);
 	env->set_glow_hdr_bleed_threshold(bloom_threshold);
 
+	// Global look-grade lift: our folio materials are sun-only (ambient disabled), so
+	// shadowed sides read darker than folio's web exposure. A modest exposure bump lifts
+	// the whole image toward that brighter grade.
+	env->set_tonemap_exposure((float)exposure);
+
 	world_env = memnew(WorldEnvironment);
 	world_env->set_name("FolioEnvironment");
 	world_env->set_environment(env);

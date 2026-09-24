@@ -34,7 +34,7 @@ uniform vec2 center = vec2(0.0);
 uniform float elevation = 18.0;
 uniform float amount : hint_range(0.0, 1.0) = 0.6; // fraction of leaves shown
 
-uniform float leaf_size = 0.6;
+uniform float leaf_size = 0.24;
 uniform float fall_speed = 0.06;
 uniform float flutter_freq = 1.5;
 uniform float flutter_amp = 0.6;
@@ -44,7 +44,7 @@ uniform float wind_push = 0.6;
 uniform vec3 color_a : source_color = vec3(0.584, 0.318, 0.227); // 0x95513a brown
 uniform vec3 color_b : source_color = vec3(0.961, 0.416, 0.227); // 0xf56a3a orange
 uniform float ambient : hint_range(0.0, 1.0) = 0.5; // keeps leaves coloured when facing away from the sun
-uniform float near_cull = 3.0; // hide leaves closer than this to the camera
+uniform float near_cull = 8.0; // hide leaves closer than this to the camera
 
 vec3 rot_y(vec3 v, float a) {
 	float c = cos(a);
