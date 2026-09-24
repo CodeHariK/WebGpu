@@ -220,7 +220,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	if (ui_root) {
 		CanvasLayer *cl = Object::cast_to<CanvasLayer>(ui_root->get_parent());
 		if (cl) {
-			cl->set_visible(is_active);
+			cl->set_visible(is_active && debug_visuals_enabled);
 		}
 	}
 

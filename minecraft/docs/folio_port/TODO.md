@@ -124,8 +124,11 @@ Deferred deliberately; capture only:
 
 ## Tier 4 — Environment   (composed by FolioWorld ✅)
 - [x] Terrain content data map loaded ✅ (folio `terrain.png` as swappable test asset).
-- [~] `Floor` — visual slice done ✅ (`FolioFloor` + `mesh_floor.gdshader`). Physics
-      heightfield/bedrock, camera-follow recenter, and the `terrain.glb` macro shape deferred.
+- [~] `Floor` — visual + physics done ✅ (`FolioFloor` + `mesh_floor.gdshader`). Now also
+      builds a `HeightMapShape3D` collider that mirrors the shader displacement
+      (terrain_data.b × -1.5 × edge_fade) so vehicles drive the same hills they see, plus
+      invisible perimeter walls (bedrock stand-in) at the island edge. Camera-follow recenter
+      (endless island) and the folio `terrain.glb` heightfield source still deferred.
 - [~] `WaterSurface` — done ✅ (ripples + shore mask + screen-blur refraction, lit+fogged).
 - [x] `Grass` ✅ (`FolioGrass` GPU blade field, wind-swayed).
 - [x] `InstancedGroup` ✅ (`FolioInstancedGroup` MultiMesh helper) + terrain-aware scatter demo.
@@ -148,8 +151,13 @@ Deferred deliberately; capture only:
       warm melts; eased over time), fades in + scales perlin lumps, fades out over water
       and at the roaming edges; hash/perlin glitter sparkle. Deferred vs folio: the RT
       elevation field, wheel tracks (FolioTracks). Demo: `run_folio_world ARGS="--weather=snow"`.
-- [ ] `Whispers`, `Scenery` (remaining Tier-4 ambient; `InstancedGroup` mesh helper
-      already done above).
+- [~] `Scenery` — STARTED ✅: `scenery.glb` (track curbs, basalt rocks, wooden fences,
+      bridge, road) imported to `assets/folio/scenery/` and instanced via
+      `scene/folio/scenery.gd` with auto trimesh colliders on the solid objects; drivable
+      in `car_world`. TODO: apply folio MeshDefaultMaterial (currently glb materials), and
+      bring the rest of the environment glbs (playground/ramps, birchTrees, bushes, areas,
+      poleLights, bricks, fences) for the full replica.
+- [ ] `Whispers` (remaining Tier-4 ambient; `InstancedGroup` mesh helper already done above).
 
 ## Tier 5 — Audio
 - [~] `Audio` — foundation ✅ (`FolioAudio`: groups/items registry + spatial distance fade

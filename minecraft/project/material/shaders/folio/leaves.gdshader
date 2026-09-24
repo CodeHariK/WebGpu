@@ -43,7 +43,8 @@ uniform float wind_push = 0.6;
 
 uniform vec3 color_a : source_color = vec3(0.584, 0.318, 0.227); // 0x95513a brown
 uniform vec3 color_b : source_color = vec3(0.961, 0.416, 0.227); // 0xf56a3a orange
-uniform float ambient : hint_range(0.0, 1.0) = 0.35; // keeps leaves coloured when facing away from the sun
+uniform float ambient : hint_range(0.0, 1.0) = 0.5; // keeps leaves coloured when facing away from the sun
+uniform float near_cull = 3.0; // hide leaves closer than this to the camera
 
 vec3 rot_y(vec3 v, float a) {
 	float c = cos(a);
@@ -92,6 +93,10 @@ void vertex() {
 	// Density gate: show a fraction ~= amount; shove the rest far away.
 	float show = step(1.0 - amount, fract(rnd * 97.0));
 	world.y += (1.0 - show) * 9999.0;
+
+	// Hide leaves that land right on the lens (they'd render as huge dark quads).
+	float too_close = step(distance(world, CAMERA_POSITION_WORLD), near_cull);
+	world.y += too_close * 9999.0;
 
 	VERTEX = world;
 	NORMAL = rot_x(rot_y(vec3(0.0, 1.0, 0.0), ang), ang * 0.7);
