@@ -19,9 +19,15 @@ var _wire := false
 
 func _ready() -> void:
 	RenderingServer.set_debug_generate_wireframes(true)
-	# Lock to a bright daytime phase so the world + car read clearly for the test.
+	# Let the day/night cycle run: 2 minutes per full day. (Was locked to dawn,
+	# which kept the whole world tinted warm/red the entire time.)
 	if _game and _game.has_method("get_day_cycles"):
-		_game.get_day_cycles().set_progress_override(0.15)
+		var dc = _game.get_day_cycles()
+		dc.set_duration(2.0 * 60.0)      # 2 min per day
+		dc.set_progress_override(-1.0)   # unlock: real-time cycle
+	# Year (season) cycle: 10 minutes for a full year (~2.5 min per season).
+	if _game and _game.has_method("get_year_cycles"):
+		_game.get_year_cycles().set_duration(10.0 * 60.0)
 	# Hide the whole folio HUD (title + mute/menu) so this driving test is uncluttered.
 	# FolioUI is a CanvasLayer, so hiding it removes the "Play" start screen too.
 	if _game and _game.has_method("get_ui"):

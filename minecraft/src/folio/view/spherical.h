@@ -27,10 +27,10 @@ public:
 	double theta = Math::PI * 0.25;
 
 	// Radius edges + current, and the non-ideal-ratio pushback.
-	double radius_min = 15.0;
-	double radius_max = 30.0;
+	double radius_min = 14.0;
+	double radius_max = 26.0;
 	double non_ideal_ratio_offset = 9.0;
-	double radius_current = 21.0;
+	double radius_current = 18.0;
 
 	// World offset from the focus point to the camera (result of the orbit).
 	Vector3 offset;

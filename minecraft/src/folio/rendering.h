@@ -39,6 +39,7 @@ private:
 	// Bloom (folio defaults)
 	double bloom_threshold = 1.0;
 	double bloom_strength = 0.25;
+	double exposure = 1.05; // global grade lift (kept modest so dawn/dusk do not blow out red)
 
 	// cheapDOF (folio defaults)
 	double dof_start = 0.2;
