@@ -14,9 +14,11 @@
 #include "../game.h"
 #include "../quality.h"
 
-#include <godot_cpp/classes/image.hpp>
-#include <godot_cpp/classes/random_number_generator.hpp>
+#include <godot_cpp/classes/node.hpp>
+#include <godot_cpp/classes/packed_scene.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/transform3d.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
 
@@ -31,23 +33,28 @@ void FolioWorld::_ready() {
 	callable_mp(this, &FolioWorld::_build).call_deferred();
 }
 
-// Sample the terrain data map's G (grass coverage) at a world XZ (folio uv).
-static float grass_at(
-		const Ref<Image> &img,
-		double x,
-		double z
-) {
-	if (img.is_null()) {
-		return 0.0f;
+// Read the per-instance transforms authored in a folio *References glb: load the
+// imported scene, take each top-level child's transform, and free the copy. These
+// are folio's exact placements for bushes / trees / flowers.
+static TypedArray<Transform3D> read_ref_transforms(const String &p_path) {
+	TypedArray<Transform3D> out;
+	Ref<PackedScene> scn = ResourceLoader::get_singleton()->load(p_path);
+	if (scn.is_null()) {
+		return out;
 	}
-	const double u = x / 128.0 / 1.5 + 0.5;
-	const double v = z / 128.0 / 1.5 + 0.5;
-	if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0) {
-		return 0.0f;
+	Node *inst = scn->instantiate();
+	if (!inst) {
+		return out;
 	}
-	const int px = (int)CLAMP(u * (img->get_width() - 1), 0, img->get_width() - 1);
-	const int py = (int)CLAMP(v * (img->get_height() - 1), 0, img->get_height() - 1);
-	return img->get_pixel(px, py).g;
+	const int n = inst->get_child_count();
+	for (int i = 0; i < n; i++) {
+		Node3D *c = Object::cast_to<Node3D>(inst->get_child(i));
+		if (c) {
+			out.push_back(c->get_transform());
+		}
+	}
+	memdelete(inst);
+	return out;
 }
 
 void FolioWorld::_build() {
@@ -55,19 +62,6 @@ void FolioWorld::_build() {
 		return;
 	}
 	built = true;
-
-	// Per-quality scatter counts (low tier -> fewer instances).
-	int bushes_n = bush_count;
-	int trees_n = tree_count;
-	int flowers_n = flower_count;
-	{
-		FolioGame *g = FolioGame::get_singleton();
-		if (g && g->get_quality() && g->get_quality()->get_level() >= 1) {
-			bushes_n = (int)(bush_count * 0.5);
-			trees_n = (int)(tree_count * 0.5);
-			flowers_n = (int)(flower_count * 0.5);
-		}
-	}
 
 	// Ground + water + grass.
 	floor = memnew(FolioFloor);
@@ -85,10 +79,6 @@ void FolioWorld::_build() {
 	bushes = memnew(FolioFoliage);
 	bushes->set_name("Bushes");
 	add_child(bushes);
-
-	trees = memnew(FolioTrees);
-	trees->set_name("Trees");
-	add_child(trees);
 
 	// Atmospheric wind streaks (pool of gust ribbons over the world).
 	wind_lines = memnew(FolioWindLines);
@@ -108,78 +98,40 @@ void FolioWorld::_build() {
 	snow->set_name("Snow");
 	add_child(snow);
 
-	// Biome scatter from the terrain data map.
-	Ref<Image> data = Image::load_from_file("res://material/textures/folio/terrain_data.png");
+	// --- Environment scatter at folio's AUTHORED positions (the *References glbs).
+	// Each reference glb holds one empty per instance; we plant our billboard
+	// bushes / trunk+crown trees / flower tufts at those exact transforms
+	// (replacing the earlier procedural RNG scatter).
 
-	Ref<RandomNumberGenerator> rng;
-	rng.instantiate();
-	rng->set_seed(20250919);
+	// Bushes: folio Bushes = Foliage at bushesReferences.
+	bushes->scatter(read_ref_transforms("res://assets/folio/refs/bushesReferences.glb"));
 
-	// Bushes.
-	TypedArray<Transform3D> bush_t;
-	int tries = 0;
-	while (bush_t.size() < bushes_n && tries < bushes_n * 20) {
-		tries++;
-		const double x = rng->randf_range(-88.0, 88.0);
-		const double z = rng->randf_range(-88.0, 88.0);
-		if (grass_at(data, x, z) < bush_min_grass) {
-			continue;
-		}
-		const double s = rng->randf_range(0.7, 1.5);
-		Basis b(Vector3(0, 1, 0), rng->randf() * (float)Math::TAU);
-		b = b.scaled(Vector3(s, s * rng->randf_range(0.8, 1.3), s));
-		bush_t.push_back(Transform3D(b, Vector3(x, 0.35 * s, z)));
+	// Trees: one FolioTrees per type, each with folio's crown palette
+	// (birch autumn-orange, oak yellow-green, cherry pink).
+	struct TreeType {
+		const char *name;
+		const char *path;
+		const char *col_a;
+		const char *col_b;
+	};
+	const TreeType tree_types[] = {
+		{ "BirchTrees", "res://assets/folio/refs/birchTreesReferences.glb", "ff4f2b", "ff903f" },
+		{ "OakTrees", "res://assets/folio/refs/oakTreesReferences.glb", "b4b536", "d8cf3b" },
+		{ "CherryTrees", "res://assets/folio/refs/cherryTreesReferences.glb", "ff6d6d", "ff9990" },
+	};
+	for (const TreeType &tt : tree_types) {
+		FolioTrees *t = memnew(FolioTrees);
+		t->set_name(tt.name);
+		t->set_crown_colors(Color::html(tt.col_a), Color::html(tt.col_b));
+		add_child(t);
+		t->scatter(read_ref_transforms(tt.path));
 	}
-	bushes->scatter(bush_t);
 
-	// Trees (min-spaced).
-	TypedArray<Transform3D> tree_t;
-	PackedVector2Array placed;
-	tries = 0;
-	while (tree_t.size() < trees_n && tries < trees_n * 100) {
-		tries++;
-		const double x = rng->randf_range(-85.0, 85.0);
-		const double z = rng->randf_range(-85.0, 85.0);
-		if (grass_at(data, x, z) < tree_min_grass) {
-			continue;
-		}
-		bool too_close = false;
-		for (int i = 0; i < placed.size(); i++) {
-			if (placed[i].distance_to(Vector2(x, z)) < tree_min_spacing) {
-				too_close = true;
-				break;
-			}
-		}
-		if (too_close) {
-			continue;
-		}
-		placed.push_back(Vector2(x, z));
-		const double s = rng->randf_range(0.9, 1.4);
-		Basis b(Vector3(0, 1, 0), rng->randf() * (float)Math::TAU);
-		b = b.scaled(Vector3(s, s, s));
-		tree_t.push_back(Transform3D(b, Vector3(x, 0.0, z)));
-	}
-	trees->scatter(tree_t);
-
-	// Flowers (dense tiny tufts on grass).
+	// Flowers: folio Flowers = plane clusters at flowersReferences.
 	flowers = memnew(FolioFlowers);
 	flowers->set_name("Flowers");
 	add_child(flowers);
-	TypedArray<Transform3D> flower_t;
-	tries = 0;
-	while (flower_t.size() < flowers_n && tries < flowers_n * 12) {
-		tries++;
-		const double x = rng->randf_range(-88.0, 88.0);
-		const double z = rng->randf_range(-88.0, 88.0);
-		if (grass_at(data, x, z) < bush_min_grass) {
-			continue;
-		}
-		const double s = rng->randf_range(0.4, 0.85);
-		Basis b(Vector3(0, 1, 0), rng->randf() * (float)Math::TAU);
-		b = b.scaled(Vector3(s, s, s));
-		flower_t.push_back(Transform3D(b, Vector3(x, 0.0, z)));
-	}
-	flowers->scatter(flower_t);
+	flowers->scatter(read_ref_transforms("res://assets/folio/refs/flowersReferences.glb"));
 }
 
 void FolioWorld::_bind_methods() {}

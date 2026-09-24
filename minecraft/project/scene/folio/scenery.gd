@@ -15,6 +15,10 @@ extends Node3D
 
 @export var scenery_path := "res://assets/folio/scenery/scenery.glb"
 @export var palette_path := "res://assets/folio/scenery/scenery_palette.png"
+## When false, no trimesh colliders are generated for this glb. Use for purely
+## decorative sets (e.g. areas.glb) whose folio *Physical* collision hulls would
+## otherwise become a mess of invisible walls the car snags on.
+@export var add_collision := true
 
 var _road_mat: ShaderMaterial         # folio dark road + glitter (the road mesh)
 var _solid_shader: Shader             # mesh_default, instanced per unique colour
@@ -45,9 +49,18 @@ func _ready() -> void:
 func _dress(n: Node) -> void:
 	for c in n.get_children():
 		if c is MeshInstance3D:
-			_apply_materials(c as MeshInstance3D)
-			if not str(c.name).to_lower().begins_with("ref"):
-				(c as MeshInstance3D).create_trimesh_collision()
+			var lname := str(c.name).to_lower()
+			# folio *PhysicalFixed / *PhysicalKinematic meshes are collision-only
+			# geometry (rails, podiums, bumpers) -- invisible in folio. Hide them
+			# so they do not render (e.g. refRailsPhysicalFixed).
+			if lname.find("physicalfixed") >= 0 or lname.find("physicalkinematic") >= 0:
+				(c as MeshInstance3D).visible = false
+			else:
+				_apply_materials(c as MeshInstance3D)
+				# Colliders are opt-out per loader: areas.glb sets add_collision=false
+				# so its folio collision hulls do not become invisible walls.
+				if add_collision and not lname.begins_with("ref"):
+					(c as MeshInstance3D).create_trimesh_collision()
 		_dress(c)
 
 func _apply_materials(mi: MeshInstance3D) -> void:

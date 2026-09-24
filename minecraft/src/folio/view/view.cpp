@@ -138,6 +138,7 @@ void FolioView::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("resize"), &FolioView::resize);
 	ClassDB::bind_method(D_METHOD("_subscribe"), &FolioView::_subscribe);
 	ClassDB::bind_method(D_METHOD("set_target_position", "pos"), &FolioView::set_target_position);
+	ClassDB::bind_method(D_METHOD("get_camera"), &FolioView::get_camera);
 	ClassDB::bind_method(D_METHOD("set_quality_level", "level"), &FolioView::set_quality_level);
 	ClassDB::bind_method(D_METHOD("cinematic_start", "pos", "target"), &FolioView::cinematic_start);
 	ClassDB::bind_method(D_METHOD("cinematic_end"), &FolioView::cinematic_end);
