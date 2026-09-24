@@ -35,6 +35,15 @@ void FolioTrees::_build_trunk_mesh() {
 	trunk_mesh = cyl;
 }
 
+void FolioTrees::set_crown_colors(const Color &p_a, const Color &p_b) {
+	crown_color_a = p_a;
+	crown_color_b = p_b;
+	if (crowns) {
+		crowns->set_color_a(crown_color_a);
+		crowns->set_color_b(crown_color_b);
+	}
+}
+
 void FolioTrees::scatter(const TypedArray<Transform3D> &p_transforms) {
 	if (trunk_mesh.is_null()) {
 		_build_trunk_mesh();

@@ -168,10 +168,15 @@ Deferred deliberately; capture only:
       bound to that texture, solid -> `mesh_default`. `areas.glb` (career gates/signs/labels/
       arrows) imported + placed at origin too. Car spawn moved to folio `respawnLanding`
       (39.5, 37.8) so it starts on the open plaza by the BRUNO text, not inside a tree.
-- [ ] `Trees`/`Bushes`/`Flowers` -- currently PROCEDURAL scatter (weighted by terrain grass
-      coverage), NOT folio's authored positions. Replica TODO: load `*References.glb`
-      (per-instance transforms) + `*Visual.glb` (birch/oak/cherry + bush + flower meshes) and
-      place the visual mesh at each reference transform, replacing the random scatter.
+- [x] `Trees`/`Bushes`/`Flowers` -- now at folio's AUTHORED positions. `world.cpp` reads each
+      `*References.glb` (via `read_ref_transforms()`: instantiate the imported scene, take each
+      child's transform) and plants at those exact spots instead of the old RNG scatter:
+      bushes (130) -> `FolioFoliage`; trees -> one `FolioTrees` per type with folio crown
+      colours (birch #ff4f2b/#ff903f x26, oak #b4b536/#d8cf3b x24, cherry #ff6d6d/#ff9990 x20);
+      flowers (108 clusters) -> `FolioFlowers`. Refs decoded from Draco with `gltf-transform`
+      where needed. (Trunks are still our stylized cylinder rather than folio's `*Visual.glb`
+      body mesh; crowns/bushes/flowers are folio's billboards, same as folio. Swapping in the
+      real trunk body meshes is the only remaining fidelity gap here.)
 - [ ] `Whispers` (remaining Tier-4 ambient; `InstancedGroup` mesh helper already done above).
 
 ## Tier 5 — Audio
@@ -1209,3 +1214,21 @@ screenshot `docs/folio_port/world_polished.png`.
 
 **Deferred / next:** `Snow`/`RainLines`/`WindLines` (need Weather), real GLB models, and
 folding physics colliders for the floor.
+
+## Debug cameras + hidden collision meshes (car_world)
+- `car_world.gd` now has 3 cameras, cycled with **Tab**: 0 folio (`FolioView`), 1 free-fly
+  (WASD move, Q/E down/up, arrow keys look, Shift = faster), 2 car chase (rides 8.5 behind /
+  4 up, drive with WASD). `FolioView::get_camera()` is now bound so GDScript can restore the
+  folio cam. `--shot --cam=N` starts headless in a given camera for verification.
+- `areas.glb` is now loaded by a dedicated **`areas.gd`** that PARSES folio's per-object
+  physics tags in the node names instead of stamping blind static trimeshes:
+  `*PhysicalFixed` -> StaticBody3D (15), `*PhysicalKinematic*` -> AnimatableBody3D (7),
+  `*PhysicalDynamic` -> movable RigidBody3D (95, mass `dynamic_mass`). Collision shapes come
+  from each object's mesh: concave trimesh for static, an AABB BoxShape for moving bodies
+  (robust for folio's thin planar meshes -- convex hulls fail on those). `refRailsPhysicalFixed`
+  and its `trimesh` child are removed entirely. Materials use the folio pipeline (glow/palette/
+  solid). TODO: crates are movable but not yet explosive (folio ExplosiveCrates FX); tune
+  dynamic mass / sleep for perf if 95 rigid bodies is heavy on device.
+- `scenery.gd` still hides `*PhysicalFixed`/`*PhysicalKinematic`-named meshes and keeps the
+  `add_collision` export (default true) for scenery/props/playground; it is no longer used for
+  areas.

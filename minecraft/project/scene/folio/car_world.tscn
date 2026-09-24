@@ -1,9 +1,10 @@
-[gd_scene load_steps=9 format=4]
+[gd_scene load_steps=10 format=4]
 
 [ext_resource type="Script" path="res://scene/folio/car_world.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://bgq4dpehnmquk" path="res://assets/vehicle_env/suv.glb" id="2"]
 [ext_resource type="Script" path="res://scene/folio/scenery.gd" id="3"]
 [ext_resource type="Script" path="res://scene/folio/vehicle.gd" id="4"]
+[ext_resource type="Script" path="res://scene/folio/areas.gd" id="5"]
 
 [sub_resource type="WheelConfig" id="Wheel_fl"]
 hardpoint_offset = Vector3(1, 0, 1.5)
@@ -95,8 +96,8 @@ scenery_path = "res://assets/folio/explosiveCrates/explosiveCrates.glb"
 palette_path = "res://assets/folio/explosiveCrates/explosiveCrates_palette.png"
 
 [node name="Areas" type="Node3D" parent="."]
-script = ExtResource("3")
-scenery_path = "res://assets/folio/areas/areas.glb"
+script = ExtResource("5")
+glb_path = "res://assets/folio/areas/areas.glb"
 palette_path = "res://assets/folio/areas/areas_palette.png"
 
 [node name="GameManager" type="GameManager" parent="."]

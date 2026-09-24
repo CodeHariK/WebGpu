@@ -48,6 +48,10 @@ public:
 	FolioTrees();
 	~FolioTrees();
 
+	// Set the crown (leaf) colours before scatter() so per-type trees (birch/oak/
+	// cherry) get folio's distinct palettes.
+	void set_crown_colors(const Color &p_a, const Color &p_b);
+
 	// Plant a tree (trunk + crown) at each transform.
 	void scatter(const TypedArray<Transform3D> &p_transforms);
 };
