@@ -37,6 +37,13 @@ private:
 	Ref<VehicleConfig> config;
 	bool debug_visuals_enabled = true;
 
+	// Optional VehicleConfig preset name. If set (or overridden by a `--car=<name>`
+	// command-line argument), res://vehicle/presets/<name>.tres is loaded in _ready
+	// and used instead of the inline `config`, so one ArcadeVehicle can become a
+	// driftcar / monstercar / mariokart / forzacar / foliotoycar.
+	String preset;
+	void _resolve_preset();
+
 	// Internal state
 	CollisionShape3D *chassis_collider = nullptr;
 	Ref<SphereShape3D> chassis_shape;
@@ -44,6 +51,11 @@ private:
 
 	// Debug visualizers
 	std::vector<CSGSphere3D *> wheel_visuals;
+
+	// Per-wheel suspension travel (distance the wheel centre hangs below its
+	// hardpoint along local-down), computed every physics frame. Exposed so the
+	// folio visual can plant each wheel on the ground with independent travel.
+	std::vector<float> wheel_displacements;
 
 	VehicleInput current_input;
 
@@ -60,6 +72,11 @@ private:
 
 	// Drift state
 	bool is_drifting = false;
+	bool traction_broken = false; // true the frame lateral grip saturated (tyres sliding)
+	float prev_steer = 0.0f; // last frame's steering input, for turn-in bite
+
+	// Forward speed kick applied when a sustained drift is released (mini-turbo).
+	void _emit_mini_turbo();
 
 	// Speed Boost state
 	bool is_boosting = false;
@@ -128,12 +145,20 @@ public:
 	void set_config(const Ref<VehicleConfig> &p_config);
 	Ref<VehicleConfig> get_config() const;
 
+	void set_preset(const String &p_preset);
+	String get_preset() const;
+
 	void set_debug_visuals_enabled(bool p_enabled);
 	bool get_debug_visuals_enabled() const;
 
 	// Accessors for states
 	VehicleInput &get_input() { return current_input; }
 	Ref<VehicleConfig> get_vehicle_config() { return config; }
+
+	// GDScript-facing accessors used by the folio car visual.
+	bool get_is_drifting() const { return is_drifting; }
+	int get_wheel_count() const { return (int)wheel_displacements.size(); }
+	float get_wheel_displacement(int p_index) const;
 
 	void set_game_manager(GameManager *p_gm) { game_manager = p_gm; }
 	void set_player_input(PlayerInput *p_input) { player_input = p_input; }

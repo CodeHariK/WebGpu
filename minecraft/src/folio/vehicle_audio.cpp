@@ -38,6 +38,9 @@ AudioStreamPlayer3D *FolioVehicleAudio::_make_loop(const String &p_path) {
 	}
 	p->set_unit_size((float)carry_distance);
 	p->set_max_db(3.0f);
+	// The player's own car should stay audible no matter how far the chase camera
+	// is; disable distance falloff so it doesn't fade to silence (it still pans in 3D).
+	p->set_attenuation_model(AudioStreamPlayer3D::ATTENUATION_DISABLED);
 	p->set_volume_db(-80.0f); // start silent; driven up each frame
 	add_child(p);
 	p->play();
@@ -73,6 +76,7 @@ void FolioVehicleAudio::_ready() {
 		horn->set_stream(hs);
 	}
 	horn->set_unit_size(16.0f);
+	horn->set_attenuation_model(AudioStreamPlayer3D::ATTENUATION_DISABLED);
 	add_child(horn);
 }
 

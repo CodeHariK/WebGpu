@@ -65,6 +65,34 @@ void VehicleConfig::_bind_methods() {
 			"get_drift_steering_threshold"
 	);
 
+	ClassDB::bind_method(D_METHOD("set_turn_radius", "val"), &VehicleConfig::set_turn_radius);
+	ClassDB::bind_method(D_METHOD("get_turn_radius"), &VehicleConfig::get_turn_radius);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "turn_radius"), "set_turn_radius", "get_turn_radius");
+
+	ClassDB::bind_method(D_METHOD("set_max_yaw_rate", "val"), &VehicleConfig::set_max_yaw_rate);
+	ClassDB::bind_method(D_METHOD("get_max_yaw_rate"), &VehicleConfig::get_max_yaw_rate);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_yaw_rate"), "set_max_yaw_rate", "get_max_yaw_rate");
+
+	ClassDB::bind_method(D_METHOD("set_turn_speed", "val"), &VehicleConfig::set_turn_speed);
+	ClassDB::bind_method(D_METHOD("get_turn_speed"), &VehicleConfig::get_turn_speed);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "turn_speed"), "set_turn_speed", "get_turn_speed");
+
+	ClassDB::bind_method(D_METHOD("set_grip_lateral_accel", "val"), &VehicleConfig::set_grip_lateral_accel);
+	ClassDB::bind_method(D_METHOD("get_grip_lateral_accel"), &VehicleConfig::get_grip_lateral_accel);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "grip_lateral_accel"), "set_grip_lateral_accel", "get_grip_lateral_accel"
+	);
+
+	ClassDB::bind_method(D_METHOD("set_drift_lateral_accel", "val"), &VehicleConfig::set_drift_lateral_accel);
+	ClassDB::bind_method(D_METHOD("get_drift_lateral_accel"), &VehicleConfig::get_drift_lateral_accel);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "drift_lateral_accel"), "set_drift_lateral_accel", "get_drift_lateral_accel"
+	);
+
+	ClassDB::bind_method(D_METHOD("set_mini_turbo_boost", "val"), &VehicleConfig::set_mini_turbo_boost);
+	ClassDB::bind_method(D_METHOD("get_mini_turbo_boost"), &VehicleConfig::get_mini_turbo_boost);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "mini_turbo_boost"), "set_mini_turbo_boost", "get_mini_turbo_boost");
+
 	ClassDB::bind_method(D_METHOD("set_downforce", "force"), &VehicleConfig::set_downforce);
 	ClassDB::bind_method(D_METHOD("get_downforce"), &VehicleConfig::get_downforce);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "downforce"), "set_downforce", "get_downforce");
@@ -214,6 +242,24 @@ float VehicleConfig::get_drift_speed_threshold() const { return drift_speed_thre
 
 void VehicleConfig::set_drift_steering_threshold(float p_val) { drift_steering_threshold = p_val; }
 float VehicleConfig::get_drift_steering_threshold() const { return drift_steering_threshold; }
+
+void VehicleConfig::set_turn_radius(float p_val) { turn_radius = p_val; }
+float VehicleConfig::get_turn_radius() const { return turn_radius; }
+
+void VehicleConfig::set_max_yaw_rate(float p_val) { max_yaw_rate = p_val; }
+float VehicleConfig::get_max_yaw_rate() const { return max_yaw_rate; }
+
+void VehicleConfig::set_turn_speed(float p_val) { turn_speed = p_val; }
+float VehicleConfig::get_turn_speed() const { return turn_speed; }
+
+void VehicleConfig::set_grip_lateral_accel(float p_val) { grip_lateral_accel = p_val; }
+float VehicleConfig::get_grip_lateral_accel() const { return grip_lateral_accel; }
+
+void VehicleConfig::set_drift_lateral_accel(float p_val) { drift_lateral_accel = p_val; }
+float VehicleConfig::get_drift_lateral_accel() const { return drift_lateral_accel; }
+
+void VehicleConfig::set_mini_turbo_boost(float p_val) { mini_turbo_boost = p_val; }
+float VehicleConfig::get_mini_turbo_boost() const { return mini_turbo_boost; }
 
 void VehicleConfig::set_downforce(float p_val) { downforce = p_val; }
 float VehicleConfig::get_downforce() const { return downforce; }

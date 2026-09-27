@@ -41,6 +41,8 @@ public:
  * Specialized drifting state when on the ground.
  */
 class DriftingState : public GroundedState {
+	float drift_time = 0.0f; // seconds held in the drift, for the mini-turbo boost
+
 public:
 	using GroundedState::GroundedState;
 	virtual void enter() override;

@@ -33,7 +33,7 @@ void ArcadeVehicleUI::setup(
 	toggle_btn->set_position(Vector2(toggle_btn->get_position().x - 120, toggle_btn->get_position().y));
 
 	// Main Panel (Hidden by default)
-	main_panel = ui_root->add_panel(ui_root, "VehicleSettingsPanel", Control::PRESET_TOP_LEFT, Vector2(500, 480));
+	main_panel = ui_root->add_panel(ui_root, "VehicleSettingsPanel", Control::PRESET_TOP_LEFT, Vector2(500, 730));
 	main_panel->set_position(Vector2(main_panel->get_position().x, 50));
 	main_panel->set_visible(false);
 
@@ -50,8 +50,14 @@ void ArcadeVehicleUI::setup(
 	_add_variable_slider(physics_tab, "Brake Decel", "brake_decel", 1000.0f, 30000.0f, 100.0f);
 	_add_variable_slider(physics_tab, "Arcade Assist", "arcade_assist", 0.0f, 10.0f, 0.1f);
 	_add_variable_slider(physics_tab, "Max Steer Angle", "max_steer_angle_deg", 5.0f, 60.0f, 0.5f);
+	_add_variable_slider(physics_tab, "Turn Radius", "turn_radius", 2.0f, 25.0f, 0.5f);
+	_add_variable_slider(physics_tab, "Turn Speed", "turn_speed", 0.5f, 12.0f, 0.1f);
+	_add_variable_slider(physics_tab, "Max Yaw Rate", "max_yaw_rate", 0.3f, 4.0f, 0.05f);
 	_add_variable_slider(physics_tab, "Base Grip", "base_grip", 0.0f, 2.0f, 0.05f);
 	_add_variable_slider(physics_tab, "Drift Grip", "drift_grip", 0.0f, 2.0f, 0.05f);
+	_add_variable_slider(physics_tab, "Grip Limit", "grip_lateral_accel", 5.0f, 60.0f, 0.5f);
+	_add_variable_slider(physics_tab, "Drift Grip Limit", "drift_lateral_accel", 2.0f, 40.0f, 0.5f);
+	_add_variable_slider(physics_tab, "Mini-Turbo Boost", "mini_turbo_boost", 0.0f, 20.0f, 0.5f);
 	_add_variable_slider(physics_tab, "Downforce", "downforce", 0.0f, 10000.0f, 50.0f);
 	_add_variable_slider(physics_tab, "Yaw Damping", "angular_damping", 0.0f, 20.0f, 0.1f);
 	_add_variable_slider(physics_tab, "Vel Alignment", "velocity_alignment", 0.0f, 10.0f, 0.1f);

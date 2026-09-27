@@ -10,6 +10,8 @@
 #include "ui/arcade_vehicle_ui.h"
 #include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/os.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
 
 namespace godot {
 
@@ -24,6 +26,12 @@ const char *VEHICLE_TUNABLES[] = { "max_speed",
 								   "max_steer_angle_deg",
 								   "base_grip",
 								   "drift_grip",
+								   "turn_radius",
+								   "max_yaw_rate",
+								   "turn_speed",
+								   "grip_lateral_accel",
+								   "drift_lateral_accel",
+								   "mini_turbo_boost",
 								   "downforce",
 								   "angular_damping",
 								   "velocity_alignment",
@@ -65,9 +73,42 @@ ArcadeVehicle::~ArcadeVehicle() {
 	}
 }
 
+void ArcadeVehicle::_resolve_preset() {
+	// A `--car=<name>` command-line argument overrides the inspector `preset`.
+	String name = preset;
+	OS *os = OS::get_singleton();
+	if (os) {
+		PackedStringArray args = os->get_cmdline_args();
+		args.append_array(os->get_cmdline_user_args());
+		for (int i = 0; i < args.size(); i++) {
+			String a = args[i];
+			if (a.begins_with("--car=") && !a.substr(6).is_empty()) {
+				name = a.substr(6);
+			}
+		}
+	}
+	if (name.is_empty()) {
+		return;
+	}
+	String path = "res://vehicle/presets/" + name + ".tres";
+	Ref<VehicleConfig> loaded = ResourceLoader::get_singleton()->load(path);
+	if (loaded.is_valid()) {
+		config = loaded;
+		UtilityFunctions::print("ArcadeVehicle: using preset '", name, "' (", path, ")");
+	} else {
+		UtilityFunctions::printerr("ArcadeVehicle: preset not found > ", path);
+	}
+}
+
+void ArcadeVehicle::set_preset(const String &p_preset) { preset = p_preset; }
+String ArcadeVehicle::get_preset() const { return preset; }
+
 void ArcadeVehicle::_ready() {
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
+
+	// Pick up a preset (inspector `preset` or `--car=<name>`) before we clone config.
+	_resolve_preset();
 
 	// Work on a per-instance copy of the config so runtime tuning and loaded
 	// settings never mutate the shared VehicleConfig asset on disk.
@@ -293,12 +334,21 @@ void ArcadeVehicle::_bind_methods() {
 			"get_config"
 	);
 
+	ClassDB::bind_method(D_METHOD("set_preset", "preset"), &ArcadeVehicle::set_preset);
+	ClassDB::bind_method(D_METHOD("get_preset"), &ArcadeVehicle::get_preset);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "preset"), "set_preset", "get_preset");
+
 	ClassDB::bind_method(D_METHOD("set_debug_visuals_enabled", "enabled"), &ArcadeVehicle::set_debug_visuals_enabled);
 	ClassDB::bind_method(D_METHOD("get_debug_visuals_enabled"), &ArcadeVehicle::get_debug_visuals_enabled);
 	ADD_PROPERTY(
 			PropertyInfo(Variant::BOOL, "debug_visuals_enabled"), "set_debug_visuals_enabled",
 			"get_debug_visuals_enabled"
 	);
+
+	// GDScript-facing accessors for the folio car visual (planted wheels + drift FX).
+	ClassDB::bind_method(D_METHOD("get_is_drifting"), &ArcadeVehicle::get_is_drifting);
+	ClassDB::bind_method(D_METHOD("get_wheel_count"), &ArcadeVehicle::get_wheel_count);
+	ClassDB::bind_method(D_METHOD("get_wheel_displacement", "index"), &ArcadeVehicle::get_wheel_displacement);
 
 	ClassDB::bind_method(D_METHOD("_on_ui_toggle"), &ArcadeVehicle::_on_ui_toggle);
 	ClassDB::bind_method(D_METHOD("save_settings"), &ArcadeVehicle::save_settings);

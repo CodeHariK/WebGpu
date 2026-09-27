@@ -1,6 +1,7 @@
 [gd_scene format=4 uid="uid://7tydct12v868"]
 
 [ext_resource type="PackedScene" uid="uid://bgq4dpehnmquk" path="res://assets/vehicle_env/suv.glb" id="1_1dqdu"]
+[ext_resource type="Script" path="res://scene/folio/vehicle.gd" id="veh_vis"]
 [ext_resource type="Texture2D" uid="uid://cx407p0hadgy3" path="res://assets/vehicle_env/ramp_0.png" id="2_1dqdu"]
 [ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="2_mxckk"]
 [ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/terrain/mat_terrain.tres" id="4_4kplg"]
@@ -156,6 +157,9 @@ show_debug_velocity = true
 wheel_configs = Array[WheelConfig]([SubResource("WheelConfig_1dqdu"), SubResource("WheelConfig_4kplg"), SubResource("WheelConfig_nxv8y"), SubResource("WheelConfig_ogdk4")])
 
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_rafu7"]
+; Low contact friction so Godot's own solver doesn't fight the ArcadeVehicle's
+; custom grip/drift model (empty default was friction 1.0, which killed sliding).
+friction = 0.3
 
 [sub_resource type="WheelConfig" id="WheelConfig_3f0it"]
 hardpoint_offset = Vector3(1, 0, 1.5)
@@ -647,6 +651,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.23, 9.576)
 physics_material_override = SubResource("PhysicsMaterial_rafu7")
 
 [node name="suv2" parent="Car/SUVController" unique_id=1444790978 instance=ExtResource("1_1dqdu")]
+visible = false
+
+; Folio car visual: planted wheels driven by the suspension + rear-wheel drift smoke.
+[node name="Visual" type="Node3D" parent="Car/SUVController"]
+script = ExtResource("veh_vis")
+
+; Engine / spin / boost loops + horn (H), driven from the car's motion.
+[node name="VehicleAudio" type="FolioVehicleAudio" parent="Car/SUVController"]
 
 [node name="TruckController" type="ArcadeVehicle" parent="Car" unique_id=735206424]
 config = SubResource("VehicleConfig_wkk6t")
@@ -654,6 +666,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 9.23, 9.576)
 physics_material_override = SubResource("PhysicsMaterial_rafu7")
 
 [node name="suv2" parent="Car/TruckController" unique_id=441747893 instance=ExtResource("1_1dqdu")]
+visible = false
+
+[node name="Visual" type="Node3D" parent="Car/TruckController"]
+script = ExtResource("veh_vis")
+
+[node name="VehicleAudio" type="FolioVehicleAudio" parent="Car/TruckController"]
 
 [node name="TruckController2" type="ArcadeVehicle" parent="Car" unique_id=1872821116]
 config = SubResource("VehicleConfig_sgska")
@@ -661,6 +679,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 9.23, 9.576)
 physics_material_override = SubResource("PhysicsMaterial_rafu7")
 
 [node name="suv2" parent="Car/TruckController2" unique_id=365126827 instance=ExtResource("1_1dqdu")]
+visible = false
+
+[node name="Visual" type="Node3D" parent="Car/TruckController2"]
+script = ExtResource("veh_vis")
+
+[node name="VehicleAudio" type="FolioVehicleAudio" parent="Car/TruckController2"]
 
 [node name="SpeedLines" type="SpeedLines" parent="."]
 speed_min = 6.0
