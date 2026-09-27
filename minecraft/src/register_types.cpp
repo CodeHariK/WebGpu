@@ -27,6 +27,8 @@
 #include "folio/viewport.h"
 #include "folio/water.h"
 #include "folio/audio.h"
+#include "folio/vehicle_audio.h"
+#include "folio/soundscape.h"
 #include "folio/ui/menu.h"
 #include "folio/ui/title.h"
 #include "folio/ui/ui.h"
@@ -155,6 +157,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FolioWind);
 	GDREGISTER_CLASS(FolioWeather);
 	GDREGISTER_CLASS(FolioAudio);
+	GDREGISTER_CLASS(FolioSoundscape);
+	GDREGISTER_CLASS(FolioVehicleAudio);
 	GDREGISTER_CLASS(CUIOverlay);
 	GDREGISTER_CLASS(CUIModal);
 	GDREGISTER_CLASS(CUIToast);

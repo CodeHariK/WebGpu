@@ -1232,3 +1232,42 @@ folding physics colliders for the floor.
 - `scenery.gd` still hides `*PhysicalFixed`/`*PhysicalKinematic`-named meshes and keeps the
   `add_collision` export (default true) for scenery/props/playground; it is no longer used for
   areas.
+
+## Explosive crates + areas physics perf (car_world)
+- **explosive_crates.gd**: explosiveCrates.glb -> light movable RigidBody3D crates that
+  DETONATE when the car rams them >= trigger_speed (3 m/s), or via chain reaction from a
+  nearby blast. On detonation (folio 0.4s fuse): a red->orange fireball flash grows to
+  radius 5 and fades, a radial impulse (strength 9, r=5, via a shape query) shoves every
+  nearby RigidBody outward and chains other crates, then the crate frees itself. FX is a
+  self-contained unshaded emissive sphere tweened up + faded (folio Fireballs feel, no gsap).
+  `detonate_test()` kept as a debug helper.
+- **areas.gd perf**: the 95 `*PhysicalDynamic` bodies now start FROZEN (freeze_mode STATIC,
+  ~zero sim cost) and an activation bubble in `_physics_process` unfreezes only those within
+  `activate_radius` (22) of the car, re-freezing past `deactivate_radius` (28) once asleep.
+  So only a handful simulate at once. Kinematic (7) and static (15) bodies are cheap already.
+  TODO: explosion also wakes frozen bodies it hits (handled in _blast); tune radii/mass on device.
+
+## Audio — core pack (folio Audio.js / Player.js), C++
+- Assets copied to `project/assets/folio/audio/{music,vehicle,ambient,hits}` from folio dist
+  (music x3, engine/spin/boost/horn, forest wind, 2 explosions, 4 default impacts).
+- **FolioSoundscape** (C++ Node, in scene as `Soundscape`, group "folio_soundscape"): rotating
+  3-song music playlist (switch on finish, vol 0.2, time-seeded start), forest **wind** loop whose
+  volume tracks the live `folio_weather_wind` global (folio's pow(remap,3)*0.7), and a pooled
+  `play_hit(group,pos,rate)` for one-shots ("explosion"/"impact") that other systems call.
+- **FolioVehicleAudio** (C++ Node3D, child of `Car`): engine + spin + boost loops + horn, driven
+  each physics frame from car speed/throttle with folio's easing/rate curves (engine 0.6..1.1,
+  spin 1..2, boost). Horn on H. Spatialised via the AudioListener3D FolioAudio pins to the camera.
+- explosive_crates.gd calls `play_hit("explosion", ...)` on detonation.
+- Verified headless: music/wind/engine all enter playing state (no audible check in sandbox --
+  dummy audio driver). TODO (future audio): birds/crickets/owl-rooster-wolf by time of day, waves
+  near water, per-material hit banks, circuit/UI sounds; and route through Music/SFX/Ambience buses
+  + the existing FolioAudio mute toggle.
+
+## Audio mix — inspector-editable knobs
+- The real tuning values are now exported (ADD_PROPERTY) so the mix is balanced live in the
+  Godot inspector, no rebuild. The `*_vol` / `*_rate` members were only eased RUNTIME STATE, not knobs.
+- FolioVehicleAudio (on Car/VehicleAudio): Engine group (engine_gain, engine_pitch_min/max),
+  Spin group (spin_speed_sensitivity, spin_gain, spin_pitch_max), Boost (boost_gain), Mix
+  (carry_distance, attack_ease, release_ease, pitch_ease).
+- FolioSoundscape (on Soundscape): music_volume, wind_max_volume, explosion_gain, impact_gain,
+  hit_carry_distance.

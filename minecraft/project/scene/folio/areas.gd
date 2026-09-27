@@ -24,6 +24,12 @@ extends Node3D
 @export var glb_path := "res://assets/folio/areas/areas.glb"
 @export var palette_path := "res://assets/folio/areas/areas_palette.png"
 @export var dynamic_mass := 2.0
+## Perf: dynamic bodies are frozen (act as static, ~zero sim cost) until the car
+## comes within activate_radius, then unfreeze so they can be shoved; they
+## re-freeze once past deactivate_radius and asleep. This keeps only a small
+## bubble of bodies simulating around the car.
+@export var activate_radius := 22.0
+@export var deactivate_radius := 28.0
 
 var _scenery_shader: Shader
 var _glow_shader: Shader
@@ -32,6 +38,8 @@ var _default_palette: Texture2D
 var _solid_cache := {}
 var _tex_cache := {}
 var _glow_cache := {}
+var _dyn: Array[RigidBody3D] = []
+var _car: Node3D
 
 func _ready() -> void:
 	var scn: PackedScene = load(glb_path)
@@ -45,6 +53,25 @@ func _ready() -> void:
 	var root: Node3D = scn.instantiate()
 	add_child(root)
 	_walk(root)
+
+# Activation bubble: only bodies near the car simulate; the rest stay frozen.
+func _physics_process(_delta: float) -> void:
+	if _dyn.is_empty():
+		return
+	if _car == null:
+		_car = get_node_or_null("../Car") as Node3D
+		if _car == null:
+			return
+	var cp := _car.global_position
+	for rb in _dyn:
+		if not is_instance_valid(rb):
+			continue
+		var d := rb.global_position.distance_to(cp)
+		if d < activate_radius:
+			if rb.freeze:
+				rb.freeze = false
+		elif d > deactivate_radius and not rb.freeze and rb.sleeping:
+			rb.freeze = true
 
 # Walk the tree: remove the rails, wrap physics objects into typed bodies, and
 # dress plain decorative meshes. Iterate a copy of the child list because we
@@ -89,7 +116,10 @@ func _make_body(obj: Node3D, kind: String) -> void:
 			var rb := RigidBody3D.new()
 			rb.mass = dynamic_mass
 			rb.can_sleep = true
+			rb.freeze = true                               # start inert (static-cheap)
+			rb.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 			body = rb
+			_dyn.append(rb)
 	body.name = str(obj.name) + "Body"
 	add_child(body)
 	body.global_transform = xform
