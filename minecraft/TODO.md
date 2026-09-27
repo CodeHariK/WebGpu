@@ -76,6 +76,30 @@ Legend: `[x]` done · `[ ]` next · `[~]` in progress · `[?]` idea, undecided
       (inverted hull, for `next_pass`) exists but is off by default — flat-shaded meshes crack at hard edges
       - [ ] later: expose bands / shadow_level / rim on the cliff and road nodes instead of needing a custom material
 
+## Vehicles (ArcadeVehicle forms)
+
+`ArcadeVehicle` (src/vehicle) is the one general vehicle class — every kind is a preset + a
+locomotion mode on it, not a new class (existing: foliotoycar, driftcar, monstercar, mariokart,
+forzacar). These three change *how the body moves*, so each needs a locomotion mode (an HSM state
++ config flags), not just a `.tres`. Design doc: `docs/Vehicle.md`. Test in `run_octo` (`CAR=<name>`).
+
+- [ ] **Boat** — water locomotion: no ground raycast/suspension while over a `water` Area3D; buoyancy
+      to the water level (reuse the water Area3D group from River/Lake), planing at speed, water drag +
+      turn-from-rudder (steer scales with speed, none at rest), bank into turns. Wake + spray particles,
+      bob at idle. Preset `boat.tres`; add a `LOCOMOTION_BOAT` mode + a water-volume probe.
+- [ ] **Bike** — two-wheel: front/rear wheel only, lean into turns (visual + a real roll that feeds
+      lateral grip), self-balance upright when grounded, wheelie on hard accel / stoppie on hard brake,
+      narrower collider. Countersteer feel, tighter turn radius than the cars. Preset `bike.tres` + a
+      `LOCOMOTION_BIKE` mode (2 wheels, lean controller).
+- [ ] **UFO** — hovering flight: no wheels/suspension, omnidirectional thrust, altitude hold + raise/
+      lower, tilt-to-move (pitch/roll toward travel), yaw spin, gentle hover bob, ignores terrain contact
+      (clamped min ground clearance instead). Optional tractor-beam hook later. Preset `ufo.tres` +
+      a `LOCOMOTION_HOVER` mode.
+- [?] shared: a `LocomotionMode` on VehicleConfig (wheeled / boat / bike / hover) so the state machine
+      picks the ground-contact + steering model from config; wheel count from the preset's WheelConfigs.
+- [?] transform zones (Odyssey capture): drive through a zone to swap the active preset/form
+      (ties into the "car forms via zones" idea under Collectibles below).
+
 ## Later
 
 ### Environment props (`src/environment/` — procedural meshes, semi-realistic like Odyssey / Link's Awakening)
@@ -151,7 +175,8 @@ Racing specific (Mario Kart, Diddy Kong Racing)
 
 Collectibles & exploration (Odyssey moons, Link's Awakening seashells, Banjo)
 - [ ] Coins / regional coins, moons / big collectible with fanfare, hidden ? blocks, hint arrows
-- [ ] Capture-style transformations → for us: car forms (boat, hover, monster truck) via zones
+- [ ] Capture-style transformations → for us: car forms (boat, bike, hover/UFO, monster truck) via
+      zones — swap the active `ArcadeVehicle` preset/form (see **Vehicles (ArcadeVehicle forms)** above)
 - [ ] Binoculars / lookout points, treasure chests, NPC stalls (buy cosmetics), photo spots
 - [ ] Timer challenges (key → door in N s), rings-in-a-row, koopa freerunning race NPCs
 - [ ] Flowers / grass that react (bend) to the car; birds that scatter; sheep to herd into a pen

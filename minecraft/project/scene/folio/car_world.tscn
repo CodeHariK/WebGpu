@@ -138,3 +138,9 @@ debug_visuals_enabled = false
 script = ExtResource("4")
 
 [node name="VehicleAudio" type="FolioVehicleAudio" parent="Car"]
+
+; Project GameCamera (src/camera): Fly = MMB orbit / Shift+MMB pan / wheel zoom,
+; Car = arcade chase. Tab cycles folio -> Fly -> Car (see car_world.gd). Not current
+; at start (folio diorama camera stays active until Tab).
+[node name="GameCamera" type="GameCamera" parent="."]
+follow_target_path = NodePath("../Car")

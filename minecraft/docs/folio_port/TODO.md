@@ -192,7 +192,17 @@ Deferred deliberately; capture only:
 - [x] `Notifications` ✅ (`FolioNotifications`: top-centre transient toast stack; mute changes toast).
 - [x] `Title` ✅ (`FolioTitle`: start overlay; Play → fade out + `started`; HUD hidden until start).
 - [x] `Modals` ✅ (`FolioModal`: reusable confirm/alert dialog; menu "Quit to title" routes through it).
-- [ ] `InteractivePoints`, `Map`, gamepad focus nav
+- [x] `Map` ✅ (`FolioMap`, `src/folio/ui/map.{h,cpp}`) — top-down minimap overlay under the
+      FolioUI root, toggled with M (Esc closes). Dimmed scrim + centred square board showing
+      the terrain data texture (island shape) as the map; data-driven point pins
+      (`add_point`/`clear_points`, content-agnostic — scene supplies them, demoed in
+      `car_world.gd`) that teleport the active vehicle on click (folio respawn); a triangular
+      player marker (folio `player.png`) projected via folio's worldToMap (x,z / terrain.size +
+      0.5) and rotated to the car heading. Uses folio's OWN baked map art (`map-day.png` /
+      `map-night.png`, imported to `assets/folio/map/`), switched by the day cycle — looks like
+      the folio web map. Forces the FolioUI layer visible while open (car_world hides the HUD).
+      Deferred vs folio: pin dot art (labels only) + exact pin/axis fine-tuning.
+- [ ] `InteractivePoints`, gamepad focus nav
       (their `CUI` DOM system → Godot `Control` nodes) — build on the FolioUI root + theme.
 
 ## Tier 7 — Portfolio content  (DEFERRED / likely skip)

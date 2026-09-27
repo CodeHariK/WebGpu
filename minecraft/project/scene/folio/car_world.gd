@@ -19,13 +19,17 @@ var _wire := false
 var _colliders_shown := false
 var _collider_overlays: Array[MeshInstance3D] = []
 
-# Camera modes: 0 = folio (FolioView), 1 = free-fly, 2 = car chase.
-# Cycle with Tab. Fly: WASD move, Q/E down/up, arrows look, Shift = faster.
-# Chase rides behind the car (drive it with WASD in this mode).
+# Camera modes cycled with C (TAB is GameManager's target-swap action, so it
+# can't drive the camera here — it would fight the target-switch and flip the
+# GameCamera's mode back on the same press):
+#   0 = folio diorama camera (FolioView)
+#   1 = GameCamera Fly  (Blender-style: MMB orbit, Shift+MMB pan, wheel zoom)
+#   2 = GameCamera Car  (arcade chase)
+# The fly/chase behaviour is the project's own GameCamera (src/camera) driven by
+# PlayerInput — we just switch which camera is current; no custom camera here.
 var _cam_mode := 0
 var _folio_cam: Camera3D = null
-var _fly_cam: Camera3D = null
-var _chase_cam: Camera3D = null
+@onready var _game_cam: Camera3D = get_node_or_null("GameCamera")
 
 func _ready() -> void:
 	RenderingServer.set_debug_generate_wireframes(true)
@@ -44,6 +48,17 @@ func _ready() -> void:
 		var ui = _game.get_ui()
 		if ui:
 			ui.visible = false
+			# Demo minimap points (folio Map is content-agnostic; the scene supplies
+			# its own points of interest). Press M in-game to open the map.
+			var m = ui.get_map() if ui.has_method("get_map") else null
+			if m:
+				m.add_point("Plaza", Vector3(39.5, 0.0, 37.8))
+				m.add_point("Origin", Vector3(0.0, 0.0, 0.0))
+				m.add_point("Ramps", Vector3(27.0, 0.0, 24.0))
+				m.add_point("North", Vector3(-10.0, 0.0, -70.0))
+				m.add_point("West Shore", Vector3(-72.0, 0.0, 10.0))
+	# Start on the folio diorama camera (C cycles to GameCamera Fly / Car).
+	_set_cam_mode(0)
 	# --shot=NAME: let the sim settle (car drops onto the ground, camera frames it)
 	# then save docs/png/NAME.png and quit. For headless verification only.
 	for a in OS.get_cmdline_args() + OS.get_cmdline_user_args():
@@ -70,86 +85,36 @@ func _physics_process(_delta: float) -> void:
 	if view:
 		view.set_target_position(_car.global_position)
 
-func _process(delta: float) -> void:
-	if _cam_mode == 1 and _fly_cam:
-		_fly_update(delta)
-	elif _cam_mode == 2 and _chase_cam and _car:
-		_chase_update(delta)
-
-# Lazily create the alternate cameras and grab the folio camera (bound C++).
-func _ensure_cams() -> void:
+# Resolve the folio diorama camera (bound C++ FolioView camera) once.
+func _ensure_folio_cam() -> void:
 	if _folio_cam == null and _game and _game.has_method("get_view"):
 		var v = _game.get_view()
 		if v and v.has_method("get_camera"):
 			_folio_cam = v.get_camera()
-	if _fly_cam == null:
-		_fly_cam = Camera3D.new()
-		_fly_cam.fov = 45.0
-		_fly_cam.far = 600.0
-		add_child(_fly_cam)
-	if _chase_cam == null:
-		_chase_cam = Camera3D.new()
-		_chase_cam.fov = 38.0
-		_chase_cam.far = 400.0
-		add_child(_chase_cam)
 
 func _cycle_cam() -> void:
 	_set_cam_mode((_cam_mode + 1) % 3)
 
+# Switch which camera is current. Fly/Car behaviour is the project's GameCamera
+# (orbit/pan/dolly + chase, driven by PlayerInput) — we don't reimplement it.
 func _set_cam_mode(m: int) -> void:
-	_ensure_cams()
+	_ensure_folio_cam()
 	_cam_mode = m
 	match _cam_mode:
 		0:
 			if _folio_cam:
 				_folio_cam.make_current()
 		1:
-			# Seed the fly cam from whatever view is on screen for a smooth start.
-			var cur := get_viewport().get_camera_3d()
-			if cur:
-				_fly_cam.global_transform = cur.global_transform
-			_fly_cam.make_current()
+			if _game_cam:
+				_game_cam.set_camera_mode(0) # GameCamera.MODE_FLY
+				_game_cam.make_current()
 		2:
-			if _car:
-				_chase_update(1.0) # snap into place this frame
-			_chase_cam.make_current()
-
-func _fly_update(delta: float) -> void:
-	var fast := 3.0 if Input.is_key_pressed(KEY_SHIFT) else 1.0
-	var spd := 22.0 * fast
-	var look := 1.6 * delta
-	if Input.is_key_pressed(KEY_LEFT):
-		_fly_cam.rotate_y(look)
-	if Input.is_key_pressed(KEY_RIGHT):
-		_fly_cam.rotate_y(-look)
-	if Input.is_key_pressed(KEY_UP):
-		_fly_cam.rotate_object_local(Vector3(1, 0, 0), look)
-	if Input.is_key_pressed(KEY_DOWN):
-		_fly_cam.rotate_object_local(Vector3(1, 0, 0), -look)
-	var b := _fly_cam.global_transform.basis
-	var dir := Vector3.ZERO
-	if Input.is_key_pressed(KEY_W):
-		dir -= b.z
-	if Input.is_key_pressed(KEY_S):
-		dir += b.z
-	if Input.is_key_pressed(KEY_A):
-		dir -= b.x
-	if Input.is_key_pressed(KEY_D):
-		dir += b.x
-	if Input.is_key_pressed(KEY_E):
-		dir += Vector3.UP
-	if Input.is_key_pressed(KEY_Q):
-		dir -= Vector3.UP
-	_fly_cam.global_position += dir * spd * delta
-
-func _chase_update(delta: float) -> void:
-	var ct := _car.global_transform
-	# Car forward is -Z, so +Z basis is behind it.
-	var behind := ct.basis.z.normalized()
-	var target := ct.origin + behind * 8.5 + Vector3.UP * 4.0
-	var t := clampf(delta * 6.0, 0.0, 1.0)
-	_chase_cam.global_position = _chase_cam.global_position.lerp(target, t)
-	_chase_cam.look_at(ct.origin + Vector3.UP * 1.2, Vector3.UP)
+			if _game_cam:
+				_game_cam.set_camera_mode(1) # GameCamera.MODE_CAR
+				_game_cam.make_current()
+	var cur := get_viewport().get_camera_3d()
+	var names := ["folio diorama", "GameCamera Fly", "GameCamera Car"]
+	print("[cam] mode ", m, " -> ", names[m] if m < names.size() else "?", " (current: ", cur.name if cur else "none", ")")
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	# Season test keys (like the world preview): jump season + let it keep running,
@@ -175,7 +140,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			get_viewport().debug_draw = Viewport.DEBUG_DRAW_WIREFRAME if _wire else Viewport.DEBUG_DRAW_DISABLED
 		KEY_F3:
 			_toggle_colliders()
-		KEY_TAB:
+		KEY_C:
 			_cycle_cam()
 
 # F3: overlay every collision shape in the scene as a wireframe (physics X-ray),

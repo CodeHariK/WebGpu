@@ -5,7 +5,7 @@
 #include <godot_cpp/classes/canvas_layer.hpp>
 #include <godot_cpp/classes/control.hpp>
 
-namespace godot { class FolioMenu; class FolioTitle; class CUIModal; class CUIToast; class CUI; }
+namespace godot { class FolioMenu; class FolioTitle; class FolioMap; class CUIModal; class CUIToast; class CUI; }
 
 namespace godot {
 
@@ -44,6 +44,7 @@ private:
 	CUIToast *notifications = nullptr;
 	FolioTitle *title = nullptr;
 	CUIModal *modal = nullptr;
+	FolioMap *map = nullptr;
 	CUI *builder = nullptr; // shared widget factory (view construction)
 	State state = STATE_CLOSED;
 
@@ -71,6 +72,7 @@ public:
 	CUIToast *get_notifications() const { return notifications; }
 	FolioTitle *get_title() const { return title; }
 	CUIModal *get_modal() const { return modal; }
+	FolioMap *get_map() const { return map; }
 	CUI *get_cui() const { return builder; }
 	void set_hud_visible(bool p_v);
 	int get_state() const { return (int)state; }

@@ -6,6 +6,7 @@
 
 #include "../game.h"
 #include "../audio.h"
+#include "map.h"
 #include "menu.h"
 #include "theme.h"
 #include "title.h"
@@ -72,6 +73,11 @@ void FolioUI::_ready() {
 	modal->set_name("Modal");
 	modal->set_builder(builder);
 	root->add_child(modal);
+
+	// Minimap overlay (folio Map) — toggled with M; scene supplies its points.
+	map = memnew(FolioMap);
+	map->set_name("Map");
+	root->add_child(map);
 
 	Ref<SceneTreeTimer> t = get_tree()->create_timer(0.1);
 	t->connect("timeout", callable_mp((CUIOverlay *)title, &CUIOverlay::open));
@@ -163,6 +169,7 @@ void FolioUI::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_notifications"), &FolioUI::get_notifications);
 	ClassDB::bind_method(D_METHOD("get_title"), &FolioUI::get_title);
 	ClassDB::bind_method(D_METHOD("get_modal"), &FolioUI::get_modal);
+	ClassDB::bind_method(D_METHOD("get_map"), &FolioUI::get_map);
 	ClassDB::bind_method(D_METHOD("set_hud_visible", "v"), &FolioUI::set_hud_visible);
 	ClassDB::bind_method(D_METHOD("get_state"), &FolioUI::get_state);
 
