@@ -66,6 +66,7 @@ public:
 	Ref<ImageTexture> get_gradient() const { return gradient; }
 	Ref<Texture2D> get_terrain_data() const { return data_texture; }
 	Color get_grass_color() const { return grass_color; }
+	double get_size() const { return size; } // world extent (metres) — used by the minimap
 };
 
 } // namespace godot

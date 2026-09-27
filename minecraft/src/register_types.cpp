@@ -29,6 +29,7 @@
 #include "folio/audio.h"
 #include "folio/vehicle_audio.h"
 #include "folio/soundscape.h"
+#include "folio/ui/map.h"
 #include "folio/ui/menu.h"
 #include "folio/ui/title.h"
 #include "folio/ui/ui.h"
@@ -164,6 +165,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(CUIToast);
 	GDREGISTER_CLASS(FolioMenu);
 	GDREGISTER_CLASS(FolioTitle);
+	GDREGISTER_CLASS(FolioMap);
 	GDREGISTER_CLASS(FolioUI);
 	GDREGISTER_CLASS(FolioWindLines);
 	GDREGISTER_CLASS(FolioRainLines);

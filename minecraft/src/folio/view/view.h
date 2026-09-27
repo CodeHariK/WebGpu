@@ -9,6 +9,7 @@
 #include "zoom.h"
 
 #include <godot_cpp/classes/camera3d.hpp>
+#include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 
 namespace godot {
