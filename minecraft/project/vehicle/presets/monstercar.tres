@@ -1,0 +1,58 @@
+[gd_resource type="VehicleConfig" load_steps=5 format=3]
+
+; Monster car — heavy, big wide wheels, tall soft suspension, grippy, wide slow turns.
+[sub_resource type="WheelConfig" id="fl"]
+hardpoint_offset = Vector3(1.0, 0.1, 1.1)
+radius = 0.7
+suspension_stiffness = 16000.0
+compression_damping = 3800.0
+rebound_damping = 1800.0
+suspension_rest_length = 0.8
+
+[sub_resource type="WheelConfig" id="fr"]
+hardpoint_offset = Vector3(-1.0, 0.1, 1.1)
+radius = 0.7
+suspension_stiffness = 16000.0
+compression_damping = 3800.0
+rebound_damping = 1800.0
+suspension_rest_length = 0.8
+
+[sub_resource type="WheelConfig" id="rl"]
+hardpoint_offset = Vector3(1.0, 0.1, -1.1)
+radius = 0.7
+suspension_stiffness = 16000.0
+compression_damping = 3800.0
+rebound_damping = 1800.0
+suspension_rest_length = 0.8
+
+[sub_resource type="WheelConfig" id="rr"]
+hardpoint_offset = Vector3(-1.0, 0.1, -1.1)
+radius = 0.7
+suspension_stiffness = 16000.0
+compression_damping = 3800.0
+rebound_damping = 1800.0
+suspension_rest_length = 0.8
+
+[resource]
+mass = 1600.0
+chassis_size = Vector3(0.9, 1.0, 4.0)
+center_of_mass_offset = Vector3(0, -0.4, 0)
+max_speed = 16.0
+max_accel_force = 9000.0
+brake_decel = 9000.0
+max_steer_angle_deg = 30.0
+base_grip = 1.0
+drift_grip = 0.5
+turn_radius = 9.0
+turn_speed = 2.2
+max_yaw_rate = 0.9
+grip_lateral_accel = 34.0
+drift_lateral_accel = 16.0
+mini_turbo_boost = 4.0
+velocity_alignment = 3.0
+angular_damping = 4.0
+roll_influence = 0.5
+pitch_influence = 1.2
+downforce = 2200.0
+drift_boost_max_speed_bonus = 14.0
+wheel_configs = Array[WheelConfig]([SubResource("fl"), SubResource("fr"), SubResource("rl"), SubResource("rr")])

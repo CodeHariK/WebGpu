@@ -16,6 +16,8 @@ extends Node3D
 @onready var _game: Node = $Game
 @onready var _car: Node3D = $Car
 var _wire := false
+var _colliders_shown := false
+var _collider_overlays: Array[MeshInstance3D] = []
 
 # Camera modes: 0 = folio (FolioView), 1 = free-fly, 2 = car chase.
 # Cycle with Tab. Fly: WASD move, Q/E down/up, arrows look, Shift = faster.
@@ -171,8 +173,52 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_V:
 			_wire = not _wire
 			get_viewport().debug_draw = Viewport.DEBUG_DRAW_WIREFRAME if _wire else Viewport.DEBUG_DRAW_DISABLED
+		KEY_F3:
+			_toggle_colliders()
 		KEY_TAB:
 			_cycle_cam()
+
+# F3: overlay every collision shape in the scene as a wireframe (physics X-ray),
+# the collider equivalent of V's mesh wireframe. Built from each Shape3D's own
+# debug mesh and parented to its CollisionShape3D, so overlays follow moving
+# bodies (crates, etc.). Toggling off frees them all.
+func _toggle_colliders() -> void:
+	_colliders_shown = not _colliders_shown
+	if not _colliders_shown:
+		for m in _collider_overlays:
+			if is_instance_valid(m):
+				m.queue_free()
+		_collider_overlays.clear()
+		return
+	var shapes: Array[Node] = []
+	_collect_collision_shapes(get_tree().root, shapes)
+	for s in shapes:
+		var cs := s as CollisionShape3D
+		if cs == null or cs.shape == null:
+			continue
+		var dbg: Mesh = cs.shape.get_debug_mesh()
+		if dbg == null:
+			continue
+		var mi := MeshInstance3D.new()
+		mi.mesh = dbg
+		mi.material_override = _collider_mat()
+		mi.top_level = false
+		cs.add_child(mi)
+		_collider_overlays.append(mi)
+
+func _collect_collision_shapes(n: Node, out: Array[Node]) -> void:
+	if n is CollisionShape3D:
+		out.append(n)
+	for c in n.get_children():
+		_collect_collision_shapes(c, out)
+
+func _collider_mat() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Color(0.1, 1.0, 0.4, 0.85)     # bright green X-ray
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.no_depth_test = true                          # see colliders through geometry
+	return m
 
 func _seek_season(yc, weather, phase: float) -> void:
 	if yc.has_method("seek_season"):

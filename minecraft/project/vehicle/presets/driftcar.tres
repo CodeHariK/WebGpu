@@ -1,0 +1,61 @@
+[gd_resource type="VehicleConfig" load_steps=5 format=3]
+
+; Drift car — low grip, loose tail, big drift-release boost. Breaks traction easily.
+[sub_resource type="WheelConfig" id="fl"]
+hardpoint_offset = Vector3(0.75, 0, 0.9)
+radius = 0.4
+suspension_stiffness = 9000.0
+compression_damping = 2600.0
+rebound_damping = 1200.0
+suspension_rest_length = 0.5
+
+[sub_resource type="WheelConfig" id="fr"]
+hardpoint_offset = Vector3(-0.75, 0, 0.9)
+radius = 0.4
+suspension_stiffness = 9000.0
+compression_damping = 2600.0
+rebound_damping = 1200.0
+suspension_rest_length = 0.5
+
+[sub_resource type="WheelConfig" id="rl"]
+hardpoint_offset = Vector3(0.75, 0, -0.9)
+radius = 0.4
+suspension_stiffness = 9000.0
+compression_damping = 2600.0
+rebound_damping = 1200.0
+suspension_rest_length = 0.5
+
+[sub_resource type="WheelConfig" id="rr"]
+hardpoint_offset = Vector3(-0.75, 0, -0.9)
+radius = 0.4
+suspension_stiffness = 9000.0
+compression_damping = 2600.0
+rebound_damping = 1200.0
+suspension_rest_length = 0.5
+
+[resource]
+mass = 700.0
+chassis_size = Vector3(0.65, 1.0, 4.0)
+center_of_mass_offset = Vector3(0, -0.5, 0)
+max_speed = 20.0
+max_accel_force = 6000.0
+brake_decel = 6000.0
+max_steer_angle_deg = 35.0
+base_grip = 0.9
+drift_grip = 0.2
+drift_speed_threshold = 4.0
+drift_steering_threshold = 0.25
+turn_radius = 5.0
+turn_speed = 4.0
+max_yaw_rate = 1.6
+grip_lateral_accel = 20.0
+drift_lateral_accel = 7.0
+mini_turbo_boost = 8.0
+velocity_alignment = 2.0
+angular_damping = 4.0
+roll_influence = 0.4
+pitch_influence = 1.4
+downforce = 1200.0
+drift_steer_torque_multiplier = 2.2
+drift_boost_max_speed_bonus = 22.0
+wheel_configs = Array[WheelConfig]([SubResource("fl"), SubResource("fr"), SubResource("rl"), SubResource("rr")])

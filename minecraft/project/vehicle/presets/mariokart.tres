@@ -1,0 +1,61 @@
+[gd_resource type="VehicleConfig" load_steps=5 format=3]
+
+; Mario-kart — light, very snappy turn-in, grippy, strong drift mini-turbo.
+[sub_resource type="WheelConfig" id="fl"]
+hardpoint_offset = Vector3(0.7, 0, 0.8)
+radius = 0.4
+suspension_stiffness = 9000.0
+compression_damping = 2400.0
+rebound_damping = 1100.0
+suspension_rest_length = 0.5
+
+[sub_resource type="WheelConfig" id="fr"]
+hardpoint_offset = Vector3(-0.7, 0, 0.8)
+radius = 0.4
+suspension_stiffness = 9000.0
+compression_damping = 2400.0
+rebound_damping = 1100.0
+suspension_rest_length = 0.5
+
+[sub_resource type="WheelConfig" id="rl"]
+hardpoint_offset = Vector3(0.7, 0, -0.8)
+radius = 0.4
+suspension_stiffness = 9000.0
+compression_damping = 2400.0
+rebound_damping = 1100.0
+suspension_rest_length = 0.5
+
+[sub_resource type="WheelConfig" id="rr"]
+hardpoint_offset = Vector3(-0.7, 0, -0.8)
+radius = 0.4
+suspension_stiffness = 9000.0
+compression_damping = 2400.0
+rebound_damping = 1100.0
+suspension_rest_length = 0.5
+
+[resource]
+mass = 400.0
+chassis_size = Vector3(0.6, 1.0, 4.0)
+center_of_mass_offset = Vector3(0, -0.5, 0)
+max_speed = 22.0
+max_accel_force = 6500.0
+brake_decel = 7000.0
+max_steer_angle_deg = 38.0
+base_grip = 1.0
+drift_grip = 0.3
+drift_speed_threshold = 5.0
+drift_steering_threshold = 0.25
+turn_radius = 4.0
+turn_speed = 5.0
+max_yaw_rate = 1.8
+grip_lateral_accel = 30.0
+drift_lateral_accel = 9.0
+mini_turbo_boost = 10.0
+velocity_alignment = 4.5
+angular_damping = 4.0
+roll_influence = 0.3
+pitch_influence = 1.4
+downforce = 1300.0
+drift_steer_torque_multiplier = 2.0
+drift_boost_max_speed_bonus = 20.0
+wheel_configs = Array[WheelConfig]([SubResource("fl"), SubResource("fr"), SubResource("rl"), SubResource("rr")])

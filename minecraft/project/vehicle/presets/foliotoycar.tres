@@ -1,0 +1,58 @@
+[gd_resource type="VehicleConfig" load_steps=5 format=3]
+
+; Folio toy car — the light, bouncy, gentle baseline (matches the folio car_world).
+[sub_resource type="WheelConfig" id="fl"]
+hardpoint_offset = Vector3(0.7, 0, 0.872)
+radius = 0.43
+suspension_stiffness = 8000.0
+compression_damping = 2600.0
+rebound_damping = 1200.0
+suspension_rest_length = 0.55
+
+[sub_resource type="WheelConfig" id="fr"]
+hardpoint_offset = Vector3(-0.7, 0, 0.872)
+radius = 0.43
+suspension_stiffness = 8000.0
+compression_damping = 2600.0
+rebound_damping = 1200.0
+suspension_rest_length = 0.55
+
+[sub_resource type="WheelConfig" id="rl"]
+hardpoint_offset = Vector3(0.7, 0, -0.872)
+radius = 0.43
+suspension_stiffness = 8000.0
+compression_damping = 2600.0
+rebound_damping = 1200.0
+suspension_rest_length = 0.55
+
+[sub_resource type="WheelConfig" id="rr"]
+hardpoint_offset = Vector3(-0.7, 0, -0.872)
+radius = 0.43
+suspension_stiffness = 8000.0
+compression_damping = 2600.0
+rebound_damping = 1200.0
+suspension_rest_length = 0.55
+
+[resource]
+mass = 600.0
+chassis_size = Vector3(0.65, 1.0, 4.0)
+center_of_mass_offset = Vector3(0, -0.5, 0)
+max_speed = 14.0
+max_accel_force = 5000.0
+brake_decel = 6000.0
+max_steer_angle_deg = 32.0
+base_grip = 0.9
+drift_grip = 0.35
+turn_radius = 6.0
+turn_speed = 3.0
+max_yaw_rate = 1.1
+grip_lateral_accel = 30.0
+drift_lateral_accel = 12.0
+mini_turbo_boost = 5.0
+velocity_alignment = 3.5
+angular_damping = 4.0
+roll_influence = 0.35
+pitch_influence = 1.6
+downforce = 1400.0
+drift_boost_max_speed_bonus = 18.0
+wheel_configs = Array[WheelConfig]([SubResource("fl"), SubResource("fr"), SubResource("rl"), SubResource("rr")])

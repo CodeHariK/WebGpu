@@ -1,0 +1,58 @@
+[gd_resource type="VehicleConfig" load_steps=5 format=3]
+
+; Forza car — fast, heavy, very grippy and planted, wide turns, understeer at the limit.
+[sub_resource type="WheelConfig" id="fl"]
+hardpoint_offset = Vector3(0.8, 0, 1.05)
+radius = 0.45
+suspension_stiffness = 20000.0
+compression_damping = 4200.0
+rebound_damping = 2000.0
+suspension_rest_length = 0.5
+
+[sub_resource type="WheelConfig" id="fr"]
+hardpoint_offset = Vector3(-0.8, 0, 1.05)
+radius = 0.45
+suspension_stiffness = 20000.0
+compression_damping = 4200.0
+rebound_damping = 2000.0
+suspension_rest_length = 0.5
+
+[sub_resource type="WheelConfig" id="rl"]
+hardpoint_offset = Vector3(0.8, 0, -1.05)
+radius = 0.45
+suspension_stiffness = 20000.0
+compression_damping = 4200.0
+rebound_damping = 2000.0
+suspension_rest_length = 0.5
+
+[sub_resource type="WheelConfig" id="rr"]
+hardpoint_offset = Vector3(-0.8, 0, -1.05)
+radius = 0.45
+suspension_stiffness = 20000.0
+compression_damping = 4200.0
+rebound_damping = 2000.0
+suspension_rest_length = 0.5
+
+[resource]
+mass = 1300.0
+chassis_size = Vector3(0.7, 1.0, 4.0)
+center_of_mass_offset = Vector3(0, -0.5, 0)
+max_speed = 34.0
+max_accel_force = 8500.0
+brake_decel = 11000.0
+max_steer_angle_deg = 28.0
+base_grip = 1.0
+drift_grip = 0.5
+turn_radius = 10.0
+turn_speed = 2.8
+max_yaw_rate = 1.2
+grip_lateral_accel = 40.0
+drift_lateral_accel = 18.0
+mini_turbo_boost = 3.0
+velocity_alignment = 5.0
+angular_damping = 4.0
+roll_influence = 0.25
+pitch_influence = 1.5
+downforce = 2600.0
+drift_boost_max_speed_bonus = 16.0
+wheel_configs = Array[WheelConfig]([SubResource("fl"), SubResource("fr"), SubResource("rl"), SubResource("rr")])

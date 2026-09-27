@@ -11,6 +11,7 @@ namespace godot {
 namespace {
 constexpr bool VEHICLE_STATE_LOG = false; // set true to trace HSM enter/exit in the console
 constexpr float DRIFT_HOP_IMPULSE = 1.5f; // small upward hop when a drift starts
+constexpr float DRIFT_MINI_TURBO_TIME = 0.5f; // min seconds drifting to earn the mini-turbo boost on release
 constexpr float GLIDE_LIFT_ACCEL = 25.0f; // upward accel applied while gliding (* mass)
 constexpr float GLIDE_FORWARD_EFFICIENCY = 8.0f; // converts downward speed into forward thrust while gliding
 constexpr float GLIDE_LATERAL_DRAG = 4.0f; // kills sideways slide for responsive glide steering
@@ -77,6 +78,7 @@ void DriftingState::enter() {
 		UtilityFunctions::print("ArcadeVehicle: Entered DriftingState");
 	if (vehicle) {
 		vehicle->is_drifting = true;
+		drift_time = 0.0f;
 		Transform3D trans = vehicle->get_global_transform();
 		Vector3 up_dir = trans.basis.get_column(1).normalized();
 		vehicle->velocity_nudge_accumulator += up_dir * DRIFT_HOP_IMPULSE; // Hop impulse!
@@ -88,6 +90,11 @@ void DriftingState::exit() {
 		UtilityFunctions::print("ArcadeVehicle: Exited DriftingState");
 	if (vehicle) {
 		vehicle->is_drifting = false;
+		// Mario-Kart mini-turbo: a long enough drift earns a forward speed kick on
+		// release. A quick tap of the handbrake gives nothing.
+		if (drift_time >= DRIFT_MINI_TURBO_TIME) {
+			vehicle->_emit_mini_turbo();
+		}
 	}
 }
 
@@ -100,6 +107,7 @@ void DriftingState::physics_update(float delta) {
 
 	// 1. Shared grounded driving physics (parent) — is_drifting flag is active here.
 	GroundedState::physics_update(delta);
+	drift_time += delta; // for the mini-turbo boost awarded on release
 
 	// 2. Accumulate nitro fuel over time while drifting
 	vehicle->nitro_fuel =

@@ -70,8 +70,11 @@ run_stylized:
 	$(GODOT) --path project/ --scene scene/stylized/stylized_terrain.tscn
 run_pg:
 	$(GODOT) --path project/ --scene scene/terraspline/procgen.tscn
+# Pick a vehicle preset with CAR=, e.g. `make run_octo CAR=driftcar`
+# (presets: driftcar monstercar mariokart forzacar foliotoycar). Omit CAR for the
+# scene's own config.
 run_octo:
-	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn
+	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn $(if $(CAR),-- --car=$(CAR),)
 
 # Same scene with FX debug test keys enabled:
 #   T = toggle time-slow (bullet-time)   G = toggle low-time red flash
@@ -128,8 +131,9 @@ run_folio_world:
 # ArcadeVehicle dropped into the folio world, followed by the FolioView camera.
 #   ARGS="--drive"        auto-hold throttle (headless demo)   --shot=<name> screenshot+quit
 # e.g.  make run_folio_car ARGS="--drive"
+#   CAR=driftcar|monstercar|mariokart|forzacar|foliotoycar   pick a vehicle preset
 run_folio_car:
-	$(GODOT) --path project/ --scene scene/folio/car_world.tscn -- $(ARGS)
+	$(GODOT) --path project/ --scene scene/folio/car_world.tscn -- $(ARGS) $(if $(CAR),--car=$(CAR),)
 # Folio scenery.glb preview (track + rocks + fences + road, isolated).
 run_folio_scenery:
 	$(GODOT) --path project/ --scene scene/folio/scenery_preview.tscn -- $(ARGS)

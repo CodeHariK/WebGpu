@@ -19,9 +19,6 @@ namespace godot {
 // ---------------------------------------------------------------------------
 namespace {
 constexpr float SUSPENSION_CAST_OFFSET = 0.3f; // ray start lifted above the hardpoint to avoid ground clipping
-constexpr float STEER_TORQUE_FACTOR = 5.0f; // yaw torque per (mass * steer angle)
-constexpr float STEER_SPEED_CLAMP_DRIFT = 0.6f; // min steering authority retained at speed while drifting
-constexpr float STEER_SPEED_CLAMP_BASE = 0.3f; // min steering authority retained at speed while driving
 constexpr float LONGITUDINAL_FORCE_SCALE = 0.7f; // fraction of drive force routed through the pitch-offset point
 constexpr float ENGINE_BRAKE_FORCE = 1000.0f; // passive deceleration force when coasting (no throttle)
 constexpr float ACCEL_CURVE_MIN = 0.1f; // floor on the accel falloff curve near top speed
@@ -30,7 +27,9 @@ constexpr float BOOST_NUDGE_STRENGTH = 0.6f; // arcade-assist nudge strength whi
 constexpr float BASE_NUDGE_STRENGTH = 0.3f; // arcade-assist nudge strength normally
 constexpr float BOOST_INITIAL_KICK_FRACTION = 0.2f; // instant forward kick on boost start (fraction of bonus)
 constexpr float DRIFT_ALIGNMENT_SCALE = 0.15f; // velocity-alignment reduction while drifting (allows sliding)
-constexpr float MAX_LATERAL_GRIP_ACCEL = 50.0f; // cap on lateral grip accel (* mass / delta) to keep stable
+constexpr float TRACTION_BREAK_ALIGN_SCALE = 0.3f; // velocity-alignment reduction when the tyres are sliding
+constexpr float TURN_IN_BITE = 0.35f; // extra yaw kick from fast steering input (reactive turn-in)
+constexpr float CORNER_SCRUB = 0.06f; // forward speed bled off per m/s of sideways slide (arcade weight)
 constexpr float RAMP_NORMAL_Y_THRESHOLD = 0.9f; // avg ground-normal.y below this counts as a ramp
 constexpr float GLIDE_MIN_UP_DOT = 0.7f; // min local-up.y required to start gliding
 constexpr float MIN_TRICK_SPEED = 10.0f; // min forward speed to trigger glide / ramp tricks
@@ -82,6 +81,27 @@ float ArcadeVehicle::_calculate_suspension_force(
 	return MAX(0.0f, force); // Suspension cannot pull the car down
 }
 
+float ArcadeVehicle::get_wheel_displacement(int p_index) const {
+	if (p_index < 0 || p_index >= (int)wheel_displacements.size()) {
+		return 0.0f;
+	}
+	return wheel_displacements[p_index];
+}
+
+void ArcadeVehicle::_emit_mini_turbo() {
+	if (config.is_null()) {
+		return;
+	}
+	float boost = config->get_mini_turbo_boost();
+	if (boost <= 0.0f) {
+		return;
+	}
+	// Instant forward speed kick (added to velocity in _integrate_forces).
+	Transform3D trans = get_global_transform();
+	Vector3 forward_dir = -trans.basis.get_column(2).normalized();
+	velocity_nudge_accumulator += forward_dir * boost;
+}
+
 void ArcadeVehicle::_physics_process(double p_delta) {
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
@@ -95,6 +115,9 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 	Vector3 local_down = -local_up;
 
 	TypedArray<WheelConfig> wconfigs = config->get_wheel_configs();
+	if ((int)wheel_displacements.size() != wconfigs.size()) {
+		wheel_displacements.assign(wconfigs.size(), 0.0f);
+	}
 	int active_wheel_count = 0;
 	int grounded_wheels = 0;
 
@@ -140,17 +163,24 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 				apply_force(force_dir * force_mag, hardpoint_world - trans.origin);
 			}
 
-			// Position visual along the suspension axis, clamped to avoid clipping into chassis
+			// How far the wheel centre hangs below the hardpoint along the suspension
+			// axis. For the VISUAL we let this go slightly negative (the wheel tucks
+			// UP into the arch) so it always sits at the true ground-contact point and
+			// never pokes through the ground on a bump or slope; droop is capped at the
+			// rest length. The debug sphere keeps the old [0, rest] clamp.
+			Vector3 target_pos = hit.position + hit.normal * wc->get_radius();
+			float raw_disp = (target_pos - hardpoint_world).dot(local_down);
+			wheel_displacements[active_wheel_count] =
+					CLAMP(raw_disp, -0.4f, wc->get_suspension_rest_length());
 			if (debug_visuals_enabled && visual) {
-				Vector3 target_pos = hit.position + hit.normal * wc->get_radius();
-				float displacement = (target_pos - hardpoint_world).dot(local_down);
-				displacement = CLAMP(displacement, 0.0f, wc->get_suspension_rest_length());
-				visual->set_global_position(hardpoint_world + local_down * displacement);
+				float clamped = CLAMP(raw_disp, 0.0f, wc->get_suspension_rest_length());
+				visual->set_global_position(hardpoint_world + local_down * clamped);
 			}
 			grounded_wheels++;
 			avg_normal += hit.normal;
 		} else {
-			// Wheel is fully extended
+			// Wheel is fully extended (in the air).
+			wheel_displacements[active_wheel_count] = wc->get_suspension_rest_length();
 			if (debug_visuals_enabled && visual) {
 				visual->set_global_position(hardpoint_world + local_down * wc->get_suspension_rest_length());
 			}
@@ -257,8 +287,12 @@ void ArcadeVehicle::_integrate_forces(PhysicsDirectBodyState3D *state) {
 			Vector3 current_vel_dir = vel.normalized();
 			float alignment_speed = config->get_velocity_alignment();
 			if (is_drifting) {
-				alignment_speed *=
-						DRIFT_ALIGNMENT_SCALE; // Reduce velocity alignment when drifting to allow sliding sideways
+				// Handbrake drift: strongly loosen alignment so the car slides sideways.
+				alignment_speed *= DRIFT_ALIGNMENT_SCALE;
+			} else if (traction_broken) {
+				// Grip broke in a hard/fast turn: loosen alignment so the slide shows
+				// (emergent drift) instead of the velocity snapping back to the nose.
+				alignment_speed *= TRACTION_BREAK_ALIGN_SCALE;
 			}
 			Vector3 new_vel_dir = current_vel_dir.lerp(target_vel_dir, alignment_speed * state->get_step());
 
@@ -364,80 +398,97 @@ void ArcadeVehicle::_apply_steering(float delta) {
 	Transform3D trans = get_global_transform();
 	Vector3 forward_dir = -trans.basis.get_column(2).normalized();
 	Vector3 up_dir = trans.basis.get_column(1).normalized();
-	float current_forward_speed = get_linear_velocity().dot(forward_dir);
+	float forward_speed = get_linear_velocity().dot(forward_dir);
 
-	float max_steer_rad = Math::deg_to_rad(config->get_max_steer_angle_deg());
-
-	// Relax steering angle damping at high speeds when drifting for tighter turns
-	float min_steer_clamp = is_drifting ? STEER_SPEED_CLAMP_DRIFT : STEER_SPEED_CLAMP_BASE;
-	float steer_speed_factor =
-			CLAMP(1.0f - (Math::abs(current_forward_speed) / MAX(config->get_max_speed(), MIN_SPEED_EPSILON)),
-				  min_steer_clamp, 1.0f);
-	float steer_angle = current_input.steering * max_steer_rad * steer_speed_factor;
-
-	if (Math::abs(current_forward_speed) > 1.0f && Math::abs(steer_angle) > 0.01f) {
-		float dir_sign = (current_forward_speed > 0.0f) ? 1.0f : -1.0f;
-
-		// Apply drift turning force multiplier if drifting
-		float steer_multiplier = 1.0f;
-		if (is_drifting) {
-			steer_multiplier = config->get_drift_steer_torque_multiplier();
-		}
-
-		// Positive steer turns Right (CW), which is Negative Y rotation in Godot
-		float steering_torque = -steer_angle * config->get_mass() * STEER_TORQUE_FACTOR * dir_sign * steer_multiplier;
-
-		apply_torque(up_dir * steering_torque);
+	float steer_input = CLAMP(current_input.steering, -1.0f, 1.0f);
+	if (is_drifting) {
+		// Drifting turns tighter, but keep the input bounded to [-1, 1].
+		steer_input = CLAMP(steer_input * config->get_drift_steer_torque_multiplier(), -1.0f, 1.0f);
 	}
+
+	// Turn-radius model: the car CARVES an arc rather than pivoting on the spot.
+	// At full steer the tightest path is config.turn_radius metres, and the yaw rate
+	// needed to follow a circle of radius R at speed v is simply v / R. This is
+	// zero at a standstill (no spinning without momentum), grows with speed, flips
+	// sign in reverse, and is capped by config.max_yaw_rate so it can never whip
+	// around. Positive steering (right) is a right turn = negative yaw about +Y.
+	float desired_yaw_rate = 0.0f;
+	if (Math::abs(steer_input) > 0.001f) {
+		float turn_radius = MAX(config->get_turn_radius(), 0.5f);
+		float radius = turn_radius / MAX(Math::abs(steer_input), 0.05f); // partial steer = wider arc
+		desired_yaw_rate = -steer_input * (forward_speed / radius);
+		float max_yaw = MAX(config->get_max_yaw_rate(), 0.05f);
+		desired_yaw_rate = CLAMP(desired_yaw_rate, -max_yaw, max_yaw);
+	}
+
+	// Ease the actual yaw rate toward the target with a gentle first-order P
+	// controller (config.turn_speed sets how fast it gets there — the "turn speed").
+	// Controlling a rate is stable and monotonic, so the car never darts the
+	// opposite way first. With no steering the target is zero, which also damps out
+	// residual spin — no separate yaw-damping pass needed.
+	float current_yaw_rate = get_angular_velocity().dot(up_dir);
+	float yaw_error = desired_yaw_rate - current_yaw_rate;
+	float yaw_torque = yaw_error * config->get_mass() * config->get_turn_speed();
+
+	// Turn-in bite: a brief extra yaw kick the instant you flick the wheel (when the
+	// steering input is growing in the same direction), so the nose reacts crisply
+	// instead of easing in. Fades as the steering settles.
+	float steer_rate = (steer_input - prev_steer) / MAX(delta, MIN_SPEED_EPSILON);
+	if (steer_rate * steer_input > 0.0f) {
+		yaw_torque += -steer_input * Math::abs(steer_rate) * config->get_mass() * TURN_IN_BITE;
+	}
+	prev_steer = steer_input;
+
+	apply_torque(up_dir * yaw_torque);
 }
 
 void ArcadeVehicle::_apply_lateral_friction(float delta) {
 	Transform3D trans = get_global_transform();
 	Vector3 right_dir = trans.basis.get_column(0).normalized(); // Local X is right
+	Vector3 forward_dir = -trans.basis.get_column(2).normalized();
 
 	// How fast are we sliding sideways?
 	float lateral_velocity = get_linear_velocity().dot(right_dir);
+	float mass = config->get_mass();
 
-	// Grip is adjusted based on the is_drifting flag set by DriftingState
-	float current_grip = config->get_base_grip();
+	// The grip that WANTS to cancel the sideways slide this frame (as an accel).
+	float desired_accel = -lateral_velocity / delta;
 
-	if (is_drifting) {
-		current_grip = config->get_drift_grip();
+	// Traction limit: the tyres can only give so much sideways grip before they
+	// break loose. Below the limit the car holds its line; above it (a too-fast /
+	// too-sharp turn, or the handbrake e-brake) the excess slide is NOT cancelled,
+	// so the car drifts. The handbrake lowers the limit so the tail steps out.
+	float traction = is_drifting ? config->get_drift_lateral_accel() : config->get_grip_lateral_accel();
+	float applied_accel = CLAMP(desired_accel, -traction, traction);
+
+	// Flag a broken-traction frame (used to loosen velocity alignment so the slide
+	// is actually visible, and to trigger the drift smoke).
+	traction_broken = Math::abs(desired_accel) > traction * 1.05f;
+
+	// F = m * a, applied at the roll point so weight transfers into the turn.
+	_apply_lateral_force_with_roll(right_dir * (applied_accel * mass));
+
+	// Corner scrub: bleed a little forward speed while genuinely sliding, for arcade
+	// weight (a hard slide costs you speed).
+	if (traction_broken) {
+		float scrub = Math::abs(lateral_velocity) * CORNER_SCRUB * mass;
+		float fwd_speed = get_linear_velocity().dot(forward_dir);
+		float dir = (fwd_speed >= 0.0f) ? -1.0f : 1.0f;
+		apply_central_force(forward_dir * scrub * dir);
 	}
-
-	// F = ma, so to kill velocity `v` in time `t`, F = m * (v/t)
-	// We use delta to act as an impulse, simulating instantaneous grip
-	float lateral_force_magnitude = -lateral_velocity * config->get_mass() * current_grip / delta;
-
-	// Optional limit to prevent exploding physics if grip is too high
-	float max_lateral_grip_force = config->get_mass() * MAX_LATERAL_GRIP_ACCEL / delta;
-	lateral_force_magnitude = CLAMP(lateral_force_magnitude, -max_lateral_grip_force, max_lateral_grip_force);
-
-	//----------- Roll
-	_apply_lateral_force_with_roll(right_dir * lateral_force_magnitude);
 }
 
 void ArcadeVehicle::_apply_stability(float delta) {
-	Transform3D trans = get_global_transform();
-	Vector3 up_dir = trans.basis.get_column(1).normalized();
-
 	// --- 1. DOWNFORCE ---
 	// Artificial gravity to keep the car from bouncing around like a beach ball
 	float downforce_mag = config->get_downforce();
 	apply_central_force(Vector3(0, -1, 0) * downforce_mag);
 
-	// --- 2. YAW DAMPING ---
-	// Stop the car from spinning like a top when we stop steering
-	Vector3 ang_vel = get_angular_velocity();
-	float yaw_vel = ang_vel.dot(up_dir);
-
-	bool is_steering = Math::abs(current_input.steering) > 0.01f;
-	float damping_multiplier = is_steering ? 1.0f : config->get_angular_damping();
-
-	// Apply counter-torque proportional to yaw velocity
-	// Higher damping when not steering gives that "locked-in" arcade feel
-	float damping_torque = -yaw_vel * config->get_mass() * damping_multiplier;
-	apply_torque(up_dir * damping_torque);
+	// --- 2. YAW ---
+	// Yaw damping is now handled inside _apply_steering: its target-yaw-rate
+	// controller drives the yaw rate to zero whenever there is no steering input,
+	// which is exactly the "locked-in" behaviour the old damping pass provided —
+	// without a second torque source fighting the steering controller.
 
 	should_align_velocity = true;
 }

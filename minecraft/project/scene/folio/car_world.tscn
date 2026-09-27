@@ -7,44 +7,68 @@
 [ext_resource type="Script" path="res://scene/folio/areas.gd" id="5"]
 [ext_resource type="Script" path="res://scene/folio/explosive_crates.gd" id="6"]
 
+; Wheel geometry matched to the folio car glb (assets/folio/vehicle/default.glb):
+;   tire radius ~0.43, half-track ~0.70 (local X), half-wheelbase ~0.872 (local Z).
+; hardpoint_offset.y = 0 keeps the suspension mount at the body origin; the wheel
+; hangs rest_length + radius below it, so the car rests ~0.85 above the ground.
 [sub_resource type="WheelConfig" id="Wheel_fl"]
-hardpoint_offset = Vector3(1, 0, 1.5)
-suspension_stiffness = 12000.0
+hardpoint_offset = Vector3(0.7, 0, 0.872)
+radius = 0.43
+suspension_stiffness = 5000.0
 compression_damping = 2600.0
 rebound_damping = 1200.0
-suspension_rest_length = 0.7
+suspension_rest_length = 0.55
 
 [sub_resource type="WheelConfig" id="Wheel_fr"]
-hardpoint_offset = Vector3(-1, 0, 1.5)
-suspension_stiffness = 12000.0
+hardpoint_offset = Vector3(-0.7, 0, 0.872)
+radius = 0.43
+suspension_stiffness = 5000.0
 compression_damping = 2600.0
 rebound_damping = 1200.0
-suspension_rest_length = 0.7
+suspension_rest_length = 0.55
 
 [sub_resource type="WheelConfig" id="Wheel_rl"]
-hardpoint_offset = Vector3(1, 0, -1.5)
-suspension_stiffness = 12000.0
+hardpoint_offset = Vector3(0.7, 0, -0.872)
+radius = 0.43
+suspension_stiffness = 5000.0
 compression_damping = 2600.0
 rebound_damping = 1200.0
-suspension_rest_length = 0.7
+suspension_rest_length = 0.55
 
 [sub_resource type="WheelConfig" id="Wheel_rr"]
-hardpoint_offset = Vector3(-1, 0, -1.5)
-suspension_stiffness = 12000.0
+hardpoint_offset = Vector3(-0.7, 0, -0.872)
+radius = 0.43
+suspension_stiffness = 5000.0
 compression_damping = 2600.0
 rebound_damping = 1200.0
-suspension_rest_length = 0.7
+suspension_rest_length = 0.55
 
 [sub_resource type="VehicleConfig" id="VehicleConfig_car"]
-mass = 600.0
-chassis_size = Vector3(0.9, 1.0, 4.0)
+mass = 400.0
+; chassis_size.x is the core collision-sphere radius. Kept just under the folio
+; body half-width (~0.66) and above the ~0.85 rest ride height so the suspension
+; raycasts carry the weight and the sphere only catches hard impacts.
+chassis_size = Vector3(0.65, 1.0, 4.0)
 center_of_mass_offset = Vector3(0, -0.5, 0)
-max_speed = 16.0
-max_accel_force = 6000.0
+max_speed = 24.0
+max_accel_force = 5000.0
 brake_decel = 6000.0
-max_steer_angle_deg = 120.0
+; Visual front-wheel steer angle only. The car's actual cornering is set by
+; turn_radius / turn_speed / max_yaw_rate below (it carves an arc, not a pivot).
+max_steer_angle_deg = 32.0
 base_grip = 0.9
 drift_grip = 0.35
+; Steering feel (all inspector-editable + in the in-game tuning UI):
+;   turn_radius  - tightest arc at full steer, metres (larger = wider turns)
+;   turn_speed   - how fast the yaw eases into the turn (responsiveness)
+;   max_yaw_rate - hard cap on rotation speed so it can never spin on the spot
+turn_radius = 4
+turn_speed = 4.0
+max_yaw_rate = 1.1
+; How strongly velocity is redirected to follow the nose (kart "goes where it
+; points" feel). Higher = snappier/grippier turn-in, lower = more slidey. Also a
+; live slider in the tuning UI.
+velocity_alignment = 3.5
 angular_damping = 4.0
 roll_influence = 0.35
 pitch_influence = 1.6

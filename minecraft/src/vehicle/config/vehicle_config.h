@@ -29,6 +29,23 @@ private:
 	float drift_speed_threshold = 10.0f;
 	float drift_steering_threshold = 0.5f;
 
+	// Steering feel. The car carves an arc of `turn_radius` metres at full steer
+	// (larger = wider turns), the yaw rate is capped by `max_yaw_rate` so it can
+	// never spin on the spot, and `turn_speed` is how quickly the yaw rate eases
+	// toward its target (responsiveness).
+	float turn_radius = 6.5f;
+	float max_yaw_rate = 1.1f;
+	float turn_speed = 3.0f;
+
+	// Traction / drift. `grip_lateral_accel` is how many m/s^2 of sideways grip the
+	// tyres can give before they break loose (lower = slides earlier / looser car).
+	// `drift_lateral_accel` is that limit while the handbrake e-brake is held (much
+	// lower, so the tail steps out). `mini_turbo_boost` is the forward speed kick
+	// added when a sustained drift is released (Mario-Kart style).
+	float grip_lateral_accel = 32.0f;
+	float drift_lateral_accel = 12.0f;
+	float mini_turbo_boost = 5.0f;
+
 	float downforce = 2000.0f;
 	float angular_damping = 5.0f;
 	float velocity_alignment = 2.0f;
@@ -93,6 +110,24 @@ public:
 
 	void set_drift_steering_threshold(float p_val);
 	float get_drift_steering_threshold() const;
+
+	void set_turn_radius(float p_val);
+	float get_turn_radius() const;
+
+	void set_max_yaw_rate(float p_val);
+	float get_max_yaw_rate() const;
+
+	void set_turn_speed(float p_val);
+	float get_turn_speed() const;
+
+	void set_grip_lateral_accel(float p_val);
+	float get_grip_lateral_accel() const;
+
+	void set_drift_lateral_accel(float p_val);
+	float get_drift_lateral_accel() const;
+
+	void set_mini_turbo_boost(float p_val);
+	float get_mini_turbo_boost() const;
 
 	void set_downforce(float p_val);
 	float get_downforce() const;
