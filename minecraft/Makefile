@@ -76,6 +76,11 @@ run_pg:
 run_octo:
 	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn $(if $(CAR),-- --car=$(CAR),)
 
+# Spring-body character prototype (SpringCharacter on PhysicsPawn).
+# Interactive: WASD/arrows move, Space jumps. `make run_pawn ARGS=--pawntest` runs the scripted check.
+run_pawn:
+	$(GODOT) --path project/ --scene scene/pawn/pawn_test.tscn -- $(ARGS)
+
 # Same scene with FX debug test keys enabled:
 #   T = toggle time-slow (bullet-time)   G = toggle low-time red flash
 #   R = refill slow-mo meter             K = camera shake (trauma)

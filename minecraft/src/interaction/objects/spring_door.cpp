@@ -1,4 +1,6 @@
 #include "spring_door.h"
+
+#include "../../utils/spring/stateless_spring.h"
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -51,8 +53,9 @@ void SpringDoor::_physics_process(double delta) {
 	// 3. Get current angular velocity (Y axis)
 	float current_vel_y = get_angular_velocity().y;
 
-	// 4. Calculate spring torque
-	float spring_torque = -stiffness * displacement - damping * current_vel_y;
+	// 4. Calculate spring torque (PD: restore toward rest, damp the Y spin).
+	//    displacement is (current - rest), so the restoring error is -displacement.
+	float spring_torque = PDSpring::pd(-displacement, current_vel_y, stiffness, damping);
 
 	// 5. Apply the torque to ourselves
 	apply_torque(Vector3(0, spring_torque, 0));

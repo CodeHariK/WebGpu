@@ -1,5 +1,5 @@
-#ifndef SPRING_DYNAMICS_H
-#define SPRING_DYNAMICS_H
+#ifndef STATEFUL_SPRING_H
+#define STATEFUL_SPRING_H
 
 #include <cmath>
 #include <godot_cpp/core/math.hpp>
@@ -192,4 +192,4 @@ template <typename T> struct AnalyticalSpring {
 
 } // namespace godot
 
-#endif // SPRING_DYNAMICS_H
+#endif // STATEFUL_SPRING_H

@@ -3,7 +3,7 @@
 
 #include "../utils/raycast/mc_raycast.h"
 #include "../utils/shake/camera_shake.h"
-#include "../utils/spring/spring_dynamics.h"
+#include "../utils/spring/stateful_spring.h"
 #include "camera_state.h"
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/input_event.hpp>

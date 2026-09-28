@@ -5,6 +5,7 @@
 #include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
 #include "../minigames/tennis/tennis_manager.h"
+#include "../pawn/spring_character.h"
 #include "../player/celeste_controller.h"
 #include "../terrain/marching_prism/mp_manager.h"
 #include "../vehicle/arcade_vehicle.h"
@@ -40,6 +41,8 @@ void GameManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_active_target", "p_target"), &GameManager::set_active_target);
 	ClassDB::bind_method(D_METHOD("get_active_target"), &GameManager::get_active_target);
 	ClassDB::bind_method(D_METHOD("register_vehicle", "p_vehicle"), &GameManager::register_vehicle);
+	ClassDB::bind_method(D_METHOD("register_spring_character", "p_character"), &GameManager::register_spring_character);
+	ClassDB::bind_method(D_METHOD("get_spring_character"), &GameManager::get_spring_character);
 	ClassDB::bind_method(D_METHOD("register_tennis_manager", "p_manager"), &GameManager::register_tennis_manager);
 	ClassDB::bind_method(D_METHOD("get_tennis_manager"), &GameManager::get_tennis_manager);
 	ClassDB::bind_method(D_METHOD("register_camera", "p_camera"), &GameManager::register_camera);
@@ -167,6 +170,25 @@ void GameManager::register_celeste_controller(Node *p_character) {
 
 Node *GameManager::get_celeste_controller() const { return celeste_character; }
 
+void GameManager::register_spring_character(Node *p_character) {
+	if (p_character == nullptr) {
+		if (active_target == spring_character) {
+			active_target = nullptr;
+		}
+		spring_character = nullptr;
+		return;
+	}
+	spring_character = Object::cast_to<SpringCharacter>(p_character);
+	if (spring_character) {
+		UtilityFunctions::print("GameManager: Registered SpringCharacter.");
+		if (active_target == nullptr) {
+			set_active_target(spring_character);
+		}
+	}
+}
+
+Node *GameManager::get_spring_character() const { return spring_character; }
+
 void GameManager::register_camera(GameCamera *p_camera) {
 	if (p_camera == nullptr) {
 		main_camera = nullptr;
@@ -196,6 +218,11 @@ void GameManager::set_active_target(Node *p_target) {
 					main_camera->set_camera_mode(GameCamera::MODE_CAR);
 				} else if (Object::cast_to<CelesteController>(active_target)) {
 					// Only auto-switch to TPS if we aren't already in a character-friendly mode like FIXED
+					if (main_camera->get_camera_mode() != GameCamera::MODE_FIXED) {
+						main_camera->set_camera_mode(GameCamera::MODE_TPS);
+					}
+				} else if (Object::cast_to<SpringCharacter>(active_target)) {
+					// Spring-body character: follow it in third-person like the celeste character.
 					if (main_camera->get_camera_mode() != GameCamera::MODE_FIXED) {
 						main_camera->set_camera_mode(GameCamera::MODE_TPS);
 					}
@@ -233,6 +260,8 @@ void GameManager::_physics_process(double delta) {
 				valid_targets.push_back(vehicle);
 			if (celeste_character)
 				valid_targets.push_back(celeste_character);
+			if (spring_character)
+				valid_targets.push_back(spring_character);
 
 			if (valid_targets.empty())
 				return;

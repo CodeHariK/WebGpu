@@ -1,6 +1,6 @@
 #include "time_warp.h"
 
-#include "../../utils/spring/spring_dynamics.h"
+#include "../../utils/spring/stateful_spring.h"
 
 #include <godot_cpp/classes/color_rect.hpp>
 #include <godot_cpp/classes/control.hpp>

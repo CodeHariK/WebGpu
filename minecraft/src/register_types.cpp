@@ -73,6 +73,8 @@
 #include "player/celeste_controller.h"
 #include "player/celeste_ui.h"
 
+#include "pawn/spring_character.h"
+
 #include "environment/cliff.h"
 #include "environment/cliff_mesh.h"
 #include "environment/crystal_cluster.h"
@@ -209,6 +211,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(Inventory);
 
 	GDREGISTER_CLASS(CelesteController);
+	GDREGISTER_CLASS(SpringCharacter);
 
 	GDREGISTER_CLASS(EnemyManager);
 	GDREGISTER_CLASS(EnemyBase);

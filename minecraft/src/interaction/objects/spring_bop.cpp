@@ -1,4 +1,6 @@
 #include "spring_bop.h"
+
+#include "../../utils/spring/stateless_spring.h"
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
@@ -51,17 +53,10 @@ void SpringBop::_physics_process(double delta) {
 	// Target is world UP (hanging perfectly straight)
 	Vector3 target_up = Vector3(0, 1, 0);
 
-	// The cross product gives us the axis and magnitude of rotation needed to return to center
-	Vector3 error = current_up.cross(target_up);
-
-	// Calculate spring torque
-	Vector3 spring_torque = error * stiffness;
-
-	// Apply damping based on angular velocity
-	Vector3 current_ang_vel = get_angular_velocity();
-	spring_torque -= current_ang_vel * damping;
-
-	// Apply the corrective torque
+	// Cross-product PD torque: rights the tilt (up -> world up) while leaving yaw
+	// free, so the bop swings back upright but still swivels. Same behaviour as
+	// before, now via the shared helper.
+	Vector3 spring_torque = PDSpring::pd_torque_align(current_up, target_up, get_angular_velocity(), stiffness, damping);
 	apply_torque(spring_torque);
 }
 
