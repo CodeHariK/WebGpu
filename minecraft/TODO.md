@@ -100,6 +100,53 @@ forzacar). These three change *how the body moves*, so each needs a locomotion m
 - [?] transform zones (Odyssey capture): drive through a zone to swap the active preset/form
       (ties into the "car forms via zones" idea under Collectibles below).
 
+## Characters — rig & animation
+
+Character docs: `docs/Characters.md`, `docs/CharacterMovement.md`.
+
+- [x] Spring-body character (physics, replaces kinematic Celeste) — ONE class `SpringCharacter :
+      RigidBody3D` (`src/pawn/`, no shared base). A faithful Very Very Valet toy controller:
+      PD ride-spring floats it and pushes the ground body back (presses on platforms/cars); PD upright
+      torque-spring keeps it vertical + faces travel (tips and recovers); goal-velocity move with a
+      clamped acceleration force (snappy but weighty); camera-relative input. Mario jump on top
+      (coyote, buffer, variable height, light-up/heavy-down gravity). Verified stable: floats upright,
+      ~18 m/s, jump cut works, presses the world. `make run_pawn` (isolated) / in the octo scene as a
+      GameManager target (TAB-switchable, camera auto-TPS).
+  - **`ArcadeVehicle` is intentionally left untouched** — no shared base. If the same spring bug ever
+    shows up in both, extract just a `cast_spring()` helper; the car keeps its own suspension/steer.
+  - [ ] tune the toy feel to match VVV exactly (ride/upright spring constants, accel curves, jump arc)
+  - [ ] then grow the moveset: wall-run (off the car's wall-contact detection), dash, double jump,
+        ground pound, melee lunge-to-target
+  - [ ] retire `CelesteController` once this reaches the feel we want
+
+- [ ] Character IK — adopt Godot 4.6+'s new `SkeletonModifier3D`-based IK framework (the old
+      `SkeletonIK3D` node is deprecated). Drop solvers into the skeleton's modifier stack, so IK layers
+      on top of played animations instead of replacing them:
+      - `TwoBoneIK3D` — arms / legs (fast analytic solver)
+      - `FABRIK3D` / `CCDIK3D` / `JacobianIK3D` — longer chains
+      - `SplineIK3D` — tails, spines, tentacles
+      Uses (targets are any Node3D):
+      - [ ] foot planting — feet raycast to the terrain/road surface so they sit on slopes & steps
+      - [ ] hands snap to held items (Camera / Guitar / Mic / Bat / Choco Gun / Dagger in Characters.md)
+      - [ ] look-at / aim — head + arms track the aim target (dropkick, shoot, throw)
+      - [ ] twist + angular-velocity constraints per joint so elbows/knees don't over-rotate
+      All engine classes → drivable from GDExtension C++. Prototype on the Celeste controller first.
+
+- [ ] Procedural leg coordination (t3ssel8r robot) — a gait *coordinator* that drives the IK feet
+      directly, no keyframed walk cycle. Each leg has a home anchor offset from the body; while a foot
+      is planted it stays pinned in world space and the body slides over it, and when it strays past a
+      trigger distance the coordinator eases it in a quick step to a new anchor predicted ahead along
+      the velocity (the t3ssel8r "step to where it's going" trick). The coordination logic is the AI
+      part: it sequences which legs may lift so a support set is always planted (never lift neighbours
+      together), keeping the body balanced. Body height + tilt ride a spring over the mean foot position.
+      Build on the `TwoBoneIK3D` foot targets from the IK task above; scales biped → quadruped → hexapod/robot.
+      - [ ] per-leg step state machine (planted / lifting), stride length + step-trigger distance,
+            speed-scaled cadence
+      - [ ] gait patterns: biped alternating, quadruped diagonal trot, hexapod tripod
+      - [ ] body PD spring follows mean foot pos and tilts to the foot plane (reuse `PDSpring` /
+            `pd_torque_align`)
+      - [ ] anticipation: predict the next anchor ahead along travel so faster movement takes longer strides
+
 ## Later
 
 ### Environment props (`src/environment/` — procedural meshes, semi-realistic like Odyssey / Link's Awakening)
