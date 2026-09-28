@@ -1,7 +1,7 @@
 #include "car_state.h"
 #include "../../game_manager/player_input.h"
 #include "../camera.h"
-#include "../../utils/spring/spring_dynamics.h"
+#include "../../utils/spring/stateful_spring.h"
 #include <cmath>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>

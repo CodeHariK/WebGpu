@@ -498,6 +498,9 @@ shape = SubResource("ConcavePolygonShape3D_mxckk")
 
 [node name="GameManager" type="GameManager" parent="." unique_id=542871028]
 
+[node name="SpringCharacter" type="SpringCharacter" parent="." unique_id=771000042]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5, 3)
+
 [node name="CelesteController" type="CelesteController" parent="." unique_id=1758102786]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.800528, 3.0714903, 2.846653)
 

@@ -17,6 +17,7 @@ class MCManager;
 class MPManager;
 class ArcadeVehicle;
 class CelesteController;
+class SpringCharacter;
 class GameCamera;
 class PlayerInput;
 class DebugManager;
@@ -47,6 +48,7 @@ private:
 
 	ArcadeVehicle *vehicle = nullptr;
 	CelesteController *celeste_character = nullptr;
+	SpringCharacter *spring_character = nullptr;
 	Node *active_target = nullptr;
 
 protected:
@@ -75,6 +77,9 @@ public:
 
 	void register_celeste_controller(Node *p_character);
 	Node *get_celeste_controller() const;
+
+	void register_spring_character(Node *p_character);
+	Node *get_spring_character() const;
 
 	void register_camera(GameCamera *p_camera);
 	GameCamera *get_camera() const;
