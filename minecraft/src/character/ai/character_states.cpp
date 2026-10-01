@@ -21,6 +21,7 @@ void CharacterAirborneState::physics_update(float delta) {
 	// Corner-correction (the sideways "collide and slide" nudge) is disabled in the air:
 	// airborne motion stays purely ballistic, nothing shoves the body around edges.
 	character->_apply_air_gravity(character->_in_jump_held, delta);
+	character->_apply_landing_guard(delta); // don't overshoot the floor on a fast fall
 }
 
 // --- CharacterDashState ---

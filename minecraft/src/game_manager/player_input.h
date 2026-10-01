@@ -81,6 +81,7 @@ private:
 
 	// Event-tracked states for camera synchronization
 	bool is_mb_middle_down = false;
+	bool is_mb_right_down = false; // right-drag also orbits (Mac trackpad: two-finger click)
 	bool is_shift_down = false;
 
 	// Platform-specific strength handlers

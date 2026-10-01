@@ -18,10 +18,12 @@
 #include <godot_cpp/classes/capsule_shape3d.hpp>
 #include <godot_cpp/classes/physics_material.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/core/math.hpp>
 
@@ -34,6 +36,8 @@ SpringCharacter::SpringCharacter() {}
 void SpringCharacter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_max_speed", "v"), &SpringCharacter::set_max_speed);
 	ClassDB::bind_method(D_METHOD("get_max_speed"), &SpringCharacter::get_max_speed);
+	ClassDB::bind_method(D_METHOD("set_control_scheme", "v"), &SpringCharacter::set_control_scheme);
+	ClassDB::bind_method(D_METHOD("get_control_scheme"), &SpringCharacter::get_control_scheme);
 	ClassDB::bind_method(D_METHOD("set_steer_rate", "v"), &SpringCharacter::set_steer_rate);
 	ClassDB::bind_method(D_METHOD("get_steer_rate"), &SpringCharacter::get_steer_rate);
 	ClassDB::bind_method(D_METHOD("set_acceleration", "v"), &SpringCharacter::set_acceleration);
@@ -71,6 +75,10 @@ void SpringCharacter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("load_settings"), &SpringCharacter::load_settings);
 
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_speed"), "set_max_speed", "get_max_speed");
+	ADD_PROPERTY(
+			PropertyInfo(Variant::INT, "control_scheme", PROPERTY_HINT_ENUM, "Steer,Camera Relative"),
+			"set_control_scheme", "get_control_scheme"
+	);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "steer_rate"), "set_steer_rate", "get_steer_rate");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "acceleration"), "set_acceleration", "get_acceleration");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "jump_height"), "set_jump_height", "get_jump_height");
@@ -88,6 +96,9 @@ void SpringCharacter::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "wall_jump_out"), "set_wall_jump_out", "get_wall_jump_out");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "sprint_multiplier"), "set_sprint_multiplier", "get_sprint_multiplier");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "pound_speed"), "set_pound_speed", "get_pound_speed");
+
+	BIND_ENUM_CONSTANT(CONTROL_STEER);
+	BIND_ENUM_CONSTANT(CONTROL_CAMERA_RELATIVE);
 }
 
 // Larger acceleration when the desired direction opposes current motion, so a
@@ -203,6 +214,9 @@ void SpringCharacter::_ready() {
 	// Lock rotation: an animated mesh will own facing/lean, so the physics capsule just
 	// stays upright by constraint (no tipping, no per-frame torque spring to fight anims).
 	set_lock_rotation_enabled(true);
+	// Continuous collision detection: a physics-level backstop so a fast fall can never
+	// tunnel straight through a thin floor between two steps.
+	set_use_continuous_collision_detection(true);
 	// Frictionless so the capsule never clings to a wall (Prototype-style): wall contact
 	// cannot rub off our velocity. Ground movement is velocity-driven, so 0 friction is safe.
 	Ref<PhysicsMaterial> pm;
@@ -302,7 +316,10 @@ void SpringCharacter::_cast_ground() {
 	const float skin = 0.2f;
 	Vector3 sole = get_global_position() - Vector3(0.0f, capsule_height * 0.5f, 0.0f);
 	Vector3 origin = sole + Vector3(0.0f, skin, 0.0f);
-	float max_len = skin + ride_height + ride_ray_extra; // reach ride_height+extra below the sole
+	// Reach ride_height+extra below the sole, and further the faster we fall so a high-speed
+	// landing is seen a frame early (45 m/s is 0.75 m per step: more than the base reach).
+	float fall_speed = MAX(0.0f, -get_linear_velocity().y);
+	float max_len = skin + ride_height + ride_ray_extra + fall_speed * _dt * 2.0f;
 	Vector3 to = origin + Vector3(0.0f, -1.0f, 0.0f) * max_len;
 
 	TypedArray<RID> exclude;
@@ -537,6 +554,25 @@ void SpringCharacter::_apply_air_gravity(bool p_jump_held, float p_dt) {
 // Celeste corner correction: while rising, if the head is about to clip a ledge
 // but a small sideways offset is clear, nudge that way so we slip past the corner
 // instead of bonking and losing the jump. Does nothing under a solid ceiling.
+// Predictive landing clamp. While airborne with ground in reach, cap the downward
+// speed so this physics step lands the sole exactly at ride_height instead of
+// overshooting it (and the floor). Speed-independent, so a 9 m jump lands as
+// cleanly as a hop; it replaces the old fixed-threshold land snap.
+void SpringCharacter::_apply_landing_guard(float p_delta) {
+	if (!_has_support || _vel.y >= 0.0f || p_delta <= 0.0f) {
+		return;
+	}
+	float room = _ground_distance - ride_height; // how much further the sole may drop
+	if (room <= 0.0f) {
+		_vel.y = 0.0f; // already at / under ride height: stop sinking, let the servo take it
+		return;
+	}
+	float max_down = room / p_delta;
+	if (-_vel.y > max_down) {
+		_vel.y = -max_down;
+	}
+}
+
 void SpringCharacter::_apply_corner_correction() {
 	if (_vel.y <= 0.5f) {
 		return; // only while rising with real upward momentum
@@ -594,23 +630,72 @@ void SpringCharacter::_physics_process(double delta) {
 		_move_strength = player_input->get_movement_strength(sprint_multiplier);
 	}
 
-	// Steering movement: Left/Right rotate the heading, Up/Down drive along it.
-	_face_yaw -= move_axis.x * steer_rate * dt; // right = clockwise
-	float cy = std::cos(_face_yaw);
-	float sy = std::sin(_face_yaw);
-	Vector3 fwd(-sy, 0.0f, -cy); // body -Z at this yaw
-	float throttle = -move_axis.y; // up = forward (+)
-	float sprint_factor = (move_axis.length() > 0.01f) ? (_move_strength / move_axis.length()) : 1.0f;
-	float sp = max_speed * sprint_factor * (throttle >= 0.0f ? 1.0f : reverse_speed_mult);
-	_move_target = fwd * (throttle * sp);
-	_wish = (std::abs(throttle) > 0.1f) ? (throttle > 0.0f ? fwd : -fwd) : Vector3(0.0f, 0.0f, 0.0f);
-	_face_dir = Vector3(0.0f, 0.0f, 0.0f); // facing is driven directly by steering above
+	// Live toggle for experimenting: V flips between the two control schemes
+	// (Steer + heading-locked cam  <->  Camera-relative + free Odyssey cam).
+	{
+		Input *in = Input::get_singleton();
+		bool v_down = active && in && in->is_physical_key_pressed(KEY_V);
+		if (v_down && !_scheme_key_was_down) {
+			control_scheme = (control_scheme == CONTROL_STEER) ? CONTROL_CAMERA_RELATIVE : CONTROL_STEER;
+			UtilityFunctions::print(
+					String("SpringCharacter: control scheme -> ") +
+					(control_scheme == CONTROL_STEER ? "STEER (heading cam)" : "CAMERA-RELATIVE (platformer cam)")
+			);
+		}
+		_scheme_key_was_down = v_down;
+	}
 
-	// Lock the follow-cam behind the steered heading so it rotates WITH the character.
-	if (active) {
-		GameCamera *cam = gm ? gm->get_camera() : nullptr;
+	GameCamera *cam = (active && gm) ? gm->get_camera() : nullptr;
+	float sprint_factor = (move_axis.length() > 0.01f) ? (_move_strength / move_axis.length()) : 1.0f;
+
+	if (control_scheme == CONTROL_STEER) {
+		// Steering movement: Left/Right rotate the heading, Up/Down drive along it.
+		_face_yaw -= move_axis.x * steer_rate * dt; // right = clockwise
+		float cy = std::cos(_face_yaw);
+		float sy = std::sin(_face_yaw);
+		Vector3 fwd(-sy, 0.0f, -cy); // body -Z at this yaw
+		float throttle = -move_axis.y; // up = forward (+)
+		float sp = max_speed * sprint_factor * (throttle >= 0.0f ? 1.0f : reverse_speed_mult);
+		_move_target = fwd * (throttle * sp);
+		_wish = (std::abs(throttle) > 0.1f) ? (throttle > 0.0f ? fwd : -fwd) : Vector3(0.0f, 0.0f, 0.0f);
+		_face_dir = Vector3(0.0f, 0.0f, 0.0f); // facing is driven directly by steering above
+
+		// Lock the follow-cam behind the steered heading so it rotates WITH the character.
 		if (cam) {
+			cam->set_camera_mode(GameCamera::MODE_CHARACTER);
 			cam->set_heading_follow(true, _face_yaw);
+		}
+	} else {
+		// Camera-relative movement (Odyssey / A Hat in Time): the stick is a direction in
+		// SCREEN space. Project it onto the camera's ground plane; the character turns to
+		// face wherever it is moving. The camera is free and frames the scene itself.
+		Vector3 cam_fwd(0.0f, 0.0f, -1.0f);
+		Vector3 cam_right(1.0f, 0.0f, 0.0f);
+		if (cam) {
+			Basis cb = cam->get_global_transform().basis;
+			cam_fwd = -cb.get_column(2);
+			cam_right = cb.get_column(0);
+		}
+		cam_fwd.y = 0.0f;
+		cam_right.y = 0.0f;
+		if (cam_fwd.length() > 0.001f) {
+			cam_fwd = cam_fwd.normalized();
+		}
+		if (cam_right.length() > 0.001f) {
+			cam_right = cam_right.normalized();
+		}
+		Vector3 dir = cam_right * move_axis.x + cam_fwd * (-move_axis.y); // up on the stick = away from camera
+		float mag = CLAMP(dir.length(), 0.0f, 1.0f);
+		if (mag > 0.001f) {
+			dir = dir / dir.length();
+		}
+		_move_target = dir * (mag * max_speed * sprint_factor);
+		_wish = (mag > 0.1f) ? dir : Vector3(0.0f, 0.0f, 0.0f);
+		_face_dir = _wish; // facing eases toward the move direction (face_turn_rate)
+
+		if (cam) {
+			cam->set_camera_mode(GameCamera::MODE_PLATFORMER);
+			cam->set_heading_follow(false, 0.0f);
 		}
 	}
 
