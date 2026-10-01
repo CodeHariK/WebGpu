@@ -286,17 +286,21 @@ void SpringCharacter::_update_ride_height(float p_delta) {
 
 	Vector3 hvel = get_linear_velocity();
 	hvel.y = 0.0f;
-	if (hvel.length() > 0.5f) {
+	// Only probe while we actually have ground under us (needs last frame's clearance).
+	if (_has_support && hvel.length() > 0.5f) {
 		Vector3 up(0.0f, 1.0f, 0.0f);
 		Basis hb(up, _face_yaw);
 		Vector3 fwd = -hb.get_column(2); // heading forward
 		Vector3 sole = get_global_position() - Vector3(0.0f, capsule_height * 0.5f, 0.0f);
+		Vector3 ground = sole - up * _ground_distance; // the sole HOVERS; measure from the real floor
 
 		TypedArray<RID> exclude;
 		exclude.push_back(get_rid());
 
-		Vector3 low = sole + up * 0.1f; // just above the sole -> hits a step riser
-		Vector3 high = sole + up * (max_ride_height + 0.25f); // above where we'd ride after rising
+		// LOW ray just above the floor catches any riser taller than ~0.1 m. HIGH ray at the
+		// height the sole would clear after rising: clear there = short enough to float over.
+		Vector3 low = ground + up * 0.1f;
+		Vector3 high = ground + up * (max_ride_height + 0.1f);
 		MCRaycastHit low_hit = raycast_3d(this, low, low + fwd * ride_probe_ahead, 0xFFFFFFFF, exclude);
 		bool high_clear = !raycast_3d(this, high, high + fwd * ride_probe_ahead, 0xFFFFFFFF, exclude).is_hit;
 
@@ -489,6 +493,10 @@ void SpringCharacter::_apply_ground_servo() {
 	if (!_has_support || _jump_lock > 0.0f) {
 		return; // off briefly after a jump so it doesn't eat the launch
 	}
+	// The "bottom spring": drive vertical velocity to close the gap between the sole's
+	// clearance and ride_height. Proportional and clamped -> planted, no float.
+	float error = ride_height - _ground_distance; // >0 = too low, must rise
+	_vel.y = CLAMP(error * ride_follow, -ride_max_speed, ride_max_speed);
 
 	RigidBody3D *hit_body = Object::cast_to<RigidBody3D>(_ground_body);
 	if (hit_body) {

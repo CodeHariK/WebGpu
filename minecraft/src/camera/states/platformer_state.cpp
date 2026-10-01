@@ -13,13 +13,10 @@ namespace godot {
 // Frame-rate-independent smoothing rates (e-folds per second).
 static const float PIVOT_RATE = 12.0f; // how fast the framing chases the character
 static const float VELOCITY_RATE = 5.0f; // how fast the "travel direction" settles
-static const float YAW_RECENTER_RATE = 1.8f; // Odyssey-ish swing-behind: present but never snappy
 static const float PITCH_RETURN_RATE = 1.5f; // how fast pitch eases back to the resting framing
 static const float RECENTER_SPEED = 2.5f; // only auto-centre above this horizontal speed (m/s)
-static const float RECENTER_DELAY = 0.35f; // must be travelling this long before swinging behind
 static const float RECENTER_SUSPEND = 1.5f; // pause auto-centre this long after a manual orbit
 static const float LOOK_TARGET_HEIGHT = 1.0f; // aim toward the head so more ground ahead / below reads
-static const float LOOK_AHEAD = 2.0f; // lead the framing along travel at speed
 
 void CameraStatePlatformer::enter(GameCamera *p_camera) {
 	// Captured mouse: plain mouse motion orbits with no button held (a closer stand-in
@@ -64,7 +61,7 @@ void CameraStatePlatformer::update(
 	// Aim above the feet and lead along travel so what is ahead stays in frame.
 	Vector3 pivot = smoothed_pivot + Vector3(0.0f, LOOK_TARGET_HEIGHT, 0.0f);
 	if (h_speed > 0.1f) {
-		float lead = LOOK_AHEAD * CLAMP(h_speed / p_camera->max_speed_for_zoom, 0.0f, 1.0f);
+		float lead = p_camera->platformer_look_ahead * CLAMP(h_speed / p_camera->max_speed_for_zoom, 0.0f, 1.0f);
 		pivot += (horizontal_vel / h_speed) * lead;
 	}
 
@@ -94,10 +91,10 @@ void CameraStatePlatformer::update(
 
 	// Soft swing-behind: ease the yaw round behind the direction of travel once the
 	// player has committed to it. Idle (or orbiting / recently orbited) holds the view.
-	if (!orbiting && recenter_suspend <= 0.0f && travel_time > RECENTER_DELAY) {
+	if (!orbiting && recenter_suspend <= 0.0f && travel_time > p_camera->platformer_recenter_delay) {
 		float target_yaw = Math::atan2(-horizontal_vel.x, -horizontal_vel.z);
 		float yaw_diff = UtilityFunctions::wrapf(target_yaw - p_camera->yaw, -Math::PI, Math::PI);
-		p_camera->yaw += yaw_diff * spring_damp_factor(YAW_RECENTER_RATE, p_delta);
+		p_camera->yaw += yaw_diff * spring_damp_factor(p_camera->platformer_recenter_rate, p_delta);
 	}
 
 	// Ease pitch back to the comfortable resting framing when hands-off.
