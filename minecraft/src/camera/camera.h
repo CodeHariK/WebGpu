@@ -52,6 +52,7 @@ class GameCamera : public Camera3D {
 	friend class CameraStateCar;
 	friend class CameraStateTPS;
 	friend class CameraStateFixed;
+	friend class CameraStateCharacter;
 
 public:
 	/// The available camera behaviours; selected via `set_camera_mode()`.
@@ -59,7 +60,8 @@ public:
 		MODE_FLY, ///< Free-flying debug/spectator camera (orbit, pan, dolly).
 		MODE_CAR, ///< Arcade chase cam that trails a vehicle by its velocity.
 		MODE_TPS, ///< Over-the-shoulder third-person cam with a captured mouse.
-		MODE_FIXED ///< Top-down follow with optional dead-zone (Zelda-like).
+		MODE_FIXED, ///< Top-down follow with optional dead-zone (Zelda-like).
+		MODE_CHARACTER ///< Odyssey / Hat-in-Time follow cam for an on-foot character.
 	};
 
 private:
@@ -75,6 +77,11 @@ private:
 
 	// --- Orientation --------------------------------------------------------
 	float yaw = 0.0f; ///< Desired yaw (radians, around +Y); smoothed via yaw_spring.
+
+	// Heading-follow (steer mode): when enabled the character cam locks the yaw
+	// behind `heading_yaw` instead of trailing the velocity. Set by the controller.
+	bool follow_heading = false;
+	float heading_yaw = 0.0f;
 	float pitch = 0.0f; ///< Desired pitch (radians, around +X); smoothed via pitch_spring.
 
 	// --- Smoothing config ---------------------------------------------------
@@ -230,6 +237,10 @@ public:
 
 	/// Current *desired* yaw/pitch in radians (pre-smoothing).
 	float get_yaw() const { return yaw; }
+	void set_heading_follow(bool p_enable, float p_yaw) {
+		follow_heading = p_enable;
+		heading_yaw = p_yaw;
+	}
 	float get_pitch() const { return pitch; }
 
 	/// The node the camera follows, by scene path.

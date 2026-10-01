@@ -1,5 +1,7 @@
 #include "vehicle_audio.h"
 
+#include "../game_manager/game_manager.h"
+
 #include <godot_cpp/classes/audio_stream.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
@@ -84,6 +86,22 @@ void FolioVehicleAudio::_physics_process(double p_delta) {
 	if (!engine) {
 		return;
 	}
+
+	// Only the car the player is actually driving makes noise. When this car is not the
+	// active target (e.g. the player is on foot as the character, or driving another car),
+	// ease every loop down to silence instead of revving to the shared movement keys.
+	GameManager *gm = GameManager::get_singleton();
+	bool active = !gm || !car || gm->is_active(car);
+	if (!active) {
+		engine_vol += (0.0 - engine_vol) * p_delta * release_ease;
+		spin_vol += (0.0 - spin_vol) * p_delta * release_ease;
+		boost_vol += (0.0 - boost_vol) * p_delta * release_ease;
+		engine->set_volume_db(lin2db(engine_vol * engine_gain));
+		spin->set_volume_db(lin2db(spin_vol));
+		boost->set_volume_db(lin2db(boost_vol));
+		return;
+	}
+
 	Input *in = Input::get_singleton();
 
 	double throttle = 0.0;
