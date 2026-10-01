@@ -51,6 +51,15 @@ class SpringCharacter : public RigidBody3D {
 	GDCLASS(SpringCharacter,
 			RigidBody3D)
 
+public:
+	/// How the stick is interpreted. Press V in-game to flip between them live.
+	enum ControlScheme {
+		CONTROL_STEER, ///< L/R rotate the heading, U/D drive along it; camera locked behind (MODE_CHARACTER).
+		CONTROL_CAMERA_RELATIVE ///< Stick = screen-space direction, facing follows movement; free cam (MODE_PLATFORMER).
+	};
+
+private:
+
 	friend class CharacterState;
 	friend class CharacterGroundedState;
 	friend class CharacterAirborneState;
@@ -85,6 +94,7 @@ private:
 	float max_speed = 18.0f;
 	float acceleration = 180.0f; // m/s^2 toward the target velocity (higher = tighter turns)
 	float accel_turn_boost = 2.5f; // extra accel when reversing direction
+	ControlScheme control_scheme = CONTROL_STEER; // active control scheme (see ControlScheme)
 	float steer_rate = 3.2f; // heading turn speed (rad/s)
 	float reverse_speed_mult = 0.5f; // back-up speed as a fraction of max_speed
 
@@ -142,6 +152,7 @@ private:
 	float _jump_lock = 0.0f;
 	float _face_yaw = 0.0f; // persistent heading goal (held when idle, updated when moving)
 	bool _face_init = false;
+	bool _scheme_key_was_down = false; // edge-detect the V toggle
 	float _dt = 0.0f; // last physics step (for frame-rate-independent easing)
 
 	// Per-frame input snapshot, filled at the top of _physics_process.
@@ -198,6 +209,7 @@ private:
 	void _recompute_jump();
 	void _cast_ground();
 	void _cast_wall(const Vector3 &p_wish);
+	void _apply_landing_guard(float p_delta); // never let one step carry the sole past ride height
 	void _update_ride_height(float p_delta); // Celeste-style: raise ride height for a step ahead
 	void _debug_draw_trajectory(float p_delta); // cyan breadcrumb trail of where we've been
 	// Collide-and-slide: project a velocity onto the wall plane (removing motion into the
@@ -229,6 +241,8 @@ public:
 	float get_max_speed() const { return max_speed; }
 	void set_acceleration(float v) { acceleration = v; }
 	float get_acceleration() const { return acceleration; }
+	void set_control_scheme(int v) { control_scheme = (v == 1) ? CONTROL_CAMERA_RELATIVE : CONTROL_STEER; }
+	int get_control_scheme() const { return (int)control_scheme; }
 	void set_steer_rate(float v) { steer_rate = v; }
 	float get_steer_rate() const { return steer_rate; }
 	void set_jump_height(float v) {
@@ -278,5 +292,7 @@ public:
 };
 
 } // namespace godot
+
+VARIANT_ENUM_CAST(godot::SpringCharacter::ControlScheme);
 
 #endif // SPRING_CHARACTER_H

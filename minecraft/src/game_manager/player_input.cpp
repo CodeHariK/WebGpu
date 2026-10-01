@@ -19,6 +19,7 @@ PlayerInput::PlayerInput() {
 	}
 	is_shift_down = false;
 	is_mb_middle_down = false;
+	is_mb_right_down = false;
 
 	if (OS::get_singleton()->has_feature("mobile")) {
 		_current_strength_handler = &PlayerInput::_get_strength_mobile;
@@ -50,7 +51,7 @@ void PlayerInput::update() {
 	current_state.camera.zoom_delta = accumulated_zoom;
 
 	// Sync event-tracked button states to the active state for this frame
-	current_state.camera.is_orbiting = is_mb_middle_down;
+	current_state.camera.is_orbiting = is_mb_middle_down || is_mb_right_down;
 	current_state.camera.is_panning = is_mb_middle_down && is_shift_down;
 
 	// Clear accumulated for next frame
@@ -113,6 +114,8 @@ void PlayerInput::handle_input(const Ref<InputEvent> &p_event) {
 			accumulated_zoom -= 1.0f;
 		} else if (mb->get_button_index() == MOUSE_BUTTON_MIDDLE) {
 			is_mb_middle_down = mb->is_pressed();
+		} else if (mb->get_button_index() == MOUSE_BUTTON_RIGHT) {
+			is_mb_right_down = mb->is_pressed();
 		}
 	}
 

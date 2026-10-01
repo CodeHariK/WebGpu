@@ -53,6 +53,7 @@ class GameCamera : public Camera3D {
 	friend class CameraStateTPS;
 	friend class CameraStateFixed;
 	friend class CameraStateCharacter;
+	friend class CameraStatePlatformer;
 
 public:
 	/// The available camera behaviours; selected via `set_camera_mode()`.
@@ -61,7 +62,8 @@ public:
 		MODE_CAR, ///< Arcade chase cam that trails a vehicle by its velocity.
 		MODE_TPS, ///< Over-the-shoulder third-person cam with a captured mouse.
 		MODE_FIXED, ///< Top-down follow with optional dead-zone (Zelda-like).
-		MODE_CHARACTER ///< Odyssey / Hat-in-Time follow cam for an on-foot character.
+		MODE_CHARACTER, ///< Steer-locked follow cam: yaw tracks the character's heading.
+		MODE_PLATFORMER ///< Odyssey / Hat-in-Time FREE follow cam (pairs with camera-relative control).
 	};
 
 private:

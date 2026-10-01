@@ -19,6 +19,7 @@
 
 #include "states/car_state.h"
 #include "states/character_state.h"
+#include "states/platformer_state.h"
 #include "states/fixed_state.h"
 #include "states/fly_state.h"
 #include "states/tps_state.h"
@@ -42,7 +43,7 @@ void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_camera_mode", "mode"), &GameCamera::set_camera_mode);
 	ClassDB::bind_method(D_METHOD("get_camera_mode"), &GameCamera::get_camera_mode);
 	ADD_PROPERTY(
-			PropertyInfo(Variant::INT, "camera_mode", PROPERTY_HINT_ENUM, "Fly,Car,TPS,Fixed,Character"), "set_camera_mode",
+			PropertyInfo(Variant::INT, "camera_mode", PROPERTY_HINT_ENUM, "Fly,Car,TPS,Fixed,Character,Platformer"), "set_camera_mode",
 			"get_camera_mode"
 	);
 
@@ -155,6 +156,7 @@ void GameCamera::_bind_methods() {
 	BIND_ENUM_CONSTANT(MODE_TPS);
 	BIND_ENUM_CONSTANT(MODE_FIXED);
 	BIND_ENUM_CONSTANT(MODE_CHARACTER);
+	BIND_ENUM_CONSTANT(MODE_PLATFORMER);
 }
 
 GameCamera::GameCamera() {
@@ -274,6 +276,9 @@ void GameCamera::set_camera_mode(Mode p_mode) {
 			break;
 		case MODE_CHARACTER:
 			current_mode_instance = std::make_unique<CameraStateCharacter>();
+			break;
+		case MODE_PLATFORMER:
+			current_mode_instance = std::make_unique<CameraStatePlatformer>();
 			break;
 	}
 
