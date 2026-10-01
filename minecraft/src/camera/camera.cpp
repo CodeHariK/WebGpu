@@ -128,6 +128,23 @@ void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_car_look_ahead", "amount"), &GameCamera::set_car_look_ahead);
 	ClassDB::bind_method(D_METHOD("get_car_look_ahead"), &GameCamera::get_car_look_ahead);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "car_look_ahead"), "set_car_look_ahead", "get_car_look_ahead");
+	ClassDB::bind_method(D_METHOD("set_platformer_recenter_rate", "rate"), &GameCamera::set_platformer_recenter_rate);
+	ClassDB::bind_method(D_METHOD("get_platformer_recenter_rate"), &GameCamera::get_platformer_recenter_rate);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "platformer_recenter_rate"), "set_platformer_recenter_rate",
+			"get_platformer_recenter_rate"
+	);
+	ClassDB::bind_method(D_METHOD("set_platformer_recenter_delay", "seconds"), &GameCamera::set_platformer_recenter_delay);
+	ClassDB::bind_method(D_METHOD("get_platformer_recenter_delay"), &GameCamera::get_platformer_recenter_delay);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "platformer_recenter_delay"), "set_platformer_recenter_delay",
+			"get_platformer_recenter_delay"
+	);
+	ClassDB::bind_method(D_METHOD("set_platformer_look_ahead", "amount"), &GameCamera::set_platformer_look_ahead);
+	ClassDB::bind_method(D_METHOD("get_platformer_look_ahead"), &GameCamera::get_platformer_look_ahead);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::FLOAT, "platformer_look_ahead"), "set_platformer_look_ahead", "get_platformer_look_ahead"
+	);
 
 	ClassDB::bind_method(D_METHOD("set_fixed_deadzone", "radius"), &GameCamera::set_fixed_deadzone);
 	ClassDB::bind_method(D_METHOD("get_fixed_deadzone"), &GameCamera::get_fixed_deadzone);

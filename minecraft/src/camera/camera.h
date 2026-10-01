@@ -112,7 +112,7 @@ private:
 	float max_distance = 50.0f; ///< Farthest the camera may sit from the pivot.
 	float pan_speed = 0.05f; ///< Fly-mode pan speed (metres per input unit).
 	float zoom_speed = 1.0f; ///< Zoom/dolly speed (metres per scroll unit).
-	float orbit_sensitivity = 0.005f; ///< Radians of yaw/pitch per input unit.
+	float orbit_sensitivity = 0.003f; ///< Radians of yaw/pitch per input unit.
 	bool is_orbiting = false; ///< Currently unused flag (orbit state lives in PlayerInput).
 
 	// --- Collision ----------------------------------------------------------
@@ -132,6 +132,14 @@ private:
 	/// Car: lead the framing ahead of the vehicle along its travel direction
 	/// (metres at max speed) so the player sees more of where they are going.
 	float car_look_ahead = 2.5f;
+	/// Platformer: how fast the yaw swings round behind the direction of travel
+	/// (e-folds per second). Higher = snappier recentre, lower = lazier Odyssey drift.
+	float platformer_recenter_rate = 1.2f;
+	/// Platformer: seconds of committed travel before the swing-behind starts, so
+	/// quick direction changes don't yank the view.
+	float platformer_recenter_delay = 0.35f;
+	/// Platformer: metres to lead the framing along travel at max speed.
+	float platformer_look_ahead = 2.0f;
 	/// Car: fraction to flatten the pitch toward level at top speed, for a
 	/// stronger sense of velocity (0 = never flatten).
 	float car_speed_pitch_flatten = 0.12f;
@@ -323,6 +331,14 @@ public:
 	/// Car: metres of velocity look-ahead applied at max speed (0 disables).
 	void set_car_look_ahead(float p_v) { car_look_ahead = p_v; }
 	float get_car_look_ahead() const { return car_look_ahead; }
+
+	/// Platformer cam turn feel: swing-behind rate, commit delay, look-ahead.
+	void set_platformer_recenter_rate(float p_v) { platformer_recenter_rate = MAX(0.0f, p_v); }
+	float get_platformer_recenter_rate() const { return platformer_recenter_rate; }
+	void set_platformer_recenter_delay(float p_v) { platformer_recenter_delay = MAX(0.0f, p_v); }
+	float get_platformer_recenter_delay() const { return platformer_recenter_delay; }
+	void set_platformer_look_ahead(float p_v) { platformer_look_ahead = MAX(0.0f, p_v); }
+	float get_platformer_look_ahead() const { return platformer_look_ahead; }
 
 	/// Fixed: ground-plane dead-zone radius before the camera follows (0 = rigid).
 	void set_fixed_deadzone(float p_v) { fixed_deadzone = MAX(0.0f, p_v); }
