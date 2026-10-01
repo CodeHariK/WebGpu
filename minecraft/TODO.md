@@ -105,18 +105,31 @@ forzacar). These three change *how the body moves*, so each needs a locomotion m
 Character docs: `docs/Characters.md`, `docs/CharacterMovement.md`.
 
 - [x] Spring-body character (physics, replaces kinematic Celeste) — ONE class `SpringCharacter :
-      RigidBody3D` (`src/pawn/`, no shared base). A faithful Very Very Valet toy controller:
+      RigidBody3D` (`src/character/`, no shared base). A faithful Very Very Valet toy controller:
       PD ride-spring floats it and pushes the ground body back (presses on platforms/cars); PD upright
       torque-spring keeps it vertical + faces travel (tips and recovers); goal-velocity move with a
       clamped acceleration force (snappy but weighty); camera-relative input. Mario jump on top
       (coyote, buffer, variable height, light-up/heavy-down gravity). Verified stable: floats upright,
-      ~18 m/s, jump cut works, presses the world. `make run_pawn` (isolated) / in the octo scene as a
+      ~18 m/s, jump cut works, presses the world. tested in the octo scene as a
       GameManager target (TAB-switchable, camera auto-TPS).
   - **`ArcadeVehicle` is intentionally left untouched** — no shared base. If the same spring bug ever
     shows up in both, extract just a `cast_spring()` helper; the car keeps its own suspension/steer.
   - [ ] tune the toy feel to match VVV exactly (ride/upright spring constants, accel curves, jump arc)
-  - [ ] then grow the moveset: wall-run (off the car's wall-contact detection), dash, double jump,
-        ground pound, melee lunge-to-target
+  - [x] moveset state machine (`src/character/ai/`, mirrors ArcadeVehicle's `ai/`): `CharacterState` base +
+        grounded/airborne parents; walk / fall / wall-climb / dash / ground-pound states, with double
+        jump and wall jump handled in the owner's centralised transitions. Builds + headless smoke
+        test pass (settles, ~17.6 m/s, jumps, lands). Feel of the new moves still needs interactive tuning.
+  - [x] physics-feel pass: deterministic velocity control (engine gravity off, self-integrated
+        asymmetric Mario arc, planted ride-servo, still pushes the car); raycast wall system
+        (multi-ray detect, precise hug, auto-mantle onto ledges, wall-slide); precision layer
+        (Celeste corner-correction + hard-landing snap). Prototype/Hulk vertical wall-climb.
+  - [x] ported from Celeste: sprint (Shift / full stick x sprint_multiplier), moving-platform carry,
+        melee jump-kick (C -> lunge to EnemyManager's best target, damages EnemyBase, refunds dash/air-jump).
+  - [x] live tuning UI (`src/character/character_ui.*`, ported from CelesteUI on the shared CUI):
+        "Character" button -> tabbed slider panel (Move/Jump, Ride/Abilities, Combat/Feel) bound to the
+        tunables, Save/Load to `user://character_settings.cfg`, real-time speed graph.
+  - [ ] still to add: a dedicated pound button (air-dash vs ground-pound currently split by whether a
+        direction is held); interactive feel tuning via the new sliders.
   - [ ] retire `CelesteController` once this reaches the feel we want
 
 - [ ] Character IK — adopt Godot 4.6+'s new `SkeletonModifier3D`-based IK framework (the old
@@ -143,7 +156,7 @@ Character docs: `docs/Characters.md`, `docs/CharacterMovement.md`.
       - [ ] per-leg step state machine (planted / lifting), stride length + step-trigger distance,
             speed-scaled cadence
       - [ ] gait patterns: biped alternating, quadruped diagonal trot, hexapod tripod
-      - [ ] body PD spring follows mean foot pos and tilts to the foot plane (reuse `PDSpring` /
+      - [ ] body PD spring follows mean foot pos and tilts to the foot plane (reuse `StatelessSpring` /
             `pd_torque_align`)
       - [ ] anticipation: predict the next anchor ahead along travel so faster movement takes longer strides
 

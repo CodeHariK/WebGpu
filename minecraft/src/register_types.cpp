@@ -73,7 +73,7 @@
 #include "player/celeste_controller.h"
 #include "player/celeste_ui.h"
 
-#include "pawn/spring_character.h"
+#include "character/spring_character.h"
 
 #include "environment/cliff.h"
 #include "environment/cliff_mesh.h"

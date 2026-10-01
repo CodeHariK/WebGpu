@@ -5,7 +5,7 @@
 #include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
 #include "../minigames/tennis/tennis_manager.h"
-#include "../pawn/spring_character.h"
+#include "../character/spring_character.h"
 #include "../player/celeste_controller.h"
 #include "../terrain/marching_prism/mp_manager.h"
 #include "../vehicle/arcade_vehicle.h"
@@ -222,9 +222,9 @@ void GameManager::set_active_target(Node *p_target) {
 						main_camera->set_camera_mode(GameCamera::MODE_TPS);
 					}
 				} else if (Object::cast_to<SpringCharacter>(active_target)) {
-					// Spring-body character: follow it in third-person like the celeste character.
+					// Spring-body character: Odyssey / Hat-in-Time follow cam.
 					if (main_camera->get_camera_mode() != GameCamera::MODE_FIXED) {
-						main_camera->set_camera_mode(GameCamera::MODE_TPS);
+						main_camera->set_camera_mode(GameCamera::MODE_CHARACTER);
 					}
 				}
 			}

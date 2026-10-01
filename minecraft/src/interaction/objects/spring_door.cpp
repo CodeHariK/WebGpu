@@ -55,7 +55,7 @@ void SpringDoor::_physics_process(double delta) {
 
 	// 4. Calculate spring torque (PD: restore toward rest, damp the Y spin).
 	//    displacement is (current - rest), so the restoring error is -displacement.
-	float spring_torque = PDSpring::pd(-displacement, current_vel_y, stiffness, damping);
+	float spring_torque = StatelessSpring::pd(-displacement, current_vel_y, stiffness, damping);
 
 	// 5. Apply the torque to ourselves
 	apply_torque(Vector3(0, spring_torque, 0));

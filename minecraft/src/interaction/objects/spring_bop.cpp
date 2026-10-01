@@ -56,7 +56,7 @@ void SpringBop::_physics_process(double delta) {
 	// Cross-product PD torque: rights the tilt (up -> world up) while leaving yaw
 	// free, so the bop swings back upright but still swivels. Same behaviour as
 	// before, now via the shared helper.
-	Vector3 spring_torque = PDSpring::pd_torque_align(current_up, target_up, get_angular_velocity(), stiffness, damping);
+	Vector3 spring_torque = StatelessSpring::pd_torque_align(current_up, target_up, get_angular_velocity(), stiffness, damping);
 	apply_torque(spring_torque);
 }
 
