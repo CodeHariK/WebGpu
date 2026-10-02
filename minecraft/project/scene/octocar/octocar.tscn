@@ -5,6 +5,8 @@
 [ext_resource type="Material" uid="uid://vogawonmy3" path="res://material/shaders/terrain/mat_uv_minecraft.tres" id="2_mxckk"]
 [ext_resource type="Material" uid="uid://bv0vdkq4v0lmq" path="res://material/shaders/terrain/mat_terrain.tres" id="4_4kplg"]
 [ext_resource type="Script" uid="uid://dhaa31wr3qje" path="res://scene/folio/vehicle.gd" id="veh_vis"]
+[ext_resource type="PackedScene" path="res://assets/character/sophia_skin/sophia_skin.tscn" id="sophia_skin"]
+[ext_resource type="Script" path="res://scene/ui/touch_controls.gd" id="touch_controls"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_8x1io"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -497,6 +499,9 @@ shape = SubResource("ConcavePolygonShape3D_mxckk")
 [node name="SpringCharacter" type="SpringCharacter" parent="." unique_id=771000042]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5, 3)
 
+[node name="SophiaSkin" parent="SpringCharacter" instance=ExtResource("sophia_skin")]
+transform = Transform3D(0.65, 0, 0, 0, 0.65, 0, 0, 0, 0.65, 0, -0.8, 0)
+
 [node name="CelesteController" type="CelesteController" parent="." unique_id=1758102786]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.800528, 3.0714903, 2.846653)
 
@@ -690,3 +695,40 @@ layer = 95
 
 [node name="TimeWarp" type="TimeWarp" parent="." unique_id=538279039]
 layer = 96
+
+[node name="TouchControls" type="CanvasLayer" parent="."]
+layer = 10
+script = ExtResource("touch_controls")
+
+[node name="MoveStick" type="VirtualJoystick" parent="TouchControls"]
+anchors_preset = -1
+anchor_right = 0.5
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+joystick_mode = 1
+visibility_mode = 1
+joystick_size = 220.0
+tip_size = 90.0
+deadzone_ratio = 0.1
+action_left = &"move_left"
+action_right = &"move_right"
+action_up = &"move_forward"
+action_down = &"move_backward"
+
+[node name="LookStick" type="VirtualJoystick" parent="TouchControls"]
+anchors_preset = -1
+anchor_left = 0.5
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+joystick_mode = 1
+visibility_mode = 1
+joystick_size = 220.0
+tip_size = 90.0
+deadzone_ratio = 0.1
+action_left = &"look_left"
+action_right = &"look_right"
+action_up = &"look_up"
+action_down = &"look_down"

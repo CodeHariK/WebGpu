@@ -77,6 +77,10 @@ private:
 
 	// Accumulated deltas from events
 	Vector2 accumulated_look;
+	/// Full deflection of the look axis (right virtual joystick / gamepad right stick) is
+	/// treated as moving the mouse this many pixels per second, so every camera mode
+	/// consumes it through look_delta unchanged.
+	float look_axis_speed = 600.0f;
 	float accumulated_zoom = 0.0f;
 
 	// Event-tracked states for camera synchronization

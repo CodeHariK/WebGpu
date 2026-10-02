@@ -2,7 +2,10 @@
 #define SPRING_CHARACTER_H
 
 #include <godot_cpp/classes/collision_shape3d.hpp>
+#include "character_animator.h"
+#include "character_audio.h"
 #include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/vector3.hpp>
@@ -141,7 +144,20 @@ private:
 	// --- Runtime ---
 	PlayerInput *player_input = nullptr;
 	CollisionShape3D *_collider = nullptr;
-	MeshInstance3D *_mesh = nullptr;
+	MeshInstance3D *_mesh = nullptr; // placeholder capsule; hidden when a skin is present
+	// Animated skin (optional scene child exposing idle/move/jump/fall). The controller
+	// pins its yaw to the heading and drives it through CharacterAnimator; the skin owns
+	// its own AnimationTree and every transition. See character_animator.h.
+	Node3D *_skin = nullptr;
+	CharacterAnimator _animator;
+	CharacterAudio _audio; // footsteps / jump / land one-shots (see character_audio.h)
+	float _prev_jump_lock = 0.0f; // edge-detect a jump launch for the audio
+	float skin_yaw_offset = 3.14159265f; // Sophia's rig faces +Z; our forward is -Z
+	float _prev_face_yaw = 0.0f; // for the lean (turn-rate) signal
+	// Steer mode: raw steer input (mouse pixels / keys) accumulates into this TARGET and the
+	// real heading eases toward it. Filters mouse-pixel quantisation so the skin never steps.
+	float _steer_yaw_target = 0.0f;
+	bool _steer_target_valid = false;
 
 	Vector3 _vel = Vector3(0, 0, 0); // working velocity, integrated each physics frame
 	float _jump_velocity = 0.0f; // 2h / t_peak
@@ -209,6 +225,7 @@ private:
 	void _recompute_jump();
 	void _cast_ground();
 	void _cast_wall(const Vector3 &p_wish);
+	void _find_skin(); // locate a child skin by its intent API and hide the placeholder
 	void _apply_landing_guard(float p_delta); // never let one step carry the sole past ride height
 	void _update_ride_height(float p_delta); // Celeste-style: raise ride height for a step ahead
 	void _debug_draw_trajectory(float p_delta); // cyan breadcrumb trail of where we've been
