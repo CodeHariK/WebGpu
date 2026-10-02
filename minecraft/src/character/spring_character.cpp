@@ -256,6 +256,9 @@ void SpringCharacter::_ready() {
 	ui_vars["wall_jump_up"] = &wall_jump_up;
 	ui_vars["wall_jump_out"] = &wall_jump_out;
 
+	_find_skin();
+	_audio.setup(this, "res://assets/character/sounds/");
+
 	ui_root = CUI::create_on_new_layer(this);
 	ui_helper = new CharacterUI();
 	ui_helper->setup(this, ui_root);
@@ -612,6 +615,28 @@ void SpringCharacter::_apply_corner_correction() {
 }
 
 
+// A skin is any Node3D child that speaks the intent API (idle/move/jump/fall). When one
+// is present the placeholder capsule + nose are hidden and the skin takes over the look.
+void SpringCharacter::_find_skin() {
+	_skin = nullptr;
+	int n = get_child_count();
+	for (int i = 0; i < n; i++) {
+		Node3D *c = Object::cast_to<Node3D>(get_child(i));
+		if (c && c != _mesh && _animator.set_skin(c)) {
+			_skin = c;
+			break;
+		}
+	}
+	if (_skin && _mesh) {
+		_mesh->set_visible(false);
+	}
+	UtilityFunctions::print(
+			_skin ? String("SpringCharacter: skin bound -> ") + _skin->get_name()
+				  : String("SpringCharacter: no skin child, using placeholder capsule")
+	);
+	_prev_face_yaw = _face_yaw;
+}
+
 void SpringCharacter::_physics_process(double delta) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
@@ -657,8 +682,30 @@ void SpringCharacter::_physics_process(double delta) {
 	float sprint_factor = (move_axis.length() > 0.01f) ? (_move_strength / move_axis.length()) : 1.0f;
 
 	if (control_scheme == CONTROL_STEER) {
-		// Steering movement: Left/Right rotate the heading, Up/Down drive along it.
-		_face_yaw -= move_axis.x * steer_rate * dt; // right = clockwise
+		// Steering movement: rotate the heading, Up/Down drive along it. The MOUSE steers
+		// with priority: on any frame it moves, it rotates the heading (character + camera
+		// together) and A/D are ignored; A/D only steer when the mouse is still.
+		if (!_steer_target_valid) {
+			_steer_yaw_target = _face_yaw; // (re)entering steer: start from the current heading
+			_steer_target_valid = true;
+		}
+		float mouse_x = 0.0f;
+		if (active && player_input) {
+			mouse_x = player_input->get_state().camera.look_delta.x;
+		}
+		if (std::abs(mouse_x) > 0.01f && cam) {
+			_steer_yaw_target -= mouse_x * cam->get_orbit_sensitivity(); // mouse wins
+		} else {
+			_steer_yaw_target -= move_axis.x * steer_rate * dt; // keys: right = clockwise
+		}
+		// Ease the heading toward the target. Mouse deltas are bursty integer pixels relative
+		// to the physics tick; this low-pass turns them into a smooth turn (same rate the
+		// camera-relative scheme uses for facing, so face_turn_rate governs both).
+		{
+			float diff = UtilityFunctions::wrapf(_steer_yaw_target - _face_yaw, -(float)Math::PI, (float)Math::PI);
+			_face_yaw += diff * (1.0f - std::exp(-face_turn_rate * dt));
+			_steer_yaw_target = UtilityFunctions::wrapf(_steer_yaw_target, -(float)Math::PI, (float)Math::PI);
+		}
 		float cy = std::cos(_face_yaw);
 		float sy = std::sin(_face_yaw);
 		Vector3 fwd(-sy, 0.0f, -cy); // body -Z at this yaw
@@ -700,6 +747,7 @@ void SpringCharacter::_physics_process(double delta) {
 		_move_target = dir * (mag * max_speed * sprint_factor);
 		_wish = (mag > 0.1f) ? dir : Vector3(0.0f, 0.0f, 0.0f);
 		_face_dir = _wish; // facing eases toward the move direction (face_turn_rate)
+		_steer_target_valid = false; // so switching back to steer starts from the live heading
 
 		if (cam) {
 			cam->set_camera_mode(GameCamera::MODE_PLATFORMER);
@@ -730,6 +778,25 @@ void SpringCharacter::_physics_process(double delta) {
 		Transform3D mt = _mesh->get_global_transform();
 		mt.basis = Basis(Vector3(0.0f, 1.0f, 0.0f), _face_yaw);
 		_mesh->set_global_transform(mt);
+	}
+	if (_skin) {
+		// Local rotation only (the body's rotation is locked), so the skin's scale survives.
+		_skin->set_rotation(Vector3(0.0f, _face_yaw + skin_yaw_offset, 0.0f));
+
+		// Lean into turns: normalised yaw rate (right turn = +). Works for every scheme.
+		float yaw_rate = (dt > 0.0f) ? UtilityFunctions::wrapf(_face_yaw - _prev_face_yaw, -Math::PI, Math::PI) / dt : 0.0f;
+		float lean = (steer_rate > 0.001f) ? CLAMP(-yaw_rate / steer_rate, -1.0f, 1.0f) : 0.0f;
+		Vector3 hv(_vel.x, 0.0f, _vel.z);
+		_animator.update(_grounded, _vel.y, hv.length(), lean);
+	}
+	_prev_face_yaw = _face_yaw;
+
+	// Sounds: a jump is the frame _jump_lock gets armed (ground, wall or air jump alike).
+	{
+		bool jumped = (_prev_jump_lock <= 0.0f) && (_jump_lock > 0.0f);
+		_prev_jump_lock = _jump_lock;
+		Vector3 hv(_vel.x, 0.0f, _vel.z);
+		_audio.update(_grounded, _vel.y, hv.length(), jumped, dt);
 	}
 
 	_debug_draw_trajectory(dt);

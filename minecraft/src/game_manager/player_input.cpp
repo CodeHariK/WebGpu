@@ -1,6 +1,7 @@
 #include "player_input.h"
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
+#include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/input_event_mouse_motion.hpp>
 #include <godot_cpp/classes/input_map.hpp>
@@ -45,6 +46,17 @@ void PlayerInput::update() {
 	Input *input = Input::get_singleton();
 	if (!input)
 		return;
+
+	// 0. Look AXIS (right VirtualJoystick / gamepad right stick) -> pixel-equivalent delta,
+	//    merged with the mouse so camera modes need no knowledge of the device.
+	{
+		Vector2 look_axis = input->get_vector("look_left", "look_right", "look_up", "look_down");
+		if (look_axis.length_squared() > 0.0f) {
+			int tps = Engine::get_singleton()->get_physics_ticks_per_second();
+			float dt = (tps > 0) ? 1.0f / (float)tps : 1.0f / 60.0f;
+			accumulated_look += look_axis * look_axis_speed * dt;
+		}
+	}
 
 	// 1. Swap accumulated deltas to current state
 	current_state.camera.look_delta = accumulated_look;

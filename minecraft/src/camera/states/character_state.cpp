@@ -22,7 +22,9 @@ static const float LOOK_AHEAD = 1.5f; // lead the framing along travel at speed
 static const float HEADING_FOLLOW_RATE = 7.0f; // how fast the cam locks behind the steered heading
 
 void CameraStateCharacter::enter(GameCamera *p_camera) {
-	Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_VISIBLE);
+	// Captured: in steer mode plain mouse motion steers the heading (handled by the
+	// character), so the cursor must not wander. Esc frees it, left-click recaptures.
+	Input::get_singleton()->set_mouse_mode(Input::MOUSE_MODE_CAPTURED);
 	first_frame = true;
 	recenter_suspend = 0.0f;
 	p_camera->rebase_springs();
