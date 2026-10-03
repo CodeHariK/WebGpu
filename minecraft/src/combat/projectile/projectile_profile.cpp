@@ -40,6 +40,8 @@ void ProjectileProfile::_bind_methods() {
 	BIND_FIELD(BOOL, parryable)
 	BIND_FIELD(FLOAT, parry_radius, PROPERTY_HINT_RANGE, "0.5,5,0.05,suffix:m")
 	BIND_FIELD(FLOAT, parry_speed_scale, PROPERTY_HINT_RANGE, "0.5,4,0.05")
+	BIND_FIELD(FLOAT, parry_lob_range, PROPERTY_HINT_RANGE, "0,100,1,suffix:m")
+	BIND_FIELD(FLOAT, parry_lob_time, PROPERTY_HINT_RANGE, "0.3,4,0.05,suffix:s")
 
 	ADD_GROUP("Look", "");
 	BIND_FIELD(INT, style, PROPERTY_HINT_ENUM, "Missile,Arrow")

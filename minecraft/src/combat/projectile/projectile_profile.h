@@ -80,6 +80,8 @@ public:
 	PROFILE_FIELD(bool, parryable, true) ///< Can be reflected by a parrying target.
 	PROFILE_FIELD(float, parry_radius, 1.8f) ///< Parry window: target parrying within this range (m).
 	PROFILE_FIELD(float, parry_speed_scale, 1.6f) ///< Speed multiplier after being reflected.
+	PROFILE_FIELD(float, parry_lob_range, 30.0f) ///< Parried shots lob onto a random enemy within this range (m).
+	PROFILE_FIELD(float, parry_lob_time, 1.1f) ///< Shortest parry lob (s): sets how high it arcs before falling.
 
 	// --- Look ---
 	PROFILE_FIELD(int, style, STYLE_MISSILE) ///< Style enum: which cartoon model + wobble.

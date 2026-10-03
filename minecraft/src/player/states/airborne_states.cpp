@@ -55,9 +55,15 @@ void CelesteAirborneState::physics_update(float delta) {
 		return;
 	}
 
-	// Kick Input
+	// Kick Input: enemy in reach -> dive-kick it; otherwise spin in place.
 	if (state.character.kick_just_pressed) {
-		controller->change_state(controller->jumpkick_state);
+		Node3D *dive_target = controller->_find_dive_target();
+		if (dive_target) {
+			controller->_dive_target_id = dive_target->get_instance_id();
+			controller->change_state(controller->dive_state);
+		} else {
+			controller->change_state(controller->attack_state);
+		}
 		return;
 	}
 

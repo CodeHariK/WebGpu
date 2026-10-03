@@ -1,6 +1,7 @@
 #include "celeste_controller.h"
 #include "../camera/camera.h"
 #include "../debug_draw/debug_manager.h"
+#include "../enemy/enemy_base.h"
 #include "../enemy/enemy_manager.h"
 #include "../game_manager/game_constants.h"
 #include "../game_manager/game_manager.h"
@@ -29,18 +30,13 @@
 
 namespace godot {
 
-bool CelesteController::is_parrying() const {
-	if (!current_state) {
-		return false;
-	}
-	return current_state == static_cast<CelesteState *>(dash_state) ||
-			current_state == static_cast<CelesteState *>(jumpkick_state);
-}
-
 void CelesteController::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_ui_toggle"), &CelesteController::_on_ui_toggle);
 	ClassDB::bind_method(D_METHOD("is_parrying"), &CelesteController::is_parrying);
 	ClassDB::bind_method(D_METHOD("is_aiming"), &CelesteController::is_aiming);
+	ClassDB::bind_method(D_METHOD("set_parry_window", "seconds"), &CelesteController::set_parry_window);
+	ClassDB::bind_method(D_METHOD("get_parry_window"), &CelesteController::get_parry_window);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "parry_window", PROPERTY_HINT_RANGE, "0.05,1,0.01,suffix:s"), "set_parry_window", "get_parry_window");
 	ClassDB::bind_method(D_METHOD("set_bow_min_speed", "v"), &CelesteController::set_bow_min_speed);
 	ClassDB::bind_method(D_METHOD("get_bow_min_speed"), &CelesteController::get_bow_min_speed);
 	ClassDB::bind_method(D_METHOD("set_bow_max_speed", "v"), &CelesteController::set_bow_max_speed);
@@ -95,7 +91,8 @@ CelesteController::~CelesteController() {
 	delete airborne_state;
 	delete double_jump_state;
 	delete dash_state;
-	delete jumpkick_state;
+	delete attack_state;
+	delete dive_state;
 }
 
 void CelesteController::_update_jump_math() {
@@ -122,7 +119,8 @@ void CelesteController::_ready() {
 	fall_state = new CelesteFallState(this, airborne_state);
 	double_jump_state = new CelesteDoubleJumpState(this, airborne_state);
 	dash_state = new CelesteDashState(this, airborne_state);
-	jumpkick_state = new CelesteJumpKickState(this, nullptr);
+	attack_state = new CelesteAttackState(this, nullptr);
+	dive_state = new CelesteDiveKickState(this, nullptr);
 
 	current_state = fall_state;
 	current_state->enter();
@@ -148,7 +146,6 @@ void CelesteController::_ready() {
 	ui_vars["dash_speed"] = &dash_speed;
 	ui_vars["dash_duration"] = &dash_duration;
 	ui_vars["melee_range"] = &melee_range;
-	ui_vars["melee_speed"] = &melee_lunge_speed;
 
 	ui_vars["spring_stiffness"] = &spring_stiffness;
 	ui_vars["spring_damping"] = &spring_damping;
@@ -167,6 +164,7 @@ void CelesteController::_ready() {
 	set_control_scheme(control_scheme);
 	_prev_yaw = get_rotation().y;
 	_find_skin();
+	attack_fx.setup(this, _skin);
 	_audio.setup(this, "res://assets/character/sounds/");
 	bow.setup(this, "res://assets/projectiles/player_arrow.tres");
 }
@@ -351,6 +349,12 @@ void CelesteController::_physics_process(double delta) {
 	_update_controls(f_delta);
 	_update_bow(f_delta);
 
+	// Parry window: opened only by pressing hit (kick); the kick itself still plays.
+	_parry_timer -= f_delta;
+	if (_active && state.character.kick_just_pressed) {
+		_parry_timer = parry_window;
+	}
+
 	// Update Coyote Timer
 	if (is_on_floor()) {
 		coyote_timer = coyote_time_max;
@@ -369,6 +373,7 @@ void CelesteController::_physics_process(double delta) {
 		is_jumping = false;
 		can_dash = true;
 		can_double_jump = true;
+		can_air_spin = true;
 	}
 
 	// Update Timers
@@ -471,6 +476,7 @@ void CelesteController::_physics_process(double delta) {
 		set_velocity(get_velocity() - platform_velocity);
 	}
 
+	attack_fx.tick(f_delta);
 	_update_skin_and_audio(f_delta);
 
 	if (ui_helper) {
@@ -558,30 +564,68 @@ void CelesteController::load_settings() {
 	UtilityFunctions::print("CelesteController: Settings loaded from user://celeste_settings.cfg");
 }
 
-Node3D *CelesteController::_find_melee_target() {
+Node3D *CelesteController::_find_dive_target() {
 	EnemyManager *em = EnemyManager::get_singleton();
-	if (!em)
+	if (!em) {
 		return nullptr;
+	}
+	static const float MAX_RISE = 1.0f; // dives go across or down, never up onto a ledge
+	static const float BEHIND_OK = 2.5f; // anything this close counts even if behind
+	Vector3 pos = get_global_position();
+	Vector3 ahead = has_move_intent() ? scheme_move_dir() : -get_global_basis().get_column(2);
+	ahead.y = 0.0f;
+	ahead = (ahead.length_squared() > 1e-4f) ? ahead.normalized() : Vector3(0, 0, -1);
 
-	PlayerInput *input = PlayerInput::get_singleton();
-	Vector3 input_dir = Vector3(0, 0, 0);
-	if (input) {
-		Vector2 axis = input->get_move_axis();
-		if (axis.length() > 0.1f) {
-			Node3D *cam = GameManager::get_singleton()->get_camera();
-			if (cam) {
-				Vector3 fwd = cam->get_global_transform().basis.get_column(2).normalized();
-				fwd.y = 0;
-				fwd.normalize();
-				Vector3 right = cam->get_global_transform().basis.get_column(0).normalized();
-				right.y = 0;
-				right.normalize();
-				input_dir = (fwd * axis.y + right * axis.x).normalized();
-			}
+	Node3D *best = nullptr;
+	float best_score = -1.0f;
+	for (const EnemyData &e : em->get_enemies()) {
+		Node3D *n = e.node;
+		if (!n || !n->is_inside_tree() || n->is_queued_for_deletion()) {
+			continue;
+		}
+		EnemyBase *eb = Object::cast_to<EnemyBase>(n);
+		if (eb && eb->get_is_dead()) {
+			continue;
+		}
+		Vector3 to = n->get_global_position() - pos;
+		float dist = to.length();
+		if (dist > dive_range || to.y > MAX_RISE) {
+			continue;
+		}
+		Vector3 flat(to.x, 0.0f, to.z);
+		float flat_len = flat.length();
+		float dot = (flat_len > 0.01f) ? ahead.dot(flat / flat_len) : 1.0f;
+		if (dot < -0.2f && flat_len > BEHIND_OK) {
+			continue;
+		}
+		float score = 1.0f / (dist + 1.0f) + 2.0f * MAX(0.0f, dot); // near + ahead wins
+		if (score > best_score) {
+			best_score = score;
+			best = n;
 		}
 	}
+	return best;
+}
 
-	return em->get_best_target(get_global_position(), input_dir, melee_range);
+void CelesteController::_spin_hit() {
+	EnemyManager *em = EnemyManager::get_singleton();
+	if (!em) {
+		return;
+	}
+	Vector3 pos = get_global_position();
+	// Copy: a hit can kill an enemy, which unregisters it from the list we'd be iterating.
+	std::vector<EnemyData> enemies = em->get_enemies();
+	for (const EnemyData &e : enemies) {
+		if (!e.node || !e.node->is_inside_tree()) {
+			continue;
+		}
+		if (e.node->get_global_position().distance_to(pos) > melee_range + 0.5f) {
+			continue; // +0.5: measured centre to centre, enemies have some size
+		}
+		if (EnemyBase *eb = Object::cast_to<EnemyBase>(e.node)) {
+			eb->take_damage(1.0f);
+		}
+	}
 }
 
 Vector3 CelesteController::_collide_and_slide(
