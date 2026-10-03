@@ -29,8 +29,32 @@
 
 namespace godot {
 
+bool CelesteController::is_parrying() const {
+	if (!current_state) {
+		return false;
+	}
+	return current_state == static_cast<CelesteState *>(dash_state) ||
+			current_state == static_cast<CelesteState *>(jumpkick_state);
+}
+
 void CelesteController::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_ui_toggle"), &CelesteController::_on_ui_toggle);
+	ClassDB::bind_method(D_METHOD("is_parrying"), &CelesteController::is_parrying);
+	ClassDB::bind_method(D_METHOD("is_aiming"), &CelesteController::is_aiming);
+	ClassDB::bind_method(D_METHOD("set_bow_min_speed", "v"), &CelesteController::set_bow_min_speed);
+	ClassDB::bind_method(D_METHOD("get_bow_min_speed"), &CelesteController::get_bow_min_speed);
+	ClassDB::bind_method(D_METHOD("set_bow_max_speed", "v"), &CelesteController::set_bow_max_speed);
+	ClassDB::bind_method(D_METHOD("get_bow_max_speed"), &CelesteController::get_bow_max_speed);
+	ClassDB::bind_method(D_METHOD("set_bow_draw_time", "v"), &CelesteController::set_bow_draw_time);
+	ClassDB::bind_method(D_METHOD("get_bow_draw_time"), &CelesteController::get_bow_draw_time);
+	ClassDB::bind_method(D_METHOD("set_bow_loft", "v"), &CelesteController::set_bow_loft);
+	ClassDB::bind_method(D_METHOD("get_bow_loft"), &CelesteController::get_bow_loft);
+	ADD_GROUP("Bow", "bow_");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "bow_min_speed", PROPERTY_HINT_RANGE, "1,60,0.5,suffix:m/s"), "set_bow_min_speed", "get_bow_min_speed");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "bow_max_speed", PROPERTY_HINT_RANGE, "1,60,0.5,suffix:m/s"), "set_bow_max_speed", "get_bow_max_speed");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "bow_draw_time", PROPERTY_HINT_RANGE, "0.05,3,0.05,suffix:s"), "set_bow_draw_time", "get_bow_draw_time");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "bow_loft", PROPERTY_HINT_RANGE, "-0.5,1.2,0.01,suffix:rad"), "set_bow_loft", "get_bow_loft");
+	ADD_GROUP("", "");
 	ClassDB::bind_method(D_METHOD("save_settings"), &CelesteController::save_settings);
 	ClassDB::bind_method(D_METHOD("load_settings"), &CelesteController::load_settings);
 	ClassDB::bind_method(
@@ -144,6 +168,7 @@ void CelesteController::_ready() {
 	_prev_yaw = get_rotation().y;
 	_find_skin();
 	_audio.setup(this, "res://assets/character/sounds/");
+	bow.setup(this, "res://assets/projectiles/player_arrow.tres");
 }
 
 void CelesteController::_exit_tree() {
@@ -217,6 +242,19 @@ void CelesteController::_update_controls(float p_delta) {
 	}
 	// The body faces the heading (kinematic body + symmetric capsule: rotating it is free).
 	set_rotation(Vector3(0.0f, controls.get_face_yaw(), 0.0f));
+}
+
+// Bow: hold to draw (arc preview), release to fire. While drawing, face the aim.
+void CelesteController::_update_bow(float p_delta) {
+	GameManager *gm = GameManager::get_singleton();
+	if (!_active || !gm) {
+		bow.cancel();
+		return;
+	}
+	bow.update(p_delta, input_state().character.bow, gm->get_camera());
+	if (bow.is_aiming()) {
+		set_rotation(Vector3(0.0f, bow.get_aim_yaw(), 0.0f));
+	}
 }
 
 // Two-ray step test, measured from the real floor (the sole hovers above it):
@@ -311,6 +349,7 @@ void CelesteController::_physics_process(double delta) {
 	const ActionState &state = input_state();
 
 	_update_controls(f_delta);
+	_update_bow(f_delta);
 
 	// Update Coyote Timer
 	if (is_on_floor()) {

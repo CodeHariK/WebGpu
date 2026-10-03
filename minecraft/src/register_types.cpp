@@ -1,3 +1,5 @@
+#include "combat/projectile_launcher.h"
+#include "combat/trajectory_preview.h"
 #include "register_types.h"
 
 #include <gdextension_interface.h>
@@ -214,6 +216,10 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(CelesteController);
 	GDREGISTER_CLASS(SpringCharacter);
 	GDREGISTER_CLASS(Bubble);
+	GDREGISTER_CLASS(ProjectileProfile);
+	GDREGISTER_CLASS(Projectile);
+	GDREGISTER_CLASS(ProjectileLauncher);
+	GDREGISTER_CLASS(TrajectoryPreview);
 
 	GDREGISTER_CLASS(EnemyManager);
 	GDREGISTER_CLASS(EnemyBase);

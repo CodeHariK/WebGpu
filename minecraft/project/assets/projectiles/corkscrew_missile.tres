@@ -1,0 +1,7 @@
+[gd_resource type="ProjectileProfile" format=3]
+
+[resource]
+wobble_style = 1
+wobble_amp = 0.14
+wobble_freq = 2.5
+body_color = Color(0.4, 0.8, 0.35, 1)

@@ -13,7 +13,7 @@ namespace godot {
 // Frame-rate-independent smoothing rates (e-folds per second).
 static const float PIVOT_RATE = 12.0f; // how fast the framing chases the character
 static const float VELOCITY_RATE = 5.0f; // how fast the "travel direction" settles
-static const float PITCH_RETURN_RATE = 1.5f; // how fast pitch eases back to the resting framing
+static const float PITCH_RETURN_RATE = 0.6f; // gentle: pitch drifts back to the resting framing while running
 static const float RECENTER_SPEED = 2.5f; // only auto-centre above this horizontal speed (m/s)
 static const float AWAY_MIN = 0.35f; // need a real 'away from camera' component; sideways/toward never swing
 static const float AWAY_FULL = 0.85f; // travel this far away from the camera: full swing-behind rate
@@ -92,6 +92,13 @@ void CameraStatePlatformer::update(
 		recenter_suspend -= p_delta;
 	}
 
+	// Auto-recentre (yaw swing + pitch return) only once the player has committed to running,
+	// hasn't just looked around, and isn't aiming: standing still, the view stays exactly where
+	// it was left (Odyssey / A Hat in Time). Aiming must never have the camera drag the aim.
+	bool aiming = target && target->has_method("is_aiming") && bool(target->call("is_aiming"));
+	bool auto_recenter = !orbiting && !aiming && recenter_suspend <= 0.0f &&
+			travel_time > p_camera->platformer_recenter_delay;
+
 	// Soft swing-behind: ease the yaw round behind the direction of travel once the
 	// player has committed to it. Idle (or orbiting / recently orbited) holds the view.
 	//
@@ -100,7 +107,7 @@ void CameraStatePlatformer::update(
 	// behind a character running at you rotates "toward the camera" with it, which turns
 	// the character, which turns the camera... a feedback loop that runs you in circles.
 	// Odyssey does the same: run at the camera and it just lets you come to it.
-	if (!orbiting && recenter_suspend <= 0.0f && travel_time > p_camera->platformer_recenter_delay) {
+	if (auto_recenter) {
 		Vector3 travel_dir = horizontal_vel / h_speed; // h_speed > RECENTER_SPEED here
 		Vector3 cam_fwd(-Math::sin(p_camera->yaw), 0.0f, -Math::cos(p_camera->yaw)); // ground-plane look dir
 		float away = travel_dir.dot(cam_fwd); // +1 away from camera, 0 sideways, -1 toward it
@@ -114,8 +121,8 @@ void CameraStatePlatformer::update(
 		}
 	}
 
-	// Ease pitch back to the comfortable resting framing when hands-off.
-	if (!orbiting) {
+	// Ease pitch back to the resting framing, under the same rule as the yaw swing.
+	if (auto_recenter) {
 		float h_dist = Vector2(p_camera->follow_offset.x, p_camera->follow_offset.z).length();
 		float base_pitch = (h_dist > 0.01f) ? -Math::atan2(p_camera->follow_offset.y, h_dist) : p_camera->pitch;
 		p_camera->pitch += (base_pitch - p_camera->pitch) * spring_damp_factor(PITCH_RETURN_RATE, p_delta);

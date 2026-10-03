@@ -79,6 +79,7 @@ void PlayerInput::update() {
 	current_state.character.grab = input->is_action_pressed("grab");
 	current_state.character.interact = input->is_action_pressed("interact");
 	current_state.character.dash = input->is_action_pressed("dash");
+	current_state.character.bow = input->is_action_pressed("bow");
 	current_state.system.swap_target = input->is_action_pressed("swap_target");
 	current_state.system.toggle_recipe_editor = input->is_action_pressed("toggle_recipe_editor");
 

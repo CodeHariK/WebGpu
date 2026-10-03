@@ -3,6 +3,7 @@
 
 #include "../character/character_animator.h"
 #include "../character/character_audio.h"
+#include "../character/bow_aim.h"
 #include "../character/character_controls.h"
 #include "../game_manager/player_input.h"
 #include <godot_cpp/classes/character_body3d.hpp>
@@ -84,6 +85,7 @@ private:
 	// 2 = Legacy (the original TPS / Fixed camera behaviour). V flips 0 <-> 1 in game.
 	int control_scheme = 0;
 	CharacterControls controls;
+	BowAim bow; ///< Hold R: draw, see the arc, release to fire an arrow.
 	bool _scheme_key_was_down = false;
 	bool _active = false; ///< This frame: are we the GameManager's active target?
 
@@ -118,6 +120,7 @@ private:
 
 	void _update_jump_math();
 	void _update_controls(float p_delta);
+	void _update_bow(float p_delta);
 	void _update_ride_height(
 			const Vector3 &p_bottom,
 			float p_delta
@@ -156,6 +159,18 @@ public:
 	// Input as seen by the states: empty unless we are the active target, so an
 	// inactive character never reacts to keys meant for another one.
 	const ActionState &input_state() const;
+	/// True while dashing or jump-kicking: homing projectiles that reach us get reflected.
+	bool is_parrying() const;
+	bool is_aiming() const { return bow.is_aiming(); }
+
+	void set_bow_min_speed(float p_v) { bow.min_speed = p_v; }
+	float get_bow_min_speed() const { return bow.min_speed; }
+	void set_bow_max_speed(float p_v) { bow.max_speed = p_v; }
+	float get_bow_max_speed() const { return bow.max_speed; }
+	void set_bow_draw_time(float p_v) { bow.draw_time = p_v; }
+	float get_bow_draw_time() const { return bow.draw_time; }
+	void set_bow_loft(float p_v) { bow.loft = p_v; }
+	float get_bow_loft() const { return bow.loft; }
 	float movement_strength() const;
 	bool uses_scheme() const { return control_scheme != 2; }
 	Vector3 scheme_move_dir() const { return controls.get_move_dir(); }

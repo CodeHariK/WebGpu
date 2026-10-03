@@ -1,0 +1,15 @@
+[gd_resource type="ProjectileProfile" format=3]
+
+[resource]
+guidance = 1
+speed = 7.0
+lead = 0.6
+gravity = 14.0
+min_flight_time = 1.2
+lifetime = 8.0
+hit_radius = 0.6
+blast_radius = 2.2
+wobble_amp = 0.1
+wobble_freq = 5.0
+model_scale = 1.25
+body_color = Color(1, 0.55, 0.15, 1)
