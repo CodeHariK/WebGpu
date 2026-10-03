@@ -10,6 +10,7 @@
 #include "../game_manager/player_input.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "../interaction/environment/moving_platform.h"
+#include "bubble/bubble.h"
 #include "../debug_draw/debug_manager.h"
 
 #include <godot_cpp/classes/camera3d.hpp>
@@ -18,6 +19,7 @@
 #include <godot_cpp/classes/capsule_shape3d.hpp>
 #include <godot_cpp/classes/physics_material.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/classes/viewport.hpp>
@@ -343,8 +345,18 @@ void SpringCharacter::_cast_ground() {
 		_ground_point = hit.position;
 		_ground_body = hit.collider;
 		MovingPlatform *mp = Object::cast_to<MovingPlatform>(_ground_body);
-		_platform_velocity = mp ? mp->get_velocity() : Vector3(0.0f, 0.0f, 0.0f);
+		Bubble *bubble = Object::cast_to<Bubble>(_ground_body);
+		if (mp) {
+			_platform_velocity = mp->get_velocity();
+		} else if (bubble) {
+			_platform_velocity = bubble->get_velocity(); // ride it as it floats
+		} else {
+			_platform_velocity = Vector3(0.0f, 0.0f, 0.0f);
+		}
 		_grounded = _ground_distance <= ride_height + 0.15f;
+		if (bubble && _grounded) {
+			bubble->notify_stood_on(); // it dips under her weight
+		}
 	} else {
 		_has_support = false;
 		_grounded = false;
@@ -395,6 +407,9 @@ void SpringCharacter::_tick_timers(float p_dt) {
 	}
 	if (_dash_cd_timer > 0.0f) {
 		_dash_cd_timer -= p_dt;
+	}
+	if (_bubble_cd > 0.0f) {
+		_bubble_cd -= p_dt;
 	}
 	if (_dash_timer > 0.0f) {
 		_dash_timer -= p_dt;
@@ -637,6 +652,37 @@ void SpringCharacter::_find_skin() {
 	_prev_face_yaw = _face_yaw;
 }
 
+// Bubble Wand: blow a bubble out ahead along the heading. Over the cap, the oldest pops.
+void SpringCharacter::_blow_bubble() {
+	Node *parent = get_parent();
+	if (!parent || !is_inside_tree()) {
+		return;
+	}
+	TypedArray<Node> alive = get_tree()->get_nodes_in_group("bubbles");
+	Bubble *oldest = nullptr;
+	int live = 0;
+	for (int i = 0; i < alive.size(); i++) {
+		Bubble *b = Object::cast_to<Bubble>(alive[i]);
+		if (b && !b->is_popping()) {
+			live++;
+			if (!oldest || b->get_age() > oldest->get_age()) {
+				oldest = b;
+			}
+		}
+	}
+	if (live >= max_bubbles && oldest) {
+		oldest->pop();
+	}
+
+	Vector3 fwd(-std::sin(_face_yaw), 0.0f, -std::cos(_face_yaw));
+	// Far enough ahead that the bubble (r 0.8) clears the capsule (r 0.4), at chest height.
+	Vector3 origin = get_global_position() + fwd * 1.6f + Vector3(0.0f, 0.4f, 0.0f);
+	Bubble *bubble = memnew(Bubble);
+	parent->add_child(bubble);
+	bubble->launch(origin, fwd);
+	_bubble_cd = bubble_cooldown;
+}
+
 void SpringCharacter::_physics_process(double delta) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
@@ -807,6 +853,9 @@ void SpringCharacter::_physics_process(double delta) {
 	_cast_wall(_wish);
 	_vel = get_linear_velocity() - _platform_velocity; // work in platform-relative space
 	_tick_timers(dt);
+	if (active && _bubble_cd <= 0.0f && Input::get_singleton()->is_action_just_pressed("bubble")) {
+		_blow_bubble();
+	}
 	_update_jump_timers(dt);
 
 	// 3. Decide the state (may set a launch velocity), let it shape `_vel`, commit.
