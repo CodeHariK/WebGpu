@@ -3,6 +3,7 @@
 
 #include "../character/character_animator.h"
 #include "../character/character_audio.h"
+#include "attack_fx.h"
 #include "../character/bow_aim.h"
 #include "../character/character_controls.h"
 #include "../game_manager/player_input.h"
@@ -22,7 +23,8 @@ class CelesteFallState;
 class CelesteGroundedState;
 class CelesteAirborneState;
 class CelesteDoubleJumpState;
-class CelesteJumpKickState;
+class CelesteAttackState;
+class CelesteDiveKickState;
 
 class CelesteController : public CharacterBody3D {
 	GDCLASS(CelesteController,
@@ -37,7 +39,8 @@ class CelesteController : public CharacterBody3D {
 	friend class CelesteFallState;
 	friend class CelesteDoubleJumpState;
 	friend class CelesteDashState;
-	friend class CelesteJumpKickState;
+	friend class CelesteAttackState;
+	friend class CelesteDiveKickState;
 
 private:
 	// Movement Settings (Celeste-style)
@@ -69,8 +72,9 @@ private:
 
 	// Melee Parameters
 	float half_height = 1.0f;
-	float melee_range = 3.0f;
-	float melee_lunge_speed = 50.0f;
+	float melee_range = 2.2f; ///< Spin attack hit radius (m).
+	bool can_air_spin = true; ///< One air spin per airtime (refilled on landing).
+	float dive_range = 12.0f; ///< Air + hit dives onto an enemy within this range (m).
 	uint32_t melee_target_layer = 4; // Layer 3 (bit 2)
 
 	float ride_height = 0.1f;
@@ -85,7 +89,9 @@ private:
 	// 2 = Legacy (the original TPS / Fixed camera behaviour). V flips 0 <-> 1 in game.
 	int control_scheme = 0;
 	CharacterControls controls;
-	BowAim bow; ///< Hold R: draw, see the arc, release to fire an arrow.
+	BowAim bow;
+	float parry_window = 0.2f; ///< Seconds after pressing hit during which projectiles are parried.
+	float _parry_timer = 0.0f; ///< Hold R: draw, see the arc, release to fire an arrow.
 	bool _scheme_key_was_down = false;
 	bool _active = false; ///< This frame: are we the GameManager's active target?
 
@@ -127,7 +133,9 @@ private:
 	);
 	void _find_skin();
 	void _update_skin_and_audio(float p_delta);
-	Node3D *_find_melee_target();
+	void _spin_hit(); ///< Spin attack connects: damage every enemy within melee_range.
+	/// Air + hit: the enemy to dive onto (in reach, not above us, roughly ahead), or null.
+	Node3D *_find_dive_target();
 
 	// HSM States
 	CelesteState *current_state = nullptr;
@@ -139,7 +147,10 @@ private:
 	CelesteAirborneState *airborne_state = nullptr;
 	CelesteDoubleJumpState *double_jump_state = nullptr;
 	class CelesteDashState *dash_state = nullptr;
-	CelesteJumpKickState *jumpkick_state = nullptr;
+	CelesteAttackState *attack_state = nullptr;
+	CelesteDiveKickState *dive_state = nullptr;
+	AttackFx attack_fx; ///< Look of the attacks (spin whirl + swoosh, dive pose, impact ring).
+	uint64_t _dive_target_id = 0; ///< Chosen by _find_dive_target, read by the dive state on enter.
 
 protected:
 	static void _bind_methods();
@@ -159,8 +170,11 @@ public:
 	// Input as seen by the states: empty unless we are the active target, so an
 	// inactive character never reacts to keys meant for another one.
 	const ActionState &input_state() const;
-	/// True while dashing or jump-kicking: homing projectiles that reach us get reflected.
-	bool is_parrying() const;
+	/// True for `parry_window` seconds after the hit (kick) button is pressed: a projectile
+	/// reaching us then gets batted away (see Projectile::_try_parry).
+	bool is_parrying() const { return _parry_timer > 0.0f; }
+	void set_parry_window(float p_v) { parry_window = p_v; }
+	float get_parry_window() const { return parry_window; }
 	bool is_aiming() const { return bow.is_aiming(); }
 
 	void set_bow_min_speed(float p_v) { bow.min_speed = p_v; }

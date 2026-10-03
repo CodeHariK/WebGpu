@@ -1,6 +1,8 @@
 #include "projectile.h"
 
 #include "../../debug_draw/debug_manager.h"
+#include "../../enemy/enemy_base.h"
+#include "../../enemy/enemy_manager.h"
 #include "../../game_manager/game_constants.h"
 #include "../../utils/body_velocity.h"
 #include "../../utils/raycast/mc_raycast.h"
@@ -15,6 +17,7 @@
 #include <godot_cpp/classes/world3d.hpp>
 #include <godot_cpp/core/math.hpp>
 #include <godot_cpp/core/object.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -114,7 +117,7 @@ void Projectile::fire(
 		set_position(p_origin);
 	}
 	if (_is_ballistic()) {
-		_aim_ballistic(p_target, p_origin); // replaces the launch direction with the solved arc
+		_aim_ballistic(p_target, p_origin, profile->get_min_flight_time()); // the solved arc replaces the launch direction
 	}
 	_orient();
 }
@@ -157,10 +160,11 @@ Vector3 Projectile::_ground_below(
 
 void Projectile::_aim_ballistic(
 		Node3D *p_target,
-		const Vector3 &p_from
+		const Vector3 &p_from,
+		float p_min_time
 ) {
 	float g = profile->get_ballistic_gravity();
-	float min_t = profile->get_min_flight_time();
+	float min_t = p_min_time;
 	Vector3 goal = p_target ? p_target->get_global_position() : p_from + velocity.normalized() * 10.0f;
 	Vector3 drift = p_target ? body_velocity(p_target) : Vector3();
 	drift.y = 0.0f; // lead along the ground only; jumps shouldn't throw the zone into the air
@@ -268,22 +272,50 @@ bool Projectile::_try_parry(
 		return false;
 	}
 
-	// Flip sides: the parrier becomes the shooter, the shooter becomes the target.
-	Node3D *old_shooter = _resolve(shooter_id);
+	// Flip sides: the parrier becomes the shooter; the shot pops up and falls on a random
+	// enemy (the original shooter if nobody else is around). Homing or not, it's a pure
+	// ballistic lob from here on, with the landing zone drawn under the victim.
+	Node3D *lob = _pick_lob_target(p_target, p_pos);
+	if (!lob) {
+		lob = _resolve(shooter_id);
+	}
 	shooter_id = target_id;
-	target_id = old_shooter ? old_shooter->get_instance_id() : 0;
+	target_id = lob ? lob->get_instance_id() : 0;
 	parried = true;
 	speed *= profile->get_parry_speed_scale();
 	lead = 1.0f;
-	if (_is_ballistic()) {
-		_aim_ballistic(old_shooter, p_pos); // lob it straight back onto the shooter
-	} else {
-		Vector3 away = old_shooter ? old_shooter->get_global_position() - p_pos : -velocity;
-		velocity = away.normalized() * speed;
-		_set_phase(PHASE_LAUNCH);
-	}
+	_aim_ballistic(lob, p_pos, profile->get_parry_lob_time());
 	emit_signal("parried");
 	return true;
+}
+
+Node3D *Projectile::_pick_lob_target(
+		Node3D *p_exclude,
+		const Vector3 &p_pos
+) const {
+	EnemyManager *em = EnemyManager::get_singleton();
+	if (!em) {
+		return nullptr;
+	}
+	float range = profile->get_parry_lob_range();
+	std::vector<Node3D *> candidates;
+	for (const EnemyData &e : em->get_enemies()) {
+		Node3D *n = e.node;
+		if (!n || n == p_exclude || !n->is_inside_tree() || n->is_queued_for_deletion()) {
+			continue;
+		}
+		EnemyBase *eb = Object::cast_to<EnemyBase>(n);
+		if (eb && eb->get_is_dead()) {
+			continue;
+		}
+		if (n->get_global_position().distance_to(p_pos) <= range) {
+			candidates.push_back(n);
+		}
+	}
+	if (candidates.empty()) {
+		return nullptr;
+	}
+	return candidates[UtilityFunctions::randi_range(0, (int64_t)candidates.size() - 1)];
 }
 
 bool Projectile::_sweep(

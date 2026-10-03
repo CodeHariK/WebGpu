@@ -7,6 +7,9 @@ namespace godot {
 void EnemyBase::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_enemy_kind", "kind"), &EnemyBase::set_enemy_kind);
 	ClassDB::bind_method(D_METHOD("get_enemy_kind"), &EnemyBase::get_enemy_kind);
+	ClassDB::bind_method(D_METHOD("get_health"), &EnemyBase::get_health);
+	ClassDB::bind_method(D_METHOD("get_is_dead"), &EnemyBase::get_is_dead);
+	ClassDB::bind_method(D_METHOD("take_damage", "amount"), &EnemyBase::take_damage);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "enemy_kind"), "set_enemy_kind", "get_enemy_kind");
 }

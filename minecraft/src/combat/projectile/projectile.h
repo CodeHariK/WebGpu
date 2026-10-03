@@ -31,9 +31,10 @@ namespace godot {
  * Movement is kinematic: one ray from last position to new position per tick (no tunnelling,
  * no physics body), plus a segment-to-centre distance test against the target for a fat hit.
  *
- * Parry: if the target is "parrying" (has `is_parrying()` returning true, e.g. Celeste while
- * dashing or jump-kicking) within `parry_radius`, the shot flips sides, re-targets its shooter,
- * speeds up and leads fully.
+ * Parry: if the target is "parrying" (has `is_parrying()` returning true, e.g. Celeste just
+ * after pressing hit) within `parry_radius`, the shot flips sides and becomes a ballistic
+ * lob onto a random living enemy within `parry_lob_range` (the shooter if none), with the
+ * landing zone shown under it.
  *
  * The cartoon angle shake gets stronger as the shot closes in (see _shake()).
  *
@@ -97,8 +98,13 @@ private:
 	bool _is_ballistic() const;
 	void _aim_ballistic(
 			Node3D *p_target,
-			const Vector3 &p_from
+			const Vector3 &p_from,
+			float p_min_time
 	);
+	Node3D *_pick_lob_target(
+			Node3D *p_exclude,
+			const Vector3 &p_pos
+	) const;
 	Vector3 _ground_below(
 			const Vector3 &p_point,
 			Node3D *p_ignore

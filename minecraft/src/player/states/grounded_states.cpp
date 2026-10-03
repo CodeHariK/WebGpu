@@ -51,7 +51,7 @@ void CelesteGroundedState::physics_update(float delta) {
 
 	// Kick Input
 	if (state.character.kick_just_pressed) {
-		controller->change_state(controller->jumpkick_state);
+		controller->change_state(controller->attack_state);
 		return;
 	}
 }
