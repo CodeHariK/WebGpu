@@ -533,6 +533,14 @@ mesh = SubResource("BoxMesh_nxv8y")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="PatrolMelee/PatrolMeleeEnemy" unique_id=1571380230]
 shape = SubResource("BoxShape3D_nxv8y")
 
+[node name="AirEnemies" type="Node" parent="."]
+
+[node name="HelicopterEnemy" type="HelicopterEnemy" parent="AirEnemies"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 10, 16)
+
+[node name="UfoEnemy" type="UfoEnemy" parent="AirEnemies"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, -14)
+
 [node name="TurretEnemy" type="Node" parent="." unique_id=302777879]
 
 [node name="TurretEnemy" type="TurretEnemy" parent="TurretEnemy" unique_id=1886300453]

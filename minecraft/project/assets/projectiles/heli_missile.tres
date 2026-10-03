@@ -1,0 +1,11 @@
+[gd_resource type="ProjectileProfile" format=3]
+
+[resource]
+speed = 8.0
+turn_rate = 90.0
+lead = 0.4
+launch_time = 0.4
+launch_lift = 0.15
+launch_gravity = 3.0
+wobble_amp = 0.12
+body_color = Color(0.95, 0.25, 0.25, 1)
