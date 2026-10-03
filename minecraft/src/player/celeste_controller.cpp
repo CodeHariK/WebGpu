@@ -35,6 +35,7 @@ void CelesteController::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_parrying"), &CelesteController::is_parrying);
 	ClassDB::bind_method(D_METHOD("is_aiming"), &CelesteController::is_aiming);
 	ClassDB::bind_method(D_METHOD("is_carrying"), &CelesteController::is_carrying);
+	ClassDB::bind_method(D_METHOD("is_grounded"), &CelesteController::is_grounded);
 	ClassDB::bind_method(D_METHOD("set_throw_speed", "v"), &CelesteController::set_throw_speed);
 	ClassDB::bind_method(D_METHOD("get_throw_speed"), &CelesteController::get_throw_speed);
 	ClassDB::bind_method(D_METHOD("set_throw_damage", "v"), &CelesteController::set_throw_damage);

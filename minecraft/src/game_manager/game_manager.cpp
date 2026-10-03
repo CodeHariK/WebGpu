@@ -294,9 +294,10 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 
 	Ref<InputEventKey> k = p_event;
 	if (k.is_valid() && k->is_pressed() && !k->is_echo()) {
-		// F3 cycles the debug views: the viewport's built-in ones (unshaded, overdraw, wireframe,
-		// normals), then TerraSpline's shader views through the `ts_debug_view` shader global
-		// (1 UV, 2 UV2, 3 vertex colour, 4 road marking mask, 5 painted control map), then off.
+		// F3 cycles the debug views: the camera framing box (GameCamera.show_frame_bounds), the
+		// viewport's built-in ones (unshaded, overdraw, wireframe, normals), then TerraSpline's
+		// shader views through the `ts_debug_view` shader global (1 UV, 2 UV2, 3 vertex colour,
+		// 4 road marking mask, 5 painted control map), then off.
 		if (k->get_keycode() == KEY_F3) {
 			Viewport *viewport = get_viewport();
 			if (viewport) {
@@ -307,8 +308,16 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 				Viewport::DebugDraw next_mode = Viewport::DEBUG_DRAW_DISABLED;
 				int ts_view = _ts_debug_view;
 
-				if (current_mode == Viewport::DEBUG_DRAW_DISABLED && ts_view == 0) {
+				bool framing = main_camera && main_camera->get_show_frame_bounds();
+				if (framing) {
+					main_camera->set_show_frame_bounds(false); // framing -> unshaded
 					next_mode = Viewport::DEBUG_DRAW_UNSHADED;
+				} else if (current_mode == Viewport::DEBUG_DRAW_DISABLED && ts_view == 0) {
+					if (main_camera) {
+						main_camera->set_show_frame_bounds(true); // off -> camera framing
+					} else {
+						next_mode = Viewport::DEBUG_DRAW_UNSHADED;
+					}
 				} else if (current_mode == Viewport::DEBUG_DRAW_UNSHADED) {
 					next_mode = Viewport::DEBUG_DRAW_OVERDRAW;
 				} else if (current_mode == Viewport::DEBUG_DRAW_OVERDRAW) {
@@ -350,8 +359,8 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 }
 
 /**
- * @brief Top-centre CUI banner listing the active debug views (F3 viewport mode, F3 TerraSpline shader
- * view, F4 collision shapes). Built on first use on its own CanvasLayer; hidden when everything is off.
+ * @brief Top-centre CUI banner listing the active debug views (F3 camera framing, F3 viewport mode,
+ * F3 TerraSpline shader view, F4 collision shapes). Built on first use on its own CanvasLayer; hidden when everything is off.
  */
 void GameManager::_update_debug_banner() {
 	static const char *VIEWPORT_NAMES[] = { "", "Unshaded", "Lighting", "Overdraw", "Wireframe", "Normal buffer" };
@@ -369,6 +378,9 @@ void GameManager::_update_debug_banner() {
 		return;
 	}
 	PackedStringArray parts;
+	if (main_camera && main_camera->get_show_frame_bounds()) {
+		parts.push_back("F3  Camera framing  (yellow = kept-in band, dot = character)");
+	}
 	const int vp = (int)viewport->get_debug_draw();
 	if (vp > 0 && vp <= 5) {
 		parts.push_back(String("F3  ") + VIEWPORT_NAMES[vp]);

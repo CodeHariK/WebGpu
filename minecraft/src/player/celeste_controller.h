@@ -180,6 +180,8 @@ public:
 	float get_parry_window() const { return parry_window; }
 	bool is_aiming() const { return bow.is_aiming() || lift.is_aiming(); }
 	bool is_carrying() const { return lift.is_holding(); }
+	/// On (hovering over) the ground. Follow cameras use it to hold their height mid-jump.
+	bool is_grounded() const { return is_hovering; }
 	/// Top run speed right now (slower while carrying something heavy).
 	float move_speed() const { return max_speed * (lift.is_holding() ? lift.carry_speed_scale : 1.0f); }
 	void set_throw_speed(float p_v) { lift.throw_speed = p_v; }

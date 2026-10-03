@@ -12,6 +12,7 @@
 //   collision + targeting   - _solve_collision / follow-target setters /
 //                             get_center_raycast_hit / get_current_target_distance
 
+#include "frame_overlay.h"
 #include "../utils/body_velocity.h"
 #include "camera.h"
 #include "../game_manager/game_manager.h"
@@ -20,6 +21,7 @@
 
 #include "states/car_state.h"
 #include "states/character_state.h"
+#include <godot_cpp/classes/canvas_layer.hpp>
 #include <godot_cpp/classes/character_body3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
 #include "states/platformer_state.h"
@@ -145,6 +147,26 @@ void GameCamera::_bind_methods() {
 			PropertyInfo(Variant::FLOAT, "platformer_recenter_delay"), "set_platformer_recenter_delay",
 			"get_platformer_recenter_delay"
 	);
+	ClassDB::bind_method(D_METHOD("set_frame_left", "fraction"), &GameCamera::set_frame_left);
+	ClassDB::bind_method(D_METHOD("get_frame_left"), &GameCamera::get_frame_left);
+	ClassDB::bind_method(D_METHOD("set_frame_top", "fraction"), &GameCamera::set_frame_top);
+	ClassDB::bind_method(D_METHOD("get_frame_top"), &GameCamera::get_frame_top);
+	ClassDB::bind_method(D_METHOD("set_frame_right", "fraction"), &GameCamera::set_frame_right);
+	ClassDB::bind_method(D_METHOD("get_frame_right"), &GameCamera::get_frame_right);
+	ClassDB::bind_method(D_METHOD("set_frame_bottom", "fraction"), &GameCamera::set_frame_bottom);
+	ClassDB::bind_method(D_METHOD("get_frame_bottom"), &GameCamera::get_frame_bottom);
+	ClassDB::bind_method(D_METHOD("set_frame_soft_zone", "fraction"), &GameCamera::set_frame_soft_zone);
+	ClassDB::bind_method(D_METHOD("get_frame_soft_zone"), &GameCamera::get_frame_soft_zone);
+	ClassDB::bind_method(D_METHOD("set_show_frame_bounds", "on"), &GameCamera::set_show_frame_bounds);
+	ClassDB::bind_method(D_METHOD("get_show_frame_bounds"), &GameCamera::get_show_frame_bounds);
+	ADD_GROUP("Framing", "frame_");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "frame_left", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_frame_left", "get_frame_left");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "frame_top", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_frame_top", "get_frame_top");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "frame_right", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_frame_right", "get_frame_right");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "frame_bottom", PROPERTY_HINT_RANGE, "0,1,0.01"), "set_frame_bottom", "get_frame_bottom");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "frame_soft_zone", PROPERTY_HINT_RANGE, "0,0.5,0.01"), "set_frame_soft_zone", "get_frame_soft_zone");
+	ADD_GROUP("", "");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_frame_bounds"), "set_show_frame_bounds", "get_show_frame_bounds");
 	ClassDB::bind_method(D_METHOD("set_platformer_look_ahead", "amount"), &GameCamera::set_platformer_look_ahead);
 	ClassDB::bind_method(D_METHOD("get_platformer_look_ahead"), &GameCamera::get_platformer_look_ahead);
 	ADD_PROPERTY(
@@ -249,6 +271,30 @@ void GameCamera::_physics_process(double p_delta) {
 
 	// Additive shake on top of the solved transform (all modes).
 	apply_shake(delta);
+	_update_frame_overlay();
+}
+
+// Debug: draw the framing box and where the follow target sits on screen.
+void GameCamera::_update_frame_overlay() {
+	if (!show_frame_bounds) {
+		if (frame_overlay) {
+			frame_overlay->set_visible(false);
+		}
+		return;
+	}
+	if (!frame_overlay) {
+		CanvasLayer *layer = memnew(CanvasLayer);
+		layer->set_layer(90);
+		add_child(layer);
+		frame_overlay = memnew(CameraFrameOverlay);
+		frame_overlay->set_anchors_preset(Control::PRESET_FULL_RECT);
+		frame_overlay->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
+		layer->add_child(frame_overlay);
+	}
+	frame_overlay->set_visible(true);
+	frame_overlay->set_frame(frame_left, frame_top, frame_right, frame_bottom, frame_soft_zone);
+	bool valid = follow_target_node && !is_position_behind(follow_target_node->get_global_position());
+	frame_overlay->set_target(valid ? unproject_position(follow_target_node->get_global_position()) : Vector2(), valid);
 }
 
 void GameCamera::_unhandled_key_input(const Ref<InputEvent> &p_event) {

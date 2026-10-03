@@ -20,6 +20,7 @@ namespace godot {
 class PlayerInput;
 class GameManager;
 class SpeedLines;
+class CameraFrameOverlay;
 
 /**
  * GameCamera — the game's main 3D camera rig.
@@ -144,6 +145,19 @@ private:
 	float platformer_recenter_delay = 0.35f;
 	/// Platformer: metres to lead the framing along travel at max speed.
 	float platformer_look_ahead = 2.0f;
+	/// Follow cams framing box, as fractions of the screen (0 = top / left). The character's
+	/// centre is kept between frame_top and frame_bottom (hard limit, see CameraVerticalHold);
+	/// frame_left / frame_right are drawn for reference only (horizontal follow ignores them).
+	float frame_left = 0.3f;
+	float frame_top = 0.45f;
+	float frame_right = 0.7f;
+	float frame_bottom = 0.78f; // just below the normal standing framing (~0.73)
+	/// Soft zone inside the top / bottom lines (fraction of screen height): the camera starts
+	/// easing there, so the hard lines are rarely touched (Cinemachine-style).
+	float frame_soft_zone = 0.05f;
+	bool show_frame_bounds = false; ///< Debug overlay of the framing box + target dot.
+	CameraFrameOverlay *frame_overlay = nullptr;
+	void _update_frame_overlay();
 	/// Car: fraction to flatten the pitch toward level at top speed, for a
 	/// stronger sense of velocity (0 = never flatten).
 	float car_speed_pitch_flatten = 0.12f;
@@ -353,6 +367,18 @@ public:
 	float get_platformer_recenter_delay() const { return platformer_recenter_delay; }
 	void set_platformer_look_ahead(float p_v) { platformer_look_ahead = MAX(0.0f, p_v); }
 	float get_platformer_look_ahead() const { return platformer_look_ahead; }
+	void set_frame_left(float p_v) { frame_left = CLAMP(p_v, 0.0f, 1.0f); }
+	float get_frame_left() const { return frame_left; }
+	void set_frame_top(float p_v) { frame_top = CLAMP(p_v, 0.0f, 1.0f); }
+	float get_frame_top() const { return frame_top; }
+	void set_frame_right(float p_v) { frame_right = CLAMP(p_v, 0.0f, 1.0f); }
+	float get_frame_right() const { return frame_right; }
+	void set_frame_bottom(float p_v) { frame_bottom = CLAMP(p_v, 0.0f, 1.0f); }
+	float get_frame_bottom() const { return frame_bottom; }
+	void set_frame_soft_zone(float p_v) { frame_soft_zone = CLAMP(p_v, 0.0f, 0.5f); }
+	float get_frame_soft_zone() const { return frame_soft_zone; }
+	void set_show_frame_bounds(bool p_on) { show_frame_bounds = p_on; }
+	bool get_show_frame_bounds() const { return show_frame_bounds; }
 
 	/// Fixed: ground-plane dead-zone radius before the camera follows (0 = rigid).
 	void set_fixed_deadzone(float p_v) { fixed_deadzone = MAX(0.0f, p_v); }

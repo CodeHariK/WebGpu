@@ -1,3 +1,4 @@
+#include "camera/frame_overlay.h"
 #include "combat/projectile_launcher.h"
 #include "combat/trajectory_preview.h"
 #include "register_types.h"
@@ -202,6 +203,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(CUILineGraph);
 
 	GDREGISTER_CLASS(GameCamera);
+	GDREGISTER_CLASS(CameraFrameOverlay);
 	GDREGISTER_CLASS(SpeedLines);
 	GDREGISTER_CLASS(TimeWarp);
 
