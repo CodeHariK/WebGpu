@@ -9,8 +9,6 @@
 #include "../interaction/environment/moving_platform.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "celeste_state.h"
-#include "celeste_ui.h"
-#include "cui/cui.h"
 #include "states/airborne_states.h"
 #include "states/combat_states.h"
 #include "states/dash_states.h"
@@ -31,7 +29,6 @@
 namespace godot {
 
 void CelesteController::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("_on_ui_toggle"), &CelesteController::_on_ui_toggle);
 	ClassDB::bind_method(D_METHOD("is_parrying"), &CelesteController::is_parrying);
 	ClassDB::bind_method(D_METHOD("is_aiming"), &CelesteController::is_aiming);
 	ClassDB::bind_method(D_METHOD("is_carrying"), &CelesteController::is_carrying);
@@ -61,12 +58,6 @@ void CelesteController::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "bow_draw_time", PROPERTY_HINT_RANGE, "0.05,3,0.05,suffix:s"), "set_bow_draw_time", "get_bow_draw_time");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "bow_loft", PROPERTY_HINT_RANGE, "-0.5,1.2,0.01,suffix:rad"), "set_bow_loft", "get_bow_loft");
 	ADD_GROUP("", "");
-	ClassDB::bind_method(D_METHOD("save_settings"), &CelesteController::save_settings);
-	ClassDB::bind_method(D_METHOD("load_settings"), &CelesteController::load_settings);
-	ClassDB::bind_method(
-			D_METHOD("_on_ui_slider_value_changed", "value", "property"),
-			&CelesteController::_on_ui_slider_value_changed
-	);
 	ClassDB::bind_method(D_METHOD("get_speed_percent"), &CelesteController::get_speed_percent);
 	ClassDB::bind_method(D_METHOD("set_control_scheme", "scheme"), &CelesteController::set_control_scheme);
 	ClassDB::bind_method(D_METHOD("get_control_scheme"), &CelesteController::get_control_scheme);
@@ -89,10 +80,6 @@ CelesteController::CelesteController() {
 }
 
 CelesteController::~CelesteController() {
-	if (ui_helper) {
-		delete ui_helper;
-		ui_helper = nullptr;
-	}
 	delete idle_state;
 	delete move_state;
 	delete jump_state;
@@ -140,31 +127,7 @@ void CelesteController::_ready() {
 		gm->register_celeste_controller(this);
 	}
 
-	// Setup UI Vars Map
-	ui_vars["max_speed"] = &max_speed;
-	ui_vars["acceleration"] = &acceleration;
-	ui_vars["friction"] = &friction;
-	ui_vars["sprint_multiplier"] = &sprint_multiplier;
-	ui_vars["air_resistance"] = &air_resistance;
-	ui_vars["jump_height"] = &jump_height;
-	ui_vars["jump_time_to_peak"] = &jump_time_to_peak;
-	ui_vars["jump_time_to_descent"] = &jump_time_to_descent;
-	ui_vars["max_fall_velocity"] = &max_fall_velocity;
-	ui_vars["coyote_time"] = &coyote_time_max;
-	ui_vars["jump_buffer"] = &jump_buffer_max;
-	ui_vars["double_jump_mult"] = &double_jump_multiplier;
-	ui_vars["dash_speed"] = &dash_speed;
-	ui_vars["dash_duration"] = &dash_duration;
-	ui_vars["melee_range"] = &melee_range;
-
-	ui_vars["spring_stiffness"] = &spring_stiffness;
-	ui_vars["spring_damping"] = &spring_damping;
-
-	// Setup UI
-	ui_root = CUI::create_on_new_layer(this);
-	ui_helper = new CelesteUI();
-	ui_helper->setup(this, ui_root);
-	load_settings();
+	_setup_tuning();
 
 	// Apply floor snapping defaults
 	set_floor_snap_length(0.0f);
@@ -505,28 +468,12 @@ void CelesteController::_physics_process(double delta) {
 	attack_fx.tick(f_delta);
 	_update_skin_and_audio(f_delta);
 
-	if (ui_helper) {
-		ui_helper->update_graph(get_velocity().length());
-	}
+	tuning.push_graph(get_velocity().length());
 #if DEBUG
 	// debug_draw_label();
 	// debug_draw_trajectory(delta);
 	// debug_draw_bottom();
 #endif
-}
-
-void CelesteController::_on_ui_slider_value_changed(
-		double p_value,
-		String p_property
-) {
-	if (ui_vars.count(p_property)) {
-		*ui_vars[p_property] = (float)p_value;
-
-		// Re-calculate math if jump parameters changed
-		if (p_property == "jump_height" || p_property == "jump_time_to_peak" || p_property == "jump_time_to_descent") {
-			_update_jump_math();
-		}
-	}
 }
 
 float CelesteController::get_speed_percent() const {
@@ -537,57 +484,43 @@ float CelesteController::get_speed_percent() const {
 	return h_vel.length() / max_speed;
 }
 
-void CelesteController::_on_ui_toggle() {
-	if (ui_helper) {
-		ui_helper->toggle_visibility();
-	}
-}
-
-void CelesteController::save_settings() {
-	Ref<ConfigFile> config;
-	config.instantiate();
-
-	config->set_value("Celeste", "max_speed", max_speed);
-	config->set_value("Celeste", "acceleration", acceleration);
-	config->set_value("Celeste", "friction", friction);
-	config->set_value("Celeste", "sprint_multiplier", sprint_multiplier);
-	config->set_value("Celeste", "air_resistance", air_resistance);
-	config->set_value("Celeste", "jump_height", jump_height);
-	config->set_value("Celeste", "jump_time_to_peak", jump_time_to_peak);
-	config->set_value("celeste_physics", "jump_time_to_descent", jump_time_to_descent);
-	config->set_value("celeste_physics", "max_fall_velocity", max_fall_velocity);
-	config->save("user://celeste_settings.cfg");
-	UtilityFunctions::print("CelesteController: Settings saved to user://celeste_settings.cfg");
-}
-
-void CelesteController::load_settings() {
-	Ref<ConfigFile> config;
-	config.instantiate();
-
-	Error err = config->load("user://celeste_settings.cfg");
-	if (err != OK)
-		return;
-
-	max_speed = config->get_value("Celeste", "max_speed", 10.0f);
-	acceleration = config->get_value("Celeste", "acceleration", 80.0f);
-	friction = config->get_value("Celeste", "friction", 60.0f);
-	sprint_multiplier = config->get_value("Celeste", "sprint_multiplier", 1.5f);
-	air_resistance = config->get_value("Celeste", "air_resistance", 20.0f);
-	jump_height = config->get_value("Celeste", "jump_height", 2.5f);
-	jump_time_to_peak = config->get_value("Celeste", "jump_time_to_peak", 0.4f);
-	jump_time_to_descent = config->get_value("celeste_physics", "jump_time_to_descent", 0.2f);
-	max_fall_velocity = config->get_value("celeste_physics", "max_fall_velocity", 20.0f);
-	_update_jump_math();
-	set_floor_snap_length(0.0f);
-	set_floor_constant_speed_enabled(true);
-
-	if (ui_root) {
-		for (auto const &[name, ptr] : ui_vars) {
-			ui_root->set_value(name, *ptr);
-		}
-	}
-
-	UtilityFunctions::print("CelesteController: Settings loaded from user://celeste_settings.cfg");
+/**
+ * @brief Describe this controller's tunables for the shared TuningPanel, apply saved
+ * values (user://celeste_settings.cfg) and add the "Celeste" tab.
+ */
+void CelesteController::_setup_tuning() {
+	tuning.begin("Celeste", "user://celeste_settings.cfg", "Celeste", [this]() {
+		_update_jump_math();
+		tuning.set_graph_range(0.0f, MAX(max_speed * sprint_multiplier, dash_speed));
+	});
+	tuning.header("Movement");
+	tuning.slider("Max Speed", "max_speed", &max_speed, 1.0f, 50.0f, 0.1f);
+	tuning.slider("Acceleration", "acceleration", &acceleration, 1.0f, 200.0f, 1.0f);
+	tuning.slider("Sprint Mult", "sprint_multiplier", &sprint_multiplier, 1.0f, 3.0f, 0.1f);
+	tuning.slider("Friction", "friction", &friction, 1.0f, 200.0f, 1.0f);
+	tuning.slider("Air Resistance", "air_resistance", &air_resistance, 0.0f, 100.0f, 0.5f);
+	tuning.header("Jump / Gravity");
+	tuning.slider("Jump Height", "jump_height", &jump_height, 0.5f, 12.0f, 0.1f);
+	tuning.slider("Time to Peak", "jump_time_to_peak", &jump_time_to_peak, 0.1f, 1.0f, 0.01f);
+	tuning.slider("Time to Descent", "jump_time_to_descent", &jump_time_to_descent, 0.1f, 1.0f, 0.01f);
+	tuning.slider("Max Fall Speed", "max_fall_velocity", &max_fall_velocity, 5.0f, 100.0f, 0.5f);
+	tuning.slider("Coyote Time", "coyote_time", &coyote_time_max, 0.0f, 0.5f, 0.01f);
+	tuning.slider("Jump Buffer", "jump_buffer", &jump_buffer_max, 0.0f, 0.5f, 0.01f);
+	tuning.slider("Double Jump Power", "double_jump_mult", &double_jump_multiplier, 0.1f, 2.0f, 0.1f);
+	tuning.header("Dash / Combat");
+	tuning.slider("Dash Speed", "dash_speed", &dash_speed, 5.0f, 100.0f, 1.0f);
+	tuning.slider("Dash Duration", "dash_duration", &dash_duration, 0.05f, 0.5f, 0.01f);
+	tuning.slider("Dash Cooldown", "dash_cooldown", &dash_cooldown, 0.1f, 1.0f, 0.05f);
+	tuning.slider("Melee Range", "melee_range", &melee_range, 0.5f, 6.0f, 0.1f);
+	tuning.slider("Dive Range", "dive_range", &dive_range, 2.0f, 30.0f, 0.5f);
+	tuning.slider("Parry Window", "parry_window", &parry_window, 0.05f, 0.6f, 0.01f);
+	tuning.header("Ride Spring");
+	tuning.slider("Ride Height", "ride_height", &ride_height, 0.1f, 2.0f, 0.05f);
+	tuning.slider("Spring Stiffness", "spring_stiffness", &spring_stiffness, 10.0f, 1000.0f, 10.0f);
+	tuning.slider("Spring Damping", "spring_damping", &spring_damping, 1.0f, 50.0f, 1.0f);
+	tuning.graph("Speed", 0.0f, 30.0f);
+	tuning.load();
+	tuning.attach();
 }
 
 Node3D *CelesteController::_find_dive_target() {

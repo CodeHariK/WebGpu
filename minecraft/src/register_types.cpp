@@ -56,6 +56,7 @@
 #include "cui/cui_modal.h"
 #include "cui/cui_toast.h"
 #include "cui/cui_line_graph.h"
+#include "cui/tuning_panel.h"
 
 #include "debug_draw/debug_manager.h"
 #include "debug_draw/debug_quad.h"
@@ -74,7 +75,6 @@
 #include "terrain/marching_prism/mp_manager.h"
 
 #include "player/celeste_controller.h"
-#include "player/celeste_ui.h"
 
 #include "character/spring_character.h"
 #include "character/bubble/bubble.h"
@@ -170,6 +170,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(FolioSoundscape);
 	GDREGISTER_CLASS(FolioVehicleAudio);
 	GDREGISTER_CLASS(CUIOverlay);
+	GDREGISTER_CLASS(TuningPanel);
 	GDREGISTER_CLASS(CUIModal);
 	GDREGISTER_CLASS(CUIToast);
 	GDREGISTER_CLASS(FolioMenu);
