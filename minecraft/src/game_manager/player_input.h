@@ -35,6 +35,7 @@ struct CharacterInput {
 	bool grab_just_pressed = false;
 	bool interact = false;
 	bool interact_just_pressed = false;
+	bool bow = false; ///< Held: draw the bow (release fires).
 };
 
 struct SystemInput {

@@ -6,6 +6,10 @@
 #include "../../enemy_base.h"
 
 namespace godot {
+class ProjectileLauncher;
+}
+
+namespace godot {
 
 class TurretEnemy : public EnemyBase {
 	GDCLASS(TurretEnemy,
@@ -17,6 +21,7 @@ private:
 
 	Ref<BTTask> bt_root;
 	Ref<BTStore> btstore;
+	ProjectileLauncher *launcher = nullptr; ///< Child launcher (created at the top if missing).
 
 protected:
 	static void _bind_methods();
@@ -25,6 +30,7 @@ public:
 	TurretEnemy();
 	~TurretEnemy();
 
+	void _ready() override;
 	void _physics_process(double delta) override;
 	void shoot() override;
 };

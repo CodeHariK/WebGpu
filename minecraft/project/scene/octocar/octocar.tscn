@@ -7,6 +7,8 @@
 [ext_resource type="Script" uid="uid://dhaa31wr3qje" path="res://scene/folio/vehicle.gd" id="veh_vis"]
 [ext_resource type="PackedScene" path="res://assets/character/sophia_skin/sophia_skin.tscn" id="sophia_skin"]
 [ext_resource type="Script" path="res://scene/ui/touch_controls.gd" id="touch_controls"]
+[ext_resource type="ProjectileProfile" path="res://assets/projectiles/mortar.tres" id="mortar_profile"]
+[ext_resource type="ProjectileProfile" path="res://assets/projectiles/corkscrew_missile.tres" id="corkscrew_profile"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_8x1io"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -551,6 +553,11 @@ mesh = SubResource("BoxMesh_4kplg")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="TurretEnemy/TurretEnemy2" unique_id=1486102393]
 shape = SubResource("BoxShape3D_nxv8y")
 
+[node name="ProjectileLauncher" type="ProjectileLauncher" parent="TurretEnemy/TurretEnemy2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+profile = ExtResource("mortar_profile")
+max_alive = 1
+
 [node name="TurretEnemy3" type="TurretEnemy" parent="TurretEnemy" unique_id=766097080]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 8, -3)
 
@@ -559,6 +566,11 @@ mesh = SubResource("BoxMesh_4kplg")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="TurretEnemy/TurretEnemy3" unique_id=1313426362]
 shape = SubResource("BoxShape3D_nxv8y")
+
+[node name="ProjectileLauncher" type="ProjectileLauncher" parent="TurretEnemy/TurretEnemy3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+profile = ExtResource("corkscrew_profile")
+max_alive = 1
 
 [node name="Ball" type="Node" parent="." unique_id=2004731312]
 

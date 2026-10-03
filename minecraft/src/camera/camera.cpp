@@ -12,6 +12,7 @@
 //   collision + targeting   - _solve_collision / follow-target setters /
 //                             get_center_raycast_hit / get_current_target_distance
 
+#include "../utils/body_velocity.h"
 #include "camera.h"
 #include "../game_manager/game_manager.h"
 #include "../game_manager/player_input.h"
@@ -358,13 +359,7 @@ void GameCamera::drive_speed_lines(float p_ratio) {
 // --- Shared follow helpers -------------------------------------------------
 
 Vector3 GameCamera::follow_target_velocity() const {
-	if (RigidBody3D *rb = Object::cast_to<RigidBody3D>(follow_target_node)) {
-		return rb->get_linear_velocity();
-	}
-	if (CharacterBody3D *cb = Object::cast_to<CharacterBody3D>(follow_target_node)) {
-		return cb->get_velocity();
-	}
-	return Vector3();
+	return body_velocity(follow_target_node);
 }
 
 void GameCamera::rebase_springs() {

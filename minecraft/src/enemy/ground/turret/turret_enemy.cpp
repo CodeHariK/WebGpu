@@ -1,6 +1,7 @@
 #include "turret_enemy.h"
 #include "../../../ai/bt_composites.h"
 #include "../../../ai/bt_leaves.h"
+#include "../../../combat/projectile_launcher.h"
 #include "../../../game_manager/game_manager.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/node3d.hpp>
@@ -27,6 +28,26 @@ TurretEnemy::TurretEnemy() {
 
 TurretEnemy::~TurretEnemy() {}
 
+void TurretEnemy::_ready() {
+	EnemyBase::_ready();
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+	// Use a hand-placed ProjectileLauncher child if there is one (custom profile / muzzle),
+	// otherwise make a default one (boss missile) just above the turret.
+	for (int i = 0; i < get_child_count(); i++) {
+		if (ProjectileLauncher *pl = Object::cast_to<ProjectileLauncher>(get_child(i))) {
+			launcher = pl;
+			return;
+		}
+	}
+	launcher = memnew(ProjectileLauncher);
+	launcher->set_name("ProjectileLauncher");
+	launcher->set_position(Vector3(0, 1.0f, 0));
+	launcher->set_max_alive(1);
+	add_child(launcher);
+}
+
 void TurretEnemy::_physics_process(double delta) {
 	if (is_dead)
 		return;
@@ -42,8 +63,10 @@ void TurretEnemy::_physics_process(double delta) {
 }
 
 void TurretEnemy::shoot() {
-	UtilityFunctions::print("Turret: FIRE AT PLAYER!");
-	// TODO: Spawn projectile here
+	if (!launcher) {
+		return;
+	}
+	launcher->fire(Object::cast_to<Node3D>(btstore->get_value("target")));
 }
 
 } // namespace godot

@@ -1,0 +1,14 @@
+[gd_resource type="ProjectileProfile" format=3]
+
+[resource]
+guidance = 1
+gravity = 9.8
+lifetime = 4.0
+hit_radius = 0.35
+damage = 1.0
+parryable = false
+style = 1
+wobble_amp = 0.3
+wobble_freq = 3.0
+body_color = Color(0.3, 0.75, 1, 1)
+show_telegraph = false
