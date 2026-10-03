@@ -44,6 +44,8 @@ namespace godot {
 
 void GameCamera::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_camera_mode", "mode"), &GameCamera::set_camera_mode);
+	ClassDB::bind_method(D_METHOD("add_ray_exclude", "rid"), &GameCamera::add_ray_exclude);
+	ClassDB::bind_method(D_METHOD("remove_ray_exclude", "rid"), &GameCamera::remove_ray_exclude);
 	ClassDB::bind_method(D_METHOD("get_camera_mode"), &GameCamera::get_camera_mode);
 	ADD_PROPERTY(
 			PropertyInfo(Variant::INT, "camera_mode", PROPERTY_HINT_ENUM, "Fly,Car,TPS,Fixed,Character,Platformer"), "set_camera_mode",
@@ -326,6 +328,29 @@ void GameCamera::_refresh_follow_exclude() {
 		CollisionObject3D *co = Object::cast_to<CollisionObject3D>(follow_target_node);
 		if (co) {
 			follow_exclude.push_back(co->get_rid());
+		}
+	}
+	for (const RID &rid : extra_exclude) {
+		follow_exclude.push_back(rid);
+	}
+}
+
+void GameCamera::add_ray_exclude(const RID &p_rid) {
+	for (const RID &rid : extra_exclude) {
+		if (rid == p_rid) {
+			return;
+		}
+	}
+	extra_exclude.push_back(p_rid);
+	_refresh_follow_exclude();
+}
+
+void GameCamera::remove_ray_exclude(const RID &p_rid) {
+	for (size_t i = 0; i < extra_exclude.size(); i++) {
+		if (extra_exclude[i] == p_rid) {
+			extra_exclude.erase(extra_exclude.begin() + i);
+			_refresh_follow_exclude();
+			return;
 		}
 	}
 }

@@ -5,6 +5,7 @@
 #include "../character/character_audio.h"
 #include "attack_fx.h"
 #include "../character/bow_aim.h"
+#include "../character/lift_throw.h"
 #include "../character/character_controls.h"
 #include "../game_manager/player_input.h"
 #include <godot_cpp/classes/character_body3d.hpp>
@@ -89,9 +90,10 @@ private:
 	// 2 = Legacy (the original TPS / Fixed camera behaviour). V flips 0 <-> 1 in game.
 	int control_scheme = 0;
 	CharacterControls controls;
-	BowAim bow;
+	BowAim bow; ///< Hold R: draw, see the arc, release to fire an arrow.
+	LiftThrow lift; ///< F: lift a rigid body overhead; F again (hold to aim): throw it.
 	float parry_window = 0.2f; ///< Seconds after pressing hit during which projectiles are parried.
-	float _parry_timer = 0.0f; ///< Hold R: draw, see the arc, release to fire an arrow.
+	float _parry_timer = 0.0f;
 	bool _scheme_key_was_down = false;
 	bool _active = false; ///< This frame: are we the GameManager's active target?
 
@@ -127,6 +129,7 @@ private:
 	void _update_jump_math();
 	void _update_controls(float p_delta);
 	void _update_bow(float p_delta);
+	void _update_lift(float p_delta);
 	void _update_ride_height(
 			const Vector3 &p_bottom,
 			float p_delta
@@ -175,7 +178,14 @@ public:
 	bool is_parrying() const { return _parry_timer > 0.0f; }
 	void set_parry_window(float p_v) { parry_window = p_v; }
 	float get_parry_window() const { return parry_window; }
-	bool is_aiming() const { return bow.is_aiming(); }
+	bool is_aiming() const { return bow.is_aiming() || lift.is_aiming(); }
+	bool is_carrying() const { return lift.is_holding(); }
+	/// Top run speed right now (slower while carrying something heavy).
+	float move_speed() const { return max_speed * (lift.is_holding() ? lift.carry_speed_scale : 1.0f); }
+	void set_throw_speed(float p_v) { lift.throw_speed = p_v; }
+	float get_throw_speed() const { return lift.throw_speed; }
+	void set_throw_damage(float p_v) { lift.impact_damage = p_v; }
+	float get_throw_damage() const { return lift.impact_damage; }
 
 	void set_bow_min_speed(float p_v) { bow.min_speed = p_v; }
 	float get_bow_min_speed() const { return bow.min_speed; }
