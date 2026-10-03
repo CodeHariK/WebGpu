@@ -515,6 +515,9 @@ mesh = SubResource("BoxMesh_1dqdu")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CelesteController" unique_id=29480069]
 shape = SubResource("CapsuleShape3D_4kplg")
 
+[node name="SophiaSkin" parent="CelesteController" instance=ExtResource("sophia_skin")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, -1.1, 0)
+
 [node name="PhysicsPusher" type="PhysicsPusher" parent="CelesteController" unique_id=1004989182]
 
 [node name="PatrolMelee" type="Node" parent="." unique_id=378742939]

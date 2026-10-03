@@ -17,14 +17,11 @@ void CelesteAirborneState::physics_update(float delta) {
 	if (!controller)
 		return;
 
-	PlayerInput *input = PlayerInput::get_singleton();
-	if (!input)
-		return;
-	const ActionState &state = input->get_state();
+	const ActionState &state = controller->input_state();
 
 	// Transition to Grounded if hovering above ground
 	if (controller->is_hovering) {
-		if (state.character.move_axis.length() > 0.1f) {
+		if (controller->has_move_intent()) {
 			controller->change_state(controller->move_state);
 		} else {
 			controller->change_state(controller->idle_state);
@@ -68,7 +65,7 @@ void CelesteAirborneState::physics_update(float delta) {
 	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
 
 	bool rotate_to_move = false;
-	if (cam) {
+	if (cam && !controller->uses_scheme()) {
 		if (cam->get_camera_mode() == GameCamera::MODE_TPS) {
 			controller->set_rotation(Vector3(0, cam->get_yaw(), 0));
 		} else if (cam->get_camera_mode() == GameCamera::MODE_FIXED) {
@@ -89,6 +86,9 @@ void CelesteAirborneState::physics_update(float delta) {
 	Vector3 move_dir = (forward * -state.character.move_axis.y + right * state.character.move_axis.x);
 	if (move_dir.length() > 1.0f)
 		move_dir.normalize();
+	if (controller->uses_scheme()) {
+		move_dir = controller->scheme_move_dir(); // air control follows the same scheme
+	}
 
 	// Wall Jump
 	if (state.character.jump_just_pressed && controller->is_on_wall()) {
@@ -122,7 +122,7 @@ void CelesteAirborneState::physics_update(float delta) {
 	}
 
 	float accel = controller->acceleration;
-	float input_strength = input->get_movement_strength(controller->sprint_multiplier);
+	float input_strength = controller->movement_strength();
 
 	Vector3 target_vel = move_dir * (controller->max_speed * input_strength);
 

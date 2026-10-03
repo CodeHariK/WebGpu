@@ -36,9 +36,10 @@ void CameraStatePlatformer::update(
 		GameCamera *p_camera,
 		float p_delta
 ) {
-	RigidBody3D *rb = Object::cast_to<RigidBody3D>(p_camera->get_follow_target_node());
-	Vector3 target_pivot = rb ? rb->get_global_position() : p_camera->get_global_position();
-	Vector3 raw_velocity = rb ? rb->get_linear_velocity() : Vector3();
+	// Any body type: RigidBody3D (SpringCharacter) or CharacterBody3D (CelesteController).
+	Node3D *target = p_camera->get_follow_target_node();
+	Vector3 target_pivot = target ? target->get_global_position() : p_camera->get_global_position();
+	Vector3 raw_velocity = p_camera->follow_target_velocity();
 
 	if (first_frame) {
 		smoothed_pivot = target_pivot;

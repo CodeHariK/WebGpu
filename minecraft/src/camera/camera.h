@@ -260,6 +260,9 @@ public:
 	/// The node the camera follows, by pointer (also updates the stored path).
 	void set_follow_target_node(Node3D *p_node);
 	Node3D *get_follow_target_node() const { return follow_target_node; }
+	/// Velocity of the follow target, whatever its body type (RigidBody3D linear velocity,
+	/// CharacterBody3D velocity, zero otherwise). The follow states use it for look-ahead / recentre.
+	Vector3 follow_target_velocity() const;
 
 	/// The input source the states read look/zoom/orbit from (not owned).
 	void set_player_input(PlayerInput *p_input) { player_input = p_input; }
