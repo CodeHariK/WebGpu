@@ -74,6 +74,7 @@
 #include "player/celeste_ui.h"
 
 #include "character/spring_character.h"
+#include "character/bubble/bubble.h"
 
 #include "environment/cliff.h"
 #include "environment/cliff_mesh.h"
@@ -212,6 +213,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(CelesteController);
 	GDREGISTER_CLASS(SpringCharacter);
+	GDREGISTER_CLASS(Bubble);
 
 	GDREGISTER_CLASS(EnemyManager);
 	GDREGISTER_CLASS(EnemyBase);
@@ -315,6 +317,7 @@ void uninitialize_gdextension_types(ModuleInitializationLevel p_level) {
 	clear_toon_material_cache();
 	clear_water_material_cache();
 	clear_sky_shader_cache();
+	Bubble::clear_shader_cache();
 }
 
 extern "C" {

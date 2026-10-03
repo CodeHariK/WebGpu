@@ -138,6 +138,10 @@ private:
 	float pound_hang_time = 0.18f; // hover before the slam
 	float pound_speed = 30.0f; // downward slam speed
 
+	// --- Bubble Wand (signature move; see bubble/bubble.h) ---
+	float bubble_cooldown = 0.35f; // seconds between blows
+	int max_bubbles = 3; // blowing past this pops the oldest
+
 	// --- Debug ---
 	bool debug_trajectory = true; // draw a cyan motion trail like the car
 
@@ -195,6 +199,7 @@ private:
 	float _dash_cd_timer = 0.0f;
 	Vector3 _dash_dir = Vector3(0, 0, 0);
 	float _pound_hang_timer = 0.0f;
+	float _bubble_cd = 0.0f;
 
 	// Ground probe results, refreshed each physics frame.
 	bool _has_support = false;
@@ -233,6 +238,7 @@ private:
 	void _recompute_jump();
 	void _cast_ground();
 	void _cast_wall(const Vector3 &p_wish);
+	void _blow_bubble(); // Bubble Wand: spawn a bubble ahead of the character
 	void _find_skin(); // locate a child skin by its intent API and hide the placeholder
 	void _apply_landing_guard(float p_delta); // never let one step carry the sole past ride height
 	void _update_ride_height(float p_delta); // Celeste-style: raise ride height for a step ahead
