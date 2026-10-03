@@ -158,6 +158,14 @@ private:
 	// real heading eases toward it. Filters mouse-pixel quantisation so the skin never steps.
 	float _steer_yaw_target = 0.0f;
 	bool _steer_target_valid = false;
+	// Steer mode, back input (S / S+A / S+D): run TOWARD the camera like the platformer
+	// scheme instead of backpedalling. The camera yaw is frozen at this value (captured when
+	// S goes down; the mouse can still turn it) so turning round can't drag the camera along.
+	bool _steer_backing = false;
+	// Camera stays frozen at _back_cam_yaw after a backward run, until the player drives
+	// FORWARD again (W). A/D turning or standing still does not recenter it.
+	bool _hold_cam = false;
+	float _back_cam_yaw = 0.0f;
 
 	Vector3 _vel = Vector3(0, 0, 0); // working velocity, integrated each physics frame
 	float _jump_velocity = 0.0f; // 2h / t_peak
