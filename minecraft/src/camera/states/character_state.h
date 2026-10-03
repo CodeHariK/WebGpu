@@ -1,6 +1,7 @@
 #ifndef CAMERA_STATE_CHARACTER_H
 #define CAMERA_STATE_CHARACTER_H
 
+#include "../vertical_hold.h"
 #include "../camera_state.h"
 #include <godot_cpp/variant/vector3.hpp>
 
@@ -19,7 +20,8 @@ namespace godot {
  */
 class CameraStateCharacter : public CameraState {
 private:
-	Vector3 smoothed_pivot; ///< Low-passed target position (kills physics jitter).
+	CameraVerticalHold vertical_hold; ///< Holds the framing height while the target is airborne.
+	Vector3 smoothed_pivot; ///< Low-passed target position on the ground plane (x, z; y unused). Height: vertical_hold.
 	Vector3 smoothed_velocity; ///< Low-passed target velocity (steers auto-yaw).
 	float recenter_suspend = 0.0f; ///< Seconds left where auto-centre is paused after a manual orbit.
 	bool first_frame = true; ///< Seed the smoothed values on the first update.

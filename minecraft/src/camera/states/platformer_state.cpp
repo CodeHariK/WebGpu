@@ -11,7 +11,7 @@
 namespace godot {
 
 // Frame-rate-independent smoothing rates (e-folds per second).
-static const float PIVOT_RATE = 12.0f; // how fast the framing chases the character
+static const float PIVOT_RATE = 12.0f; // how fast the framing chases the character across the ground (x, z)
 static const float VELOCITY_RATE = 5.0f; // how fast the "travel direction" settles
 static const float PITCH_RETURN_RATE = 0.6f; // gentle: pitch drifts back to the resting framing while running
 static const float RECENTER_SPEED = 2.5f; // only auto-centre above this horizontal speed (m/s)
@@ -42,11 +42,13 @@ void CameraStatePlatformer::update(
 	Vector3 raw_velocity = p_camera->follow_target_velocity();
 
 	if (first_frame) {
-		smoothed_pivot = target_pivot;
+		smoothed_pivot = Vector3(target_pivot.x, 0.0f, target_pivot.z);
 		smoothed_velocity = raw_velocity;
+		vertical_hold.reset(target_pivot.y);
 		first_frame = false;
 	} else {
-		smoothed_pivot = smoothed_pivot.lerp(target_pivot, spring_damp_factor(PIVOT_RATE, p_delta));
+		Vector3 target_flat(target_pivot.x, 0.0f, target_pivot.z);
+		smoothed_pivot = smoothed_pivot.lerp(target_flat, spring_damp_factor(PIVOT_RATE, p_delta));
 		smoothed_velocity = smoothed_velocity.lerp(raw_velocity, spring_damp_factor(VELOCITY_RATE, p_delta));
 	}
 
@@ -62,7 +64,19 @@ void CameraStatePlatformer::update(
 	}
 
 	// Aim above the feet and lead along travel so what is ahead stays in frame.
-	Vector3 pivot = smoothed_pivot + Vector3(0.0f, LOOK_TARGET_HEIGHT, 0.0f);
+	// Ground plane from the smoothed position; height from the hold (it doesn't follow jumps).
+	Vector3 pivot = smoothed_pivot;
+	pivot.y = vertical_hold.update(
+			target_pivot,
+			raw_velocity,
+			CameraVerticalHold::target_grounded(target),
+			p_camera,
+			p_camera->frame_top,
+			p_camera->frame_bottom,
+			p_camera->frame_soft_zone,
+			p_delta
+	);
+	pivot.y += LOOK_TARGET_HEIGHT;
 	if (h_speed > 0.1f) {
 		float lead = p_camera->platformer_look_ahead * CLAMP(h_speed / p_camera->max_speed_for_zoom, 0.0f, 1.0f);
 		pivot += (horizontal_vel / h_speed) * lead;
