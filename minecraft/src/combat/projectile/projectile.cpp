@@ -26,6 +26,7 @@
 namespace godot {
 
 static const float PARRY_RELAUNCH_TIME = 0.15f; // straight flight after a parry, before re-homing
+static const float AIRBORNE_HEIGHT = 3.0f; // target this far above its ground: aim at it, not the floor
 static const float ARROW_TIP_OFFSET = 0.45f; // model centre to tip (m, at scale 1)
 static const float FALLBACK_DROP = 1.0f; // no floor under the target: land this far below its centre
 static const int MAX_BLAST_HITS = 16;
@@ -175,7 +176,11 @@ void Projectile::_aim_ballistic(
 	for (int i = 0; i < 2; i++) {
 		t = BallisticArc::flight_time(p_from, goal + drift * (t * lead), speed, min_t);
 	}
-	impact_point = _ground_below(goal + drift * (t * lead), p_target);
+	Vector3 predicted = goal + drift * (t * lead);
+	Vector3 ground = _ground_below(predicted, p_target);
+	// A target well above the ground (helicopter, UFO, mid-jump player) is hit in the air;
+	// anything near the ground gets the shot dropped onto its ground point.
+	impact_point = (predicted.y - ground.y > AIRBORNE_HEIGHT) ? predicted : ground;
 	flight_time = BallisticArc::flight_time(p_from, impact_point, speed, min_t);
 	velocity = BallisticArc::launch_velocity(p_from, impact_point, flight_time, g);
 	aim = impact_point;

@@ -1,6 +1,7 @@
 #ifndef PROJECTILE_VISUAL_H
 #define PROJECTILE_VISUAL_H
 
+#include "../../utils/fx/puff_emitter.h"
 #include "projectile_profile.h"
 
 #include <godot_cpp/classes/mesh.hpp>
@@ -64,12 +65,7 @@ private:
 	float bank = 0.0f;
 	float pop_t = -1.0f;
 
-	// Smoke puffs: a small recycled ring buffer of top-level spheres.
-	MeshInstance3D *puffs[PUFF_COUNT] = {};
-	Vector3 puff_vel[PUFF_COUNT];
-	float puff_age[PUFF_COUNT] = {};
-	float puff_life[PUFF_COUNT] = {};
-	int next_puff = 0;
+	PuffEmitter puffs; ///< Missile smoke trail + pop burst.
 	float puff_timer = 0.0f;
 
 	static Ref<StandardMaterial3D> _toon(const Color &p_color);
@@ -82,7 +78,6 @@ private:
 	);
 	void _build_missile();
 	void _build_arrow();
-	void _build_puffs();
 	void _apply_shake(
 			float p_a,
 			float p_k,
@@ -95,12 +90,6 @@ private:
 			float p_settle,
 			float p_grow
 	);
-	void _emit_puff(
-			const Vector3 &p_pos,
-			const Vector3 &p_vel,
-			float p_life
-	);
-	void _update_puffs(float p_dt);
 };
 
 } // namespace godot

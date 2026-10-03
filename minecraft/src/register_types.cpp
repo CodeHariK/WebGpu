@@ -106,6 +106,9 @@
 #include "enemy/enemy_manager.h"
 #include "enemy/ground/patrol_melee/patrol_melee_enemy.h"
 #include "enemy/ground/turret/turret_enemy.h"
+#include "enemy/air/flying_enemy.h"
+#include "enemy/air/helicopter/helicopter_enemy.h"
+#include "enemy/air/ufo/ufo_enemy.h"
 
 #include "ai/bt_composites.h"
 #include "ai/bt_decorators.h"
@@ -224,6 +227,9 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(EnemyManager);
 	GDREGISTER_CLASS(EnemyBase);
 	GDREGISTER_CLASS(TurretEnemy);
+	GDREGISTER_ABSTRACT_CLASS(FlyingEnemy);
+	GDREGISTER_CLASS(HelicopterEnemy);
+	GDREGISTER_CLASS(UfoEnemy);
 	GDREGISTER_CLASS(PatrolMeleeEnemy);
 
 	GDREGISTER_CLASS(BTStore);

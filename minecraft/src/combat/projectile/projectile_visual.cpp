@@ -73,7 +73,7 @@ void ProjectileVisual::build(
 		_build_arrow();
 	} else {
 		_build_missile();
-		_build_puffs();
+		puffs.build(owner, PUFF_COUNT, 0.16f, Color(0.95f, 0.95f, 0.95f));
 	}
 	pivot->set_scale(Vector3(0.3f, 0.3f, 0.3f) * model_scale); // pops in from small
 }
@@ -154,62 +154,8 @@ void ProjectileVisual::_build_arrow() {
 	_part(fletching, feather_v, body_mat, Vector3());
 }
 
-void ProjectileVisual::_build_puffs() {
-	Ref<SphereMesh> puff;
-	puff.instantiate();
-	puff->set_radius(0.16f);
-	puff->set_height(0.32f);
-	puff->set_radial_segments(8);
-	puff->set_rings(4);
-	Ref<StandardMaterial3D> smoke = _toon(Color(0.95f, 0.95f, 0.95f));
-	for (int i = 0; i < PUFF_COUNT; i++) {
-		MeshInstance3D *p = memnew(MeshInstance3D);
-		p->set_mesh(puff);
-		p->set_material_override(smoke);
-		p->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
-		p->set_as_top_level(true); // stays where it was emitted
-		p->set_visible(false);
-		owner->add_child(p);
-		puffs[i] = p;
-	}
-}
 
-void ProjectileVisual::_emit_puff(
-		const Vector3 &p_pos,
-		const Vector3 &p_vel,
-		float p_life
-) {
-	if (!puffs[0]) {
-		return;
-	}
-	int i = next_puff;
-	next_puff = (next_puff + 1) % PUFF_COUNT;
-	puffs[i]->set_global_position(p_pos);
-	puffs[i]->set_scale(Vector3(0.01f, 0.01f, 0.01f));
-	puffs[i]->set_visible(true);
-	puff_vel[i] = p_vel;
-	puff_age[i] = 0.0f;
-	puff_life[i] = p_life;
-}
 
-void ProjectileVisual::_update_puffs(float p_dt) {
-	for (int i = 0; i < PUFF_COUNT; i++) {
-		if (!puffs[i] || !puffs[i]->is_visible()) {
-			continue;
-		}
-		puff_age[i] += p_dt;
-		float t = puff_age[i] / puff_life[i];
-		if (t >= 1.0f) {
-			puffs[i]->set_visible(false);
-			continue;
-		}
-		// Quick grow, slow shrink: reads as a soft cartoon cloud.
-		float s = (t < 0.15f) ? t / 0.15f : 1.0f - (t - 0.15f) / 0.85f;
-		puffs[i]->set_scale(Vector3(s, s, s) * model_scale);
-		puffs[i]->set_global_position(puffs[i]->get_global_position() + puff_vel[i] * p_dt);
-		puff_vel[i] *= 1.0f - MIN(1.0f, 3.0f * p_dt); // drag
-	}
-}
 
 void ProjectileVisual::update(
 		float p_dt,
@@ -263,9 +209,9 @@ void ProjectileVisual::update(
 				(float)UtilityFunctions::randf_range(0.2, 0.6),
 				(float)UtilityFunctions::randf_range(-0.3, 0.3)
 		);
-		_emit_puff(tail, jitter, PUFF_LIFE);
+		puffs.emit(tail, jitter, PUFF_LIFE, model_scale);
 	}
-	_update_puffs(p_dt);
+	puffs.update(p_dt);
 }
 
 void ProjectileVisual::_apply_shake(
@@ -314,12 +260,7 @@ void ProjectileVisual::start_pop() {
 		return;
 	}
 	// Burst: a ring of puffs flying outward.
-	Vector3 c = owner->get_global_position();
-	for (int i = 0; i < 6; i++) {
-		float ang = Math::TAU * i / 6.0f;
-		Vector3 dir(std::cos(ang), 0.6f, std::sin(ang));
-		_emit_puff(c, dir * 3.0f, POP_TOTAL_TIME - 0.05f);
-	}
+	puffs.burst(owner->get_global_position(), 6, 3.0f, POP_TOTAL_TIME - 0.05f, model_scale);
 }
 
 bool ProjectileVisual::update_pop(float p_dt) {
@@ -342,7 +283,7 @@ bool ProjectileVisual::update_pop(float p_dt) {
 			pivot->set_visible(false);
 		}
 	}
-	_update_puffs(p_dt);
+	puffs.update(p_dt);
 	return pop_t >= POP_TOTAL_TIME;
 }
 
