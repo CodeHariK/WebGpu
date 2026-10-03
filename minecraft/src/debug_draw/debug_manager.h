@@ -1,6 +1,7 @@
 #ifndef DEBUG_MANAGER_H
 #define DEBUG_MANAGER_H
 
+#include <godot_cpp/classes/immediate_mesh.hpp>
 #include <godot_cpp/classes/label3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node.hpp>
@@ -46,7 +47,19 @@ private:
 	HashMap<String, DebugLine> lines;
 	HashMap<String, DebugText> texts;
 	HashMap<String, Trajectory> trajectories;
+	struct DebugRing {
+		MeshInstance3D *mesh_instance = nullptr; ///< unit circle, scaled to the radius
+		int segments = 0;
+		float duration = -1.0f;
+	};
+
 	HashMap<String, DebugSphere> spheres;
+	HashMap<String, DebugRing> rings;
+
+	static void _build_unit_ring(
+			ImmediateMesh *p_mesh,
+			int p_segments
+	);
 
 	Ref<Shader> line_shader; // Shared shader resource for drawing debug lines.
 
@@ -102,6 +115,21 @@ public:
 			float p_duration = -1.0f
 	);
 	void clear_sphere(const String &p_id);
+
+	/// Horizontal circle (XZ plane) around p_center. Drawn on top of geometry; the ring mesh
+	/// is built once per id and only re-transformed, so redrawing every frame is cheap.
+	void draw_ring(
+			const String &p_id,
+			const Vector3 &p_center,
+			float p_radius,
+			const Color &p_color =
+					Color(1,
+						  1,
+						  1),
+			int p_segments = 48,
+			float p_duration = -1.0f
+	);
+	void clear_ring(const String &p_id);
 
 	void draw_trajectory(
 			const String &p_id,

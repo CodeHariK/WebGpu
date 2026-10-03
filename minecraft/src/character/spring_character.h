@@ -5,6 +5,7 @@
 #include "character_animator.h"
 #include "character_audio.h"
 #include "../cui/tuning_section.h"
+#include "jump_metrics.h"
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
@@ -193,6 +194,7 @@ private:
 
 	// Moveset runtime.
 	int _air_jumps_left = 0;
+	bool _air_dash_used = false; // one air dash per airtime (refilled on landing / wall jump)
 	float _dash_timer = 0.0f;
 	float _dash_cd_timer = 0.0f;
 	Vector3 _dash_dir = Vector3(0, 0, 0);
@@ -264,6 +266,23 @@ public:
 
 	void set_player_input(PlayerInput *p_input) { player_input = p_input; }
 	bool is_grounded() const { return _grounded; }
+	/// Current jump arc as closed-form metrics (reach / airtime) for level design tools.
+	JumpMetrics get_jump_metrics() const {
+		JumpMetrics m;
+		m.height = jump_height;
+		m.time_to_peak = jump_time_to_peak;
+		m.time_to_descent = jump_time_to_descent;
+		m.run_speed = max_speed;
+		m.sprint_speed = max_speed * sprint_multiplier;
+		m.terminal_velocity = terminal_velocity;
+		m.air_jumps = air_jumps;
+		m.air_jump_mult = 1.0f; // air jumps relaunch at full jump speed
+		m.air_dash = true; // one flat, gravity-free dash per airtime
+		m.dash_speed = dash_speed;
+		m.dash_time = dash_time;
+		m.air_accel = acceleration;
+		return m;
+	}
 
 	void set_max_speed(float v) { max_speed = v; }
 	float get_max_speed() const { return max_speed; }

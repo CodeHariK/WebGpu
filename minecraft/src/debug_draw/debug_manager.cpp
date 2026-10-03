@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/sphere_mesh.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
+#include <godot_cpp/core/math.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <vector>
 
@@ -29,6 +30,11 @@ void DebugManager::_bind_methods() {
 			DEFVAL(0.5f), DEFVAL(Color(1, 1, 1)), DEFVAL(-1.0f)
 	);
 	ClassDB::bind_method(D_METHOD("clear_sphere", "id"), &DebugManager::clear_sphere);
+	ClassDB::bind_method(
+			D_METHOD("draw_ring", "id", "center", "radius", "color", "segments", "duration"), &DebugManager::draw_ring,
+			DEFVAL(Color(1, 1, 1)), DEFVAL(48), DEFVAL(-1.0f)
+	);
+	ClassDB::bind_method(D_METHOD("clear_ring", "id"), &DebugManager::clear_ring);
 
 	ClassDB::bind_method(D_METHOD("clear_all"), &DebugManager::clear_all);
 }
@@ -97,6 +103,16 @@ void DebugManager::_exit_tree() {
 	}
 	spheres.clear();
 
+	for (auto &E : rings) {
+		if (E.value.mesh_instance) {
+			if (E.value.mesh_instance->is_inside_tree()) {
+				remove_child(E.value.mesh_instance);
+			}
+			memdelete(E.value.mesh_instance);
+		}
+	}
+	rings.clear();
+
 	for (auto &E : trajectories) {
 		// Trajectory lines are cleared as part of the lines map.
 	}
@@ -116,6 +132,7 @@ void DebugManager::_physics_process(double delta) {
 	std::vector<String> lines_to_remove;
 	std::vector<String> texts_to_remove;
 	std::vector<String> spheres_to_remove;
+	std::vector<String> rings_to_remove;
 
 	for (auto &E : lines) {
 		if (E.value.duration > 0) {
@@ -150,8 +167,20 @@ void DebugManager::_physics_process(double delta) {
 	for (const String &id : texts_to_remove) {
 		clear_text(id);
 	}
+	for (auto &E : rings) {
+		if (E.value.duration > 0) {
+			E.value.duration -= f_delta;
+			if (E.value.duration <= 0) {
+				rings_to_remove.push_back(E.key);
+			}
+		}
+	}
+
 	for (const String &id : spheres_to_remove) {
 		clear_sphere(id);
+	}
+	for (const String &id : rings_to_remove) {
+		clear_ring(id);
 	}
 }
 
@@ -267,6 +296,13 @@ void DebugManager::clear_all() {
 	}
 	spheres.clear();
 
+	for (auto &E : rings) {
+		if (E.value.mesh_instance) {
+			E.value.mesh_instance->queue_free();
+		}
+	}
+	rings.clear();
+
 	for (auto &E : trajectories) {
 		Trajectory &traj = E.value;
 		for (size_t i = 0; i < traj.points.size(); ++i) {
@@ -381,6 +417,82 @@ void DebugManager::clear_sphere(const String &p_id) {
 			ds.mesh_instance->queue_free();
 		}
 		spheres.erase(p_id);
+	}
+}
+
+void DebugManager::_build_unit_ring(
+		ImmediateMesh *p_mesh,
+		int p_segments
+) {
+	p_mesh->clear_surfaces();
+	p_mesh->surface_begin(Mesh::PRIMITIVE_LINE_STRIP);
+	for (int i = 0; i <= p_segments; ++i) {
+		const float a = Math::TAU * i / p_segments;
+		p_mesh->surface_add_vertex(Vector3(Math::cos(a), 0.0f, Math::sin(a)));
+	}
+	p_mesh->surface_end();
+}
+
+void DebugManager::draw_ring(
+		const String &p_id,
+		const Vector3 &p_center,
+		float p_radius,
+		const Color &p_color,
+		int p_segments,
+		float p_duration
+) {
+	if (Engine::get_singleton()->is_editor_hint()) {
+		return;
+	}
+	p_segments = MAX(p_segments, 3);
+
+	if (!rings.has(p_id)) {
+		DebugRing dr;
+		dr.mesh_instance = memnew(MeshInstance3D);
+		dr.mesh_instance->set_name("DebugRing_" + p_id);
+		dr.mesh_instance->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
+		add_child(dr.mesh_instance);
+		dr.mesh_instance->set_as_top_level(true);
+
+		Ref<ImmediateMesh> mesh;
+		mesh.instantiate();
+		dr.mesh_instance->set_mesh(mesh);
+
+		Ref<StandardMaterial3D> mat;
+		mat.instantiate();
+		mat->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+		mat->set_flag(BaseMaterial3D::FLAG_DISABLE_DEPTH_TEST, true);
+		mat->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+		dr.mesh_instance->set_material_override(mat);
+
+		dr.duration = p_duration;
+		rings[p_id] = dr;
+	}
+
+	DebugRing &dr = rings[p_id];
+	if (dr.segments != p_segments) {
+		_build_unit_ring(Object::cast_to<ImmediateMesh>(dr.mesh_instance->get_mesh().ptr()), p_segments);
+		dr.segments = p_segments;
+	}
+	const float r = MAX(p_radius, 0.001f);
+	dr.mesh_instance->set_global_transform(Transform3D(Basis().scaled(Vector3(r, 1.0f, r)), p_center));
+
+	Ref<StandardMaterial3D> mat = dr.mesh_instance->get_material_override();
+	if (mat.is_valid() && mat->get_albedo() != p_color) {
+		mat->set_albedo(p_color);
+	}
+	if (p_duration > 0) {
+		dr.duration = p_duration;
+	}
+}
+
+void DebugManager::clear_ring(const String &p_id) {
+	if (rings.has(p_id)) {
+		DebugRing &dr = rings[p_id];
+		if (dr.mesh_instance) {
+			dr.mesh_instance->queue_free();
+		}
+		rings.erase(p_id);
 	}
 }
 

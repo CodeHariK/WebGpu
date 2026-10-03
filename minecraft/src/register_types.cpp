@@ -59,6 +59,7 @@
 #include "cui/tuning_panel.h"
 
 #include "debug_draw/debug_manager.h"
+#include "debug_draw/jump_reach_gizmo.h"
 #include "debug_draw/debug_quad.h"
 
 #include "game_manager/game_manager.h"
@@ -214,6 +215,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(DebugLineQuad);
 	GDREGISTER_CLASS(DebugManager);
+	GDREGISTER_CLASS(JumpReachGizmo);
 
 	GDREGISTER_CLASS(GameManager);
 	GDREGISTER_CLASS(PlayerInput);

@@ -417,14 +417,18 @@ void SpringCharacter::_update_transitions() {
 	}
 
 	// 2. Dash / ground-pound trigger (off cooldown). Airborne with no stick
-	//    direction becomes a ground pound; otherwise a dash.
+	//    direction becomes a ground pound; otherwise a dash. Only ONE dash per
+	//    airtime (A Hat in Time's dive rule), so the jump chain's reach stays bounded.
 	if (_in_dash_pressed && _dash_cd_timer <= 0.0f) {
 		if (!_grounded && _wish.length() < 0.1f) {
 			change_state(pound_state);
-		} else {
-			change_state(dash_state);
+			return;
 		}
-		return;
+		if (_grounded || !_air_dash_used) {
+			_air_dash_used = !_grounded;
+			change_state(dash_state);
+			return;
+		}
 	}
 
 	// 3. Ground jump (buffered press inside the coyote window).
@@ -450,6 +454,7 @@ void SpringCharacter::_update_transitions() {
 		_jump_buffer_timer = 0.0f;
 		_jump_lock = jump_lock_time;
 		_air_jumps_left = air_jumps;
+		_air_dash_used = false;
 		change_state(fall_state);
 		return;
 	}
@@ -457,6 +462,7 @@ void SpringCharacter::_update_transitions() {
 	// 5. Grounded default (refills air jumps once settled).
 	if (_grounded && _jump_lock <= 0.0f) {
 		_air_jumps_left = air_jumps;
+		_air_dash_used = false;
 		change_state(walk_state);
 		return;
 	}
