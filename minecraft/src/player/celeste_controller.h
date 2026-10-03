@@ -9,6 +9,7 @@
 #include "../character/character_controls.h"
 #include "../game_manager/player_input.h"
 #include "../cui/tuning_section.h"
+#include "../character/jump_metrics.h"
 #include <godot_cpp/classes/character_body3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 
@@ -180,6 +181,23 @@ public:
 	bool is_carrying() const { return lift.is_holding(); }
 	/// On (hovering over) the ground. Follow cameras use it to hold their height mid-jump.
 	bool is_grounded() const { return is_hovering; }
+	/// Current jump arc as closed-form metrics (reach / airtime) for level design tools.
+	JumpMetrics get_jump_metrics() const {
+		JumpMetrics m;
+		m.height = jump_height;
+		m.time_to_peak = jump_time_to_peak;
+		m.time_to_descent = jump_time_to_descent;
+		m.run_speed = max_speed;
+		m.sprint_speed = max_speed * sprint_multiplier;
+		m.terminal_velocity = max_fall_velocity;
+		m.air_jumps = 1;
+		m.air_jump_mult = double_jump_multiplier;
+		m.air_dash = true; // can_dash: one per airtime, constant velocity, no gravity
+		m.dash_speed = dash_speed;
+		m.dash_time = dash_duration;
+		m.air_accel = acceleration; // ignores the extra fall drag (air_resistance)
+		return m;
+	}
 	/// Top run speed right now (slower while carrying something heavy).
 	float move_speed() const { return max_speed * (lift.is_holding() ? lift.carry_speed_scale : 1.0f); }
 	void set_throw_speed(float p_v) { lift.throw_speed = p_v; }

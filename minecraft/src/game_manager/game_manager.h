@@ -31,8 +31,11 @@ class GameManager : public Node {
 
 private:
 	int _ts_debug_view = 0; // F3: current TerraSpline shader debug view (ts_debug_view shader global)
+	bool _jump_reach_view = false; // F3: jump reach dome around the active character
+	class JumpReachGizmo *_reach_gizmo = nullptr;
 	CUI *_debug_ui = nullptr; // Banner naming the active debug views (created on first use, hidden when none)
 	void _update_debug_banner();
+	void _set_jump_reach_view(bool p_on);
 	static GameManager *singleton;
 
 	// Tracked managers

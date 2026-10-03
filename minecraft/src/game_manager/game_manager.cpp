@@ -2,6 +2,7 @@
 #include "../camera/camera.h"
 #include "../cui/cui.h"
 #include "../debug_draw/debug_manager.h"
+#include "../debug_draw/jump_reach_gizmo.h"
 #include "../enemy/enemy_manager.h"
 #include "../marching_cubes/mc_manager.h"
 #include "../minigames/tennis/tennis_manager.h"
@@ -238,6 +239,10 @@ void GameManager::_physics_process(double delta) {
 	if (Engine::get_singleton()->is_editor_hint())
 		return;
 
+	if (_jump_reach_view && _reach_gizmo) {
+		_reach_gizmo->update_for(Object::cast_to<Node3D>(active_target));
+	}
+
 	if (player_input) {
 		player_input->update();
 
@@ -295,6 +300,7 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventKey> k = p_event;
 	if (k.is_valid() && k->is_pressed() && !k->is_echo()) {
 		// F3 cycles the debug views: the camera framing box (GameCamera.show_frame_bounds), the
+		// jump reach dome (JumpReachGizmo), the
 		// viewport's built-in ones (unshaded, overdraw, wireframe, normals), then TerraSpline's
 		// shader views through the `ts_debug_view` shader global (1 UV, 2 UV2, 3 vertex colour,
 		// 4 road marking mask, 5 painted control map), then off.
@@ -310,7 +316,10 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 
 				bool framing = main_camera && main_camera->get_show_frame_bounds();
 				if (framing) {
-					main_camera->set_show_frame_bounds(false); // framing -> unshaded
+					main_camera->set_show_frame_bounds(false); // framing -> jump reach
+					_set_jump_reach_view(true);
+				} else if (_jump_reach_view) {
+					_set_jump_reach_view(false); // jump reach -> unshaded
 					next_mode = Viewport::DEBUG_DRAW_UNSHADED;
 				} else if (current_mode == Viewport::DEBUG_DRAW_DISABLED && ts_view == 0) {
 					if (main_camera) {
@@ -359,6 +368,24 @@ void GameManager::_input(const Ref<InputEvent> &p_event) {
 }
 
 /**
+ * @brief Show / hide the F3 jump reach dome (created on first use, rebuilt each physics tick).
+ */
+void GameManager::_set_jump_reach_view(bool p_on) {
+	_jump_reach_view = p_on;
+	if (p_on && !_reach_gizmo) {
+		_reach_gizmo = memnew(JumpReachGizmo);
+		_reach_gizmo->set_name("JumpReachGizmo");
+		add_child(_reach_gizmo);
+	}
+	if (_reach_gizmo) {
+		_reach_gizmo->set_visible(p_on);
+		if (!p_on) {
+			_reach_gizmo->clear(); // its rings live in DebugManager
+		}
+	}
+}
+
+/**
  * @brief Top-centre CUI banner listing the active debug views (F3 camera framing, F3 viewport mode,
  * F3 TerraSpline shader view, F4 collision shapes). Built on first use on its own CanvasLayer; hidden when everything is off.
  */
@@ -380,6 +407,9 @@ void GameManager::_update_debug_banner() {
 	PackedStringArray parts;
 	if (main_camera && main_camera->get_show_frame_bounds()) {
 		parts.push_back("F3  Camera framing  (yellow = kept-in band, dot = character)");
+	}
+	if (_jump_reach_view) {
+		parts.push_back("F3  Jump reach  (green comfy / yellow precise / orange run max / blue double / purple double+dash)");
 	}
 	const int vp = (int)viewport->get_debug_draw();
 	if (vp > 0 && vp <= 5) {
