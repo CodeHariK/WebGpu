@@ -685,6 +685,11 @@ void SpringCharacter::_physics_process(double delta) {
 		// Steering movement: rotate the heading, Up/Down drive along it. The MOUSE steers
 		// with priority: on any frame it moves, it rotates the heading (character + camera
 		// together) and A/D are ignored; A/D only steer when the mouse is still.
+		//
+		// Back input (S, S+A, S+D) is the exception: like the platformer scheme the character
+		// turns round and runs TOWARD the camera (diagonally with A/D), while the camera holds
+		// the yaw it had when S went down. Locking the camera behind the heading here would
+		// swing it round with the character and S would point somewhere new every frame.
 		if (!_steer_target_valid) {
 			_steer_yaw_target = _face_yaw; // (re)entering steer: start from the current heading
 			_steer_target_valid = true;
@@ -693,7 +698,39 @@ void SpringCharacter::_physics_process(double delta) {
 		if (active && player_input) {
 			mouse_x = player_input->get_state().camera.look_delta.x;
 		}
-		if (std::abs(mouse_x) > 0.01f && cam) {
+		bool mouse_moved = std::abs(mouse_x) > 0.01f && cam;
+
+		bool backing = move_axis.y > 0.3f; // S held (keyboard 1.0, analog stick pulled back)
+		bool forward = move_axis.y < -0.1f; // W held
+		if (backing && !_hold_cam) {
+			_back_cam_yaw = cam ? cam->get_yaw() : _face_yaw; // freeze the view where it is
+		}
+		_steer_backing = backing;
+		// The freeze outlives the S press: only driving forward again recenters the camera.
+		if (backing) {
+			_hold_cam = true;
+		} else if (forward) {
+			_hold_cam = false;
+		}
+
+		Vector3 back_dir(0.0f, 0.0f, 0.0f);
+		float back_mag = 0.0f;
+		if (backing) {
+			if (mouse_moved) {
+				_back_cam_yaw -= mouse_x * cam->get_orbit_sensitivity(); // mouse still looks around
+			}
+			// Camera-relative direction off the FROZEN camera yaw: S = toward the camera.
+			Vector3 cam_fwd(-std::sin(_back_cam_yaw), 0.0f, -std::cos(_back_cam_yaw));
+			Vector3 cam_right(std::cos(_back_cam_yaw), 0.0f, -std::sin(_back_cam_yaw));
+			back_dir = cam_right * move_axis.x + cam_fwd * (-move_axis.y);
+			back_mag = CLAMP(back_dir.length(), 0.0f, 1.0f);
+			if (back_mag > 0.001f) {
+				back_dir = back_dir / back_dir.length();
+				_steer_yaw_target = std::atan2(-back_dir.x, -back_dir.z); // face where we run
+			}
+		} else if (mouse_moved && _hold_cam) {
+			_back_cam_yaw -= mouse_x * cam->get_orbit_sensitivity(); // camera frozen: mouse just looks
+		} else if (mouse_moved) {
 			_steer_yaw_target -= mouse_x * cam->get_orbit_sensitivity(); // mouse wins
 		} else {
 			_steer_yaw_target -= move_axis.x * steer_rate * dt; // keys: right = clockwise
@@ -706,19 +743,26 @@ void SpringCharacter::_physics_process(double delta) {
 			_face_yaw += diff * (1.0f - std::exp(-face_turn_rate * dt));
 			_steer_yaw_target = UtilityFunctions::wrapf(_steer_yaw_target, -(float)Math::PI, (float)Math::PI);
 		}
-		float cy = std::cos(_face_yaw);
-		float sy = std::sin(_face_yaw);
-		Vector3 fwd(-sy, 0.0f, -cy); // body -Z at this yaw
-		float throttle = -move_axis.y; // up = forward (+)
-		float sp = max_speed * sprint_factor * (throttle >= 0.0f ? 1.0f : reverse_speed_mult);
-		_move_target = fwd * (throttle * sp);
-		_wish = (std::abs(throttle) > 0.1f) ? (throttle > 0.0f ? fwd : -fwd) : Vector3(0.0f, 0.0f, 0.0f);
+
+		if (backing) {
+			_move_target = back_dir * (back_mag * max_speed * sprint_factor);
+			_wish = back_dir;
+		} else {
+			float cy = std::cos(_face_yaw);
+			float sy = std::sin(_face_yaw);
+			Vector3 fwd(-sy, 0.0f, -cy); // body -Z at this yaw
+			float throttle = -move_axis.y; // up = forward (+)
+			float sp = max_speed * sprint_factor * (throttle >= 0.0f ? 1.0f : reverse_speed_mult);
+			_move_target = fwd * (throttle * sp);
+			_wish = (std::abs(throttle) > 0.1f) ? (throttle > 0.0f ? fwd : -fwd) : Vector3(0.0f, 0.0f, 0.0f);
+		}
 		_face_dir = Vector3(0.0f, 0.0f, 0.0f); // facing is driven directly by steering above
 
-		// Lock the follow-cam behind the steered heading so it rotates WITH the character.
+		// Lock the follow-cam behind the steered heading so it rotates WITH the character;
+		// after a backward run it holds the frozen yaw until the player drives forward.
 		if (cam) {
 			cam->set_camera_mode(GameCamera::MODE_CHARACTER);
-			cam->set_heading_follow(true, _face_yaw);
+			cam->set_heading_follow(true, _hold_cam ? _back_cam_yaw : _face_yaw);
 		}
 	} else {
 		// Camera-relative movement (Odyssey / A Hat in Time): the stick is a direction in
@@ -748,6 +792,8 @@ void SpringCharacter::_physics_process(double delta) {
 		_wish = (mag > 0.1f) ? dir : Vector3(0.0f, 0.0f, 0.0f);
 		_face_dir = _wish; // facing eases toward the move direction (face_turn_rate)
 		_steer_target_valid = false; // so switching back to steer starts from the live heading
+		_steer_backing = false;
+		_hold_cam = false;
 
 		if (cam) {
 			cam->set_camera_mode(GameCamera::MODE_PLATFORMER);

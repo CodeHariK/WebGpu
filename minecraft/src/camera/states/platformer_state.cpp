@@ -15,6 +15,8 @@ static const float PIVOT_RATE = 12.0f; // how fast the framing chases the charac
 static const float VELOCITY_RATE = 5.0f; // how fast the "travel direction" settles
 static const float PITCH_RETURN_RATE = 1.5f; // how fast pitch eases back to the resting framing
 static const float RECENTER_SPEED = 2.5f; // only auto-centre above this horizontal speed (m/s)
+static const float AWAY_MIN = 0.35f; // need a real 'away from camera' component; sideways/toward never swing
+static const float AWAY_FULL = 0.85f; // travel this far away from the camera: full swing-behind rate
 static const float RECENTER_SUSPEND = 1.5f; // pause auto-centre this long after a manual orbit
 static const float LOOK_TARGET_HEIGHT = 1.0f; // aim toward the head so more ground ahead / below reads
 
@@ -91,10 +93,24 @@ void CameraStatePlatformer::update(
 
 	// Soft swing-behind: ease the yaw round behind the direction of travel once the
 	// player has committed to it. Idle (or orbiting / recently orbited) holds the view.
+	//
+	// Only swing when travel points AWAY from the camera (or sideways). Running TOWARD the
+	// camera must never trigger it: movement is camera-relative, so swinging round to get
+	// behind a character running at you rotates "toward the camera" with it, which turns
+	// the character, which turns the camera... a feedback loop that runs you in circles.
+	// Odyssey does the same: run at the camera and it just lets you come to it.
 	if (!orbiting && recenter_suspend <= 0.0f && travel_time > p_camera->platformer_recenter_delay) {
-		float target_yaw = Math::atan2(-horizontal_vel.x, -horizontal_vel.z);
-		float yaw_diff = UtilityFunctions::wrapf(target_yaw - p_camera->yaw, -Math::PI, Math::PI);
-		p_camera->yaw += yaw_diff * spring_damp_factor(p_camera->platformer_recenter_rate, p_delta);
+		Vector3 travel_dir = horizontal_vel / h_speed; // h_speed > RECENTER_SPEED here
+		Vector3 cam_fwd(-Math::sin(p_camera->yaw), 0.0f, -Math::cos(p_camera->yaw)); // ground-plane look dir
+		float away = travel_dir.dot(cam_fwd); // +1 away from camera, 0 sideways, -1 toward it
+		// 0 when heading toward the camera, ramping to full strength when heading away.
+		float t = CLAMP((away - AWAY_MIN) / (AWAY_FULL - AWAY_MIN), 0.0f, 1.0f);
+		float weight = t * t * (3.0f - 2.0f * t); // smoothstep: no hard edge in the rate
+		if (weight > 0.0f) {
+			float target_yaw = Math::atan2(-horizontal_vel.x, -horizontal_vel.z);
+			float yaw_diff = UtilityFunctions::wrapf(target_yaw - p_camera->yaw, -Math::PI, Math::PI);
+			p_camera->yaw += yaw_diff * spring_damp_factor(p_camera->platformer_recenter_rate * weight, p_delta);
+		}
 	}
 
 	// Ease pitch back to the comfortable resting framing when hands-off.
