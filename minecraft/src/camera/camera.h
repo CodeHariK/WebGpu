@@ -14,6 +14,7 @@
 #include <godot_cpp/variant/vector3.hpp>
 
 #include <memory>
+#include <vector>
 
 namespace godot {
 class PlayerInput;
@@ -76,6 +77,9 @@ private:
 	/// Physics RIDs excluded from every camera ray (the follow target and its
 	/// bodies). Rebuilt only when the target changes, not per frame.
 	TypedArray<RID> follow_exclude;
+	/// Extra bodies the camera rays ignore (e.g. something the player is carrying or has
+	/// just thrown), so they never pull the camera in. Merged into follow_exclude.
+	std::vector<RID> extra_exclude;
 
 	// --- Orientation --------------------------------------------------------
 	float yaw = 0.0f; ///< Desired yaw (radians, around +Y); smoothed via yaw_spring.
@@ -163,6 +167,13 @@ private:
 	/// Rebuild `follow_exclude` from the current follow target. Call whenever the
 	/// follow target changes.
 	void _refresh_follow_exclude();
+
+public:
+	/// Make the camera's collision rays ignore / stop ignoring a body.
+	void add_ray_exclude(const RID &p_rid);
+	void remove_ray_exclude(const RID &p_rid);
+
+private:
 
 	/// Resolve `speed_lines_path` into `speed_lines` (no-op if unset).
 	void _update_speed_lines();

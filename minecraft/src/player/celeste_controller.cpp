@@ -34,6 +34,15 @@ void CelesteController::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_ui_toggle"), &CelesteController::_on_ui_toggle);
 	ClassDB::bind_method(D_METHOD("is_parrying"), &CelesteController::is_parrying);
 	ClassDB::bind_method(D_METHOD("is_aiming"), &CelesteController::is_aiming);
+	ClassDB::bind_method(D_METHOD("is_carrying"), &CelesteController::is_carrying);
+	ClassDB::bind_method(D_METHOD("set_throw_speed", "v"), &CelesteController::set_throw_speed);
+	ClassDB::bind_method(D_METHOD("get_throw_speed"), &CelesteController::get_throw_speed);
+	ClassDB::bind_method(D_METHOD("set_throw_damage", "v"), &CelesteController::set_throw_damage);
+	ClassDB::bind_method(D_METHOD("get_throw_damage"), &CelesteController::get_throw_damage);
+	ADD_GROUP("Lift & Throw", "throw_");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "throw_speed", PROPERTY_HINT_RANGE, "2,60,0.5,suffix:m/s"), "set_throw_speed", "get_throw_speed");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "throw_damage", PROPERTY_HINT_RANGE, "0,20,0.5"), "set_throw_damage", "get_throw_damage");
+	ADD_GROUP("", "");
 	ClassDB::bind_method(D_METHOD("set_parry_window", "seconds"), &CelesteController::set_parry_window);
 	ClassDB::bind_method(D_METHOD("get_parry_window"), &CelesteController::get_parry_window);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "parry_window", PROPERTY_HINT_RANGE, "0.05,1,0.01,suffix:s"), "set_parry_window", "get_parry_window");
@@ -167,6 +176,7 @@ void CelesteController::_ready() {
 	attack_fx.setup(this, _skin);
 	_audio.setup(this, "res://assets/character/sounds/");
 	bow.setup(this, "res://assets/projectiles/player_arrow.tres");
+	lift.setup(this, half_height);
 }
 
 void CelesteController::_exit_tree() {
@@ -242,11 +252,25 @@ void CelesteController::_update_controls(float p_delta) {
 	set_rotation(Vector3(0.0f, controls.get_face_yaw(), 0.0f));
 }
 
+// Lift & throw: F lifts a nearby rigid body; F again (hold to see the arc) throws it.
+void CelesteController::_update_lift(float p_delta) {
+	GameManager *gm = GameManager::get_singleton();
+	const ActionState &st = input_state();
+	lift.update(p_delta, st.character.grab, st.character.grab_just_pressed, gm ? gm->get_camera() : nullptr, _active && gm);
+	if (lift.is_aiming()) {
+		set_rotation(Vector3(0.0f, lift.get_aim_yaw(), 0.0f));
+	}
+}
+
 // Bow: hold to draw (arc preview), release to fire. While drawing, face the aim.
 void CelesteController::_update_bow(float p_delta) {
 	GameManager *gm = GameManager::get_singleton();
 	if (!_active || !gm) {
 		bow.cancel();
+		return;
+	}
+	if (lift.is_holding()) {
+		bow.cancel(); // hands are full
 		return;
 	}
 	bow.update(p_delta, input_state().character.bow, gm->get_camera());
@@ -347,6 +371,7 @@ void CelesteController::_physics_process(double delta) {
 	const ActionState &state = input_state();
 
 	_update_controls(f_delta);
+	_update_lift(f_delta);
 	_update_bow(f_delta);
 
 	// Parry window: opened only by pressing hit (kick); the kick itself still plays.

@@ -50,7 +50,7 @@ void CelesteGroundedState::physics_update(float delta) {
 	}
 
 	// Kick Input
-	if (state.character.kick_just_pressed) {
+	if (state.character.kick_just_pressed && !controller->is_carrying()) {
 		controller->change_state(controller->attack_state);
 		return;
 	}
@@ -105,7 +105,7 @@ void CelesteMoveState::physics_update(float delta) {
 			controller->change_state(controller->idle_state);
 			return;
 		}
-		Vector3 target_horizontal_vel = move_dir * (controller->max_speed * controller->movement_strength());
+		Vector3 target_horizontal_vel = move_dir * (controller->move_speed() * controller->movement_strength());
 		Vector3 vel = controller->get_velocity();
 		vel.x = Math::move_toward(vel.x, target_horizontal_vel.x, controller->acceleration * delta);
 		vel.z = Math::move_toward(vel.z, target_horizontal_vel.z, controller->acceleration * delta);
@@ -155,7 +155,7 @@ void CelesteMoveState::physics_update(float delta) {
 
 	float input_strength = controller->movement_strength();
 
-	Vector3 target_horizontal_vel = move_dir * (controller->max_speed * input_strength);
+	Vector3 target_horizontal_vel = move_dir * (controller->move_speed() * input_strength);
 	Vector3 vel = controller->get_velocity();
 	vel.x = Math::move_toward(vel.x, target_horizontal_vel.x, controller->acceleration * delta);
 	vel.z = Math::move_toward(vel.z, target_horizontal_vel.z, controller->acceleration * delta);
