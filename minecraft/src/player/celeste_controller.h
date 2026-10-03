@@ -1,6 +1,10 @@
 #ifndef CELESTE_CONTROLLER_H
 #define CELESTE_CONTROLLER_H
 
+#include "../character/character_animator.h"
+#include "../character/character_audio.h"
+#include "../character/character_controls.h"
+#include "../game_manager/player_input.h"
 #include <godot_cpp/classes/character_body3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <map>
@@ -75,6 +79,26 @@ private:
 	float spring_stiffness = 800.0f;
 	float spring_damping = 40.0f;
 
+	// --- Control scheme (shared logic: character/character_controls.h) ---
+	// 0 = Steer (MODE_CHARACTER heading cam), 1 = Camera Relative (MODE_PLATFORMER),
+	// 2 = Legacy (the original TPS / Fixed camera behaviour). V flips 0 <-> 1 in game.
+	int control_scheme = 0;
+	CharacterControls controls;
+	bool _scheme_key_was_down = false;
+	bool _active = false; ///< This frame: are we the GameManager's active target?
+
+	// --- Animated skin + sounds (optional child exposing idle/move/jump/fall) ---
+	Node3D *_skin = nullptr;
+	CharacterAnimator _animator;
+	CharacterAudio _audio;
+	float _prev_yaw = 0.0f; ///< For the lean (turn-rate) signal.
+	bool _jump_event = false; ///< Set when a jump state is entered; consumed by the audio.
+
+	// --- Step detection: last measured sole clearance, so probe rays start at the floor ---
+	float _last_ground_dist = 0.0f;
+	bool _has_last_ground = false;
+	bool _ride_probe_ground = false; ///< Last frame had ground, so the step rays can start at the floor.
+
 	// Runtime State
 	bool is_jumping = false;
 	bool can_double_jump = true;
@@ -93,6 +117,13 @@ private:
 	Vector3 dash_direction;
 
 	void _update_jump_math();
+	void _update_controls(float p_delta);
+	void _update_ride_height(
+			const Vector3 &p_bottom,
+			float p_delta
+	);
+	void _find_skin();
+	void _update_skin_and_audio(float p_delta);
 	Node3D *_find_melee_target();
 
 	// HSM States
@@ -121,6 +152,17 @@ public:
 	void _physics_process(double delta) override;
 
 	void change_state(CelesteState *p_new_state);
+
+	// Input as seen by the states: empty unless we are the active target, so an
+	// inactive character never reacts to keys meant for another one.
+	const ActionState &input_state() const;
+	float movement_strength() const;
+	bool uses_scheme() const { return control_scheme != 2; }
+	Vector3 scheme_move_dir() const { return controls.get_move_dir(); }
+	bool has_move_intent() const;
+
+	void set_control_scheme(int p_scheme);
+	int get_control_scheme() const { return control_scheme; }
 
 	// UI Logic
 	void _on_ui_slider_value_changed(

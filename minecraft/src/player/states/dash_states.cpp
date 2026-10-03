@@ -13,10 +13,14 @@ void CelesteDashState::enter() {
 	controller->dash_timer = controller->dash_duration;
 	controller->dash_cooldown_timer = controller->dash_cooldown;
 
-	PlayerInput *input = PlayerInput::get_singleton();
-	Vector2 move_axis = input->get_state().character.move_axis;
+	Vector2 move_axis = controller->input_state().character.move_axis;
 
-	if (move_axis.length() < 0.1f) {
+	if (controller->uses_scheme()) {
+		// Dash where the scheme says we're going, else straight ahead along the facing.
+		Vector3 dir = controller->scheme_move_dir();
+		controller->dash_direction =
+				(dir.length() > 0.1f) ? dir : -controller->get_global_transform().basis.get_column(2).normalized();
+	} else if (move_axis.length() < 0.1f) {
 		// Dash forward if no input
 		Transform3D transform = controller->get_global_transform();
 		controller->dash_direction = -transform.basis.get_column(2).normalized();
@@ -43,8 +47,7 @@ void CelesteDashState::physics_update(float delta) {
 	controller->set_velocity(controller->dash_direction * controller->dash_speed);
 
 	// Jump Dash (Super Jump)
-	PlayerInput *input = PlayerInput::get_singleton();
-	if (input && input->get_state().character.jump_just_pressed) {
+	if (controller->input_state().character.jump_just_pressed) {
 		Vector3 vel = controller->get_velocity();
 		// Carry momentum into the jump
 		vel.y = controller->_jump_velocity0;

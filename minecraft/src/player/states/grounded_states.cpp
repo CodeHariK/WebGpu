@@ -17,10 +17,7 @@ void CelesteGroundedState::physics_update(float delta) {
 	if (!controller)
 		return;
 
-	PlayerInput *input = PlayerInput::get_singleton();
-	if (!input)
-		return;
-	const ActionState &state = input->get_state();
+	const ActionState &state = controller->input_state();
 
 	// Transition to Airborne if no longer hovering
 	if (!controller->is_hovering) {
@@ -76,15 +73,14 @@ void CelesteIdleState::physics_update(float delta) {
 	vel.z = Math::move_toward(vel.z, 0.0f, controller->friction * delta);
 	controller->set_velocity(vel);
 
-	// TPS Rotation
+	// TPS Rotation (legacy scheme only; the control schemes own the body's facing)
 	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
-	if (cam && cam->get_camera_mode() == GameCamera::MODE_TPS) {
+	if (!controller->uses_scheme() && cam && cam->get_camera_mode() == GameCamera::MODE_TPS) {
 		controller->set_rotation(Vector3(0, cam->get_yaw(), 0));
 	}
 
-	// Transition to Move if input detected
-	PlayerInput *input = PlayerInput::get_singleton();
-	if (input && input->get_state().character.move_axis.length() > 0.1f) {
+	// Transition to Move if there is somewhere to go
+	if (controller->has_move_intent()) {
 		controller->change_state(controller->move_state);
 	}
 }
@@ -100,12 +96,24 @@ void CelesteMoveState::physics_update(float delta) {
 	if (controller->current_state != this)
 		return;
 
-	PlayerInput *input = PlayerInput::get_singleton();
-	if (!input)
-		return;
-	const ActionState &state = input->get_state();
+	const ActionState &state = controller->input_state();
 
-	// Calculate target direction relative to camera
+	if (controller->uses_scheme()) {
+		// Steer / camera-relative: CharacterControls already chose the direction and facing.
+		Vector3 move_dir = controller->scheme_move_dir();
+		if (move_dir.length() < 0.1f) {
+			controller->change_state(controller->idle_state);
+			return;
+		}
+		Vector3 target_horizontal_vel = move_dir * (controller->max_speed * controller->movement_strength());
+		Vector3 vel = controller->get_velocity();
+		vel.x = Math::move_toward(vel.x, target_horizontal_vel.x, controller->acceleration * delta);
+		vel.z = Math::move_toward(vel.z, target_horizontal_vel.z, controller->acceleration * delta);
+		controller->set_velocity(vel);
+		return;
+	}
+
+	// Legacy: calculate target direction relative to camera
 	Transform3D transform = controller->get_global_transform();
 	GameCamera *cam = GameManager::get_singleton() ? GameManager::get_singleton()->get_camera() : nullptr;
 
@@ -145,7 +153,7 @@ void CelesteMoveState::physics_update(float delta) {
 		controller->set_rotation(Vector3(0, new_angle, 0));
 	}
 
-	float input_strength = input->get_movement_strength(controller->sprint_multiplier);
+	float input_strength = controller->movement_strength();
 
 	Vector3 target_horizontal_vel = move_dir * (controller->max_speed * input_strength);
 	Vector3 vel = controller->get_velocity();

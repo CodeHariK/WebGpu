@@ -19,6 +19,8 @@
 
 #include "states/car_state.h"
 #include "states/character_state.h"
+#include <godot_cpp/classes/character_body3d.hpp>
+#include <godot_cpp/classes/rigid_body3d.hpp>
 #include "states/platformer_state.h"
 #include "states/fixed_state.h"
 #include "states/fly_state.h"
@@ -354,6 +356,16 @@ void GameCamera::drive_speed_lines(float p_ratio) {
 }
 
 // --- Shared follow helpers -------------------------------------------------
+
+Vector3 GameCamera::follow_target_velocity() const {
+	if (RigidBody3D *rb = Object::cast_to<RigidBody3D>(follow_target_node)) {
+		return rb->get_linear_velocity();
+	}
+	if (CharacterBody3D *cb = Object::cast_to<CharacterBody3D>(follow_target_node)) {
+		return cb->get_velocity();
+	}
+	return Vector3();
+}
 
 void GameCamera::rebase_springs() {
 	Vector3 rot = get_rotation();

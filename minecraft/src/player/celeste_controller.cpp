@@ -16,6 +16,8 @@
 #include "states/grounded_states.h"
 #include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/input.hpp>
+#include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/classes/physics_direct_space_state3d.hpp>
 #include <godot_cpp/classes/physics_shape_query_parameters3d.hpp>
@@ -36,6 +38,12 @@ void CelesteController::_bind_methods() {
 			&CelesteController::_on_ui_slider_value_changed
 	);
 	ClassDB::bind_method(D_METHOD("get_speed_percent"), &CelesteController::get_speed_percent);
+	ClassDB::bind_method(D_METHOD("set_control_scheme", "scheme"), &CelesteController::set_control_scheme);
+	ClassDB::bind_method(D_METHOD("get_control_scheme"), &CelesteController::get_control_scheme);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::INT, "control_scheme", PROPERTY_HINT_ENUM, "Steer,Camera Relative,Legacy"),
+			"set_control_scheme", "get_control_scheme"
+	);
 }
 
 CelesteController::CelesteController() {
@@ -130,6 +138,12 @@ void CelesteController::_ready() {
 	// Apply floor snapping defaults
 	set_floor_snap_length(0.0f);
 	set_floor_constant_speed_enabled(true);
+
+	controls.seed(get_rotation().y);
+	set_control_scheme(control_scheme);
+	_prev_yaw = get_rotation().y;
+	_find_skin();
+	_audio.setup(this, "res://assets/character/sounds/");
 }
 
 void CelesteController::_exit_tree() {
@@ -145,8 +159,141 @@ void CelesteController::change_state(CelesteState *p_new_state) {
 	if (current_state)
 		current_state->exit();
 	current_state = p_new_state;
+	if (p_new_state == (CelesteState *)jump_state || p_new_state == (CelesteState *)double_jump_state) {
+		_jump_event = true; // ground, coyote, wall, dash and double jumps all land here
+	}
 	if (current_state)
 		current_state->enter();
+}
+
+// ---------------------------------------------------------------------------
+// Input gating + control schemes
+// ---------------------------------------------------------------------------
+
+const ActionState &CelesteController::input_state() const {
+	static const ActionState empty{};
+	PlayerInput *input = PlayerInput::get_singleton();
+	return (_active && input) ? input->get_state() : empty;
+}
+
+float CelesteController::movement_strength() const {
+	PlayerInput *input = PlayerInput::get_singleton();
+	return (_active && input) ? input->get_movement_strength(sprint_multiplier) : 0.0f;
+}
+
+bool CelesteController::has_move_intent() const {
+	return uses_scheme() ? controls.has_move() : input_state().character.move_axis.length() > 0.1f;
+}
+
+void CelesteController::set_control_scheme(int p_scheme) {
+	control_scheme = CLAMP(p_scheme, 0, 2);
+	if (uses_scheme()) {
+		controls.set_scheme((CharacterControls::Scheme)control_scheme);
+	}
+}
+
+void CelesteController::_update_controls(float p_delta) {
+	if (!uses_scheme()) {
+		return; // Legacy: the states drive rotation from the TPS / Fixed camera as before
+	}
+	GameManager *gm = GameManager::get_singleton();
+	GameCamera *cam = (_active && gm) ? gm->get_camera() : nullptr;
+	if (_active) {
+		bool v_down = Input::get_singleton()->is_physical_key_pressed(KEY_V);
+		if (v_down && !_scheme_key_was_down) {
+			controls.toggle_scheme();
+			control_scheme = (int)controls.get_scheme();
+			UtilityFunctions::print(
+					String("CelesteController: control scheme -> ") +
+					(control_scheme == 0 ? "STEER (heading cam)" : "CAMERA-RELATIVE (platformer cam)")
+			);
+		}
+		_scheme_key_was_down = v_down;
+		const ActionState &st = input_state();
+		controls.update(st.character.move_axis, st.camera.look_delta.x, cam, p_delta);
+		controls.apply_camera(cam);
+	} else {
+		controls.idle();
+	}
+	// The body faces the heading (kinematic body + symmetric capsule: rotating it is free).
+	set_rotation(Vector3(0.0f, controls.get_face_yaw(), 0.0f));
+}
+
+// Two-ray step test, measured from the real floor (the sole hovers above it):
+//   - a LOW ray just above the floor catches a step riser (a steep face right ahead),
+//   - a HIGH ray at max_ride_height above the floor; clear = short enough to float over,
+//     blocked too = a wall (left to the wall jump).
+// The previous single ray treated vertical risers as walls (normal.y < 0.25) and never lifted.
+void CelesteController::_update_ride_height(
+		const Vector3 &p_bottom,
+		float p_delta
+) {
+	float target = min_ride_height;
+	Vector3 forward = -get_global_transform().basis.get_column(2).normalized();
+	Vector3 vel = get_velocity();
+	float forward_speed = Vector3(vel.x, 0.0f, vel.z).dot(forward);
+
+	if (_ride_probe_ground && forward_speed > 0.5f) {
+		Vector3 up(0.0f, 1.0f, 0.0f);
+		Vector3 ground = p_bottom - up * _last_ground_dist;
+		Vector3 low = ground + up * 0.1f;
+		Vector3 high = ground + up * (max_ride_height + 0.1f);
+		TypedArray<RID> exclude;
+		exclude.append(get_rid());
+		MCRaycastHit low_hit = raycast_3d(this, low, low + forward * 1.0f, 1, exclude);
+		bool high_clear = !raycast_3d(this, high, high + forward * 1.0f, 1, exclude).is_hit;
+		bool riser = low_hit.is_hit && low_hit.normal.dot(up) < 0.5f;
+		if (riser && high_clear) {
+			target = max_ride_height;
+		}
+#if DEBUG
+		DebugManager::get_singleton()->clear_line("forward_ray");
+		if (riser && high_clear) {
+			DebugManager::get_singleton()->draw_line("forward_ray", low, low_hit.position, 0.1f, Color(1, 1, 0), 0.1f);
+		}
+#endif
+	}
+	ride_height = Math::move_toward(ride_height, target, p_delta * ride_height_speed);
+}
+
+// A skin is any Node3D child exposing the intent API (idle/move/jump/fall). When one is
+// present, the placeholder meshes (direct MeshInstance3D children) are hidden.
+void CelesteController::_find_skin() {
+	_skin = nullptr;
+	for (int i = 0; i < get_child_count(); i++) {
+		Node3D *c = Object::cast_to<Node3D>(get_child(i));
+		if (c && !Object::cast_to<MeshInstance3D>(c) && _animator.set_skin(c)) {
+			_skin = c;
+			break;
+		}
+	}
+	if (_skin) {
+		for (int i = 0; i < get_child_count(); i++) {
+			if (MeshInstance3D *m = Object::cast_to<MeshInstance3D>(get_child(i))) {
+				m->set_visible(false);
+			}
+		}
+	}
+	UtilityFunctions::print(
+			_skin ? String("CelesteController: skin bound -> ") + _skin->get_name()
+				  : String("CelesteController: no skin child, using placeholder mesh")
+	);
+}
+
+void CelesteController::_update_skin_and_audio(float p_delta) {
+	Vector3 vel = get_velocity();
+	float h_speed = Vector3(vel.x, 0.0f, vel.z).length();
+	float yaw = get_rotation().y;
+	if (_skin) {
+		// Lean into turns: normalised yaw rate (right turn = +).
+		float yaw_rate =
+				(p_delta > 0.0f) ? UtilityFunctions::wrapf(yaw - _prev_yaw, -Math::PI, Math::PI) / p_delta : 0.0f;
+		float lean = (controls.steer_rate > 0.001f) ? CLAMP(-yaw_rate / controls.steer_rate, -1.0f, 1.0f) : 0.0f;
+		_animator.update(is_hovering, vel.y, h_speed, lean);
+	}
+	_prev_yaw = yaw;
+	_audio.update(is_hovering, vel.y, h_speed, _jump_event, p_delta);
+	_jump_event = false;
 }
 
 void CelesteController::_physics_process(double delta) {
@@ -159,7 +306,11 @@ void CelesteController::_physics_process(double delta) {
 	if (!input)
 		return;
 
-	const ActionState &state = input->get_state();
+	GameManager *gm_active = GameManager::get_singleton();
+	_active = gm_active && gm_active->is_active(this);
+	const ActionState &state = input_state();
+
+	_update_controls(f_delta);
 
 	// Update Coyote Timer
 	if (is_on_floor()) {
@@ -192,6 +343,8 @@ void CelesteController::_physics_process(double delta) {
 	// 2. Hover Spring Logic (PD Controller)
 	is_hovering = false;
 	last_spring_error = 0.0f;
+	bool had_ground = _has_last_ground;
+	_has_last_ground = false; // re-set below if the hover ray hits this frame
 	platform_velocity = Vector3(0, 0, 0);
 
 #if DEBUG
@@ -202,46 +355,12 @@ void CelesteController::_physics_process(double delta) {
 	if (!is_jumping) {
 		Vector3 bottom = get_global_position() - Vector3(0, half_height, 0);
 
-		// Forward raycast to detect obstacles
-		Vector3 forward = -get_global_transform().basis.get_column(2).normalized();
-		Vector3 current_vel = get_velocity();
-		float forward_speed = current_vel.dot(forward);
-
-		MCRaycastHit f_hit;
-		bool is_obstacle = false;
-
 		TypedArray<RID> exclude;
 		exclude.append(get_rid());
 
-		if (forward_speed > 0.5f) {
-			Vector3 f_start = bottom + Vector3(0, 0.2f, 0);
-			Vector3 f_end = f_start + forward * 1.0f;
-
-			f_hit = raycast_3d(this, f_start, f_end, 1, exclude);
-
-			is_obstacle = f_hit.is_hit;
-			if (f_hit.is_hit) {
-				// Dot product of normal and world Y axis (0, 1, 0)
-				float dot_y = f_hit.normal.dot(Vector3(0, 1, 0));
-				// If dot_y is low, the surface is steep (e.g. < 0.25 is > 75 degrees)
-				if (dot_y < 0.25f) {
-					is_obstacle = false;
-				}
-			}
-		}
-
-		// Gradual ride_height adjustment
-		float target_height = is_obstacle ? max_ride_height : min_ride_height;
-		ride_height = Math::move_toward(ride_height, target_height, f_delta * ride_height_speed);
-
-#if DEBUG
-		DebugManager::get_singleton()->clear_line("forward_ray");
-		if (forward_speed > 0.5f && is_obstacle) {
-			DebugManager::get_singleton()->draw_line(
-					"forward_ray", bottom + Vector3(0, 0.2f, 0), f_hit.position, 0.1f, Color(1, 1, 0), 0.1f
-			);
-		}
-#endif
+		// Step detection: rise to max_ride_height for a short step ahead (two-ray test).
+		_ride_probe_ground = had_ground;
+		_update_ride_height(bottom, f_delta);
 
 		Vector3 ray_origin = bottom + Vector3(0, 0.2f, 0);
 		// Increase ray length to catch ground earlier
@@ -252,6 +371,8 @@ void CelesteController::_physics_process(double delta) {
 		if (b_hit.is_hit) {
 			is_hovering = true;
 			float dist = (ray_origin - b_hit.position).length() - 0.2f;
+			_last_ground_dist = MAX(0.0f, dist);
+			_has_last_ground = true;
 			float error = ride_height - dist;
 			last_spring_error = error;
 
@@ -261,7 +382,7 @@ void CelesteController::_physics_process(double delta) {
 			float spring_force = (error * spring_stiffness) - (vel.y * spring_damping);
 			vel.y += spring_force * f_delta;
 
-			set_velocity(_collide_and_slide(vel, f_hit.normal));
+			set_velocity(vel);
 
 			// set_velocity(vel);
 			set_floor_snap_length(0.0f);
@@ -310,6 +431,8 @@ void CelesteController::_physics_process(double delta) {
 	if (platform_velocity != Vector3(0, 0, 0)) {
 		set_velocity(get_velocity() - platform_velocity);
 	}
+
+	_update_skin_and_audio(f_delta);
 
 	if (ui_helper) {
 		ui_helper->update_graph(get_velocity().length());
