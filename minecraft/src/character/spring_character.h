@@ -4,19 +4,17 @@
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include "character_animator.h"
 #include "character_audio.h"
+#include "../cui/tuning_section.h"
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/vector3.hpp>
 
-#include <map>
 
 namespace godot {
 
 class PlayerInput;
-class CharacterUI;
-class CUI;
 
 // Moveset states (src/character/ai/) — friends so each can read the tunables and the
 // working velocity `_vel`, and call the _apply_* helpers on the owner.
@@ -222,10 +220,9 @@ private:
 	CharacterDashState *dash_state = nullptr;
 	CharacterGroundPoundState *pound_state = nullptr;
 
-	// --- Live tuning UI (src/character/character_ui.*) ---
-	CharacterUI *ui_helper = nullptr;
-	CUI *ui_root = nullptr;
-	std::map<String, float *> ui_vars;
+	// --- Live tuning: this character's tab in the shared TuningPanel ---
+	TuningSection tuning;
+	void _setup_tuning();
 
 	void _init_states();
 	void _free_states();
@@ -313,13 +310,6 @@ public:
 	float get_pound_speed() const { return pound_speed; }
 	void set_sprint_multiplier(float v) { sprint_multiplier = v; }
 	float get_sprint_multiplier() const { return sprint_multiplier; }
-
-	// Live tuning UI callbacks (invoked by CUI sliders / buttons).
-	void _on_ui_toggle();
-	void _on_ui_slider_value_changed(double p_value, String p_property);
-	void save_settings();
-	void load_settings();
-	float get_ui_var(const String &p_name) const;
 };
 
 } // namespace godot

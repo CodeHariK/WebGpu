@@ -3,6 +3,7 @@
 
 #include "../utils/raycast/mc_raycast.h"
 #include "config/vehicle_config.h"
+#include "cui/tuning_section.h"
 #include "game_manager/player_input.h"
 #include "godot_cpp/classes/mesh_instance3d.hpp"
 #include "godot_cpp/classes/sphere_shape3d.hpp"
@@ -24,8 +25,6 @@ class GlidingState;
 class RampSpinState;
 class RampRollState;
 class PlayerInput;
-class ArcadeVehicleUI;
-class CUI;
 
 class ArcadeVehicle : public RigidBody3D {
 	GDCLASS(ArcadeVehicle,
@@ -163,25 +162,12 @@ public:
 	void set_game_manager(GameManager *p_gm) { game_manager = p_gm; }
 	void set_player_input(PlayerInput *p_input) { player_input = p_input; }
 
-	// UI Logic
-	void _on_ui_toggle();
-	void _on_ui_slider_value_changed(
-			double p_value,
-			String p_property
-	);
-	void save_settings();
-	void load_settings();
-	float get_ui_var(const String &p_name) const;
-	void set_ui_var(
-			const String &p_name,
-			float p_value
-	);
 
 	void debug_draw_trajectory(float p_delta);
 
 private:
-	ArcadeVehicleUI *ui_helper = nullptr;
-	CUI *ui_root = nullptr;
+	TuningSection tuning; ///< this vehicle's tab in the shared TuningPanel (shown while driven)
+	void _setup_tuning();
 };
 
 } // namespace godot

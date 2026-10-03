@@ -1,4 +1,3 @@
-#include "../cui/cui.h"
 #include "ai/vehicle_states.h"
 #include "arcade_vehicle.h"
 #include "debug_draw/debug_manager.h"
@@ -7,56 +6,22 @@
 #include "godot_cpp/classes/csg_cylinder3d.hpp"
 #include "godot_cpp/classes/cylinder_shape3d.hpp"
 #include "godot_cpp/classes/sphere_mesh.hpp"
-#include "ui/arcade_vehicle_ui.h"
-#include <godot_cpp/classes/config_file.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
 
 namespace godot {
 
-// Config properties persisted to user://vehicle_settings.cfg and mirrored by the
-// tuning UI. Single source of truth: save/load and the UI iterate this list, so a
-// new tunable only needs adding here (plus the bound property on VehicleConfig).
-namespace {
-const char *VEHICLE_TUNABLES[] = { "max_speed",
-								   "max_accel_force",
-								   "brake_decel",
-								   "arcade_assist",
-								   "max_steer_angle_deg",
-								   "base_grip",
-								   "drift_grip",
-								   "turn_radius",
-								   "max_yaw_rate",
-								   "turn_speed",
-								   "grip_lateral_accel",
-								   "drift_lateral_accel",
-								   "mini_turbo_boost",
-								   "downforce",
-								   "angular_damping",
-								   "velocity_alignment",
-								   "nitro_max_fuel",
-								   "nitro_refuel_rate",
-								   "nitro_depletion_rate",
-								   "roll_influence",
-								   "pitch_influence" };
-} // namespace
 
 ArcadeVehicle::ArcadeVehicle() {
 	is_boosting = false;
 	boost_speed_bonus = 0.0f;
-	ui_helper = nullptr;
-	ui_root = nullptr;
 
 	was_on_ramp = false;
 	last_roll_tilt = 0.0f;
 }
 
 ArcadeVehicle::~ArcadeVehicle() {
-	if (ui_helper) {
-		delete ui_helper;
-		ui_helper = nullptr;
-	}
 
 	delete grounded_state;
 	delete airborne_state;
@@ -135,13 +100,7 @@ void ArcadeVehicle::_ready() {
 		gm->register_vehicle(this);
 	}
 
-	// Setup UI (debug tuning HUD; only when debug visuals are enabled)
-	if (debug_visuals_enabled) {
-		ui_root = CUI::create_on_new_layer(this);
-		ui_helper = new ArcadeVehicleUI();
-		ui_helper->setup(this, ui_root);
-	}
-	load_settings();
+	_setup_tuning();
 
 	if (config.is_valid()) {
 		nitro_fuel = config->get_nitro_max_fuel();
@@ -252,78 +211,49 @@ void ArcadeVehicle::set_debug_visuals_enabled(bool p_enabled) {
 
 bool ArcadeVehicle::get_debug_visuals_enabled() const { return debug_visuals_enabled; }
 
-void ArcadeVehicle::_on_ui_toggle() {
-	if (ui_helper) {
-		ui_helper->toggle_visibility();
-	}
-}
-
-void ArcadeVehicle::_on_ui_slider_value_changed(
-		double p_value,
-		String p_property
-) {
-	set_ui_var(p_property, (float)p_value);
-}
-
-void ArcadeVehicle::save_settings() {
+/**
+ * @brief Describe the VehicleConfig tunables for the shared TuningPanel and apply saved
+ * values (user://vehicle_settings.cfg). The tab only exists with debug visuals on and is
+ * shown only while this vehicle is the one being driven (see _physics_process).
+ */
+void ArcadeVehicle::_setup_tuning() {
 	if (config.is_null()) {
 		return;
 	}
-
-	Ref<ConfigFile> cfg;
-	cfg.instantiate();
-
-	for (const char *key : VEHICLE_TUNABLES) {
-		cfg->set_value("Vehicle", key, config->get(key));
+	Object *cfg = config.ptr();
+	tuning.begin("Car: " + String(get_name()), "user://vehicle_settings.cfg", "Vehicle");
+	tuning.header("Driving");
+	tuning.slider("Max Speed", "max_speed", cfg, 5.0f, 100.0f, 0.5f);
+	tuning.slider("Max Accel Force", "max_accel_force", cfg, 1000.0f, 25000.0f, 100.0f);
+	tuning.slider("Brake Decel", "brake_decel", cfg, 1000.0f, 30000.0f, 100.0f);
+	tuning.slider("Arcade Assist", "arcade_assist", cfg, 0.0f, 10.0f, 0.1f);
+	tuning.header("Steering");
+	tuning.slider("Max Steer Angle", "max_steer_angle_deg", cfg, 5.0f, 60.0f, 0.5f);
+	tuning.slider("Turn Radius", "turn_radius", cfg, 2.0f, 25.0f, 0.5f);
+	tuning.slider("Turn Speed", "turn_speed", cfg, 0.5f, 12.0f, 0.1f);
+	tuning.slider("Max Yaw Rate", "max_yaw_rate", cfg, 0.3f, 4.0f, 0.05f);
+	tuning.header("Grip / Drift");
+	tuning.slider("Base Grip", "base_grip", cfg, 0.0f, 2.0f, 0.05f);
+	tuning.slider("Drift Grip", "drift_grip", cfg, 0.0f, 2.0f, 0.05f);
+	tuning.slider("Grip Limit", "grip_lateral_accel", cfg, 5.0f, 60.0f, 0.5f);
+	tuning.slider("Drift Grip Limit", "drift_lateral_accel", cfg, 2.0f, 40.0f, 0.5f);
+	tuning.slider("Mini-Turbo Boost", "mini_turbo_boost", cfg, 0.0f, 20.0f, 0.5f);
+	tuning.header("Body");
+	tuning.slider("Downforce", "downforce", cfg, 0.0f, 10000.0f, 50.0f);
+	tuning.slider("Yaw Damping", "angular_damping", cfg, 0.0f, 20.0f, 0.1f);
+	tuning.slider("Vel Alignment", "velocity_alignment", cfg, 0.0f, 10.0f, 0.1f);
+	tuning.slider("Roll Influence", "roll_influence", cfg, 0.0f, 1.0f, 0.05f);
+	tuning.slider("Pitch Influence", "pitch_influence", cfg, 0.0f, 1.0f, 0.05f);
+	tuning.header("Nitro");
+	tuning.slider("Max Fuel", "nitro_max_fuel", cfg, 10.0f, 300.0f, 5.0f);
+	tuning.slider("Refuel Rate", "nitro_refuel_rate", cfg, 0.0f, 100.0f, 1.0f);
+	tuning.slider("Depletion Rate", "nitro_depletion_rate", cfg, 0.0f, 100.0f, 0.5f);
+	tuning.graph("Speed", 0.0f, config->get_max_speed() + config->get_drift_boost_max_speed_bonus());
+	tuning.load();
+	if (debug_visuals_enabled) {
+		tuning.attach();
+		tuning.set_shown(false); // revealed while driven
 	}
-
-	cfg->save("user://vehicle_settings.cfg");
-	UtilityFunctions::print("ArcadeVehicle: Settings saved to user://vehicle_settings.cfg");
-}
-
-void ArcadeVehicle::load_settings() {
-	if (config.is_null()) {
-		return;
-	}
-
-	Ref<ConfigFile> cfg;
-	cfg.instantiate();
-
-	Error err = cfg->load("user://vehicle_settings.cfg");
-	if (err != OK) {
-		return;
-	}
-
-	// Load only keys that are present, falling back to the current value, and mirror
-	// each into the tuning UI (set_value no-ops for keys without a matching slider).
-	for (const char *key : VEHICLE_TUNABLES) {
-		if (!cfg->has_section_key("Vehicle", key)) {
-			continue;
-		}
-		config->set(key, cfg->get_value("Vehicle", key, config->get(key)));
-		if (ui_root) {
-			ui_root->set_value(key, (float)config->get(key));
-		}
-	}
-
-	UtilityFunctions::print("ArcadeVehicle: Settings loaded from user://vehicle_settings.cfg");
-}
-
-float ArcadeVehicle::get_ui_var(const String &p_name) const {
-	if (config.is_null())
-		return 0.0f;
-	// Bound VehicleConfig properties are addressable by name via the object system.
-	return (float)config->get(p_name);
-}
-
-void ArcadeVehicle::set_ui_var(
-		const String &p_name,
-		float p_value
-) {
-	if (config.is_null())
-		return;
-	// Bound VehicleConfig properties are addressable by name via the object system.
-	config->set(p_name, p_value);
 }
 
 void ArcadeVehicle::_bind_methods() {
@@ -350,12 +280,6 @@ void ArcadeVehicle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_wheel_count"), &ArcadeVehicle::get_wheel_count);
 	ClassDB::bind_method(D_METHOD("get_wheel_displacement", "index"), &ArcadeVehicle::get_wheel_displacement);
 
-	ClassDB::bind_method(D_METHOD("_on_ui_toggle"), &ArcadeVehicle::_on_ui_toggle);
-	ClassDB::bind_method(D_METHOD("save_settings"), &ArcadeVehicle::save_settings);
-	ClassDB::bind_method(D_METHOD("load_settings"), &ArcadeVehicle::load_settings);
-	ClassDB::bind_method(
-			D_METHOD("_on_ui_slider_value_changed", "value", "property"), &ArcadeVehicle::_on_ui_slider_value_changed
-	);
 }
 
 } //namespace godot

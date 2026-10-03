@@ -1,11 +1,8 @@
 #include "arcade_vehicle.h"
-#include "../cui/cui.h"
 #include "../game_manager/game_manager.h"
 #include "../game_manager/player_input.h"
 #include "../utils/raycast/mc_raycast.h"
 #include "ai/vehicle_states.h"
-#include "ui/arcade_vehicle_ui.h"
-#include <godot_cpp/classes/canvas_layer.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -246,16 +243,10 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 
 	_update_debug_arrows();
 
-	// Dynamic UI Visibility & Updates
-	if (ui_root) {
-		CanvasLayer *cl = Object::cast_to<CanvasLayer>(ui_root->get_parent());
-		if (cl) {
-			cl->set_visible(is_active && debug_visuals_enabled);
-		}
-	}
-
-	if (is_active && ui_helper) {
-		ui_helper->update_graph(get_linear_velocity().length());
+	// Tuning tab: only the driven car's tab is shown in the shared panel.
+	tuning.set_shown(is_active && debug_visuals_enabled);
+	if (is_active) {
+		tuning.push_graph(get_linear_velocity().length());
 	}
 
 	was_on_ramp = is_on_ramp;

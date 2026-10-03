@@ -1,9 +1,7 @@
 #include "spring_character.h"
 
 #include "ai/character_states.h"
-#include "character_ui.h"
 
-#include "../cui/cui.h"
 
 #include "../camera/camera.h"
 #include "../game_manager/game_manager.h"
@@ -71,10 +69,6 @@ void SpringCharacter::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_pound_speed", "v"), &SpringCharacter::set_pound_speed);
 	ClassDB::bind_method(D_METHOD("get_pound_speed"), &SpringCharacter::get_pound_speed);
 	ClassDB::bind_method(D_METHOD("is_grounded"), &SpringCharacter::is_grounded);
-	ClassDB::bind_method(D_METHOD("_on_ui_toggle"), &SpringCharacter::_on_ui_toggle);
-	ClassDB::bind_method(D_METHOD("_on_ui_slider_value_changed", "value", "property"), &SpringCharacter::_on_ui_slider_value_changed);
-	ClassDB::bind_method(D_METHOD("save_settings"), &SpringCharacter::save_settings);
-	ClassDB::bind_method(D_METHOD("load_settings"), &SpringCharacter::load_settings);
 
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "max_speed"), "set_max_speed", "get_max_speed");
 	ADD_PROPERTY(
@@ -237,44 +231,16 @@ void SpringCharacter::_ready() {
 		gm->register_spring_character(this);
 	}
 
-	// Live tuning UI: register the tunables, build the slider panel, load saved values.
-	ui_vars["max_speed"] = &max_speed;
-	ui_vars["acceleration"] = &acceleration;
-	ui_vars["sprint_multiplier"] = &sprint_multiplier;
-	ui_vars["steer_rate"] = &steer_rate;
-	ui_vars["face_turn_rate"] = &face_turn_rate;
-	ui_vars["jump_height"] = &jump_height;
-	ui_vars["jump_time_to_peak"] = &jump_time_to_peak;
-	ui_vars["jump_time_to_descent"] = &jump_time_to_descent;
-	ui_vars["coyote_time"] = &coyote_time;
-	ui_vars["jump_buffer"] = &jump_buffer;
-	ui_vars["min_ride_height"] = &min_ride_height;
-	ui_vars["max_ride_height"] = &max_ride_height;
-	ui_vars["ride_height_speed"] = &ride_height_speed;
-	ui_vars["ride_follow"] = &ride_follow;
-	ui_vars["dash_speed"] = &dash_speed;
-	ui_vars["dash_cooldown"] = &dash_cooldown;
-	ui_vars["pound_speed"] = &pound_speed;
-	ui_vars["wall_jump_up"] = &wall_jump_up;
-	ui_vars["wall_jump_out"] = &wall_jump_out;
-
 	_find_skin();
 	_audio.setup(this, "res://assets/character/sounds/");
 
-	ui_root = CUI::create_on_new_layer(this);
-	ui_helper = new CharacterUI();
-	ui_helper->setup(this, ui_root);
-	load_settings();
+	_setup_tuning();
 }
 
 void SpringCharacter::_exit_tree() {
 	GameManager *gm = GameManager::get_singleton();
 	if (gm && gm->get_spring_character() == this) {
 		gm->register_spring_character(nullptr);
-	}
-	if (ui_helper) {
-		delete ui_helper;
-		ui_helper = nullptr;
 	}
 	_free_states();
 }
@@ -896,10 +862,10 @@ void SpringCharacter::_physics_process(double delta) {
 
 	_debug_draw_trajectory(dt);
 
-	if (ui_helper) {
+	{
 		Vector3 hv = get_linear_velocity();
 		hv.y = 0.0f;
-		ui_helper->update_graph(hv.length());
+		tuning.push_graph(hv.length());
 	}
 }
 
@@ -917,54 +883,42 @@ void SpringCharacter::_debug_draw_trajectory(float p_delta) {
 	}
 }
 
-void SpringCharacter::_on_ui_toggle() {
-	if (ui_helper) {
-		ui_helper->toggle_visibility();
-	}
-}
-
-void SpringCharacter::_on_ui_slider_value_changed(double p_value, String p_property) {
-	std::map<String, float *>::iterator it = ui_vars.find(p_property);
-	if (it != ui_vars.end()) {
-		*(it->second) = (float)p_value;
-		if (p_property == String("jump_height") || p_property == String("jump_time_to_peak") ||
-				p_property == String("jump_time_to_descent")) {
-			_recompute_jump();
-		}
-	}
-}
-
-float SpringCharacter::get_ui_var(const String &p_name) const {
-	std::map<String, float *>::const_iterator it = ui_vars.find(p_name);
-	return it != ui_vars.end() ? *(it->second) : 0.0f;
-}
-
-void SpringCharacter::save_settings() {
-	Ref<ConfigFile> config;
-	config.instantiate();
-	for (std::map<String, float *>::const_iterator it = ui_vars.begin(); it != ui_vars.end(); ++it) {
-		config->set_value("character", it->first, *(it->second));
-	}
-	config->save("user://character_settings.cfg");
-	UtilityFunctions::print("SpringCharacter: settings saved to user://character_settings.cfg");
-}
-
-void SpringCharacter::load_settings() {
-	Ref<ConfigFile> config;
-	config.instantiate();
-	if (config->load("user://character_settings.cfg") != OK) {
-		return;
-	}
-	for (std::map<String, float *>::iterator it = ui_vars.begin(); it != ui_vars.end(); ++it) {
-		*(it->second) = (float)config->get_value("character", it->first, *(it->second));
-	}
-	_recompute_jump();
-	if (ui_root) {
-		for (std::map<String, float *>::const_iterator it = ui_vars.begin(); it != ui_vars.end(); ++it) {
-			ui_root->set_value(it->first, *(it->second));
-		}
-	}
-	UtilityFunctions::print("SpringCharacter: settings loaded from user://character_settings.cfg");
+/**
+ * @brief Describe this character's tunables for the shared TuningPanel, apply saved
+ * values (user://character_settings.cfg) and add the "Spring Character" tab.
+ */
+void SpringCharacter::_setup_tuning() {
+	tuning.begin("Spring Character", "user://character_settings.cfg", "character", [this]() { _recompute_jump(); });
+	tuning.header("Movement");
+	tuning.slider("Max Speed", "max_speed", &max_speed, 1.0f, 40.0f, 0.5f);
+	tuning.slider("Acceleration", "acceleration", &acceleration, 10.0f, 300.0f, 5.0f);
+	tuning.slider("Sprint Mult", "sprint_multiplier", &sprint_multiplier, 1.0f, 3.0f, 0.1f);
+	tuning.header("Steering / Turn");
+	tuning.slider("Steer Rate", "steer_rate", &steer_rate, 0.5f, 8.0f, 0.1f);
+	tuning.slider("Face Turn Rate", "face_turn_rate", &face_turn_rate, 2.0f, 30.0f, 0.5f);
+	tuning.header("Jump / Gravity");
+	tuning.slider("Jump Height", "jump_height", &jump_height, 0.5f, 12.0f, 0.1f);
+	tuning.slider("Time to Peak", "jump_time_to_peak", &jump_time_to_peak, 0.1f, 1.0f, 0.01f);
+	tuning.slider("Time to Descent", "jump_time_to_descent", &jump_time_to_descent, 0.1f, 1.0f, 0.01f);
+	tuning.slider("Low Jump Mult", "low_jump_mult", &low_jump_mult, 1.0f, 5.0f, 0.1f);
+	tuning.slider("Terminal Velocity", "terminal_velocity", &terminal_velocity, 10.0f, 100.0f, 1.0f);
+	tuning.slider("Coyote Time", "coyote_time", &coyote_time, 0.0f, 0.5f, 0.01f);
+	tuning.slider("Jump Buffer", "jump_buffer", &jump_buffer, 0.0f, 0.5f, 0.01f);
+	tuning.header("Ride Servo");
+	tuning.slider("Min Ride Height", "min_ride_height", &min_ride_height, 0.0f, 0.6f, 0.05f);
+	tuning.slider("Max Ride Height", "max_ride_height", &max_ride_height, 0.2f, 1.2f, 0.05f);
+	tuning.slider("Ride Adjust Speed", "ride_height_speed", &ride_height_speed, 1.0f, 20.0f, 0.5f);
+	tuning.slider("Ride Follow", "ride_follow", &ride_follow, 2.0f, 40.0f, 1.0f);
+	tuning.header("Dash / Pound");
+	tuning.slider("Dash Speed", "dash_speed", &dash_speed, 5.0f, 60.0f, 1.0f);
+	tuning.slider("Dash Cooldown", "dash_cooldown", &dash_cooldown, 0.1f, 1.5f, 0.05f);
+	tuning.slider("Pound Speed", "pound_speed", &pound_speed, 5.0f, 60.0f, 1.0f);
+	tuning.header("Wall");
+	tuning.slider("Wall Jump Up", "wall_jump_up", &wall_jump_up, 2.0f, 30.0f, 0.5f);
+	tuning.slider("Wall Jump Out", "wall_jump_out", &wall_jump_out, 0.0f, 20.0f, 0.5f);
+	tuning.graph("Speed", 0.0f, 40.0f);
+	tuning.load();
+	tuning.attach();
 }
 
 } // namespace godot

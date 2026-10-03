@@ -8,14 +8,12 @@
 #include "../character/lift_throw.h"
 #include "../character/character_controls.h"
 #include "../game_manager/player_input.h"
+#include "../cui/tuning_section.h"
 #include <godot_cpp/classes/character_body3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
-#include <map>
 
 namespace godot {
 
-class CelesteUI;
-class CUI;
 class CelesteState;
 class CelesteIdleState;
 class CelesteMoveState;
@@ -205,25 +203,9 @@ public:
 	void set_control_scheme(int p_scheme);
 	int get_control_scheme() const { return control_scheme; }
 
-	// UI Logic
-	void _on_ui_slider_value_changed(
-			double p_value,
-			String p_property
-	);
-	void _on_ui_toggle();
-	void save_settings();
-	void load_settings();
-	float get_ui_var(const String &p_name) const {
-		if (ui_vars.count(p_name))
-			return *ui_vars.at(p_name);
-		return 0.0f;
-	}
-
 private:
-	CelesteUI *ui_helper = nullptr;
-	CUI *ui_root = nullptr;
-	std::map<String, float *> ui_vars;
-	std::map<String, bool *> ui_bools;
+	TuningSection tuning; ///< this controller's tab in the shared TuningPanel
+	void _setup_tuning();
 
 	void debug_draw_trajectory(float p_delta);
 	void debug_draw_label();
