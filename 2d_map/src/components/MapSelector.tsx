@@ -34,6 +34,8 @@ import Map17 from '../maps/Map17';
 import Map17Explanation from '../maps/Map17Explanation';
 import Map18 from '../maps/Map18';
 import Map18Explanation from '../maps/Map18Explanation';
+import Map19 from '../maps/Map19';
+import Map19Explanation from '../maps/Map19Explanation';
 
 import './MapSelector.css';
 
@@ -62,10 +64,11 @@ const MAPS: MapEntry[] = [
     { value: 'map16', label: 'Shape Packer', Comp: Map16, Expl: Map16Explanation },
     { value: 'map17', label: 'Watabou City', Comp: Map17, Expl: Map17Explanation },
     { value: 'map18', label: 'Hex Biomes', Comp: Map18, Expl: Map18Explanation },
+    { value: 'map19', label: 'Puzzle Islands', Comp: Map19, Expl: Map19Explanation },
 ];
 
 export default function MapSelector() {
-    const [value, setValue] = useState<string>('map17');
+    const [value, setValue] = useState<string>('map19');
 
     return (
         <div className="selector-container">
