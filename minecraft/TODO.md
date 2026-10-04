@@ -307,3 +307,241 @@ Area3D base with car / player filtering. Build those three first; the rest are m
 - `make debug` builds; `make format` / `make format-check` (clang-format, 120 cols, one parameter per line)
 - Bench: `godot --headless --scene scene/terraspline/chunked_terrain_demo.tscn -- --terraspline-bench`
 - Architecture and per-flow call trees: `src/terrain/terraspline/Terraspline.md`
+
+# Platforms & puzzle rooms
+
+Mario / Donkey Kong platform pieces plus a Dino-and-Aliens (2004) style puzzle loop: kill the
+aliens, solve laser / box puzzles, find the key, escape. Rule to keep: **deterministic and readable**
+— every timed piece ticks from one shared beat clock (per-object offset) and telegraphs before it
+acts; puzzle objects snap to a grid. Reach for platform gaps comes from `JumpMetrics` (F3 rings).
+
+## Puzzle redesign — kid-friendly dungeons (Link's Awakening structure)
+
+The game is for children: fun and always solvable, never 15 mechanics at once. Lab = `2d_map`
+Map19 (Puzzle Islands); port to Godot (`src/puzzle/`) once the rules settle.
+
+**Principles**
+- One new mechanic at a time: teach it alone (safe room) → test it → twist it (combine with one
+  known mechanic). Late levels still use everything, but each ROOM holds 2–3 ideas max.
+- Two separate dials: **progression** (which mechanics are unlocked — only goes up, one per
+  world) and **difficulty** (how hard each room is — rises within a world, drops when a new
+  mechanic arrives).
+- Goal is always: collect every gold key → escape. Aliens / enemies are optional bonus
+  (stars / treasure), never required for keys.
+- Never stuck: room reset on re-enter, enough ammo, undo, 3 hearts, no instant deaths, slow
+  readable enemies.
+- Dino & Aliens 2004 reference: study by PLAYING (notes + screenshots per level: room size,
+  new mechanic, box / alien counts, enemy behaviour, solve time) — don't decompile or copy its
+  code (copyright); turn the notes into our own generator templates.
+
+**Progression worlds** (each world's first level teaches its mechanic alone)
+- [ ] W1 crates + gold keys + exit  · W2 box bombs + aliens  · W3 enemies (patroller, red)
+- [ ] W4 lasers + mirror crates  · W5 teleporters  · later: coloured gates, wooden doors,
+      plates, batteries, pulsing lasers, yellow / blue enemies (one per world)
+- [ ] Parked in the lab behind flags (not in early worlds): battery slots / swapping, pulsing
+      lasers + laser damage per second, laser channels, throw / remote bombs, melee + enemy hp,
+      wooden walls, dead emitters, yellow sentry, blue laser enemy
+
+**Dungeon structure (Link's Awakening)**
+- [ ] Level = small dungeon: room tree; each room is ONE self-contained puzzle with a clear
+      reward (door opens, small key, chest); gold key = boss key opening the exit
+- [ ] Room-puzzle library, each type built + verified on its own (fast solver, small searches):
+      push (crate → plate), clear-the-room, bomb (box bomb → alien), laser (mirror → receiver),
+      teleporter, gate / key
+- [ ] Dungeon graph: locked doors on routes between rooms, keys as room rewards, shortcuts /
+      one-way doors back to earlier rooms
+- [ ] **Room reset**: leaving a room puts its crates back (replaces global undo; no soft-locks)
+- [ ] Hints: statue / glow showing the next useful crate or switch (from the solver)
+
+**Room roles + pacing** (intensity curve, not uniform difficulty)
+
+Rooms shouldn't all be equally hard. Good dungeons follow an intensity curve: calm, harder, a
+rest, then a peak at the end. Kids get a rhythm of tension, then relief.
+
+| Room role      | Enemies            | What it's for                                          |
+|----------------|--------------------|--------------------------------------------------------|
+| Start / safe   | 0                  | Orientation, maybe a pickup                            |
+| Puzzle         | 0–1 slow           | Crates, lasers or keys — thinking without pressure     |
+| Combat (arena) | 2–5                | Clear the room → a door opens or a key drops           |
+| Mixed          | 1–2                | A puzzle while dodging a patroller                     |
+| Rest / reward  | 0                  | Hearts, ammo, treasure after a hard room               |
+| Final          | peak for the level | Last challenge before the exit                         |
+
+- [~] Room roles (table above) as a generator concept — lab: `Map19Dungeon.ts` (World 1: start /
+      puzzle / rest / bonus / final; combat + mixed come with enemies)
+- [~] Generator picks a role sequence along the route (e.g. start → puzzle → combat → rest →
+      mixed → final); level difficulty sets how high the PEAKS go, not how many enemies are
+      spread everywhere
+- [ ] Threat budget per room = Σ enemy weights (patroller 1, red 2, …) within its role's range
+- [ ] Combat rooms optional where possible (sneak past; clearing gives stars / treasure)
+- [ ] Enemy speed scales with world (biggest kid-friendliness lever), not just enemy count
+- [ ] Armoured enemy (bomb-only) to give bombs a clear purpose
+
+**Ammo scales with threat** — rule: you're always given enough to win
+- [ ] Threat per room = Σ enemy weights (patroller 1, red 2, …)
+- [ ] Bombs ≈ 1.5 × enemies that need them, placed in / just before the combat room (a child
+      can miss a throw and still win)
+- [ ] Refill crate just outside every combat room (run out → get more; nobody gets stuck)
+- [ ] Dynamic help: low hearts → more heart drops (kids won't notice, it just feels fair)
+- [ ] Bombs vs puzzles — more bombs = more ways to blow up a crate the puzzle needs. Fixes:
+  - [ ] **Metal crates** (bomb-proof steel) in puzzle rooms; only wooden crates in combat rooms break
+  - [ ] **Room reset**: leave + re-enter → room back to how it started; nothing permanently ruined
+- [ ] Generator verifies combat rooms: enough bombs reachable before the room, threat within
+      the budget for its role, a safe spot by the door
+
+**Generator UI panel** (grouped, collapsible; checkbox = allowed, stepper = count, slider = amount)
+- [ ] LEVEL: preset dropdown (World · Level → fills everything, then override), seed + 🎲 + 🔒,
+      size W / H / rooms, gold keys, "teaching level" (new mechanic only)
+- [ ] MECHANICS: checkbox + count per mechanic; **max mechanics per room** stepper (2–3)
+- [ ] ENEMIES: density (1 per N floor cells, scales with size) or exact counts per type;
+      speed multiplier; threat budget per room role
+- [ ] PICKUPS: hearts, bombs, ammo generosity slider (1.0–2.0× bombs per threat, default 1.5)
+- [ ] PACING: role sequence (auto from difficulty or hand-picked) + peak intensity slider
+- [ ] DIFFICULTY: target slider → generate N candidates, keep the closest; estimated score bar
+      (sokoban / mechanics / enemies) + solution length in moves; badges: ✓ solvable,
+      ✓ every mechanic needed (necessity check), generation time
+- [ ] PACING (UI): per-level role sequence (or auto from difficulty) + peak-intensity slider
+- [ ] ENEMIES (UI): one threat budget per room role instead of a single global count
+- [ ] AMMO (UI): generosity slider 1.0–2.0× bombs per threat, default 1.5×
+- [ ] 1. **Lock seed / favourites**: star good seeds and build a level list (campaign editor)
+- [ ] 2. **Copy / paste layout as text**: export a level as ASCII, hand-tune it, paste it back
+      (tutorial levels; porting to Godot)
+- [ ] 3. **Solution overlay**: the solver's path as a dotted line; step through it
+- [ ] 4. **Danger heatmap**: shade cells by how many enemies cover them — is the route fair?
+- [ ] 5. **Playtest stats**: time, undos, deaths, hearts lost per attempt — with a child
+      testing, shows where they ACTUALLY get stuck (matters more than the computed score)
+- [ ] 6. **Star thresholds**: finish in N moves for 3 stars, from the solver's best solution
+      (replay value without adding mechanics)
+- [ ] 7. **Hint button**: highlight the next useful crate / switch, taken from the solver
+- [ ] 8. **"Why is this hard?"**: hover the difficulty bar → which room and which mechanic adds most
+- [ ] Generation in a Web Worker (difficulty 8+ takes 3–5 s and freezes the page)
+
+**Order** (all of this depends on the room-based dungeon generator):
+1. Room roles + the pacing sequence
+2. Threat budgets per room
+3. Ammo placed relative to threat
+4. Room reset + metal crates
+5. UI controls on top (sections + presets → target difficulty → copy / paste → solution overlay)
+
+## Puzzle rooms roadmap (Dino and Aliens + Luigi's Mansion + Resident Evil)
+
+(History — superseded by the kid-friendly redesign above; water / lava / ice were removed.)
+Forest islands: rooms are tiny islands (water / lava around), some locked behind keys found in
+earlier rooms. **Level difficulty = Sokoban difficulty (solver pushes / states) + number of
+mechanics (mirrors, traps, ice) + Σ enemy weights**; each enemy class adds its own puzzle rule.
+
+- [x] PuzzleGrid: ASCII layout, push boxes (grid-snapped, no pull), props, jump locked in rooms
+- [x] SokobanGenerator + SokobanSolver: seeded BSP rooms, doorway crates, key / exit / aliens /
+      box bombs, verified by BFS over pushes
+- [x] **1. Cell types + island rooms**: `~` water, `^` lava, `=` bridge, `I` ice;
+      push a box into water → it sinks and becomes floor (bridge); into lava → it burns (lost);
+      on ice a box slides until blocked. Generator: island rooms ringed by water/lava, some
+      doorways are water gaps that need a crate pushed in, small pools; solver understands all
+- [~] **2. Lock & key graph** (Zelda / RE) — coloured keys + gates done in the 2d_map lab (Map19): coloured / shaped keys + matching locked doors,
+      placed so every key comes before its lock; one-way shortcut doors opened from the far
+      side; locked doors visible early (backtracking)
+- [~] **3. Grid enemies with one readable rule each** — lab (Map19, real time): patroller, red
+      melee (dumb, slow), yellow shooter (row/col bullets, finds firing spots), blue 360° laser
+      (pathfinding, continuous beam); player 3 hearts (bullet 1, bite 1, laser 0.5/s); range circles.
+      Ideas still open: (Hitman GO / Lara Croft GO / Into the Breach,
+      always telegraph the next move): patroller (fixed loop), chaser (blocked by boxes),
+      armoured (bomb / laser only), sleeper (vision line), sound hunter (comes to box pushes,
+      RE Licker), hider in crates (Luigi Boo), light-shy (stunned by laser / mirror), stalker
+      across rooms (RE Mr. X)
+- [~] **4. Difficulty score → generator budget** (pushes + states + mechanics + enemy weights) —
+      lab: score with enemy-on-route weighting, tiers, DIFFICULTY 1–10 budget slider; next: port to C++
+- [ ] **5. Mechanics batch** below (laser / mirror, timed spikes, bombs on the beat clock)
+- [?] Ideas: Luigi suck / pull tool (limited uses, fixes "stuck forever"), dark rooms lit when
+      cleared (key / chest appears), clear-the-room-to-unlock; Zelda crystal switches (red / blue
+      blocks), torch lighting order; Bomberman chain reactions; tiny hand-made tutorial rooms
+      (Stephen's Sausage Roll / Baba Is You)
+
+## Puzzle batch (first) — one complete test room
+
+- [~] **Beat clock** (lab: pulsing lasers): one global timer; lasers, spikes and on/off blocks read it with an offset so
+      patterns repeat exactly and players learn the rhythm
+- [~] **Laser emitter** (lab: always-on + pulsing; burns player, kills enemies): always on or timed (e.g. 2 s on / 1 s off), flicker warning before firing;
+      beam is a raycast chain (≤ 8 bounces), hurts player and aliens, stopped by boxes
+- [~] **Mirror** (lab: pushable mirror box, E flips, solver-aware): reflects 90°; rotatable (hit it to turn 90°) or pushable on the grid
+- [~] **Laser receiver** (lab: lights → laser gate H): beam on it → opens a gate / moves a platform
+- [ ] **Timed spikes**: up/down on the beat, wobble warning before rising
+- [ ] **Push box (Sokoban)**: grid-snapped, one cell per push, no pull, blocks lasers
+- [~] **Pressure plate** (lab: crate on plate → plate gate J): holds a gate open while a box or the player stands on it
+- [ ] **Key + exit door**: key appears when all aliens are dead (or sits behind the puzzle)
+- [ ] Small test room combining all of the above
+- [~] **Batteries + slot emitters** (lab: E puts a battery in / takes it out; batteries move between emitters; solver-aware)
+- [~] **Mirror boxes** (lab: pushable, E flips; lasers detonate box bombs)
+- [~] **Goal = all gold keys + escape** (lab: several gold keys, aliens are a bonus; solver collects every key)
+- [x] **Removed water, lava and ice from the lab** (none of them made a puzzle; the island ring is now hedge)
+- [~] **Teleporter pads** (lab: pairs; sealed key room / doorway replacement / gate-free shortcuts; solver-aware)
+- [~] **Generated laser puzzles** (lab: mirror chain with an off-line mirror to push back, laser through a wooden wall;
+      per-gate laser channels O/H · o/U · 0/V)
+- [~] **Bomb doors** (lab: enemies can't pass; blasts break them; seal reward side rooms or act as shortcuts)
+- [~] **Thin wooden walls** (lab: block walking / crates / bullets, lasers pass; blasts break them)
+- [~] **Player kit** (lab): melee swipe (knockback, hp per enemy), bombs from ammo pickups —
+      time / throw / remote; cross blasts break crates, kill enemies + aliens, chain box bombs,
+      hurt the player; lasers detonate bombs; heart pickups
+
+## Bomberman batch (Dino and Aliens plays like Bomberman)
+
+- [ ] **Grid arena**: indestructible pillars (checkerboard) + destructible soft blocks;
+      power-ups and the key / exit hidden inside soft blocks
+- [ ] **Bomb** (one "drop bomb" button, mobile friendly): ~3 s fuse, + shaped blast of N cells,
+      stopped by pillars, breaks soft blocks, chain-reacts other bombs, hurts player and aliens
+      (reuse mortar `_blast` + puff bursts); blast can clear boxes that block a laser
+- [ ] **Wandering aliens** on the grid: simple patterns (random turn / chase / wall-pass)
+- [ ] **Exit door** opens only when every alien is dead (EnemyManager)
+- [ ] **Power-ups**: bomb count, fire range, speed, kick (reuse grid push box),
+      throw (reuse lift & throw); later: remote detonator, bomb-pass / wall-pass
+
+## Platform batch (second)
+
+- [x] Moving platform
+- [ ] **Crumbling platform**: shakes ~0.5 s after landing, drops, respawns
+- [ ] **On/off blocks** (3D World beat blocks): two colour sets swap solid ↔ ghost on the beat clock
+- [ ] **Bounce pad / mushroom**: fixed-height launch (height from `JumpMetrics` maths)
+- [ ] **Barrel cannon** (DK): enter, it aims / rotates, jump to blast out on a fixed arc
+- [ ] **One-way / cloud platform**: jump up through, land on top
+- [ ] **Conveyor belt**: pushes player and boxes along
+- [?] Tilting seesaw / rotating platform (physics-y, less deterministic — later)
+
+Here are the mechanics I'd add. Each one works with the crates, and most also work with the enemies, which is where the interesting puzzles come from.
+
+**Light and lasers**
+- **Laser emitter:** always on, or on a beat (for example 2 s on, 1 s off) with a flicker warning before it fires. It hurts the player and enemies, and crates block it.
+- **Mirror crate:** a pushable crate that turns the beam 90°. Bumping it rotates it.
+- **Receiver:** a beam hitting it opens a gate. Two receivers can need two beams at once.
+- **Prism:** splits one beam into two.
+- **Glass block:** you can't walk through it, but lasers and bullets pass through.
+- **Lure kill:** walk an enemy across a beam to destroy it.
+
+**Switches and logic**
+- **Pressure plate:** keeps a gate open only while something stands on it. A crate, the player or an enemy all count, so you can bait a red onto the plate.
+- **Crystal switch (Zelda):** hitting it swaps which of the red and blue blocks are raised.
+- **Lever:** a one-time toggle, used for one-way shortcuts back to earlier rooms.
+
+**Floor**
+- **Pit:** fill it with a crate like water, but it's deadly to walk into, and enemies fall in too.
+- **Crumbling floor:** turns into a pit after you walk over it once. Routes become one-way.
+- **Conveyor belt:** moves crates, the player and enemies one cell per beat.
+- **One-way arrow tile:** you can only cross it in one direction.
+- **Timed spikes:** rise and fall on the beat, with a wobble warning before rising.
+
+**Movement**
+- **Teleport pads:** paired pads that move the player, crates and bullets.
+- **Fan or wind:** pushes crates down a lane, like ice but only in one direction.
+
+**Bombs**
+- **Cracked wall:** an exploding box bomb opens it, which gives you a shortcut or a secret room.
+- **Chain reactions:** a laser sets off a bomb, and bombs set off their neighbours (Bomberman).
+- **Fuse tile:** a bomb pushed onto it starts a countdown.
+
+**Rooms**
+- **Dark room:** you only see a small radius around yourself until you light the torches. Enemies hide in the dark (Luigi's Mansion).
+- **Clear-the-room:** the doors lock until every enemy is gone, then the key appears.
+
+All the timed pieces (lasers, spikes, conveyors, crystal blocks) should run on one shared beat clock, so their patterns repeat exactly and players can learn the rhythm.
+
+**What I'd build first:** the beat clock, laser emitter, mirror crate, receiver gate and pressure plate. That's the "Puzzle batch" already listed in `TODO.md`, and the laser also gives you a way to kill enemies. Pits, conveyors and cracked walls would come after that.
+
+Should I start the laser and mirror batch in the Map19 lab, with the generator placing them, or would you rather start with a different group?

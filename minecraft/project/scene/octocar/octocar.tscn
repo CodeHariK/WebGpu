@@ -755,3 +755,7 @@ action_left = &"look_left"
 action_right = &"look_right"
 action_up = &"look_up"
 action_down = &"look_down"
+
+[node name="PuzzleGrid" type="PuzzleGrid" parent="." unique_id=902114377]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -60, 0.5, 20)
+procedural = true

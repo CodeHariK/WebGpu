@@ -20,7 +20,9 @@ void CameraStateFixed::update(
 
 	// A standard top-down offset if none is specified.
 	Vector3 offset = Vector3(0, 12, 12);
-	if (p_camera->get_follow_offset().length_squared() > 0.001f) {
+	if (p_camera->get_fixed_offset().length_squared() > 0.001f) {
+		offset = p_camera->get_fixed_offset(); // top-down override (puzzle rooms)
+	} else if (p_camera->get_follow_offset().length_squared() > 0.001f) {
 		offset = p_camera->get_follow_offset();
 	}
 

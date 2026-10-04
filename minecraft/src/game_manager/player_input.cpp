@@ -85,6 +85,10 @@ void PlayerInput::update() {
 
 	// 4. Just Pressed Logic (Native Godot)
 	current_state.character.jump_just_pressed = input->is_action_just_pressed("jump");
+	if (jump_locked) {
+		current_state.character.jump = false;
+		current_state.character.jump_just_pressed = false;
+	}
 	current_state.character.kick_just_pressed = input->is_action_just_pressed("kick");
 	current_state.character.grab_just_pressed = input->is_action_just_pressed("grab");
 	current_state.character.interact_just_pressed = input->is_action_just_pressed("interact");

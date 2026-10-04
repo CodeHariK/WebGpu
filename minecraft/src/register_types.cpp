@@ -60,6 +60,8 @@
 
 #include "debug_draw/debug_manager.h"
 #include "debug_draw/jump_reach_gizmo.h"
+#include "puzzle/push_box.h"
+#include "puzzle/puzzle_grid.h"
 #include "debug_draw/debug_quad.h"
 
 #include "game_manager/game_manager.h"
@@ -216,6 +218,8 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(DebugLineQuad);
 	GDREGISTER_CLASS(DebugManager);
 	GDREGISTER_CLASS(JumpReachGizmo);
+	GDREGISTER_CLASS(PushBox);
+	GDREGISTER_CLASS(PuzzleGrid);
 
 	GDREGISTER_CLASS(GameManager);
 	GDREGISTER_CLASS(PlayerInput);

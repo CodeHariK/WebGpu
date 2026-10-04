@@ -72,6 +72,11 @@ private:
 	// --- State & targeting --------------------------------------------------
 	Mode camera_mode = MODE_FLY; ///< Which behaviour is currently active.
 	std::unique_ptr<CameraState> current_mode_instance; ///< The live behaviour object.
+	bool mode_override = false; ///< push_topdown() active: ignore mode requests
+	Mode requested_mode = MODE_FLY; ///< last requested mode (restored by pop_topdown)
+	Vector3 fixed_offset; ///< top-down offset for the fixed state (zero = use follow_offset)
+	float saved_yaw = 0.0f; ///< yaw before push_topdown (restored on pop)
+	void _switch_mode(Mode p_mode);
 
 	NodePath follow_target_path; ///< Scene path to the node the camera follows.
 	Node3D *follow_target_node = nullptr; ///< Resolved follow target (cached).
@@ -269,6 +274,14 @@ public:
 	/// Switch behaviour. Exits the old state, enters the new one; no-op if same.
 	void set_camera_mode(Mode p_mode);
 	Mode get_camera_mode() const;
+
+	/// Force a top-down view (MODE_FIXED looking from p_offset) until pop_topdown();
+	/// set_camera_mode() calls meanwhile are remembered and applied on pop.
+	void push_topdown(const Vector3 &p_offset);
+	void pop_topdown();
+	bool has_mode_override() const { return mode_override; }
+	/// Offset the fixed state uses instead of follow_offset (zero = none).
+	Vector3 get_fixed_offset() const { return fixed_offset; }
 
 	/// Current *desired* yaw/pitch in radians (pre-smoothing).
 	float get_yaw() const { return yaw; }

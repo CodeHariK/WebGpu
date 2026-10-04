@@ -75,6 +75,7 @@ class PlayerInput : public Object {
 private:
 	static PlayerInput *singleton;
 	ActionState current_state;
+	bool jump_locked = false;
 
 	// Accumulated deltas from events
 	Vector2 accumulated_look;
@@ -106,6 +107,9 @@ public:
 	static PlayerInput *get_singleton();
 
 	void update(); // Called by GameManager every frame
+	/// While locked the character jump inputs read as released (e.g. top-down puzzle rooms).
+	void set_jump_locked(bool p_locked) { jump_locked = p_locked; }
+	bool is_jump_locked() const { return jump_locked; }
 	void handle_input(const Ref<class InputEvent> &p_event);
 
 	const ActionState &get_state() const { return current_state; }

@@ -309,9 +309,43 @@ void GameCamera::_unhandled_key_input(const Ref<InputEvent> &p_event) {
 	}
 }
 
+// Request a behaviour. While a mode override is active (top-down puzzle rooms) the request
+// is only remembered, so controllers that re-assert their mode every frame can't undo it.
+void GameCamera::set_camera_mode(Mode p_mode) {
+	requested_mode = p_mode;
+	if (mode_override) {
+		return;
+	}
+	_switch_mode(p_mode);
+}
+
+void GameCamera::push_topdown(const Vector3 &p_offset) {
+	if (!mode_override) {
+		requested_mode = camera_mode;
+		saved_yaw = yaw;
+	}
+	mode_override = true;
+	fixed_offset = p_offset;
+	// Camera-relative controls read `yaw`: match the top-down view's heading.
+	if (Vector2(p_offset.x, p_offset.z).length_squared() > 1e-4f) {
+		yaw = std::atan2(p_offset.x, p_offset.z);
+	}
+	_switch_mode(MODE_FIXED);
+}
+
+void GameCamera::pop_topdown() {
+	if (!mode_override) {
+		return;
+	}
+	mode_override = false;
+	fixed_offset = Vector3();
+	yaw = saved_yaw;
+	_switch_mode(requested_mode);
+}
+
 // Swap the active behaviour: exit + destroy the old state, construct + enter
 // the new one. No-op if already in `p_mode`. Editor guarded.
-void GameCamera::set_camera_mode(Mode p_mode) {
+void GameCamera::_switch_mode(Mode p_mode) {
 	if (current_mode_instance && camera_mode == p_mode) {
 		return;
 	}
