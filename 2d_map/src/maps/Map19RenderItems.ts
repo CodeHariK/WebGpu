@@ -17,6 +17,20 @@ export function drawItem(ctx: CanvasRenderingContext2D, L: Level, cell: number, 
         heart(ctx, x, y, c * 0.2);
         return;
     }
+    if (kind === 'supply') { // supply crate: wooden box with a bomb painted on, never used up
+        const sx = cx(L, cell, c), sy = cy(L, cell, c);
+        ctx.fillStyle = '#5a3d22';
+        ctx.fillRect(sx - c * 0.38, sy - c * 0.34, c * 0.76, c * 0.68);
+        ctx.fillStyle = '#8b5e34';
+        ctx.fillRect(sx - c * 0.33, sy - c * 0.29, c * 0.66, c * 0.58);
+        drawBombShape(ctx, sx, sy + c * 0.02, c * 0.7, 'time', t, false);
+        ctx.fillStyle = '#ffd23f';
+        ctx.font = `bold ${Math.round(c * 0.22)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('∞', sx + c * 0.25, sy - c * 0.22);
+        return;
+    }
     drawBombShape(ctx, x, y, c * 0.8, kind, t, false);
     ctx.fillStyle = '#fff';
     ctx.font = `bold ${Math.round(c * 0.26)}px sans-serif`;
@@ -124,11 +138,6 @@ export function drawPad(ctx: CanvasRenderingContext2D, L: Level, cell: number, c
     }
     ctx.fillStyle = col;
     circle(ctx, x, y, c * (0.07 + 0.02 * Math.sin(t * 6)));
-}
-
-export function drawDeadAlien(ctx: CanvasRenderingContext2D, x: number, y: number, c: number) {
-    ctx.fillStyle = 'rgba(80,40,110,0.55)';
-    for (let k = 0; k < 6; k++) circle(ctx, x + Math.cos(k * 1.1) * c * 0.2, y + Math.sin(k * 1.7) * c * 0.15, c * (0.09 + 0.03 * (k % 2)));
 }
 
 function glow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, col: string) {

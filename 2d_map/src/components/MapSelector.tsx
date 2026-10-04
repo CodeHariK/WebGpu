@@ -44,6 +44,7 @@ type MapEntry = {
     label: string;
     Comp: React.ComponentType<{ width: number; height: number }>;
     Expl: React.ComponentType;
+    wide?: boolean; // explanation below the map at full width instead of beside it
 };
 
 const MAPS: MapEntry[] = [
@@ -64,7 +65,7 @@ const MAPS: MapEntry[] = [
     { value: 'map16', label: 'Shape Packer', Comp: Map16, Expl: Map16Explanation },
     { value: 'map17', label: 'Watabou City', Comp: Map17, Expl: Map17Explanation },
     { value: 'map18', label: 'Hex Biomes', Comp: Map18, Expl: Map18Explanation },
-    { value: 'map19', label: 'Puzzle Islands', Comp: Map19, Expl: Map19Explanation },
+    { value: 'map19', label: 'Puzzle Islands', Comp: Map19, Expl: Map19Explanation, wide: true },
 ];
 
 export default function MapSelector() {
@@ -92,13 +93,13 @@ export default function MapSelector() {
 
             <main className="content">
                 <Tabs.Root value={value} onValueChange={(v) => setValue(v as string)} className="tabs-root">
-                    {MAPS.map(({ value: v, Comp, Expl }) => (
+                    {MAPS.map(({ value: v, Comp, Expl, wide }) => (
                         <Tabs.Panel key={v} value={v} className="tabs-panel">
                             <div className="panel-layout">
                                 <div className="canvas-container">
                                     <Comp width={800} height={800} />
                                 </div>
-                                <div className="explanation-container">
+                                <div className={wide ? 'explanation-container wide' : 'explanation-container'}>
                                     <Expl />
                                 </div>
                             </div>

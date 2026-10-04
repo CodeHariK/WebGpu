@@ -1,8 +1,8 @@
 // Puzzle Islands — cute top-down drawing of a level state (also used for thumbnails).
-import { BOX, boxCell, boxKind, DX, DY, LOCK_COLORS, type Level, type State } from './Map19Rules';
+import { BOX, boxCell, boxKind, isMirrorBox, DX, DY, LOCK_COLORS, type Level, type State } from './Map19Rules';
 import { BULLET_STEP, ENEMY_SPEC, PLAYER_HEALTH, type Bullet, type Enemy } from './Map19Enemies';
 import { drawBeams, drawEnvTile, drawMirror } from './Map19RenderEnv';
-import { drawBattery, drawBlast, drawBomb, drawDeadAlien, drawItem, drawPad, drawSwing } from './Map19RenderItems';
+import { drawBattery, drawBlast, drawBomb, drawItem, drawPad, drawSwing } from './Map19RenderItems';
 import { FLIGHT, FUSE, type Blast, type Bomb } from './Map19Bombs';
 import type { ItemKind } from './Map19Rules';
 
@@ -16,9 +16,7 @@ export const COLORS = {
     hedgeTop: '#4fae5b',
     crate: '#c98d52',
     crateDark: '#7d5230',
-    bomb: '#d9473b',
     gold: '#ffcc33',
-    alien: '#a66de0',
     dino: '#5ccf5a',
     door: '#7a4a2a',
 };
@@ -26,17 +24,17 @@ export const COLORS = {
 export type DrawOptions = {
     cell: number;
     hasKey?: boolean;
-    time?: number; // seconds, animates keys / aliens / beams
+    time?: number; // seconds, animates keys / beams
     ghost?: number[]; // cells to highlight (e.g. the solver's next push)
     enemies?: Enemy[];
     bullets?: Bullet[];
     health?: number; // hearts over the player (omit = none)
     hurt?: number; // seconds left of the red hurt flash
     beat?: number; // beat clock for pulsing lasers (omit = draw always-on beams only)
+    floorTint?: (string | undefined)[]; // per-cell floor colour overlay (e.g. one colour per dungeon room)
     items?: { cell: number; kind: ItemKind }[]; // omit = the level's starting items
     bombs?: Bomb[];
     blasts?: Blast[];
-    deadAliens?: number[];
     facing?: number;
     swing?: number; // seconds left of the melee swipe
 };
@@ -63,6 +61,13 @@ export function drawLevel(ctx: CanvasRenderingContext2D, L: Level, s: State, o: 
             const b = L.base[i];
             const envUnder = b === 'Q' || b === 'O' ? '#' : b === '_' || b === 'H' || b === 'J' || b === 'D' || b === 'F' ? '.' : null;
             drawCell(ctx, envUnder ?? b, x * c, y * c, c, x, y, L.door.includes(i), o.hasKey ?? false);
+            const tint = o.floorTint?.[i];
+            if (tint && (envUnder ?? b) !== '#') { // per-room floor colour (dungeon rooms)
+                ctx.globalAlpha = (x + y) % 2 ? 0.3 : 0.38;
+                ctx.fillStyle = tint;
+                ctx.fillRect(x * c, y * c, c, c);
+                ctx.globalAlpha = 1;
+            }
             if (envUnder) drawEnvTile(ctx, L, s, i, c, t);
         }
     }
@@ -71,14 +76,14 @@ export function drawLevel(ctx: CanvasRenderingContext2D, L: Level, s: State, o: 
     for (const [cell, color] of L.keys) {
         if (!(s.keys & (1 << color))) drawKey(ctx, cx(L, cell, c), cy(L, cell, c) + Math.sin(t * 3 + color) * c * 0.05, c, LOCK_COLORS[color]);
     }
-    L.aliens.forEach((a, k) => (o.deadAliens?.includes(a) ? drawDeadAlien(ctx, cx(L, a, c), cy(L, a, c), c) : drawAlien(ctx, cx(L, a, c), cy(L, a, c), c, t + k)));
     L.batteries.forEach((b, i) => { if (!((s.batteries >> i) & 1)) drawBattery(ctx, L, b, c, t); });
     for (const it of o.items ?? L.items) drawItem(ctx, L, it.cell, it.kind, c, t);
     for (const b of s.boxes) {
         const px = (boxCell(b) % L.w) * c;
         const py = Math.floor(boxCell(b) / L.w) * c;
-        if (boxKind(b) >= BOX.mirrorSlash) drawMirror(ctx, px, py, c, boxKind(b) === BOX.mirrorBack);
-        else drawCrate(ctx, px, py, c, boxKind(b) === BOX.bomb, t);
+        if (boxKind(b) === BOX.metal) drawMetalCrate(ctx, px, py, c);
+        else if (isMirrorBox(b)) drawMirror(ctx, px, py, c, boxKind(b) === BOX.mirrorBack);
+        else drawCrate(ctx, px, py, c);
     }
     drawBeams(ctx, L, s, c, o.beat, t);
     for (const g of o.ghost ?? []) {
@@ -150,7 +155,6 @@ function drawCell(ctx: CanvasRenderingContext2D, k: string, px: number, py: numb
     switch (k) {
         case '.':
         case 'K':
-        case 'A':
             ctx.fillStyle = (x + y) % 2 ? COLORS.floorA : COLORS.floorB;
             ctx.fillRect(px, py, c, c);
             if (hash(x, y) > 0.82) { // tiny flower
@@ -204,27 +208,39 @@ function drawGate(ctx: CanvasRenderingContext2D, px: number, py: number, c: numb
     ctx.fillRect(px + c * 0.48, py + c * 0.48, c * 0.04, c * 0.12);
 }
 
-function drawCrate(ctx: CanvasRenderingContext2D, px: number, py: number, c: number, bomb: boolean, t: number) {
+function drawCrate(ctx: CanvasRenderingContext2D, px: number, py: number, c: number) {
     const m = c * 0.08;
-    ctx.fillStyle = bomb ? COLORS.bomb : COLORS.crate;
+    ctx.fillStyle = COLORS.crate;
     roundRect(ctx, px + m, py + m, c - 2 * m, c - 2 * m, c * 0.1);
     ctx.fill();
-    ctx.strokeStyle = bomb ? '#5a1612' : COLORS.crateDark;
+    ctx.strokeStyle = COLORS.crateDark;
     ctx.lineWidth = Math.max(1, c * 0.07);
     ctx.stroke();
-    if (bomb) {
-        ctx.fillStyle = '#1a1a22';
-        circle(ctx, px + c * 0.5, py + c * 0.55, c * 0.22);
-        ctx.fillStyle = `rgba(255,${180 + 60 * Math.sin(t * 10)},60,1)`;
-        circle(ctx, px + c * 0.68, py + c * 0.25, c * 0.07);
-    } else {
-        ctx.beginPath();
-        ctx.moveTo(px + m * 2, py + m * 2);
-        ctx.lineTo(px + c - m * 2, py + c - m * 2);
-        ctx.moveTo(px + c - m * 2, py + m * 2);
-        ctx.lineTo(px + m * 2, py + c - m * 2);
-        ctx.stroke();
-    }
+    ctx.beginPath();
+    ctx.moveTo(px + m * 2, py + m * 2);
+    ctx.lineTo(px + c - m * 2, py + c - m * 2);
+    ctx.moveTo(px + c - m * 2, py + m * 2);
+    ctx.lineTo(px + m * 2, py + c - m * 2);
+    ctx.stroke();
+}
+
+/** Metal crate: grey steel box with rivets — pushes like a crate, bombs can't break it. */
+function drawMetalCrate(ctx: CanvasRenderingContext2D, px: number, py: number, c: number) {
+    const m = c * 0.08;
+    const g = ctx.createLinearGradient(px, py, px + c, py + c);
+    g.addColorStop(0, '#d9e2ea');
+    g.addColorStop(1, '#8796a5');
+    ctx.fillStyle = g;
+    roundRect(ctx, px + m, py + m, c - 2 * m, c - 2 * m, c * 0.12);
+    ctx.fill();
+    ctx.strokeStyle = '#4f5d6b';
+    ctx.lineWidth = Math.max(1, c * 0.07);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(79,93,107,0.6)';
+    ctx.lineWidth = Math.max(1, c * 0.05);
+    ctx.strokeRect(px + c * 0.28, py + c * 0.28, c * 0.44, c * 0.44);
+    ctx.fillStyle = '#4f5d6b';
+    for (const [rx, ry] of [[0.2, 0.2], [0.8, 0.2], [0.2, 0.8], [0.8, 0.8]]) circle(ctx, px + c * rx, py + c * ry, c * 0.045);
 }
 
 function drawKey(ctx: CanvasRenderingContext2D, x: number, y: number, c: number, color: string) {
@@ -240,33 +256,6 @@ function drawKey(ctx: CanvasRenderingContext2D, x: number, y: number, c: number,
     ctx.moveTo(x + c * 0.2, y);
     ctx.lineTo(x + c * 0.2, y + c * 0.1);
     ctx.stroke();
-}
-
-// Alien = static bomb target (not an enemy): drawn on a dashed target ring, antenna stalks.
-function drawAlien(ctx: CanvasRenderingContext2D, x: number, y: number, c: number, t: number) {
-    const sq = 1 + 0.06 * Math.sin(t * 4);
-    ctx.strokeStyle = 'rgba(255,90,90,0.8)';
-    ctx.lineWidth = Math.max(1, c * 0.04);
-    ctx.setLineDash([c * 0.08, c * 0.06]);
-    ctx.beginPath();
-    ctx.arc(x, y + c * 0.08, c * 0.44, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.strokeStyle = COLORS.alien;
-    ctx.beginPath();
-    ctx.moveTo(x - c * 0.1, y - c * 0.18); ctx.lineTo(x - c * 0.16, y - c * 0.34);
-    ctx.moveTo(x + c * 0.1, y - c * 0.18); ctx.lineTo(x + c * 0.16, y - c * 0.34);
-    ctx.stroke();
-    ctx.fillStyle = COLORS.alien;
-    ctx.beginPath();
-    ctx.ellipse(x, y + c * 0.08, c * 0.32 * sq, c * 0.3 / sq, 0, 0, Math.PI * 2);
-    ctx.fill();
-    for (const s of [-1, 1]) {
-        ctx.fillStyle = 'white';
-        circle(ctx, x + s * c * 0.12, y - c * 0.08, c * 0.1);
-        ctx.fillStyle = '#222';
-        circle(ctx, x + s * c * 0.12, y - c * 0.06, c * 0.05);
-    }
 }
 
 // Enemies: one body shape, coloured per kind, plus a small kind badge (horns / cannon / dish).

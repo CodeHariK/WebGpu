@@ -3,6 +3,8 @@ import { allGold, arrive, boxAt, BOX, DX, DY, hasBox, makeBox, pushBox, reach, w
 import type { Push } from './Map19Solver';
 import { advanceEnemies, PLAYER_HEALTH, type Bullet, type DamageSource, type Enemy } from './Map19Enemies';
 import { freeBatteries, isPowered, liveBeams, powerEmitter, rotateMirror, slotAt, unpowerEmitter } from './Map19Env';
+import { buildRooms, startTrack, trackRooms, type RoomMap, type RoomTrack } from './Map19Rooms';
+import type { Rect } from './Map19Generator';
 import { BLAST_SHOW, detonate, FLIGHT, FUSE, PICKUP_AMMO, throwTarget, type Ammo, type Blast, type Bomb, type BombKind } from './Map19Bombs';
 
 const MELEE_COOLDOWN = 0.35;
@@ -31,21 +33,24 @@ export type Play = {
     bombs: Bomb[];
     blasts: Blast[]; // flames on screen
     items: { cell: number; kind: ItemKind }[]; // hearts / bomb pickups still lying around
-    deadAliens: number[];
-    kills: number; // enemies + aliens destroyed by the player (melee, bombs)
+    kills: number; // enemies destroyed by the player (melee, bombs)
     meleeCd: number;
     swing: number; // seconds left of the melee swing (drawing)
     inBeam: boolean; // standing in a live emitter beam last tick
+    rooms?: RoomMap; // dungeon levels: rooms reset when you walk out of an unsolved one and back in
+    track?: RoomTrack;
 };
 
 const COLOR_NAMES = ['red', 'green', 'yellow'];
 
-export function startPlay(L: Level, enemies: Enemy[] = []): Play {
+export function startPlay(L: Level, enemies: Enemy[] = [], rects?: Rect[]): Play {
+    const rooms = rects?.length ? buildRooms(L, rects) : undefined;
     return {
+        rooms, track: rooms ? startTrack(L, rooms, L.start) : undefined,
         L, s: L.start, hasKey: false, won: false, pushes: 0, steps: 0, 
         message: `Find all ${L.golds.length} gold keys 🔑, then the exit door`, enemies, bullets: [], caught: false,
         health: PLAYER_HEALTH, hurt: 0, time: 0, zapped: 0,
-        facing: 0, ammo: { ...START_AMMO }, bombs: [], blasts: [], items: L.items, deadAliens: [], kills: 0, meleeCd: 0, swing: 0, inBeam: false,
+        facing: 0, ammo: { ...START_AMMO }, bombs: [], blasts: [], items: L.items, kills: 0, meleeCd: 0, swing: 0, inBeam: false,
     };
 }
 
@@ -59,11 +64,21 @@ export function step(p: Play, dir: number): Play {
     const target = p.s.player + DX[dir] + DY[dir] * p.L.w;
     if (p.enemies.some((e) => e.cell === target)) return p; // enemies are solid; they bite, you don't
     if (p.bombs.some((b) => b.cell === target && b.flight <= 0)) return { ...p, message: 'A bomb is in the way' };
-    const moved = movePlayer(p, dir);
+    let moved = movePlayer(p, dir);
     if (moved === p || moved.s.player === p.s.player) return moved;
+    moved = roomReset(moved, moved.pushes > p.pushes, p.s.player);
     const hit = moved.bullets.filter((b) => b.cell === moved.s.player);
     if (!hit.length) return moved;
     return hurt({ ...moved, bullets: moved.bullets.filter((b) => b.cell !== moved.s.player) }, hit.length, 'bullet');
+}
+
+/** Dungeon rooms: walking back into an unsolved room puts its crates back (see Map19Rooms). */
+function roomReset(p: Play, pushed: boolean, from: number): Play {
+    if (!p.rooms || !p.track) return p;
+    const blocked = (c: number) => p.enemies.some((e) => e.cell === c) || p.bombs.some((b) => b.cell === c);
+    const r = trackRooms(p.L, p.rooms, p.track, p.s, pushed, blocked, p.bombs.map((b) => b.cell), from);
+    if (r.t === p.track && !r.reset) return p;
+    return { ...p, s: r.s, track: r.t, message: r.reset ? 'Room reset ↺ — crates are back where they started' : p.message };
 }
 
 const HOW: Record<DamageSource | 'laser' | 'bomb', string> = { laser: 'Burned by a laser', bomb: 'Caught in your own blast', bullet: 'Shot by a yellow shooter', blue: 'Zapped by a blue laser', red: 'Bitten by a red', yellow: 'Bumped by a yellow', patrol: 'Bumped by a patroller' };
@@ -104,11 +119,8 @@ export function tick(p: Play, dt: number): Play {
     const hot = new Set<number>();
     const beams = liveBeams(p.L, next.s, next.time);
     for (const b of beams) for (const c of b.path) hot.add(c);
-    // Lasers set bombs off: player bombs in a beam, and box bombs a beam runs into.
-    const lasered = [
-        ...next.bombs.filter((b) => b.flight <= 0 && hot.has(b.cell)).map((b) => b.cell),
-        ...beams.filter((b) => b.stop >= 0 && boxAt(next.s, b.stop) === BOX.bomb).map((b) => b.stop),
-    ];
+    // Lasers set bombs off: your bombs lying in a beam.
+    const lasered = next.bombs.filter((b) => b.flight <= 0 && hot.has(b.cell)).map((b) => b.cell);
     if (lasered.length) next = explode(next, lasered);
     if (next.caught) return next;
     const survivors = next.enemies.filter((e) => !hot.has(e.cell));
@@ -124,14 +136,21 @@ export function tick(p: Play, dt: number): Play {
 
 /** Set off bombs at `centers` (and their chain). */
 function explode(p: Play, centers: number[]): Play {
-    const d = detonate(p.L, p.s, p.bombs, p.enemies, p.deadAliens, centers);
+    const d = detonate(p.L, p.s, p.bombs, p.enemies, centers);
+    const fallen = p.enemies.filter((e) => !d.enemies.includes(e)).map((e) => e.cell);
     let next: Play = {
-        ...p, s: d.s, bombs: d.bombs, enemies: d.enemies, deadAliens: d.deadAliens, kills: p.kills + d.kills,
+        ...p, s: d.s, bombs: d.bombs, enemies: d.enemies, kills: p.kills + d.kills, items: helpDrops(p, fallen),
         blasts: [...p.blasts, { cells: d.cells, t: BLAST_SHOW }],
         message: d.kills ? `Boom! ${d.kills} down` : d.doors ? 'Boom! Blasted a way through' : d.crates ? `Boom! ${d.crates} crate${d.crates > 1 ? 's' : ''} gone` : 'Boom!',
     };
     if (d.playerHit) next = hurt(next, 1, 'bomb');
     return next;
+}
+
+/** Low on hearts? Defeated enemies drop a heart where they fell (kids won't notice, it just feels fair). */
+function helpDrops(p: Play, cells: number[]): Play['items'] {
+    if (p.health > LOW_HEALTH || !cells.length) return p.items;
+    return [...p.items, ...cells.filter((c) => !p.items.some((it) => it.cell === c)).map((cell) => ({ cell, kind: 'heart' as const }))];
 }
 
 /** Drop a time / remote bomb on your cell. */
@@ -168,7 +187,7 @@ export function melee(p: Play): Play {
     const i = p.enemies.findIndex((e) => e.cell === target);
     if (i < 0) return swung;
     const e = p.enemies[i];
-    if (e.hp <= 1) return { ...swung, enemies: p.enemies.filter((_, k) => k !== i), kills: p.kills + 1, message: 'Bonk! Got one' };
+    if (e.hp <= 1) return { ...swung, enemies: p.enemies.filter((_, k) => k !== i), kills: p.kills + 1, items: helpDrops(p, [e.cell]), message: 'Bonk! Got one' };
     const x = (target % L.w) + DX[p.facing];
     const y = Math.floor(target / L.w) + DY[p.facing];
     const back = y * L.w + x;
@@ -187,8 +206,7 @@ function movePlayer(p: Play, dir: number): Play {
     const n = y * L.w + x;
     if (L.door.includes(n)) {
         if (!p.hasKey) return { ...p, message: `Locked — find every gold key first (${goldCount(p)}/${L.golds.length})` };
-        const aliens = L.aliens.length ? ` · aliens ${p.deadAliens.length}/${L.aliens.length}` : '';
-        return { ...p, won: true, message: `Escaped! ${p.steps} steps, ${p.pushes} pushes${aliens}` };
+        return { ...p, won: true, message: `Escaped! ${p.steps} steps, ${p.pushes} pushes` };
     }
     if (hasBox(s, n)) {
         // Enemies stop a pushed crate like another crate would.
@@ -201,7 +219,6 @@ function movePlayer(p: Play, dir: number): Play {
     }
     const slot = slotAt(L, n);
     if (slot >= 0) return { ...p, message: isPowered(s, slot) ? 'Emitter — press E to take its battery out' : 'Empty battery slot — press E to put a battery in 🔋' };
-    if (L.base[n] === 'A' && p.deadAliens.includes(n)) return collect({ ...p, s: { ...s, player: n }, steps: p.steps + 1 }, n);
     if (!walkable(L, s, n, false)) {
         if (L.gates.has(n)) return { ...p, message: 'Locked gate — find the matching coloured key' };
         if (L.base[n] === 'H') return { ...p, message: 'Laser gate — light every receiver ◎ with a beam' };
@@ -217,12 +234,16 @@ function movePlayer(p: Play, dir: number): Play {
 
 const goldCount = (p: Play) => p.L.golds.filter((_, i) => (p.s.gold >> i) & 1).length;
 
-const ITEM_NAME: Record<ItemKind, string> = { heart: '❤ +1', time: `+${PICKUP_AMMO} time bombs (B)`, throw: `+${PICKUP_AMMO} throw bombs (T)`, remote: `+${PICKUP_AMMO} remote bombs (C, X to detonate)` };
+const SUPPLY_AMMO = 3; // a supply crate tops time bombs up to this
+const LOW_HEALTH = 1.5; // at or below this, defeated enemies drop a heart
+const ITEM_NAME: Record<ItemKind, string> = { supply: `Bomb supply — time bombs topped up to ${SUPPLY_AMMO}`, heart: '❤ +1', time: `+${PICKUP_AMMO} time bombs (B)`, throw: `+${PICKUP_AMMO} throw bombs (T)`, remote: `+${PICKUP_AMMO} remote bombs (C, X to detonate)` };
 
 /** Pick up whatever lies on `n` (the player's new cell): keys, batteries, hearts, bomb ammo. */
 function collect(p: Play, n: number): Play {
     const item = p.items.find((it) => it.cell === n);
-    if (item) {
+    if (item?.kind === 'supply') {
+        if (p.ammo.time < SUPPLY_AMMO) p = { ...p, ammo: { ...p.ammo, time: SUPPLY_AMMO }, message: ITEM_NAME.supply };
+    } else if (item) {
         const rest = p.items.filter((it) => it !== item);
         p = item.kind === 'heart'
             ? { ...p, items: rest, health: Math.min(PLAYER_HEALTH, p.health + 1), message: ITEM_NAME.heart }

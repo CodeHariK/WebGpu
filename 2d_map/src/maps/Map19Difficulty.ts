@@ -72,8 +72,6 @@ export function budgetParams(d: number, base: GenParams): GenParams {
         minPushes: 1 + Math.round(k * 0.6), // higher floors reject most layouts (slow)
         extraCrates: 1 + Math.floor(k / 3),
         locks: step(3) + step(7),
-        bombs: 2 + step(7), // fewer bombs → the bomb → alien check rejects most layouts
-        aliens: 2,
         patrollers: 1 + step(6),
         reds: Math.floor((k + 1) / 3),
         yellows: step(4) + step(8),

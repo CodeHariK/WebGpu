@@ -2,7 +2,7 @@
 // The player's free walking is folded into a flood-filled region, so each BFS edge is one
 // push and the first goal hit is the minimum number of pushes. Keeps parent links so the
 // solution can be replayed.
-import { allGold, BOX, boxCell, boxKind, DX, DY, bombNextToAlien, isMirrorBox, pushBox, reachWithKeys, walkable, type Level, type State } from './Map19Rules';
+import { allGold, boxCell, DX, DY, isMirrorBox, pushBox, reachWithKeys, type Level, type State } from './Map19Rules';
 import { envOf, freeBatteries, isPowered, powerEmitter, rotateMirror, unpowerEmitter } from './Map19Env';
 
 /**
@@ -110,43 +110,36 @@ export function solveKeyAndExit(L: Level, maxStates = 15000): SolveResult {
     return { ...r, legs: r.solved ? [r.moves] : undefined };
 }
 
+/**
+ * Whole-level check in LEGS: walk the goals in order (each leg = fewest pushes from where the
+ * last one ended), then collect every gold key and reach the exit. Rooms are separate puzzles,
+ * so this stays small where one big search over every room's crates at once explodes. Greedy:
+ * can miss a solution a full search would find (the caller falls back to solveKeyAndExit).
+ */
+export function solveLegs(L: Level, goals: number[], maxStatesPerLeg = 4000): SolveResult {
+    if (L.start.player < 0 || !L.golds.length || !L.exits.length) return { solved: false, pushes: -1, states: 0, moves: [] };
+    let s = L.start;
+    let pushes = 0;
+    let states = 0;
+    const legs: Push[][] = [];
+    const fail = { solved: false, pushes: -1, states, moves: [] };
+    for (const g of goals) {
+        const r = search(L, s, (_s, reach) => (reach[g] ? g : -1), maxStatesPerLeg);
+        states += r.states;
+        if (!r.solved || !r.end) return { ...fail, states };
+        legs.push(r.moves);
+        pushes += r.pushes;
+        s = r.end;
+    }
+    const last = search(L, s, (st, reach) => (allGold(L, st) ? (L.exits.find((e) => reach[e]) ?? -1) : -1), maxStatesPerLeg * 2);
+    states += last.states;
+    if (!last.solved) return { ...fail, states };
+    legs.push(last.moves);
+    return { solved: true, pushes: pushes + last.pushes, states, moves: legs.flat(), legs };
+}
+
 /** Fewest moves from state `from` until the player can stand on `target` (used for single-room puzzles). */
 export function solveReach(L: Level, from: State, target: number, maxStates = 3000): SolveResult {
     return search(L, from, (_s, r) => (r[target] ? target : -1), maxStates);
 }
 
-/** Fewest pushes to get a box bomb next to an alien. */
-export function solveBombToAlien(L: Level, maxStates = 4000): SolveResult {
-    if (L.start.player < 0 || !L.aliens.length) return { solved: false, pushes: -1, states: 0, moves: [] };
-    return search(L, L.start, (s) => (bombNextToAlien(L, s) ? s.player : -1), maxStates);
-}
-
-/**
- * Local (fast) bomb check used by the generator: can some box bomb be pushed next to an
- * alien from where it sits? Plain crates are frozen into walls, all gates open, lasers off, the
- * player starts beside the bomb — so the BFS only moves bombs (a few hundred states at
- * most, instead of thousands for the whole map on big levels).
- */
-export function solveBombToAlienLocal(L: Level, maxStates = 400): SolveResult {
-    if (!L.aliens.length) return { solved: false, pushes: -1, states: 0, moves: [] };
-    const base = [...L.base];
-    for (const b of L.start.boxes) if (boxKind(b) !== BOX.bomb) base[boxCell(b)] = '#'; // crates + mirrors frozen
-    for (let i = 0; i < base.length; i++) if (base[i] === 'H' || base[i] === 'J') base[i] = '.'; // switch gates open
-    const local: Level = { ...L, base, emitters: [], plates: [], receivers: [], preloaded: 0 }; // no lasers
-    const bombs = L.start.boxes.filter((b) => boxKind(b) === BOX.bomb);
-    let states = 0;
-    for (const b of bombs) {
-        for (let d = 0; d < 4; d++) {
-            const x = (boxCell(b) % L.w) + DX[d];
-            const y = Math.floor(boxCell(b) / L.w) + DY[d];
-            if (x < 0 || y < 0 || x >= L.w || y >= L.h) continue;
-            const at = y * L.w + x;
-            const start: State = { ...L.start, boxes: bombs, player: at, keys: 0xff };
-            if (!walkable(local, start, at)) continue;
-            const r = search(local, start, (s) => (bombNextToAlien(local, s) ? s.player : -1), maxStates);
-            states += r.states;
-            if (r.solved) return { ...r, states };
-        }
-    }
-    return { solved: false, pushes: -1, states, moves: [] };
-}

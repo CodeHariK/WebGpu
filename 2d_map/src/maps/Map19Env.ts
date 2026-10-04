@@ -11,10 +11,9 @@
 //
 // Always-on beams are walls of death for the solver (you may not step into one) and are what
 // lights receivers. Pulsing beams never light receivers; they are timing hazards in real time
-// only (the solver ignores them — you wait for the gap). Beams stop at walls, crates (a box
-// bomb hit by a live beam explodes — in real-time play), aliens, closed gates and the switch
-// gates H / J; mirrors always reflect.
-import { boxAt, BOX, DX, DY, tileAt, type Level, type State } from './Map19Rules';
+// only (the solver ignores them — you wait for the gap). Beams stop at walls, crates, closed
+// gates and the switch gates H / J; mirrors always reflect.
+import { boxAt, boxCell, BOX, isMirrorBox, DX, DY, tileAt, type Level, type State } from './Map19Rules';
 
 export type Emitter = { cell: number; dir: number; pulse: boolean; slot: boolean };
 // index % 4 = dir (0 +x, 1 -x, 2 +y, 3 -y); 4..7 pulse, 8..11 empty battery slot, 12..15 slot with battery
@@ -131,5 +130,5 @@ export const unpowerEmitter = (s: State, i: number): State => ({ ...s, powered: 
 
 /** Flip the mirror box on `cell`: / ↔ \. */
 export function rotateMirror(s: State, cell: number): State {
-    return { ...s, boxes: s.boxes.map((b) => (b >> 2 === cell && (b & 3) >= 2 ? b ^ 1 : b)) };
+    return { ...s, boxes: s.boxes.map((b) => (boxCell(b) === cell && isMirrorBox(b) ? b ^ 1 : b)) };
 }

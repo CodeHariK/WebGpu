@@ -1,10 +1,10 @@
 // Puzzle Islands — seeded room puzzles (port of the game's SokobanGenerator).
 //  1. Rooms: binary space partition into `rooms` rooms, one-cell doorways → a room tree.
 //  2. Goals: start, a gold key in the farthest room, exit door on another
-//     room's outer edge, aliens in a non-start room.
+//     room's outer edge.
 //  3. Locks: some route doorways become coloured gates; each key goes in a room reachable
 //     before its gate (a side room if possible → explore, fetch, come back: Zelda / RE).
-//     Blockers: other route doorways get a crate; extra crates; box bombs near the aliens.
+//     Blockers: other route doorways get a crate; extra crates.
 //     Switch gates: a route doorway becomes a LASER gate (H) with an emitter + mis-turned
 //     mirror + receiver in a room before it, or a PLATE gate (J) with a plate + crate.
 //     Pulsing lasers sweep across rooms as timing hazards. Some room-wall sections are thin
@@ -13,7 +13,7 @@
 //  4. Verify with the solver; otherwise retry (same seed → same level).
 import { GATE_CHARS, KEY_CHARS, LASER_GATE_CHARS, parseLevel, RECEIVER_CHARS } from './Map19Rules';
 import { EMITTER_CHARS } from './Map19Env';
-import { solveBombToAlienLocal, solveKeyAndExit, type Push } from './Map19Solver';
+import { solveKeyAndExit, type Push } from './Map19Solver';
 
 export type GenParams = {
     seed: number;
@@ -21,8 +21,6 @@ export type GenParams = {
     height: number;
     rooms: number;
     extraCrates: number;
-    bombs: number;
-    aliens: number;
     minPushes: number;
     locks: number; // coloured gates on the route (key placed somewhere reachable before it)
     // Enemies (not checked by the solver yet: they add timing / routing pressure)
@@ -48,7 +46,7 @@ export type GenParams = {
 };
 
 export const DEFAULT_GEN: GenParams = {
-    seed: 1, width: 23, height: 15, rooms: 5, extraCrates: 3, bombs: 2, aliens: 2, minPushes: 3,
+    seed: 1, width: 23, height: 15, rooms: 5, extraCrates: 3, minPushes: 3,
     locks: 1, patrollers: 1, reds: 1, yellows: 1, blues: 1, laserGates: 0, mirrorChains: 1, woodLasers: 1, goldKeys: 2, teleporters: 1, plateGates: 1, pulseLasers: 1, deadEmitterChance: 0.5, hearts: 1, bombPickups: 3, woodWalls: 2, woodDoors: 1, maxAttempts: 200,
 };
 
@@ -56,11 +54,10 @@ export type GenResult = {
     ok: boolean;
     rows: string[];
     pushes: number;
-    bombPushes: number;
     attempts: number;
     states: number;
     legs: Push[][]; // the key → exit solution (for scoring / replay)
-    rejected: { layout: number; unsolvable: number; easy: number; bomb: number };
+    rejected: { layout: number; unsolvable: number; easy: number };
 };
 
 const MIN_ROOM = 3;
@@ -603,25 +600,6 @@ export class Builder {
             if (this.g[d.y][d.x] === '.') this.g[d.y][d.x] = 'B';
         }
 
-        let alienRoom = this.rng.int(0, n - 1);
-        for (let t = 0; t < 8 && alienRoom === start; t++) alienRoom = this.rng.int(0, n - 1);
-        const aliens: [number, number][] = [];
-        for (let i = 0; i < this.p.aliens; i++) {
-            const a = this.freeCell(alienRoom);
-            if (a) { this.g[a[1]][a[0]] = 'A'; aliens.push(a); this.reserve(a[0], a[1]); }
-        }
-
-        const bombRooms = [alienRoom, ...this.adj[alienRoom].map((di) => this.otherRoom(di, alienRoom))];
-        for (let i = 0; i < this.p.bombs; i++) {
-            for (let t = 0; t < 40; t++) {
-                const b = this.freeCell(this.rng.pick(bombRooms));
-                if (!b) continue;
-                const [bx, by] = b;
-                if (this.g[by][bx - 1] === '#' || this.g[by][bx + 1] === '#' || this.g[by - 1][bx] === '#' || this.g[by + 1][bx] === '#') continue;
-                const near = aliens.reduce((m, a) => Math.min(m, Math.abs(a[0] - bx) + Math.abs(a[1] - by)), 1e9);
-                if (near >= 3) { this.g[by][bx] = 'X'; this.reserve(bx, by); break; }
-            }
-        }
         // Enemies away from the start room and never close enough to hit you on spawn (the
         // solver ignores them; the difficulty score weighs them by how close they sit to the route).
         const enemyRooms = this.rooms.map((_, i) => i).filter((r) => r !== start);
@@ -735,24 +713,20 @@ export function generateLevel(params: Partial<GenParams>): GenResult {
     p.width = Math.max(p.width, 2 * MIN_ROOM + 3);
     p.height = Math.max(p.height, MIN_ROOM + 2);
     const rng = new Rng(p.seed * 2654435761);
-    const out: GenResult = { ok: false, rows: [], pushes: 0, bombPushes: 0, attempts: 0, states: 0, legs: [], rejected: { layout: 0, unsolvable: 0, easy: 0, bomb: 0 } };
+    const out: GenResult = { ok: false, rows: [], pushes: 0, attempts: 0, states: 0, legs: [], rejected: { layout: 0, unsolvable: 0, easy: 0 } };
     for (let attempt = 1; attempt <= p.maxAttempts; attempt++) {
         out.attempts = attempt;
         const b = new Builder(p, rng);
         if (!b.makeRooms() || !b.populate()) { out.rejected.layout++; continue; }
         const rows = b.g.map((r) => r.join(''));
         const L = parseLevel(rows);
-        // Aliens are a bonus (the goal is the gold keys), so "a box bomb can reach an alien" is
-        // only insisted on for the first attempts; a long search relaxes MIN PUSHES too. (Counted
-        // in attempts, not time, so the same seed always gives the same level.)
-        const strict = attempt <= 8;
+        // A long search relaxes MIN PUSHES (counted in attempts, not time, so the same seed
+        // always gives the same level).
         const minPushes = attempt <= 25 ? p.minPushes : Math.floor(p.minPushes / 2);
-        const bomb = solveBombToAlienLocal(L);
-        if (strict && p.bombs > 0 && p.aliens > 0 && !bomb.solved) { out.rejected.bomb++; continue; }
         const route = solveKeyAndExit(L, 8000);
         if (!route.solved) { out.rejected.unsolvable++; continue; }
         if (route.pushes < minPushes) { out.rejected.easy++; continue; }
-        return { ...out, ok: true, rows, pushes: route.pushes, bombPushes: bomb.solved ? bomb.pushes : 0, states: route.states + bomb.states, legs: route.legs ?? [] };
+        return { ...out, ok: true, rows, pushes: route.pushes, states: route.states, legs: route.legs ?? [] };
     }
     return out;
 }

@@ -7,8 +7,8 @@
 //   remote  dropped on your cell, explodes when you press detonate (all remotes at once)
 //
 // A blast is a cross reaching BLAST_RANGE cells, stopped by walls, mirrors, emitters,
-// receivers, gates and doors. It destroys enemies, aliens and the first crate in each arm,
-// sets off other bombs and box bombs (chain reactions), and hurts the player (1 heart).
+// receivers, gates and doors. It destroys enemies and the first wooden crate in each arm (metal
+// crates and mirrors stop it unharmed), sets off other bombs (chain reactions), and hurts the player (1 heart).
 // Mirror boxes are sturdy: they stop the flames but survive. A wooden door (D) next to a blast
 // catches it and breaks — the only way through. Wooden walls (F) are walls: they stop it.
 // Lasers set bombs off too.
@@ -46,7 +46,7 @@ const breakable = (L: Level, s: State, c: number) => {
     return b === 'D';
 };
 
-/** Cross of cells a bomb at `center` burns: each arm ends at a blocker or after the first crate / alien. */
+/** Cross of cells a bomb at `center` burns: each arm ends at a blocker or after the first box. */
 export function blastCells(L: Level, s: State, center: number): number[] {
     const out = [center];
     for (let d = 0; d < 4; d++) {
@@ -57,7 +57,7 @@ export function blastCells(L: Level, s: State, center: number): number[] {
             if (breakable(L, s, c)) { out.push(c); break; } // the wooden door takes the hit
             if (blocksBlast(L, s, c)) break;
             out.push(c);
-            if (hasBox(s, c) || L.base[c] === 'A') break;
+            if (hasBox(s, c)) break;
         }
     }
     return out;
@@ -68,7 +68,7 @@ export function throwTarget(L: Level, s: State, enemies: Enemy[], bombs: Bomb[],
     let at = from;
     for (let r = 0; r < THROW_RANGE; r++) {
         const n = neighbour(L, at, dir);
-        if (n < 0 || blocksBlast(L, s, n) || breakable(L, s, n) || hasBox(s, n) || L.base[n] === 'A') break;
+        if (n < 0 || blocksBlast(L, s, n) || breakable(L, s, n) || hasBox(s, n)) break;
         at = n;
         if (enemies.some((e) => e.cell === n) || bombs.some((b) => b.cell === n)) break;
     }
@@ -76,10 +76,9 @@ export function throwTarget(L: Level, s: State, enemies: Enemy[], bombs: Bomb[],
 }
 
 export type Detonation = {
-    s: State; // crates / box bombs destroyed
+    s: State; // crates destroyed
     bombs: Bomb[]; // bombs left
     enemies: Enemy[];
-    deadAliens: number[];
     cells: number[]; // every burned cell (for drawing)
     playerHit: boolean;
     kills: number;
@@ -88,7 +87,7 @@ export type Detonation = {
 };
 
 /** Explode the bombs at `centers` and everything they chain into. */
-export function detonate(L: Level, s0: State, bombs0: Bomb[], enemies0: Enemy[], deadAliens0: number[], centers: number[]): Detonation {
+export function detonate(L: Level, s0: State, bombs0: Bomb[], enemies0: Enemy[], centers: number[]): Detonation {
     let s = s0;
     let bombs = bombs0;
     const queue = [...centers];
@@ -106,17 +105,15 @@ export function detonate(L: Level, s0: State, bombs0: Bomb[], enemies0: Enemy[],
             if (breakable(L, s, c)) { s = { ...s, broken: [...s.broken, c].sort((a, b) => a - b) }; doors++; continue; }
             if (c !== center && bombs.some((b) => b.cell === c && b.flight <= 0)) queue.push(c); // chain
             const bi = s.boxes.findIndex((b) => boxCell(b) === c);
-            if (bi >= 0 && boxKind(s.boxes[bi]) <= BOX.bomb) {
-                if (boxKind(s.boxes[bi]) === BOX.bomb) queue.push(c); // box bomb goes off too
+            if (bi >= 0 && boxKind(s.boxes[bi]) === BOX.crate) {
                 s = { ...s, boxes: s.boxes.filter((_, i) => i !== bi) };
                 crates++;
             }
         }
     }
     const enemies = enemies0.filter((e) => !burned.has(e.cell));
-    const deadAliens = [...deadAliens0, ...L.aliens.filter((a) => burned.has(a) && !deadAliens0.includes(a))];
     return {
-        s, bombs, enemies, deadAliens, cells: [...burned], playerHit: burned.has(s.player),
-        kills: enemies0.length - enemies.length + deadAliens.length - deadAliens0.length, crates, doors,
+        s, bombs, enemies, cells: [...burned], playerHit: burned.has(s.player),
+        kills: enemies0.length - enemies.length, crates, doors,
     };
 }

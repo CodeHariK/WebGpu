@@ -3,10 +3,10 @@
 // proven here port 1:1.
 //
 // Layout characters:
-//   #  wall (hedge)   E  exit door (solid)   A  alien (blocks)   K  gold key (walkable, boxes can't)
+//   #  wall (hedge)   E  exit door (solid)   K  gold key (walkable, boxes can't)
 //   K  gold keys: there can be several — collect ALL, then escape through the exit door
 //   @ & $     teleporter pad pairs: step on one, come out of its partner (unless a box is on it)
-//   B  crate          X  box bomb            P  player start     .  floor
+//   B  crate          N  metal crate (bomb-proof)   P  player start     .  floor
 //   r g y     coloured keys (picked up by walking over them; never used up)
 //   R G Y     locked gates: solid until you hold the matching key, then walkable (boxes never)
 //   > < v u   laser emitters (always on) · ) ( w n pulsing ones — see Map19Env
@@ -14,6 +14,7 @@
 //   1 2 3 4   battery-slot emitters, empty · 5 6 7 8 with a battery in (E adds / takes it)
 //   Z         battery (picked up by walking)
 //   h t T c   heart · time-bomb / throw-bomb / remote-bomb pickups (real-time play only)
+//   S         bomb supply crate: stays; stepping on it tops time bombs up to SUPPLY_AMMO
 //   _         pressure plate (floor)    H  laser gate (open while every O is lit)
 //   o U · 0 V  more laser channels: gate U opens when every o is lit, V when every 0 is lit
 //   J         plate gate (open while every _ holds a crate)
@@ -37,12 +38,11 @@ export const DY = [0, 0, 1, -1];
 export type Level = {
     w: number;
     h: number;
-    base: string[]; // per cell: '#', '.', 'K', 'A', ' ' and the mechanic tiles (see above)
+    base: string[]; // per cell: '#', '.', 'K', ' ' and the mechanic tiles (see above)
     door: number[]; // door cells (solid)
     gates: Map<number, number>; // locked gate cell → colour index
     keys: Map<number, number>; // coloured key cell → colour index
     exits: number[]; // floor cells next to a door
-    aliens: number[];
     golds: number[]; // gold keys: collect ALL of them, then the exit door opens
     pads: Map<number, number>; // teleporter pad → its partner pad
     padPairs: [number, number][];
@@ -56,19 +56,20 @@ export type Level = {
     start: State;
 };
 
-export type ItemKind = 'heart' | 'time' | 'throw' | 'remote';
-const ITEM_CHARS: Record<string, ItemKind> = { h: 'heart', t: 'time', T: 'throw', c: 'remote' };
+export type ItemKind = 'heart' | 'time' | 'throw' | 'remote' | 'supply';
+// S = bomb SUPPLY crate: stays put; stepping on it tops your time bombs up (never run out).
+const ITEM_CHARS: Record<string, ItemKind> = { h: 'heart', t: 'time', T: 'throw', c: 'remote', S: 'supply' };
 
-/** Box encoding in State.boxes: cell * 4 + kind (sorted). */
-export const BOX = { crate: 0, bomb: 1, mirrorSlash: 2, mirrorBack: 3 } as const;
-export const makeBox = (cell: number, kind: number) => cell * 4 + kind;
-export const boxCell = (b: number) => b >> 2;
-export const boxKind = (b: number) => b & 3;
-export const isMirrorBox = (b: number) => (b & 3) >= 2;
+/** Box encoding in State.boxes: cell * 8 + kind (sorted). Metal crates push like crates but bombs can't break them. */
+export const BOX = { crate: 0, mirrorSlash: 2, mirrorBack: 3, metal: 4 } as const; // (1 was the old box bomb)
+export const makeBox = (cell: number, kind: number) => cell * 8 + kind;
+export const boxCell = (b: number) => b >> 3;
+export const boxKind = (b: number) => b & 7;
+export const isMirrorBox = (b: number) => boxKind(b) === BOX.mirrorSlash || boxKind(b) === BOX.mirrorBack;
 /** Kind of the box on `cell`, or -1. */
 export const boxAt = (s: State, cell: number) => {
-    const b = s.boxes.find((v) => v >> 2 === cell);
-    return b === undefined ? -1 : b & 3;
+    const b = s.boxes.find((v) => boxCell(v) === cell);
+    return b === undefined ? -1 : boxKind(b);
 };
 
 /** Dynamic part: boxes (see BOX), player cell, held keys, batteries, gold, powered emitters, broken doors. */
@@ -95,7 +96,6 @@ export function parseLevel(rows: string[]): Level {
     const door: number[] = [];
     const gates = new Map<number, number>();
     const keys = new Map<number, number>();
-    const aliens: number[] = [];
     const boxes: number[] = [];
     const golds: number[] = [];
     const padCells: Record<string, number[]> = {};
@@ -114,10 +114,9 @@ export function parseLevel(rows: string[]): Level {
             switch (c) {
                 case '#': base[i] = '#'; break;
                 case 'E': base[i] = '#'; door.push(i); break;
-                case 'A': base[i] = 'A'; aliens.push(i); break;
                 case 'K': base[i] = 'K'; golds.push(i); break;
                 case '@': case '&': case '$': base[i] = '.'; (padCells[c] ??= []).push(i); break;
-                case 'B': case 'X': base[i] = '.'; boxes.push(makeBox(i, c === 'X' ? BOX.bomb : BOX.crate)); break;
+                case 'B': case 'N': base[i] = '.'; boxes.push(makeBox(i, c === 'N' ? BOX.metal : BOX.crate)); break;
                 case 'P': base[i] = '.'; player = i; break;
                 case ' ': break;
                 case 'O': case 'o': case '0': base[i] = 'O'; receivers.push(i); channel.set(i, RECEIVER_CHARS.indexOf(c)); break;
@@ -160,7 +159,7 @@ export function parseLevel(rows: string[]): Level {
         }
     }
     return {
-        w, h, base, door, gates, keys, exits, aliens, golds, pads, padPairs, emitters, receivers, channel, plates, batteries, items,
+        w, h, base, door, gates, keys, exits, golds, pads, padPairs, emitters, receivers, channel, plates, batteries, items,
         preloaded: emitters.filter((_, i) => (powered >> i) & 1).length,
         start: { boxes, player, keys: 0, gold: 0, batteries: 0, powered, broken: [] },
     };
@@ -169,8 +168,8 @@ export function parseLevel(rows: string[]): Level {
 /** Every gold key collected → the exit opens. */
 export const allGold = (L: Level, s: State) => s.gold === (1 << L.golds.length) - 1;
 
-export const hasBox = (s: State, cell: number) => s.boxes.some((b) => b >> 2 === cell);
-export const boxIndex = (s: State, cell: number) => s.boxes.findIndex((b) => b >> 2 === cell);
+export const hasBox = (s: State, cell: number) => s.boxes.some((b) => boxCell(b) === cell);
+export const boxIndex = (s: State, cell: number) => s.boxes.findIndex((b) => boxCell(b) === cell);
 
 /**
  * Player may stand here (ignoring boxes). For the solver (`avoidBeams`) always-on laser beams
@@ -194,7 +193,7 @@ function walkableIn(L: Level, s: State, cell: number, env: Env, avoidBeams = tru
 /** Box occupancy grid for one state (flood fills test it per cell). */
 function boxGrid(L: Level, s: State): Uint8Array {
     const g = new Uint8Array(L.w * L.h);
-    for (const b of s.boxes) g[b >> 2] = 1;
+    for (const b of s.boxes) g[boxCell(b)] = 1;
     return g;
 }
 
@@ -216,7 +215,7 @@ export function pushBox(L: Level, s: State, cell: number, dir: number): { next: 
     if (x < 0 || y < 0 || x >= L.w || y >= L.h) return null;
     const to = y * L.w + x;
     if (hasBox(s, to) || !restable(L, s, to)) return null;
-    const boxes = s.boxes.map((b, i) => (i === bi ? makeBox(to, b & 3) : b)).sort((a, b) => a - b);
+    const boxes = s.boxes.map((b, i) => (i === bi ? makeBox(to, boxKind(b)) : b)).sort((a, b) => a - b);
     return { next: { ...s, boxes, player: cell }, to };
 }
 
@@ -281,14 +280,6 @@ export function walkPath(L: Level, s: State, to: number): { dir: number; cell: n
         }
     }
     return null;
-}
-
-export function bombNextToAlien(L: Level, s: State): boolean {
-    return s.boxes.some((b) => {
-        if ((b & 3) !== BOX.bomb) return false;
-        const c = b >> 2;
-        return L.aliens.some((a) => Math.abs((a % L.w) - (c % L.w)) + Math.abs(Math.floor(a / L.w) - Math.floor(c / L.w)) === 1);
-    });
 }
 
 /**
