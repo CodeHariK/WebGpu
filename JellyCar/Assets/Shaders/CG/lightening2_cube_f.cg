@@ -1,8 +1,0 @@
-﻿out float4 color : COLOR;
-
-uniform float4 colors;
-
-void main(float4 vColor : COLOR,float2 vTexCoord : TEXCOORD0)
-{
-	color = colors;
-}

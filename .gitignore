@@ -3,3 +3,5 @@
 .godot
 gdzig/*
 /minecraft/Claude outputs
+*.blend1
+*.ctex
