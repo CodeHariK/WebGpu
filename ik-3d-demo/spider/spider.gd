@@ -31,8 +31,8 @@ signal landed ## touched down after launch()
 			_build()
 
 ## Legs as LimbChains (custom IK, one MultiMesh renderer) instead of Skeleton3D bones +
-## TwoBoneIK3D + BoneAttachment3Ds. Same gait, same look; rebuilds the spider.
-@export var chain_legs := false:
+## TwoBoneIK3D + BoneAttachment3Ds (off). Same gait, same look; rebuilds the spider.
+@export var chain_legs := true:
 	set(value):
 		chain_legs = value
 		if is_inside_tree():

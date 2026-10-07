@@ -24,8 +24,14 @@ const LEAF_COLOR := Color(0.32, 0.58, 0.22)
 var beat := 0.0 ## the shared dance clock, in beats
 var stalks: Array[FlytrapStalk] = []
 
+var _stems: LimbRenderer ## every stalk's stem, one MultiMesh
+
 
 func _ready() -> void:
+	_stems = LimbRenderer.new()
+	_stems.name = "Stems"
+	_stems.roughness = 0.7
+	add_child(_stems)
 	_build_pot()
 	_build_stalks()
 
@@ -38,6 +44,7 @@ func _process(delta: float) -> void:
 		stalk.sway = sway
 		stalk.snap_range = snap_range * stalk.head_scale
 		stalk.animate(delta, beat)
+	_stems.draw()
 
 
 ## Every head snaps now.
@@ -52,6 +59,7 @@ func _build_stalks() -> void:
 	for stalk in stalks:
 		stalk.queue_free()
 	stalks.clear()
+	_stems.clear()
 	stalks.append(_add_stalk(Vector3(0, POT_HEIGHT, 0), Vector3.FORWARD, 0.0, 7, 0.17, 0.06, 1.0, 0.0))
 	var sides := heads - 1
 	for i in sides:
@@ -71,6 +79,7 @@ func _add_stalk(at: Vector3, outward: Vector3, tilt: float, segments: int, lengt
 	stalk.thickness = thickness
 	stalk.head_scale = head_scale
 	stalk.phase = phase
+	stalk.renderer = _stems
 	add_child(stalk)
 	return stalk
 

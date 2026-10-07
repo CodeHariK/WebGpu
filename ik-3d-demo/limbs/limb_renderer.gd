@@ -61,9 +61,9 @@ func draw() -> void:
 	var joint := 0
 	var block := 0
 	for chain in chains:
-		var r := chain.radius
 		if chain.style == LimbChain.Style.BLOCK:
 			for i in chain.segment_count():
+				var r := chain.segment_radius(i)
 				var basis := chain.segment_basis(i)
 				basis.x *= r * 2.0
 				basis.y *= maxf(chain.segment_length(i) - chain.gap * 2.0, 0.02)
@@ -71,21 +71,17 @@ func draw() -> void:
 				blocks.set_instance_transform(block, Transform3D(basis, (chain.points[i] + chain.points[i + 1]) * 0.5))
 				block += 1
 			continue
-		var ball := Basis.from_scale(Vector3.ONE * _joint_radius(chain))
 		for i in chain.segment_count():
+			var r := chain.segment_radius(i)
 			var basis := chain.segment_basis(i)
 			basis.x *= r
 			basis.y *= chain.segment_length(i)
 			basis.z *= r
 			segments.set_instance_transform(segment, Transform3D(basis, (chain.points[i] + chain.points[i + 1]) * 0.5))
 			segment += 1
-		for point in chain.points:
-			joints.set_instance_transform(joint, Transform3D(ball, point))
+		for k in chain.points.size():
+			joints.set_instance_transform(joint, Transform3D(Basis.from_scale(Vector3.ONE * chain.joint_ball_radius(k)), chain.points[k]))
 			joint += 1
-
-
-static func _joint_radius(chain: LimbChain) -> float:
-	return chain.joint_radius if chain.joint_radius >= 0.0 else chain.radius * 1.35
 
 
 func _resize() -> void:

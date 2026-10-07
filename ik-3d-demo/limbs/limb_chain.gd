@@ -11,13 +11,15 @@
 ##   FABRIK    any number of segments (tails, tentacles, necks, stalks). Iterative: forward and
 ##             backward passes until the tip is within `tolerance` or `iterations` run out. The
 ##             joints are nudged toward `pole` first, so it bends the same way every frame.
+##   FK        no solving: the owner writes `points` itself (a dancing stem posed by angles);
+##             the chain is just something to draw.
 ##
 ## segment_basis() gives each segment a twist-free frame (+Y along the segment, +X the bend
 ## plane's normal), so a renderer can draw a mesh per segment without bones.
 class_name LimbChain
 extends RefCounted
 
-enum Solver { TWO_BONE, AIM, FABRIK }
+enum Solver { TWO_BONE, AIM, FABRIK, FK }
 enum Style { ROUND, BLOCK } ## how LimbRenderer draws it: cylinders + joint balls, or square blocks
 
 
@@ -32,7 +34,8 @@ var iterations := 8 ## FABRIK only
 var tolerance := 0.002 ## FABRIK only, metres
 # Look (read by LimbRenderer).
 var style := Style.ROUND
-var radius := 0.03 ## segment radius (ROUND) or half width (BLOCK)
+var radius := 0.03 ## segment radius (ROUND) or half width (BLOCK), at the root
+var taper := 1.0 ## radius at the tip ÷ radius at the root (segments shrink linearly)
 var joint_radius := -1.0 ## ROUND joint balls; < 0 = radius × 1.35 (= radius gives a capsule look)
 var gap := 0.0 ## BLOCK: each block is this much shorter at both ends, so the pieces float apart
 var color := Color.WHITE
@@ -72,6 +75,7 @@ func solve() -> void:
 		Solver.TWO_BONE: _solve_two_bone()
 		Solver.AIM: _solve_aim()
 		Solver.FABRIK: _solve_fabrik()
+		Solver.FK: pass # points are set by the owner
 
 
 ## How far the tip ended up from the target (0 = reached it).
@@ -90,6 +94,18 @@ func segment_basis(i: int) -> Basis:
 		x = y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT)
 	x = x.normalized()
 	return Basis(x, y, x.cross(y))
+
+
+## Radius of segment i (tapering from `radius` at the root toward radius × taper at the tip).
+func segment_radius(i: int) -> float:
+	return radius * lerpf(1.0, taper, float(i) / segment_count())
+
+
+## Radius of the ball at joint k (ROUND): joint_radius (or radius × 1.35), tapered like the
+## segment that starts there (the tip uses the last segment's).
+func joint_ball_radius(k: int) -> float:
+	var base := joint_radius if joint_radius >= 0.0 else radius * 1.35
+	return base * lerpf(1.0, taper, float(mini(k, segment_count() - 1)) / segment_count())
 
 
 ## Current length of segment i (differs from lengths[i] only for a stretching AIM).

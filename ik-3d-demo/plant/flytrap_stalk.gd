@@ -1,6 +1,8 @@
-## One Venus flytrap stalk: a bone chain (Skeleton3D, built in code) topped by a trap head — two
-## jaws on a hinge, teeth round the rims, a pink mouth, two little eyes. Flytrap builds and
-## drives it (animate() every frame with the shared beat).
+## One Venus flytrap stalk: a stem of `segments` pieces, posed by angles every frame (forward
+## kinematics into an FK LimbChain, drawn by the Flytrap's shared LimbRenderer — no Skeleton3D,
+## no BoneAttachment3Ds), topped by a trap head — two jaws on a hinge, teeth round the rims, a
+## pink mouth, two little eyes. Flytrap builds and drives it (animate() every frame with the
+## shared beat), and sets `renderer` before adding it.
 ##
 ##   dance  a sine wave travels up the stem: each bone sways side-to-side (one sway per 2 beats)
 ##          and front-to-back (half as fast) with a phase lag per bone, growing toward the top —
@@ -40,10 +42,12 @@ var state := "dance"
 
 var _state_time := 0.0
 var _cooldown := 0.0
-var _skeleton: Skeleton3D
-var _rest_rotations: Array[Quaternion] = []
-var _head_attach: BoneAttachment3D
-var _head_pivot: Node3D ## turns to look; holds the jaws (mouth faces -Z)
+var renderer: LimbRenderer ## draws the stem (set by Flytrap)
+var stem: LimbChain ## world-space joint points of the stem, base → tip
+
+var _rest_rotations: Array[Quaternion] = [] ## per segment (only the first carries the lean)
+var _tip_basis := Basis.IDENTITY ## world frame of the top segment, where the head sits
+var _head_pivot: Node3D ## turns to look; holds the jaws (mouth faces -Z); top_level, placed on the tip
 var _upper_jaw: Node3D
 var _lower_jaw: Node3D
 var _reach := SecondOrder.new(3.0, 0.4, -1.2) ## lunge 0..1: pulls back first (r < 0), overshoots
@@ -54,6 +58,7 @@ var _look := SecondOrder.new(3.0, 0.7, 0.0) ## how much the head looks at the ta
 func _ready() -> void:
 	_build_stem()
 	_build_head()
+	_pose_stem(0.0, 0.0) # standing up from the first frame, not hanging from the chain's default
 
 
 ## Start a snap now (if not already busy).
@@ -102,8 +107,9 @@ func _enter(new_state: String) -> void:
 	_state_time = 0.0
 
 
-# The travelling sine wave, plus the lunge: every bone bends a share of lunge_angle toward the
-# target, so the whole stem curls at it.
+# The travelling sine wave, plus the lunge: every segment bends a share of lunge_angle toward the
+# target, so the whole stem curls at it. Forward kinematics: each segment's frame is its parent's
+# times its own rotation, and it reaches segment_length along its +Y.
 func _pose_stem(beat: float, reach: float) -> void:
 	var bend_axis := Vector3.ZERO
 	if target != null:
@@ -111,6 +117,8 @@ func _pose_stem(beat: float, reach: float) -> void:
 		var flat := Vector3(local.x, 0.0, local.z)
 		if flat.length() > 0.01:
 			bend_axis = Vector3.UP.cross(flat.normalized()) # rotating +Y about this tips it toward the target
+	var frame := global_basis.orthonormalized()
+	stem.points[0] = global_position
 	for i in segments:
 		var k := float(i + 1) / segments # stronger toward the top
 		var rotation_now := Quaternion.IDENTITY
@@ -120,13 +128,16 @@ func _pose_stem(beat: float, reach: float) -> void:
 			rotation_now = Quaternion.from_euler(Vector3(nod, 0.0, side))
 		if bend_axis != Vector3.ZERO:
 			rotation_now = Quaternion(bend_axis, reach * lunge_angle / segments) * rotation_now
-		_skeleton.set_bone_pose_rotation(i, _rest_rotations[i] * rotation_now)
+		frame = frame * Basis(_rest_rotations[i] * rotation_now)
+		stem.points[i + 1] = stem.points[i] + frame * Vector3(0, segment_length, 0)
+	_tip_basis = frame
 
 
 # Blend the head between its dance pose (riding the stem tip) and looking straight at the target.
 func _pose_head(delta: float, beat: float, look_weight: float) -> void:
 	var weight := clampf(_look.update(delta, Vector3(look_weight, 0, 0)).x, 0.0, 1.0)
-	var rest := _head_attach.global_basis.orthonormalized() * Basis(Vector3.RIGHT, HEAD_REST_TILT)
+	_head_pivot.global_position = stem.tip()
+	var rest := _tip_basis.orthonormalized() * Basis(Vector3.RIGHT, HEAD_REST_TILT)
 	var aim := rest
 	if target != null:
 		var to_target := target.global_position - _head_pivot.global_position
@@ -138,37 +149,30 @@ func _pose_head(delta: float, beat: float, look_weight: float) -> void:
 
 # --- build -----------------------------------------------------------------------------------
 
-# Bones stem_0 … stem_(n-1) along +Y, plus a head bone at the tip. Bone 0 carries the lean.
+# The stem chain (segment 0 carries the lean) and its look; posed by _pose_stem() every frame.
 func _build_stem() -> void:
-	_skeleton = Skeleton3D.new()
-	_skeleton.name = "Skeleton3D"
-	add_child(_skeleton)
+	var lengths := PackedFloat32Array()
+	lengths.resize(segments)
+	lengths.fill(segment_length)
+	stem = LimbChain.new(lengths, global_position, LimbChain.Solver.FK)
+	stem.radius = thickness
+	stem.joint_radius = thickness # cylinders + same-size balls = a capsule stem
+	stem.taper = 0.6
+	stem.color = stem_color
+	renderer.add(stem)
 	var lean_axis := Vector3.UP.cross(outward.normalized())
-	for i in segments + 1:
-		var bone := _skeleton.add_bone("stem_%d" % i if i < segments else "head")
-		var rest := Transform3D.IDENTITY
-		if i == 0:
-			if tilt != 0.0 and lean_axis.length() > 0.01:
-				rest.basis = Basis(lean_axis.normalized(), tilt)
-		else:
-			_skeleton.set_bone_parent(bone, bone - 1)
-			rest.origin = Vector3(0, segment_length, 0)
-		_skeleton.set_bone_rest(bone, rest)
-		_skeleton.set_bone_pose(bone, rest)
-		_rest_rotations.append(rest.basis.get_rotation_quaternion())
-		if i < segments:
-			var radius := thickness * lerpf(1.0, 0.6, float(i) / segments)
-			var capsule := CapsuleMesh.new()
-			capsule.radius = radius
-			capsule.height = segment_length + radius * 2.0
-			_attach(bone).add_child(_mesh(capsule, Transform3D(Basis.IDENTITY, Vector3(0, segment_length * 0.5, 0)), stem_color))
-	_head_attach = _attach(segments)
+	for i in segments:
+		var lean := Basis.IDENTITY
+		if i == 0 and tilt != 0.0 and lean_axis.length() > 0.01:
+			lean = Basis(lean_axis.normalized(), tilt)
+		_rest_rotations.append(lean.get_rotation_quaternion())
 
 
 func _build_head() -> void:
 	_head_pivot = Node3D.new()
 	_head_pivot.name = "Head"
-	_head_attach.add_child(_head_pivot)
+	add_child(_head_pivot)
+	_head_pivot.top_level = true
 	_upper_jaw = _build_jaw(1.0)
 	_lower_jaw = _build_jaw(-1.0)
 	for side: float in [-1.0, 1.0]: # eyes on top of the upper jaw
@@ -200,13 +204,6 @@ func _build_jaw(side: float) -> Node3D:
 		cone.height = 0.1
 		hinge.add_child(_mesh(cone, Transform3D(_basis_along(direction), rim + direction * 0.05), tooth_color))
 	return hinge
-
-
-func _attach(bone: int) -> BoneAttachment3D:
-	var attach := BoneAttachment3D.new()
-	_skeleton.add_child(attach)
-	attach.bone_idx = bone
-	return attach
 
 
 static func _sphere(radius: float) -> SphereMesh:

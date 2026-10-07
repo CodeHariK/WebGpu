@@ -1,7 +1,12 @@
 ## A cartoon bat's body, built in code: a fuzzy egg body, a big head (ears, eyes, pink nose,
-## two tiny fangs), two IK wings (BatWing) and two little IK legs, all on one Skeleton3D with a
-## single TwoBoneIK3D (settings 0–1 the arms, 2–3 the legs). Faces −Z, sides are left (−X) and
-## right (+X). Bat drives it: pose_wings() every frame, and set_feet() to tuck or grip.
+## two tiny fangs), two wings (BatWing) and two little legs. Faces −Z, sides are left (−X) and
+## right (+X).
+##
+## No Skeleton3D: each arm (shoulder → elbow → wrist) and each leg (hip → knee → foot) is a
+## two-bone LimbChain, and every limb and finger is drawn by one LimbRenderer. Bat drives it each
+## frame: pose_wings() and the feet targets, then solve() — which solves the chains, lets the
+## wings place their fingers and rebuild their membranes, and draws. Everything is in step in
+## the same frame, no skeleton callbacks.
 class_name BatRig
 extends Node3D
 
@@ -13,34 +18,32 @@ const FOREARM := 0.2
 const THIGH := 0.055
 const SHIN := 0.06
 const TUCKED_FOOT := Vector3(0.04, -0.05, 0.2) ## right foot while flying, trailing behind
+const ARM_RADIUS := 0.011
+const LEG_RADIUS := 0.01
 
 var fur_color := Color(0.45, 0.32, 0.34)
 var belly_color := Color(0.62, 0.48, 0.45)
 var membrane_color := Color(0.38, 0.23, 0.42)
 var inner_ear_color := Color(0.95, 0.6, 0.65)
 
-var skeleton: Skeleton3D
-var ik: TwoBoneIK3D
 var head: Node3D ## turn it to look
 var wings: Array[BatWing] = [] ## left, right
-var feet: Array[Marker3D] = [] ## leg IK targets, left, right (place in world space)
+var feet: Array[Marker3D] = [] ## leg targets, left, right (place in world space)
+var arms: Array[LimbChain] = [] ## left, right: shoulder → elbow → wrist
+var legs: Array[LimbChain] = [] ## left, right: hip → knee → foot
+var renderer: LimbRenderer
+
+var _knee_poles: Array[Marker3D] = []
 
 
 func _ready() -> void:
-	skeleton = Skeleton3D.new()
-	skeleton.name = "Skeleton3D"
-	add_child(skeleton)
-	var body := skeleton.add_bone("body")
-	skeleton.set_bone_rest(body, Transform3D.IDENTITY)
-	skeleton.set_bone_pose(body, Transform3D.IDENTITY)
-	ik = TwoBoneIK3D.new()
-	ik.name = "IK"
-	skeleton.add_child(ik)
-	ik.set_setting_count(4)
+	renderer = LimbRenderer.new()
+	renderer.name = "Limbs"
+	renderer.roughness = 0.8
+	add_child(renderer)
 	for i in 2:
-		_build_side(i, body)
+		_build_side(i)
 	_build_body()
-	skeleton.skeleton_updated.connect(_on_skeleton_updated)
 
 
 ## Pose both wings the same: `wrist` in right-wing coordinates relative to the shoulder
@@ -55,22 +58,50 @@ func tucked_foot(i: int) -> Vector3:
 	return to_global(_mirror(TUCKED_FOOT, _side(i)))
 
 
-# One side: arm bones + wing, leg bones + foot target, and their IK settings.
-func _build_side(i: int, body: int) -> void:
+## Solve every limb toward its target, then fingers + membranes, then draw. Call once per frame
+## after moving the body, the wing strokes and the feet.
+func solve() -> void:
+	for i in 2:
+		var side := _side(i)
+		var arm := arms[i]
+		arm.root = to_global(_mirror(SHOULDER, side))
+		arm.target = wings[i].target.global_position
+		arm.pole = wings[i].pole.global_position
+		arm.solve()
+		var leg := legs[i]
+		leg.root = to_global(_mirror(HIP, side))
+		leg.target = feet[i].global_position
+		leg.pole = _knee_poles[i].global_position
+		leg.solve()
+		wings[i].rebuild()
+	renderer.draw()
+
+
+# One side: arm + wing, leg + foot target + knee pole.
+func _build_side(i: int) -> void:
 	var side := _side(i)
 	var prefix := "L_" if side < 0.0 else "R_"
-	var upper := _add_bone(prefix + "arm_upper", body, _mirror(SHOULDER, side))
-	var lower := _add_bone(prefix + "arm_lower", upper, Vector3(side * UPPER_ARM, 0, 0))
-	var wrist := _add_bone(prefix + "wrist", lower, Vector3(side * FOREARM * 0.99, 0, -0.03)) # a slight rest bend
-	var thigh := _add_bone(prefix + "leg_upper", body, _mirror(HIP, side))
-	var shin := _add_bone(prefix + "leg_lower", thigh, Vector3(0, -THIGH * 0.5, THIGH * 0.85))
-	var foot := _add_bone(prefix + "foot", shin, Vector3(0, 0, SHIN))
+	var bone := fur_color.darkened(0.25)
+	var forearm := Vector3(side * FOREARM * 0.99, 0, -0.03).length() # a slight bend, as before
+	var arm := LimbChain.new(PackedFloat32Array([UPPER_ARM, forearm]))
+	arm.radius = ARM_RADIUS
+	arm.joint_radius = ARM_RADIUS
+	arm.color = bone
+	renderer.add(arm)
+	arms.append(arm)
+	var thigh := Vector3(0, -THIGH * 0.5, THIGH * 0.85).length()
+	var leg := LimbChain.new(PackedFloat32Array([thigh, SHIN]))
+	leg.radius = LEG_RADIUS
+	leg.joint_radius = LEG_RADIUS
+	leg.color = bone
+	renderer.add(leg)
+	legs.append(leg)
 	var wing := BatWing.new()
 	wing.name = prefix + "Wing"
 	wing.side = side
 	wing.membrane_color = membrane_color
 	add_child(wing)
-	wing.setup(skeleton, upper, lower, wrist, foot, _mirror(MEMBRANE_HIP, side))
+	wing.setup(arm, leg, _mirror(MEMBRANE_HIP, side), renderer)
 	wings.append(wing)
 	var foot_target := Marker3D.new()
 	foot_target.name = prefix + "FootTarget"
@@ -81,20 +112,7 @@ func _build_side(i: int, body: int) -> void:
 	knee_pole.name = prefix + "KneePole"
 	add_child(knee_pole)
 	knee_pole.position = _mirror(HIP, side) + Vector3(side * 0.15, 0.0, 0.05) # knees bow outward
-	_add_ik(i, upper, lower, wrist, wing.target, wing.pole)
-	_add_ik(2 + i, thigh, shin, foot, foot_target, knee_pole)
-	_limb(upper, Vector3(side * UPPER_ARM, 0, 0), 0.012)
-	_limb(lower, Vector3(side * FOREARM, 0, -0.03), 0.01)
-	_limb(thigh, Vector3(0, -THIGH * 0.5, THIGH * 0.85), 0.012)
-	_limb(shin, Vector3(0, 0, SHIN), 0.009)
-
-
-func _add_ik(setting: int, root: int, middle: int, end: int, target: Node3D, pole: Node3D) -> void:
-	ik.set_root_bone_name(setting, skeleton.get_bone_name(root))
-	ik.set_middle_bone_name(setting, skeleton.get_bone_name(middle))
-	ik.set_end_bone_name(setting, skeleton.get_bone_name(end))
-	ik.set_target_node(setting, ik.get_path_to(target))
-	ik.set_pole_node(setting, ik.get_path_to(pole))
+	_knee_poles.append(knee_pole)
 
 
 func _build_body() -> void:
@@ -115,26 +133,6 @@ func _build_body() -> void:
 		head.add_child(BatMeshes.blob(Vector3.ONE * 0.017, Vector3(side * 0.038, 0.017, -0.088), Color(0.05, 0.04, 0.06)))
 		var fang := Transform3D(Basis(Vector3.RIGHT, PI), Vector3(side * 0.016, -0.045, -0.068))
 		head.add_child(BatMeshes.instance(BatMeshes.cone(0.007, 0.022), fang, Color(1, 1, 0.95)))
-
-
-func _limb(bone: int, along: Vector3, radius: float) -> void:
-	var attach := BoneAttachment3D.new()
-	skeleton.add_child(attach)
-	attach.bone_idx = bone
-	attach.add_child(BatMeshes.limb(along, radius, fur_color.darkened(0.25)))
-
-
-func _add_bone(bone_name: String, parent: int, offset: Vector3) -> int:
-	var bone := skeleton.add_bone(bone_name)
-	skeleton.set_bone_parent(bone, parent)
-	skeleton.set_bone_rest(bone, Transform3D(Basis.IDENTITY, offset))
-	skeleton.set_bone_pose(bone, skeleton.get_bone_rest(bone))
-	return bone
-
-
-func _on_skeleton_updated() -> void:
-	for wing in wings:
-		wing.rebuild()
 
 
 static func _side(i: int) -> float:

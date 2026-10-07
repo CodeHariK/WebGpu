@@ -1,4 +1,4 @@
-## A procedural bat (BatRig) and how it flies. Everything is second-order springs (SecondOrder):
+## A procedural bat (BatRig: LimbChain arms and legs, no skeleton) and how it flies. Everything is second-order springs (SecondOrder):
 ## the body chases a goal point, yaws toward where it's going, banks into turns, pitches with
 ## climbs and dives, and bobs up on every downstroke. The wings run off one flap clock:
 ##   downstroke (clock 0 → ½)  wing straight out, fingers splayed, sweeping top → bottom
@@ -100,6 +100,7 @@ func _process(delta: float) -> void:
 	_flap_wings(delta, plan)
 	_place_feet(delta, plan)
 	_turn_head(delta, plan)
+	rig.solve() # limbs, fingers, membranes — after everything above has moved
 
 
 # --- states: each returns a plan for this frame ------------------------------------------------
