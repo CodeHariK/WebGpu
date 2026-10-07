@@ -13,13 +13,17 @@
 ##             joints are nudged toward `pole` first, so it bends the same way every frame.
 ##   FK        no solving: the owner writes `points` itself (a dancing stem posed by angles);
 ##             the chain is just something to draw.
+##   ROPE      a damped Verlet rope: every free point keeps its momentum (× rope_damping), falls
+##             with rope_gravity, then `iterations` passes pull each segment back to its length.
+##             The root is pinned; the tip is pinned to `target` too when pin_tip (a hose between
+##             two hands) or hangs free (a tail). Set time_step to the frame's delta first.
 ##
 ## segment_basis() gives each segment a twist-free frame (+Y along the segment, +X the bend
 ## plane's normal), so a renderer can draw a mesh per segment without bones.
 class_name LimbChain
 extends RefCounted
 
-enum Solver { TWO_BONE, AIM, FABRIK, FK }
+enum Solver { TWO_BONE, AIM, FABRIK, FK, ROPE }
 enum Style { ROUND, BLOCK } ## how LimbRenderer draws it: cylinders + joint balls, or square blocks
 
 
@@ -30,8 +34,12 @@ var root := Vector3.ZERO
 var target := Vector3.ZERO
 var pole := Vector3.UP ## world point the joints bend toward
 var max_stretch := 1.0 ## AIM only
-var iterations := 8 ## FABRIK only
+var iterations := 8 ## FABRIK and ROPE
 var tolerance := 0.002 ## FABRIK only, metres
+var pin_tip := true ## ROPE: tip held at `target` (false = hangs free)
+var rope_gravity := Vector3(0, -9.8, 0) ## ROPE, m/s²
+var rope_damping := 0.96 ## ROPE: share of last step's motion kept (1 = never settles)
+var time_step := 1.0 / 60.0 ## ROPE: seconds since the last solve()
 # Look (read by LimbRenderer).
 var style := Style.ROUND
 var radius := 0.03 ## segment radius (ROUND) or half width (BLOCK), at the root
@@ -41,6 +49,7 @@ var gap := 0.0 ## BLOCK: each block is this much shorter at both ends, so the pi
 var color := Color.WHITE
 
 var _reach := 0.0
+var _previous := PackedVector3Array() ## ROPE: last step's points (velocity = points − previous)
 
 
 ## A chain of `segment_lengths` hanging from `start`, straight down.
@@ -76,6 +85,7 @@ func solve() -> void:
 		Solver.AIM: _solve_aim()
 		Solver.FABRIK: _solve_fabrik()
 		Solver.FK: pass # points are set by the owner
+		Solver.ROPE: _solve_rope()
 
 
 ## How far the tip ended up from the target (0 = reached it).
@@ -154,6 +164,39 @@ func _solve_fabrik() -> void:
 			points[i] = points[i - 1] + _direction(points[i] - points[i - 1]) * lengths[i - 1]
 		if points[count - 1].distance_squared_to(target) < tolerance * tolerance:
 			break
+
+
+func _solve_rope() -> void:
+	var count := points.size()
+	if _previous.size() != count:
+		_previous = points.duplicate()
+	var last_free := count - 1 if pin_tip else count # exclusive end of the free points
+	var fall := rope_gravity * time_step * time_step
+	for i in range(1, last_free): # Verlet: keep moving, damped, and fall
+		var point := points[i]
+		points[i] = point + (point - _previous[i]) * rope_damping + fall
+		_previous[i] = point
+	points[0] = root
+	_previous[0] = root
+	if pin_tip:
+		points[count - 1] = target
+		_previous[count - 1] = target
+	for pass_index in iterations: # pull every segment back to its length
+		for i in count - 1:
+			var a_pinned := i == 0
+			var b_pinned := pin_tip and i + 1 == count - 1
+			var along := points[i + 1] - points[i]
+			var length := along.length()
+			if length < 1e-6 or (a_pinned and b_pinned):
+				continue
+			var fix := along * ((length - lengths[i]) / length)
+			if a_pinned:
+				points[i + 1] -= fix
+			elif b_pinned:
+				points[i] += fix
+			else:
+				points[i] += fix * 0.5
+				points[i + 1] -= fix * 0.5
 
 
 # Push interior joints a little toward the pole so FABRIK keeps bending the same way.

@@ -11,6 +11,7 @@ extends Node3D
 var chains: Array[LimbChain] = []
 
 @export var roughness := 0.7
+@export var material: Material ## use this instead of the default lit vertex-colour material (set before adding to the tree)
 
 var _segments: MultiMeshInstance3D
 var _joints: MultiMeshInstance3D
@@ -119,13 +120,13 @@ func _layer(mesh: Mesh, layer_name: String) -> MultiMeshInstance3D:
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
 	multimesh.use_colors = true
 	multimesh.mesh = mesh
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.vertex_color_is_srgb = true # instance colours are sRGB, like albedo_color
-	material.roughness = roughness
+	var lit := StandardMaterial3D.new()
+	lit.vertex_color_use_as_albedo = true
+	lit.vertex_color_is_srgb = true # instance colours are sRGB, like albedo_color
+	lit.roughness = roughness
 	var layer := MultiMeshInstance3D.new()
 	layer.name = layer_name
 	layer.multimesh = multimesh
-	layer.material_override = material
+	layer.material_override = material if material != null else lit
 	add_child(layer)
 	return layer
