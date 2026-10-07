@@ -18,6 +18,8 @@ class_name LimbChain
 extends RefCounted
 
 enum Solver { TWO_BONE, AIM, FABRIK }
+enum Style { ROUND, BLOCK } ## how LimbRenderer draws it: cylinders + joint balls, or square blocks
+
 
 var solver := Solver.TWO_BONE
 var lengths := PackedFloat32Array()
@@ -28,8 +30,12 @@ var pole := Vector3.UP ## world point the joints bend toward
 var max_stretch := 1.0 ## AIM only
 var iterations := 8 ## FABRIK only
 var tolerance := 0.002 ## FABRIK only, metres
-var radius := 0.03 ## for renderers
-var color := Color.WHITE ## for renderers
+# Look (read by LimbRenderer).
+var style := Style.ROUND
+var radius := 0.03 ## segment radius (ROUND) or half width (BLOCK)
+var joint_radius := -1.0 ## ROUND joint balls; < 0 = radius × 1.35 (= radius gives a capsule look)
+var gap := 0.0 ## BLOCK: each block is this much shorter at both ends, so the pieces float apart
+var color := Color.WHITE
 
 var _reach := 0.0
 

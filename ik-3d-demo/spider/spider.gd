@@ -12,7 +12,8 @@
 ##   4. body   — each leg says how high the body should be for it to stay relaxed; a plane fitted
 ##               through those heights gives the body's height, pitch and roll. Uneven ground,
 ##               and uneven legs, tilt the body by themselves. Then a spring adds weight.
-## The legs themselves are bent by SpiderRig's TwoBoneIK3D toward the foot targets.
+## The legs themselves are bent by SpiderRig's TwoBoneIK3D toward the foot targets — or, with
+## `chain_legs`, by SpiderChainRig's LimbChains (custom IK, no leg bones; see limbs/).
 ##
 ## Node layout:  Spider (this; moves + turns, never tilts)
 ##               └ Body (height + tilt) └ Skeleton3D (+ visuals, IK) and the knee poles
@@ -26,6 +27,14 @@ signal landed ## touched down after launch()
 @export_enum("4 legs", "6 legs (tripod)", "8 legs", "lopsided (claw + limp)", "crab (sideways)", "monkey (big arms)", "robot (spring head)", "sentry bot (t3ssel8r)") var layout_preset := 0:
 	set(value):
 		layout_preset = value
+		if is_inside_tree():
+			_build()
+
+## Legs as LimbChains (custom IK, one MultiMesh renderer) instead of Skeleton3D bones +
+## TwoBoneIK3D + BoneAttachment3Ds. Same gait, same look; rebuilds the spider.
+@export var chain_legs := false:
+	set(value):
+		chain_legs = value
 		if is_inside_tree():
 			_build()
 
@@ -159,7 +168,7 @@ func _build() -> void:
 	_body.name = "Body"
 	_body.position.y = layout.relaxed_height()
 	add_child(_body)
-	rig = SpiderRig.build(_body, layout)
+	rig = SpiderRig.build(_body, layout, SpiderChainRig.new() if chain_legs else null)
 	rig.set_poles_enabled(use_knee_poles)
 	for leg in rig.targets.size():
 		var target := rig.targets[leg]

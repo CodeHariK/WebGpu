@@ -1,20 +1,26 @@
-## Draws any number of LimbChains with two MultiMeshes and no other nodes: one for every segment
-## (a unit cylinder stretched along it) and one for every joint (a ball). Each instance carries the
-## chain's colour, so all limbs of all creatures are 2 draw calls, whatever the count.
+## Draws any number of LimbChains with three MultiMeshes and no other nodes: ROUND chains as a
+## unit cylinder stretched along each segment plus a ball at each joint, BLOCK chains as a unit box
+## per segment (shortened by the chain's gap). Each instance carries the chain's colour, so all
+## limbs of all creatures are 3 draw calls, whatever the count.
 ##
-## Add chains with add(), then call draw() after solving each frame. Leave this node at the origin,
-## unrotated: chain points are world space.
+## Add chains with add(), then call draw() after solving each frame. Chain points are world space,
+## so this node is top_level at the origin: parent it anywhere (it still hides with its parent).
 class_name LimbRenderer
 extends Node3D
 
 var chains: Array[LimbChain] = []
 
+@export var roughness := 0.7
+
 var _segments: MultiMeshInstance3D
 var _joints: MultiMeshInstance3D
+var _blocks: MultiMeshInstance3D
 var _dirty := true
 
 
 func _ready() -> void:
+	top_level = true
+	global_transform = Transform3D.IDENTITY
 	var cylinder := CylinderMesh.new()
 	cylinder.top_radius = 1.0
 	cylinder.bottom_radius = 1.0
@@ -28,6 +34,7 @@ func _ready() -> void:
 	ball.rings = 5
 	_segments = _layer(cylinder, "Segments")
 	_joints = _layer(ball, "Joints")
+	_blocks = _layer(BoxMesh.new(), "Blocks") # unit cube
 
 
 func add(chain: LimbChain) -> void:
@@ -49,11 +56,22 @@ func draw() -> void:
 		_resize()
 	var segments := _segments.multimesh
 	var joints := _joints.multimesh
+	var blocks := _blocks.multimesh
 	var segment := 0
 	var joint := 0
+	var block := 0
 	for chain in chains:
 		var r := chain.radius
-		var ball := Basis.from_scale(Vector3.ONE * r * 1.35)
+		if chain.style == LimbChain.Style.BLOCK:
+			for i in chain.segment_count():
+				var basis := chain.segment_basis(i)
+				basis.x *= r * 2.0
+				basis.y *= maxf(chain.segment_length(i) - chain.gap * 2.0, 0.02)
+				basis.z *= r * 2.0
+				blocks.set_instance_transform(block, Transform3D(basis, (chain.points[i] + chain.points[i + 1]) * 0.5))
+				block += 1
+			continue
+		var ball := Basis.from_scale(Vector3.ONE * _joint_radius(chain))
 		for i in chain.segment_count():
 			var basis := chain.segment_basis(i)
 			basis.x *= r
@@ -66,22 +84,36 @@ func draw() -> void:
 			joint += 1
 
 
+static func _joint_radius(chain: LimbChain) -> float:
+	return chain.joint_radius if chain.joint_radius >= 0.0 else chain.radius * 1.35
+
+
 func _resize() -> void:
-	var segment_total := 0
-	var joint_total := 0
+	var counts := Vector3i.ZERO # segments, joints, blocks
 	for chain in chains:
-		segment_total += chain.segment_count()
-		joint_total += chain.points.size()
-	_segments.multimesh.instance_count = segment_total
-	_joints.multimesh.instance_count = joint_total
+		if chain.style == LimbChain.Style.BLOCK:
+			counts.z += chain.segment_count()
+		else:
+			counts.x += chain.segment_count()
+			counts.y += chain.points.size()
+	_segments.multimesh.instance_count = counts.x
+	_joints.multimesh.instance_count = counts.y
+	_blocks.multimesh.instance_count = counts.z
 	var segment := 0
 	var joint := 0
-	for chain in chains:
+	var block := 0
+	for chain in chains: # colours never change per frame: write them once here
+		if chain.style == LimbChain.Style.BLOCK:
+			for i in chain.segment_count():
+				_blocks.multimesh.set_instance_color(block, chain.color)
+				block += 1
+			continue
+		var joint_color := chain.color if chain.joint_radius >= 0.0 else chain.color.lightened(0.2)
 		for i in chain.segment_count():
 			_segments.multimesh.set_instance_color(segment, chain.color)
 			segment += 1
 		for point in chain.points:
-			_joints.multimesh.set_instance_color(joint, chain.color.lightened(0.2))
+			_joints.multimesh.set_instance_color(joint, joint_color)
 			joint += 1
 	_dirty = false
 
@@ -93,7 +125,8 @@ func _layer(mesh: Mesh, layer_name: String) -> MultiMeshInstance3D:
 	multimesh.mesh = mesh
 	var material := StandardMaterial3D.new()
 	material.vertex_color_use_as_albedo = true
-	material.roughness = 0.7
+	material.vertex_color_is_srgb = true # instance colours are sRGB, like albedo_color
+	material.roughness = roughness
 	var layer := MultiMeshInstance3D.new()
 	layer.name = layer_name
 	layer.multimesh = multimesh

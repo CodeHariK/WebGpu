@@ -72,7 +72,6 @@ func _flash(power: float) -> void:
 
 # Each leg segment (hip → knee, knee → foot) becomes a capsule exactly where it is now.
 func _leg_debris(spider: Spider, power: float) -> void:
-	var skeleton := spider.rig.skeleton
 	for leg in spider.rig.layout.legs.size():
 		var definition := spider.rig.layout.legs[leg]
 		var limb := spider.rig.rigid_limbs[leg]
@@ -83,9 +82,8 @@ func _leg_debris(spider: Spider, power: float) -> void:
 				_add_box(xform.orthonormalized(), size, spider.rig.layout.leg_color, power)
 			continue
 		var joints: Array[Vector3] = []
-		for suffix in ["_upper", "_lower", "_tip"]:
-			var bone := skeleton.find_bone(definition.name + suffix)
-			joints.append(skeleton.global_transform * skeleton.get_bone_global_pose(bone).origin)
+		for joint in 3:
+			joints.append(spider.rig.joint_position(leg, joint))
 		var color := spider.rig.layout.leg_color
 		_add_segment(joints[0], joints[1], definition.radius, color, power)
 		_add_segment(joints[1], joints[2], definition.radius, color, power)

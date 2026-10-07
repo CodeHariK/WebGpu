@@ -84,8 +84,7 @@ func _draw_arc(gait_leg: SpiderLeg, lift: float) -> void:
 func _draw_pole(leg: int) -> void:
 	if not spider.use_knee_poles:
 		return
-	var skeleton := spider.rig.skeleton
-	var knee := skeleton.global_transform * skeleton.get_bone_global_pose(spider.rig.knee_bones[leg]).origin
+	var knee := spider.rig.joint_position(leg, 1)
 	var pole := spider.rig.poles[leg].global_position
 	var magenta := Color(1.0, 0.3, 0.9)
 	_line(knee, pole, magenta)

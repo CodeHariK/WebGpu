@@ -16,6 +16,7 @@
 ##   7 dive: leaps at the orb, legs stretched out, explodes — a new one drops in after a moment
 ##   8 shoot: head machine gun bursts at the orb, with recoil (sentry bot only — spider_gun.gd)
 ##   V  camera: follow the spider ↔ player's view (eyes at the orb, watching the spider)
+##   I  leg IK: Skeleton3D + TwoBoneIK3D ↔ custom LimbChains (spider_chain_rig.gd, limbs/)
 ##   Shift + arrows  walk the orb (the player); come within 3 m and the spider freezes, then
 ##      rushes you (SpiderBrain alert → ambush_behaviour.gd)
 ## The glowing orb in the middle of the circle is the "player": watched, charged, jumped at, fled.
@@ -147,7 +148,7 @@ func _update_hud() -> void:
 		spider.rig.layout.name, _on(mood.active), mood.menace, "scary" if mood.menace >= 0.5 else "cute",
 		mood.state_name() if mood.active else "-", _on(springs.active),
 	]
-	hud.text += "   V camera: %s" % ("player's view" if player_view else "follow")
+	hud.text += "   V camera: %s   I legs: %s" % ["player's view" if player_view else "follow", "LimbChains" if spider.chain_legs else "Skeleton3D"]
 	if debug.visible:
 		hud.text += "\n" + LEGEND
 
@@ -180,6 +181,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_7: brain.force("dive")
 		KEY_8: brain.force("shoot")
 		KEY_K: springs.active = not springs.active
+		KEY_I: spider.chain_legs = not spider.chain_legs
 		KEY_V:
 			player_view = not player_view
 			_look_point = spider.rig.skeleton.global_position # start the gaze on the spider

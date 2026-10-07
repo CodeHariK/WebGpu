@@ -8,6 +8,11 @@
 ##
 ## No animation and no Blender model: the IK bends the legs from the rest pose every frame.
 ## A Blender spider would replace only the bones + visuals; the gait code stays the same.
+##
+## SpiderChainRig is the same rig with the legs as LimbChains (no leg bones, no IK modifier, no
+## BoneAttachment3Ds): it overrides _add_leg_parts(), _add_ik(), set_poles_enabled() and
+## joint_position(). Everything else (body, head, eyes, gun, rigid legs, foot targets, poles) is
+## shared, so the gait, springs, brain and mood can't tell them apart.
 class_name SpiderRig
 extends RefCounted
 
@@ -33,8 +38,9 @@ var muzzles: Array[Node3D] = [] ## the tip of each barrel, where shots and flash
 
 
 ## `body` is the node that carries the spider's height/tilt; the skeleton goes under it.
-static func build(body: Node3D, spider_layout: SpiderLayout) -> SpiderRig:
-	var rig := SpiderRig.new()
+## Pass `into` to build a subclass (SpiderChainRig.new()); null builds a plain SpiderRig.
+static func build(body: Node3D, spider_layout: SpiderLayout, into: SpiderRig = null) -> SpiderRig:
+	var rig := into if into != null else SpiderRig.new()
 	rig.layout = spider_layout
 	rig.skeleton = Skeleton3D.new()
 	rig.skeleton.name = "Skeleton3D"
@@ -76,9 +82,21 @@ func set_poles_enabled(enabled: bool) -> void:
 		ik.set_pole_node(leg, ik.get_path_to(poles[leg]) if enabled else NodePath())
 
 
+## World position of a leg's joint as drawn now: 0 hip, 1 knee, 2 foot. Valid after the IK has
+## run (e.g. during or after Skeleton3D.skeleton_updated, or in the next frame).
+func joint_position(leg: int, joint: int) -> Vector3:
+	var bone := skeleton.find_bone(layout.legs[leg].name + ["_upper", "_lower", "_tip"][joint])
+	return skeleton.global_transform * skeleton.get_bone_global_pose(bone).origin
+
+
+func _add_leg(leg: SpiderLayout.LegDef, body_bone: int, body: Node3D) -> void:
+	_add_leg_parts(leg, body_bone, body)
+	_add_leg_markers(leg, body)
+
+
 # Three bones per leg. Rest rotations stay identity: the IK reads each bone's direction from
 # where its child sits, so only the positions matter.
-func _add_leg(leg: SpiderLayout.LegDef, body_bone: int, body: Node3D) -> void:
+func _add_leg_parts(leg: SpiderLayout.LegDef, body_bone: int, body: Node3D) -> void:
 	var upper := _add_bone(leg.name + "_upper", body_bone, leg.hip)
 	var lower := _add_bone(leg.name + "_lower", upper, leg.upper_vec())
 	_add_bone(leg.name + "_tip", lower, leg.lower_vec())
@@ -96,6 +114,9 @@ func _add_leg(leg: SpiderLayout.LegDef, body_bone: int, body: Node3D) -> void:
 	if not leg.walks:
 		_add_pincer(lower, leg)
 
+
+# The foot target (world space, moved by SpiderLeg) and the knee pole (rides with the body).
+func _add_leg_markers(leg: SpiderLayout.LegDef, body: Node3D) -> void:
 	var target := Marker3D.new()
 	target.name = leg.name + "_foot_target"
 	target.top_level = true # world space: stays planted while the body moves
