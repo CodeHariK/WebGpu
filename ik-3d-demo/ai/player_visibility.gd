@@ -76,6 +76,17 @@ func peek(cell: int) -> bool:
 	return false
 
 
+## Extra route cost per cell for creatures that want to stay unseen (GridPathFinder cell_cost):
+## `seen` for cells in the player's line of sight, `in_view` for those in its view right now.
+func exposure_costs(seen: float, in_view_cost: float) -> PackedFloat32Array:
+	var costs := PackedFloat32Array()
+	costs.resize(sight.size())
+	for cell in sight.size():
+		if sight[cell] == Sight.SEEN:
+			costs[cell] = in_view_cost if in_view(cell) else seen
+	return costs
+
+
 func count(state: Sight) -> int:
 	var total := 0
 	for value in sight:

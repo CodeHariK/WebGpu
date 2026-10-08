@@ -66,6 +66,11 @@ cover, visibility and squad positions all live in the same cells. No baking.
 
 Each candidate cell gets a score per role. Pick the best, claim it so no one else takes it,
 and re-score every ~0.3 s or when the player moves a lot.
+**Done (first pass):** ai/position_scorer.gd (ring, angle from the player's facing, wanted sight,
+in-view penalty, cover, spacing from claims, level/height, travel, edge), ai/squad.gd (claims
+in turn with hysteresis, hold → pounce when outside the player's view, exposure-aware routes),
+ai/grid_regions.gd (only cells you can get to and back from), ai/squad_demo.tscn + heatmap.
+Re-scoring 4 members costs ~3 ms every 0.4 s in GDScript: stagger members / C++ later.
 
 - Distance to the player vs the role's preferred ring
 - Line of sight to the player (attackers need it, flankers on the way must avoid it)
@@ -73,12 +78,14 @@ and re-score every ~0.3 s or when the player moves a lot.
 - Angle around the player compared to the player's facing (behind = flank)
 - Spacing from squadmates (don't bunch; no friendly fire lines)
 - Path cost to get there (exposure-aware) and height advantage
+  ([x] routes: exposure + personal space as A* cell cost; [ ] score by path cost, not straight line)
 
 Roles (assigned by the squad director):
-- [ ] **Bait / pressure**: in front, in sight, keeps the player busy (fires, roars, dodges).
+- [x] **Bait / pressure**: in front, in sight, 4–7 m, likes height. [ ] keeps the player busy (fires, roars, dodges).
 - [ ] **Suppressor** (sentry gun): long range, line of sight, sweeps fire to pin the player.
-- [ ] **Flanker**: goes for an angle ≥ 90° from the player's facing by a hidden route, then attacks
-      from the side or behind when the player is busy.
+- [x] **Flanker** (left / right / behind): ±105° or 180° from the player's facing, hidden, by a
+      hidden route; holds, then pounces when it's outside the player's view.
+      [ ] only when the player is busy (with the pressure member) / holds an attack token.
 - [ ] **Surround**: angular slots on a ring around the player (N slots, gaps toward escape
       routes closed first). Assign spiders to slots minimising travel (greedy is enough). The
       ring tightens as attack tokens free up.
@@ -129,7 +136,8 @@ Roles (assigned by the squad director):
 2. ~~Player visibility on the grid, cover and peek cells, debug view, take-cover demo.~~ (done)
 2b. ~~Senses: vision cone + LOS rays + suspicion meter + hearing + last known position + search.
    Debug cones and meters. (One spider, the orb as the player.)~~ (done: hunt mode in grid_demo)
-3. Position scoring + roles + claims; exposure-aware A* routes on the grid.
+3. ~~Position scoring + roles + claims; exposure-aware A* routes on the grid.~~ (first pass done:
+   squad_demo; surround slots, ambusher, retreat still to do)
 4. Squad director: roles, attack tokens, surround slots, flank plan, barks.
 5. Car player: speed and engine noise in the senses, road ambushes on the predicted path.
 6. Fight-area hand-off: scan a grid when a fight starts around the player; road/steering between.

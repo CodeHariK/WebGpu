@@ -22,6 +22,7 @@ var arrive_distance := 0.9 ## stop this far (flat) from the target
 var status := "idle" ## idle | walking | leaping | arrived | no path
 var waypoint := 0 ## index of the path waypoint being headed for
 var active := true ## false = hands off (a brain is steering); a leap in progress still finishes
+var cell_cost := PackedFloat32Array() ## extra cost per cell for routes (see GridPathFinder); empty = none
 
 var _replan_left := 0.0
 var _planned_for := Vector3.INF
@@ -61,7 +62,7 @@ func _physics_process(delta: float) -> void:
 func _plan() -> void:
 	_replan_left = REPLAN
 	_planned_for = target.global_position
-	path = grid.find_path(spider.global_position, target.global_position)
+	path = grid.find_path(spider.global_position, target.global_position, cell_cost)
 	waypoint = 0
 	status = "walking"
 	if path.is_empty(): # no route — or already on the target's cell
@@ -75,8 +76,9 @@ func _follow() -> void:
 		status = "arrived"
 		_steer_flat(Vector3.ZERO, to_target)
 		return
-	if waypoint >= path.size():
-		_steer_flat(Vector3.ZERO, to_target)
+	if waypoint >= path.size(): # past the last waypoint: walk straight in to arrive_distance
+		var flat_target := Vector3(to_target.x, 0.0, to_target.z)
+		_steer_flat(flat_target.normalized() if not path.is_empty() else Vector3.ZERO, flat_target)
 		return
 	var next: Dictionary = path[waypoint]
 	var offset: Vector3 = next.position - spider.global_position

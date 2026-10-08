@@ -10,6 +10,7 @@
 ## This file holds the data and the small queries. The work is done elsewhere:
 ##   GridScanner     scan()      builds the cells and links
 ##   GridPathFinder  find_path() A* plus string pulling, returns waypoints
+##   GridRegions     which cells can reach each other (a way there and back)
 ## Everything the AI learns later (what the player can see, cover, squad claims) goes per cell.
 class_name TacticalGrid
 extends RefCounted
@@ -38,6 +39,7 @@ var positions := PackedVector3Array() ## where each cell's surface is
 var links: Array = [] ## per cell: Array of [to: int, cost: float, kind: Link]
 var edge := PackedByteArray() ## per cell: 1 = next to a drop
 var columns: Array[PackedInt32Array] = [] ## per column (column_index()): its cell ids, bottom to top
+var region := PackedInt32Array() ## per cell: cells with the same id can reach each other (GridRegions)
 
 # Last scan, for the HUD.
 var scan_msec := 0.0
@@ -52,12 +54,14 @@ func scan(world: PhysicsDirectSpaceState3D, markers: Array[Node] = []) -> void:
 	space = world
 	ray_count = 0
 	GridScanner.new(self).scan(markers)
+	region = GridRegions.compute(self)
 	scan_msec = (Time.get_ticks_usec() - start) / 1000.0
 
 
 ## Waypoints from near `from` to near `to` (see GridPathFinder). Empty if there's no way.
-func find_path(from: Vector3, to: Vector3) -> Array[Dictionary]:
-	return GridPathFinder.find(self, from, to)
+## `cell_cost`: optional extra cost per cell entered (e.g. exposure to the player).
+func find_path(from: Vector3, to: Vector3, cell_cost := PackedFloat32Array()) -> Array[Dictionary]:
+	return GridPathFinder.find(self, from, to, cell_cost)
 
 
 func cell_count() -> int:
