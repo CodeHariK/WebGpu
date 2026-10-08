@@ -1,11 +1,14 @@
-## Squad test: four spiders close in on the player by role (Squad + PositionScorer) in the AI test
-## arena. Pressure stays in front and in sight; the flankers and the one going behind take routes
-## the player can't see, wait on their spot, and pounce when the player isn't looking their way.
-##   Click        walk the player there       Shift-click  put it there
+## Squad test: four spiders that share what they see and close in on the player by role (Squad,
+## SquadKnowledge, PositionScorer, AttackTokens) in the AI test arena. They start unaware and
+## wander; one spots you → "there!" → the squad goes alert. Pressure stays in front and in sight;
+## the flankers and the one going behind take routes the player can't see, wait on their spot, and
+## attack when they get a token — first those outside the player's view. Lose them and they search.
+##   Click        walk the player there (footsteps)   Shift-click  put it there
 ##   Right-click  turn the player to look there (turn your back on a flanker and it comes)
+##   N  make a loud noise      T  attack tokens 1 → 2 → 3
 ##   Tab  next member (its heatmap + path)    Q  change that member's role
-##   H  heatmap on/off      G  grid on/off    V  grid colours: what the player sees ↔ height
-##   P  squad on/off (spiders stop)           C  camera: overview ↔ follow the selected member
+##   H  heatmap on/off      K  vision cones on/off      G  grid on/off
+##   V  grid colours: what the player sees ↔ height    C  camera: overview ↔ follow the selected member
 ## See squad_debug.gd for the colours.
 extends Node3D
 
@@ -22,6 +25,7 @@ var player := TestPlayer.new()
 var squad: Squad
 var debug: TacticalGridDebug
 var squad_debug: SquadDebug
+var senses_debug: Array[SensesDebug] = []
 var follow := false
 var _time := 0.0
 
@@ -29,7 +33,7 @@ var _time := 0.0
 func _ready() -> void:
 	TestArena.build(self)
 	player.name = "Player"
-	player.orb = TestArena.add_orb(self, Vector3(1, 0.5, 6))
+	player.orb = TestArena.add_orb(self, Vector3(-1, TestArena.PLATFORM_TOP + 0.5, -9)) # on platform B, out of the way
 	player.facing = Vector3(-1, 0, 0.3).normalized()
 	add_child(player)
 	camera.transform = overview
@@ -71,7 +75,13 @@ func _add_member(index: int) -> void:
 	walker.spider = spider
 	walker.grid = grid
 	add_child(walker)
-	squad.add_member(spider, walker, ROLES[index])
+	var member := squad.add_member(spider, walker, ROLES[index])
+	var cones := SensesDebug.new()
+	cones.name = "Senses%d" % index
+	cones.brain = member.brain
+	cones.visible = false
+	add_child(cones)
+	senses_debug.append(cones)
 
 
 func _process(delta: float) -> void:
@@ -100,11 +110,15 @@ func _update_hud() -> void:
 	var lines: Array[String] = []
 	for i in squad.members.size():
 		var member := squad.members[i]
-		var score: float = member.scores.get(member.cell, 0.0)
-		lines.append("%s%d %-11s %-10s score %5.1f  %s" % [">" if i == squad_debug.selected else " ", i,
-			PositionScorer.Role.keys()[member.role].to_lower(), member.state, score, member.walker.status])
-	hud.text = "squad %s   grid: %d cells   player sees %d cells   sweep %.0f ms\n%s\nclick = walk   shift-click = put   right-click = look   Tab member   Q role   H heatmap   G grid   V colours   P squad on/off   C camera" % [
-		"on" if squad.enabled else "off", grid.cell_count(), visibility.count(PlayerVisibility.Sight.SEEN), visibility.sweep_msec, "\n".join(lines)]
+		var senses := member.brain.senses
+		var doing: String = member.state if squad.knowledge.knows() else member.brain.state
+		lines.append("%s%d %-11s %-26s %-10s suspicion %.2f%s" % [">" if i == squad_debug.selected else " ", i,
+			PositionScorer.Role.keys()[member.role].to_lower(), doing, CreatureSenses.Awareness.keys()[senses.awareness].to_lower(),
+			senses.suspicion, "  [token]" if squad.tokens.has(member) else ""])
+	var knowledge := squad.knowledge
+	hud.text = "squad: %s, unseen %.1f s   tokens %d (%d free)   grid %d cells   player sees %d cells\n%s\nclick = walk   shift-click = put   right-click = look   N noise   T tokens   Tab member   Q role   H heatmap   K cones   G grid   V colours   C camera" % [
+		SquadKnowledge.State.keys()[knowledge.state].to_lower(), knowledge.unseen_for, squad.tokens.count, squad.tokens.free_count(),
+		grid.cell_count(), visibility.count(PlayerVisibility.Sight.SEEN), "\n".join(lines)]
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -124,7 +138,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_V:
 			debug.show_visibility = not debug.show_visibility
 			debug.refresh()
-		KEY_P: squad.enabled = not squad.enabled
+		KEY_N: NoiseBus.emit(player.orb.global_position, 10.0)
+		KEY_T: squad.tokens.count = squad.tokens.count % 3 + 1
+		KEY_K:
+			for cones in senses_debug:
+				cones.visible = not cones.visible
 		KEY_C:
 			follow = not follow
 			if not follow:

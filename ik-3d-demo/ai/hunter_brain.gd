@@ -7,6 +7,8 @@
 ##               there that it couldn't see when it lost you, looking around at each
 ## Paths come from the GridWalker (target = the brain's goal marker); when standing and looking the
 ## walker is paused (active = false) and the brain turns the spider itself.
+## In a squad: while `directed`, the senses still run but the Squad drives the spider; when it
+## lets go the brain picks up from whatever its senses say then.
 class_name HunterBrain
 extends Node
 
@@ -31,6 +33,11 @@ var enabled := true:
 		enabled = value
 		if not value:
 			_release()
+var directed := false: ## a Squad is steering: only the senses run
+	set(value):
+		if value != directed:
+			_awareness = -1 # re-enter the current awareness when control comes back
+		directed = value
 var state := "" ## what it's doing, for the HUD
 var search_points: Array[Vector3] = []
 var goal := Marker3D.new() ## where the walker is sent
@@ -63,6 +70,8 @@ func _physics_process(delta: float) -> void:
 	var facing := -spider.global_basis.z
 	facing.y = 0.0
 	senses.update(delta, spider.get_world_3d().direct_space_state, eye(), facing, player_points(), _player_velocity)
+	if directed:
+		return
 	if senses.awareness != _awareness:
 		_enter(senses.awareness)
 	spider.speed_scale = SPEED[senses.awareness]

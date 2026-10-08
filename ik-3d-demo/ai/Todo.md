@@ -46,7 +46,9 @@ cover, visibility and squad positions all live in the same cells. No baking.
       when it lost you (open spots fill in), looking around at each; gives up after 10 s.
 - [ ] Smarter search: spots along your likely routes (path from last known), cover cells first,
       and remember spots already checked.
-- [ ] Shared memory through the squad: one sees you, everyone knows (with a radio/bark delay).
+- [x] Shared memory through the squad: one sees you, everyone knows (with a radio/bark delay).
+      ai/squad_knowledge.gd: spotting → 0.5 s → alert; shared every tick while anyone sees you;
+      2 s unseen → each searches on its own.
 
 ### What the player can see (where to hide)
 - [x] **Raycast sampling** (ai/player_visibility.gd): one ray per cell from a creature's body
@@ -96,13 +98,17 @@ Roles (assigned by the squad director):
 
 ## 4. Squad director (F.E.A.R. / Doom)
 
-- [ ] One director per group: knows all members, the shared memory and the player state.
-- [ ] Assigns roles on events (spotted, lost, member died, player in a car / on foot).
-- [ ] **Attack tokens** (Doom): only N may attack at once. The others reposition, flank, taunt.
-      Tokens go to whoever has the best shot. Fair, readable, and cheaper.
+- [x] One director per group (ai/squad.gd): members, shared memory, takes over from each
+      member's HunterBrain while the squad is alert, hands back when it loses you.
+- [ ] Assigns roles on events (spotted, lost, member died, player in a car / on foot). Now: fixed
+      roles per member (Q in the demo changes one).
+- [x] **Attack tokens** (Doom, ai/attack_tokens.gd): N at once (T in the demo), 1.2 s rest after
+      each attack. Asked for best shot first: flankers outside the player's view, then pressure
+      (after 2 s holding); nearer first. Test: 5 attacks in 20 s, never more than 1 at once.
 - [ ] Pincer and surround moves: pick a plan (frontal pressure + 2 flankers, full surround, ambush
       ahead), give each member its role, re-plan when it breaks.
-- [ ] **Barks**: show the plan. An eye flash and chirp when spotting, a raised leg pointing when
+- [x] Barks as text over the member ("there!", role call-outs on alert, "mine!", "lost it").
+- [ ] **Barks** as sound + body language: show the plan. An eye flash and chirp when spotting, a raised leg pointing when
       sending a flanker, a scream when a member dies. The player reads the AI's intent: it feels
       smart, and it's fair.
 
@@ -138,7 +144,8 @@ Roles (assigned by the squad director):
    Debug cones and meters. (One spider, the orb as the player.)~~ (done: hunt mode in grid_demo)
 3. ~~Position scoring + roles + claims; exposure-aware A* routes on the grid.~~ (first pass done:
    squad_demo; surround slots, ambusher, retreat still to do)
-4. Squad director: roles, attack tokens, surround slots, flank plan, barks.
+4. Squad director: ~~shared memory, attack tokens, barks~~ (done); role assignment on events,
+   surround slots, plan choice (frontal + 2 flankers / full surround / ambush ahead).
 5. Car player: speed and engine noise in the senses, road ambushes on the predicted path.
 6. Fight-area hand-off: scan a grid when a fight starts around the player; road/steering between.
 7. Performance pass, then move the hot parts to C++.

@@ -15,6 +15,7 @@
 ## Hearing: hear() with a noise's position and loudness (radius). Heard noises raise suspicion and
 ## give a point to check; while alert or searching they also update the last known position.
 ## Memory: last_known (+ velocity, time): where the player was last seen or heard.
+## Squad: share() is a squadmate's report — alert, with the reported position.
 class_name CreatureSenses
 extends RefCounted
 
@@ -80,6 +81,17 @@ func hear(position: Vector3, radius: float) -> void:
 		search_left = search_time
 	elif awareness == Awareness.UNAWARE:
 		awareness = Awareness.SUSPICIOUS
+
+
+## A squadmate's report (radio): the player is at `position`. Alerts this creature and keeps its
+## memory fresh as if it saw the player itself.
+func share(position: Vector3, velocity: Vector3) -> void:
+	awareness = Awareness.ALERT
+	suspicion = 1.0
+	last_known = position
+	last_known_velocity = velocity
+	interest = position
+	unseen_for = 0.0
 
 
 func _update_awareness(delta: float) -> void:

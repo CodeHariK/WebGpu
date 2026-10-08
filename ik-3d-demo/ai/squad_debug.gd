@@ -3,7 +3,9 @@
 ##             worst … yellow = best); the best cell gets a white ring
 ##   claims    per member, a square on its claimed cell and a line from the spider, in its role's
 ##             colour (pressure red, flank left cyan, flank right magenta, behind orange)
-##   labels    role + state over each spider
+##   labels    role + state over each spider (its brain's state while the squad isn't alert), and
+##             its bark above that, in white
+##   magenta cross  the squad's last sighting of the player
 class_name SquadDebug
 extends MeshInstance3D
 
@@ -18,6 +20,7 @@ var show_heatmap := true
 
 var _lines := ImmediateMesh.new()
 var _labels: Array[Label3D] = []
+var _bark_labels: Array[Label3D] = []
 
 
 func _ready() -> void:
@@ -29,13 +32,19 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_lines.clear_surfaces()
-	if squad == null or squad.members.is_empty() or not visible or not squad.enabled:
-		for label in _labels:
+	if squad == null or squad.members.is_empty() or not visible:
+		for label in _labels + _bark_labels:
 			label.visible = false
 		return
 	_lines.surface_begin(Mesh.PRIMITIVE_LINES)
-	if show_heatmap:
+	_line(Vector3.ZERO, Vector3.ZERO, Color.TRANSPARENT) # a surface needs at least one line
+	var alert := squad.knowledge.knows()
+	if show_heatmap and alert:
 		_draw_heatmap(squad.members[selected % squad.members.size()])
+	if squad.knowledge.last_known != Vector3.INF:
+		var at := squad.knowledge.last_known
+		_line(at - Vector3(0.4, 0, 0.4), at + Vector3(0.4, 0, 0.4), Color(1.0, 0.2, 1.0))
+		_line(at - Vector3(0.4, 0, -0.4), at + Vector3(0.4, 0, -0.4), Color(1.0, 0.2, 1.0))
 	for i in squad.members.size():
 		_draw_member(i, squad.members[i])
 	_lines.surface_end()
@@ -61,27 +70,40 @@ func _draw_heatmap(member: Squad.Member) -> void:
 
 func _draw_member(index: int, member: Squad.Member) -> void:
 	var color := ROLE_COLORS[member.role]
-	if member.cell >= 0:
+	if member.cell >= 0 and squad.knowledge.knows():
 		var spot := squad.grid.positions[member.cell] + Vector3.UP * LIFT
 		_square(spot, squad.grid.cell_size * 0.45, color)
 		_square(spot, squad.grid.cell_size * 0.38, color)
 		_line(member.spider.global_position + Vector3.UP * 0.3, spot, Color(color, 0.7))
 	while _labels.size() <= index:
-		var label := Label3D.new()
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		label.no_depth_test = true
-		label.font_size = 40
-		label.pixel_size = 0.006
-		label.outline_size = 10
-		add_child(label)
-		label.top_level = true
-		_labels.append(label)
+		_labels.append(_new_label(40))
+		_bark_labels.append(_new_label(64))
 	var label := _labels[index]
 	label.visible = true
 	label.modulate = color
 	label.global_position = member.spider.global_position + Vector3.UP * 1.2
 	var role_name: String = PositionScorer.Role.keys()[member.role].to_lower().replace("_", " ")
-	label.text = "%s%s\n%s" % ["▸ " if index == selected % squad.members.size() else "", role_name, member.state]
+	var doing: String = member.state if squad.knowledge.knows() else member.brain.state
+	label.text = "%s%s\n%s" % ["▸ " if index == selected % squad.members.size() else "", role_name, doing]
+	var bark_label := _bark_labels[index]
+	bark_label.visible = false
+	for bark: Dictionary in squad.barks:
+		if bark.member == member:
+			bark_label.visible = true
+			bark_label.text = bark.text
+			bark_label.global_position = member.spider.global_position + Vector3.UP * 1.9
+
+
+func _new_label(size: int) -> Label3D:
+	var label := Label3D.new()
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.font_size = size
+	label.pixel_size = 0.006
+	label.outline_size = 12
+	add_child(label)
+	label.top_level = true
+	return label
 
 
 # A filled square as a few lines (the lines material has no triangles mode here).
