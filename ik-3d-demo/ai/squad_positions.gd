@@ -5,6 +5,8 @@
 ## Also sets each member's route costs: everyone goes round the player (PERSONAL_SPACE, so getting
 ## to the far side doesn't mean walking through it); hidden roles also pay for cells the player
 ## can see (exposure).
+## Ambushers don't score cells: AmbushPlanner finds their spot beside the road ahead of the car,
+## and they keep it until the car is past it (then find the next one).
 class_name SquadPositions
 extends RefCounted
 
@@ -28,6 +30,12 @@ static func rescore(squad: Squad, player_feet: Vector3) -> void:
 	var exposure := _exposure_costs(squad.visibility, around)
 	var claimed: Array[Vector3] = []
 	for member in squad.members:
+		if member.role == PositionScorer.Role.AMBUSH:
+			_ambush_spot(squad, member, claimed)
+			if member.cell >= 0:
+				claimed.append(grid.positions[member.cell])
+			member.route_cost = exposure
+			continue
 		context.from = member.spider.global_position
 		context.others = claimed
 		context.angle = member.slot_angle
@@ -40,6 +48,22 @@ static func rescore(squad: Squad, player_feet: Vector3) -> void:
 			claimed.append(grid.positions[member.cell])
 		var hidden_role: bool = PositionScorer.PROFILES[member.role].sight < 0
 		member.route_cost = exposure if hidden_role else around
+
+
+# Keep the spot while the car is still coming to it; else find one ahead.
+static func _ambush_spot(squad: Squad, member: Squad.Member, claimed: Array[Vector3]) -> void:
+	var car := squad.player as TestCar
+	if car == null or member.state == "attacking":
+		return
+	if member.cell >= 0 and car.time_to_offset(member.ambush_offset) > Squad.BURST_LEAD:
+		return
+	var speed := member.spider.move_speed * Squad.SPEED["moving"]
+	var found := AmbushPlanner.find(squad.grid, car, member.lead, member.spider.global_position, speed, claimed)
+	if found.is_empty():
+		return
+	member.ambush_offset = found.offset
+	squad.claim(member, found.cell)
+	member.scores = {}
 
 
 static func _personal_space_costs(grid: TacticalGrid, player_feet: Vector3) -> PackedFloat32Array:

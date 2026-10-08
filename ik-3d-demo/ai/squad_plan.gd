@@ -3,15 +3,22 @@
 ##             first, then behind, then the flanks; more: extra pressure)
 ##   SURROUND  every member gets its own slot on a ring round the player, evenly spaced from the
 ##             front (slot 0 is in front, so someone always keeps the player busy)
-## choose(): SURROUND when there are 4+ members and the player stands in the open (most cells
-## round it are in its line of sight: nowhere to hide, so close every way out), else PINCER.
+##   AMBUSH    the player is in a car: you can't catch it, so get ahead of it. Each member waits
+##             beside the road at its own lead time (FIRST_LEAD, then LEAD_STEP more each), hidden,
+##             and bursts out as the car passes (AmbushPlanner, Squad)
+## choose(): AMBUSH for a car; SURROUND when there are 4+ members and the player stands in the open
+## (most cells round it are in its line of sight: nowhere to hide, so close every way out); else
+## PINCER.
 ## assign(): turns the plan into parts (role + slot angle), works out where each part stands
 ## round the player and gives each part to the nearest free member (greedy, nearest pair first),
 ## so nobody crosses the arena to take a spot next to someone else.
 class_name SquadPlan
 extends RefCounted
 
-enum Kind { PINCER, SURROUND }
+enum Kind { PINCER, SURROUND, AMBUSH }
+
+const FIRST_LEAD := 3.5 ## seconds ahead of the car for the first ambusher …
+const LEAD_STEP := 1.5 ## … and this much more for each next one
 
 const OPEN_RADIUS := 5.0 ## cells this close to the player decide whether it stands in the open …
 const OPEN_SHARE := 0.7 ## … when at least this share of them is in its line of sight
@@ -19,7 +26,9 @@ const PINCER_ORDER: Array[PositionScorer.Role] = [
 	PositionScorer.Role.PRESSURE, PositionScorer.Role.BEHIND, PositionScorer.Role.FLANK_LEFT, PositionScorer.Role.FLANK_RIGHT]
 
 
-static func choose(member_count: int, grid: TacticalGrid, visibility: PlayerVisibility, player_feet: Vector3) -> Kind:
+static func choose(member_count: int, grid: TacticalGrid, visibility: PlayerVisibility, player: TestPlayer, player_feet: Vector3) -> Kind:
+	if player.in_car():
+		return Kind.AMBUSH
 	if member_count < 4:
 		return Kind.PINCER
 	var near := 0
@@ -32,25 +41,28 @@ static func choose(member_count: int, grid: TacticalGrid, visibility: PlayerVisi
 	return Kind.SURROUND if near > 0 and float(seen) / near >= OPEN_SHARE else Kind.PINCER
 
 
-## The parts of `plan` for `count` members: [{role, angle}] (angle NAN = the role's own).
+## The parts of `plan` for `count` members: [{role, angle, lead}] (angle NAN = the role's own;
+## lead = seconds ahead of the car, ambush only).
 static func parts(plan: Kind, count: int) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for i in count:
 		if plan == Kind.SURROUND:
-			result.append({"role": PositionScorer.Role.SURROUND, "angle": wrapf(360.0 * i / count, -180.0, 180.0)})
+			result.append({"role": PositionScorer.Role.SURROUND, "angle": wrapf(360.0 * i / count, -180.0, 180.0), "lead": 0.0})
+		elif plan == Kind.AMBUSH:
+			result.append({"role": PositionScorer.Role.AMBUSH, "angle": NAN, "lead": FIRST_LEAD + LEAD_STEP * i})
 		else:
 			var role: PositionScorer.Role = PINCER_ORDER[i] if i < PINCER_ORDER.size() else PositionScorer.Role.PRESSURE
-			result.append({"role": role, "angle": NAN})
+			result.append({"role": role, "angle": NAN, "lead": 0.0})
 	return result
 
 
 ## Give each member a part of `plan`: sets member.role and member.slot_angle. Returns the members
 ## whose role changed.
-static func assign(plan: Kind, members: Array, player_feet: Vector3, facing: Vector3) -> Array:
+static func assign(plan: Kind, members: Array, player: TestPlayer, player_feet: Vector3, facing: Vector3) -> Array:
 	var todo := parts(plan, members.size())
 	var spots: Array[Vector3] = []
 	for part in todo:
-		spots.append(_spot(part, player_feet, facing))
+		spots.append(player.predict(part.lead) if plan == Kind.AMBUSH else _spot(part, player_feet, facing))
 	var free_members := members.duplicate()
 	var free_parts := range(todo.size())
 	var changed := []
@@ -70,6 +82,7 @@ static func assign(plan: Kind, members: Array, player_feet: Vector3, facing: Vec
 			changed.append(best_member)
 		best_member.role = role
 		best_member.slot_angle = todo[best_part].angle
+		best_member.lead = todo[best_part].lead
 		free_members.erase(best_member)
 		free_parts.erase(best_part)
 	return changed

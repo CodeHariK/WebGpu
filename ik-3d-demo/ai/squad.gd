@@ -19,6 +19,11 @@
 ##               (outside the view before in front, then nearest). No token: keep holding
 ##   attacking   holds a token, runs at the player; done on reaching it or after ATTACK_TIMEOUT
 ##   recovering  hands the token back, pauses RECOVER seconds, then back to its spot
+## Ambush (player in a car): the spot is beside the road ahead (SquadPositions / AmbushPlanner);
+## holding = frozen, watching the road; when the car is BURST_LEAD seconds from its road point it
+## leaps at where the car will be after the leap (BURST_FLIGHT) — no token, the car passes once.
+## Within HIT_RANGE of the car in that leap = a hit. Then it finds a spot further ahead.
+## (The ambushers read the car's real road position — it should come from the last sighting.)
 ## Barks (short call-outs over a member, BARK_TIME seconds) show the plan to the player: "there!"
 ## on spotting, each role on the squad going alert, "mine!" on taking a token, "lost it".
 ## The squad only knows what its members saw — it aims at the last sighting, not the player.
@@ -34,7 +39,11 @@ const ATTACK_TIMEOUT := 4.0
 const RECOVER := 0.8
 const BARK_TIME := 1.4
 const SPEED := {"moving": 0.85, "holding": 1.0, "attacking": 1.0, "recovering": 0.7}
-const ROLE_BARKS: Array[String] = ["hold him", "go left", "go right", "behind", "close in"]
+const ROLE_BARKS: Array[String] = ["hold him", "go left", "go right", "behind", "close in", "get ahead"]
+const BURST_LEAD := 0.75 ## seconds before the car reaches its road point: leap
+const BURST_FLIGHT := 0.6 ## about how long a flat leap takes (GridWalker.leap_to)
+const LEAP_RANGE := 9.0 ## metres: further than this, don't bother
+const HIT_RANGE := 1.8 ## metres from the car's centre in the leap = a hit
 const REPLAN := 1.5 ## seconds between checks of the plan
 const REASSIGN_TURN := deg_to_rad(100.0)
 
@@ -51,6 +60,9 @@ class Member:
 	var scores := {} ## last re-score (for the debug heatmap)
 	var route_cost := PackedFloat32Array() ## A* cell costs for getting to its spot
 	var slot_angle := NAN ## its own angle round the player (a surround slot); NAN = its role's
+	var lead := 0.0 ## ambush: seconds ahead of the car its spot should be
+	var ambush_offset := 0.0 ## ambush: the road offset (TestCar) its spot watches
+	var hit := false ## ambush: this leap already hit the car
 
 
 var grid: TacticalGrid
@@ -61,6 +73,7 @@ var knowledge := SquadKnowledge.new()
 var tokens := AttackTokens.new()
 var barks: Array[Dictionary] = [] ## {member, text, until}
 var plan := SquadPlan.Kind.PINCER
+var hits := 0 ## ambush leaps that reached the car
 var forced_plan := -1 ## a SquadPlan.Kind to always use; −1 = choose
 
 var _target := Marker3D.new() ## the last sighting: what attackers run at
@@ -171,14 +184,15 @@ func remove_member(member: Member) -> void:
 # Re-plan if the automatic choice changed; swap parts round if the player turned a lot.
 func _check_plan() -> void:
 	var wanted := _wanted_plan()
-	if wanted != plan or visibility.facing.angle_to(_plan_facing) > REASSIGN_TURN:
+	var turned := plan != SquadPlan.Kind.AMBUSH and visibility.facing.angle_to(_plan_facing) > REASSIGN_TURN
+	if wanted != plan or turned:
 		_replan(false)
 
 
 func _wanted_plan() -> SquadPlan.Kind:
 	if forced_plan >= 0:
 		return forced_plan as SquadPlan.Kind
-	return SquadPlan.choose(members.size(), grid, visibility, _player_feet())
+	return SquadPlan.choose(members.size(), grid, visibility, player, _player_feet())
 
 
 # Pick the plan and hand out its parts. Members whose part changed (everyone with `call_all`, or on
@@ -188,7 +202,7 @@ func _replan(call_all: bool) -> void:
 	var new_plan := wanted != plan
 	plan = wanted
 	_plan_facing = visibility.facing
-	var changed := SquadPlan.assign(plan, members, _player_feet(), visibility.facing)
+	var changed := SquadPlan.assign(plan, members, player, _player_feet(), visibility.facing)
 	for member in members:
 		if call_all or new_plan or changed.has(member):
 			bark(member, ROLE_BARKS[member.role])
@@ -205,6 +219,9 @@ func _player_feet() -> Vector3:
 
 
 func _update_member(member: Member) -> void:
+	if member.role == PositionScorer.Role.AMBUSH and member.state != "moving":
+		_update_ambusher(member)
+		return
 	var walker := member.walker
 	member.spider.speed_scale = SPEED[member.state]
 	var to_player := knowledge.last_known - member.spider.global_position
@@ -234,6 +251,39 @@ func _update_member(member: Member) -> void:
 				_set_state(member, "moving")
 
 
+# Waiting beside the road → leap at the car as it passes → land → find the next spot.
+func _update_ambusher(member: Member) -> void:
+	var car := player as TestCar
+	var walker := member.walker
+	walker.active = false
+	if car == null:
+		return
+	match member.state:
+		"holding":
+			var road_point := car.road.sample_baked(member.ambush_offset)
+			walker.face(road_point - member.spider.global_position)
+			var arrives := car.time_to_offset(member.ambush_offset)
+			if arrives <= BURST_LEAD and arrives > -0.3:
+				var landing := car.predict(BURST_FLIGHT)
+				if landing.distance_to(member.spider.global_position) < LEAP_RANGE and not member.spider.airborne:
+					walker.leap_to(landing)
+					member.hit = false
+					bark(member, "!!")
+					_set_state(member, "attacking")
+		"attacking":
+			if not member.hit and member.spider.global_position.distance_to(car.orb.global_position) < HIT_RANGE:
+				member.hit = true
+				hits += 1
+				bark(member, "got it!")
+			if member.timer > 0.2 and not member.spider.airborne:
+				_set_state(member, "recovering")
+		"recovering":
+			if member.timer > RECOVER:
+				member.cell = -1
+				_set_state(member, "moving")
+				_rescore_left = 0.0
+
+
 # Holding members that are ready to attack ask for a token, best shot first.
 func _hand_out_tokens() -> void:
 	var ready: Array[Member] = []
@@ -253,6 +303,8 @@ func _attack_priority(member: Member) -> float:
 	var from_player := member.spider.global_position - knowledge.last_known
 	from_player.y = 0.0
 	var nearness := 1.0 / (1.0 + from_player.length())
+	if member.role == PositionScorer.Role.AMBUSH:
+		return 0.0 # ambushers leap on their own, no token
 	var sight: int = PositionScorer.PROFILES[member.role].sight
 	var unseen := member.timer >= HOLD_BEFORE_ATTACK and visibility.facing.angle_to(from_player) > ATTACK_ANGLE
 	if sight <= 0 and unseen:

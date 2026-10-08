@@ -87,7 +87,7 @@ func _follow() -> void:
 		_walk_off(next.position, flat)
 		return
 	if next.kind != TacticalGrid.Link.WALK:
-		_leap_to(next.position)
+		leap_to(next.position)
 		return
 	if flat.length() < REACHED and absf(offset.y) < 1.0:
 		waypoint += 1
@@ -105,9 +105,9 @@ func _walk_off(landing: Vector3, flat: Vector3) -> void:
 		status = "leaping"
 
 
-# A ballistic leap onto `landing`: up fast enough to clear the higher end, across at the speed
-# that gets there in the flight time.
-func _leap_to(landing: Vector3) -> void:
+## A ballistic leap onto `landing`: up fast enough to clear the higher end, across at the speed
+## that gets there in the flight time. (Also for a brain: an ambush burst.)
+func leap_to(landing: Vector3) -> void:
 	var gravity := spider.jump_gravity
 	var rise := landing.y - spider.global_position.y
 	var up_speed := sqrt(2.0 * gravity * (maxf(rise, 0.0) + LEAP_CLEARANCE))

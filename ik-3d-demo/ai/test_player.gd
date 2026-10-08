@@ -22,6 +22,20 @@ func eye() -> Vector3:
 	return orb.global_position + Vector3.UP * EYE_HEIGHT
 
 
+## On foot (TestCar says true): the squad plans differently for a car.
+func in_car() -> bool:
+	return false
+
+
+## Where the player will be in `seconds` (on foot: where it's walking, at walking speed).
+func predict(seconds: float) -> Vector3:
+	if goal == Vector3.INF:
+		return orb.global_position
+	var flat := goal - orb.global_position
+	flat.y = 0.0
+	return orb.global_position + flat.limit_length(SPEED * seconds)
+
+
 ## Handle a mouse click (from the demo's _unhandled_input). True if it was used.
 func handle_click(event: InputEvent, camera: Camera3D) -> bool:
 	var click := event as InputEventMouseButton

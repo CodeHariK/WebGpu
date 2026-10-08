@@ -40,6 +40,7 @@ var last_known := Vector3.INF ## INF = never seen or heard
 var last_known_velocity := Vector3.ZERO
 var interest := Vector3.INF ## the point a suspicious creature should look at / check
 var unseen_for := 0.0 ## seconds since the player was last seen
+var unheard_for := INF ## seconds since the player was last heard
 var search_left := 0.0
 
 var eye := Vector3.ZERO ## last update's eye and facing (for debug drawing)
@@ -63,6 +64,7 @@ func update(delta: float, space: PhysicsDirectSpaceState3D, from_eye: Vector3, f
 			suspicion = 1.0
 	else:
 		unseen_for += delta
+		unheard_for += delta
 		if awareness != Awareness.ALERT:
 			suspicion = maxf(suspicion - drain_rate * delta, 0.0)
 	_update_awareness(delta)
@@ -74,7 +76,8 @@ func hear(position: Vector3, radius: float) -> void:
 	if distance > radius:
 		return
 	var strength := 1.0 - distance / radius
-	suspicion = minf(maxf(suspicion, 0.35 + 0.4 * strength), 0.95) # a noise alone never fully alerts
+	unheard_for = 0.0
+	suspicion = maxf(suspicion, minf(0.35 + 0.4 * strength, 0.95)) # a noise alone never fully alerts
 	interest = position
 	if awareness == Awareness.ALERT or awareness == Awareness.SEARCHING:
 		last_known = position # it knows it's you: go there

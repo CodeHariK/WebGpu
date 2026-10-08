@@ -3,7 +3,9 @@
 ##   SPOTTING   a member is alert and sees the player: it barks, and after BARK_DELAY (the call
 ##              taking time to land) the whole squad is ALERT
 ##   ALERT      the squad knows: every tick the last sighting is shared to all members (so they all
-##              stay alert), and the Squad steers them by role
+##              stay alert), and the Squad steers them by role. Hearing the player (a member heard
+##              it within HEARD_WITHIN) keeps the squad alert too — a car's engine round a corner —
+##              and moves the last known position; it never starts an alert on its own
 ##   SEARCHING  nobody has seen the player for LOSE_AFTER: sharing stops, each member's own senses
 ##              lose the player and search on their own; when all are back to unaware, so is the squad
 ## A member that spots the player again (searching makes that quick) starts SPOTTING again.
@@ -13,7 +15,8 @@ extends RefCounted
 enum State { UNAWARE, SPOTTING, ALERT, SEARCHING }
 
 const BARK_DELAY := 0.5 ## seconds from the spotter's call to everyone knowing
-const LOSE_AFTER := 2.0 ## seconds with no member seeing the player → searching
+const LOSE_AFTER := 2.0 ## seconds with no member seeing (or, alert, hearing) the player → searching
+const HEARD_WITHIN := 0.5 ## seconds
 
 var state := State.UNAWARE
 var last_known := Vector3.INF ## the player's centre when last seen by anyone
@@ -27,6 +30,10 @@ var _call_left := 0.0
 ## Pool the members' senses. `bark` is called as bark(member, text) when someone calls something out.
 func update(delta: float, members: Array, bark: Callable) -> void:
 	var seer: Object = _member_who_sees(members)
+	var tracker: Object = seer if seer != null or state != State.ALERT else _member_who_hears(members)
+	if tracker != null and seer == null: # heard, not seen: keep the alert, update where
+		last_known = tracker.brain.senses.last_known
+		unseen_for = 0.0
 	if seer != null:
 		var senses: CreatureSenses = seer.brain.senses
 		last_known = senses.last_known
@@ -37,7 +44,7 @@ func update(delta: float, members: Array, bark: Callable) -> void:
 			spotter = seer
 			_call_left = BARK_DELAY
 			bark.call(seer, "there!")
-	else:
+	elif tracker == null:
 		unseen_for += delta
 	match state:
 		State.SPOTTING:
@@ -65,6 +72,13 @@ static func _member_who_sees(members: Array) -> Object:
 	for member: Object in members:
 		var senses: CreatureSenses = member.brain.senses
 		if senses.sees_player and senses.awareness == CreatureSenses.Awareness.ALERT:
+			return member
+	return null
+
+
+static func _member_who_hears(members: Array) -> Object:
+	for member: Object in members:
+		if member.brain.senses.unheard_for < HEARD_WITHIN:
 			return member
 	return null
 

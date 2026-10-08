@@ -3,14 +3,14 @@
 ##             worst … yellow = best); the best cell gets a white ring
 ##   claims    per member, a square on its claimed cell and a line from the spider, in its role's
 ##             colour (pressure red, flank left cyan, flank right magenta, behind orange,
-##             surround green)
+##             surround green, ambush yellow — plus a line to the road point it ambushes)
 ##   labels    role + state over each spider (its brain's state while the squad isn't alert), and
 ##             its bark above that, in white
 ##   magenta cross  the squad's last sighting of the player
 class_name SquadDebug
 extends MeshInstance3D
 
-const ROLE_COLORS: Array[Color] = [Color(1.0, 0.25, 0.2), Color(0.2, 0.9, 1.0), Color(1.0, 0.3, 1.0), Color(1.0, 0.6, 0.1), Color(0.4, 1.0, 0.35)]
+const ROLE_COLORS: Array[Color] = [Color(1.0, 0.25, 0.2), Color(0.2, 0.9, 1.0), Color(1.0, 0.3, 1.0), Color(1.0, 0.6, 0.1), Color(0.4, 1.0, 0.35), Color(1.0, 0.95, 0.3)]
 const LOW := Color(0.1, 0.15, 0.6)
 const HIGH := Color(1.0, 0.9, 0.2)
 const LIFT := 0.06
@@ -78,6 +78,9 @@ func _draw_member(index: int, member: Squad.Member) -> void:
 		_square(spot, squad.grid.cell_size * 0.45, color)
 		_square(spot, squad.grid.cell_size * 0.38, color)
 		_line(member.spider.global_position + Vector3.UP * 0.3, spot, Color(color, 0.7))
+		var car := squad.player as TestCar
+		if member.role == PositionScorer.Role.AMBUSH and car != null:
+			_line(spot, car.road.sample_baked(member.ambush_offset) + Vector3.UP * 0.1, Color(color, 0.5))
 	while _labels.size() <= index:
 		_labels.append(_new_label(40))
 		_bark_labels.append(_new_label(64))

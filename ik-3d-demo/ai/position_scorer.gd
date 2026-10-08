@@ -16,7 +16,7 @@
 class_name PositionScorer
 extends RefCounted
 
-enum Role { PRESSURE, FLANK_LEFT, FLANK_RIGHT, BEHIND, SURROUND }
+enum Role { PRESSURE, FLANK_LEFT, FLANK_RIGHT, BEHIND, SURROUND, AMBUSH } ## AMBUSH spots come from AmbushPlanner
 
 const PROFILES := {
 	Role.PRESSURE: {"ring": Vector2(4.0, 7.0), "angle": 0.0, "angle_weight": 1.0, "sight": 1, "avoid_view": 0.0},
@@ -24,6 +24,7 @@ const PROFILES := {
 	Role.FLANK_RIGHT: {"ring": Vector2(2.5, 5.0), "angle": -105.0, "angle_weight": 2.5, "sight": -1, "avoid_view": 3.0},
 	Role.BEHIND: {"ring": Vector2(2.5, 5.0), "angle": 180.0, "angle_weight": 2.5, "sight": -1, "avoid_view": 3.0},
 	Role.SURROUND: {"ring": Vector2(3.0, 4.5), "angle": 0.0, "angle_weight": 3.0, "sight": 0, "avoid_view": 0.0},
+	Role.AMBUSH: {"ring": Vector2(2.5, 6.5), "angle": 0.0, "angle_weight": 0.0, "sight": -1, "avoid_view": 3.0},
 }
 
 const RING_WEIGHT := 1.5 ## per metre outside the band

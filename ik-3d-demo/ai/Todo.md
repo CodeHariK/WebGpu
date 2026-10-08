@@ -36,7 +36,9 @@ cover, visibility and squad positions all live in the same cells. No baking.
       Seen in the open: ~1 s to alert at 6 m, ~2.5 s at 12 m (fill_rate tunes it).
       Stages (ai/hunter_brain.gd): unaware (wanders) → suspicious (stares, creeps over, looks
       around) → alert (runs at the last known position) → searching → unaware.
-- [ ] Light and engine noise in the fill; combat stage (hand to roles / director).
+- [x] Engine noise: TestCar emits every 0.3 s, carrying 6 m + 1.2 m per m/s. Hearing keeps an
+      alert squad alert (a car round a corner) but never starts one.
+- [ ] Light in the fill; car roof/wheels as sight points (now body + cab).
 - [x] Hearing: ai/noise_bus.gd, a noise = position + radius (demo: footsteps 3 m, N = 10 m).
       A noise gives a position, not a sighting: suspicious + go and check; while alert or
       searching it moves the last known position.
@@ -90,9 +92,12 @@ Roles (assigned by the squad director):
       [ ] only when the player is busy (with the pressure member) / holds an attack token.
 - [x] **Surround**: angular slots on a ring around the player, assigned nearest-first (greedy).
       [ ] gaps toward escape routes closed first; the ring tightens as attack tokens free up.
-- [ ] **Ambusher**: a hidden cell on the player's predicted path. In a car that's the road
-      ahead (TerraSpline): wait off the road behind cover, freeze (we have ambush already),
-      burst out as the car passes.
+- [x] **Ambusher** (ai/ambush_planner.gd, road_demo.tscn): a hidden cell beside the road ahead
+      of the car at the member's own lead time (3.5 s, +1.5 s each), reachable in time; waits
+      frozen, leaps at where the car will be as it passes. Test: 7 hits of 8 leaps in 40 s.
+      [ ] reads the car's real road position — should be last sighting + road + speed.
+      [ ] too easy to hit: the player steering / braking should dodge (leap commits early).
+      [ ] on foot: the player's predicted path (where it's walking) instead of a road.
 - [ ] **Retreat / regroup**: hurt or alone → break line of sight, rejoin the pack.
 
 ## 4. Squad director (F.E.A.R. / Doom)
@@ -148,6 +153,7 @@ Roles (assigned by the squad director):
    squad_demo; surround slots, ambusher, retreat still to do)
 4. ~~Squad director: shared memory, attack tokens, barks, role assignment on events, surround
    slots, plan choice (pincer / surround).~~ (done; ambush-ahead plan waits for the car, step 5)
-5. Car player: speed and engine noise in the senses, road ambushes on the predicted path.
+5. ~~Car player: speed and engine noise in the senses, road ambushes on the predicted path.~~
+   (done: road_demo; the ambush plan is chosen whenever the player is in a car)
 6. Fight-area hand-off: scan a grid when a fight starts around the player; road/steering between.
 7. Performance pass, then move the hot parts to C++.
