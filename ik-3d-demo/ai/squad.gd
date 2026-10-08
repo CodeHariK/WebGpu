@@ -1,5 +1,11 @@
 ## The squad director: spiders that share what they see and close in on the player by role.
 ##
+## Plan (SquadPlan): on going alert the squad picks PINCER or SURROUND (or the forced one) and
+## hands out the parts nearest-first. It re-plans when a member is removed (dies), when the
+## automatic choice changes (the player moves into / out of the open), and swaps parts round when
+## the player turns more than REASSIGN_TURN from the facing the parts were handed out for (so the
+## left flanker doesn't run round the player to stay on its left).
+##
 ## Each member has its own HunterBrain (senses + solo behaviour: wander, investigate, search).
 ## SquadKnowledge pools their senses; once the squad is ALERT the Squad takes over (brains are
 ## `directed`: senses only) and steers each member by role:
@@ -8,6 +14,7 @@
 ##                 flank / behind  held HOLD_BEFORE_ATTACK and outside the player's view
 ##                                 (more than ATTACK_ANGLE off its facing)
 ##                 pressure        held PRESSURE_PATIENCE (it's in front: a lunge)
+##                 surround        either of those
 ##               Ready members ask for an attack token (AttackTokens), best shot first
 ##               (outside the view before in front, then nearest). No token: keep holding
 ##   attacking   holds a token, runs at the player; done on reaching it or after ATTACK_TIMEOUT
@@ -27,7 +34,9 @@ const ATTACK_TIMEOUT := 4.0
 const RECOVER := 0.8
 const BARK_TIME := 1.4
 const SPEED := {"moving": 0.85, "holding": 1.0, "attacking": 1.0, "recovering": 0.7}
-const ROLE_BARKS: Array[String] = ["hold him", "go left", "go right", "behind"]
+const ROLE_BARKS: Array[String] = ["hold him", "go left", "go right", "behind", "close in"]
+const REPLAN := 1.5 ## seconds between checks of the plan
+const REASSIGN_TURN := deg_to_rad(100.0)
 
 
 class Member:
@@ -41,6 +50,7 @@ class Member:
 	var timer := 0.0
 	var scores := {} ## last re-score (for the debug heatmap)
 	var route_cost := PackedFloat32Array() ## A* cell costs for getting to its spot
+	var slot_angle := NAN ## its own angle round the player (a surround slot); NAN = its role's
 
 
 var grid: TacticalGrid
@@ -50,9 +60,13 @@ var members: Array[Member] = []
 var knowledge := SquadKnowledge.new()
 var tokens := AttackTokens.new()
 var barks: Array[Dictionary] = [] ## {member, text, until}
+var plan := SquadPlan.Kind.PINCER
+var forced_plan := -1 ## a SquadPlan.Kind to always use; −1 = choose
 
 var _target := Marker3D.new() ## the last sighting: what attackers run at
 var _rescore_left := 0.0
+var _replan_left := 0.0
+var _plan_facing := Vector3.FORWARD ## the player's facing when the parts were handed out
 var _was_alert := false
 var _time := 0.0
 
@@ -110,6 +124,10 @@ func _physics_process(delta: float) -> void:
 		return
 	_target.global_position = knowledge.last_known
 	tokens.update(delta)
+	_replan_left -= delta
+	if _replan_left <= 0.0:
+		_replan_left = REPLAN
+		_check_plan()
 	_rescore_left -= delta
 	if _rescore_left <= 0.0:
 		_rescore_left = RESCORE
@@ -131,7 +149,53 @@ func _on_alert_changed(alert: bool) -> void:
 		member.walker.cell_cost = PackedFloat32Array()
 		if alert:
 			member.walker.target = member.goal
+	if alert:
+		_replan(true)
+	_rescore_left = 0.0
+
+
+## Take a member out (it died): its token goes back, the nearest squadmate calls it, and the rest
+## re-plan. The caller frees the spider, walker and brain nodes.
+func remove_member(member: Member) -> void:
+	members.erase(member)
+	tokens.release(member)
+	barks = barks.filter(func(old: Dictionary) -> bool: return old.member != member)
+	member.goal.queue_free()
+	if members.is_empty():
+		return
+	bark(SquadKnowledge._nearest(members, member.spider.global_position), "man down!")
+	if knowledge.knows():
+		_replan(false)
+
+
+# Re-plan if the automatic choice changed; swap parts round if the player turned a lot.
+func _check_plan() -> void:
+	var wanted := _wanted_plan()
+	if wanted != plan or visibility.facing.angle_to(_plan_facing) > REASSIGN_TURN:
+		_replan(false)
+
+
+func _wanted_plan() -> SquadPlan.Kind:
+	if forced_plan >= 0:
+		return forced_plan as SquadPlan.Kind
+	return SquadPlan.choose(members.size(), grid, visibility, _player_feet())
+
+
+# Pick the plan and hand out its parts. Members whose part changed (everyone with `call_all`, or on
+# a new plan) call out their new part and pick a new spot.
+func _replan(call_all: bool) -> void:
+	var wanted := _wanted_plan()
+	var new_plan := wanted != plan
+	plan = wanted
+	_plan_facing = visibility.facing
+	var changed := SquadPlan.assign(plan, members, _player_feet(), visibility.facing)
+	for member in members:
+		if call_all or new_plan or changed.has(member):
 			bark(member, ROLE_BARKS[member.role])
+		if changed.has(member):
+			member.cell = -1
+			if member.state == "holding":
+				_set_state(member, "moving")
 	_rescore_left = 0.0
 
 
@@ -189,11 +253,13 @@ func _attack_priority(member: Member) -> float:
 	var from_player := member.spider.global_position - knowledge.last_known
 	from_player.y = 0.0
 	var nearness := 1.0 / (1.0 + from_player.length())
-	if PositionScorer.PROFILES[member.role].sight > 0:
-		return 1.0 + nearness if member.timer >= PRESSURE_PATIENCE else 0.0
-	if member.timer < HOLD_BEFORE_ATTACK or visibility.facing.angle_to(from_player) <= ATTACK_ANGLE:
-		return 0.0
-	return 3.0 + nearness
+	var sight: int = PositionScorer.PROFILES[member.role].sight
+	var unseen := member.timer >= HOLD_BEFORE_ATTACK and visibility.facing.angle_to(from_player) > ATTACK_ANGLE
+	if sight <= 0 and unseen:
+		return 3.0 + nearness # flank, behind, surround: outside the player's view
+	if sight >= 0 and member.timer >= PRESSURE_PATIENCE:
+		return 1.0 + nearness # pressure, surround: in front, a lunge
+	return 0.0
 
 
 func _set_state(member: Member, state: String) -> void:

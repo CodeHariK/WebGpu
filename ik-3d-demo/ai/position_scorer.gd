@@ -4,7 +4,8 @@
 ## Terms (see the weights below):
 ##   ring      distance from the player inside the role's [near, far] band
 ##   angle     where around the player, measured from the player's facing: 0° = in front,
-##             +90° = the player's left, −90° = its right, 180° = behind
+##             +90° = the player's left, −90° = its right, 180° = behind (a surround slot gives
+##             each member its own angle: Context.angle)
 ##   sight     the role wants to be seen (pressure: keep the player busy) or hidden (flankers)
 ##   in view   flankers lose a lot for being where the player is looking right now
 ##   cover     hidden roles like a cell with something solid between them and the player
@@ -15,13 +16,14 @@
 class_name PositionScorer
 extends RefCounted
 
-enum Role { PRESSURE, FLANK_LEFT, FLANK_RIGHT, BEHIND }
+enum Role { PRESSURE, FLANK_LEFT, FLANK_RIGHT, BEHIND, SURROUND }
 
 const PROFILES := {
 	Role.PRESSURE: {"ring": Vector2(4.0, 7.0), "angle": 0.0, "angle_weight": 1.0, "sight": 1, "avoid_view": 0.0},
 	Role.FLANK_LEFT: {"ring": Vector2(2.5, 5.0), "angle": 105.0, "angle_weight": 2.5, "sight": -1, "avoid_view": 3.0},
 	Role.FLANK_RIGHT: {"ring": Vector2(2.5, 5.0), "angle": -105.0, "angle_weight": 2.5, "sight": -1, "avoid_view": 3.0},
 	Role.BEHIND: {"ring": Vector2(2.5, 5.0), "angle": 180.0, "angle_weight": 2.5, "sight": -1, "avoid_view": 3.0},
+	Role.SURROUND: {"ring": Vector2(3.0, 4.5), "angle": 0.0, "angle_weight": 3.0, "sight": 0, "avoid_view": 0.0},
 }
 
 const RING_WEIGHT := 1.5 ## per metre outside the band
@@ -45,6 +47,7 @@ class Context:
 	var facing := Vector3.FORWARD ## flat
 	var from := Vector3.ZERO ## the member being placed
 	var others: Array[Vector3] = [] ## cells the rest of the squad has claimed
+	var angle := NAN ## degrees: this member's own angle (a surround slot); NAN = the role's
 
 
 ## Scores for every candidate cell: {cell: score}.
@@ -85,7 +88,8 @@ static func score(cell: int, role: Role, context: Context) -> float:
 	total -= maxf(maxf(ring.x - distance, distance - ring.y), 0.0) * RING_WEIGHT
 	if distance > 0.1:
 		var angle := rad_to_deg(context.facing.signed_angle_to(flat, Vector3.UP))
-		var off := absf(wrapf(angle - profile.angle, -180.0, 180.0)) / 180.0
+		var wanted: float = profile.angle if is_nan(context.angle) else context.angle
+		var off := absf(wrapf(angle - wanted, -180.0, 180.0)) / 180.0
 		total -= off * profile.angle_weight * ANGLE_WEIGHT
 	total += _sight_score(cell, profile, context.visibility)
 	for other in context.others:

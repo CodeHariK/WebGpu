@@ -88,9 +88,8 @@ Roles (assigned by the squad director):
 - [x] **Flanker** (left / right / behind): ±105° or 180° from the player's facing, hidden, by a
       hidden route; holds, then pounces when it's outside the player's view.
       [ ] only when the player is busy (with the pressure member) / holds an attack token.
-- [ ] **Surround**: angular slots on a ring around the player (N slots, gaps toward escape
-      routes closed first). Assign spiders to slots minimising travel (greedy is enough). The
-      ring tightens as attack tokens free up.
+- [x] **Surround**: angular slots on a ring around the player, assigned nearest-first (greedy).
+      [ ] gaps toward escape routes closed first; the ring tightens as attack tokens free up.
 - [ ] **Ambusher**: a hidden cell on the player's predicted path. In a car that's the road
       ahead (TerraSpline): wait off the road behind cover, freeze (we have ambush already),
       burst out as the car passes.
@@ -100,13 +99,16 @@ Roles (assigned by the squad director):
 
 - [x] One director per group (ai/squad.gd): members, shared memory, takes over from each
       member's HunterBrain while the squad is alert, hands back when it loses you.
-- [ ] Assigns roles on events (spotted, lost, member died, player in a car / on foot). Now: fixed
-      roles per member (Q in the demo changes one).
+- [x] Assigns roles on events (ai/squad_plan.gd): on going alert, a member dying ("man down!"),
+      the automatic plan changing, the player turning > 100° (parts swap so nobody runs round).
+      Parts go to the nearest free member. [ ] player in a car / on foot.
 - [x] **Attack tokens** (Doom, ai/attack_tokens.gd): N at once (T in the demo), 1.2 s rest after
       each attack. Asked for best shot first: flankers outside the player's view, then pressure
       (after 2 s holding); nearer first. Test: 5 attacks in 20 s, never more than 1 at once.
-- [ ] Pincer and surround moves: pick a plan (frontal pressure + 2 flankers, full surround, ambush
-      ahead), give each member its role, re-plan when it breaks.
+- [x] Pincer and surround: PINCER (pressure, behind, flank left, flank right) or SURROUND (a slot
+      each, evenly round the player from the front); auto = surround with 4+ members when the
+      player stands in the open (≥ 70% of cells within 5 m in its line of sight). J in the demo.
+- [ ] Ambush-ahead plan; surround gaps toward escape routes first; ring tightens as tokens free.
 - [x] Barks as text over the member ("there!", role call-outs on alert, "mine!", "lost it").
 - [ ] **Barks** as sound + body language: show the plan. An eye flash and chirp when spotting, a raised leg pointing when
       sending a flanker, a scream when a member dies. The player reads the AI's intent: it feels
@@ -144,8 +146,8 @@ Roles (assigned by the squad director):
    Debug cones and meters. (One spider, the orb as the player.)~~ (done: hunt mode in grid_demo)
 3. ~~Position scoring + roles + claims; exposure-aware A* routes on the grid.~~ (first pass done:
    squad_demo; surround slots, ambusher, retreat still to do)
-4. Squad director: ~~shared memory, attack tokens, barks~~ (done); role assignment on events,
-   surround slots, plan choice (frontal + 2 flankers / full surround / ambush ahead).
+4. ~~Squad director: shared memory, attack tokens, barks, role assignment on events, surround
+   slots, plan choice (pincer / surround).~~ (done; ambush-ahead plan waits for the car, step 5)
 5. Car player: speed and engine noise in the senses, road ambushes on the predicted path.
 6. Fight-area hand-off: scan a grid when a fight starts around the player; road/steering between.
 7. Performance pass, then move the hot parts to C++.

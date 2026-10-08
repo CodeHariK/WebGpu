@@ -6,7 +6,9 @@
 ##   Click        walk the player there (footsteps)   Shift-click  put it there
 ##   Right-click  turn the player to look there (turn your back on a flanker and it comes)
 ##   N  make a loud noise      T  attack tokens 1 → 2 → 3
-##   Tab  next member (its heatmap + path)    Q  change that member's role
+##   J  plan: auto → pincer → surround (auto: surround with 4+ members when you stand in the open)
+##   Tab  next member (its heatmap + path)    Q  change that member's role (until the next re-plan)
+##   X  kill that member (the squad re-plans)
 ##   H  heatmap on/off      K  vision cones on/off      G  grid on/off
 ##   V  grid colours: what the player sees ↔ height    C  camera: overview ↔ follow the selected member
 ## See squad_debug.gd for the colours.
@@ -116,8 +118,9 @@ func _update_hud() -> void:
 			PositionScorer.Role.keys()[member.role].to_lower(), doing, CreatureSenses.Awareness.keys()[senses.awareness].to_lower(),
 			senses.suspicion, "  [token]" if squad.tokens.has(member) else ""])
 	var knowledge := squad.knowledge
-	hud.text = "squad: %s, unseen %.1f s   tokens %d (%d free)   grid %d cells   player sees %d cells\n%s\nclick = walk   shift-click = put   right-click = look   N noise   T tokens   Tab member   Q role   H heatmap   K cones   G grid   V colours   C camera" % [
-		SquadKnowledge.State.keys()[knowledge.state].to_lower(), knowledge.unseen_for, squad.tokens.count, squad.tokens.free_count(),
+	var plan_name: String = SquadPlan.Kind.keys()[squad.plan].to_lower() + (" (auto)" if squad.forced_plan < 0 else " (forced)")
+	hud.text = "squad: %s, plan %s, unseen %.1f s   tokens %d (%d free)   grid %d cells   player sees %d cells\n%s\nclick = walk   shift-click = put   right-click = look   N noise   T tokens   J plan   X kill   Tab member   Q role   H heatmap   K cones   G grid   V colours   C camera" % [
+		SquadKnowledge.State.keys()[knowledge.state].to_lower(), plan_name, knowledge.unseen_for, squad.tokens.count, squad.tokens.free_count(),
 		grid.cell_count(), visibility.count(PlayerVisibility.Sight.SEEN), "\n".join(lines)]
 
 
@@ -132,7 +135,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_Q:
 			var member := _selected()
 			member.role = ((member.role + 1) % PositionScorer.Role.size()) as PositionScorer.Role
+			member.slot_angle = NAN
 			member.cell = -1
+		KEY_J:
+			squad.forced_plan = squad.forced_plan + 1 if squad.forced_plan < SquadPlan.Kind.size() - 1 else -1
+		KEY_X: _kill(_selected())
 		KEY_H: squad_debug.show_heatmap = not squad_debug.show_heatmap
 		KEY_G: debug.visible = not debug.visible
 		KEY_V:
@@ -147,3 +154,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			follow = not follow
 			if not follow:
 				camera.transform = overview
+
+
+# The selected member dies: out of the squad, its nodes freed.
+func _kill(member: Squad.Member) -> void:
+	if squad.members.size() <= 1:
+		return
+	squad.remove_member(member)
+	for cones in senses_debug.duplicate():
+		if cones.brain == member.brain:
+			senses_debug.erase(cones)
+			cones.queue_free()
+	member.brain.queue_free()
+	member.walker.queue_free()
+	member.spider.queue_free()
+	_select(squad_debug.selected)

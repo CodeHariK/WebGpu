@@ -30,6 +30,7 @@ static func rescore(squad: Squad, player_feet: Vector3) -> void:
 	for member in squad.members:
 		context.from = member.spider.global_position
 		context.others = claimed
+		context.angle = member.slot_angle
 		member.scores = PositionScorer.score_all(member.role, context)
 		var best := PositionScorer.best(member.scores)
 		var current: float = member.scores.get(member.cell, -INF)

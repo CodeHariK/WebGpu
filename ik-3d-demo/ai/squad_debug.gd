@@ -2,14 +2,15 @@
 ##   heatmap   the selected member's scores for its role on every candidate cell (dark blue =
 ##             worst … yellow = best); the best cell gets a white ring
 ##   claims    per member, a square on its claimed cell and a line from the spider, in its role's
-##             colour (pressure red, flank left cyan, flank right magenta, behind orange)
+##             colour (pressure red, flank left cyan, flank right magenta, behind orange,
+##             surround green)
 ##   labels    role + state over each spider (its brain's state while the squad isn't alert), and
 ##             its bark above that, in white
 ##   magenta cross  the squad's last sighting of the player
 class_name SquadDebug
 extends MeshInstance3D
 
-const ROLE_COLORS: Array[Color] = [Color(1.0, 0.25, 0.2), Color(0.2, 0.9, 1.0), Color(1.0, 0.3, 1.0), Color(1.0, 0.6, 0.1)]
+const ROLE_COLORS: Array[Color] = [Color(1.0, 0.25, 0.2), Color(0.2, 0.9, 1.0), Color(1.0, 0.3, 1.0), Color(1.0, 0.6, 0.1), Color(0.4, 1.0, 0.35)]
 const LOW := Color(0.1, 0.15, 0.6)
 const HIGH := Color(1.0, 0.9, 0.2)
 const LIFT := 0.06
@@ -36,6 +37,8 @@ func _process(_delta: float) -> void:
 		for label in _labels + _bark_labels:
 			label.visible = false
 		return
+	for label in _labels + _bark_labels: # members draw theirs again below (a removed one stays hidden)
+		label.visible = false
 	_lines.surface_begin(Mesh.PRIMITIVE_LINES)
 	_line(Vector3.ZERO, Vector3.ZERO, Color.TRANSPARENT) # a surface needs at least one line
 	var alert := squad.knowledge.knows()
