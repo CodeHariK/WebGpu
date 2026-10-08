@@ -12,6 +12,9 @@
 ##   4. body   — each leg says how high the body should be for it to stay relaxed; a plane fitted
 ##               through those heights gives the body's height, pitch and roll. Uneven ground,
 ##               and uneven legs, tilt the body by themselves. Then a spring adds weight.
+## Each leg bends in a plane through its hip, its foot and its knee pole; the pole swings about the
+## hip with the foot (SpiderRig.update_poles: the hip's yaw joint), so the whole leg plane yaws as
+## the feet sweep back and swing forward.
 ## The legs themselves are bent by SpiderRig's TwoBoneIK3D toward the foot targets — or, with
 ## `chain_legs`, by SpiderChainRig's LimbChains (custom IK, no leg bones; see limbs/).
 ##
@@ -21,10 +24,17 @@
 class_name Spider
 extends Node3D
 
+const CONTROL_EASE := 8.0 ## 1/s: how quickly the body follows control_offset / control_rotation
+const WAVE_FADE_SPEED := 0.4 ## m/s: the knee-yaw gait swing is full above this, gone at a stop
+const WAVE_DUTY := 0.78 ## wave gait: share of the cycle each foot is planted
+const WAVE_LIFT := 0.45 ## wave gait: × step height — low, quick steps
+const WAVE_PERIOD := Vector2(0.45, 1.1) ## wave gait: shortest / longest cycle (seconds)
+const NOISE_SNAP := 40.0 ## 1/s: how fast a held noise twitch is reached (layout.noise_hold)
+
 signal rebuilt ## the legs were rebuilt (layout changed): leg indices are new
 signal landed ## touched down after launch()
 
-@export_enum("4 legs", "6 legs (tripod)", "8 legs", "lopsided (claw + limp)", "crab (sideways)", "monkey (big arms)", "robot (spring head)", "sentry bot (t3ssel8r)") var layout_preset := 0:
+@export_enum("4 legs", "6 legs (tripod)", "8 legs", "lopsided (claw + limp)", "crab (sideways)", "monkey (big arms)", "robot (spring head)", "sentry bot (t3ssel8r)", "3-bone legs (machine)") var layout_preset := 0:
 	set(value):
 		layout_preset = value
 		if is_inside_tree():
@@ -47,13 +57,51 @@ signal landed ## touched down after launch()
 
 @export_group("Gait")
 @export var use_gait := true ## off = feet glued to their home spots (they slide)
+## A real spider's gait instead of groups: on each side the legs step one after another in a
+## ripple from back to front, the two sides half a cycle apart, so neighbours never lift together
+## and something is always moving. Each foot spends most of the cycle planted (WAVE_DUTY) and
+## steps fast and low (WAVE_LIFT) with an ease-out landing (SpiderLeg.quick). The cycle quickens
+## with speed so strides stay short. Works on any layout (arms are left out).
+@export var wave_gait := false:
+	set(value):
+		wave_gait = value
+		_apply_wave_gait()
 @export var step_distance := 0.35 ## how far a foot may lag before it steps
 @export var step_time := 0.18 ## seconds per step (each leg can scale it: a limp)
-@export var step_height := 0.22 ## arc height
 @export var lead_time := 0.25 ## home spot sits this many seconds of velocity ahead
 @export var max_lead := 0.45 ## ...but never more than this many metres (else a sudden stop leaves feet out of reach)
 @export var fast_step_time := 0.07 ## shortest step: when moving fast, steps get quicker (down to this) so feet keep up
 @export_range(0.5, 1.0) var overreach_step := 0.92 ## a planted foot further than this × its reach from its hip steps at once, out of turn
+
+@export_group("Step curve")
+## The path every foot takes when it steps (SpiderLeg.STEP_SHAPES); "layout" = each leg's own
+## step_shape. Keep this list in step with STEP_SHAPES.
+@export_enum("layout", "arc", "circle", "ellipse", "square", "octagon", "trapezoid", "triangle", "hexagon", "sawtooth", "stab") var step_curve := "layout":
+	set(value):
+		step_curve = value
+		_apply_step_curve()
+## Share of a step spent dead still at each corner of a sharp curve (a servo settling);
+## −1 = each leg's own corner_pause. Round curves never pause.
+@export_range(-1.0, 0.3, 0.01) var corner_pause := -1.0:
+	set(value):
+		corner_pause = value
+		_apply_step_curve()
+@export_range(0.02, 0.9, 0.01) var step_height := 0.22 ## the step curve's height (per leg × lift_scale; a circle ignores it: half the stride)
+@export_range(0.0, 0.4, 0.01) var step_noise := 0.0 ## metres of noise per axis on every step path (fades to 0 at take-off and landing)
+@export_range(0.5, 10.0, 0.5) var step_noise_rate := 3.0 ## wobbles per step
+
+@export_group("Knee yaw")
+## How each leg's plane turns about its hip (see SpiderLayout.LegDef.knee_yaw); "layout" = each
+## leg's own setting.
+@export_enum("layout", "follow", "sine", "square", "noise", "fixed") var knee_yaw := "layout":
+	set(value):
+		knee_yaw = value
+		_apply_knee_yaw()
+## Radians of the knee-yaw swing; −1 = each leg's own knee_yaw_amount.
+@export_range(-1.0, 1.0, 0.01) var knee_yaw_amount := -1.0:
+	set(value):
+		knee_yaw_amount = value
+		_apply_knee_yaw()
 
 @export_group("Jump")
 @export var jump_gravity := 16.0 ## m/s² pulling the spider down while airborne
@@ -102,6 +150,12 @@ var steer := Vector2.ZERO ## (right, forward) in units of move_speed; still scal
 var steer_turn := 0.0 ## rad/s; not scaled by speed_scale, so it keeps facing even when frozen
 var action_pose := Vector3.ZERO ## (height, pitch, roll) added by the current behaviour: crouch, recoil, squash
 
+## Body pose set by hand (mouse in the demo), on top of everything else: (x, y, z) metres in the
+## spider's frame and (pitch, yaw, roll) radians. Eased in, so it never jumps; height, pitch and roll
+## also go through the body spring. The feet stay planted — the legs' IK takes it up.
+var control_offset := Vector3.ZERO
+var control_rotation := Vector3.ZERO
+
 ## In the air after launch(): the root flies under jump_gravity, feet tuck in and reach down
 ## for the landing, the body stops following the feet. Lands by itself on the ground below.
 var airborne := false
@@ -126,6 +180,14 @@ var _side_accel := 0.0 ## m/s² to the right: strafing changes and turns (body r
 var _body_pose := Vector3.ZERO ## spring state: (height, pitch, roll)
 var _body_pose_velocity := Vector3.ZERO
 var _vertical_speed := 0.0 ## m/s up while airborne
+var _bob_time := 0.0 ## seconds, for the layout's bob / sway / noise
+var _step_clock := 0.0 ## seconds into the current half-cycle (layout.step_period)
+var _control: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO] ## eased control_offset, control_rotation
+var _noise := FastNoiseLite.new()
+var _wave_clock := 0.0 ## wave gait: cycles since start
+var _wave_period := 1.0 ## wave gait: seconds per cycle right now
+var _wave_phase: Array[float] = [] ## wave gait: when in the cycle each leg steps (0..1); −1 = an arm
+var _held_noise: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO] ## layout.noise_hold: where the twitch is now
 var _turn_rate := 0.0 ## rad/s turned this frame
 var _foot_radius := 1.0 ## how far the furthest relaxed foot is from the centre (spinning moves it at ω · this)
 
@@ -146,6 +208,7 @@ func _physics_process(delta: float) -> void:
 		_planted_once = true
 	_update_gait(delta)
 	_update_body(delta)
+	rig.update_poles(_bob_time, _gait_waves()) # each leg's plane yaws about its hip with its foot
 	rig.update_rigid_limbs() # one-bone legs aim at their feet (no-op for jointed legs)
 
 
@@ -168,7 +231,8 @@ func _build() -> void:
 	_body.name = "Body"
 	_body.position.y = layout.relaxed_height()
 	add_child(_body)
-	rig = SpiderRig.build(_body, layout, SpiderChainRig.new() if chain_legs else null)
+	var chains := chain_legs or layout.needs_chains() # three-bone legs only exist as chains
+	rig = SpiderRig.build(_body, layout, SpiderChainRig.new() if chains else null)
 	rig.set_poles_enabled(use_knee_poles)
 	for leg in rig.targets.size():
 		var target := rig.targets[leg]
@@ -187,6 +251,9 @@ func _build() -> void:
 	for definition in layout.legs:
 		if definition.walks:
 			_foot_radius = maxf(_foot_radius, Vector2(definition.rest_foot().x, definition.rest_foot().z).length())
+	_apply_wave_gait()
+	_apply_step_curve()
+	_apply_knee_yaw()
 	rebuilt.emit()
 
 
@@ -238,9 +305,10 @@ func _move(delta: float) -> void:
 			float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)),
 			float(Input.is_key_pressed(KEY_UP)) - float(Input.is_key_pressed(KEY_DOWN)))
 		turn = (float(Input.is_key_pressed(KEY_LEFT)) - float(Input.is_key_pressed(KEY_RIGHT))) * turn_speed
-	_turn_rate = turn * speed_scale + extra_turn + (steer_turn if steering else 0.0)
+	var pace := speed_scale * rig.layout.walk_speed # walk_speed scales turning too: same circle, slower
+	_turn_rate = turn * pace + extra_turn + (steer_turn if steering else 0.0)
 	rotate_y(_turn_rate * delta)
-	global_position += global_basis * Vector3(move.x, 0.0, -move.y) * move_speed * speed_scale * delta
+	global_position += global_basis * Vector3(move.x, 0.0, -move.y) * move_speed * pace * delta
 	var new_velocity := (global_position - _last_position) / delta
 	new_velocity.y = 0.0
 	# Acceleration in the spider's own frame. Turning while moving shows up here as a sideways
@@ -318,12 +386,19 @@ func _update_gait(delta: float) -> void:
 			if legs[leg].needs_return and not legs[leg].stepping and rig.layout.legs[leg].walks:
 				legs[leg].start_step(homes[leg])
 		_choose_groups()
-		_maybe_start_group()
+		if wave_gait:
+			_wave_steps(delta)
+		elif rig.layout.step_period > 0.0:
+			_clocked_steps(delta)
+		else:
+			_maybe_start_group()
 		_rescue_overstretched()
 	for leg in legs.size():
 		var definition := rig.layout.legs[leg]
+		legs[leg].noise_amount = step_noise
+		legs[leg].noise_rate = step_noise_rate
 		if definition.walks or legs[leg].override:
-			legs[leg].update(delta, leg_step_time(leg), step_height * definition.lift_scale)
+			legs[leg].update(delta, leg_step_time(leg), step_height * definition.lift_scale * (WAVE_LIFT if wave_gait else 1.0))
 			if legs[leg].just_planted:
 				_push_off(leg)
 		else:
@@ -341,6 +416,10 @@ func leg_step_distance(leg: int) -> float:
 ## ω · radius from turning. A long stride may take longer; step_time_scale (a limp, a
 ## heavy arm) applies on top.
 func leg_step_time(leg: int) -> float:
+	if wave_gait: # in the air for the short part of the cycle
+		return _wave_period * (1.0 - WAVE_DUTY)
+	if rig.layout.step_period > 0.0: # clocked: a step takes step_fill of its half-cycle
+		return rig.layout.step_period * 0.5 * rig.layout.step_fill
 	var foot_speed := velocity.length() + absf(_turn_rate) * _foot_radius
 	var keep_up := leg_step_distance(leg) * 1.2 / maxf(foot_speed, 0.01)
 	return minf(step_time, maxf(keep_up, fast_step_time)) * rig.layout.legs[leg].step_time_scale
@@ -405,6 +484,89 @@ func _choose_groups() -> void:
 
 
 # A group may only lift while every other group is fully planted; the groups take turns.
+# Per leg, where it is in its own gait cycle as a swing in −1..1: (sine, square). Up (stepping):
+# sine runs −1 → +1 with the step, square is +1. Down: sine runs +1 (just landed) → −1 (trailing a
+# full stride behind its home, about to step), square is −1. Signed so + turns the leg toward the
+# walking direction; fades to 0 below WAVE_FADE_SPEED (standing still: no swing).
+func _gait_waves() -> PackedVector2Array:
+	var waves := PackedVector2Array()
+	waves.resize(legs.size())
+	var up := _body.global_basis.y.normalized()
+	var flat := velocity - up * velocity.dot(up)
+	var speed := flat.length()
+	var fade := clampf(speed / WAVE_FADE_SPEED, 0.0, 1.0)
+	if fade <= 0.0:
+		return waves
+	var heading := flat / speed
+	for leg in legs.size():
+		var definition := rig.layout.legs[leg]
+		var gait_leg := legs[leg]
+		if not definition.walks or gait_leg.override:
+			continue
+		var wave := Vector2(-cos(PI * gait_leg.progress), 1.0)
+		if not gait_leg.stepping:
+			var behind := (homes[leg] - gait_leg.planted).dot(heading) / maxf(leg_step_distance(leg), 0.01)
+			wave = Vector2(cos(PI * clampf(behind, 0.0, 1.0)), -1.0)
+		var out := _body.global_basis * definition.out
+		var toward := signf(up.cross(out).dot(heading)) # which way of turning moves this foot forward
+		waves[leg] = wave * toward * fade
+	return waves
+
+
+# Wave gait: the cycle runs faster the faster the feet travel (so a stride stays about one
+# step_distance); each leg steps when the clock passes its phase — if it has anywhere to go.
+func _wave_steps(delta: float) -> void:
+	var foot_speed := velocity.length() + absf(_turn_rate) * _foot_radius
+	_wave_period = clampf(step_distance * 1.6 / maxf(foot_speed, 0.01), WAVE_PERIOD.x, WAVE_PERIOD.y)
+	var before := _wave_clock
+	_wave_clock += delta / _wave_period
+	for leg in legs.size():
+		var phase := _wave_phase[leg]
+		if phase < 0.0 or legs[leg].override or legs[leg].stepping:
+			continue
+		var crossed := floorf(_wave_clock - phase) > floorf(before - phase)
+		if crossed and legs[leg].planted.distance_to(homes[leg]) > step_distance * 0.1:
+			legs[leg].start_step(homes[leg])
+
+
+# Each walking leg's phase in the wave: per side, back legs first, rippling forward; the right side
+# half a cycle after the left. Legs on the centre line join the side with fewer legs.
+func _apply_wave_gait() -> void:
+	if rig == null:
+		return
+	var sides: Array = [[], []] # left, right: leg indices
+	for leg in rig.layout.legs.size():
+		var definition := rig.layout.legs[leg]
+		if not definition.walks:
+			continue
+		var side := 0 if definition.hip.x < -0.001 else 1 if definition.hip.x > 0.001 else (0 if sides[0].size() <= sides[1].size() else 1)
+		sides[side].append(leg)
+	_wave_phase.clear()
+	_wave_phase.resize(rig.layout.legs.size())
+	_wave_phase.fill(-1.0)
+	for side in 2:
+		var ordered: Array = sides[side]
+		ordered.sort_custom(func(a: int, b: int) -> bool: return rig.layout.legs[a].hip.z > rig.layout.legs[b].hip.z) # back (+z) first
+		for rank in ordered.size():
+			_wave_phase[ordered[rank]] = fmod(float(rank) / ordered.size() + 0.5 * side, 1.0)
+	for leg in legs:
+		leg.quick = wave_gait
+
+
+# Metronome gait (layout.step_period): every half-cycle the next group steps to its homes, moving
+# or not, so the groups' lifts alternate like a pendulum.
+func _clocked_steps(delta: float) -> void:
+	var half := rig.layout.step_period * 0.5
+	_step_clock += delta
+	if _step_clock < half:
+		return
+	_step_clock -= half
+	for leg: int in _groups[_next_group]:
+		if not legs[leg].override and not legs[leg].stepping:
+			legs[leg].start_step(homes[leg])
+	_next_group = (_next_group + 1) % _groups.size()
+
+
 func _maybe_start_group() -> void:
 	for attempt in _groups.size():
 		var index := (_next_group + attempt) % _groups.size()
@@ -455,6 +617,9 @@ func _update_body(delta: float) -> void:
 	var height := ride_height + body_height_offset + action_pose.x
 	var pitch := body_pitch_offset + action_pose.y - clampf(_forward_accel * lean, -0.3, 0.3) # nose dips when speeding up
 	var roll := body_roll_offset + action_pose.z - clampf(_side_accel * lean * 4.0, -0.15, 0.15) # lean into turns / sidesteps
+	var walking := global_basis.inverse() * velocity # (right, up, back) m/s in the spider's frame
+	pitch += clampf(walking.z * rig.layout.motion_lean, -0.5, 0.5) # forward (−z): nose dips
+	roll -= clampf(walking.x * rig.layout.motion_lean, -0.5, 0.5) # sideways: that side dips
 	if follow_feet and not airborne: # in the air there's nothing to stand on: ride at relaxed height
 		var fit := _fit_body_plane()
 		height += fit.x
@@ -462,12 +627,80 @@ func _update_body(delta: float) -> void:
 		roll += fit.z
 	else:
 		height += rig.layout.relaxed_height()
-	var target := Vector3(height, pitch, roll)
-	var accel := (target - _body_pose) * body_stiffness - _body_pose_velocity * body_damping
+	_control = _control_eased(delta)
+	var target := Vector3(height + _control[0].y, pitch + _control[1].x, roll + _control[1].z)
+	var spring := rig.layout.body_spring if rig.layout.body_spring != Vector2.ZERO else Vector2(body_stiffness, body_damping)
+	var accel := (target - _body_pose) * spring.x - _body_pose_velocity * spring.y
 	_body_pose_velocity += accel * delta
 	_body_pose += _body_pose_velocity * delta
-	_body.position = Vector3(body_offset.x, _body_pose.x, body_offset.z)
-	_body.basis = Basis.from_euler(Vector3(_body_pose.y, body_yaw_offset, _body_pose.z))
+	var extra := _extra_motion(delta) # [position, (pitch, yaw, roll)]: bob, sway, noise, hand control
+	_body.position = Vector3(body_offset.x, _body_pose.x, body_offset.z) + extra[0]
+	_body.basis = Basis.from_euler(Vector3(_body_pose.y, body_yaw_offset, _body_pose.z) + extra[1])
+
+
+# Visual extras added after the body spring: the layout's bob (y) and sway (z) sines and its smooth
+# noise, plus the hand-set control offset (x, z) and yaw. Returns [position, rotation].
+func _extra_motion(delta: float) -> Array[Vector3]:
+	var layout := rig.layout
+	_bob_time += delta
+	var offset := Vector3(_control[0].x, 0.0, _control[0].z)
+	var rotation_extra := Vector3(0.0, _control[1].y, 0.0)
+	if rig.head == null: # a head bobs on its own (SpiderSprings)
+		offset.y += layout.head_bob.x * sin(TAU * layout.head_bob.y * _bob_time)
+	offset.z += layout.body_sway.x * sin(TAU * layout.body_sway.y * _bob_time)
+	if layout.body_noise != Vector3.ZERO:
+		var noise := _body_noise(delta)
+		offset += noise[0]
+		rotation_extra += noise[1]
+	return [offset, rotation_extra]
+
+
+# Smooth noise on position and rotation — or, with layout.noise_hold, a fresh sample every hold
+# seconds that the body snaps to (eased over a few hundredths of a second): servo twitches.
+func _body_noise(delta: float) -> Array[Vector3]:
+	var layout := rig.layout
+	var hold := layout.noise_hold
+	var t := _bob_time * layout.body_noise.z * 10.0
+	if hold > 0.0:
+		t = floorf(_bob_time / hold) * hold * layout.body_noise.z * 10.0 + 100.0 # held, so it jumps
+	var wobble := func(channel: int) -> float: return _noise.get_noise_2d(t, channel * 37.0)
+	var want: Array[Vector3] = [
+		Vector3(wobble.call(0), wobble.call(1), wobble.call(2)) * layout.body_noise.x,
+		Vector3(wobble.call(3), wobble.call(4), wobble.call(5)) * layout.body_noise.y,
+	]
+	if hold <= 0.0:
+		return want
+	var snap := 1.0 - exp(-NOISE_SNAP * delta)
+	_held_noise = [_held_noise[0].lerp(want[0], snap), _held_noise[1].lerp(want[1], snap)]
+	return _held_noise
+
+
+## Every leg's step path (a SpiderLeg.STEP_SHAPES key). Same as setting step_curve.
+func set_step_shape(shape: String) -> void:
+	step_curve = shape
+
+
+# step_curve / corner_pause → every leg (or back to each leg's own layout settings).
+func _apply_step_curve() -> void:
+	if rig == null:
+		return
+	for leg in legs.size():
+		var definition := rig.layout.legs[leg]
+		var shape := definition.step_shape if step_curve == "layout" else step_curve
+		legs[leg].set_shape(shape, definition.corner_pause if corner_pause < 0.0 else corner_pause)
+
+
+func _apply_knee_yaw() -> void:
+	if rig == null:
+		return
+	rig.knee_yaw_override = "" if knee_yaw == "layout" else knee_yaw
+	rig.knee_yaw_amount_override = knee_yaw_amount
+
+
+# The hand control eased toward what was set: [offset, rotation].
+func _control_eased(delta: float) -> Array[Vector3]:
+	var blend := 1.0 - exp(-CONTROL_EASE * delta)
+	return [_control[0].lerp(control_offset, blend), _control[1].lerp(control_rotation, blend)]
 
 
 ## Least-squares plane h = a + b·x + c·z through each leg's wished body height, placed at that

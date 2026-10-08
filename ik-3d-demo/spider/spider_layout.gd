@@ -21,7 +21,7 @@
 class_name SpiderLayout
 extends RefCounted
 
-const PRESET_NAMES: Array[String] = ["4 legs", "6 legs (tripod)", "8 legs", "lopsided (claw + limp)", "crab (sideways)", "monkey (big arms)", "robot (spring head)", "sentry bot (t3ssel8r)"]
+const PRESET_NAMES: Array[String] = ["4 legs", "6 legs (tripod)", "8 legs", "lopsided (claw + limp)", "crab (sideways)", "monkey (big arms)", "robot (spring head)", "sentry bot (t3ssel8r)", "3-bone legs (machine)"]
 
 
 class LegDef:
@@ -29,7 +29,10 @@ class LegDef:
 	var hip: Vector3 ## attach point on the body (body space)
 	var out: Vector3 ## flat outward direction
 	var upper: Vector2 ## hip → knee: (outward, up)
-	var lower: Vector2 ## knee → foot: (outward, down)
+	var lower: Vector2 ## knee → foot: (outward, down) — knee → ankle when the leg has a `foot`
+	## Third bone, ankle → foot: (outward, down). Zero = a two-bone leg (every preset but one).
+	## A three-bone leg needs SpiderChainRig (Spider switches to it by itself).
+	var foot := Vector2.ZERO
 	var group: int ## legs in the same group step together
 	var step_time_scale := 1.0 ## > 1 = slower steps on this leg (a limp)
 	var radius := 0.05 ## visual thickness
@@ -55,6 +58,19 @@ class LegDef:
 	## One bone instead of two: the whole leg keeps its rest shape (both segments) as one rigid
 	## piece that swings at the hip to point at the foot and stretches to reach it — no knee.
 	var rigid := false
+	## How the leg's plane (and so its knee) yaws about the hip (the hip's yaw joint). Every style
+	## but "fixed" starts from the foot's yaw — the plane turns to contain the foot, so the knee
+	## is always over the line hip → foot — and adds a swing driven by the gait (± knee_yaw_amount,
+	## + = toward the walking direction, fading out when standing still):
+	##   "follow"  nothing added: just the geometry (small, ± a few degrees at short strides)
+	##   "sine"    swings smoothly forward while the foot is up, sweeps back while it's down
+	##   "square"  +amount while up, −amount while down, snapping between (a mechanical joint)
+	##   "noise"   a smooth wander (a living leg's small corrections)
+	##   "fixed"   never turns: the knee always points its rest way (the old behaviour)
+	var knee_yaw := "sine"
+	var knee_yaw_amount := 0.2 ## radians (~11°)
+	var step_shape := "arc" ## step path, a SpiderLeg.STEP_SHAPES key: arc (smooth), circle, ellipse, square, octagon, trapezoid, triangle, hexagon, sawtooth, stab
+	var corner_pause := 0.0 ## (polygon step paths) share of the step spent dead still at each corner
 	var max_stretch := 0.15 ## (rigid) at most ±this fraction longer/shorter than at rest; past it the foot falls short (pair with short strides)
 
 	func upper_vec() -> Vector3:
@@ -67,13 +83,19 @@ class LegDef:
 			return lower_free
 		return out * lower.x + Vector3.DOWN * lower.y
 
-	## Full length of the limb (both segments straight).
+	func foot_vec() -> Vector3:
+		return out * foot.x + Vector3.DOWN * foot.y
+
+	func has_foot() -> bool:
+		return foot != Vector2.ZERO
+
+	## Full length of the limb (every segment straight).
 	func reach() -> float:
-		return upper_vec().length() + lower_vec().length()
+		return upper_vec().length() + lower_vec().length() + foot_vec().length()
 
 	## Where the foot rests (body space) when this leg is relaxed.
 	func rest_foot() -> Vector3:
-		return hip + upper_vec() + lower_vec()
+		return hip + upper_vec() + lower_vec() + foot_vec()
 
 
 var name: String
@@ -109,6 +131,33 @@ var head_roll_spring := Vector3.ZERO ## head roll: swaying sideways + banking in
 var hip_spring := Vector3.ZERO ## rigid legs: each leg's start point (hip) chases its spot on the body — legs float after it
 var turn_spring := Vector3.ZERO ## body heading vs the walking heading (r < 0: twists the wrong way first)
 var move_spring := Vector3.ZERO ## body position vs the walking position (r < 0: rocks back before setting off)
+## Bob added on top of the head's springs — or the body's, with no separate head: (amplitude in
+## metres, cycles per second). A pure sine up and down; it doesn't feed the springs, so it never
+## builds up or fights them.
+var head_bob := Vector2.ZERO
+## Radians the body leans per m/s of walking: nose down going forward, side down going sideways.
+var motion_lean := 0.0
+## × the spider's move_speed and auto_turn for this layout (same circle, slower): a slow walker.
+var walk_speed := 1.0
+## Seconds per gait cycle when the steps are clocked: the step groups take turns on a metronome,
+## one half-cycle each, stepping even when standing still — so while one pair is down (minimum)
+## the other is at the top of its step (maximum). 0 = the normal gait (step when a foot lags).
+var step_period := 0.0
+## Clocked steps: share of its half-cycle a step takes; the rest the foot waits planted. Low =
+## quick, snappy steps with a hold between them (a machine). Only with step_period.
+var step_fill := 0.95
+## Extra visual body motion on top of the body spring (zero = off):
+var body_sway := Vector2.ZERO ## sine forward/back: (amplitude in metres, cycles per second)
+var body_noise := Vector3.ZERO ## smooth noise: (position metres, rotation radians, roughly cycles per second)
+var eyes := true ## googly eyes on the body (with body_parts and no head)
+## Body noise held and snapped instead of flowing: a fresh value every this many seconds, reached
+## almost at once — servo twitches rather than a drift. 0 = smooth noise.
+var noise_hold := 0.0
+## The shown body heading moves in steps of this many radians (through turn_spring, so each step
+## can wind up and snap). 0 = smooth.
+var yaw_step := 0.0
+## Body spring for this layout: (stiffness, damping); zero = the Spider's body_stiffness / body_damping.
+var body_spring := Vector2.ZERO
 
 
 static func preset(index: int) -> SpiderLayout:
@@ -120,6 +169,7 @@ static func preset(index: int) -> SpiderLayout:
 		5: return monkey()
 		6: return robot()
 		7: return sentry()
+		8: return three_bone()
 		_: return quad()
 
 
@@ -163,7 +213,64 @@ func front_legs() -> Array[int]:
 	return [left, right]
 
 
+## True if some leg has three bones (only SpiderChainRig can draw and solve those).
+func needs_chains() -> bool:
+	for leg in legs:
+		if leg.has_foot():
+			return true
+	return false
+
+
 # --- presets ---------------------------------------------------------------------------------
+
+## 4 short legs of three bones each, square to each other (front, right, back, left) — hip up to
+## a high knee, out to an ankle, then a thin foot that plants near-vertically (THREE_BONE chains,
+## tapering to a point) — under one gunmetal capsule with a red sensor eye: no head. A machine:
+##   steps   clocked (front+back and left+right take turns on a metronome), each step a fast
+##           square path walked at constant speed, stopping dead at every corner, then a hold
+##           (J cycles the shapes)
+##   body    a stiff, critically damped body spring (no bounce); its heading turns in 15° steps,
+##           each one wound up the wrong way first and snapped (turn_spring, r < 0)
+##   twitch  noise held and snapped every 0.18 s: servo micro-corrections, not a drift
+static func three_bone() -> SpiderLayout:
+	var layout := SpiderLayout.new()
+	layout.name = PRESET_NAMES[8]
+	layout.body_radius = 0.24
+	layout.body_scale = Vector3(1.0, 1.0, 1.6) # hips spread along the capsule
+	layout.body_color = Color(0.16, 0.17, 0.2)
+	layout.leg_color = Color(0.42, 0.44, 0.48)
+	var red := Color(1.0, 0.08, 0.05)
+	layout.body_parts = [
+		{"shape": "capsule", "radius": 0.24, "height": 0.95, "rotation": Vector3(PI * 0.5, 0, 0)},
+		{"shape": "box", "size": Vector3(0.3, 0.035, 0.06), "at": Vector3(0, 0.07, -0.42), "rotation": Vector3(-0.5, 0, 0), "color": red, "emission": red, "glow": 4.0}, # sensor slit
+		{"shape": "sphere", "radius": 0.045, "at": Vector3(0, 0.07, -0.45), "color": red, "emission": red, "glow": 6.0}, # the eye
+		{"shape": "box", "size": Vector3(0.5, 0.02, 0.6), "at": Vector3(0, 0.235, 0.05), "color": Color(0.1, 0.1, 0.12)}, # spine plate
+	]
+	layout.eyes = false
+	layout.walk_speed = 0.85
+	layout.step_period = 0.4 # a pair steps every 0.2 s: short strides that fit these short legs
+	layout.step_fill = 0.6 # each step is a fast 0.12 s snap, then the foot holds
+	layout.motion_lean = 0.1
+	layout.body_noise = Vector3(0.08, 0.15, 0.4)
+	layout.noise_hold = 0.18
+	layout.yaw_step = deg_to_rad(15.0)
+	layout.turn_spring = Vector3(6.0, 0.75, -1.5) # winds up the wrong way, then snaps to the next step
+	layout.body_spring = Vector2(500.0, 45.0) # stiff, just under critical: lands, barely settles
+	var upper := Vector2(0.24, 0.15) # out and a little up to the knee (low enough that the body clears the ground)
+	var lower := Vector2(0.2, 0.1) # out and a little down to the ankle
+	var foot := Vector2(0.025, 0.46) # a thin foot, nearly straight down
+	for leg_def: Array in [["front", 0, 0], ["right", 90, 1], ["back", 180, 0], ["left", -90, 1]]:
+		var leg := layout._add(leg_def[0], leg_def[1], upper, lower, leg_def[2])
+		leg.foot = foot
+		leg.radius = 0.032
+		leg.square = true # angular metal plates; three-bone legs taper to a point (SpiderChainRig)
+		leg.lift_scale = 1.2 # high steps for these short legs (the knee has to lift the hanging foot)
+		leg.step_shape = "square"
+		leg.corner_pause = 0.2
+		leg.knee_yaw = "square" # the leg plane snaps between ±0.3 rad, like a geared hip
+		leg.knee_yaw_amount = 0.3
+	return layout
+
 
 ## The original: 4 legs at the corners, diagonal pairs.
 static func quad() -> SpiderLayout:

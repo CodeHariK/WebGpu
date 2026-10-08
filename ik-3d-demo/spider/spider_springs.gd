@@ -52,6 +52,7 @@ var _head_yaw: SecondOrder ## (single values are carried in .x)
 var _head_pitch: SecondOrder
 var _head_roll: SecondOrder
 var _hips: Array = [] ## per leg: SecondOrder for a rigid leg's start point, or null
+var _time := 0.0 ## for the head bob
 var _heading := 0.0 ## the spider's yaw, unwrapped (keeps counting past ±π)
 var _last_yaw := 0.0
 var _last_position := Vector3.ZERO
@@ -99,6 +100,7 @@ func _physics_process(delta: float) -> void:
 	_last_yaw = spider.global_rotation.y
 	_spring_turn(delta)
 	_spring_move(delta)
+	_time += delta
 	_spring_head(delta)
 	_spring_hips(delta)
 
@@ -106,7 +108,11 @@ func _physics_process(delta: float) -> void:
 func _spring_turn(delta: float) -> void:
 	if _turn == null:
 		return
-	var shown := _turn.update(delta, Vector3(_heading, 0, 0)).x
+	var wanted := _heading
+	var step := spider.rig.layout.yaw_step
+	if step > 0.0: # turn in fixed steps: the spring winds up and snaps to each one
+		wanted = roundf(_heading / step) * step
+	var shown := _turn.update(delta, Vector3(wanted, 0, 0)).x
 	spider.body_yaw_offset = clampf(shown - _heading, -MAX_TWIST, MAX_TWIST)
 
 
@@ -142,7 +148,9 @@ func _spring_head(delta: float) -> void:
 	var sway := -lag.x * TILT - _head_yaw.velocity.x * BANK # swinging right / turning left → rolls
 	var pitch := clampf(_head_pitch.update(delta, Vector3(nod, 0, 0)).x, -0.8, 0.8)
 	var roll := clampf(_head_roll.update(delta, Vector3(sway, 0, 0)).x, -0.6, 0.6)
-	spider.rig.head.global_transform = Transform3D(Basis.from_euler(Vector3(pitch, yaw, roll)), position)
+	var bob := spider.rig.layout.head_bob # additive: on the shown head only, never in the springs
+	var shown := position + Vector3.UP * bob.x * sin(TAU * bob.y * _time)
+	spider.rig.head.global_transform = Transform3D(Basis.from_euler(Vector3(pitch, yaw, roll)), shown)
 	if not spider.rig.coil.is_empty():
 		_place_coil()
 

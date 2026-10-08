@@ -22,7 +22,15 @@ var layout: SpiderLayout
 var skeleton: Skeleton3D
 var ik: TwoBoneIK3D
 var targets: Array[Marker3D] = [] ## foot targets, world space (top_level)
-var poles: Array[Marker3D] = [] ## knee-direction hints, ride along with the body
+var poles: Array[Marker3D] = [] ## knee-direction hints, placed every frame by update_poles()
+## Overrides every leg's knee_yaw style when set ("follow", "square", "noise", "fixed").
+var knee_yaw_override := ""
+var knee_yaw_amount_override := -1.0 ## radians for every leg; < 0 = each leg's own knee_yaw_amount
+
+const KNEE_YAW_STYLES: Array[String] = ["follow", "sine", "square", "noise", "fixed"]
+
+var _pole_rest: Array[Vector3] = [] ## each pole's rest spot (body space)
+var _knee_noise := FastNoiseLite.new()
 var knee_bones: Array[int] = [] ## the `<leg>_lower` bone of each leg (for debug drawing)
 var eyes: Array[Node3D] = [] ## eye pivots: -Z looks out, scale.y blinks
 var eye_materials: Array[StandardMaterial3D] = [] ## eyeball materials (colour / glow)
@@ -76,6 +84,48 @@ func update_rigid_limbs() -> void:
 		limb.global_transform = Transform3D(turn * body.basis * _stretch_along(definition.rest_foot() - definition.hip, stretch), hip)
 
 
+## Swing each knee pole about the vertical through its hip by the foot's yaw (the hip's yaw
+## joint) plus the leg's knee_yaw style. `waves` per leg: (sine, square) gait swing in −1..1,
+## already signed toward the walking direction (Spider._gait_waves). Call after the gait.
+func update_poles(time: float, waves: PackedVector2Array) -> void:
+	var body := skeleton.global_transform
+	var up := body.basis.y.normalized()
+	for leg in layout.legs.size():
+		var definition := layout.legs[leg]
+		var hip: Vector3 = body * definition.hip
+		var rest_pole: Vector3 = body * _pole_rest[leg]
+		var wave := waves[leg] if leg < waves.size() else Vector2.ZERO
+		var yaw := _knee_yaw(leg, definition, _foot_yaw(leg, hip, body, up), wave, time)
+		poles[leg].global_position = hip + (rest_pole - hip).rotated(up, yaw)
+
+
+# Signed angle (about `up`) from the leg's rest hip → foot direction to the current one.
+func _foot_yaw(leg: int, hip: Vector3, body: Transform3D, up: Vector3) -> float:
+	var definition := layout.legs[leg]
+	var rest := body.basis * (definition.rest_foot() - definition.hip)
+	var now := targets[leg].global_position - hip
+	rest -= up * rest.dot(up)
+	now -= up * now.dot(up)
+	if rest.length() < 0.01 or now.length() < 0.01:
+		return 0.0
+	return rest.signed_angle_to(now, up)
+
+
+func _knee_yaw(leg: int, definition: SpiderLayout.LegDef, foot_yaw: float, wave: Vector2, time: float) -> float:
+	var style := knee_yaw_override if knee_yaw_override != "" else definition.knee_yaw
+	var amount := definition.knee_yaw_amount if knee_yaw_amount_override < 0.0 else knee_yaw_amount_override
+	match style:
+		"fixed":
+			return 0.0
+		"sine":
+			return foot_yaw + wave.x * amount
+		"square":
+			return foot_yaw + wave.y * amount
+		"noise":
+			return foot_yaw + _knee_noise.get_noise_2d(time * 40.0, leg * 50.0) * amount
+	return foot_yaw
+
+
 ## Turn the knee poles on/off (off = the IK picks the bend direction on its own).
 func set_poles_enabled(enabled: bool) -> void:
 	for leg in layout.legs.size():
@@ -87,6 +137,11 @@ func set_poles_enabled(enabled: bool) -> void:
 func joint_position(leg: int, joint: int) -> Vector3:
 	var bone := skeleton.find_bone(layout.legs[leg].name + ["_upper", "_lower", "_tip"][joint])
 	return skeleton.global_transform * skeleton.get_bone_global_pose(bone).origin
+
+
+## How many joints leg `leg` has (hip, knee, foot = 3; SpiderChainRig: 4 for a three-bone leg).
+func joint_count(_leg: int) -> int:
+	return 3
 
 
 func _add_leg(leg: SpiderLayout.LegDef, body_bone: int, body: Node3D) -> void:
@@ -130,6 +185,7 @@ func _add_leg_markers(leg: SpiderLayout.LegDef, body: Node3D) -> void:
 		pole.position = leg.hip + leg.upper_vec() + leg.bend * 1.0
 	else: # a spider leg: knee up and out
 		pole.position = leg.hip + leg.upper_vec() + leg.out * 0.3 + POLE_OFFSET
+	_pole_rest.append(pole.position)
 	body.add_child(pole)
 	poles.append(pole)
 
@@ -181,7 +237,7 @@ func _add_body_parts(bone: int) -> void:
 	var eye_parent: Node3D = attach
 	if not layout.head.is_empty():
 		eye_parent = _add_head(attach)
-	if layout.head.get("eyes", true):
+	if layout.head.get("eyes", layout.eyes):
 		for side: float in [-1.0, 1.0]:
 			_add_eye(eye_parent, layout.eye_center + Vector3(layout.eye_spacing * side, 0, 0))
 

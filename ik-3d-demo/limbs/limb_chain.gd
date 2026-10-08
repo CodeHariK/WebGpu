@@ -6,6 +6,10 @@
 ##
 ## Solvers:
 ##   TWO_BONE  exact, analytic (law of cosines). Two segments. The knee bends toward `pole`.
+##   THREE_BONE  hip → knee → ankle → foot. The last segment (a spider's tarsus, a stilt foot) hangs
+##             along `tip_direction`; the first two solve exactly (two-bone) to put the ankle
+##             right above the foot. Stable, and the foot plants at a fixed angle — unless the
+##             target is too high or far for that, then the foot swings out just enough to reach.
 ##   AIM       one segment pointing at the target, stretching up to `max_stretch` × its length
 ##             (t3ssel8r robot legs).
 ##   FABRIK    any number of segments (tails, tentacles, necks, stalks). Iterative: forward and
@@ -23,7 +27,7 @@
 class_name LimbChain
 extends RefCounted
 
-enum Solver { TWO_BONE, AIM, FABRIK, FK, ROPE }
+enum Solver { TWO_BONE, THREE_BONE, AIM, FABRIK, FK, ROPE }
 enum Style { ROUND, BLOCK } ## how LimbRenderer draws it: cylinders + joint balls, or square blocks
 
 
@@ -34,6 +38,7 @@ var root := Vector3.ZERO
 var target := Vector3.ZERO
 var pole := Vector3.UP ## world point the joints bend toward
 var max_stretch := 1.0 ## AIM only
+var tip_direction := Vector3.DOWN ## THREE_BONE: world direction of the last segment (ankle → foot)
 var iterations := 8 ## FABRIK and ROPE
 var tolerance := 0.002 ## FABRIK only, metres
 var pin_tip := true ## ROPE: tip held at `target` (false = hangs free)
@@ -81,7 +86,8 @@ func reach() -> float:
 
 func solve() -> void:
 	match solver:
-		Solver.TWO_BONE: _solve_two_bone()
+		Solver.TWO_BONE: _solve_two_bone(target)
+		Solver.THREE_BONE: _solve_three_bone()
 		Solver.AIM: _solve_aim()
 		Solver.FABRIK: _solve_fabrik()
 		Solver.FK: pass # points are set by the owner
@@ -125,10 +131,11 @@ func segment_length(i: int) -> float:
 
 # --- solvers ------------------------------------------------------------------------------------
 
-func _solve_two_bone() -> void:
+# Exact two-bone solve of points[0..2] toward `goal` (the knee bends toward the pole).
+func _solve_two_bone(goal: Vector3) -> void:
 	var a := lengths[0]
 	var b := lengths[1]
-	var to_target := target - root
+	var to_target := goal - root
 	var distance := clampf(to_target.length(), absf(a - b) + 1e-4, a + b - 1e-4)
 	var direction := _direction(to_target)
 	var bend := _perpendicular_toward_pole(direction)
@@ -137,6 +144,28 @@ func _solve_two_bone() -> void:
 	points[0] = root
 	points[1] = root + direction * (a * cos_root) + bend * (a * sin_root)
 	points[2] = root + direction * distance
+
+
+# The foot segment hangs along tip_direction from the ankle; two-bone puts the ankle above the foot.
+# If that ankle is out of the first two bones' reach (a foot lifted high or far out), the foot
+# swings toward the straight hip → target line — only as far as needed (bisection) — so the leg
+# still reaches its target whenever its full length allows.
+func _solve_three_bone() -> void:
+	var foot := _direction(tip_direction)
+	var reach_two := (lengths[0] + lengths[1]) * 0.999
+	if (target - foot * lengths[2] - root).length() > reach_two:
+		var straight := _direction(target - root)
+		var low := 0.0
+		var high := 1.0
+		for step in 10:
+			var middle := (low + high) * 0.5
+			if (target - foot.slerp(straight, middle) * lengths[2] - root).length() > reach_two:
+				low = middle
+			else:
+				high = middle
+		foot = foot.slerp(straight, high)
+	_solve_two_bone(target - foot * lengths[2])
+	points[3] = points[2] + foot * lengths[2]
 
 
 func _solve_aim() -> void:

@@ -81,12 +81,9 @@ func _leg_debris(spider: Spider, power: float) -> void:
 				var size := (block.mesh as BoxMesh).size * xform.basis.get_scale()
 				_add_box(xform.orthonormalized(), size, spider.rig.layout.leg_color, power)
 			continue
-		var joints: Array[Vector3] = []
-		for joint in 3:
-			joints.append(spider.rig.joint_position(leg, joint))
 		var color := spider.rig.layout.leg_color
-		_add_segment(joints[0], joints[1], definition.radius, color, power)
-		_add_segment(joints[1], joints[2], definition.radius, color, power)
+		for joint in spider.rig.joint_count(leg) - 1: # every segment: hip → knee → (ankle →) foot
+			_add_segment(spider.rig.joint_position(leg, joint), spider.rig.joint_position(leg, joint + 1), definition.radius, color, power)
 
 
 # The body becomes chunks: its parts if the layout has them (torso, head…), else three pieces

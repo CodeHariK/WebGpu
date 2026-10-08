@@ -5,9 +5,12 @@
 ##   P  knee poles on/off           — off: the IK picks the knee direction itself
 ##   T  show foot targets           M  auto walk / manual (arrows walk + turn, A/D strafe)
 ##   D  debug lines (raycasts, home spots, step circles, arcs, knee poles) — see spider_debug.gd
+##   , .  step curve smaller / bigger (step_height)      ; '  step noise less / more (metres)
+##   X  motion trails: the last ~4 s of every hip, knee, ankle, foot, knee pole and the body
+##      centre, a tick every 3 frames (spider_trails.gd)
 ##   N  mood on/off (spider_mood.gd)   [ ]  menace down/up (cute ↔ scary)   R  threat + lunge
 ##   L  next leg layout: 4 legs → 6 (tripod) → 8 → lopsided 5 → crab → monkey → robot → sentry
-##      bot   (spider_layout.gd)
+##      bot → 3-bone machine (clocked square steps, 15° snap turns)   (spider_layout.gd)
 ##   K  springs on/off (spider_springs.gd): the robots' floating spring heads (watching the orb),
 ##      anticipated turns and starts (second-order dynamics, second_order.gd). Other layouts
 ##      have no springs.
@@ -16,7 +19,16 @@
 ##   7 dive: leaps at the orb, legs stretched out, explodes — a new one drops in after a moment
 ##   8 shoot: head machine gun bursts at the orb, with recoil (sentry bot only — spider_gun.gd)
 ##   V  camera: follow the spider ↔ player's view (eyes at the orb, watching the spider)
+##   W  wave gait on/off: legs ripple back → front on each side (sides half a cycle apart), fast
+##      low steps with an ease-out landing, feet planted most of the time — a real spider's walk
+##   Y  knee yaw (each leg plane turning about its hip): layout's own → follow the foot → square
+##      (snaps ±, mechanical) → noise (living wobble) → fixed (never turns, the old look)
+##   J  step path for every leg: arc → circle → ellipse → square → octagon → trapezoid → triangle
+##      → hexagon → sawtooth → stab (spider_leg.gd STEP_SHAPES)
 ##   I  leg IK: Skeleton3D + TwoBoneIK3D ↔ custom LimbChains (spider_chain_rig.gd, limbs/)
+##   Mouse: the spider's body by hand, feet staying planted — left-drag moves it (sideways /
+##      forward-back), right-drag tilts it (pitch / roll), wheel turns it (yaw), Shift + wheel raises
+##      or lowers it, middle click resets
 ##   Shift + arrows  walk the orb (the player); come within 3 m and the spider freezes, then
 ##      rushes you (SpiderBrain alert → ambush_behaviour.gd)
 ## The glowing orb in the middle of the circle is the "player": watched, charged, jumped at, fled.
@@ -27,6 +39,11 @@ const LEGEND := "white root ray   green/red home ray (hit/miss)   yellow home + 
 const FOLLOW_OFFSET := Vector3(0, 3.0, 5.0) ## follow camera: above and behind, in the spider's frame
 const PLAYER_FOV := 70.0 ## player's view: a bit wider, like a first-person camera
 const LOOK_SMOOTHING := 10.0 ## player's view: how quickly the gaze catches up with the spider (1/s)
+
+const MOUSE_SENSITIVITY := 0.003 ## metres (or ×2 radians) per pixel dragged
+const CONTROL_REACH := 0.35 ## the mouse moves the body at most this far (m)
+const CONTROL_LIFT := 0.2 ## …this far up or down (m)
+const CONTROL_TILT := 0.5 ## …and tilts it at most this much (radians)
 const PLAYER_SPEED := 2.5 ## m/s the orb walks with Shift + arrows
 
 const GROUND_COLOR := Color(0.42, 0.55, 0.38)
@@ -37,6 +54,7 @@ const BUMP_COLOR := Color(0.62, 0.5, 0.36)
 @onready var hud: Label = $Hud/Label
 
 var debug: SpiderDebug
+var trails: SpiderTrails
 var mood: SpiderMood
 var brain: SpiderBrain
 var springs: SpiderSprings
@@ -52,6 +70,11 @@ func _ready() -> void:
 	debug.name = "SpiderDebug"
 	debug.spider = spider
 	add_child(debug)
+	trails = SpiderTrails.new()
+	trails.name = "SpiderTrails"
+	trails.spider = spider
+	trails.visible = false
+	add_child(trails)
 	bait = _add_bait()
 	mood = SpiderMood.new()
 	mood.name = "SpiderMood"
@@ -148,9 +171,52 @@ func _update_hud() -> void:
 		spider.rig.layout.name, _on(mood.active), mood.menace, "scary" if mood.menace >= 0.5 else "cute",
 		mood.state_name() if mood.active else "-", _on(springs.active),
 	]
-	hud.text += "   V camera: %s   I legs: %s" % ["player's view" if player_view else "follow", "LimbChains" if spider.chain_legs else "Skeleton3D"]
+	var knee := spider.knee_yaw if spider.knee_yaw != "layout" else "layout (%s)" % spider.rig.layout.legs[0].knee_yaw
+	var curve := spider.step_curve if spider.step_curve != "layout" else "layout (%s)" % spider.rig.layout.legs[0].step_shape
+	hud.text += "   , . step height %.2f   ; ' step noise %.2f" % [spider.step_height, spider.step_noise]
+	hud.text += "   X trails %s" % _on(trails.visible)
+	hud.text += "   W wave gait %s   J steps: %s   Y knee yaw: %s" % [_on(spider.wave_gait), curve, knee]
+	hud.text += "   mouse: drag body / tilt / wheel turn   V camera: %s   I legs: %s" % ["player's view" if player_view else "follow", "LimbChains" if spider.rig is SpiderChainRig else "Skeleton3D"]
 	if debug.visible:
 		hud.text += "\n" + LEGEND
+
+
+# Y / J cycle the spider's inspector options (Knee yaw → knee_yaw, Step curve → step_curve).
+func _next_knee_yaw() -> void:
+	var styles: Array[String] = ["layout"]
+	styles.append_array(SpiderRig.KNEE_YAW_STYLES)
+	spider.knee_yaw = styles[(styles.find(spider.knee_yaw) + 1) % styles.size()]
+
+
+func _next_step_shape() -> void:
+	var shapes: Array = ["layout"]
+	shapes.append_array(SpiderLeg.STEP_SHAPES.keys())
+	spider.step_curve = shapes[(shapes.find(spider.step_curve) + 1) % shapes.size()]
+
+
+# Mouse drives Spider.control_offset / control_rotation (see the key list at the top).
+func _unhandled_input(event: InputEvent) -> void:
+	var motion := event as InputEventMouseMotion
+	if motion != null:
+		var drag := motion.relative * MOUSE_SENSITIVITY
+		if motion.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			spider.control_offset.x = clampf(spider.control_offset.x + drag.x, -CONTROL_REACH, CONTROL_REACH)
+			spider.control_offset.z = clampf(spider.control_offset.z + drag.y, -CONTROL_REACH, CONTROL_REACH)
+		elif motion.button_mask & MOUSE_BUTTON_MASK_RIGHT:
+			spider.control_rotation.x = clampf(spider.control_rotation.x - drag.y * 2.0, -CONTROL_TILT, CONTROL_TILT)
+			spider.control_rotation.z = clampf(spider.control_rotation.z - drag.x * 2.0, -CONTROL_TILT, CONTROL_TILT)
+		return
+	var button := event as InputEventMouseButton
+	if button == null or not button.pressed:
+		return
+	var notch := 1.0 if button.button_index == MOUSE_BUTTON_WHEEL_UP else -1.0 if button.button_index == MOUSE_BUTTON_WHEEL_DOWN else 0.0
+	if notch != 0.0 and button.shift_pressed:
+		spider.control_offset.y = clampf(spider.control_offset.y + notch * 0.03, -CONTROL_LIFT, CONTROL_LIFT)
+	elif notch != 0.0:
+		spider.control_rotation.y = clampf(spider.control_rotation.y + notch * 0.08, -CONTROL_TILT * 1.5, CONTROL_TILT * 1.5)
+	elif button.button_index == MOUSE_BUTTON_MIDDLE:
+		spider.control_offset = Vector3.ZERO
+		spider.control_rotation = Vector3.ZERO
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -164,6 +230,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_T: spider.show_targets = not spider.show_targets
 		KEY_M: spider.auto_walk = not spider.auto_walk
 		KEY_D: debug.visible = not debug.visible
+		KEY_COMMA: spider.step_height = maxf(spider.step_height - 0.04, 0.02)
+		KEY_PERIOD: spider.step_height = minf(spider.step_height + 0.04, 0.9)
+		KEY_SEMICOLON: spider.step_noise = maxf(spider.step_noise - 0.02, 0.0)
+		KEY_APOSTROPHE: spider.step_noise = minf(spider.step_noise + 0.02, 0.4)
+		KEY_X:
+			trails.visible = not trails.visible
+			trails.clear()
 		KEY_N: mood.active = not mood.active
 		KEY_BRACKETLEFT: mood.menace = maxf(mood.menace - 0.2, 0.0)
 		KEY_BRACKETRIGHT: mood.menace = minf(mood.menace + 0.2, 1.0)
@@ -182,6 +255,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_8: brain.force("shoot")
 		KEY_K: springs.active = not springs.active
 		KEY_I: spider.chain_legs = not spider.chain_legs
+		KEY_J: _next_step_shape()
+		KEY_W: spider.wave_gait = not spider.wave_gait
+		KEY_Y: _next_knee_yaw()
 		KEY_V:
 			player_view = not player_view
 			_look_point = spider.rig.skeleton.global_position # start the gaze on the spider

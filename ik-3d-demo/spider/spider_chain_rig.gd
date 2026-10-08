@@ -34,6 +34,8 @@ func solve() -> void:
 			chain.pole = poles[leg].global_position
 		else: # no pole: bend the way the rest pose bends, knee up
 			chain.pole = body * (definition.hip + definition.upper_vec()) + body.basis.y * 0.5
+		if chain.solver == LimbChain.Solver.THREE_BONE: # the foot keeps its rest angle to the body
+			chain.tip_direction = body.basis * definition.foot_vec()
 		chain.solve()
 		if not _fingers[leg].is_empty():
 			_aim_fingers(leg, body)
@@ -48,11 +50,18 @@ func joint_position(leg: int, joint: int) -> Vector3:
 	return chains[leg].points[joint]
 
 
+func joint_count(leg: int) -> int:
+	return chains[leg].points.size()
+
+
 func _add_leg_parts(leg: SpiderLayout.LegDef, _body_bone: int, body: Node3D) -> void:
 	if renderer == null:
 		_add_renderer(body)
 	knee_bones.append(-1) # no bones
 	var chain := LimbChain.new(PackedFloat32Array([leg.upper_vec().length(), leg.lower_vec().length()]))
+	if leg.has_foot():
+		chain = LimbChain.new(PackedFloat32Array([leg.upper_vec().length(), leg.lower_vec().length(), leg.foot_vec().length()]), Vector3.ZERO, LimbChain.Solver.THREE_BONE)
+		chain.taper = 0.35 # thick at the hip, a thin spike at the foot
 	chain.radius = leg.radius
 	chain.joint_radius = leg.radius # cylinder + same-size balls = the capsule look of SpiderRig
 	chain.color = layout.leg_color
