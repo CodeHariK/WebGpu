@@ -9,7 +9,7 @@ extends Node
 
 const REPLAN := 0.5 ## seconds between re-plans
 const REACHED := 0.45 ## metres (flat) from a walk waypoint that counts as there
-const ARRIVE := 0.9 ## stop this far from the target
+
 const TURN_RATE := 5.0 ## rad/s per radian off: how hard it turns to face where it's going
 const LEAP_CLEARANCE := 0.7 ## a leap peaks this far above the higher end
 const FALL_GAP := 0.6 ## walking off a ledge: once the ground is this far below, it falls
@@ -18,6 +18,7 @@ var spider: Spider
 var grid: TacticalGrid
 var target: Node3D
 var path: Array[Dictionary] = []
+var arrive_distance := 0.9 ## stop this far (flat) from the target
 var status := "idle" ## idle | walking | leaping | arrived | no path
 var waypoint := 0 ## index of the path waypoint being headed for
 
@@ -47,12 +48,15 @@ func _plan() -> void:
 	_planned_for = target.global_position
 	path = grid.find_path(spider.global_position, target.global_position)
 	waypoint = 0
-	status = "walking" if not path.is_empty() else "no path"
+	status = "walking"
+	if path.is_empty(): # no route — or already on the target's cell
+		var same_cell := grid.nearest_cell(spider.global_position) == grid.nearest_cell(target.global_position)
+		status = "arrived" if same_cell else "no path"
 
 
 func _follow() -> void:
 	var to_target := target.global_position - spider.global_position
-	if Vector2(to_target.x, to_target.z).length() < ARRIVE and absf(to_target.y) < 1.5:
+	if Vector2(to_target.x, to_target.z).length() < arrive_distance and absf(to_target.y) < 1.5:
 		status = "arrived"
 		_steer_flat(Vector3.ZERO, to_target)
 		return

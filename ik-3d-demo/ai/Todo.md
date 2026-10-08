@@ -41,17 +41,18 @@ cover, visibility and squad positions all live in the same cells. No baking.
 - [ ] Shared memory through the squad: one sees you, everyone knows (with a radio/bark delay).
 
 ### What the player can see (where to hide)
-- [ ] **Raycast sampling** (start here): from the player's eye (or the car camera) to each
-      tactical cell at a creature's height. Blocked = hidden. Spread the rays over frames (a
-      budget, e.g. 32 per frame) and nearest/most needed cells first. Cache with a timestamp,
-      re-check cells near movers more often.
-- [ ] Use the player's **facing** too: a cell in sight but well outside the camera view (behind,
-      far to the side) counts as "unseen right now". That's what makes flanking work.
+- [x] **Raycast sampling** (ai/player_visibility.gd): one ray per cell from a creature's body
+      height toward the player's eye; blocked = hidden. 64 rays a frame, nearest cells first,
+      sweeping again and again (~0.3 s per sweep for ~1000 cells); each cell keeps a timestamp.
+- [ ] Re-check cells near movers (and near the player when it moves fast) more often.
+- [x] The player's **facing**: `in_view` = seen and inside the view cone right now.
 - [ ] Later, if rays get expensive: **shadow-map trick**. Render a small depth cubemap from the
       player's eye (the player as a light). A cell "in shadow" is hidden. One render answers
       thousands of cells; the same image can show a visibility debug view.
-- [ ] Cover = a cell hidden from the player with a blocker between, next to a peek cell that can
-      see the player (pop out, shoot, hide).
+- [x] **Cover** = hidden with the blocker within 1.5 m of the cell (the same ray tells);
+      **peek** = hidden, one walk from a seen cell (pop out, shoot, hide).
+- [x] `CoverPicker`: nearest cover, peek spots preferred; the demo's spider takes cover (F).
+- [ ] Cover distance by path length instead of a straight line.
 
 ## 3. Positions: utility scoring (the brain of flank and surround)
 
@@ -116,8 +117,7 @@ Roles (assigned by the squad director):
 ## Build order
 
 1. ~~Tactical grid in a test arena: layered cells, stairs, drops, ladders, jumps, A*, walker.~~ (done)
-2. Player visibility on the grid (rays from the player's eye to each cell), cover and peek
-   cells, debug view.
+2. ~~Player visibility on the grid, cover and peek cells, debug view, take-cover demo.~~ (done)
 2b. Senses: vision cone + LOS rays + suspicion meter + hearing + last known position + search.
    Debug cones and meters. (One spider, the orb as the player.)
 3. Position scoring + roles + claims; exposure-aware A* routes on the grid.

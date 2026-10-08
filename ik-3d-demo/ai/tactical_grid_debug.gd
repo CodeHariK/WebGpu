@@ -1,6 +1,11 @@
-## Draws a TacticalGrid: a small square per cell (coloured by height, so floors read apart), its
-## links (WALK thin grey, DROP orange arrows, LADDER magenta, JUMP cyan arcs) and a GridWalker's
-## current path (white). On top of everything (no depth test).
+## Draws a TacticalGrid: a small square per cell, its links (WALK thin grey, DROP orange arrows,
+## LADDER magenta, JUMP cyan arcs) and a GridWalker's current path (white). On top of everything.
+## Cells are coloured by height (blue low … yellow high) — or, with a PlayerVisibility, by what
+## the player can see:
+##   red     in the player's view right now        orange  in line of sight, but outside the view
+##   dark green  hidden        bright green + inner square  cover        cyan  peek (hidden, next to seen)
+##   grey    not checked yet
+## plus the player's view cone (red lines from the eye).
 class_name TacticalGridDebug
 extends MeshInstance3D
 
@@ -11,7 +16,9 @@ const HIGH := Color(1.0, 0.85, 0.2) ## … and the highest
 
 var grid: TacticalGrid
 var walker: GridWalker
+var visibility: PlayerVisibility ## null = colour cells by height
 var show_walk_links := true
+var show_visibility := true
 
 var _lines := ImmediateMesh.new()
 var _cells_dirty := true
@@ -45,15 +52,49 @@ func _process(_delta: float) -> void:
 		_draw_grid()
 		_cells_dirty = false
 	_lines.clear_surfaces()
-	if visible and walker != null and not walker.path.is_empty():
-		_lines.surface_begin(Mesh.PRIMITIVE_LINES)
+	if not visible:
+		return
+	_lines.surface_begin(Mesh.PRIMITIVE_LINES)
+	if _sight_shown():
+		_draw_sight()
+	if walker != null and not walker.path.is_empty():
 		var previous := walker.spider.global_position
 		for i in range(walker.waypoint, walker.path.size()):
 			var point: Vector3 = walker.path[i].position + Vector3.UP * (LIFT * 3.0)
 			_line(_lines, previous, point, Color.WHITE)
 			_cross(_lines, point, 0.15, Color.WHITE)
 			previous = point
-		_lines.surface_end()
+	_lines.surface_end()
+
+
+func _sight_shown() -> bool:
+	return visibility != null and show_visibility and visibility.sight.size() == grid.cell_count()
+
+
+# Every cell coloured by what the player can see (redrawn each frame), and the view cone.
+func _draw_sight() -> void:
+	for cell in grid.cell_count():
+		var point := grid.positions[cell] + Vector3.UP * LIFT
+		var color := Color(0.5, 0.5, 0.5, 0.5)
+		match visibility.sight[cell]:
+			PlayerVisibility.Sight.SEEN:
+				color = Color(1.0, 0.15, 0.1) if visibility.in_view(cell) else Color(1.0, 0.6, 0.15)
+			PlayerVisibility.Sight.HIDDEN:
+				var is_cover := visibility.cover[cell] == 1
+				if visibility.peek(cell):
+					color = Color(0.2, 0.95, 1.0)
+				elif is_cover:
+					color = Color(0.2, 1.0, 0.3)
+				else:
+					color = Color(0.1, 0.45, 0.15)
+				if is_cover:
+					_square(_lines, point, color, MARK * 0.5)
+		_square(_lines, point, color, MARK)
+	var eye := visibility.eye
+	for side: float in [-0.5, 0.5]:
+		var edge := visibility.facing.rotated(Vector3.UP, side * visibility.view_angle)
+		_line(_lines, eye, eye + edge * 6.0, Color(1.0, 0.2, 0.1))
+	_line(_lines, eye, eye + visibility.facing * 2.0, Color(1.0, 0.2, 0.1))
 
 
 func _draw_grid() -> void:
@@ -68,8 +109,9 @@ func _draw_grid() -> void:
 	_static.surface_begin(Mesh.PRIMITIVE_LINES)
 	for cell in grid.cell_count():
 		var point := grid.positions[cell] + Vector3.UP * LIFT
-		var shade := LOW.lerp(HIGH, inverse_lerp(low, high, point.y) if high > low else 0.0)
-		_square(point, shade)
+		if visibility == null or not show_visibility: # with visibility, cells are drawn per frame
+			var shade := LOW.lerp(HIGH, inverse_lerp(low, high, point.y) if high > low else 0.0)
+			_square(_static, point, shade, MARK)
 		for link: Array in grid.links[cell]:
 			var to: Vector3 = grid.positions[link[0]] + Vector3.UP * LIFT
 			match link[2]:
@@ -85,15 +127,15 @@ func _draw_grid() -> void:
 	_static.surface_end()
 
 
-func _square(at: Vector3, color: Color) -> void:
-	var a := at + Vector3(-MARK, 0, -MARK)
-	var b := at + Vector3(MARK, 0, -MARK)
-	var c := at + Vector3(MARK, 0, MARK)
-	var d := at + Vector3(-MARK, 0, MARK)
-	_line(_static, a, b, color)
-	_line(_static, b, c, color)
-	_line(_static, c, d, color)
-	_line(_static, d, a, color)
+func _square(target_mesh: ImmediateMesh, at: Vector3, color: Color, half: float) -> void:
+	var a := at + Vector3(-half, 0, -half)
+	var b := at + Vector3(half, 0, -half)
+	var c := at + Vector3(half, 0, half)
+	var d := at + Vector3(-half, 0, half)
+	_line(target_mesh, a, b, color)
+	_line(target_mesh, b, c, color)
+	_line(target_mesh, c, d, color)
+	_line(target_mesh, d, a, color)
 
 
 func _arrow(from: Vector3, to: Vector3, color: Color) -> void:

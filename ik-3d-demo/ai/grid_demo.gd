@@ -1,16 +1,24 @@
-## Tactical grid test arena: a spider finds its way to the orb over a layered grid — no navmesh.
+## Tactical grid test arena: a spider finds its way over a layered grid — no navmesh. The orb is
+## the player: the grid knows what it can see (PlayerVisibility), so the spider can chase it or
+## take cover from it.
 ## The arena has walls and crates to go round, a platform reached by stairs, a balcony over the
 ## floor (walk under it, or drop off its edge), a ladder up the platform's back wall and a gap to
 ## a second platform that only a jump crosses.
-##   Click        put the orb there (the spider follows)
+##   Click        put the orb (player) there       Right-click  turn the player to look there
+##   F  spider: chase the player ↔ take cover from it (nearest cover, peek spots preferred)
+##   V  cells coloured by what the player sees ↔ by height
 ##   G  grid debug on/off      E  walk links on/off      R  rescan
 ##   C  camera: overview ↔ follow the spider              L  next spider layout
-## Grid legend: squares = cells (blue low … yellow high), grey = walk links, orange arrows = drops,
-## magenta arcs = ladders, cyan arcs = jumps, white = the spider's current path.
+## Grid legend: grey = walk links, orange arrows = drops, magenta arcs = ladders, cyan arcs = jumps,
+## white = the spider's current path. Cells: red = in the player's view, orange = in line of sight
+## but outside the view, dark green = hidden, bright green (inner square) = cover, cyan = peek,
+## grey = not checked yet (see tactical_grid_debug.gd).
 extends Node3D
 
 const ARENA := 12.0 ## half size of the floor
 const PLATFORM_TOP := 2.5
+const EYE_HEIGHT := 1.1 ## the player's eye above the orb
+const COVER_REPICK := 0.5 ## seconds between choosing a cover spot
 var overview := Transform3D(Basis.from_euler(Vector3(-0.95, 0.0, 0.0)), Vector3(0, 21, 15)) ## the overview camera
 
 @onready var camera: Camera3D = $Camera3D
@@ -21,7 +29,13 @@ var spider: Spider
 var walker: GridWalker
 var orb: Node3D
 var debug: TacticalGridDebug
+var visibility: PlayerVisibility
 var follow := false
+var take_cover := false
+var player_facing := Vector3(-1, 0, 1).normalized()
+var cover_goal: Marker3D ## where the spider is heading when taking cover
+var _cover_left := 0.0
+var _time := 0.0
 
 
 func _ready() -> void:
@@ -36,6 +50,11 @@ func _ready() -> void:
 	camera.transform = overview
 	await get_tree().physics_frame # colliders exist in the physics world from now on
 	_scan()
+	visibility = PlayerVisibility.new()
+	visibility.grid = grid
+	cover_goal = Marker3D.new()
+	cover_goal.name = "CoverGoal"
+	add_child(cover_goal)
 	walker = GridWalker.new()
 	walker.name = "GridWalker"
 	walker.spider = spider
@@ -46,15 +65,35 @@ func _ready() -> void:
 	debug.name = "GridDebug"
 	debug.grid = grid
 	debug.walker = walker
+	debug.visibility = visibility
 	add_child(debug)
 
 
 func _process(delta: float) -> void:
+	_time += delta
+	if visibility != null:
+		visibility.update(_time, orb.global_position + Vector3.UP * EYE_HEIGHT, player_facing)
+		_update_cover_goal(delta)
 	if follow:
 		var behind := spider.global_position + Vector3(0, 5.5, 6.5)
 		camera.global_position = camera.global_position.lerp(behind, 1.0 - exp(-3.0 * delta))
 		camera.look_at(spider.global_position)
 	_update_hud()
+
+
+# Take-cover mode: every COVER_REPICK seconds head for the best cover from the player.
+func _update_cover_goal(delta: float) -> void:
+	walker.target = cover_goal if take_cover else orb
+	walker.arrive_distance = 0.3 if take_cover else 0.9 # cover means standing right on the spot
+	if not take_cover:
+		return
+	_cover_left -= delta
+	if _cover_left > 0.0:
+		return
+	_cover_left = COVER_REPICK
+	var cell := CoverPicker.nearest_cover(grid, visibility, spider.global_position)
+	if cell >= 0:
+		cover_goal.global_position = grid.positions[cell]
 
 
 func _scan() -> void:
@@ -71,8 +110,13 @@ func _update_hud() -> void:
 		path_info = "%s, %d waypoints" % [walker.status, walker.path.size()]
 		if walker.waypoint < walker.path.size():
 			path_info += ", next by %s" % TacticalGrid.Link.keys()[walker.path[walker.waypoint].kind].to_lower()
-	hud.text = "grid: %d cells, %d links, scanned in %.0f ms (%d rays)   spider: %s   layout: %s\nclick = move the orb   G grid %s   E walk links   R rescan   C camera   L layout" % [
-		grid.cell_count(), grid.link_count(), grid.scan_msec, grid.ray_count, path_info,
+	var sight_info := "-"
+	if visibility != null:
+		sight_info = "%d seen, %d hidden, %d cover, sweep %.0f ms" % [
+			visibility.count(PlayerVisibility.Sight.SEEN), visibility.count(PlayerVisibility.Sight.HIDDEN),
+			visibility.cover_count(), visibility.sweep_msec]
+	hud.text = "grid: %d cells, %d links, scanned in %.0f ms   player sees: %s\nspider (%s): %s   layout: %s\nclick = move the player   right-click = look there   F chase/cover   V sight colours   G grid %s   E walk links   R rescan   C camera   L layout" % [
+		grid.cell_count(), grid.link_count(), grid.scan_msec, sight_info, "taking cover" if take_cover else "chasing", path_info,
 		spider.rig.layout.name if spider.rig != null else "-", "on" if debug != null and debug.visible else "off",
 	]
 
@@ -84,7 +128,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		var to := from + camera.project_ray_normal(click.position) * 200.0
 		var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, to))
 		if not hit.is_empty():
+			var flat: Vector3 = hit.position - orb.global_position
+			flat.y = 0.0
+			if flat.length() > 0.1:
+				player_facing = flat.normalized() # look the way you walked
 			orb.global_position = hit.position + Vector3.UP * 0.5
+		return
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_RIGHT:
+		var from := camera.project_ray_origin(click.position)
+		var to := from + camera.project_ray_normal(click.position) * 200.0
+		var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, to))
+		if not hit.is_empty():
+			var flat: Vector3 = hit.position - orb.global_position
+			flat.y = 0.0
+			if flat.length() > 0.1:
+				player_facing = flat.normalized()
 		return
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:
@@ -95,6 +153,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			debug.show_walk_links = not debug.show_walk_links
 			debug.refresh()
 		KEY_R: _scan()
+		KEY_F: take_cover = not take_cover
+		KEY_V:
+			debug.show_visibility = not debug.show_visibility
+			debug.refresh()
 		KEY_C:
 			follow = not follow
 			if not follow:
