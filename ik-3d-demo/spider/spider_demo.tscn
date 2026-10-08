@@ -32,6 +32,7 @@ script = ExtResource("2_spider")
 wave_gait = true
 step_distance = 0.4
 step_time = 20.0
+step_curve = "sawtooth"
 step_noise = 0.1
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=1798771266]
