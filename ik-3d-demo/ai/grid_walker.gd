@@ -21,16 +21,31 @@ var path: Array[Dictionary] = []
 var arrive_distance := 0.9 ## stop this far (flat) from the target
 var status := "idle" ## idle | walking | leaping | arrived | no path
 var waypoint := 0 ## index of the path waypoint being headed for
+var active := true ## false = hands off (a brain is steering); a leap in progress still finishes
 
 var _replan_left := 0.0
 var _planned_for := Vector3.INF
 var _flight := Vector3.ZERO ## flat m/s while leaping
 
 
+## Stand still and turn toward `direction` (world). For a brain that has set active = false.
+func face(direction: Vector3) -> void:
+	_steer_flat(Vector3.ZERO, direction)
+
+
+## Plan again on the next tick (the target jumped somewhere new).
+func replan() -> void:
+	_replan_left = 0.0
+
+
 func _physics_process(delta: float) -> void:
 	if spider == null or grid == null or target == null:
 		return
 	spider.steering = true
+	if not active and not spider.airborne:
+		if status == "leaping":
+			status = "idle"
+		return
 	if spider.airborne:
 		_steer_flat(_flight / spider.move_speed, _flight)
 		return

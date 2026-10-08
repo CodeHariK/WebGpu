@@ -28,16 +28,24 @@ cover, visibility and squad positions all live in the same cells. No baking.
 ## 2. FOV both ways
 
 ### What an enemy sees (senses)
-- [ ] Vision cone: angle + range per creature (wide and short for spiders, long and narrow for
-      the sentry). Raycast to a few points on the player (head, chest, car roof and wheels):
-      seeing 1 of 4 = partly hidden.
-- [ ] Suspicion meter, not instant detection: it fills faster when close, in the middle of the
-      cone, when the player moves, in light, and when the engine is loud. It drains when out of
-      sight. Stages: unaware → suspicious (looks, steps toward) → searching → alert (hunts) → combat.
-- [ ] Hearing: stimuli with a radius (gunshot, crash, horn, engine by speed, footsteps). Hearing
-      gives a position, not a sighting: go and check.
-- [ ] Memory: last known position + velocity + time. If it loses you it goes where you *were*,
-      predicts where you went, and searches (Far Cry style search pattern), then gives up slowly.
+- [x] Vision cone: angle + range per creature (ai/creature_senses.gd: 120°, 14 m for the spider;
+      long and narrow for the sentry later). A ray to each point on the player (feet, chest, head;
+      car roof and wheels later): seeing 1 of 3 = partly hidden, fills a third as fast.
+- [x] Suspicion meter, not instant detection: fills faster when close, centred, more visible,
+      moving, and ×3 while searching; drains when out of sight; point blank (< 2.5 m) = alert.
+      Seen in the open: ~1 s to alert at 6 m, ~2.5 s at 12 m (fill_rate tunes it).
+      Stages (ai/hunter_brain.gd): unaware (wanders) → suspicious (stares, creeps over, looks
+      around) → alert (runs at the last known position) → searching → unaware.
+- [ ] Light and engine noise in the fill; combat stage (hand to roles / director).
+- [x] Hearing: ai/noise_bus.gd, a noise = position + radius (demo: footsteps 3 m, N = 10 m).
+      A noise gives a position, not a sighting: suspicious + go and check; while alert or
+      searching it moves the last known position.
+- [ ] Walls muffle noise (a ray or a grid flood fill = path distance); gunshot, crash, horn, engine.
+- [x] Memory: last known position + velocity. Lost you → goes to last known + 1.5 s of your
+      velocity (not through walls), then checks up to 4 spots near there that it couldn't see
+      when it lost you (open spots fill in), looking around at each; gives up after 10 s.
+- [ ] Smarter search: spots along your likely routes (path from last known), cover cells first,
+      and remember spots already checked.
 - [ ] Shared memory through the squad: one sees you, everyone knows (with a radio/bark delay).
 
 ### What the player can see (where to hide)
@@ -111,15 +119,16 @@ Roles (assigned by the squad director):
 
 - [ ] Tactical grid coloured by what the player can see (green hidden, red seen, grey not checked).
 - [ ] Score heatmap for a chosen role; the chosen cell and its claim.
-- [ ] Each enemy's vision cone, suspicion meter, last known position, current role, token holder.
-- [ ] Hidden routes drawn; hearing events as expanding rings.
+- [x] Each enemy's vision cone (coloured by awareness), suspicion bar, state, last known
+      position + heading, search spots (ai/senses_debug.gd). [ ] current role, token holder.
+- [x] Hearing events as expanding rings. [ ] Hidden routes drawn.
 
 ## Build order
 
 1. ~~Tactical grid in a test arena: layered cells, stairs, drops, ladders, jumps, A*, walker.~~ (done)
 2. ~~Player visibility on the grid, cover and peek cells, debug view, take-cover demo.~~ (done)
-2b. Senses: vision cone + LOS rays + suspicion meter + hearing + last known position + search.
-   Debug cones and meters. (One spider, the orb as the player.)
+2b. ~~Senses: vision cone + LOS rays + suspicion meter + hearing + last known position + search.
+   Debug cones and meters. (One spider, the orb as the player.)~~ (done: hunt mode in grid_demo)
 3. Position scoring + roles + claims; exposure-aware A* routes on the grid.
 4. Squad director: roles, attack tokens, surround slots, flank plan, barks.
 5. Car player: speed and engine noise in the senses, road ambushes on the predicted path.
