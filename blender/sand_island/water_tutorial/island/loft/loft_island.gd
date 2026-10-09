@@ -31,6 +31,13 @@ func regenerate(island_seed: int, style: BankProfile.Style) -> void:
 		% [island_seed, BankProfile.NAMES[style], tris, Time.get_ticks_msec() - started])
 
 
+## Swap the material on the layer sheets (the snow tutorial puts its snow steps on them).
+func set_layer_material(material: Material) -> void:
+	layer_material = material
+	for m in _layer_meshes:
+		m.material_override = material
+
+
 ## (Re)build the layer meshes on the current island — cheap, so the demo can do it on every tweak.
 func rebuild_layers() -> void:
 	for m in _layer_meshes:

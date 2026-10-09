@@ -31,7 +31,7 @@ func _init(p_top: float, p_thickness: float, p_overhang: float, p_bevel: float, 
 	cap = p_cap
 
 
-## Ready-made stacks: 0 none, 1 grass sheet, 2 layered ice cream.
+## Ready-made stacks: 0 none, 1 grass sheet, 2 layered ice cream, 3 snow cap.
 static func preset(index: int, plateau_height: float) -> Array[IslandLayer]:
 	var layers: Array[IslandLayer] = []
 	match index:
@@ -45,7 +45,11 @@ static func preset(index: int, plateau_height: float) -> Array[IslandLayer]:
 			var choc := IslandLayer.new(plateau_height - 0.8, 0.32, 0.12, 0.14, Color(0.55, 0.33, 0.22), false)
 			choc.drip = 0.05
 			layers.append(choc)
+		3:
+			var cap := IslandLayer.new(plateau_height + 0.12, 0.34, 0.22, 0.2, Color.WHITE, true)
+			cap.drip = 0.12
+			layers.append(cap)
 	return layers
 
 
-const PRESET_NAMES := ["no layers", "grass sheet", "layered ice cream"]
+const PRESET_NAMES := ["no layers", "grass sheet", "layered ice cream", "snow cap"]

@@ -22,32 +22,40 @@ quote the numbers from the run they were written against (9 Oct 2026, Apple M2).
   on the device before trusting it (Todo: Xcode GPU capture / Android GPU profiler).
 
 <!-- bench:start -->
-Measured 2026-10-09 21:36:25 · Apple M2 (Apple8) · mobile renderer · 3D at 4800x2700 · 240 frames per step
+Measured 2026-10-10 00:00:48 · Apple M2 (Apple8) · mobile renderer · 3D at 3636x2046 · 240 frames per step
 
 | shader | step | file | ms / frame | vs previous step | shader cost (− step 1) |
 |---|---|---|---|---|---|
-| water | 1 | step01_flat | 0.88 | +0.00 | 0.00 |
-| water | 2 | step02_depth | 0.86 | -0.01 | -0.01 |
-| water | 3 | step03_colour | 0.91 | +0.05 | 0.04 |
-| water | 4 | step04_alpha | 1.92 | +1.00 | 1.04 |
-| water | 5 | step05_foam | 1.96 | +0.04 | 1.08 |
-| water | 6 | step06_wash | 2.02 | +0.06 | 1.14 |
-| water | 7 | step07_wobble | 2.40 | +0.38 | 1.52 |
-| water | 8 | step08_lines | 2.85 | +0.45 | 1.97 |
-| water | 9 | step09_sparkles | 2.91 | +0.07 | 2.04 |
-| water | 10 | step10_swell | 2.92 | +0.00 | 2.04 |
-| water | 11 | step11_noise_texture | 2.49 | -0.43 | 1.61 |
-| sand | 1 | step01_lit | 1.74 | +0.00 | 0.00 |
-| sand | 2 | step02_height | 1.73 | -0.01 | -0.01 |
-| sand | 3 | step03_zones | 1.87 | +0.14 | 0.13 |
-| sand | 4 | step04_wet | 1.95 | +0.08 | 0.22 |
-| sand | 5 | step05_waves | 2.00 | +0.04 | 0.26 |
-| sand | 6 | step06_noise | 3.10 | +1.10 | 1.36 |
-| sand | 7 | step07_grain | 3.25 | +0.16 | 1.52 |
-| sand | 8 | step08_ripples | 3.78 | +0.53 | 2.05 |
-| sand | 9 | step09_ripple_light | 4.56 | +0.78 | 2.82 |
-| sand | 10 | step10_toon | 4.22 | -0.34 | 2.48 |
-| sand | 11 | step11_noise_texture | 2.77 | -1.45 | 1.03 |
+| water | 1 | step01_flat | 0.73 | +0.00 | 0.00 |
+| water | 2 | step02_depth | 0.75 | +0.02 | 0.02 |
+| water | 3 | step03_colour | 0.74 | -0.01 | 0.01 |
+| water | 4 | step04_alpha | 1.34 | +0.60 | 0.61 |
+| water | 5 | step05_foam | 1.41 | +0.07 | 0.67 |
+| water | 6 | step06_wash | 1.40 | -0.00 | 0.67 |
+| water | 7 | step07_wobble | 1.59 | +0.18 | 0.85 |
+| water | 8 | step08_lines | 1.84 | +0.25 | 1.10 |
+| water | 9 | step09_sparkles | 1.92 | +0.09 | 1.19 |
+| water | 10 | step10_swell | 1.93 | +0.01 | 1.20 |
+| water | 11 | step11_noise_texture | 1.65 | -0.28 | 0.92 |
+| sand | 1 | step01_lit | 1.25 | +0.00 | 0.00 |
+| sand | 2 | step02_height | 1.26 | +0.00 | 0.00 |
+| sand | 3 | step03_zones | 1.31 | +0.05 | 0.06 |
+| sand | 4 | step04_wet | 1.36 | +0.04 | 0.10 |
+| sand | 5 | step05_waves | 1.42 | +0.06 | 0.16 |
+| sand | 6 | step06_noise | 2.10 | +0.69 | 0.85 |
+| sand | 7 | step07_grain | 2.20 | +0.10 | 0.95 |
+| sand | 8 | step08_ripples | 2.47 | +0.27 | 1.22 |
+| sand | 9 | step09_ripple_light | 2.96 | +0.49 | 1.71 |
+| sand | 10 | step10_toon | 2.73 | -0.24 | 1.47 |
+| sand | 11 | step11_noise_texture | 1.90 | -0.82 | 0.65 |
+| snow | 1 | step01_rock | 1.21 | +0.00 | 0.00 |
+| snow | 2 | step02_slope | 1.22 | +0.02 | 0.02 |
+| snow | 3 | step03_snow_line | 1.30 | +0.08 | 0.10 |
+| snow | 4 | step04_edge | 1.38 | +0.08 | 0.17 |
+| snow | 5 | step05_blue_shadow | 1.41 | +0.03 | 0.21 |
+| snow | 6 | step06_colour | 1.50 | +0.09 | 0.29 |
+| snow | 7 | step07_drifts | 1.80 | +0.30 | 0.59 |
+| snow | 8 | step08_sparkle | 2.04 | +0.25 | 0.84 |
 <!-- bench:end -->
 
 ## What each step costs, and why
