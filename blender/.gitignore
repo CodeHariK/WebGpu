@@ -1,0 +1,4 @@
+# Blender scratch: Python caches, contact-sheet frames and throwaway preview renders (_*.png)
+__pycache__/
+_frames/
+_*.png

@@ -1,0 +1,620 @@
+{
+ "_comment": "Hollow Isle \u2014 the map the generator follows. Units: metres, Blender axes (x right, y forward, z up). Islands have a flat top at 'height'; items with 'on' sit on that island's top.",
+ "islands": [
+  {
+   "name": "Landing",
+   "shape": "blob",
+   "center": [
+    0,
+    0
+   ],
+   "radius": 14,
+   "height": 0,
+   "depth": 10,
+   "seed": 1
+  },
+  {
+   "name": "Plaza",
+   "shape": "square",
+   "center": [
+    0,
+    44
+   ],
+   "size": [
+    28,
+    24
+   ],
+   "height": 2,
+   "depth": 13,
+   "seed": 2
+  },
+  {
+   "name": "TowerIsle",
+   "shape": "blob",
+   "center": [
+    50,
+    60
+   ],
+   "radius": 11,
+   "height": 4,
+   "depth": 15,
+   "seed": 3
+  },
+  {
+   "name": "Graveyard",
+   "shape": "blob",
+   "center": [
+    -42,
+    50
+   ],
+   "radius": 10,
+   "height": 1.5,
+   "depth": 9,
+   "seed": 4
+  },
+  {
+   "name": "IsletA",
+   "shape": "blob",
+   "center": [
+    24,
+    14
+   ],
+   "radius": 4,
+   "height": 1,
+   "depth": 5,
+   "seed": 5
+  },
+  {
+   "name": "IsletB",
+   "shape": "blob",
+   "center": [
+    -24,
+    10
+   ],
+   "radius": 3.5,
+   "height": 3,
+   "depth": 5,
+   "seed": 6
+  },
+  {
+   "name": "IsletC",
+   "shape": "blob",
+   "center": [
+    26,
+    80
+   ],
+   "radius": 3.5,
+   "height": 7,
+   "depth": 5,
+   "seed": 7
+  },
+  {
+   "name": "IsletD",
+   "shape": "blob",
+   "center": [
+    -14,
+    76
+   ],
+   "radius": 4,
+   "height": 5,
+   "depth": 5,
+   "seed": 8
+  }
+ ],
+ "paths": [
+  {
+   "name": "LandingRamp",
+   "from": [
+    0,
+    12
+   ],
+   "to": [
+    0,
+    33
+   ],
+   "width": 4.5,
+   "height": [
+    0,
+    2
+   ]
+  }
+ ],
+ "bridges": [
+  {
+   "name": "TowerBridge",
+   "from": [
+    13.5,
+    48
+   ],
+   "to": [
+    40,
+    57
+   ],
+   "width": 3.5,
+   "height": [
+    2,
+    4
+   ],
+   "arch": 3.5
+  },
+  {
+   "name": "IsletABridge",
+   "from": [
+    11,
+    6
+   ],
+   "to": [
+    21,
+    12
+   ],
+   "width": 2.5,
+   "height": [
+    0,
+    1
+   ],
+   "arch": 1.5
+  }
+ ],
+ "moving_platforms": [
+  {
+   "name": "GraveFerry1",
+   "from": [
+    -15.5,
+    48
+   ],
+   "to": [
+    -24,
+    49
+   ],
+   "z": 2,
+   "size": [
+    3.2,
+    3.2
+   ],
+   "period": 4.0,
+   "phase": 0.0
+  },
+  {
+   "name": "GraveFerry2",
+   "from": [
+    -27.5,
+    50
+   ],
+   "to": [
+    -32.5,
+    50
+   ],
+   "z": 2,
+   "size": [
+    3.2,
+    3.2
+   ],
+   "period": 4.0,
+   "phase": 0.5
+  },
+  {
+   "name": "IsletBLift",
+   "from": [
+    -15,
+    6
+   ],
+   "to": [
+    -20.5,
+    8.5
+   ],
+   "z": 1.5,
+   "size": [
+    3,
+    3
+   ],
+   "period": 3.5
+  },
+  {
+   "name": "SkyStep",
+   "from": [
+    44,
+    70
+   ],
+   "to": [
+    30,
+    78
+   ],
+   "z": 6,
+   "size": [
+    3,
+    3
+   ],
+   "period": 5.0
+  }
+ ],
+ "houses": [
+  {
+   "at": [
+    -8,
+    50
+   ],
+   "on": "Plaza",
+   "size": [
+    5,
+    4.5,
+    5.5
+   ],
+   "rot": 12,
+   "lean": 4
+  },
+  {
+   "at": [
+    8,
+    52
+   ],
+   "on": "Plaza",
+   "size": [
+    4.5,
+    4,
+    7
+   ],
+   "rot": -8,
+   "lean": -5
+  },
+  {
+   "at": [
+    -9,
+    37
+   ],
+   "on": "Plaza",
+   "size": [
+    4,
+    4,
+    4.5
+   ],
+   "rot": 30,
+   "lean": 3
+  },
+  {
+   "at": [
+    9,
+    37
+   ],
+   "on": "Plaza",
+   "size": [
+    3.5,
+    3.5,
+    6
+   ],
+   "rot": -20,
+   "lean": 6
+  },
+  {
+   "at": [
+    0,
+    52
+   ],
+   "on": "Plaza",
+   "size": [
+    6,
+    5,
+    8
+   ],
+   "rot": 0,
+   "lean": -2
+  }
+ ],
+ "tower": {
+  "at": [
+   50,
+   62
+  ],
+  "on": "TowerIsle",
+  "height": 24,
+  "radius": 4
+ },
+ "trees": [
+  {
+   "at": [
+    -6,
+    4
+   ],
+   "on": "Landing"
+  },
+  {
+   "at": [
+    7,
+    -6
+   ],
+   "on": "Landing"
+  },
+  {
+   "at": [
+    -9,
+    -7
+   ],
+   "on": "Landing"
+  },
+  {
+   "at": [
+    -46,
+    54
+   ],
+   "on": "Graveyard"
+  },
+  {
+   "at": [
+    -38,
+    44
+   ],
+   "on": "Graveyard"
+  },
+  {
+   "at": [
+    56,
+    54
+   ],
+   "on": "TowerIsle"
+  },
+  {
+   "at": [
+    11,
+    32
+   ],
+   "on": "Plaza"
+  }
+ ],
+ "lamps": [
+  {
+   "at": [
+    2.8,
+    14
+   ],
+   "on": "Landing"
+  },
+  {
+   "at": [
+    -2.0,
+    22
+   ],
+   "z": 0.95
+  },
+  {
+   "at": [
+    2.0,
+    30
+   ],
+   "z": 1.7
+  },
+  {
+   "at": [
+    -3,
+    40
+   ],
+   "on": "Plaza"
+  },
+  {
+   "at": [
+    3,
+    40
+   ],
+   "on": "Plaza"
+  },
+  {
+   "at": [
+    12,
+    47
+   ],
+   "on": "Plaza"
+  },
+  {
+   "at": [
+    44,
+    57
+   ],
+   "on": "TowerIsle"
+  },
+  {
+   "at": [
+    -36,
+    50
+   ],
+   "on": "Graveyard"
+  }
+ ],
+ "graves": [
+  {
+   "at": [
+    -44,
+    46
+   ],
+   "on": "Graveyard"
+  },
+  {
+   "at": [
+    -41,
+    47
+   ],
+   "on": "Graveyard"
+  },
+  {
+   "at": [
+    -38,
+    48
+   ],
+   "on": "Graveyard"
+  },
+  {
+   "at": [
+    -44,
+    50
+   ],
+   "on": "Graveyard"
+  },
+  {
+   "at": [
+    -41,
+    51
+   ],
+   "on": "Graveyard"
+  },
+  {
+   "at": [
+    -38,
+    52
+   ],
+   "on": "Graveyard"
+  },
+  {
+   "at": [
+    -46,
+    49
+   ],
+   "on": "Graveyard"
+  }
+ ],
+ "crystals": [
+  {
+   "at": [
+    5,
+    -3
+   ],
+   "on": "Landing"
+  },
+  {
+   "at": [
+    0,
+    22
+   ],
+   "z": 1
+  },
+  {
+   "at": [
+    24,
+    14
+   ],
+   "on": "IsletA"
+  },
+  {
+   "at": [
+    -24,
+    10
+   ],
+   "on": "IsletB"
+  },
+  {
+   "at": [
+    -20,
+    49
+   ],
+   "z": 3.5
+  },
+  {
+   "at": [
+    -42,
+    54
+   ],
+   "on": "Graveyard"
+  },
+  {
+   "at": [
+    27,
+    52
+   ],
+   "z": 7.6
+  },
+  {
+   "at": [
+    26,
+    80
+   ],
+   "on": "IsletC"
+  },
+  {
+   "at": [
+    -14,
+    76
+   ],
+   "on": "IsletD"
+  },
+  {
+   "at": [
+    55,
+    64
+   ],
+   "on": "TowerIsle"
+  },
+  {
+   "at": [
+    0,
+    47
+   ],
+   "on": "Plaza"
+  }
+ ],
+ "spawns": [
+  {
+   "at": [
+    -6,
+    -2
+   ],
+   "on": "Landing",
+   "enemy": "spider",
+   "count": 1,
+   "radius": 3
+  },
+  {
+   "at": [
+    0,
+    44
+   ],
+   "on": "Plaza",
+   "enemy": "spider",
+   "count": 3,
+   "radius": 6
+  },
+  {
+   "at": [
+    8,
+    45
+   ],
+   "on": "Plaza",
+   "enemy": "sentry",
+   "count": 1,
+   "radius": 1
+  },
+  {
+   "at": [
+    -41,
+    49
+   ],
+   "on": "Graveyard",
+   "enemy": "spider",
+   "count": 4,
+   "radius": 5
+  },
+  {
+   "at": [
+    48,
+    56
+   ],
+   "on": "TowerIsle",
+   "enemy": "spider",
+   "count": 2,
+   "radius": 4
+  },
+  {
+   "at": [
+    52,
+    53
+   ],
+   "on": "TowerIsle",
+   "enemy": "boss",
+   "count": 1,
+   "radius": 0
+  }
+ ],
+ "player_start": {
+  "at": [
+   0,
+   -8
+  ],
+  "on": "Landing",
+  "facing": 0
+ }
+}
