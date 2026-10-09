@@ -1,7 +1,7 @@
 ## Shader tutorials, step by step: the water (steps/) and the sand (sand_steps/). Each file adds one
 ## idea to the one before it. Tab switches which shader you are stepping through; the other one
 ## stays finished.
-## Keys: 1–9 and 0 pick step 1–10 · ← → previous / next · left-drag orbit · Shift-drag or right-drag
+## Keys: 1–9, 0 and − pick step 1–11 · ← → previous / next · left-drag orbit · Shift-drag or right-drag
 ##       pan · wheel zoom · R reset.
 ##       G island: loft (rings) → grid (heightmap) → Blender · N new island (next seed)
 ##       V loft bank style: wall → slope → round → overhang · F wireframe · J grid bank smooth ↔ jagged
@@ -13,11 +13,15 @@ extends Node3D
 const SAND_STEPS := [
 	"step01_lit", "step02_height", "step03_zones", "step04_wet", "step05_waves",
 	"step06_noise", "step07_grain", "step08_ripples", "step09_ripple_light", "step10_toon",
+	"step11_noise_texture",
 ]
 const STEPS := [
 	"step01_flat", "step02_depth", "step03_colour", "step04_alpha", "step05_foam",
 	"step06_wash", "step07_wobble", "step08_lines", "step09_sparkles", "step10_swell",
+	"step11_noise_texture",
 ]
+## Random pixels for the step-11 shaders, loaded as-is (no import compression, which would change them).
+var noise_texture: Texture2D = load("res://textures/noise_128.png")  # imported Lossless, no mipmaps
 
 var step := 9
 var sand_step := 9
@@ -25,6 +29,8 @@ var track := 0                    # 0 stepping the water, 1 stepping the sand
 ## Which tutorial the scene opens on: main.tscn starts on the water, sand.tscn on the sand.
 @export_enum("Water", "Sand") var start_track := 0
 var track_buttons: Array[Button] = []
+var ui_layer: CanvasLayer
+var hud := PerfHud.new()
 var blender_terrain: MeshInstance3D
 var water: MeshInstance3D        # the water currently shown (Blender's or the procedural one)
 var blender_island: Node3D
@@ -71,9 +77,16 @@ func _ready() -> void:
 	camera.fov = 40.0
 	add_child(camera)
 	_add_panel()
+	add_child(hud)
 	_set_track(start_track)
 	_place_camera()
-	if "--test-keys" in OS.get_cmdline_user_args():
+	if "--hud-shot" in OS.get_cmdline_user_args():
+		_hud_shot()
+	elif "--bench" in OS.get_cmdline_user_args():
+		_bench(true)
+	elif "--capture-step11" in OS.get_cmdline_user_args():
+		_capture_step11()
+	elif "--test-keys" in OS.get_cmdline_user_args():
 		_test_keys()
 	elif "--capture" in OS.get_cmdline_user_args():
 		_capture_all()
@@ -126,13 +139,14 @@ func _add_panel() -> void:
 	box.add_child(title)
 	box.add_child(notes)
 	var keys := Label.new()
-	keys.text = "Tab / S: water ↔ sand · 1–9, 0: step · ← →: prev/next · G: loft / grid / Blender · V: bank style · N: new island · F: wireframe · J: grid smooth/jagged · drag: orbit · Shift-drag / right-drag: pan · wheel: zoom · R: reset"
+	keys.text = "Tab / S: water ↔ sand · 1–9, 0, −: step 1–11 · ← →: prev/next · G: loft / grid / Blender · V: bank style · N: new island · F: wireframe · J: grid smooth/jagged · drag: orbit · Shift-drag / right-drag: pan · wheel: zoom · R: reset"
 	keys.modulate = Color(1, 1, 1, 0.6)
 	box.add_child(keys)
 	status.modulate = Color(1, 0.95, 0.7)
 	box.add_child(status)
 	panel.add_child(box)
 	var layer := CanvasLayer.new()
+	ui_layer = layer
 	layer.add_child(panel)
 	add_child(layer)
 
@@ -187,6 +201,7 @@ func _step_path(which: int, index: int) -> String:
 func _apply_step(which: int, index: int) -> void:
 	var material := ShaderMaterial.new()
 	material.shader = load(_step_path(which, index))
+	material.set_shader_parameter("noise_tex", noise_texture)  # ignored by shaders that don't use it
 	var targets := [loft.water, procedural.water, blender_water] if which == 0 else [loft.terrain, procedural.terrain, blender_terrain]
 	for target in targets:
 		target.material_override = material
@@ -229,6 +244,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_track(1 - track)
 		elif event.keycode >= KEY_1 and event.keycode <= KEY_9:
 			_show_step(event.keycode - KEY_1)
+		elif event.keycode == KEY_P:
+			hud.measure_now()
+		elif event.keycode == KEY_B:
+			_bench(false)
+		elif event.keycode == KEY_H:
+			hud.visible = not hud.visible
+		elif event.keycode == KEY_MINUS:
+			_show_step(10)
 		elif event.keycode == KEY_0:
 			_show_step(9)
 		elif event.keycode == KEY_RIGHT:
@@ -423,4 +446,114 @@ func _test_keys() -> void:
 		results.append("%s → track %s, water step %d, sand step %d, title: %s"
 			% [OS.get_keycode_string(key), ["water", "sand"][track], step + 1, sand_step + 1, title.text.left(40)])
 	print("\n".join(results))
+	get_tree().quit()
+
+
+## Cost of EVERY step of both shaders, written into perf.md (between the bench markers) and printed.
+## The camera looks straight down so ONE material fills the whole screen, 3D is rendered at 3×
+## resolution (9× the pixels) so the GPU is the bottleneck, and each step is timed with
+## PerfHud.measure_gpu (frames drawn back to back — Godot's GPU timer reads 0 on Metal).
+## Water is measured over open shallow sea with the ground under it on the cheapest sand step;
+## sand is measured on dry beach with the water hidden. "cost" = minus the step-1 baseline.
+func _bench(quit_after: bool) -> void:
+	ui_layer.visible = false
+	hud.visible = false
+	var vp := get_viewport()
+	var old_scale := vp.scaling_3d_scale
+	vp.scaling_3d_scale = 3.0
+	var old_layers := loft.layers
+	_set_mode(0)
+	loft.layers = []
+	loft.regenerate(island_seed, BankProfile.Style.WALL)
+	var old_view := [focus, distance, pitch, yaw]
+	var size := vp.get_visible_rect().size
+	var rows := []
+	for which in [0, 1]:
+		var names: Array = SAND_STEPS if which == 1 else STEPS
+		loft.water.visible = which == 0
+		_apply_step(1, 0 if which == 0 else sand_step)
+		focus = Vector3(0.5, 0.4, 7.0) if which == 1 else Vector3(0.0, 0.0, 12.5)
+		distance = 3.2
+		pitch = deg_to_rad(-89.0)
+		yaw = 0.0
+		_place_camera()
+		var baseline := 0.0
+		var previous := 0.0
+		for index in names.size():
+			_apply_step(which, index)
+			for f in 30:  # let the shader compile and the picture settle
+				await get_tree().process_frame
+			var ms := hud.measure_gpu(240)
+			if index == 0:
+				baseline = ms
+				previous = ms
+			rows.append("| %s | %d | %s | %.2f | %+.2f | %.2f |" % [
+				["water", "sand"][which], index + 1, names[index], ms, ms - previous, ms - baseline])
+			previous = ms
+	var header := "Measured %s · %s · %s renderer · 3D at %dx%d · 240 frames per step\n\n" % [
+		Time.get_datetime_string_from_system(false, true), RenderingServer.get_video_adapter_name(),
+		ProjectSettings.get_setting("rendering/renderer/rendering_method"), size.x * 3, size.y * 3]
+	var table := header + "| shader | step | file | ms / frame | vs previous step | shader cost (− step 1) |\n|---|---|---|---|---|---|\n" + "\n".join(rows)
+	_write_bench_table(table)
+	print(table)
+	loft.water.visible = true
+	loft.layers = old_layers
+	loft.regenerate(island_seed, bank_style)
+	vp.scaling_3d_scale = old_scale
+	focus = old_view[0]; distance = old_view[1]; pitch = old_view[2]; yaw = old_view[3]
+	_place_camera()
+	_show_step(sand_step if track == 1 else step)
+	ui_layer.visible = true
+	hud.visible = true
+	hud.last_measure = "bench done → perf.md"
+	if quit_after:
+		get_tree().quit()
+
+
+## Replace the text between the bench markers in perf.md (the explanations around it stay).
+func _write_bench_table(table: String) -> void:
+	var path := ProjectSettings.globalize_path("res://perf.md")
+	var doc := FileAccess.get_file_as_string(path)
+	var start_tag := "<!-- bench:start -->"
+	var end_tag := "<!-- bench:end -->"
+	var a := doc.find(start_tag)
+	var b := doc.find(end_tag)
+	if a == -1 or b == -1:
+		doc += "\n%s\n%s\n" % [start_tag, end_tag]
+		a = doc.find(start_tag)
+		b = doc.find(end_tag)
+	doc = doc.substr(0, a + start_tag.length()) + "\n" + table + "\n" + doc.substr(b)
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(doc)
+
+
+## Step 10 vs step 11 (hash noise vs texture noise) for both shaders, same view: should look alike.
+func _capture_step11() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
+	_set_mode(0)
+	loft.layers = []
+	loft.regenerate(island_seed, BankProfile.Style.SLOPE)
+	ui_layer.visible = false
+	focus = Vector3(1.0, 0.0, 9.0)
+	distance = 7.0
+	pitch = deg_to_rad(-38.0)
+	yaw = deg_to_rad(-10.0)
+	_place_camera()
+	for index in [9, 10]:
+		_apply_step(0, index)
+		_apply_step(1, index)
+		for f in 12:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png("res://shots/compare_step%d.png" % (index + 1))
+	get_tree().quit()
+
+
+## Screenshot of the live HUD after an on-demand GPU measurement (for the docs / a quick check).
+func _hud_shot() -> void:
+	for f in 60:
+		await get_tree().process_frame
+	hud.measure_now()
+	for f in 30:
+		await get_tree().process_frame
+	get_viewport().get_texture().get_image().save_png("res://shots/hud.png")
 	get_tree().quit()
