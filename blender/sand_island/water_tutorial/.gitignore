@@ -1,0 +1,8 @@
+# per-frame captures (regenerate with: godot --path . -- --capture | --capture-procedural | --capture-bank | --capture-loft | --capture-layers)
+shots/*
+# keep the combined overview sheets
+!shots/all_steps.png
+!shots/procedural_islands.png
+!shots/bank_compare.png
+!shots/loft_styles.png
+!shots/layers.png
