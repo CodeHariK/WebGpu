@@ -1,5 +1,8 @@
-## Water shader, step by step. Each file in steps/ adds one idea to the one before it.
-## Keys: 1–9 and 0 pick step 1–10 · ← → previous / next · left-drag orbit · wheel zoom · R reset.
+## Shader tutorials, step by step: the water (steps/) and the sand (sand_steps/). Each file adds one
+## idea to the one before it. Tab switches which shader you are stepping through; the other one
+## stays finished.
+## Keys: 1–9 and 0 pick step 1–10 · ← → previous / next · left-drag orbit · Shift-drag or right-drag
+##       pan · wheel zoom · R reset.
 ##       G island: loft (rings) → grid (heightmap) → Blender · N new island (next seed)
 ##       V loft bank style: wall → slope → round → overhang · F wireframe · J grid bank smooth ↔ jagged
 ##       L layers: none → grass sheet → layered ice cream · [ ] bevel − + · , . overhang − +
@@ -7,12 +10,22 @@
 ## Run with `-- --capture` to save one screenshot per step into shots/ and quit.
 extends Node3D
 
+const SAND_STEPS := [
+	"step01_lit", "step02_height", "step03_zones", "step04_wet", "step05_waves",
+	"step06_noise", "step07_grain", "step08_ripples", "step09_ripple_light", "step10_toon",
+]
 const STEPS := [
 	"step01_flat", "step02_depth", "step03_colour", "step04_alpha", "step05_foam",
 	"step06_wash", "step07_wobble", "step08_lines", "step09_sparkles", "step10_swell",
 ]
 
 var step := 9
+var sand_step := 9
+var track := 0                    # 0 stepping the water, 1 stepping the sand
+## Which tutorial the scene opens on: main.tscn starts on the water, sand.tscn on the sand.
+@export_enum("Water", "Sand") var start_track := 0
+var track_buttons: Array[Button] = []
+var blender_terrain: MeshInstance3D
 var water: MeshInstance3D        # the water currently shown (Blender's or the procedural one)
 var blender_island: Node3D
 var blender_water: MeshInstance3D
@@ -41,6 +54,7 @@ func _ready() -> void:
 	for mesh in blender_island.find_children("*", "MeshInstance3D", true, false):
 		if mesh.name.begins_with("Terrain"):
 			mesh.material_override = sand
+			blender_terrain = mesh
 		elif mesh.name.begins_with("Water"):
 			blender_water = mesh
 	procedural = ProceduralIsland.new(sand, null)
@@ -57,10 +71,14 @@ func _ready() -> void:
 	camera.fov = 40.0
 	add_child(camera)
 	_add_panel()
-	_show_step(step)
+	_set_track(start_track)
 	_place_camera()
-	if "--capture" in OS.get_cmdline_user_args():
+	if "--test-keys" in OS.get_cmdline_user_args():
+		_test_keys()
+	elif "--capture" in OS.get_cmdline_user_args():
 		_capture_all()
+	elif "--capture-sand" in OS.get_cmdline_user_args():
+		_capture_sand()
 	elif "--capture-layers" in OS.get_cmdline_user_args():
 		_capture_layers()
 	elif "--capture-loft" in OS.get_cmdline_user_args():
@@ -95,10 +113,20 @@ func _add_panel() -> void:
 	title.add_theme_font_size_override("font_size", 22)
 	notes.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	notes.custom_minimum_size = Vector2(600, 0)
+	var tabs := HBoxContainer.new()
+	for i in 2:
+		var b := Button.new()
+		b.text = ["Water shader steps", "Sand shader steps"][i]
+		b.toggle_mode = true
+		b.focus_mode = Control.FOCUS_NONE  # keep keys (Tab, arrows) for the tutorial, not UI focus
+		b.pressed.connect(_set_track.bind(i))
+		tabs.add_child(b)
+		track_buttons.append(b)
+	box.add_child(tabs)
 	box.add_child(title)
 	box.add_child(notes)
 	var keys := Label.new()
-	keys.text = "1–9, 0: step · ← →: prev/next · G: loft / grid / Blender · V: bank style · N: new island · F: wireframe · J: grid smooth/jagged · drag/wheel: camera · R: reset"
+	keys.text = "Tab / S: water ↔ sand · 1–9, 0: step · ← →: prev/next · G: loft / grid / Blender · V: bank style · N: new island · F: wireframe · J: grid smooth/jagged · drag: orbit · Shift-drag / right-drag: pan · wheel: zoom · R: reset"
 	keys.modulate = Color(1, 1, 1, 0.6)
 	box.add_child(keys)
 	status.modulate = Color(1, 0.95, 0.7)
@@ -123,16 +151,45 @@ func _set_mode(m: int) -> void:
 	water = [loft.water, procedural.water, blender_water][mode]
 
 
+## Switch which shader the step keys control: 0 water, 1 sand.
+func _set_track(t: int) -> void:
+	track = t
+	if track == 1 and layer_preset != 0:  # the sand tutorial needs the grass top visible
+		layer_preset = 0
+		loft.layers = IslandLayer.preset(0, loft.loft.plateau_height)
+		loft.rebuild_layers()
+	for i in track_buttons.size():
+		track_buttons[i].button_pressed = i == track
+	_show_step(sand_step if track == 1 else step)
+
+
 func _show_step(index: int) -> void:
-	step = clampi(index, 0, STEPS.size() - 1)
-	var path := "res://steps/%s.gdshader" % STEPS[step]
-	var material := ShaderMaterial.new()
-	material.shader = load(path)
-	for w in [loft.water, procedural.water, blender_water]:
-		w.material_override = material
+	var names: Array = SAND_STEPS if track == 1 else STEPS
+	index = clampi(index, 0, names.size() - 1)
+	if track == 1:
+		sand_step = index
+	else:
+		step = index
+	_apply_step(0, step)
+	_apply_step(1, sand_step)
+	var path := _step_path(track, index)
 	var header := _header_comment(FileAccess.get_file_as_string(path))
-	title.text = header[0]
+	title.text = ("WATER · " if track == 0 else "SAND · ") + header[0]
 	notes.text = header[1]
+	_update_status()
+
+
+func _step_path(which: int, index: int) -> String:
+	return "res://sand_steps/%s.gdshader" % SAND_STEPS[index] if which == 1 else "res://steps/%s.gdshader" % STEPS[index]
+
+
+## Put step `index` of shader `which` (0 water, 1 sand) on every island's water or terrain.
+func _apply_step(which: int, index: int) -> void:
+	var material := ShaderMaterial.new()
+	material.shader = load(_step_path(which, index))
+	var targets := [loft.water, procedural.water, blender_water] if which == 0 else [loft.terrain, procedural.terrain, blender_terrain]
+	for target in targets:
+		target.material_override = material
 
 
 ## The leading // comment of a shader file: [first line, the rest joined].
@@ -154,6 +211,13 @@ func _update_status() -> void:
 	status.text = text
 
 
+## Slide the point the camera looks at, in the camera's own left/right and up/down, so the scene
+## follows the mouse. Scaled by distance: the same drag moves further when zoomed out.
+func _pan(mouse_delta: Vector2) -> void:
+	var basis := camera.global_transform.basis
+	focus += (-basis.x * mouse_delta.x + basis.y * mouse_delta.y) * distance * 0.0015
+
+
 func _place_camera() -> void:
 	camera.position = focus + Vector3(0, 0, distance).rotated(Vector3.RIGHT, pitch).rotated(Vector3.UP, yaw)
 	camera.look_at(focus)
@@ -161,14 +225,16 @@ func _place_camera() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
-		if event.keycode >= KEY_1 and event.keycode <= KEY_9:
+		if event.keycode == KEY_TAB or event.keycode == KEY_S:
+			_set_track(1 - track)
+		elif event.keycode >= KEY_1 and event.keycode <= KEY_9:
 			_show_step(event.keycode - KEY_1)
 		elif event.keycode == KEY_0:
 			_show_step(9)
 		elif event.keycode == KEY_RIGHT:
-			_show_step(step + 1)
+			_show_step((sand_step if track == 1 else step) + 1)
 		elif event.keycode == KEY_LEFT:
-			_show_step(step - 1)
+			_show_step((sand_step if track == 1 else step) - 1)
 		elif event.keycode == KEY_G:
 			_set_mode(mode + 1)
 		elif event.keycode == KEY_L:
@@ -199,8 +265,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			procedural.regenerate(island_seed)
 			loft.regenerate(island_seed, bank_style)
 		elif event.keycode == KEY_R:
-			yaw = deg_to_rad(-10.0); pitch = deg_to_rad(-28.0); distance = 13.0
+			yaw = deg_to_rad(-10.0); pitch = deg_to_rad(-28.0); distance = 13.0; focus = Vector3(1.0, 0.0, 8.5)
 		_update_status()
+	elif event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT and event.shift_pressed:
+		_pan(event.relative)
+	elif event is InputEventMouseMotion and event.button_mask & (MOUSE_BUTTON_MASK_RIGHT | MOUSE_BUTTON_MASK_MIDDLE):
+		_pan(event.relative)
 	elif event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
 		yaw -= event.relative.x * 0.005
 		pitch = clampf(pitch - event.relative.y * 0.005, deg_to_rad(-85), deg_to_rad(-5))
@@ -312,4 +382,45 @@ func _capture_layers() -> void:
 		for f in 12:
 			await get_tree().process_frame
 		get_viewport().get_texture().get_image().save_png("res://shots/layers_%s.png" % shot[0])
+	get_tree().quit()
+
+
+## One screenshot per sand step (loft island, no layers, close on the beach and the bank).
+func _capture_sand() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
+	_set_mode(0)
+	layer_preset = 0
+	loft.layers = IslandLayer.preset(0, 1.7)
+	bank_style = BankProfile.Style.SLOPE
+	loft.regenerate(island_seed, bank_style)
+	track = 1
+	focus = Vector3(-1.5, 0.6, 5.0)
+	distance = 9.0
+	pitch = deg_to_rad(-24.0)
+	yaw = deg_to_rad(-30.0)
+	_place_camera()
+	for i in SAND_STEPS.size():
+		_show_step(i)
+		for f in 12:
+			await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png("res://shots/sand_%s.png" % SAND_STEPS[i])
+	get_tree().quit()
+
+
+## Self-test: press Tab, S and a number key through the input system and check the track/step.
+func _test_keys() -> void:
+	for f in 5:
+		await get_tree().process_frame
+	var results := []
+	for key in [KEY_TAB, KEY_3, KEY_S, KEY_TAB, KEY_5]:
+		var e := InputEventKey.new()
+		e.keycode = key
+		e.physical_keycode = key
+		e.pressed = true
+		Input.parse_input_event(e)
+		await get_tree().process_frame
+		await get_tree().process_frame
+		results.append("%s → track %s, water step %d, sand step %d, title: %s"
+			% [OS.get_keycode_string(key), ["water", "sand"][track], step + 1, sand_step + 1, title.text.left(40)])
+	print("\n".join(results))
 	get_tree().quit()
