@@ -1,0 +1,56 @@
+[gd_scene format=3 uid="uid://cug0t78xrpdl5"]
+
+[ext_resource type="Script" uid="uid://q3opd3jiu2um" path="res://rock/rock.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://dxkq5wo1yyr7a" path="res://rock/rock.glb" id="2"]
+[ext_resource type="Shader" uid="uid://bx4giwgc2xona" path="res://rock/rock.gdshader" id="3"]
+[ext_resource type="Texture2D" uid="uid://48rmfe6gpwcm" path="res://rock/rock_rg.png" id="4"]
+
+[sub_resource type="ShaderMaterial" id="rock_material"]
+render_priority = 0
+shader = ExtResource("3")
+shader_parameter/rock_rg = ExtResource("4")
+shader_parameter/dark = Color(0.549, 0.549, 0.549, 1)
+shader_parameter/light = Color(1, 1, 1, 1)
+
+[sub_resource type="PlaneMesh" id="ground_mesh"]
+size = Vector2(20, 20)
+
+[sub_resource type="StandardMaterial3D" id="ground_material"]
+albedo_color = Color(0.5, 0.62, 0.42, 1)
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_material"]
+ground_bottom_color = Color(0.5, 0.5, 0.52, 1)
+ground_horizon_color = Color(0.7, 0.72, 0.75, 1)
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_material")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+background_color = Color(0.62, 0.8, 0.95, 1)
+sky = SubResource("sky")
+ambient_light_source = 3
+ambient_light_color = Color(0.8, 0.85, 1, 1)
+ambient_light_energy = 0.5
+tonemap_mode = 4
+tonemap_exposure = 1.15
+
+[node name="RockScene" type="Node3D" unique_id=1247946482]
+script = ExtResource("1")
+material = SubResource("rock_material")
+
+[node name="Rock" parent="." unique_id=1454268192 instance=ExtResource("2")]
+
+[node name="Ground" type="MeshInstance3D" parent="." unique_id=631490161]
+mesh = SubResource("ground_mesh")
+surface_material_override/0 = SubResource("ground_material")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1099531812]
+transform = Transform3D(0.5, -0.612372, 0.612372, 0, 0.707107, 0.707107, -0.866025, -0.353553, 0.353553, 0, 6, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1452610233]
+environment = SubResource("env")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1054564438]
+fov = 40.0

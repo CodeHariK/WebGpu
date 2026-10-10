@@ -99,3 +99,24 @@ under deep water — that targets the +1.0 ms of step 4.
 5. **Evaluating a pattern several times to get its slope multiplies its cost** (sand step 9).
 6. **Measure, then optimise.** The ranking above (alpha, noise, slope sampling) is not what you'd guess
    from line counts.
+
+## Rock (rock/rock.tscn: Rock.blend mesh + rock_rg.png, the Blender look and steps 1–9)
+
+Run: B in rock/rock.tscn, or `godot --path . res://rock/rock.tscn -- --bench`.
+
+<!-- rock-bench:start -->
+Measured 2026-10-10 23:14:14 · Apple M2 (Apple8) · mobile renderer · 3D at 4800x2700 · 240 frames per view
+
+| view | shader | ms / frame | vs previous step | shader cost (− step 1) |
+|---|---|---|---|---|
+| 0 | rock.gdshader (Blender look) | 1.50 | — | +0.03 |
+| 1 | step01_plain | 1.47 | — | +0.00 |
+| 2 | step02_facet_tint | 1.64 | +0.17 | +0.17 |
+| 3 | step03_sky_colours | 1.74 | +0.10 | +0.27 |
+| 4 | step04_painted_light | 1.80 | +0.06 | +0.32 |
+| 5 | step05_washes | 2.09 | +0.29 | +0.62 |
+| 6 | step06_strokes | 2.17 | +0.08 | +0.69 |
+| 7 | step07_edges | 2.22 | +0.05 | +0.74 |
+| 8 | step08_moss | 2.39 | +0.17 | +0.92 |
+| 9 | step09_baked_paint | 2.06 | -0.33 | +0.59 |
+<!-- rock-bench:end -->

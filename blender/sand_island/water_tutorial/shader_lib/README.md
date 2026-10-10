@@ -94,5 +94,4 @@ Cost: 2 texture reads. Lighting the ripples (sand step 9) calls it 3× to get a 
 
 - `steps/step11_noise_texture.gdshader` and `sand_steps/step11_noise_texture.gdshader` contain inline
   copies, so each tutorial step stays readable on its own. The functions are the same.
-- `textures/noise_128.png` comes from `tools/make_noise_texture.py`. The old `noise_rgba_*.png`
-  files are unused and can be deleted.
+- `textures/noise_128.png` comes from `tools/make_noise_texture.py`.

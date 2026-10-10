@@ -5,3 +5,6 @@ gdzig/*
 /minecraft/Claude outputs
 *.blend1
 *.ctex
+
+# preview images saved by Claude (copies of shots/)
+Claude outputs/
