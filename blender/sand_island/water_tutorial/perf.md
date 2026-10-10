@@ -22,40 +22,45 @@ quote the numbers from the run they were written against (9 Oct 2026, Apple M2).
   on the device before trusting it (Todo: Xcode GPU capture / Android GPU profiler).
 
 <!-- bench:start -->
-Measured 2026-10-10 00:00:48 · Apple M2 (Apple8) · mobile renderer · 3D at 3636x2046 · 240 frames per step
+Measured 2026-10-11 00:45:34 · Apple M2 (Apple8) · mobile renderer · 3D at 4800x2700 · 240 frames per step
 
 | shader | step | file | ms / frame | vs previous step | shader cost (− step 1) |
 |---|---|---|---|---|---|
-| water | 1 | step01_flat | 0.73 | +0.00 | 0.00 |
-| water | 2 | step02_depth | 0.75 | +0.02 | 0.02 |
-| water | 3 | step03_colour | 0.74 | -0.01 | 0.01 |
-| water | 4 | step04_alpha | 1.34 | +0.60 | 0.61 |
-| water | 5 | step05_foam | 1.41 | +0.07 | 0.67 |
-| water | 6 | step06_wash | 1.40 | -0.00 | 0.67 |
-| water | 7 | step07_wobble | 1.59 | +0.18 | 0.85 |
-| water | 8 | step08_lines | 1.84 | +0.25 | 1.10 |
-| water | 9 | step09_sparkles | 1.92 | +0.09 | 1.19 |
-| water | 10 | step10_swell | 1.93 | +0.01 | 1.20 |
-| water | 11 | step11_noise_texture | 1.65 | -0.28 | 0.92 |
-| sand | 1 | step01_lit | 1.25 | +0.00 | 0.00 |
-| sand | 2 | step02_height | 1.26 | +0.00 | 0.00 |
-| sand | 3 | step03_zones | 1.31 | +0.05 | 0.06 |
-| sand | 4 | step04_wet | 1.36 | +0.04 | 0.10 |
-| sand | 5 | step05_waves | 1.42 | +0.06 | 0.16 |
-| sand | 6 | step06_noise | 2.10 | +0.69 | 0.85 |
-| sand | 7 | step07_grain | 2.20 | +0.10 | 0.95 |
-| sand | 8 | step08_ripples | 2.47 | +0.27 | 1.22 |
-| sand | 9 | step09_ripple_light | 2.96 | +0.49 | 1.71 |
-| sand | 10 | step10_toon | 2.73 | -0.24 | 1.47 |
-| sand | 11 | step11_noise_texture | 1.90 | -0.82 | 0.65 |
-| snow | 1 | step01_rock | 1.21 | +0.00 | 0.00 |
-| snow | 2 | step02_slope | 1.22 | +0.02 | 0.02 |
-| snow | 3 | step03_snow_line | 1.30 | +0.08 | 0.10 |
-| snow | 4 | step04_edge | 1.38 | +0.08 | 0.17 |
-| snow | 5 | step05_blue_shadow | 1.41 | +0.03 | 0.21 |
-| snow | 6 | step06_colour | 1.50 | +0.09 | 0.29 |
-| snow | 7 | step07_drifts | 1.80 | +0.30 | 0.59 |
-| snow | 8 | step08_sparkle | 2.04 | +0.25 | 0.84 |
+| water | 1 | step01_flat | 0.87 | +0.00 | 0.00 |
+| water | 2 | step02_depth | 0.84 | -0.02 | -0.02 |
+| water | 3 | step03_colour | 0.86 | +0.02 | -0.01 |
+| water | 4 | step04_alpha | 1.90 | +1.04 | 1.03 |
+| water | 5 | step05_foam | 1.92 | +0.03 | 1.06 |
+| water | 6 | step06_wash | 1.98 | +0.06 | 1.12 |
+| water | 7 | step07_wobble | 2.34 | +0.36 | 1.48 |
+| water | 8 | step08_lines | 2.75 | +0.41 | 1.89 |
+| water | 9 | step09_sparkles | 2.86 | +0.10 | 1.99 |
+| water | 10 | step10_swell | 2.85 | -0.01 | 1.98 |
+| water | 11 | step11_noise_texture | 2.47 | -0.38 | 1.61 |
+| water | 12 | step12_baked_noise | 2.25 | -0.23 | 1.38 |
+| water | 13 | step13_opaque | 1.23 | -1.02 | 0.36 |
+| sand | 1 | step01_lit | 1.70 | +0.00 | 0.00 |
+| sand | 2 | step02_height | 1.70 | +0.00 | 0.00 |
+| sand | 3 | step03_zones | 1.83 | +0.13 | 0.13 |
+| sand | 4 | step04_wet | 1.92 | +0.09 | 0.22 |
+| sand | 5 | step05_waves | 1.99 | +0.07 | 0.29 |
+| sand | 6 | step06_noise | 3.04 | +1.05 | 1.34 |
+| sand | 7 | step07_grain | 3.27 | +0.24 | 1.58 |
+| sand | 8 | step08_ripples | 3.78 | +0.50 | 2.08 |
+| sand | 9 | step09_ripple_light | 4.57 | +0.79 | 2.87 |
+| sand | 10 | step10_toon | 4.23 | -0.34 | 2.53 |
+| sand | 11 | step11_noise_texture | 2.79 | -1.44 | 1.09 |
+| sand | 12 | step12_baked_ripples | 2.36 | -0.43 | 0.66 |
+| sand | 13 | step13_baked_macro | 2.18 | -0.18 | 0.48 |
+| snow | 1 | step01_rock | 1.67 | +0.00 | 0.00 |
+| snow | 2 | step02_slope | 1.71 | +0.04 | 0.04 |
+| snow | 3 | step03_snow_line | 1.80 | +0.09 | 0.13 |
+| snow | 4 | step04_edge | 1.95 | +0.16 | 0.28 |
+| snow | 5 | step05_blue_shadow | 1.99 | +0.04 | 0.32 |
+| snow | 6 | step06_colour | 2.13 | +0.14 | 0.46 |
+| snow | 7 | step07_drifts | 2.63 | +0.50 | 0.97 |
+| snow | 8 | step08_sparkle | 3.06 | +0.43 | 1.40 |
+| snow | 9 | step09_baked | 2.42 | -0.64 | 0.75 |
 <!-- bench:end -->
 
 ## What each step costs, and why
@@ -72,9 +77,10 @@ Measured 2026-10-10 00:00:48 · Apple M2 (Apple8) · mobile renderer · 3D at 36
 | 9 sparkles | +0.07 | One `hash()` per pixel (not 8). |
 | 10 swell | ≈ 0 | `vertex()` work runs once per **vertex** (≈2k), not per pixel (≈13M) — almost free. Rule: **move work to vertex() when you can**. |
 | **11 noise texture** | **−0.43 ms** | Each `noise()` becomes 2 texture reads (time-varying) instead of 8 hashes. Removes almost all the noise cost — but the water's biggest cost (alpha, step 4) is untouched. |
+| **12 baked noise** | **−0.23 ms** | `water_macro.png` holds two versions of each moving noise; the shader cross-fades them with `sin(TIME)` and drifts the texture. 1 read replaces 4. Water's own noise cost is now small; alpha (step 4) is ~3/4 of what's left. |
+| **13 opaque** | **−1.02 ms** | No `blend_mix`: the water is solid and mixes a fake bed colour in by the old ALPHA amount. Undoes step 4's +1 ms: no separate transparent pass, and the depth test skips the sea bed under the water. Water's own cost: 2.02 → 0.36 ms over steps 10–13. |
 
-**Next win for water:** make deep water opaque (alpha only near the shore) and stop drawing seabed
-under deep water — that targets the +1.0 ms of step 4.
+**Done in step 13:** the water is opaque and fakes the see-through, which removes step 4's +1 ms.
 
 ### Sand
 
@@ -88,6 +94,16 @@ under deep water — that targets the +1.0 ms of step 4.
 | **9 ripple light** | **+0.78 ms** | `ripple()` is evaluated **twice more** (to measure the slope), i.e. four more `noise()` calls — the light effect costs more than the ripples themselves. |
 | 10 toon light | **−0.34 ms** | Our `light()` (one `dot` + `smoothstep` + `mix`) is *cheaper* than Godot's full PBR lighting it replaces. Stylized can be faster than realistic. |
 | **11 noise texture** | **−1.45 ms** | All ~11 `noise()` calls become 1 texture read each, grain becomes `texelFetch`. The sand shader's own cost falls from 2.48 to 1.03 ms (−58%) with the same look. |
+| **12 baked ripples** | **−0.43 ms** | Ripples + slope + grain baked in Blender (`sand_ripples.png`): 1 read replaces 6 noise reads + 2 hashes. |
+| **13 baked macro** | **−0.20 ms** | The 4 remaining `noise2()` (tone, wet wobble, grass patches, stripe bend) baked into `sand_macro.png` (80 m tile): 1 read replaces 4. Smaller win than 12 because each `noise2()` was already a single cached read. Sand shader's own cost: 0.43 ms, 2 texture reads total. |
+
+### Snow
+
+| step | cost | why |
+|---|---|---|
+| **7 drifts** | **+0.50 ms** | `ripple()` run 3 times (height + 2 for the slope) = 6 noise reads. |
+| **8 sparkle** | **+0.44 ms** | 4 `tex_hash()` per grain, plus the half-vector test in `light()`. |
+| **9 baked** | **−0.65 ms** | `snow_texture/snow_texture.blend` + `bake_snow_texture.py`: drifts (height + slope), the 4 big noises and the grain random numbers baked into 3 textures. 14 reads → 3. Snow's own cost: 1.39 → 0.74 ms. |
 
 ## Rules of thumb from these numbers
 

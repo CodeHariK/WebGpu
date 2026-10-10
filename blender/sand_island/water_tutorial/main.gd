@@ -13,19 +13,30 @@ extends Node3D
 const SAND_STEPS := [
 	"step01_lit", "step02_height", "step03_zones", "step04_wet", "step05_waves",
 	"step06_noise", "step07_grain", "step08_ripples", "step09_ripple_light", "step10_toon",
-	"step11_noise_texture",
+	"step11_noise_texture", "step12_baked_ripples", "step13_baked_macro",
 ]
 const SNOW_STEPS := [
 	"step01_rock", "step02_slope", "step03_snow_line", "step04_edge", "step05_blue_shadow",
-	"step06_colour", "step07_drifts", "step08_sparkle",
+	"step06_colour", "step07_drifts", "step08_sparkle", "step09_baked",
 ]
 const STEPS := [
 	"step01_flat", "step02_depth", "step03_colour", "step04_alpha", "step05_foam",
 	"step06_wash", "step07_wobble", "step08_lines", "step09_sparkles", "step10_swell",
-	"step11_noise_texture",
+	"step11_noise_texture", "step12_baked_noise", "step13_opaque",
 ]
 ## Random pixels for the step-11 shaders, loaded as-is (no import compression, which would change them).
 var noise_texture: Texture2D = load("res://textures/noise_128.png")  # imported Lossless, no mipmaps
+## Baked sand ripples + grain for sand step 12 (sand_texture/sand_texture.blend → sand_ripples.png).
+var sand_texture: Texture2D = load("res://sand_texture/sand_ripples.png")
+## Baked big soft noises (tone, wet wobble, grass patches, stripe bend) for sand step 13
+## (sand_texture.blend MacroTile → bake_sand_macro.py → sand_macro.png).
+var sand_macro: Texture2D = load("res://sand_texture/sand_macro.png")
+## Baked snow for snow step 9 (snow_texture/snow_texture.blend → bake_snow_texture.py): drifts, big noises, sparkle grains.
+var snow_drifts: Texture2D = load("res://snow_texture/snow_drifts.png")
+var snow_macro: Texture2D = load("res://snow_texture/snow_macro.png")
+var snow_sparkle: Texture2D = load("res://snow_texture/snow_sparkle.png")
+## Baked moving noise for water step 12 (water_texture/water_texture.blend → bake_water_texture.py).
+var water_macro: Texture2D = load("res://water_texture/water_macro.png")
 
 var step := 9
 var sand_step := 9
@@ -149,7 +160,7 @@ func _add_panel() -> void:
 	box.add_child(title)
 	box.add_child(notes)
 	var keys := Label.new()
-	keys.text = "Tab / S: water → sand → snow · 1–9, 0, −: step 1–11 · ← →: prev/next · G: loft / grid / Blender · V: bank style · N: new island · F: wireframe · J: grid smooth/jagged · drag: orbit · Shift-drag / right-drag: pan · wheel: zoom · R: reset"
+	keys.text = "Tab / S: water → sand → snow · 1–9, 0, −, =, Backspace: step 1–13 · ← →: prev/next · G: loft / grid / Blender · V: bank style · N: new island · F: wireframe · J: grid smooth/jagged · drag: orbit · Shift-drag / right-drag: pan · wheel: zoom · R: reset"
 	keys.modulate = Color(1, 1, 1, 0.6)
 	box.add_child(keys)
 	status.modulate = Color(1, 0.95, 0.7)
@@ -232,6 +243,12 @@ func _apply_step(which: int, index: int) -> void:
 	var material := ShaderMaterial.new()
 	material.shader = load(_step_path(which, index))
 	material.set_shader_parameter("noise_tex", noise_texture)  # ignored by shaders that don't use it
+	material.set_shader_parameter("sand_tex", sand_texture)
+	material.set_shader_parameter("sand_macro", sand_macro)
+	material.set_shader_parameter("snow_drifts", snow_drifts)
+	material.set_shader_parameter("snow_macro", snow_macro)
+	material.set_shader_parameter("snow_sparkle", snow_sparkle)
+	material.set_shader_parameter("water_macro", water_macro)
 	var targets := [loft.water, procedural.water, blender_water] if which == 0 else [loft.terrain, procedural.terrain, blender_terrain]
 	for target in targets:
 		target.material_override = material
@@ -284,6 +301,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_bench(false)
 		elif event.keycode == KEY_H:
 			hud.visible = not hud.visible
+		elif event.keycode == KEY_BACKSPACE:
+			_show_step(12)
+		elif event.keycode == KEY_EQUAL:
+			_show_step(11)
 		elif event.keycode == KEY_MINUS:
 			_show_step(10)
 		elif event.keycode == KEY_0:
