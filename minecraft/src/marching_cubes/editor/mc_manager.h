@@ -1,6 +1,7 @@
 // MCManager: the in-game editor for an MCGrid (modes, mouse input, hover, side-panel UI).
 //   mc_manager.cpp        lifecycle, node paths, save/load
-//   mc_manager_input.cpp  mouse clicks: terrain edits, placing / selecting / dragging objects
+//   mc_manager_input.cpp  mouse clicks: raycast once, then terrain edits or hand off to object mode
+//   mc_object_mode.cpp    placing, selecting, dragging, deleting objects
 //   mc_manager_hover.cpp  per-frame hover raycast and previews
 //   mc_ui.cpp             side panel, stats, help
 #ifndef MC_MANAGER_H
@@ -12,6 +13,8 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/standard_material3d.hpp>
 #include <godot_cpp/variant/node_path.hpp>
+#include <godot_cpp/variant/rid.hpp>
+#include <godot_cpp/variant/typed_array.hpp>
 #include <vector>
 
 namespace godot {
@@ -95,6 +98,47 @@ private:
 
 	// Selection Inspection
 	Vector3i locked_grid_pos;
+
+	// One mouse click resolved against the grid. Positions are in MCGrid space.
+	struct ClickHit {
+		Vector3 position; // hit point
+		Vector3 normal; // hit surface normal
+		Vector3i corner; // the corner whose debug cube was hit (terrain mode)
+		MeshInstance3D *object = nullptr; // the placed object that was hit, if any
+	};
+
+	// --- mc_manager_input.cpp: turn a click into a ClickHit, dispatch by mode
+	TypedArray<RID> _drag_group_exclusions() const; // dragged objects must not block the raycast
+	bool _raycast_click(
+			const Ref<InputEvent> &p_event,
+			MCGrid *p_grid,
+			ClickHit &r_hit
+	);
+	void _terrain_click(
+			MCGrid *p_grid,
+			const ClickHit &p_hit,
+			MouseButton p_button
+	);
+
+	// --- mc_object_mode.cpp: placing, selecting, dragging, deleting objects
+	void _place_click(
+			MCGrid *p_grid,
+			const ClickHit &p_hit
+	);
+	void _select_or_start_drag(
+			MCGrid *p_grid,
+			const ClickHit &p_hit,
+			bool p_shift
+	);
+	void _start_drag(
+			MCGrid *p_grid,
+			MeshInstance3D *p_pivot
+	);
+	void _finish_drag(MCGrid *p_grid);
+	void _delete_object(
+			MCGrid *p_grid,
+			MeshInstance3D *p_object
+	);
 
 protected:
 	static void _bind_methods();

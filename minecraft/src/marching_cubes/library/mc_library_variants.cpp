@@ -18,268 +18,125 @@
 
 namespace godot {
 
+namespace {
+
+// How one base tile of the 21-mesh set is spread over the cube's symmetries
+// (each maps to one of MCNode's apply_* helpers).
+enum class Spread : uint8_t {
+	ROT4_Y, // the 3 other quarter turns about Y
+	ROT6, // 6 orientations (tiles with a 2-fold symmetry)
+	ROT8, // 8 orientations
+	ROT12, // 12 orientations
+	ROT12_MIRROR, // the mirror image, in 12 orientations
+	ROT24, // all 24 orientations of the cube
+	RX90_ONLY, // just one extra quarter turn about X (the tetrahedron)
+};
+
+struct BaseTile {
+	uint8_t hash;
+	Spread spread;
+	const char *name;
+};
+
+// The 21-mesh set, grouped by how many corners are solid. Order matters: when two rotations
+// land on the same hash, the first one wins (later ones are logged as "Rejected").
+const BaseTile BASE_TILES_21[] = {
+	{ 0b00000001, Spread::ROT8, "1Corner" }, // 1 corner
+	{ 0b00001001, Spread::ROT12, "Edge" }, // 2 corners
+	{ 0b00000101, Spread::ROT12, "Diag" },
+	{ 0b01000001, Spread::ROT4_Y, "Opp" },
+	{ 0b00000111, Spread::ROT24, "V" }, // 3 corners
+	{ 0b01000101, Spread::ROT24, "L" },
+	{ 0b10000101, Spread::ROT8, "Tri" },
+	{ 0b00001111, Spread::ROT6, "Slab" }, // 4 corners
+	{ 0b10000111, Spread::ROT24, "E1" },
+	{ 0b10100101, Spread::RX90_ONLY, "Tetra Rx90" },
+	{ 0b00100111, Spread::ROT8, "E4" },
+	{ 0b00010111, Spread::ROT12, "E8" },
+	{ 0b00010111, Spread::ROT12_MIRROR, "E8 Sx" },
+	{ 0b01010101, Spread::ROT6, "OppEdges" },
+	{ 0b01001111, Spread::ROT24, "InvV" }, // 5 corners
+	{ 0b01010111, Spread::ROT24, "InvV2" },
+	{ 0b01011011, Spread::ROT8, "InvTri" },
+	{ 0b01101111, Spread::ROT12, "InvEdge" }, // 6 corners
+	{ 0b01011111, Spread::ROT12, "InvDiag" },
+	{ 0b11101011, Spread::ROT4_Y, "InvOpp" },
+	{ 0b01111111, Spread::ROT8, "7Corner Top" }, // 7 corners
+};
+
+// The 68-mesh set only ever turns tiles about Y (so grass stays on top): each row is a family
+// of base tiles that share a name and whether the unrotated base itself is (re)registered.
+struct YRotationRow {
+	const char *name;
+	bool include_base;
+	std::vector<uint8_t> hashes;
+};
+
+const YRotationRow BASE_TILES_68[] = {
+	{ "1Corner", true, { 0b00000001, 0b00010000 } },
+	{ "Corner2Edge", true, { 0b00001001, 0b10010000, 0b00010001 } },
+	{ "Corner2Diag", true, { 0b00000101, 0b01010000, 0b00011000, 0b10000001 } },
+	{ "Corner2Opp", false, { 0b01000001 } },
+	{ "Corner3Face", false, { 0b00001101, 0b11010000, 0b10001001, 0b00011001, 0b11000100, 0b00110010 } },
+	{ "Corner3L", false, { 0b00010110, 0b01010100, 0b01100001, 0b01101000, 0b10000110, 0b01000101 } },
+	{ "Corner3Tri", false, { 0b10000101, 0b01010010 } },
+	{ "4CornerFace", false, { 0b00001111, 0b11110000, 0b10011001 } },
+	{ "4CornerFace", false, { 0b10000111, 0b00111010, 0b01011001, 0b01011100, 0b01101010, 0b11100001 } },
+	{ "Corner4Opp", false, { 0b10100101 } },
+	{ "Corner4Tri", false, { 0b00100111, 0b11100100 } },
+	{ "Corner4OppEdges", false, { 0b00010111, 0b00101011, 0b00110110, 0b00111001, 0b01110001, 0b10110010 } },
+	{ "Corner4OppEdges", false, { 0b01010101, 0b01101001 } },
+	{ "Corner5Top", true, { 0b01001111, 0b11110001, 0b01110110, 0b11100110, 0b01100111, 0b01101110 } },
+	{ "Corner5Top", true, { 0b01010111, 0b11101010, 0b11100011, 0b00111110, 0b11000111, 0b01111100 } },
+	{ "Corner5Tri", true, { 0b01011011, 0b10110101 } },
+	{ "Corner6Edge", true, { 0b11001111, 0b11110110, 0b11101110 } },
+	{ "Corner6Diag", true, { 0b01011111, 0b11111010, 0b11100111, 0b01111110 } },
+	{ "InvOpp", false, { 0b11101011 } },
+	{ "7Corner", true, { 0b11101111, 0b11111110 } },
+};
+
+} // namespace
+
 void MCNode::generate_variants_by_21_basemesh() {
-	// 1 Corner - 8 total
-	uint8_t h0 = 0b00000001; // C0 (Bottom)
-	if (mesh_library[h0].mesh.is_valid()) {
-		apply_8_rotations(h0, mesh_library[h0].transform, "1Corner");
-	}
-
-	// 2 Corners (Edge) - 12 total
-	uint8_t h_edge_bot = 0b00001001; // Bottom Edge
-	if (mesh_library[h_edge_bot].mesh.is_valid()) {
-		apply_12_rotations(h_edge_bot, h_edge_bot, mesh_library[h_edge_bot].transform, "Edge");
-	}
-	uint8_t base_h_diag = 0b00000101;
-	if (mesh_library[base_h_diag].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_diag];
-		Transform3D base_t = base_conf.transform;
-
-		apply_12_rotations(base_h_diag, base_h_diag, base_t, "Diag");
-	}
-	uint8_t base_h_opp = 0b01000001;
-	if (mesh_library[base_h_opp].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_opp];
-		Transform3D base_t = base_conf.transform;
-
-		apply_4_axis_rotations(base_h_opp, base_h_opp, base_t, Vector3::AXIS_Y, "Opp", false);
-	}
-
-	// 3 Corners
-	uint8_t base_h_v = 0b00000111;
-	if (mesh_library[base_h_v].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_v];
-		Transform3D base_t = base_conf.transform;
-
-		apply_24_rotations(base_h_v, base_t, "V");
-	}
-	uint8_t base_h_l = 0b01000101;
-	if (mesh_library[base_h_l].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_l];
-		Transform3D base_t = base_conf.transform;
-
-		apply_24_rotations(base_h_l, base_t, "L");
-	}
-	uint8_t base_h_tri = 0b10000101;
-	if (mesh_library[base_h_tri].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_tri];
-		Transform3D base_t = base_conf.transform;
-
-		apply_8_rotations(base_h_tri, base_t, "Tri");
-	}
-
-	// 4 Corners
-	uint8_t base_h_slab = 0b00001111;
-	if (mesh_library[base_h_slab].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_slab];
-		Transform3D base_t = base_conf.transform;
-
-		apply_6_rotations(base_h_slab, base_t, "Slab");
-	}
-	uint8_t base_h_e1 = 0b10000111;
-	if (mesh_library[base_h_e1].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_e1];
-		Transform3D base_t = base_conf.transform;
-
-		apply_24_rotations(base_h_e1, base_t, "E1");
-	}
-	uint8_t base_h_tetra = 0b10100101;
-	if (mesh_library[base_h_tetra].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_tetra];
-		Transform3D base_t = base_conf.transform;
-
-		apply_transform_sequence(base_h_tetra, base_h_tetra, base_t, { RX90 }, "Tetra Rx90");
-	}
-	uint8_t base_h_e4 = 0b00100111;
-	if (mesh_library[base_h_e4].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_e4];
-		Transform3D base_t = base_conf.transform;
-
-		apply_8_rotations(base_h_e4, base_t, "E4");
-	}
-	uint8_t base_h_e8 = 0b00010111;
-	if (mesh_library[base_h_e8].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_e8];
-		Transform3D base_t = base_conf.transform;
-
-		apply_12_rotations(base_h_e8, base_h_e8, base_t, "E8");
-
-		// Add mirror variants
-		apply_12_mirror_rotations(base_h_e8, base_t, "E8 Sx");
-	}
-	uint8_t base_h_opp_edges = 0b01010101;
-	if (mesh_library[base_h_opp_edges].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_opp_edges];
-		Transform3D base_t = base_conf.transform;
-
-		apply_6_rotations(base_h_opp_edges, base_t, "OppEdges");
-	}
-
-	// 5 Corners
-	uint8_t base_h_v_inv = 0b01001111;
-	if (mesh_library[base_h_v_inv].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_v_inv];
-		Transform3D base_t = base_conf.transform;
-
-		apply_24_rotations(base_h_v_inv, base_t, "InvV");
-	}
-	uint8_t base_h_ea = 0b01010111;
-	if (mesh_library[base_h_ea].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_ea];
-		Transform3D base_t = base_conf.transform;
-
-		apply_24_rotations(base_h_ea, base_t, "InvV2");
-	}
-	uint8_t base_h_da = 0b01011011;
-	if (mesh_library[base_h_da].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_da];
-		Transform3D base_t = base_conf.transform;
-
-		apply_8_rotations(base_h_da, base_t, "InvTri");
-	}
-
-	// 6 Corners
-	uint8_t base_h_edge_inv = 0b01101111;
-	if (mesh_library[base_h_edge_inv].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_edge_inv];
-		Transform3D base_t = base_conf.transform;
-
-		apply_12_rotations(base_h_edge_inv, base_h_edge_inv, base_t, "InvEdge");
-	}
-	uint8_t base_h_inv_diag = 0b01011111;
-	if (mesh_library[base_h_inv_diag].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_inv_diag];
-		Transform3D base_t = base_conf.transform;
-
-		apply_12_rotations(base_h_inv_diag, base_h_inv_diag, base_t, "InvDiag");
-	}
-	uint8_t base_h_inv_opp = 0b11101011;
-	if (mesh_library[base_h_inv_opp].mesh.is_valid()) {
-		MeshConfig base_conf = mesh_library[base_h_inv_opp];
-		Transform3D base_t = base_conf.transform;
-
-		apply_4_axis_rotations(base_h_inv_opp, base_h_inv_opp, base_t, Vector3::AXIS_Y, "InvOpp", false);
-	}
-
-	// 7 Corners - 8 total
-	uint8_t h_inv_top = 0b01111111; // Inv C4 (Missing Top)
-	if (mesh_library[h_inv_top].mesh.is_valid()) {
-		apply_8_rotations(h_inv_top, mesh_library[h_inv_top].transform, "7Corner Top");
+	for (const BaseTile &tile : BASE_TILES_21) {
+		if (!mesh_library[tile.hash].mesh.is_valid()) {
+			continue; // this base tile is missing from the .glb
+		}
+		uint8_t h = tile.hash;
+		Transform3D t = mesh_library[h].transform;
+		String name = tile.name;
+		switch (tile.spread) {
+			case Spread::ROT4_Y:
+				apply_4_axis_rotations(h, h, t, Vector3::AXIS_Y, name, false);
+				break;
+			case Spread::ROT6:
+				apply_6_rotations(h, t, name);
+				break;
+			case Spread::ROT8:
+				apply_8_rotations(h, t, name);
+				break;
+			case Spread::ROT12:
+				apply_12_rotations(h, h, t, name);
+				break;
+			case Spread::ROT12_MIRROR:
+				apply_12_mirror_rotations(h, t, name);
+				break;
+			case Spread::ROT24:
+				apply_24_rotations(h, t, name);
+				break;
+			case Spread::RX90_ONLY:
+				apply_transform_sequence(h, h, t, { RX90 }, name);
+				break;
+		}
 	}
 }
 
 void MCNode::generate_variants_by_4Y_rotation() {
-	// 1 Corner - 8 total (2 base meshes x 4 Y-rotations)
-	for (uint8_t h : { 0b00000001, 0b00010000 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "1Corner", true);
-		}
-	}
-
-	// 2 Corners (Edge) - 12 total (3 base meshes x 4 Y-rotations)
-	for (uint8_t h : { 0b00001001, 0b10010000, 0b00010001 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner2Edge", true);
-		}
-	}
-	for (uint8_t h : { 0b00000101, 0b01010000, 0b00011000, 0b10000001 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner2Diag", true);
-		}
-	}
-	for (uint8_t h : { 0b01000001 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner2Opp", false);
-		}
-	}
-
-	// 3 Corners
-	for (uint8_t h : { 0b00001101, 0b11010000, 0b10001001, 0b00011001, 0b11000100, 0b00110010 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner3Face", false);
-		}
-	}
-	for (uint8_t h : { 0b00010110, 0b01010100, 0b01100001, 0b01101000, 0b10000110, 0b01000101 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner3L", false);
-		}
-	}
-	for (uint8_t h : { 0b10000101, 0b01010010 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner3Tri", false);
-		}
-	}
-
-	// 4 Corners
-	for (uint8_t h : { 0b00001111, 0b11110000, 0b10011001 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "4CornerFace", false);
-		}
-	}
-	for (uint8_t h : { 0b10000111, 0b00111010, 0b01011001, 0b01011100, 0b01101010, 0b11100001 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "4CornerFace", false);
-		}
-	}
-	for (uint8_t h : { 0b10100101 }) { // 2 Rotations
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner4Opp", false);
-		}
-	}
-	for (uint8_t h : { 0b00100111, 0b11100100 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner4Tri", false);
-		}
-	}
-	for (uint8_t h : { 0b00010111, 0b00101011, 0b00110110, 0b00111001, 0b01110001, 0b10110010 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner4OppEdges", false);
-		}
-	}
-	for (uint8_t h : { 0b01010101, 0b01101001 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner4OppEdges", false);
-		}
-	}
-
-	// 5 Corners
-	for (uint8_t h : { 0b01001111, 0b11110001, 0b01110110, 0b11100110, 0b01100111, 0b01101110 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner5Top", true);
-		}
-	}
-	for (uint8_t h : { 0b01010111, 0b11101010, 0b11100011, 0b00111110, 0b11000111, 0b01111100 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner5Top", true);
-		}
-	}
-	for (uint8_t h : { 0b01011011, 0b10110101 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner5Tri", true);
-		}
-	}
-
-	// 6 Corners
-	for (uint8_t h : { 0b11001111, 0b11110110, 0b11101110 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner6Edge", true);
-		}
-	}
-	for (uint8_t h : { 0b01011111, 0b11111010, 0b11100111, 0b01111110 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "Corner6Diag", true);
-		}
-	}
-	for (uint8_t h : { 0b11101011 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "InvOpp", false);
-		}
-	}
-
-	// 7 Corners - 8 total
-	for (uint8_t h : { 0b11101111, 0b11111110 }) {
-		if (mesh_library[h].mesh.is_valid()) {
-			apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, "7Corner", true);
+	for (const YRotationRow &row : BASE_TILES_68) {
+		for (uint8_t h : row.hashes) {
+			if (mesh_library[h].mesh.is_valid()) {
+				apply_4_axis_rotations(h, h, mesh_library[h].transform, Vector3::AXIS_Y, row.name, row.include_base);
+			}
 		}
 	}
 }

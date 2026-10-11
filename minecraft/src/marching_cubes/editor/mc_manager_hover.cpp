@@ -93,20 +93,7 @@ void MCManager::_update_hover_raycast() {
 		return;
 	}
 
-	TypedArray<RID> exclude;
-	if (is_dragging && !drag_group.empty()) {
-		for (const auto &obj : drag_group) {
-			if (!obj.node)
-				continue;
-			TypedArray<Node> children = obj.node->get_children();
-			for (int j = 0; j < children.size(); j++) {
-				CollisionObject3D *co = Object::cast_to<CollisionObject3D>(children[j]);
-				if (co) {
-					exclude.push_back(co->get_rid());
-				}
-			}
-		}
-	}
+	TypedArray<RID> exclude = _drag_group_exclusions();
 
 	bool ctrl_held =
 			Input::get_singleton()->is_key_pressed(KEY_CTRL) || Input::get_singleton()->is_key_pressed(KEY_META);

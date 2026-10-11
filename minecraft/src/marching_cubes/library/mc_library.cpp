@@ -31,7 +31,7 @@ void MCNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_import_mode", "p_mode"), &MCNode::set_import_mode);
 	ClassDB::bind_method(D_METHOD("get_import_mode"), &MCNode::get_import_mode);
 	ADD_PROPERTY(
-			PropertyInfo(Variant::INT, "import_mode", PROPERTY_HINT_ENUM, "16 BaseMeshes,68 BaseMeshes,Complete (256)"),
+			PropertyInfo(Variant::INT, "import_mode", PROPERTY_HINT_ENUM, "21 BaseMeshes,68 BaseMeshes,Complete (256)"),
 			"set_import_mode", "get_import_mode"
 	);
 

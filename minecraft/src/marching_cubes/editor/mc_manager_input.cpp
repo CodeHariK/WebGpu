@@ -1,20 +1,12 @@
-// MCManager: mouse clicks - terrain edits, placing / selecting / dragging / deleting objects.
+// MCManager: mouse clicks. Raycast once into a ClickHit, then hand it to the current mode:
+// terrain edits live here, object placing / selecting / dragging in mc_object_mode.cpp.
 #include "marching_cubes/editor/mc_manager.h"
 #include "marching_cubes/grid/mc_grid.h"
-#include "marching_cubes/library/mc_library.h"
 #include "marching_cubes/util/mc_physics.h"
 #include "utils/raycast/mc_raycast.h"
-#include <godot_cpp/classes/material.hpp>
-#include <godot_cpp/classes/standard_material3d.hpp>
-
-#include <algorithm>
 #include <godot_cpp/classes/collision_object3d.hpp>
-#include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
-#include <godot_cpp/classes/viewport.hpp>
-#include <godot_cpp/variant/utility_functions.hpp>
-#include <vector>
 
 namespace godot {
 
@@ -23,264 +15,116 @@ void MCManager::_unhandled_input(const Ref<InputEvent> &p_event) {
 	if (mouse_event.is_null()) {
 		return;
 	}
+	MouseButton button = mouse_event->get_button_index();
+	if (button != MOUSE_BUTTON_LEFT && button != MOUSE_BUTTON_RIGHT) {
+		return;
+	}
+	MCGrid *grid = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
+	if (!grid) {
+		return;
+	}
 
-	// Releases matter only to end a drag, and only the left button's release does that
-	// (a right release used to run the delete branch a second time).
+	// A release only matters to end a drag, and only the left button's release does that.
 	if (!mouse_event->is_pressed()) {
-		if (!is_dragging || mouse_event->get_button_index() != MOUSE_BUTTON_LEFT) {
-			return;
+		if (is_dragging && button == MOUSE_BUTTON_LEFT) {
+			_finish_drag(grid);
 		}
-	}
-
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-	if (!terrain_node) {
 		return;
 	}
 
-	int button_index = mouse_event->get_button_index();
-
-	if (button_index != MOUSE_BUTTON_LEFT && button_index != MOUSE_BUTTON_RIGHT) {
+	ClickHit hit;
+	if (!_raycast_click(p_event, grid, hit)) {
 		return;
 	}
 
-	TypedArray<RID> exclude;
-	if (is_dragging && !drag_group.empty()) {
-		for (const auto &obj : drag_group) {
-			if (!obj.node)
-				continue;
-			TypedArray<Node> children = obj.node->get_children();
-			for (int i = 0; i < children.size(); i++) {
-				CollisionObject3D *co = Object::cast_to<CollisionObject3D>(children[i]);
-				if (co) {
-					exclude.push_back(co->get_rid());
+	switch (interaction_mode) {
+		case MODE_TERRAIN:
+			_terrain_click(grid, hit, button);
+			break;
+		case MODE_PLACE_OBJECT:
+			if (button == MOUSE_BUTTON_LEFT) {
+				_place_click(grid, hit);
+			} else if (hit.object) {
+				_delete_object(grid, hit.object);
+			}
+			break;
+		case MODE_DRAG_OBJECT:
+			if (button == MOUSE_BUTTON_LEFT) {
+				if (!is_dragging) {
+					_select_or_start_drag(grid, hit, mouse_event->is_shift_pressed());
 				}
+			} else if (hit.object) {
+				_delete_object(grid, hit.object);
+			}
+			break;
+	}
+}
+
+TypedArray<RID> MCManager::_drag_group_exclusions() const {
+	TypedArray<RID> exclude;
+	if (!is_dragging) {
+		return exclude;
+	}
+	for (const SelectedObject &obj : drag_group) {
+		if (!obj.node) {
+			continue;
+		}
+		TypedArray<Node> children = obj.node->get_children();
+		for (int i = 0; i < children.size(); i++) {
+			CollisionObject3D *co = Object::cast_to<CollisionObject3D>(children[i]);
+			if (co) {
+				exclude.push_back(co->get_rid());
 			}
 		}
 	}
+	return exclude;
+}
 
+bool MCManager::_raycast_click(
+		const Ref<InputEvent> &p_event,
+		MCGrid *p_grid,
+		ClickHit &r_hit
+) {
 	// Terrain mode edits corners only: hitting a placed object must not edit the corner under it.
 	uint32_t mask = interaction_mode == MODE_TERRAIN ? toLayer(LAYER_CORNERS)
 													 : (toLayer(LAYER_OBJECTS) | toLayer(LAYER_CORNERS));
-
-	MCRaycastHit hit = raycast_from_event(this, p_event, mask, 512, exclude);
-	if (hit.is_hit) {
-		// Grid coordinates are local to MCGrid: convert the hit so a moved/rotated grid still works.
-		Vector3 hit_pos = terrain_node->to_local(hit.position);
-		Vector3 hit_normal = (terrain_node->get_global_transform().basis.inverse().xform(hit.normal)).normalized();
-		Node3D *collider_node = Object::cast_to<Node3D>(hit.collider);
-		if (!collider_node) {
-			return;
-		}
-
-		Node3D *target_object_node = nullptr;
-		Vector3i grid_pos;
-
-		// Identify if we hit a placed object (Layer 4)
-		CollisionObject3D *co = Object::cast_to<CollisionObject3D>(collider_node);
-		if (co && co->get_collision_layer() & toLayer(LAYER_OBJECTS)) {
-			target_object_node = Object::cast_to<MeshInstance3D>(collider_node->get_parent());
-		}
-
-		if (target_object_node) {
-			const PlacedObject *obj = terrain_node->get_placed_object(target_object_node);
-			if (obj)
-				grid_pos = obj->grid_pos;
-		} else {
-			// Hit a terrain corner
-			Node *parent = collider_node->get_parent();
-			Node3D *parent_node = Object::cast_to<Node3D>(parent);
-			if (parent_node) {
-				Vector3 hit_pos = parent_node->get_position();
-				grid_pos = Vector3i(
-						static_cast<int32_t>(Math::round(hit_pos.x)), static_cast<int32_t>(Math::round(hit_pos.y)),
-						static_cast<int32_t>(Math::round(hit_pos.z))
-				);
-			}
-		}
-
-		if (button_index == MOUSE_BUTTON_LEFT) {
-			if (interaction_mode == MODE_PLACE_OBJECT) {
-				// 1. PLACE OBJECT MODE
-				Vector3i place_pos = Vector3i((hit_pos + hit_normal * 0.5f).floor());
-
-				bool blocked = terrain_node->is_area_blocked_by_grid(place_pos, current_placement_size);
-				if (!blocked) {
-					AABB volume = AABB(Vector3(place_pos), Vector3(current_placement_size));
-					if (terrain_node->is_area_blocked_by_objects(volume)) {
-						blocked = true;
-					}
-				}
-
-				if (!blocked) {
-					terrain_node->add_placed_object(place_pos, current_placement_size);
-				} else {
-					UtilityFunctions::print("MCManager: Cannot place object, area blocked.");
-				}
-			} else if (interaction_mode == MODE_DRAG_OBJECT) {
-				// 2. DRAG OBJECT MODE (PICK UP & SELECTION)
-				if (!is_dragging) {
-					MeshInstance3D *clicked_mi =
-							target_object_node ? Object::cast_to<MeshInstance3D>(target_object_node) : nullptr;
-					bool shift = mouse_event->is_shift_pressed();
-
-					if (clicked_mi) {
-						auto it = std::find(selected_nodes.begin(), selected_nodes.end(), clicked_mi);
-						bool is_already_selected = (it != selected_nodes.end());
-
-						if (shift) {
-							// Toggle selection
-							if (is_already_selected) {
-								clicked_mi->set_material_overlay(nullptr);
-								selected_nodes.erase(it);
-							} else {
-								selected_nodes.push_back(clicked_mi);
-								clicked_mi->set_material_overlay(hover_mat_cyan);
-							}
-						} else {
-							// Normal click
-							if (is_already_selected) {
-								// Start dragging existing selection
-								is_dragging = true;
-								drag_group.clear();
-								const PlacedObject *pivot_obj = terrain_node->get_placed_object(clicked_mi);
-								if (pivot_obj) {
-									Vector3i pivot_pos = pivot_obj->grid_pos;
-									for (MeshInstance3D *node : selected_nodes) {
-										const PlacedObject *obj = terrain_node->get_placed_object(node);
-										if (obj) {
-											SelectedObject so;
-											so.node = node;
-											so.original_grid_pos = obj->grid_pos;
-											so.size = obj->size;
-											so.relative_offset = obj->grid_pos - pivot_pos;
-											drag_group.push_back(so);
-											terrain_node->detach_placed_object(node);
-										}
-									}
-								}
-							} else {
-								// Clear old selection and select this one to drag
-								_clear_selection();
-								selected_nodes.push_back(clicked_mi);
-								clicked_mi->set_material_overlay(hover_mat_cyan);
-
-								// Immediately start drag
-								is_dragging = true;
-								drag_group.clear();
-								const PlacedObject *obj = terrain_node->get_placed_object(clicked_mi);
-								if (obj) {
-									SelectedObject so;
-									so.node = clicked_mi;
-									so.original_grid_pos = obj->grid_pos;
-									so.size = obj->size;
-									so.relative_offset = Vector3i(0, 0, 0);
-									drag_group.push_back(so);
-									terrain_node->detach_placed_object(clicked_mi);
-								}
-							}
-						}
-					} else if (!shift) {
-						// Clicked empty space without shift: Clear selection
-						_clear_selection();
-					}
-				}
-			} else if (interaction_mode == MODE_TERRAIN) {
-				// 3. TERRAIN MODE: Activate neighbor
-				Vector3i target_pos = grid_pos +
-						Vector3i(Math::round(hit_normal.x), Math::round(hit_normal.y), Math::round(hit_normal.z));
-				terrain_node->modify_corner(target_pos, true);
-			}
-		} else if (button_index == MOUSE_BUTTON_RIGHT) {
-			if (interaction_mode == MODE_PLACE_OBJECT || interaction_mode == MODE_DRAG_OBJECT) {
-				if (target_object_node) {
-					MeshInstance3D *target_mi = Object::cast_to<MeshInstance3D>(target_object_node);
-					// Deleting a member of the group being dragged: put the OTHER members back where
-					// they came from (they were detached from the spatial index at drag start).
-					if (is_dragging) {
-						bool in_group = std::any_of(drag_group.begin(), drag_group.end(), [&](const SelectedObject &o) {
-							return o.node == target_mi;
-						});
-						if (in_group) {
-							for (const auto &obj : drag_group) {
-								if (obj.node && obj.node != target_mi) {
-									terrain_node->add_placed_object(obj.original_grid_pos, obj.size);
-									obj.node->queue_free();
-								}
-							}
-							is_dragging = false;
-							drag_group.clear();
-							selected_nodes.clear();
-							UtilityFunctions::print("MCManager: Multi-drag cancelled due to deletion.");
-						}
-					}
-					auto it = std::find(selected_nodes.begin(), selected_nodes.end(), target_mi);
-					if (it != selected_nodes.end()) {
-						selected_nodes.erase(it);
-					}
-					terrain_node->remove_placed_object(target_object_node);
-				}
-			} else if (interaction_mode == MODE_TERRAIN) {
-				// Deactivate current corner
-				terrain_node->modify_corner(grid_pos, false);
-			}
-		}
+	MCRaycastHit hit = raycast_from_event(this, p_event, mask, 512, _drag_group_exclusions());
+	if (!hit.is_hit) {
+		return false;
+	}
+	Node3D *collider = Object::cast_to<Node3D>(hit.collider);
+	if (!collider) {
+		return false;
 	}
 
-	// Handle Drag Release (anywhere) - Now tied to LEFT MOUSE
-	if (is_dragging && button_index == MOUSE_BUTTON_LEFT && !mouse_event->is_pressed()) {
-		if (drag_valid) {
-			// Finalize placement for all objects in group
-			for (const auto &obj : drag_group) {
-				Vector3 target_visual_pos = obj.node->get_position();
-				Vector3i final_grid_pos = Vector3i((target_visual_pos - Vector3(obj.size) * 0.5f).round());
-				terrain_node->add_placed_object(final_grid_pos, obj.size);
-				obj.node->queue_free();
-			}
-		} else {
-			// Revert all to original positions
-			for (const auto &obj : drag_group) {
-				terrain_node->add_placed_object(obj.original_grid_pos, obj.size);
-				obj.node->queue_free();
-			}
-		}
+	// Grid coordinates are local to MCGrid: convert the hit so a moved/rotated grid still works.
+	r_hit.position = p_grid->to_local(hit.position);
+	r_hit.normal = (p_grid->get_global_transform().basis.inverse().xform(hit.normal)).normalized();
 
-		// Clear transient drag state, but KEEP persistent selection if you want
-		// Most users expect selection to stay after drag.
-		is_dragging = false;
-		drag_group.clear();
-		selected_nodes.clear(); // Actually, clearing selection for now to make highlights reset
+	CollisionObject3D *body = Object::cast_to<CollisionObject3D>(collider);
+	if (body && (body->get_collision_layer() & toLayer(LAYER_OBJECTS))) {
+		// A placed object: the collision body is a child of the object's MeshInstance3D.
+		r_hit.object = Object::cast_to<MeshInstance3D>(collider->get_parent());
+	} else if (Node3D *cube = Object::cast_to<Node3D>(collider->get_parent())) {
+		// A debug corner cube: its position is the corner.
+		r_hit.corner = Vector3i(cube->get_position().round());
 	}
+	return true;
 }
 
-void MCManager::_clear_selection() {
-	for (MeshInstance3D *node : selected_nodes) {
-		if (node) {
-			node->set_material_overlay(nullptr);
-		}
+void MCManager::_terrain_click(
+		MCGrid *p_grid,
+		const ClickHit &p_hit,
+		MouseButton p_button
+) {
+	if (p_button == MOUSE_BUTTON_LEFT) {
+		// Add: fill the corner next to the clicked one, on the side that was clicked.
+		Vector3i side(Math::round(p_hit.normal.x), Math::round(p_hit.normal.y), Math::round(p_hit.normal.z));
+		p_grid->modify_corner(p_hit.corner + side, true);
+	} else {
+		// Remove: empty the clicked corner.
+		p_grid->modify_corner(p_hit.corner, false);
 	}
-	selected_nodes.clear();
-}
-
-void MCManager::cancel_drag() {
-	if (!is_dragging) {
-		is_dragging = false;
-		drag_group.clear();
-		return;
-	}
-
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-	if (terrain_node) {
-		for (const auto &obj : drag_group) {
-			terrain_node->add_placed_object(obj.original_grid_pos, obj.size);
-			if (obj.node)
-				obj.node->queue_free();
-		}
-		UtilityFunctions::print("MCManager: Multi-drag cancelled, all objects restored.");
-	}
-
-	is_dragging = false;
-	drag_group.clear();
-	selected_nodes.clear();
 }
 
 } // namespace godot
