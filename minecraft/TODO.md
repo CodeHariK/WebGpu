@@ -191,6 +191,14 @@ Next (in order)
       every variant per hash, turns them, each cell picks one from its grid position
       (`core/mc_variant.h`, Python copy verified identical) — uncommitted
 - [ ] Variant weights (e.g. flowers 20%) from a custom property / glTF extras
+- [x] Blender: tile names are just `hash` / `hash_vN` (Circus renamed in Marching.blend + mc_tiles.blend);
+      export adds the set name (`00010001_circus_v2`); Check lists untidy names + "Rename to Hash Names";
+      tile list has a variant column (1/2) — uncommitted
+- [x] Blender: **mirror on export** — Export Set writes a left/right flipped copy of any tile whose
+      mirror shape isn't modelled (normals fixed, variants too); Check shows "N made by mirror on export"
+      and flags hand-modelled mirror partners; playground / paste show them as negative-X-scale copies.
+      Circus now 53 modelled (15 partners deleted in Marching.blend and mc_tiles.blend); exported
+      library = Cube.glb on 242/254 hashes, the 12 others are 3 pairs that weren't exact mirrors — uncommitted
 - [ ] **Material variants baked to texture**: bake each variant (grass / ice / sand…) with the same UV
       layout into one atlas; chunk merge offsets the cell's UVs to its slot → still 1 material,
       1 draw call per chunk even with mixed variants. Needs UVs inside 0–1 and padding / no mipmaps.

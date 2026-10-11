@@ -91,14 +91,19 @@ def cell_hash(corners, cell):
 
 
 def tile_lookup(tiles, mode):
-    """{hash: (tile hash, quarter turns)}: which modelled tile, turned how, draws each hash."""
+    """{hash: (tile hash, quarter turns, mirrored)}: which tile, flipped or not, turned how.
+
+    Modelled tiles first; shapes only reachable as a left/right flip use the flipped tile, the
+    same tile Export Set writes for them.
+    """
     lookup = {}
     turns_allowed = 4 if cube.MODE_ROTATIONS[mode] else 1
-    for t in sorted(tiles):
-        h = t
-        for turns in range(turns_allowed):
-            lookup.setdefault(h, (t, turns))
-            h = cube.permute(h, cube.ROTATE_Y)
+    for mirrored in (False, True):
+        for t in sorted(tiles):
+            h = cube.mirror(t) if mirrored else t
+            for turns in range(turns_allowed):
+                lookup.setdefault(h, (t, turns, mirrored))
+                h = cube.permute(h, cube.ROTATE_Y)
     return lookup
 
 
@@ -151,7 +156,7 @@ def _missing_box(collection, position, h):
     collection.objects.link(obj)
 
 
-def _copy_tile(root, collection, position, turns, h, role="neighbour"):
+def _copy_tile(root, collection, position, turns, h, role="neighbour", mirrored=False):
     """Copy a tile (root and child parts, sharing mesh data) into a cell, turned about Z.
 
     role: "centre" (selectable), "neighbour" (not selectable, gets the debug material when it is
@@ -174,7 +179,9 @@ def _copy_tile(root, collection, position, turns, h, role="neighbour"):
     # Keep the tile's own rotation/scale, add the turn, move to the cell centre.
     own = root.matrix_world.to_3x3().to_4x4()
     turn = Matrix.Rotation(turns * math.pi / 2.0, 4, "Z")
-    copies[root].matrix_world = Matrix.Translation(position) @ turn @ own
+    # A mirrored tile is a negative X scale: still the shared mesh (live edits), drawn flipped.
+    flip = Matrix.Scale(-1.0, 4, Vector((1.0, 0.0, 0.0))) if mirrored else Matrix.Identity(4)
+    copies[root].matrix_world = Matrix.Translation(position) @ turn @ flip @ own
     return copies[root]
 
 
@@ -209,12 +216,12 @@ def build(scene, tile_set, centre_hash, seed):
                     continue
                 position = origin + Vector((x + 0.5, y + 0.5, z + 0.5))
                 if h in lookup:
-                    base, turns = lookup[h]
+                    base, turns, mirrored = lookup[h]
                     is_centre = (x, y, z) == CENTRE
                     role = "centre" if is_centre else "neighbour"
                     options = tiles[base]
                     tile = options[variant_index(x, y, z, len(options))]
-                    root = _copy_tile(tile, collection, position, turns, h, role)
+                    root = _copy_tile(tile, collection, position, turns, h, role, mirrored)
                     if is_centre:
                         centre_copy = root
                     filled += 1

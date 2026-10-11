@@ -19,6 +19,9 @@ from functools import cache
 from .modes import has_overhang
 
 ROTATE_Y = (1, 2, 3, 0, 5, 6, 7, 4)
+# Left <-> right (Godot mirror_x). Godot never mirrors: Export Set writes a flipped copy of a tile
+# whose mirror shape isn't modelled, so in XZ-symmetric mode 53 modelled tiles give all 68.
+MIRROR_X = (1, 0, 3, 2, 5, 4, 7, 6)
 
 EMPTY = 0b00000000
 FULL = 0b11111111
@@ -29,6 +32,11 @@ MODE_ROTATIONS = {
     "256": (),
     "HEIGHTMAP": (ROTATE_Y,),
 }
+
+def mirror(h):
+    """Hash of the left/right mirror image (Godot's X axis = Blender's X)."""
+    return permute(h, MIRROR_X)
+
 
 def permute(h, table):
     """Move every solid corner i of hash h to corner table[i]."""
@@ -82,13 +90,18 @@ def representative(group, mode):
 class Report:
     """Result of checking a set's tiles against its mode. All lists are sorted hashes.
 
-    missing        groups with no tile: the hash to model for each
+    missing        groups with no tile and no mirror source: the hash to model for each
+    mirrored       (hash, source): groups Export Set fills with a left/right flip of source
+    partners       (hash, source): modelled tiles that are a flip of another modelled tile
+                   (export would make them; delete one of the pair unless it differs on purpose)
     duplicates     (hash, kept_hash): a rotated copy of a tile already in the set
     not_allowed    tiles the mode can't use (overhangs in Heightmap, empty)
     """
 
     def __init__(self):
         self.missing = []
+        self.mirrored = []
+        self.partners = []
         self.duplicates = []
         self.not_allowed = []
         self.expected = 0
@@ -101,18 +114,28 @@ def check(hashes, mode):
     groups = orbits(mode)
     report.expected = len(groups)
 
+    rotations = MODE_ROTATIONS[mode]
     for group in groups:
         present = sorted(group & hashes)
+        sources = sorted(h for h in hashes if mirror(h) in group)
         if not present:
-            report.missing.append(representative(group, mode))
+            if sources:
+                report.mirrored.append((representative(group, mode), sources[0]))
+            else:
+                report.missing.append(representative(group, mode))
             continue
         # Godot loads every tile; extra ones in a group are rotated copies it would make anyway.
         kept = present[0]
         report.duplicates += [(h, kept) for h in present[1:]]
+        # Both halves of a mirror pair modelled: flag the half with the higher hash.
+        if sources and orbit(sources[0], rotations) != group and kept > min(orbit(sources[0], rotations) & hashes):
+            report.partners.append((kept, sources[0]))
 
     # Full (11111111) is optional: never required, but Godot draws it if the .glb has one.
     report.not_allowed = sorted(h for h in hashes if h != FULL and not allowed(h, mode))
     report.missing.sort()
+    report.mirrored.sort()
+    report.partners.sort()
     report.duplicates.sort()
     return report
 

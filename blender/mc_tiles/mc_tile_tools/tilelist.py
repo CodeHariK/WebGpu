@@ -11,7 +11,13 @@ import bpy
 
 from . import cube
 from .ops import select_object
-from .tiles import tile_hash, tile_roots
+from .tiles import tile_hash, tile_roots, tile_variants
+from .variants import variant_number
+
+
+def _variant_counts(collection):
+    """{hash: number of variant meshes} for the set."""
+    return {h: len(objs) for h, objs in tile_variants(collection, collection.mc_tiles.kind).items()}
 
 
 def _matches(search, h, name):
@@ -29,12 +35,19 @@ class MCTILES_UL_tiles(bpy.types.UIList):
         kind = data.mc_tiles.kind
         h = tile_hash(item.name, kind)
         row = layout.row(align=True)
-        row.label(text=item.name, icon="MESH_CUBE")
+        split = row.split(factor=0.42)
+        split.label(text=item.name, icon="MESH_CUBE")
+        rest = split.split(factor=0.18)
+        # Variant column: "1/2" = variant 1 of the 2 meshes this hash has; "1" when it has one.
+        count = _variant_counts(data).get(h, 1)
+        rest.label(text=f"{variant_number(item.name)}/{count}" if count > 1 else "1")
         if h is not None and kind == "CUBE":
-            row.label(text=cube.corner_text(h))
+            rest.label(text=cube.corner_text(h))
 
     def draw_filter(self, context, layout):
         layout.prop(self, "filter_name", text="", icon="VIEWZOOM")
+        header = layout.row()
+        header.label(text="Columns: name · variant/count · corners")
 
     def filter_items(self, context, data, propname):
         objects = getattr(data, propname)

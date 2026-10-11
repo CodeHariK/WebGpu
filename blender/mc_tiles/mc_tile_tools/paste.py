@@ -65,10 +65,10 @@ def build(scene, tile_set, size, cells):
             continue
         position = origin + Vector((x + 0.5, depth - 1 - z + 0.5, y + 0.5))
         if h in lookup:
-            base, turns = lookup[h]
+            base, turns, mirrored = lookup[h]
             options = tiles[base]
             tile = options[variant_index(x, y, z, len(options))]  # Godot coordinates: same as the game
-            playground._copy_tile(tile, collection, position, turns, h, "pasted")
+            playground._copy_tile(tile, collection, position, turns, h, "pasted", mirrored)
             placed += 1
         elif h != cube.FULL:  # full is optional: Godot draws nothing there either
             playground._missing_box(collection, position, h)

@@ -5,14 +5,20 @@ Same result as the old script, but per set and without the "everything visible" 
       whether visible or not
     - each tile is copied (objects AND mesh data, so the originals are never changed),
       rotation and scale applied (location kept), modifiers applied, child meshes joined into it
-    - named by its tile name without Blender's ".001" ("00000001_circle", "00000001_circle_v2");
+    - named hash + set name + variant ("00000001_circus", "00000001_circus_v2"; names.py);
       Godot reads the first 8 digits and the "_v" variant number
+    - cube sets: a shape modelled only as its left/right mirror image is written as a flipped copy
+      ("mirror on export"), so a 68 set needs only 53 modelled tiles
     - written to the set's Export path (".glb" added if missing), then the copies are deleted
 """
 
 import os
 
 import bpy
+from mathutils import Matrix, Vector
+
+from . import cube
+from .names import export_name
 
 from .tiles import tile_variants
 from .view import MATERIAL_NAME as DEBUG_MATERIAL
@@ -79,6 +85,29 @@ def _cleanup(temp, mesh_names):
     bpy.data.collections.remove(temp)
 
 
+def _mirror_copies(collection, tiles, by_hash, temp, mesh_names):
+    """Flipped copies for every shape the set only has as a left/right mirror (all variants)."""
+    report = cube.check(tiles.keys(), collection.mc_tiles.mode)
+    flip = Matrix.Scale(-1.0, 4, Vector((1.0, 0.0, 0.0)))
+    made = []
+    for _shape, source in report.mirrored:
+        for root in by_hash.get(source, []):
+            if root.type != "MESH":
+                continue
+            copy = root.copy()
+            copy.data = root.data.copy()
+            mesh_names.add(copy.data.name)
+            temp.objects.link(copy)
+            # Rotation and scale are already applied, so the mesh is in cell axes around the
+            # tile centre: flip local X, then turn the faces back the right way out.
+            copy.data.transform(flip)
+            copy.data.flip_normals()
+            copy.data.update()
+            copy.name = f"{cube.mirror(source):08b}{root.name[8:]}"
+            made.append(copy)
+    return made
+
+
 def export_set(collection):
     """Export one tile set. Returns (tiles exported, path); raises ValueError with a reason."""
     path = export_path(collection)
@@ -113,13 +142,18 @@ def export_set(collection):
 
         # Join each tile's child meshes into it and give it its clean name.
         exported = []
+        by_hash = {}
         for original, root in roots:
             parts = [c for c in root.children_recursive if c.type == "MESH"]
             if parts and root.type == "MESH":
                 _select_only([root] + parts, root)
                 bpy.ops.object.join()
-            root.name = original.name.split(".")[0]
+            root.name = export_name(original, collection)
             exported.append(root)
+            by_hash.setdefault(int(root.name[:8], 2), []).append(root)
+
+        if collection.mc_tiles.kind == "CUBE":
+            exported += _mirror_copies(collection, tiles, by_hash, temp, mesh_names)
 
         os.makedirs(os.path.dirname(path), exist_ok=True)
         _select_only(exported, exported[0])

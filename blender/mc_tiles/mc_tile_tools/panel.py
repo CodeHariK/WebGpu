@@ -12,6 +12,7 @@ from . import cube
 from .helpers import draw_move_helpers
 from .playground import draw_playground
 from .view import draw_view_switch
+from .names import untidy
 from .tiles import tile_roots, tile_variants
 from .variants import variant_number
 
@@ -76,6 +77,8 @@ class MCTILES_PT_main(bpy.types.Panel):
             covered = report.expected - len(report.missing)
             icon = "CHECKMARK" if covered == report.expected else "INFO"
             box.label(text=f"Tiles: {covered} / {report.expected}", icon=icon)
+            if report.mirrored:
+                box.label(text=f"{len(report.mirrored)} made by mirror on export", icon="MOD_MIRROR")
         else:
             box.label(text=f"Tiles: {len(tiles)} (prism rules not added yet)")
         extra = sum(len(objs) - 1 for objs in tile_variants(collection, settings.kind).values())
@@ -139,7 +142,8 @@ class MCTILES_PT_check(bpy.types.Panel):
         report = cube.check(tiles.keys(), mode)
         clashes = _variant_clashes(collection)
 
-        problems = report.missing or report.duplicates or report.not_allowed or clashes
+        messy = untidy(collection)
+        problems = report.missing or report.duplicates or report.not_allowed or clashes or report.partners or messy
         if not problems:
             layout.label(text="All tiles present, nothing extra", icon="CHECKMARK")
             return
@@ -156,6 +160,19 @@ class MCTILES_PT_check(bpy.types.Panel):
             layout, "Not allowed in this mode", "CANCEL",
             [(h, _not_allowed_reason(h)) for h in report.not_allowed], tiles,
         )
+        self._section(
+            layout, "Mirror partners: export can make these, delete one?", "MOD_MIRROR",
+            [(h, f"flip of {src:08b}") for h, src in report.partners], tiles,
+        )
+        if messy:
+            box = layout.box()
+            box.label(text=f"Names not in hash / hash_vN form: {len(messy)}", icon="SORTALPHA")
+            col = box.column(align=True)
+            for obj, wanted in messy[:MAX_ROWS]:
+                col.label(text=f"{obj.name}  ->  {wanted}")
+            if len(messy) > MAX_ROWS:
+                col.label(text=f"... {len(messy) - MAX_ROWS} more")
+            box.operator("mc_tiles.tidy_names", icon="SORTALPHA")
         self._section(
             layout, "Same hash and variant twice (rename one _v2...)", "ERROR",
             [(h, f"variant {v}: {names}") for h, v, names in clashes], tiles,

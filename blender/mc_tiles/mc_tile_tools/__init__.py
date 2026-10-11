@@ -11,8 +11,9 @@ Files:
     tilelist.py    searchable tile list
     playground.py  selected tile among random neighbours (same rules as Godot)
     paste.py       rebuild a Godot grid (Copy for Blender) in the playground, all editable
-    export.py      export a set to its own .glb (replaces ExportMergeChildMesh.py)
+    export.py      export a set to its own .glb, adding mirror copies (replaces ExportMergeChildMesh.py)
     helpers.py     move non-tile objects into the set's Helpers collection
+    names.py       hash / hash_vN names in Blender, set name added on export
     panel.py       the "MC Tiles" sidebar tab
 """
 
@@ -22,7 +23,7 @@ import sys
 # dependencies first, so edits to any file take effect without restarting Blender.
 _MODULES = (
     "variants", "tiles", "modes", "cube", "props", "view", "ops", "tilelist",
-    "playground", "paste", "export", "helpers", "panel",
+    "playground", "paste", "names", "export", "helpers", "panel",
 )
 if "bpy" in locals():
     import importlib
@@ -34,9 +35,9 @@ if "bpy" in locals():
 
 import bpy  # noqa: E402
 
-from . import export, helpers, ops, panel, paste, playground, props, tilelist, view  # noqa: E402
+from . import export, helpers, names, ops, panel, paste, playground, props, tilelist, view  # noqa: E402
 
-CLASSES = ops.CLASSES + paste.CLASSES + export.CLASSES + helpers.CLASSES + panel.CLASSES
+CLASSES = ops.CLASSES + paste.CLASSES + export.CLASSES + helpers.CLASSES + names.CLASSES + panel.CLASSES
 
 
 def register():
