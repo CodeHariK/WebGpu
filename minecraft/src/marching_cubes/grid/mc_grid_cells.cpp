@@ -44,8 +44,12 @@ int MCGrid::_spawn_marching_cubes(
 								static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly) + 0.5f,
 								static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz) + 0.5f);
 
+				Vector3i cell(
+						(p_chunk.loc_x * p_chunk.size_x) + lx, (p_chunk.loc_y * p_chunk.size_y) + ly,
+						(p_chunk.loc_z * p_chunk.size_z) + lz
+				);
 				MeshInstance3D *mi = memnew(MeshInstance3D);
-				mi->set_mesh(conf.mesh);
+				mi->set_mesh(conf.mesh_for_cell(cell));
 				Transform3D cell_t;
 				cell_t.origin = world_pos;
 				mi->set_transform(cell_t * conf.transform);
@@ -136,7 +140,7 @@ void MCGrid::_update_visual_at(
 			Vector3(static_cast<float>(gx) + 0.5f, static_cast<float>(gy) + 0.5f, static_cast<float>(gz) + 0.5f);
 
 	MeshInstance3D *mi = memnew(MeshInstance3D);
-	mi->set_mesh(conf.mesh);
+	mi->set_mesh(conf.mesh_for_cell(Vector3i(gx, gy, gz)));
 	Transform3D cell_t;
 	cell_t.origin = world_pos;
 	mi->set_transform(cell_t * conf.transform);

@@ -137,6 +137,8 @@ public:
 	uint8_t get_cell_hash_at_global_coord(const Vector3i &p_pos) const;
 	void save_grid(const String &p_path);
 	void load_grid(const String &p_path);
+	// Every non-empty cell as JSON text, for the Blender add-on's playground ("Paste from Godot").
+	String cells_to_json() const;
 
 	void update_hover_preview(
 			const Vector3 &p_corner_pos,

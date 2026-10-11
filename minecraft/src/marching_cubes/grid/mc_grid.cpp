@@ -45,6 +45,7 @@ void MCGrid::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("save_grid", "path"), &MCGrid::save_grid);
 	ClassDB::bind_method(D_METHOD("load_grid", "path"), &MCGrid::load_grid);
+	ClassDB::bind_method(D_METHOD("cells_to_json"), &MCGrid::cells_to_json);
 }
 
 MCGrid::MCGrid() {}

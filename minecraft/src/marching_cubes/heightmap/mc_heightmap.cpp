@@ -200,7 +200,7 @@ void MCHeightmap::_spawn_cell_mesh(
 	}
 
 	MeshInstance3D *mi = memnew(MeshInstance3D);
-	mi->set_mesh(conf.mesh);
+	mi->set_mesh(conf.mesh_for_cell(Vector3i(x, y, z)));
 
 	// Cell centre in world units, then the tile scaled to the cell size. The origin is scaled
 	// exactly once (it used to be scaled again by a scale transform in front, leaving gaps).

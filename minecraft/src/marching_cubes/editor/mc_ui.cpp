@@ -118,6 +118,10 @@ void MCManager::setup_ui() {
 	Button *load_btn = ui.manager->add_button(ui.stats_vbox, "Load State", Callable(this, "_on_load_terrain"));
 	load_btn->set_custom_minimum_size(Vector2(0, 30));
 
+	Button *copy_btn =
+			ui.manager->add_button(ui.stats_vbox, "Copy for Blender", Callable(this, "_on_copy_for_blender"));
+	copy_btn->set_custom_minimum_size(Vector2(0, 30));
+
 	ui.manager->add_header(ui.stats_vbox, "Placement");
 	Button *mode_btn =
 			ui.manager->add_button(ui.stats_vbox, "Mode: Terrain", Callable(this, "_on_toggle_placement_mode"));

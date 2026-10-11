@@ -1,6 +1,7 @@
 // MCNode: load the base tile meshes and look tiles up by hash.
 #include "marching_cubes/library/mc_library.h"
 #include "marching_cubes/core/mc_hash.h"
+#include "marching_cubes/core/mc_variant.h"
 #include <algorithm>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input_event.hpp>
@@ -25,19 +26,8 @@ void MCNode::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("load_mesh_library"), &MCNode::load_mesh_library);
 	ClassDB::bind_method(D_METHOD("initialize_library"), &MCNode::initialize_library);
 	ClassDB::bind_method(D_METHOD("display_library"), &MCNode::display_library);
-	ClassDB::bind_method(D_METHOD("generate_variants"), &MCNode::generate_variants_by_4Y_rotation);
+	ClassDB::bind_method(D_METHOD("generate_variants"), &MCNode::fill_y_rotations);
 	ClassDB::bind_method(D_METHOD("get_variant_counts"), &MCNode::get_variant_counts);
-
-	ClassDB::bind_method(D_METHOD("set_import_mode", "p_mode"), &MCNode::set_import_mode);
-	ClassDB::bind_method(D_METHOD("get_import_mode"), &MCNode::get_import_mode);
-	ADD_PROPERTY(
-			PropertyInfo(Variant::INT, "import_mode", PROPERTY_HINT_ENUM, "21 BaseMeshes,68 BaseMeshes,Complete (256)"),
-			"set_import_mode", "get_import_mode"
-	);
-
-	BIND_ENUM_CONSTANT(IMPORT_21_BASEMESH);
-	BIND_ENUM_CONSTANT(IMPORT_68_BASEMESH);
-	BIND_ENUM_CONSTANT(IMPORT_COMPLETE);
 }
 
 MCNode::MCNode() = default;
@@ -58,25 +48,15 @@ void MCNode::initialize_library() {
 	}
 
 	load_mesh_library();
-
-	switch (import_mode) {
-		case IMPORT_21_BASEMESH:
-			generate_variants_by_21_basemesh();
-			break;
-		case IMPORT_68_BASEMESH:
-			generate_variants_by_4Y_rotation();
-			break;
-		case IMPORT_COMPLETE:
-			validate_full_library();
-			break;
-	}
+	int generated = fill_y_rotations();
+	UtilityFunctions::print(
+			"MCNode: ", static_cast<int64_t>(base_mesh_order.size()), " tiles loaded, ", generated,
+			" filled by turning about Y."
+	);
+	report_missing();
 
 	is_initialized = true;
 }
-
-void MCNode::set_import_mode(MCImportMode p_mode) { import_mode = p_mode; }
-
-MCImportMode MCNode::get_import_mode() const { return import_mode; }
 
 void MCNode::set_mesh_library_path(const String &p_path) { mesh_library_path = p_path; }
 
@@ -86,6 +66,8 @@ struct LoadMeta {
 	Node *child = nullptr;
 	MeshInstance3D *mi = nullptr;
 	int ones_count = 0;
+	uint8_t hash = 0;
+	int variant = 1; // "_v2" suffix -> 2
 	bool is_valid = true;
 
 	LoadMeta(
@@ -107,12 +89,26 @@ struct LoadMeta {
 					is_valid = false;
 				}
 			}
+			if (is_valid) {
+				hash = mc::binary_to_hash(p_bin);
+				variant = mc::variant_number(child->get_name());
+			}
 		} else {
 			is_valid = false;
 		}
 	}
 
-	bool operator<(const LoadMeta &p_other) const { return ones_count < p_other.ones_count; }
+	// Fewest corners first, then lowest hash, then variant: a fixed order, so gap filling is
+	// repeatable and variants end up in number order.
+	bool operator<(const LoadMeta &p_other) const {
+		if (ones_count != p_other.ones_count) {
+			return ones_count < p_other.ones_count;
+		}
+		if (hash != p_other.hash) {
+			return hash < p_other.hash;
+		}
+		return variant < p_other.variant;
+	}
 };
 
 void MCNode::load_mesh_library() {
@@ -162,20 +158,31 @@ void MCNode::load_mesh_library() {
 
 	// 3. Populate Library and Master Order
 	base_mesh_order.clear();
+	int variant_count = 0;
+	int last_variant[256] = {};
 	for (const LoadMeta &meta : candidates) {
-		MeshConfig config;
-		config.mesh = meta.mi->get_mesh();
-		config.transform = Transform3D(); // Identity for original GLB nodes
-
-		String truncated_name = meta.child->get_name().substr(0, 8);
-		uint8_t h = mc::binary_to_hash(truncated_name);
-		config.source_mesh = h;
-		mesh_library[h] = config;
-		base_mesh_order.push_back(h);
-		UtilityFunctions::print(
-				"MCNode: Loaded mesh: ", truncated_name, " (Hash: ", h, ", Corners: ", meta.ones_count, ")"
-		);
+		uint8_t h = meta.hash;
+		MeshConfig &config = mesh_library[h];
+		if (config.mesh.is_null()) {
+			config.mesh = meta.mi->get_mesh();
+			config.transform = Transform3D(); // Identity for original GLB nodes
+			config.source_mesh = h;
+			base_mesh_order.push_back(h);
+		} else if (meta.variant == last_variant[h]) {
+			UtilityFunctions::push_warning(
+					"MCNode: two meshes for ", mc::hash_to_binary(h), " variant ", meta.variant, "; skipping ",
+					meta.child->get_name()
+			);
+			continue;
+		} else {
+			variant_count++;
+		}
+		config.variants.push_back(meta.mi->get_mesh());
+		last_variant[h] = meta.variant;
 	}
+	UtilityFunctions::print(
+			"MCNode: ", static_cast<int64_t>(base_mesh_order.size()), " tiles, ", variant_count, " extra variants."
+	);
 
 	int loaded_count = 0;
 	for (int i = 0; i < 256; i++) {
@@ -189,6 +196,13 @@ void MCNode::load_mesh_library() {
 }
 
 MeshConfig MCNode::get_mesh_config(uint8_t p_hash) const { return mesh_library[p_hash]; }
+
+Ref<Mesh> MeshConfig::mesh_for_cell(const Vector3i &p_cell) const {
+	if (variants.size() <= 1) {
+		return mesh;
+	}
+	return variants[static_cast<size_t>(mc::variant_index(p_cell, static_cast<int>(variants.size())))];
+}
 
 Dictionary MCNode::get_variant_counts() const {
 	Dictionary counts;

@@ -1,10 +1,12 @@
-// MCGrid: save / load the corner grid.
+// MCGrid: save / load the corner grid, and export the cells as JSON for Blender.
 // File layout (version 1): magic 'MCTR', version, grid_size xyz, chunk_size xyz, chunk count,
 // then per chunk: byte length + RLE bytes. Everything is validated and read into temporaries
 // first; the grid is only changed once the whole file is known to be good.
 #include "godot_cpp/classes/file_access.hpp"
 #include "godot_cpp/variant/packed_byte_array.hpp"
 #include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/library/mc_library.h"
+#include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <vector>
 
@@ -104,6 +106,31 @@ void MCGrid::load_grid(const String &p_path) {
 
 	UtilityFunctions::print("MCGrid: Loaded state from ", p_path);
 	refresh_grid();
+}
+
+// JSON for the Blender add-on (blender/mc_tiles/mc_tile_tools/paste.py):
+//   {"format": "mc_cells", "version": 1, "tiles": "<mesh library path>",
+//    "size": [x, y, z], "cells": [[x, y, z, hash], ...]}
+// Cells are in Godot grid coordinates (+Y up); only non-empty cells are listed. Cell hashes are
+// exactly what MCGrid draws, so Blender shows the same tiles.
+String MCGrid::cells_to_json() const {
+	Vector3i size = _dims().max_corner(); // cells per axis
+	PackedStringArray cells;
+	for (int y = 0; y < size.y; y++) {
+		for (int z = 0; z < size.z; z++) {
+			for (int x = 0; x < size.x; x++) {
+				uint8_t hash = get_cell_hash_at_global_coord(Vector3i(x, y, z));
+				if (hash != 0) {
+					cells.push_back(vformat("[%d,%d,%d,%d]", x, y, z, hash));
+				}
+			}
+		}
+	}
+	String tiles = mc_node ? mc_node->get_mesh_library_path() : String();
+	return vformat(
+			"{\"format\":\"mc_cells\",\"version\":1,\"tiles\":\"%s\",\"size\":[%d,%d,%d],\"cells\":[%s]}",
+			tiles.c_escape(), size.x, size.y, size.z, String(",").join(cells)
+	);
 }
 
 } // namespace godot

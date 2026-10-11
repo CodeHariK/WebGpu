@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/collision_object3d.hpp>
+#include <godot_cpp/classes/display_server.hpp>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/input_event.hpp>
@@ -44,6 +45,7 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_show_help"), &MCManager::_on_show_help);
 	ClassDB::bind_method(D_METHOD("_on_save_terrain"), &MCManager::_on_save_terrain);
 	ClassDB::bind_method(D_METHOD("_on_load_terrain"), &MCManager::_on_load_terrain);
+	ClassDB::bind_method(D_METHOD("_on_copy_for_blender"), &MCManager::_on_copy_for_blender);
 }
 
 MCManager::MCManager() { current_placement_size = Vector3i(2, 3, 4); }
@@ -100,7 +102,7 @@ void MCManager::initialize_all() {
 	if (mc_node && terrain_node) {
 		UtilityFunctions::print("MCManager: Found all nodes. Forcing sequential initialization...");
 
-		// 1. Force MCNode to be ready (load library and variants based on its import_mode)
+		// 1. Force MCNode to be ready (load the tiles and fill the rest by turning them about Y)
 		mc_node->initialize_library();
 
 		// 2. Link nodes and trigger Terrain generation
@@ -134,6 +136,16 @@ void MCManager::initialize_all() {
 void MCManager::_on_load_terrain() { load_terrain("user://terrain.mct"); }
 
 void MCManager::_on_save_terrain() { save_terrain("user://terrain.mct"); }
+
+void MCManager::_on_copy_for_blender() {
+	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
+	if (!terrain_node) {
+		return;
+	}
+	String json = terrain_node->cells_to_json();
+	DisplayServer::get_singleton()->clipboard_set(json);
+	UtilityFunctions::print("MCManager: Copied ", json.length(), " characters of cell JSON for Blender.");
+}
 
 void MCManager::save_terrain(const String &p_path) {
 	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));

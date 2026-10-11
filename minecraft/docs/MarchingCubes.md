@@ -48,10 +48,18 @@ Following Godot space conventions where **+Y is Up** and **+Z is Towards Player*
 
 ## 2. Transformation Matrices
 
-To reduce modeling work, we generate all 256 configurations from a few base meshes using rotational symmetry.
+To reduce modeling work, the game fills the 256 configurations from the modelled tiles by turning them about Y only (`mc::turn_y` in `core/mc_symmetry.cpp`).
 
 | Operation | Axis | Corner Cyclic Swaps |
 | :--- | :--- | :--- |
+| **Ry** | Y-Axis | `0→1, 1→2, 2→3, 3→0` and `4→5, 5→6, 6→7, 7→4` |
+
+Turns about X or Z and mirroring are **not** used: they would put grass on walls and ceilings, and mirroring a mesh at runtime breaks its normals and textures. Mirrored or upside-down tiles are modelled in Blender instead.
+
+> [!TIP]
+> **Horizontal Symmetry (Y-Rotations)** preserves the "Up" vector, preventing grass from appearing on ceilings or floors.
+
+--- | :--- | :--- |
 | **Ry** | Y-Axis | `0→1, 1→2, 2→3, 3→0` and `4→5, 5→6, 6→7, 7→4` |
 | **Rx** | X-Axis | `0→4, 4→7, 7→3, 3→0` and `1→5, 5→6, 6→2, 2→1` |
 | **Rz** | Z-Axis | `0→4, 4→5, 5→1, 1→0` and `3→7, 7→6, 6→2, 2→3` |
@@ -86,14 +94,23 @@ A vertex is shared by **8 cubes**. To form a continuous surface:
 
 ## 4. Symmetry & Mesh Strategy
 
-The number of base assets required depends on the level of symmetry in your project.
+`MCNode` loads whatever tiles the `.glb` contains and fills every empty hash by turning a loaded tile about Y. There is no mode setting: the tile set decides.
 
-### Case A: Geometric Symmetry (Standard)
-*   **Definition:** The shape is isotropic (e.g., a simple diagonal plane).
-*   **Base Assets:** Only **15 unique cases** (Lorensen & Cline) are modeled.
-*   **Workload:** Low. Code generates 256 configs via full octahedral rotation (24 orientations).
+| Tile set | Tiles to model | Result in Godot |
+| :--- | :--- | :--- |
+| **XZ Symmetric (68)** | one per Y-turn group | all 254 drawable hashes |
+| **Heightmap (22)** | the 68 set without overhangs (a top corner always has a solid corner below it) | the 79 hashes a heightmap can produce |
+| **Complete (256)** | every hash (254; empty is never drawn, full is optional) | nothing to fill |
 
-### Case B: Directional Symmetry (Minecraft-Style)
-*   **Definition:** Shapes have orientation (e.g., "Top" grass vs "Bottom" dirt).
-*   **Base Assets:** Typically **30+ base meshes**. For example, a 1-Corner mesh at the *Top* of a cube is treated as a different asset than one at the *Bottom* to prevent grass from flipping upside down.
-*   **Tradeoff:** By restricting rotations primarily to the **Y-axis**, you preserve "Up/Down" integrity while allowing 90° horizontal turns.
+Godot prints which hashes are still missing after loading. The Blender add-on in `blender/mc_tiles/mc_tile_tools` shows the same check while modelling (missing tiles, rotated copies, overhangs in a heightmap set).
+
+A set using all 24 cube rotations (21 tiles) was dropped: it flips tiles on their side and upside down, which does not suit directional (grass-on-top) tiles.
+
+### Mesh variants
+
+Several meshes can be modelled for one hash: `00001111_circle`, `00001111_circle_v2`, `00001111_circle_v3`
+(no ending = variant 1; Blender's `.001` and Godot's `_001` after it are ignored). `MCNode` keeps every
+variant of a hash and turns them all; each cell picks one with `mc::variant_index(cell, count)`
+(`core/mc_variant.h`): a hash of the cell's grid position, so the choice looks random but never changes
+between rebuilds or loads. The Blender add-on uses the same formula, so its playground matches the game.
+

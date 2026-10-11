@@ -174,6 +174,7 @@ public:
 	void _clear_selection(); // un-highlight and forget selected objects
 	void _on_save_terrain();
 	void _on_load_terrain();
+	void _on_copy_for_blender(); // cells as JSON on the clipboard, for the Blender playground
 	void save_terrain(const String &p_path);
 	void load_terrain(const String &p_path);
 	void _initialize_previews();
