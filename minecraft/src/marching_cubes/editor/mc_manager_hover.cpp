@@ -1,7 +1,8 @@
-#include "mc.h"
-#include "mc_grid.h"
-#include "mc_manager.h"
-#include "mc_physics.h"
+// MCManager: per-frame hover raycast, placement preview box, corner hover quads.
+#include "marching_cubes/editor/mc_manager.h"
+#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/library/mc_library.h"
+#include "marching_cubes/util/mc_physics.h"
 #include "utils/raycast/mc_raycast.h"
 
 #include <godot_cpp/classes/box_mesh.hpp>

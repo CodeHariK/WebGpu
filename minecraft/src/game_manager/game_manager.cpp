@@ -4,7 +4,7 @@
 #include "../debug_draw/debug_manager.h"
 #include "../debug_draw/jump_reach_gizmo.h"
 #include "../enemy/enemy_manager.h"
-#include "../marching_cubes/mc_manager.h"
+#include "marching_cubes/editor/mc_manager.h"
 #include "../minigames/tennis/tennis_manager.h"
 #include "../character/spring_character.h"
 #include "../player/celeste_controller.h"

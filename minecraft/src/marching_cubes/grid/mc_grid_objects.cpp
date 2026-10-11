@@ -1,5 +1,6 @@
-#include "mc_grid.h"
-#include "mc_physics.h"
+// MCGrid: placed objects (boxes on the dual grid), their spatial index and blocking checks.
+#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/util/mc_physics.h"
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
@@ -9,15 +10,6 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
-
-bool MCGrid::is_corner_active(const Vector3i &p_grid_pos) const {
-	int chunk_index = 0;
-	Vector3i local;
-	if (!_corner_to_local(p_grid_pos, chunk_index, local)) {
-		return false; // outside the grid counts as empty
-	}
-	return chunks[static_cast<size_t>(chunk_index)].get_corner(local.x, local.y, local.z);
-}
 
 bool MCGrid::is_area_blocked_by_grid(
 		const Vector3i &p_dual_grid_pos,

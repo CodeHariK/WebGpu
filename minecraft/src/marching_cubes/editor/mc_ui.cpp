@@ -1,16 +1,18 @@
-#include "mc.h"
-#include <godot_cpp/classes/style_box_flat.hpp>
-#include <godot_cpp/classes/os.hpp>
-#include <godot_cpp/classes/texture2d.hpp>
-#include <godot_cpp/classes/image.hpp>
-#include <godot_cpp/classes/scene_tree_timer.hpp>
-#include <godot_cpp/classes/scene_tree.hpp>
-#include "mc_grid.h"
-#include "mc_manager.h"
+// MCManager: side panel (stats, variant counts, hash inspector), help modal.
+#include "marching_cubes/core/mc_hash.h"
+#include "marching_cubes/editor/mc_manager.h"
+#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/library/mc_library.h"
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
+#include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/performance.hpp>
+#include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/scene_tree_timer.hpp>
+#include <godot_cpp/classes/style_box_flat.hpp>
+#include <godot_cpp/classes/texture2d.hpp>
 #include <godot_cpp/classes/viewport.hpp>
 #include <godot_cpp/classes/viewport_texture.hpp>
 
@@ -187,11 +189,12 @@ void MCManager::_on_show_help() {
 		ui.help_dialog->open_alert(
 				"Marching Cubes Info",
 				"This project visualizes the 256 voxel configurations of the Marching Cubes algorithm.\n\n"
-			"- 21 base meshes generate all 256 variants via rotations/reflections.\n"
-			"- Transformations are applied via bitwise-mapped rotation matrices.\n"
-			"- Current UI tracks real-time performance and generation stats.\n\n"
-			"- Stats Button: Toggle sidebar visibility",
-				"OK");
+				"- 21 base meshes generate all 256 variants via rotations/reflections.\n"
+				"- Transformations are applied via bitwise-mapped rotation matrices.\n"
+				"- Current UI tracks real-time performance and generation stats.\n\n"
+				"- Stats Button: Toggle sidebar visibility",
+				"OK"
+		);
 	}
 }
 
@@ -236,7 +239,7 @@ void MCManager::update_ui() {
 	if (ui.hash_label) {
 		if (interaction_mode == MODE_TERRAIN) {
 			uint8_t h = _get_cell_hash(locked_grid_pos);
-			String bin = MCNode::hash_to_binary(h);
+			String bin = mc::hash_to_binary(h);
 			Vector3 display_pos = Vector3(locked_grid_pos);
 			ui.hash_label->set_text(
 					"Hash: " + bin + " (" + String::num_int64(h) + ")" + "\nPos: " + String(display_pos)
@@ -266,7 +269,7 @@ void MCManager::update_ui() {
 			}
 
 			for (uint8_t base_h : base_order) {
-				String base_name = MCNode::hash_to_binary(base_h);
+				String base_name = mc::hash_to_binary(base_h);
 				int count = counts.has(base_name) ? (int)counts[base_name] : 0;
 				int bit_count = 0;
 				for (int i = 0; i < 8; i++) {

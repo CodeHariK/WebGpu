@@ -1,4 +1,4 @@
-#include "mc_spatial.h"
+#include "marching_cubes/grid/mc_spatial.h"
 
 namespace godot {
 

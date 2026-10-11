@@ -1,4 +1,8 @@
-#include "marching_cubes/mc.h"
+// MCNode: build all 256 tiles from the base meshes by rotating/mirroring (hash + transform together).
+#include "marching_cubes/core/mc_hash.h"
+#include "marching_cubes/core/mc_symmetry.h"
+#include "marching_cubes/library/mc_library.h"
+#include <algorithm>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
@@ -10,183 +14,9 @@
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
-
-#include "cui/cui.h"
-#include <algorithm>
 #include <vector>
 
 namespace godot {
-
-void MCNode::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_mesh_library_path", "p_path"), &MCNode::set_mesh_library_path);
-	ClassDB::bind_method(D_METHOD("get_mesh_library_path"), &MCNode::get_mesh_library_path);
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "mesh_library_path"), "set_mesh_library_path", "get_mesh_library_path");
-
-	ClassDB::bind_method(D_METHOD("load_mesh_library"), &MCNode::load_mesh_library);
-	ClassDB::bind_method(D_METHOD("initialize_library"), &MCNode::initialize_library);
-	ClassDB::bind_method(D_METHOD("display_library"), &MCNode::display_library);
-	ClassDB::bind_method(D_METHOD("generate_variants"), &MCNode::generate_variants_by_4Y_rotation);
-	ClassDB::bind_method(D_METHOD("get_variant_counts"), &MCNode::get_variant_counts);
-
-	ClassDB::bind_method(D_METHOD("set_import_mode", "p_mode"), &MCNode::set_import_mode);
-	ClassDB::bind_method(D_METHOD("get_import_mode"), &MCNode::get_import_mode);
-	ADD_PROPERTY(
-			PropertyInfo(Variant::INT, "import_mode", PROPERTY_HINT_ENUM, "16 BaseMeshes,68 BaseMeshes,Complete (256)"),
-			"set_import_mode", "get_import_mode"
-	);
-
-	BIND_ENUM_CONSTANT(IMPORT_21_BASEMESH);
-	BIND_ENUM_CONSTANT(IMPORT_68_BASEMESH);
-	BIND_ENUM_CONSTANT(IMPORT_COMPLETE);
-}
-
-MCNode::MCNode() = default;
-
-MCNode::~MCNode() {}
-
-void MCNode::_ready() {
-	if (Engine::get_singleton()->is_editor_hint()) {
-		return;
-	}
-	initialize_library();
-	display_library();
-}
-
-void MCNode::initialize_library() {
-	if (is_initialized) {
-		return;
-	}
-
-	load_mesh_library();
-
-	switch (import_mode) {
-		case IMPORT_21_BASEMESH:
-			generate_variants_by_21_basemesh();
-			break;
-		case IMPORT_68_BASEMESH:
-			generate_variants_by_4Y_rotation();
-			break;
-		case IMPORT_COMPLETE:
-			validate_full_library();
-			break;
-	}
-
-	is_initialized = true;
-}
-
-void MCNode::set_import_mode(MCImportMode p_mode) { import_mode = p_mode; }
-
-MCImportMode MCNode::get_import_mode() const { return import_mode; }
-
-void MCNode::set_mesh_library_path(const String &p_path) { mesh_library_path = p_path; }
-
-String MCNode::get_mesh_library_path() const { return mesh_library_path; }
-
-struct LoadMeta {
-	Node *child = nullptr;
-	MeshInstance3D *mi = nullptr;
-	int ones_count = 0;
-	bool is_valid = true;
-
-	LoadMeta(
-			Node *p_child,
-			MeshInstance3D *p_mi
-	) :
-			child(p_child),
-			mi(p_mi) {
-		if (child) {
-			String p_bin = child->get_name().substr(0, 8);
-			if (p_bin.length() < 8) {
-				is_valid = false;
-				return;
-			}
-			for (int i = 0; i < p_bin.length(); i++) {
-				if (p_bin[i] == '1') {
-					ones_count++;
-				} else if (p_bin[i] != '0') {
-					is_valid = false;
-				}
-			}
-		} else {
-			is_valid = false;
-		}
-	}
-
-	bool operator<(const LoadMeta &p_other) const { return ones_count < p_other.ones_count; }
-};
-
-void MCNode::load_mesh_library() {
-	for (int i = 0; i < 256; i++) {
-		mesh_library[i] = MeshConfig();
-	}
-
-	Ref<PackedScene> scene = ResourceLoader::get_singleton()->load(mesh_library_path);
-	if (scene.is_null()) {
-		UtilityFunctions::print("MCNode: Failed to load mesh library at ", mesh_library_path);
-		return;
-	}
-
-	Node *inst = scene->instantiate();
-	if (!inst) {
-		return;
-	}
-
-	// 1. Collect all candidates
-	std::vector<LoadMeta> candidates;
-	TypedArray<Node> children = inst->get_children();
-	for (int i = 0; i < children.size(); i++) {
-		Node *child = Object::cast_to<Node>(children[i]);
-		MeshInstance3D *mi = Object::cast_to<MeshInstance3D>(child);
-
-		if (!mi) {
-			for (int j = 0; j < child->get_child_count(); j++) {
-				mi = Object::cast_to<MeshInstance3D>(child->get_child(j));
-				if (mi) {
-					break;
-				}
-			}
-		}
-
-		if (mi && mi->get_mesh().is_valid()) {
-			LoadMeta meta(child, mi);
-			if (meta.is_valid) {
-				candidates.push_back(meta);
-			} else {
-				UtilityFunctions::print("MCNode: Skipping mesh with invalid name: ", child->get_name());
-			}
-		}
-	}
-
-	// 2. Sort by bit-density (number of active corners)
-	std::sort(candidates.begin(), candidates.end());
-
-	// 3. Populate Library and Master Order
-	base_mesh_order.clear();
-	for (const LoadMeta &meta : candidates) {
-		MeshConfig config;
-		config.mesh = meta.mi->get_mesh();
-		config.transform = Transform3D(); // Identity for original GLB nodes
-
-		String truncated_name = meta.child->get_name().substr(0, 8);
-		uint8_t h = binary_to_hash(truncated_name);
-		config.source_mesh = h;
-		mesh_library[h] = config;
-		base_mesh_order.push_back(h);
-		UtilityFunctions::print(
-				"MCNode: Loaded mesh: ", truncated_name, " (Hash: ", h, ", Corners: ", meta.ones_count, ")"
-		);
-	}
-
-	int loaded_count = 0;
-	for (int i = 0; i < 256; i++) {
-		if (mesh_library[i].mesh.is_valid()) {
-			loaded_count++;
-		}
-	}
-
-	UtilityFunctions::print("MCNode: Finished loading library. Total items: ", loaded_count);
-	inst->queue_free();
-}
 
 void MCNode::generate_variants_by_21_basemesh() {
 	// 1 Corner - 8 total
@@ -459,7 +289,7 @@ void MCNode::validate_full_library() {
 	int missing_count = 0;
 	for (int i = 0; i < 256; i++) {
 		if (!mesh_library[i].mesh.is_valid()) {
-			UtilityFunctions::print("MCNode: Missing mesh for hash: ", hash_to_binary((uint8_t)i));
+			UtilityFunctions::print("MCNode: Missing mesh for hash: ", mc::hash_to_binary((uint8_t)i));
 			missing_count++;
 		}
 	}
@@ -521,7 +351,7 @@ void MCNode::apply_6_rotations(
 
 	uint8_t h90 = p_base_hash;
 	Transform3D t90 = p_base_t;
-	apply_mct_transform(h90, t90, RX90);
+	mc::apply_transform(h90, t90, RX90);
 	apply_transform_sequence(p_base_hash, h90, t90, { RY90 }, p_prefix + String(" Rx90 Ry90"));
 	apply_transform_sequence(p_base_hash, h90, t90, { RY270 }, p_prefix + String(" Rx90 Ry270"));
 }
@@ -536,7 +366,7 @@ void MCNode::apply_8_rotations(
 	for (MCTransform base_rot : { RX270, RX180 }) {
 		uint8_t h = p_base_hash;
 		Transform3D t = p_base_t;
-		apply_mct_transform(h, t, base_rot);
+		mc::apply_transform(h, t, base_rot);
 		String name = (base_rot == RX270) ? " Rx270" : " Rx180";
 		apply_4_axis_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + name, true);
 	}
@@ -553,7 +383,7 @@ void MCNode::apply_12_rotations(
 	for (MCTransform axis_rot : { RX180, RX90, RZ90 }) {
 		uint8_t h = p_variant_hash;
 		Transform3D t = p_base_t;
-		apply_mct_transform(h, t, axis_rot);
+		mc::apply_transform(h, t, axis_rot);
 		String name = (axis_rot == RX180) ? " Rx180" : (axis_rot == RX90 ? " Rx90" : " Rz90");
 		apply_4_axis_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + name, true);
 	}
@@ -566,7 +396,7 @@ void MCNode::apply_12_mirror_rotations(
 ) {
 	uint8_t h = p_base_hash;
 	Transform3D t = p_base_t;
-	apply_mct_transform(h, t, SX);
+	mc::apply_transform(h, t, SX);
 	apply_transform_sequence(p_base_hash, h, t, {}, p_prefix);
 	apply_12_rotations(p_base_hash, h, t, p_prefix);
 }
@@ -582,7 +412,7 @@ void MCNode::apply_24_rotations(
 	{
 		uint8_t h = p_base_hash;
 		Transform3D t = p_base_t;
-		apply_mct_transform(h, t, RX180);
+		mc::apply_transform(h, t, RX180);
 		apply_4_axis_rotations(p_base_hash, h, t, Vector3::AXIS_Y, p_prefix + String(" Rx180"), true);
 	}
 
@@ -590,7 +420,7 @@ void MCNode::apply_24_rotations(
 	for (MCTransform rx : { RX90, RX270 }) {
 		uint8_t h = p_base_hash;
 		Transform3D t = p_base_t;
-		apply_mct_transform(h, t, rx);
+		mc::apply_transform(h, t, rx);
 		apply_4_axis_rotations(
 				p_base_hash, h, t, Vector3::AXIS_Z, p_prefix + String(rx == RX90 ? " Rx90" : " Rx270"), true
 		);
@@ -600,65 +430,10 @@ void MCNode::apply_24_rotations(
 	for (MCTransform rz : { RZ90, RZ270 }) {
 		uint8_t h = p_base_hash;
 		Transform3D t = p_base_t;
-		apply_mct_transform(h, t, rz);
+		mc::apply_transform(h, t, rz);
 		apply_4_axis_rotations(
 				p_base_hash, h, t, Vector3::AXIS_X, p_prefix + String(rz == RZ90 ? " Rz90" : " Rz270"), true
 		);
-	}
-}
-
-void MCNode::apply_mct_transform(
-		uint8_t &p_hash,
-		Transform3D &p_transform,
-		MCTransform p_op
-) {
-	float p90 = Math::PI / 2.0;
-	float m90 = -Math::PI / 2.0;
-
-	switch (p_op) {
-		case RX90:
-			p_hash = rotate_x(p_hash);
-			p_transform = p_transform.rotated(Vector3(1, 0, 0), p90);
-			break;
-		case RX180:
-			p_hash = rotate_x(rotate_x(p_hash));
-			p_transform = p_transform.rotated(Vector3(1, 0, 0), Math::PI);
-			break;
-		case RX270:
-			p_hash = rotate_x(rotate_x(rotate_x(p_hash)));
-			p_transform = p_transform.rotated(Vector3(1, 0, 0), m90);
-			break;
-
-		case RY90:
-			p_hash = rotate_y(p_hash);
-			p_transform = p_transform.rotated(Vector3(0, 1, 0), p90);
-			break;
-		case RY180:
-			p_hash = rotate_y(rotate_y(p_hash));
-			p_transform = p_transform.rotated(Vector3(0, 1, 0), Math::PI);
-			break;
-		case RY270:
-			p_hash = rotate_y(rotate_y(rotate_y(p_hash)));
-			p_transform = p_transform.rotated(Vector3(0, 1, 0), m90);
-			break;
-
-		case RZ90:
-			p_hash = rotate_z(p_hash);
-			p_transform = p_transform.rotated(Vector3(0, 0, 1), p90);
-			break;
-		case RZ180:
-			p_hash = rotate_z(rotate_z(p_hash));
-			p_transform = p_transform.rotated(Vector3(0, 0, 1), Math::PI);
-			break;
-		case RZ270:
-			p_hash = rotate_z(rotate_z(rotate_z(p_hash)));
-			p_transform = p_transform.rotated(Vector3(0, 0, 1), m90);
-			break;
-
-		case SX:
-			p_hash = scale_x(p_hash);
-			p_transform = p_transform.scaled_local(Vector3(-1, 1, 1));
-			break;
 	}
 }
 
@@ -673,10 +448,10 @@ void MCNode::apply_transform_sequence(
 	Transform3D t = p_base_t;
 
 	for (MCTransform op : p_sequence) {
-		apply_mct_transform(h, t, op);
+		mc::apply_transform(h, t, op);
 	}
 
-	String h_str = hash_to_binary(h);
+	String h_str = mc::hash_to_binary(h);
 
 	if (!mesh_library[h].mesh.is_valid()) {
 		MeshConfig config;
@@ -688,151 +463,6 @@ void MCNode::apply_transform_sequence(
 	} else {
 		UtilityFunctions::print("Rejected Variant ", p_name, ": ", h_str);
 	}
-}
-
-void MCNode::display_library() {
-	for (int i = get_child_count() - 1; i >= 0; i--) {
-		Node *child = get_child(i);
-		child->queue_free();
-		remove_child(child);
-	}
-
-	float spacing = 2.0f; // 1 unit mesh + 1 unit gap
-
-	// 1. Arrange Rows (Base meshes along Z based on master sorted order)
-	for (int row = 0; row < (int)base_mesh_order.size(); row++) {
-		uint8_t base_h = base_mesh_order[row];
-
-		// 2. Find all variants for this row
-		std::vector<uint8_t> variants;
-		if (mesh_library[base_h].mesh.is_valid()) {
-			variants.push_back(base_h);
-		}
-
-		for (int i = 0; i < 256; i++) {
-			if (i == base_h) {
-				continue;
-			}
-			if (mesh_library[i].mesh.is_valid() && mesh_library[i].source_mesh == base_h) {
-				variants.push_back((uint8_t)i);
-			}
-		}
-
-		for (int col = 0; col < (int)variants.size(); col++) {
-			uint8_t variant_h = variants[col];
-			const MeshConfig &conf = mesh_library[variant_h];
-
-			MeshInstance3D *mi = memnew(MeshInstance3D);
-			mi->set_mesh(conf.mesh);
-			String h_str = hash_to_binary(variant_h);
-			mi->set_name(h_str);
-
-			Transform3D grid_t;
-			grid_t.origin = Vector3(col * spacing, 0, row * spacing);
-			mi->set_transform(grid_t * conf.transform);
-
-			add_child(mi);
-			if (Engine::get_singleton()->is_editor_hint()) {
-				mi->set_owner(get_owner());
-			}
-
-			Label3D *label = memnew(Label3D);
-			int bit_count = 0;
-			for (int i = 0; i < 8; i++) {
-				if ((variant_h >> i) & 1) {
-					bit_count++;
-				}
-			}
-			label->set_text(String::num_int64(bit_count) + " : " + h_str);
-			label->set_position(grid_t.origin + Vector3(0, 1.5f, -0.2f));
-			label->set_billboard_mode(BaseMaterial3D::BILLBOARD_ENABLED);
-			label->set_font_size(24);
-			add_child(label);
-			if (Engine::get_singleton()->is_editor_hint()) {
-				label->set_owner(get_owner());
-			}
-		}
-	}
-}
-
-uint8_t MCNode::rotate_y(uint8_t p_hash) {
-	static const uint8_t swap_table[8] = { C1, C2, C3, C0, C5, C6, C7, C4 };
-	uint8_t next = 0;
-	for (int i = 7; i >= 0; i--) {
-		if ((p_hash >> i) & 1) {
-			next |= (1 << swap_table[i]);
-		}
-	}
-	return next;
-}
-
-uint8_t MCNode::rotate_x(uint8_t p_hash) {
-	static const uint8_t swap_table[8] = { C3, C2, C6, C7, C0, C1, C5, C4 };
-	uint8_t next = 0;
-	for (int i = 7; i >= 0; i--) {
-		if ((p_hash >> i) & 1) {
-			next |= (1 << swap_table[i]);
-		}
-	}
-	return next;
-}
-
-uint8_t MCNode::rotate_z(uint8_t p_hash) {
-	static const uint8_t swap_table[8] = { C1, C5, C6, C2, C0, C4, C7, C3 };
-	uint8_t next = 0;
-	for (int i = 7; i >= 0; i--) {
-		if ((p_hash >> i) & 1) {
-			next |= (1 << swap_table[i]);
-		}
-	}
-	return next;
-}
-
-uint8_t MCNode::scale_x(uint8_t p_hash) {
-	static const uint8_t swap_table[8] = { C1, C0, C3, C2, C5, C4, C7, C6 };
-	uint8_t next = 0;
-	for (int i = 7; i >= 0; i--) {
-		if ((p_hash >> i) & 1) {
-			next |= (1 << swap_table[i]);
-		}
-	}
-	return next;
-}
-
-uint8_t MCNode::binary_to_hash(const String &p_bin) {
-	uint8_t h = 0;
-	for (int i = 0; i < 8; i++) {
-		if (p_bin[7 - i] == '1') {
-			h |= (1 << i);
-		}
-	}
-	return h;
-}
-
-String MCNode::hash_to_binary(uint8_t p_hash) {
-	String s = "";
-	for (int i = 7; i >= 0; i--) {
-		s += (p_hash & (1 << i)) ? "1" : "0";
-	}
-	return s;
-}
-
-MeshConfig MCNode::get_mesh_config(uint8_t p_hash) const { return mesh_library[p_hash]; }
-
-Dictionary MCNode::get_variant_counts() const {
-	Dictionary counts;
-	for (int i = 0; i < 256; i++) {
-		if (!mesh_library[i].mesh.is_valid()) {
-			continue;
-		}
-		String base_hash_str = hash_to_binary(mesh_library[i].source_mesh);
-		if (!counts.has(base_hash_str)) {
-			counts[base_hash_str] = 0;
-		}
-		int current = counts[base_hash_str];
-		counts[base_hash_str] = current + 1;
-	}
-	return counts;
 }
 
 } // namespace godot

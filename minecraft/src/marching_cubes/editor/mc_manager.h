@@ -1,3 +1,8 @@
+// MCManager: the in-game editor for an MCGrid (modes, mouse input, hover, side-panel UI).
+//   mc_manager.cpp        lifecycle, node paths, save/load
+//   mc_manager_input.cpp  mouse clicks: terrain edits, placing / selecting / dragging objects
+//   mc_manager_hover.cpp  per-frame hover raycast and previews
+//   mc_ui.cpp             side panel, stats, help
 #ifndef MC_MANAGER_H
 #define MC_MANAGER_H
 

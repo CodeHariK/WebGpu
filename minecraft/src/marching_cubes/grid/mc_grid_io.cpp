@@ -1,24 +1,14 @@
+// MCGrid: save / load the corner grid.
+// File layout (version 1): magic 'MCTR', version, grid_size xyz, chunk_size xyz, chunk count,
+// then per chunk: byte length + RLE bytes. Everything is validated and read into temporaries
+// first; the grid is only changed once the whole file is known to be good.
 #include "godot_cpp/classes/file_access.hpp"
 #include "godot_cpp/variant/packed_byte_array.hpp"
-
-#include "mc_grid.h"
+#include "marching_cubes/grid/mc_grid.h"
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <vector>
 
 namespace godot {
-
-PackedByteArray Chunk::serialize_rle() const {
-	int num_corners = (size_x + 1) * (size_y + 1) * (size_z + 1);
-	return RLE::encode_bit_rle(num_corners, [this](int i) { return get_corner_bit(i); });
-}
-
-void Chunk::deserialize_rle(const PackedByteArray &p_data) {
-	int num_corners = (size_x + 1) * (size_y + 1) * (size_z + 1);
-	int num_bytes = (num_corners + 7) / 8;
-	corner_states.assign(static_cast<size_t>(num_bytes), 0);
-
-	RLE::decode_bit_rle(p_data, num_corners, [this](int i, bool state) { set_corner_bit(i, state); });
-}
 
 static const uint32_t MCT_MAGIC = 0x4D435452;
 static const uint32_t MCT_VERSION = 1;
@@ -53,10 +43,6 @@ void MCGrid::save_grid(const String &p_path) {
 
 	UtilityFunctions::print("MCGrid: Saved state to ", p_path);
 }
-
-// File layout (version 1): magic 'MCTR', version, grid_size xyz, chunk_size xyz, chunk count,
-// then per chunk: byte length + RLE bytes. Everything is validated and read into temporaries
-// first; the grid is only changed once the whole file is known to be good.
 
 void MCGrid::load_grid(const String &p_path) {
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
@@ -119,4 +105,5 @@ void MCGrid::load_grid(const String &p_path) {
 	UtilityFunctions::print("MCGrid: Loaded state from ", p_path);
 	refresh_grid();
 }
-} //namespace godot
+
+} // namespace godot

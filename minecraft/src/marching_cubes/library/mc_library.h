@@ -1,5 +1,12 @@
-#ifndef MCNODE_H
-#define MCNODE_H
+// MCNode: the tile library. Loads the base tile meshes from a .glb (each named by its 8-bit
+// corner pattern, e.g. "00001111") and fills all 256 entries by rotating/mirroring them.
+//   mc_library.cpp           loading + lookup
+//   mc_library_variants.cpp  generating the 256 variants from the base meshes
+//   mc_library_showcase.cpp  display_library(): every tile laid out in a grid, for checking
+#ifndef MC_LIBRARY_H
+#define MC_LIBRARY_H
+
+#include "marching_cubes/core/mc_symmetry.h"
 
 #include <cstdint>
 #include <godot_cpp/classes/node3d.hpp>
@@ -25,8 +32,6 @@ struct MeshConfig {
 	uint8_t source_mesh = 0; // Which base GLB mesh this came from
 };
 
-enum MCTransform : uint8_t { RX90, RX180, RX270, RY90, RY180, RY270, RZ90, RZ180, RZ270, SX };
-
 enum MCImportMode : uint8_t { IMPORT_21_BASEMESH, IMPORT_68_BASEMESH, IMPORT_COMPLETE };
 
 class MCNode : public Node3D {
@@ -40,8 +45,6 @@ private:
 	MeshConfig mesh_library[256];
 
 	std::vector<uint8_t> base_mesh_order;
-
-	static uint8_t binary_to_hash(const String &p_bin);
 
 protected:
 	static void _bind_methods();
@@ -112,33 +115,10 @@ public:
 			const Transform3D &p_base_t,
 			const String &p_prefix
 	);
-
-	// Hash transformations
-	static void apply_mct_transform(
-			uint8_t &p_hash,
-			Transform3D &p_transform,
-			MCTransform p_op
-	);
-	static uint8_t rotate_y(uint8_t p_hash);
-	static uint8_t rotate_x(uint8_t p_hash);
-	static uint8_t rotate_z(uint8_t p_hash);
-	static uint8_t scale_x(uint8_t p_hash);
-
-	static String hash_to_binary(uint8_t p_hash);
-
-	// Corner Helpers (Synced: Ci = Bit i)
-	static const uint8_t C0 = 0;
-	static const uint8_t C1 = 1;
-	static const uint8_t C2 = 2;
-	static const uint8_t C3 = 3;
-	static const uint8_t C4 = 4;
-	static const uint8_t C5 = 5;
-	static const uint8_t C6 = 6;
-	static const uint8_t C7 = 7;
 };
 
 } // namespace godot
 
 VARIANT_ENUM_CAST(godot::MCImportMode);
 
-#endif // MCNODE_H
+#endif // MC_LIBRARY_H

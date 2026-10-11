@@ -6,7 +6,7 @@
  */
 
 #include "debug_draw/debug_manager.h"
-#include "marching_cubes/mc_physics.h" // Use MCPhysics helper
+#include "marching_cubes/util/mc_physics.h" // Use MCPhysics helper
 #include "mp.h"
 #include "mp_grid.h"
 #include <godot_cpp/classes/box_mesh.hpp>

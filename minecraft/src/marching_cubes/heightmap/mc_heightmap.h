@@ -1,7 +1,7 @@
 /**
  * @file mc_heightmap.h
  * @brief Node for generating 2.5D Marching Squares terrain using Marching Cubes meshes.
- * Module Path: src/marching_cubes/mc_heightmap.h
+ * Module Path: src/marching_cubes/heightmap/mc_heightmap.h
  * Build Dependencies: godot-cpp, mc.h
  */
 

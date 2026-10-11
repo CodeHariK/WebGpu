@@ -1,4 +1,4 @@
-#include "mc_physics.h"
+#include "marching_cubes/util/mc_physics.h"
 #include <godot_cpp/classes/box_shape3d.hpp>
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/cylinder_shape3d.hpp>

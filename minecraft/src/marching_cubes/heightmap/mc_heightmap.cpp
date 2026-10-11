@@ -5,8 +5,8 @@
  * Build Dependencies: godot-cpp, mc_heightmap.h, mc.h
  */
 
-#include "marching_cubes/mc_heightmap.h"
-#include "marching_cubes/mc.h"
+#include "marching_cubes/heightmap/mc_heightmap.h"
+#include "marching_cubes/library/mc_library.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/sphere_mesh.hpp>

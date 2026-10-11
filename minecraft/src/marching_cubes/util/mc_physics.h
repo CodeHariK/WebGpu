@@ -5,7 +5,7 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/vector3.hpp>
 
-#include "../game_manager/game_constants.h"
+#include "game_manager/game_constants.h"
 
 namespace godot {
 
