@@ -66,7 +66,14 @@ void MCManager::_update_hover_box(
 	if (box.is_valid()) {
 		box->set_size(Vector3(current_placement_size));
 	}
-	hover_box_node->set_position(Vector3(p_grid_pos) + (Vector3(current_placement_size) * 0.5f));
+	// The box is a child of MCManager but the position is in MCGrid space: place it globally.
+	Vector3 local_centre = Vector3(p_grid_pos) + (Vector3(current_placement_size) * 0.5f);
+	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
+	if (terrain_node) {
+		hover_box_node->set_global_position(terrain_node->to_global(local_centre));
+	} else {
+		hover_box_node->set_position(local_centre);
+	}
 	hover_box_node->set_material_override(p_is_blocked ? hover_mat_red : hover_mat_yellow);
 	hover_box_node->show();
 }
@@ -116,10 +123,14 @@ void MCManager::_update_hover_raycast() {
 			if (camera) {
 				MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 				if (terrain_node) {
-					Vector3i grid_pos = Vector3i((hit.position + hit.normal * 0.5f).floor());
+					// Work in MCGrid space so a moved/rotated grid still lines up.
+					Vector3 hit_pos = terrain_node->to_local(hit.position);
+					Vector3 hit_normal =
+							(terrain_node->get_global_transform().basis.inverse().xform(hit.normal)).normalized();
+					Vector3i grid_pos = Vector3i((hit_pos + hit_normal * 0.5f).floor());
 
 					if (ctrl_held && interaction_mode == MODE_TERRAIN) {
-						grid_pos = Vector3i((hit.position - hit.normal * 0.05f).floor());
+						grid_pos = Vector3i((hit_pos - hit_normal * 0.05f).floor());
 						locked_grid_pos = grid_pos;
 						update_ui();
 					}
@@ -158,7 +169,7 @@ void MCManager::_update_hover_raycast() {
 							}
 						}
 						for (auto &obj : drag_group) {
-							obj.node->set_material_override(group_blocked ? hover_mat_red : nullptr);
+							obj.node->set_material_overlay(group_blocked ? hover_mat_red : hover_mat_cyan);
 						}
 						drag_valid = !group_blocked;
 					} else if (interaction_mode == MODE_PLACE_OBJECT) {
@@ -166,12 +177,12 @@ void MCManager::_update_hover_raycast() {
 					} else if (interaction_mode == MODE_DRAG_OBJECT) {
 						for (MeshInstance3D *node : selected_nodes) {
 							if (node)
-								node->set_material_override(hover_mat_cyan);
+								node->set_material_overlay(hover_mat_cyan);
 						}
 					} else if (interaction_mode == MODE_TERRAIN) {
 						if (ctrl_held) {
 							terrain_node->update_hover_preview(
-									Vector3(locked_grid_pos) + Vector3(0.5, 0.5, 0.5), hit.normal, camera
+									Vector3(locked_grid_pos) + Vector3(0.5, 0.5, 0.5), hit_normal, camera
 							);
 						} else {
 							Node *parent = collider_node->get_parent();
@@ -179,7 +190,7 @@ void MCManager::_update_hover_raycast() {
 							if (parent_node) {
 								Vector3 final_pos = parent_node->get_position();
 								locked_grid_pos = Vector3i(final_pos.round());
-								terrain_node->update_hover_preview(final_pos, hit.normal, camera);
+								terrain_node->update_hover_preview(final_pos, hit_normal, camera);
 							}
 						}
 					}

@@ -11,18 +11,12 @@
 namespace godot {
 
 bool MCGrid::is_corner_active(const Vector3i &p_grid_pos) const {
-	int cx = (p_grid_pos.x >= grid_size.x * chunk_size.x) ? grid_size.x - 1 : p_grid_pos.x / chunk_size.x;
-	int cy = (p_grid_pos.y >= grid_size.y * chunk_size.y) ? grid_size.y - 1 : p_grid_pos.y / chunk_size.y;
-	int cz = (p_grid_pos.z >= grid_size.z * chunk_size.z) ? grid_size.z - 1 : p_grid_pos.z / chunk_size.z;
-
-	if (cx < 0 || cx >= grid_size.x || cy < 0 || cy >= grid_size.y || cz < 0 || cz >= grid_size.z) {
-		return false;
+	int chunk_index = 0;
+	Vector3i local;
+	if (!_corner_to_local(p_grid_pos, chunk_index, local)) {
+		return false; // outside the grid counts as empty
 	}
-
-	int idx = _get_chunk_index(cx, cy, cz);
-	return chunks[idx].get_corner(
-			p_grid_pos.x - (cx * chunk_size.x), p_grid_pos.y - (cy * chunk_size.y), p_grid_pos.z - (cz * chunk_size.z)
-	);
+	return chunks[static_cast<size_t>(chunk_index)].get_corner(local.x, local.y, local.z);
 }
 
 bool MCGrid::is_area_blocked_by_grid(
@@ -65,21 +59,25 @@ void MCGrid::add_placed_object(
 	mi->set_name("PlacedObject_" + String::num_int64(p_dual_grid_pos.x) + "_" + String::num_int64(p_dual_grid_pos.y));
 
 	// Collision instantiation
-	StaticBody3D *sb = MCPhysics::create_static_box_collider(mi, toLayer(LAYER_OBJECTS), Vector3(p_size));
+	MCPhysics::create_static_box_collider(mi, toLayer(LAYER_OBJECTS), Vector3(p_size));
 
 	obj.visual_node = mi;
 	spatial.add_object(obj);
 
-	// Add a simple material to distinguish it from terrain
-	Ref<StandardMaterial3D> mat;
-	mat.instantiate();
-	mat->set_albedo(Color(0.2f, 0.6f, 1.0f)); // Light blue
-	mi->set_material_override(mat);
-
-	add_child(mi);
-	if (is_inside_tree()) {
-		mi->set_owner(get_owner() ? get_owner() : this);
+	// One shared light-blue material distinguishes placed objects from terrain. Highlights go
+	// in material_overlay, so this override is never lost.
+	if (placed_object_material.is_null()) {
+		placed_object_material.instantiate();
+		placed_object_material->set_albedo(Color(0.2f, 0.6f, 1.0f));
 	}
+	mi->set_material_override(placed_object_material);
+
+	if (!placed_objects_container) {
+		placed_objects_container = memnew(Node3D);
+		placed_objects_container->set_name("PlacedObjects");
+		add_child(placed_objects_container);
+	}
+	placed_objects_container->add_child(mi);
 
 	UtilityFunctions::print("MCGrid: Placed object of size ", p_size, " at ", p_dual_grid_pos);
 }
@@ -97,6 +95,21 @@ void MCGrid::detach_placed_object(Node *p_node) {
 		return;
 	spatial.remove_object_by_node(p_node);
 	UtilityFunctions::print("MCGrid: Detached object node from spatial index.");
+}
+
+void MCGrid::_clear_placed_objects() {
+	spatial.clear();
+	if (!placed_objects_container) {
+		return;
+	}
+	TypedArray<Node> children = placed_objects_container->get_children();
+	for (int i = 0; i < children.size(); i++) {
+		Node *child = Object::cast_to<Node>(children[i]);
+		if (child) {
+			placed_objects_container->remove_child(child);
+			child->queue_free();
+		}
+	}
 }
 
 const PlacedObject *MCGrid::get_placed_object(Node *p_node) const {

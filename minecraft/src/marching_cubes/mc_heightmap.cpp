@@ -62,7 +62,9 @@ void MCHeightmap::_bind_methods() {
 
 MCHeightmap::MCHeightmap() = default;
 
-MCHeightmap::~MCHeightmap() { clear_terrain(); }
+// No clear_terrain() here: the spawned meshes are children and are freed with the node, and
+// touching the scene tree from the C++ destructor is unsafe during engine teardown.
+MCHeightmap::~MCHeightmap() = default;
 
 void MCHeightmap::set_noise_source(const Ref<Noise> &p_noise) {
 	if (noise_source == p_noise) {
@@ -200,22 +202,14 @@ void MCHeightmap::_spawn_cell_mesh(
 	MeshInstance3D *mi = memnew(MeshInstance3D);
 	mi->set_mesh(conf.mesh);
 
-	Vector3 pos(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f);
-	pos.x *= cell_spacing;
-	pos.y *= cell_spacing * height_scale;
-	pos.z *= cell_spacing;
-
-	Transform3D cell_t;
-	cell_t.origin = pos;
-
+	// Cell centre in world units, then the tile scaled to the cell size. The origin is scaled
+	// exactly once (it used to be scaled again by a scale transform in front, leaving gaps).
 	Vector3 scale(cell_spacing, cell_spacing * height_scale, cell_spacing);
-	Transform3D scale_t = Transform3D().scaled(scale);
+	Vector3 pos(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f);
+	pos *= scale;
 
-	mi->set_transform(scale_t * cell_t * conf.transform);
-	add_child(mi);
-	if (is_inside_tree()) {
-		mi->set_owner(get_owner() ? get_owner() : this);
-	}
+	mi->set_transform(Transform3D(Basis().scaled(scale), pos) * conf.transform);
+	add_child(mi); // generated: not owned by the scene, so it is never saved into the .tscn
 }
 
 void MCHeightmap::_spawn_debug_spheres(const uint8_t *data_ptr) {

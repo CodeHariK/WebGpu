@@ -198,6 +198,48 @@ private:
 			int gz
 	);
 
+	// --- Global <-> chunk-local coordinates (every lookup goes through these; all bounds-checked) ---
+
+	// Is this global corner inside the grid? Corners run 0..grid_size * chunk_size on each axis.
+	bool _is_corner_in_grid(const Vector3i &p_corner) const;
+
+	// Global corner -> the chunk that OWNS it + its local corner. Returns false outside the grid.
+	// A corner on a shared chunk face is stored in both chunks; the owner is the higher chunk
+	// (local 0), except on the grid's far face where only the last chunk has it (local = size).
+	bool _corner_to_local(
+			const Vector3i &p_corner,
+			int &r_chunk_index,
+			Vector3i &r_local
+	) const;
+
+	// Global cell -> its chunk + local cell. Cells run 0..grid_size * chunk_size - 1 on each axis.
+	bool _cell_to_local(
+			const Vector3i &p_cell,
+			int &r_chunk_index,
+			Vector3i &r_local
+	) const;
+
+	// Does p_chunk own its local corner? Each shared corner has exactly one owner, so debug
+	// corners are spawned once (not once per chunk that stores the corner).
+	bool _owns_corner(
+			const Chunk &p_chunk,
+			int p_lx,
+			int p_ly,
+			int p_lz
+	) const;
+
+	// Does any of the 6 neighbours of this global corner (inside the grid) have state p_state?
+	// Looks across chunk borders, unlike Chunk::has_active_neighbor.
+	bool _has_neighbor_with_state(
+			const Vector3i &p_corner,
+			bool p_state
+	) const;
+
+	// Placed objects live under their own container, so refresh_grid() never frees them.
+	Node3D *placed_objects_container = nullptr;
+	Ref<StandardMaterial3D> placed_object_material; // shared by every placed object
+	void _clear_placed_objects();
+
 	void _clear_children();
 	bool _is_boundary_corner(
 			int gx,
@@ -206,10 +248,7 @@ private:
 			bool &r_required_state
 	) const;
 	void _initialize_boundaries(Chunk &p_chunk) const;
-	int _spawn_debug_cubes(
-			const Chunk &p_chunk,
-			const Ref<BoxMesh> &p_box_mesh
-	);
+	int _spawn_debug_cubes(Chunk &p_chunk);
 	int _spawn_marching_cubes(
 			const Chunk &p_chunk,
 			MCNode *p_mc_node

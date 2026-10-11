@@ -115,11 +115,14 @@ public:
 	void _process(double p_delta) override;
 	void _on_toggle_ui();
 	void _on_toggle_visual_corners();
-	void _input(const Ref<InputEvent> &p_event) override;
+	// _unhandled_input (not _input): clicks on UI buttons are consumed by the GUI first and never
+	// reach the terrain behind them.
+	void _unhandled_input(const Ref<InputEvent> &p_event) override;
 	void _on_gui_input(const Ref<InputEvent> &p_event);
 	void _on_show_help();
 	void _on_toggle_placement_mode();
 	void cancel_drag();
+	void _clear_selection(); // un-highlight and forget selected objects
 	void _on_save_terrain();
 	void _on_load_terrain();
 	void save_terrain(const String &p_path);

@@ -145,6 +145,10 @@ void MCManager::save_terrain(const String &p_path) {
 void MCManager::load_terrain(const String &p_path) {
 	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
 	if (terrain_node) {
+		// Loading may free placed objects (when the grid size changes): drop every pointer to them
+		// first, putting a drag back where it started.
+		cancel_drag();
+		_clear_selection();
 		terrain_node->load_grid(p_path);
 	}
 }

@@ -61,10 +61,7 @@ void MCGrid::set_corner_collision_enabled(bool p_enabled) {
 	}
 }
 
-int MCGrid::_spawn_debug_cubes(
-		const Chunk &p_chunk,
-		const Ref<BoxMesh> &p_box_mesh
-) {
+int MCGrid::_spawn_debug_cubes(Chunk &p_chunk) {
 	int nx = p_chunk.size_x + 1;
 	int ny = p_chunk.size_y + 1;
 	int nz = p_chunk.size_z + 1;
@@ -90,18 +87,23 @@ int MCGrid::_spawn_debug_cubes(
 	for (int ly = 0; ly < ny; ly++) {
 		for (int lz = 0; lz < nz; lz++) {
 			for (int lx = 0; lx < nx; lx++) {
+				// A corner on a shared chunk face is stored in both chunks: spawn it only from its owner.
+				if (!_owns_corner(p_chunk, lx, ly, lz)) {
+					continue;
+				}
+				Vector3i corner(
+						(p_chunk.loc_x * p_chunk.size_x) + lx, (p_chunk.loc_y * p_chunk.size_y) + ly,
+						(p_chunk.loc_z * p_chunk.size_z) + lz
+				);
 				bool state = p_chunk.get_corner(lx, ly, lz);
-				bool has_active = p_chunk.has_active_neighbor(lx, ly, lz);
-				bool has_inactive = p_chunk.has_inactive_neighbor(lx, ly, lz);
+				bool has_active = _has_neighbor_with_state(corner, true);
+				bool has_inactive = _has_neighbor_with_state(corner, false);
 
 				if (!state && !has_active) {
 					continue;
 				}
 
-				Vector3 world_pos =
-						Vector3(static_cast<float>((p_chunk.loc_x * p_chunk.size_x) + lx),
-								static_cast<float>((p_chunk.loc_y * p_chunk.size_y) + ly),
-								static_cast<float>((p_chunk.loc_z * p_chunk.size_z) + lz));
+				Vector3 world_pos(corner);
 
 				MeshInstance3D *mi = memnew(MeshInstance3D);
 				mi->set_mesh(_debug_box_mesh);
@@ -113,13 +115,10 @@ int MCGrid::_spawn_debug_cubes(
 					add_child(debug_corners_container);
 				}
 				debug_corners_container->add_child(mi);
-				if (is_inside_tree()) {
-					mi->set_owner(get_owner() ? get_owner() : this);
-				}
 
 				// Store for granular updates
 				int corner_idx = (ly * nx * nz) + (lz * nx) + lx;
-				const_cast<Chunk &>(p_chunk).debug_visuals[corner_idx] = mi;
+				p_chunk.debug_visuals[corner_idx] = mi;
 
 				if (state) {
 					mi->set_material_override(_debug_mat_red);
@@ -145,26 +144,21 @@ void MCGrid::_update_debug_at(
 		int gy,
 		int gz
 ) {
-	int cx = (gx >= grid_size.x * chunk_size.x) ? grid_size.x - 1 : gx / chunk_size.x;
-	int cy = (gy >= grid_size.y * chunk_size.y) ? grid_size.y - 1 : gy / chunk_size.y;
-	int cz = (gz >= grid_size.z * chunk_size.z) ? grid_size.z - 1 : gz / chunk_size.z;
-
-	if (cx < 0 || cx >= grid_size.x || cy < 0 || cy >= grid_size.y || cz < 0 || cz >= grid_size.z) {
-		return;
+	// The owning chunk is the one _spawn_debug_cubes used, so this updates the only copy.
+	int chunk_index = 0;
+	Vector3i local;
+	if (!_corner_to_local(Vector3i(gx, gy, gz), chunk_index, local)) {
+		return; // outside the grid (e.g. a neighbour of an edge corner)
 	}
 
-	int lx = gx - (cx * chunk_size.x);
-	int ly = gy - (cy * chunk_size.y);
-	int lz = gz - (cz * chunk_size.z);
-
-	Chunk &chunk = chunks[_get_chunk_index(cx, cy, cz)];
+	Chunk &chunk = chunks[static_cast<size_t>(chunk_index)];
 	int nx = chunk.size_x + 1;
 	int nz = chunk.size_z + 1;
-	int corner_idx = (ly * nx * nz) + (lz * nx) + lx;
+	int corner_idx = (local.y * nx * nz) + (local.z * nx) + local.x;
 	MeshInstance3D *mi = chunk.debug_visuals[corner_idx];
-	bool state = chunk.get_corner(lx, ly, lz);
-	bool has_active = chunk.has_active_neighbor(lx, ly, lz);
-	bool has_inactive = chunk.has_inactive_neighbor(lx, ly, lz);
+	bool state = chunk.get_corner(local.x, local.y, local.z);
+	bool has_active = _has_neighbor_with_state(Vector3i(gx, gy, gz), true);
+	bool has_inactive = _has_neighbor_with_state(Vector3i(gx, gy, gz), false);
 
 	if (!state && !has_active) {
 		if (mi) {
@@ -187,9 +181,6 @@ void MCGrid::_update_debug_at(
 			add_child(debug_corners_container);
 		}
 		debug_corners_container->add_child(mi);
-		if (is_inside_tree()) {
-			mi->set_owner(get_owner() ? get_owner() : this);
-		}
 		chunk.debug_visuals[corner_idx] = mi;
 		total_debug_corners++;
 	} else {
@@ -256,7 +247,8 @@ void MCGrid::update_hover_preview(
 		_initialize_hover_previews();
 	}
 
-	Vector3 cam_pos = p_camera->get_global_position();
+	// p_corner_pos is in MCGrid space, so bring the camera into it too.
+	Vector3 cam_pos = to_local(p_camera->get_global_position());
 	Vector3 dir_to_cam = cam_pos - p_corner_pos;
 
 	// Visible normals (3 faces) based on camera position relative to corner
