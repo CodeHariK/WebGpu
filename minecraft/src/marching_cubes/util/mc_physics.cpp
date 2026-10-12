@@ -7,6 +7,7 @@
 
 namespace godot {
 
+// StaticBody3D + box shape on p_layer, added under p_parent.
 StaticBody3D *MCPhysics::create_static_box_collider(
 		Node3D *p_parent,
 		uint32_t p_layer,
@@ -33,6 +34,7 @@ StaticBody3D *MCPhysics::create_static_box_collider(
 	return sb;
 }
 
+// StaticBody3D + cylinder shape on p_layer, added under p_parent.
 StaticBody3D *MCPhysics::create_static_cylinder_collider(
 		Node3D *p_parent,
 		uint32_t p_layer,
@@ -61,6 +63,7 @@ StaticBody3D *MCPhysics::create_static_cylinder_collider(
 	return sb;
 }
 
+// StaticBody3D + sphere shape on p_layer, added under p_parent.
 StaticBody3D *MCPhysics::create_static_sphere_collider(
 		Node3D *p_parent,
 		uint32_t p_layer,

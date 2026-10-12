@@ -17,31 +17,33 @@
 
 namespace godot {
 
+// Inspector properties and the methods scripts / MCManager call.
 void MCGrid::_bind_methods() {
 	ClassDB::bind_method(
 			D_METHOD(
-					"initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_size_x", "chunk_size_y",
-					"chunk_size_z", "refresh"
+					"initialize_grid", "chunks_x", "chunks_y", "chunks_z", "chunk_dims_x", "chunk_dims_y",
+					"chunk_dims_z", "refresh"
 			),
 			&MCGrid::initialize_grid, DEFVAL(true)
 	);
 	ClassDB::bind_method(D_METHOD("refresh_grid"), &MCGrid::refresh_grid);
-	ClassDB::bind_method(D_METHOD("modify_corner", "p_grid_pos", "p_active"), &MCGrid::modify_corner);
+	ClassDB::bind_method(D_METHOD("flush_dirty_chunks"), &MCGrid::flush_dirty_chunks);
+	ClassDB::bind_method(D_METHOD("set_corner", "p_grid_pos", "p_active"), &MCGrid::set_corner);
 
-	ClassDB::bind_method(D_METHOD("set_grid_size", "size"), &MCGrid::set_grid_size);
-	ClassDB::bind_method(D_METHOD("get_grid_size"), &MCGrid::get_grid_size);
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_size"), "set_grid_size", "get_grid_size");
+	ClassDB::bind_method(D_METHOD("set_grid_dims", "size"), &MCGrid::set_grid_dims);
+	ClassDB::bind_method(D_METHOD("get_grid_dims"), &MCGrid::get_grid_dims);
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "grid_dims"), "set_grid_dims", "get_grid_dims");
 
-	ClassDB::bind_method(D_METHOD("set_chunk_size", "size"), &MCGrid::set_chunk_size);
-	ClassDB::bind_method(D_METHOD("get_chunk_size"), &MCGrid::get_chunk_size);
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "chunk_size"), "set_chunk_size", "get_chunk_size");
+	ClassDB::bind_method(D_METHOD("set_chunk_dims", "size"), &MCGrid::set_chunk_dims);
+	ClassDB::bind_method(D_METHOD("get_chunk_dims"), &MCGrid::get_chunk_dims);
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR3I, "chunk_dims"), "set_chunk_dims", "get_chunk_dims");
 
 	ClassDB::bind_method(D_METHOD("set_show_debug_corners", "show"), &MCGrid::set_show_debug_corners);
 	ClassDB::bind_method(D_METHOD("get_show_debug_corners"), &MCGrid::get_show_debug_corners);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_debug_corners"), "set_show_debug_corners", "get_show_debug_corners");
 
-	ClassDB::bind_method(D_METHOD("set_mc_node", "node"), &MCGrid::set_mc_node);
-	ClassDB::bind_method(D_METHOD("get_mc_node"), &MCGrid::get_mc_node);
+	ClassDB::bind_method(D_METHOD("set_tile_library", "node"), &MCGrid::set_tile_library);
+	ClassDB::bind_method(D_METHOD("get_tile_library"), &MCGrid::get_tile_library);
 
 	ClassDB::bind_method(D_METHOD("save_grid", "path"), &MCGrid::save_grid);
 	ClassDB::bind_method(D_METHOD("load_grid", "path"), &MCGrid::load_grid);
@@ -52,32 +54,40 @@ MCGrid::MCGrid() {}
 
 MCGrid::~MCGrid() {}
 
-void MCGrid::set_grid_size(const Vector3i &p_size) {
-	if (grid_size == p_size) {
+// Chunks per axis (each at least 1); used by the next initialize_grid.
+void MCGrid::set_grid_dims(const Vector3i &p_size) {
+	if (grid_dims == p_size) {
 		return;
 	}
-	grid_size = p_size;
+	grid_dims = p_size;
 	// At scene load (not in the tree yet) and in the editor just store the value: MCManager builds
 	// the grid once in initialize_all(). Rebuild only when changed on a live grid.
 	if (is_inside_tree() && !chunks.empty() && !Engine::get_singleton()->is_editor_hint()) {
-		initialize_grid(grid_size.x, grid_size.y, grid_size.z, chunk_size.x, chunk_size.y, chunk_size.z);
+		initialize_grid(grid_dims.x, grid_dims.y, grid_dims.z, chunk_dims.x, chunk_dims.y, chunk_dims.z);
 	}
 }
 
-void MCGrid::set_chunk_size(const Vector3i &p_size) {
-	if (chunk_size == p_size) {
+// Cells per chunk per axis (each at least 1); used by the next initialize_grid.
+void MCGrid::set_chunk_dims(const Vector3i &p_size) {
+	if (chunk_dims == p_size) {
 		return;
 	}
-	chunk_size = p_size;
+	chunk_dims = p_size;
 	if (is_inside_tree() && !chunks.empty() && !Engine::get_singleton()->is_editor_hint()) {
-		initialize_grid(grid_size.x, grid_size.y, grid_size.z, chunk_size.x, chunk_size.y, chunk_size.z);
+		initialize_grid(grid_dims.x, grid_dims.y, grid_dims.z, chunk_dims.x, chunk_dims.y, chunk_dims.z);
 	}
 }
 
-void MCGrid::set_mc_node(MCNode *p_node) { mc_node = p_node; }
+// The tile library; the cached tile arrays are dropped because the meshes change.
+void MCGrid::set_tile_library(MCTileLibrary *p_node) {
+	tile_library = p_node;
+	surface_cache.clear(); // other tile meshes
+}
 
-MCNode *MCGrid::get_mc_node() const { return mc_node; }
+// The tile library that supplies the tiles.
+MCTileLibrary *MCGrid::get_tile_library() const { return tile_library; }
 
+// Nothing is built here: MCManager calls initialize_grid once the library is loaded.
 void MCGrid::_ready() {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
@@ -86,49 +96,47 @@ void MCGrid::_ready() {
 	UtilityFunctions::print("MCGrid: _ready() called, waiting for MCManager...");
 }
 
+// Allocate the chunks (all corners empty, floor solid), drop placed objects, optionally build.
 void MCGrid::initialize_grid(
 		int p_chunks_x,
 		int p_chunks_y,
 		int p_chunks_z,
-		int p_chunk_size_x,
-		int p_chunk_size_y,
-		int p_chunk_size_z,
+		int p_chunk_dims_x,
+		int p_chunk_dims_y,
+		int p_chunk_dims_z,
 		bool p_refresh
 ) {
-	if (p_chunks_x < 1 || p_chunks_y < 1 || p_chunks_z < 1 || p_chunk_size_x < 1 || p_chunk_size_y < 1 ||
-		p_chunk_size_z < 1) {
+	if (p_chunks_x < 1 || p_chunks_y < 1 || p_chunks_z < 1 || p_chunk_dims_x < 1 || p_chunk_dims_y < 1 ||
+		p_chunk_dims_z < 1) {
 		UtilityFunctions::push_error("MCGrid: grid and chunk sizes must be at least 1 on every axis.");
 		return;
 	}
-	grid_size = Vector3i(p_chunks_x, p_chunks_y, p_chunks_z);
-	chunk_size = Vector3i(p_chunk_size_x, p_chunk_size_y, p_chunk_size_z);
+	grid_dims = Vector3i(p_chunks_x, p_chunks_y, p_chunks_z);
+	chunk_dims = Vector3i(p_chunk_dims_x, p_chunk_dims_y, p_chunk_dims_z);
 
 	chunks.clear();
-	chunks.resize(static_cast<size_t>(grid_size.x) * grid_size.y * grid_size.z);
+	chunks.resize(static_cast<size_t>(grid_dims.x) * grid_dims.y * grid_dims.z);
 
-	int num_corners = (chunk_size.x + 1) * (chunk_size.y + 1) * (chunk_size.z + 1);
+	int num_corners = (chunk_dims.x + 1) * (chunk_dims.y + 1) * (chunk_dims.z + 1);
 	int num_bytes = (num_corners + 7) / 8;
 
 	UtilityFunctions::print(
-			"Initializing grid: chunks(", p_chunks_x, ", ", p_chunks_y, ", ", p_chunks_z, ") chunk_size(",
-			p_chunk_size_x, ", ", p_chunk_size_y, ", ", p_chunk_size_z, ")"
+			"Initializing grid: chunks(", p_chunks_x, ", ", p_chunks_y, ", ", p_chunks_z, ") chunk_dims(",
+			p_chunk_dims_x, ", ", p_chunk_dims_y, ", ", p_chunk_dims_z, ")"
 	);
 
-	for (int y = 0; y < grid_size.y; y++) {
-		for (int z = 0; z < grid_size.z; z++) {
-			for (int x = 0; x < grid_size.x; x++) {
+	for (int y = 0; y < grid_dims.y; y++) {
+		for (int z = 0; z < grid_dims.z; z++) {
+			for (int x = 0; x < grid_dims.x; x++) {
 				int index = _get_chunk_index(x, y, z);
 				Chunk &c = chunks[static_cast<size_t>(index)];
-				c.size_x = chunk_size.x;
-				c.size_y = chunk_size.y;
-				c.size_z = chunk_size.z;
+				c.size_x = chunk_dims.x;
+				c.size_y = chunk_dims.y;
+				c.size_z = chunk_dims.z;
 				c.loc_x = x;
 				c.loc_y = y;
 				c.loc_z = z;
-				c.corner_states.assign(static_cast<size_t>(num_bytes), 0); // Initialize all bits to 0
-
-				int num_cells = chunk_size.x * chunk_size.y * chunk_size.z;
-				c.cell_visuals.assign(static_cast<size_t>(num_cells), nullptr);
+				c.corner_bits.assign(static_cast<size_t>(num_bytes), 0); // Initialize all bits to 0
 
 				c.debug_visuals.assign(static_cast<size_t>(num_corners), nullptr);
 			}
@@ -139,7 +147,7 @@ void MCGrid::initialize_grid(
 		_initialize_boundaries(chunk);
 	}
 
-	spatial.clear();
+	placed_list.clear();
 	_clear_placed_objects(); // their grid positions mean nothing in the new grid
 
 	if (p_refresh) {
@@ -147,22 +155,25 @@ void MCGrid::initialize_grid(
 	}
 }
 
+// Free everything spawned and rebuild every chunk mesh and debug cube.
 void MCGrid::refresh_grid() {
-	_clear_children();
+	_free_spawned_nodes();
+	surface_cache.clear(); // the library may have been reloaded
+	Vector3i cells = _dims().max_corner();
+	total_cells = cells.x * cells.y * cells.z;
 
 	int spawn_count = 0;
 
 	for (Chunk &chunk : chunks) {
-		if (mc_node) {
-			spawn_count += _spawn_marching_cubes(chunk, mc_node);
-		}
+		_build_chunk_mesh(chunk);
+		spawn_count += chunk.mesh_node ? 1 : 0;
 
 		if (!debug_corners_container) {
 			debug_corners_container = memnew(Node3D);
 			debug_corners_container->set_name("DebugCorners");
 			add_child(debug_corners_container);
 		}
-		spawn_count += _spawn_debug_cubes(chunk);
+		spawn_count += _spawn_debug_corners(chunk);
 	}
 
 	if (debug_corners_container) {
@@ -171,6 +182,7 @@ void MCGrid::refresh_grid() {
 	UtilityFunctions::print("MCGrid Refresh: ", spawn_count, " visual nodes spawned.");
 }
 
+// Set the chunk's outer-shell corners: floor solid, sides and top empty.
 void MCGrid::_initialize_boundaries(Chunk &p_chunk) const {
 	int nx = p_chunk.size_x + 1;
 	int ny = p_chunk.size_y + 1;
@@ -196,15 +208,16 @@ void MCGrid::_initialize_boundaries(Chunk &p_chunk) const {
 	}
 }
 
+// Is the corner on the grid's outer shell, and which state must it keep?
 bool MCGrid::_is_boundary_corner(
 		int gx,
 		int gy,
 		int gz,
 		bool &r_required_state
 ) const {
-	int max_gx = grid_size.x * chunk_size.x;
-	int max_gy = grid_size.y * chunk_size.y;
-	int max_gz = grid_size.z * chunk_size.z;
+	int max_gx = grid_dims.x * chunk_dims.x;
+	int max_gy = grid_dims.y * chunk_dims.y;
+	int max_gz = grid_dims.z * chunk_dims.z;
 
 	// Bottommost (Y=0) is always 1 (solid)
 	// Topmost (Y=max) is always 0 (empty)
@@ -217,7 +230,9 @@ bool MCGrid::_is_boundary_corner(
 	return false;
 }
 
-void MCGrid::modify_corner(
+// Turn a corner on / off in every chunk that stores it, mark the 8 cells around it dirty
+// (rebuilt at the end of the frame) and update the nearby debug cubes.
+void MCGrid::set_corner(
 		const Vector3i &p_grid_pos,
 		bool p_active
 ) {
@@ -241,12 +256,12 @@ void MCGrid::modify_corner(
 	bool actual_modified = false;
 
 	// Update the logic states in all shared chunks
-	int start_cx = (gx == 0) ? 0 : (gx - 1) / chunk_size.x;
-	int end_cx = (gx >= grid_size.x * chunk_size.x) ? grid_size.x - 1 : gx / chunk_size.x;
-	int start_cy = (gy == 0) ? 0 : (gy - 1) / chunk_size.y;
-	int end_cy = (gy >= grid_size.y * chunk_size.y) ? grid_size.y - 1 : gy / chunk_size.y;
-	int start_cz = (gz == 0) ? 0 : (gz - 1) / chunk_size.z;
-	int end_cz = (gz >= grid_size.z * chunk_size.z) ? grid_size.z - 1 : gz / chunk_size.z;
+	int start_cx = (gx == 0) ? 0 : (gx - 1) / chunk_dims.x;
+	int end_cx = (gx >= grid_dims.x * chunk_dims.x) ? grid_dims.x - 1 : gx / chunk_dims.x;
+	int start_cy = (gy == 0) ? 0 : (gy - 1) / chunk_dims.y;
+	int end_cy = (gy >= grid_dims.y * chunk_dims.y) ? grid_dims.y - 1 : gy / chunk_dims.y;
+	int start_cz = (gz == 0) ? 0 : (gz - 1) / chunk_dims.z;
+	int end_cz = (gz >= grid_dims.z * chunk_dims.z) ? grid_dims.z - 1 : gz / chunk_dims.z;
 
 	for (int cy = start_cy; cy <= end_cy; cy++) {
 		for (int cz = start_cz; cz <= end_cz; cz++) {
@@ -254,7 +269,7 @@ void MCGrid::modify_corner(
 				int idx = _get_chunk_index(cx, cy, cz);
 				Chunk &chunk = chunks[idx];
 				chunk.set_corner(
-						gx - (cx * chunk_size.x), gy - (cy * chunk_size.y), gz - (cz * chunk_size.z), p_active
+						gx - (cx * chunk_dims.x), gy - (cy * chunk_dims.y), gz - (cz * chunk_dims.z), p_active
 				);
 				actual_modified = true;
 			}
@@ -262,27 +277,29 @@ void MCGrid::modify_corner(
 	}
 
 	if (actual_modified) {
-		// Update the 8 affected cells
+		// The 8 cells around the corner changed: rebuild the chunk(s) they belong to, once each.
 		for (int cy = gy - 1; cy <= gy; cy++) {
 			for (int cz = gz - 1; cz <= gz; cz++) {
 				for (int cx = gx - 1; cx <= gx; cx++) {
-					_update_visual_at(cx, cy, cz);
+					_mark_cell_dirty(cx, cy, cz);
 				}
 			}
 		}
+		_queue_rebuild();
 
 		// Update debug corners (itself + 6 neighbors)
-		_update_debug_at(gx, gy, gz);
-		_update_debug_at(gx - 1, gy, gz);
-		_update_debug_at(gx + 1, gy, gz);
-		_update_debug_at(gx, gy - 1, gz);
-		_update_debug_at(gx, gy + 1, gz);
-		_update_debug_at(gx, gy, gz - 1);
-		_update_debug_at(gx, gy, gz + 1);
+		_update_debug_corner(gx, gy, gz);
+		_update_debug_corner(gx - 1, gy, gz);
+		_update_debug_corner(gx + 1, gy, gz);
+		_update_debug_corner(gx, gy - 1, gz);
+		_update_debug_corner(gx, gy + 1, gz);
+		_update_debug_corner(gx, gy, gz - 1);
+		_update_debug_corner(gx, gy, gz + 1);
 	}
 }
 
-uint8_t MCGrid::get_cell_hash_at_global_coord(const Vector3i &p_pos) const {
+// Hash of the cell at p_pos (grid coordinates), 0 outside the grid.
+uint8_t MCGrid::get_cell_hash(const Vector3i &p_pos) const {
 	int chunk_index = 0;
 	Vector3i local;
 	if (!_dims().cell_to_local(p_pos, chunk_index, local)) {
@@ -291,6 +308,7 @@ uint8_t MCGrid::get_cell_hash_at_global_coord(const Vector3i &p_pos) const {
 	return chunks[static_cast<size_t>(chunk_index)].get_cell_hash(local.x, local.y, local.z);
 }
 
+// Is the global corner solid? Outside the grid counts as empty.
 bool MCGrid::is_corner_active(const Vector3i &p_grid_pos) const {
 	int chunk_index = 0;
 	Vector3i local;

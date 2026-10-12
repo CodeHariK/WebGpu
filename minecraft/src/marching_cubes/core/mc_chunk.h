@@ -1,5 +1,5 @@
-// One chunk of the corner grid: on/off corner bits (bit-packed), the cell hash lookup, and the
-// node pointers of what was spawned for it. Chunks store (size + 1) corners per axis, so a corner
+// One chunk of the corner grid: on/off corner bits (bit-packed), the cell hash lookup, its merged
+// tile mesh and the debug-corner node pointers. Chunks store (size + 1) corners per axis, so a corner
 // on a shared face exists in both neighbouring chunks (MCGrid keeps both copies in sync).
 #ifndef MC_CHUNK_H
 #define MC_CHUNK_H
@@ -20,26 +20,29 @@ struct Chunk {
 	int loc_x = 0;
 	int loc_y = 0;
 	int loc_z = 0;
-	std::vector<uint8_t> corner_states; // Bit-packed states
+	std::vector<uint8_t> corner_bits; // Bit-packed states
 
+	// Corner p_index (y, z, x order) solid?
 	bool get_corner_bit(int p_index) const {
-		if (corner_states.empty()) {
+		if (corner_bits.empty()) {
 			return false;
 		}
-		return (corner_states[static_cast<size_t>(p_index / 8)] & (1 << (p_index % 8))) != 0;
+		return (corner_bits[static_cast<size_t>(p_index / 8)] & (1 << (p_index % 8))) != 0;
 	}
 
+	// Set corner p_index (y, z, x order) solid or empty.
 	void set_corner_bit(
 			int p_index,
 			bool p_state
 	) {
 		if (p_state) {
-			corner_states[static_cast<size_t>(p_index / 8)] |= (1 << (p_index % 8));
+			corner_bits[static_cast<size_t>(p_index / 8)] |= (1 << (p_index % 8));
 		} else {
-			corner_states[static_cast<size_t>(p_index / 8)] &= ~(1 << (p_index % 8));
+			corner_bits[static_cast<size_t>(p_index / 8)] &= ~(1 << (p_index % 8));
 		}
 	}
 
+	// Corner at chunk-local (x, y, z), 0..size on each axis.
 	bool get_corner(
 			int x,
 			int y,
@@ -51,6 +54,7 @@ struct Chunk {
 		return get_corner_bit(index);
 	}
 
+	// Set the corner at chunk-local (x, y, z).
 	void set_corner(
 			int x,
 			int y,
@@ -63,6 +67,7 @@ struct Chunk {
 		set_corner_bit(index, value);
 	}
 
+	// 8-bit hash of the cell at chunk-local (x, y, z): bit i = corner Ci solid (core/mc_corners.h).
 	uint8_t get_cell_hash(
 			int x,
 			int y,
@@ -104,6 +109,7 @@ struct Chunk {
 		return hash;
 	}
 
+	// Is any of the 6 neighbours of this corner (inside the chunk) solid?
 	bool has_active_neighbor(
 			int x,
 			int y,
@@ -124,6 +130,7 @@ struct Chunk {
 		return false;
 	}
 
+	// Is any of the 6 neighbours of this corner (inside the chunk) empty?
 	bool has_inactive_neighbor(
 			int x,
 			int y,
@@ -144,10 +151,17 @@ struct Chunk {
 		return false;
 	}
 
-	std::vector<MeshInstance3D *> cell_visuals;
+	// Every tile of the chunk merged into one mesh (one surface per material) plus one trimesh
+	// collider (a StaticBody3D child). Rebuilt as a whole after an edit (MCGrid::_build_chunk_mesh).
+	MeshInstance3D *mesh_node = nullptr;
+	int tile_count = 0; // tiles drawn in mesh_node
+	bool dirty = false; // an edit changed a cell: rebuild mesh_node
+
 	std::vector<MeshInstance3D *> debug_visuals;
 
+	// Corner bits as bit run-length encoding (utils/encoding/rle.h), for save files.
 	PackedByteArray serialize_rle() const;
+	// Replace the corner bits with the decoded p_data.
 	void deserialize_rle(const PackedByteArray &p_data);
 };
 

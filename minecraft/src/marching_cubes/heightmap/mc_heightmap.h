@@ -17,18 +17,18 @@
 
 namespace godot {
 
-class MCNode;
+class MCTileLibrary;
 
 class MCHeightmap : public Node3D {
 	GDCLASS(MCHeightmap,
 			Node3D)
 
 private:
-	// Raw heightmap data containing grid_size.x * grid_size.y byte height values.
+	// Raw heightmap data containing grid_dims.x * grid_dims.y byte height values.
 	PackedByteArray heightmap_data;
 
-	// Reference to the MCNode mesh library provider.
-	MCNode *mc_node = nullptr;
+	// Reference to the MCTileLibrary mesh library provider.
+	MCTileLibrary *tile_library = nullptr;
 
 	// Size of each voxel grid unit horizontally and vertically.
 	float cell_spacing = 1.0f;
@@ -37,7 +37,7 @@ private:
 	float height_scale = 1.0f;
 
 	// Dimensions of the 2D heightmap.
-	Vector2i grid_size = Vector2i(16, 16);
+	Vector2i grid_dims = Vector2i(16, 16);
 
 	// Toggles visibility of tiny debug spheres at heightmap corner elevations.
 	bool show_debug_spheres = false;
@@ -92,11 +92,11 @@ public:
 	// Setter for heightmap data property.
 	void set_heightmap_data(const PackedByteArray &p_data) { heightmap_data = p_data; }
 
-	// Getter for mc_node property.
-	MCNode *get_mc_node() const { return mc_node; }
+	// Getter for tile_library property.
+	MCTileLibrary *get_tile_library() const { return tile_library; }
 
-	// Setter for mc_node property.
-	void set_mc_node(MCNode *p_node) { mc_node = p_node; }
+	// Setter for tile_library property.
+	void set_tile_library(MCTileLibrary *p_node) { tile_library = p_node; }
 
 	// Getter for cell_spacing property.
 	float get_cell_spacing() const { return cell_spacing; }
@@ -110,11 +110,11 @@ public:
 	// Setter for height_scale property.
 	void set_height_scale(float p_scale) { height_scale = p_scale; }
 
-	// Getter for grid_size property.
-	Vector2i get_grid_size() const { return grid_size; }
+	// Getter for grid_dims property.
+	Vector2i get_grid_dims() const { return grid_dims; }
 
-	// Setter for grid_size property.
-	void set_grid_size(const Vector2i &p_size) { grid_size = p_size; }
+	// Setter for grid_dims property.
+	void set_grid_dims(const Vector2i &p_size) { grid_dims = p_size; }
 
 	// Getter for show_debug_spheres property.
 	bool get_show_debug_spheres() const { return show_debug_spheres; }

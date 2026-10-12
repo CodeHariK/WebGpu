@@ -11,14 +11,15 @@
 
 namespace godot {
 
+// Would a p_size box at cell p_cell overlap solid terrain (any solid corner inside it)?
 bool MCGrid::is_area_blocked_by_grid(
-		const Vector3i &p_dual_grid_pos,
+		const Vector3i &p_cell,
 		const Vector3i &p_size
 ) const {
 	for (int y = 0; y <= p_size.y; ++y) {
 		for (int z = 0; z <= p_size.z; ++z) {
 			for (int x = 0; x <= p_size.x; ++x) {
-				Vector3i corner_pos = p_dual_grid_pos + Vector3i(x, y, z);
+				Vector3i corner_pos = p_cell + Vector3i(x, y, z);
 				if (is_corner_active(corner_pos)) {
 					return true;
 				}
@@ -28,18 +29,20 @@ bool MCGrid::is_area_blocked_by_grid(
 	return false;
 }
 
-bool MCGrid::is_area_blocked_by_objects(const AABB &p_aabb) const { return spatial.is_area_blocked(p_aabb); }
+// Does p_aabb overlap a placed object?
+bool MCGrid::is_area_blocked_by_objects(const AABB &p_aabb) const { return placed_list.is_area_blocked(p_aabb); }
 
+// Create the box node (shared material, picking collider) and add it to the list.
 void MCGrid::add_placed_object(
-		const Vector3i &p_dual_grid_pos,
+		const Vector3i &p_cell,
 		const Vector3i &p_size
 ) {
 	PlacedObject obj;
-	obj.grid_pos = p_dual_grid_pos;
+	obj.grid_pos = p_cell;
 	obj.size = p_size;
 
-	Vector3 pos = Vector3(p_dual_grid_pos) + (Vector3(p_size) * 0.5f);
-	obj.aabb = AABB(Vector3(p_dual_grid_pos), Vector3(p_size));
+	Vector3 pos = Vector3(p_cell) + (Vector3(p_size) * 0.5f);
+	obj.aabb = AABB(Vector3(p_cell), Vector3(p_size));
 
 	// Visual instantiation
 	MeshInstance3D *mi = memnew(MeshInstance3D);
@@ -48,13 +51,13 @@ void MCGrid::add_placed_object(
 	box->set_size(Vector3(p_size));
 	mi->set_mesh(box);
 	mi->set_position(pos);
-	mi->set_name("PlacedObject_" + String::num_int64(p_dual_grid_pos.x) + "_" + String::num_int64(p_dual_grid_pos.y));
+	mi->set_name("PlacedObject_" + String::num_int64(p_cell.x) + "_" + String::num_int64(p_cell.y));
 
 	// Collision instantiation
 	MCPhysics::create_static_box_collider(mi, toLayer(LAYER_OBJECTS), Vector3(p_size));
 
 	obj.visual_node = mi;
-	spatial.add_object(obj);
+	placed_list.add_object(obj);
 
 	// One shared light-blue material distinguishes placed objects from terrain. Highlights go
 	// in material_overlay, so this override is never lost.
@@ -71,26 +74,29 @@ void MCGrid::add_placed_object(
 	}
 	placed_objects_container->add_child(mi);
 
-	UtilityFunctions::print("MCGrid: Placed object of size ", p_size, " at ", p_dual_grid_pos);
+	UtilityFunctions::print("MCGrid: Placed object of size ", p_size, " at ", p_cell);
 }
 
+// Take the object out of the list and free its node.
 void MCGrid::remove_placed_object(Node *p_node) {
 	if (!p_node)
 		return;
-	spatial.remove_object_by_node(p_node);
+	placed_list.remove_object_by_node(p_node);
 	p_node->queue_free();
 	UtilityFunctions::print("MCGrid: Removed object node.");
 }
 
+// Take the object out of the list but keep its node (drag start).
 void MCGrid::detach_placed_object(Node *p_node) {
 	if (!p_node)
 		return;
-	spatial.remove_object_by_node(p_node);
+	placed_list.remove_object_by_node(p_node);
 	UtilityFunctions::print("MCGrid: Detached object node from spatial index.");
 }
 
+// Free every placed object node and empty the list.
 void MCGrid::_clear_placed_objects() {
-	spatial.clear();
+	placed_list.clear();
 	if (!placed_objects_container) {
 		return;
 	}
@@ -104,10 +110,11 @@ void MCGrid::_clear_placed_objects() {
 	}
 }
 
+// The placed object drawn by p_node, or nullptr.
 const PlacedObject *MCGrid::get_placed_object(Node *p_node) const {
 	if (!p_node)
 		return nullptr;
-	return spatial.get_object_by_node(p_node);
+	return placed_list.get_object_by_node(p_node);
 }
 
 } // namespace godot

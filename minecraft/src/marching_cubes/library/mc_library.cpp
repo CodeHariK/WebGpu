@@ -1,4 +1,4 @@
-// MCNode: load the base tile meshes and look tiles up by hash.
+// MCTileLibrary: load the base tile meshes and look tiles up by hash.
 #include "marching_cubes/library/mc_library.h"
 #include "marching_cubes/core/mc_hash.h"
 #include "marching_cubes/core/mc_variant.h"
@@ -18,39 +18,42 @@
 
 namespace godot {
 
-void MCNode::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_mesh_library_path", "p_path"), &MCNode::set_mesh_library_path);
-	ClassDB::bind_method(D_METHOD("get_mesh_library_path"), &MCNode::get_mesh_library_path);
-	ADD_PROPERTY(PropertyInfo(Variant::STRING, "mesh_library_path"), "set_mesh_library_path", "get_mesh_library_path");
+// Inspector property (tile_set_path) and the load / fill / showcase methods.
+void MCTileLibrary::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_tile_set_path", "p_path"), &MCTileLibrary::set_tile_set_path);
+	ClassDB::bind_method(D_METHOD("get_tile_set_path"), &MCTileLibrary::get_tile_set_path);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "tile_set_path"), "set_tile_set_path", "get_tile_set_path");
 
-	ClassDB::bind_method(D_METHOD("load_mesh_library"), &MCNode::load_mesh_library);
-	ClassDB::bind_method(D_METHOD("initialize_library"), &MCNode::initialize_library);
-	ClassDB::bind_method(D_METHOD("display_library"), &MCNode::display_library);
-	ClassDB::bind_method(D_METHOD("generate_variants"), &MCNode::fill_y_rotations);
-	ClassDB::bind_method(D_METHOD("get_variant_counts"), &MCNode::get_variant_counts);
+	ClassDB::bind_method(D_METHOD("load_tiles"), &MCTileLibrary::load_tiles);
+	ClassDB::bind_method(D_METHOD("initialize_library"), &MCTileLibrary::initialize_library);
+	ClassDB::bind_method(D_METHOD("build_showcase"), &MCTileLibrary::build_showcase);
+	ClassDB::bind_method(D_METHOD("fill_by_y_turns"), &MCTileLibrary::fill_by_y_turns);
+	ClassDB::bind_method(D_METHOD("get_hashes_per_tile"), &MCTileLibrary::get_hashes_per_tile);
 }
 
-MCNode::MCNode() = default;
+MCTileLibrary::MCTileLibrary() = default;
 
-MCNode::~MCNode() {}
+MCTileLibrary::~MCTileLibrary() {}
 
-void MCNode::_ready() {
+// Outside the editor: load the tiles and build the showcase.
+void MCTileLibrary::_ready() {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
 	initialize_library();
-	display_library();
+	build_showcase();
 }
 
-void MCNode::initialize_library() {
+// Load, fill by Y turns, report what is missing. Only the first call does anything.
+void MCTileLibrary::initialize_library() {
 	if (is_initialized) {
 		return;
 	}
 
-	load_mesh_library();
-	int generated = fill_y_rotations();
+	load_tiles();
+	int generated = fill_by_y_turns();
 	UtilityFunctions::print(
-			"MCNode: ", static_cast<int64_t>(base_mesh_order.size()), " tiles loaded, ", generated,
+			"MCTileLibrary: ", static_cast<int64_t>(loaded_hashes.size()), " tiles loaded, ", generated,
 			" filled by turning about Y."
 	);
 	report_missing();
@@ -58,9 +61,11 @@ void MCNode::initialize_library() {
 	is_initialized = true;
 }
 
-void MCNode::set_mesh_library_path(const String &p_path) { mesh_library_path = p_path; }
+// The tile-set .glb to load.
+void MCTileLibrary::set_tile_set_path(const String &p_path) { tile_set_path = p_path; }
 
-String MCNode::get_mesh_library_path() const { return mesh_library_path; }
+// The tile-set .glb to load.
+String MCTileLibrary::get_tile_set_path() const { return tile_set_path; }
 
 struct LoadMeta {
 	Node *child = nullptr;
@@ -111,14 +116,16 @@ struct LoadMeta {
 	}
 };
 
-void MCNode::load_mesh_library() {
+// Instantiate the .glb, read every node named like a tile (hash + optional _vN) into tiles[],
+// variants in number order, and list the modelled hashes in loaded_hashes.
+void MCTileLibrary::load_tiles() {
 	for (int i = 0; i < 256; i++) {
-		mesh_library[i] = MeshConfig();
+		tiles[i] = MCTile();
 	}
 
-	Ref<PackedScene> scene = ResourceLoader::get_singleton()->load(mesh_library_path);
+	Ref<PackedScene> scene = ResourceLoader::get_singleton()->load(tile_set_path);
 	if (scene.is_null()) {
-		UtilityFunctions::print("MCNode: Failed to load mesh library at ", mesh_library_path);
+		UtilityFunctions::print("MCTileLibrary: Failed to load mesh library at ", tile_set_path);
 		return;
 	}
 
@@ -148,7 +155,7 @@ void MCNode::load_mesh_library() {
 			if (meta.is_valid) {
 				candidates.push_back(meta);
 			} else {
-				UtilityFunctions::print("MCNode: Skipping mesh with invalid name: ", child->get_name());
+				UtilityFunctions::print("MCTileLibrary: Skipping mesh with invalid name: ", child->get_name());
 			}
 		}
 	}
@@ -157,60 +164,60 @@ void MCNode::load_mesh_library() {
 	std::sort(candidates.begin(), candidates.end());
 
 	// 3. Populate Library and Master Order
-	base_mesh_order.clear();
+	loaded_hashes.clear();
 	int variant_count = 0;
 	int last_variant[256] = {};
 	for (const LoadMeta &meta : candidates) {
 		uint8_t h = meta.hash;
-		MeshConfig &config = mesh_library[h];
+		MCTile &config = tiles[h];
 		if (config.mesh.is_null()) {
 			config.mesh = meta.mi->get_mesh();
-			config.transform = Transform3D(); // Identity for original GLB nodes
-			config.source_mesh = h;
-			base_mesh_order.push_back(h);
+			config.turn = Transform3D(); // Identity for original GLB nodes
+			config.source_hash = h;
+			loaded_hashes.push_back(h);
 		} else if (meta.variant == last_variant[h]) {
 			UtilityFunctions::push_warning(
-					"MCNode: two meshes for ", mc::hash_to_binary(h), " variant ", meta.variant, "; skipping ",
+					"MCTileLibrary: two meshes for ", mc::hash_to_binary(h), " variant ", meta.variant, "; skipping ",
 					meta.child->get_name()
 			);
 			continue;
 		} else {
 			variant_count++;
 		}
-		config.variants.push_back(meta.mi->get_mesh());
+		config.variant_meshes.push_back(meta.mi->get_mesh());
 		last_variant[h] = meta.variant;
 	}
 	UtilityFunctions::print(
-			"MCNode: ", static_cast<int64_t>(base_mesh_order.size()), " tiles, ", variant_count, " extra variants."
+			"MCTileLibrary: ", static_cast<int64_t>(loaded_hashes.size()), " tiles, ", variant_count, " extra variants."
 	);
 
 	int loaded_count = 0;
 	for (int i = 0; i < 256; i++) {
-		if (mesh_library[i].mesh.is_valid()) {
+		if (tiles[i].mesh.is_valid()) {
 			loaded_count++;
 		}
 	}
 
-	UtilityFunctions::print("MCNode: Finished loading library. Total items: ", loaded_count);
+	UtilityFunctions::print("MCTileLibrary: Finished loading library. Total items: ", loaded_count);
 	inst->queue_free();
 }
 
-MeshConfig MCNode::get_mesh_config(uint8_t p_hash) const { return mesh_library[p_hash]; }
-
-Ref<Mesh> MeshConfig::mesh_for_cell(const Vector3i &p_cell) const {
-	if (variants.size() <= 1) {
+// One of the variants, chosen from the cell position (stable across rebuilds).
+Ref<Mesh> MCTile::mesh_for_cell(const Vector3i &p_cell) const {
+	if (variant_meshes.size() <= 1) {
 		return mesh;
 	}
-	return variants[static_cast<size_t>(mc::variant_index(p_cell, static_cast<int>(variants.size())))];
+	return variant_meshes[static_cast<size_t>(mc::variant_index(p_cell, static_cast<int>(variant_meshes.size())))];
 }
 
-Dictionary MCNode::get_variant_counts() const {
+// For the stats panel: how many hashes each modelled tile draws.
+Dictionary MCTileLibrary::get_hashes_per_tile() const {
 	Dictionary counts;
 	for (int i = 0; i < 256; i++) {
-		if (!mesh_library[i].mesh.is_valid()) {
+		if (!tiles[i].mesh.is_valid()) {
 			continue;
 		}
-		String base_hash_str = mc::hash_to_binary(mesh_library[i].source_mesh);
+		String base_hash_str = mc::hash_to_binary(tiles[i].source_hash);
 		if (!counts.has(base_hash_str)) {
 			counts[base_hash_str] = 0;
 		}

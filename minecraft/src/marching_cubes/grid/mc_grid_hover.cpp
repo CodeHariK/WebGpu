@@ -13,6 +13,7 @@
 
 namespace godot {
 
+// Create the three hover quads and their materials (hidden until used).
 void MCGrid::_initialize_hover_previews() {
 	if (hover_root) {
 		return;
@@ -43,6 +44,7 @@ void MCGrid::_initialize_hover_previews() {
 	hover_root->hide();
 }
 
+// Show the quad facing the camera on the hovered corner (grid space).
 void MCGrid::update_hover_preview(
 		const Vector3 &p_corner_pos,
 		const Vector3 &p_hit_normal,
@@ -90,6 +92,7 @@ void MCGrid::update_hover_preview(
 	}
 }
 
+// Hide all hover quads.
 void MCGrid::hide_hover_preview() {
 	if (hover_root) {
 		hover_root->hide();

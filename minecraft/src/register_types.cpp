@@ -194,7 +194,7 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 
 	GDREGISTER_CLASS(MinecraftNode);
 
-	GDREGISTER_CLASS(MCNode);
+	GDREGISTER_CLASS(MCTileLibrary);
 	GDREGISTER_CLASS(MCManager);
 	GDREGISTER_CLASS(MCGrid);
 	GDREGISTER_CLASS(MCHeightmap);

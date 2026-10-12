@@ -5,6 +5,7 @@
 
 namespace godot::mc {
 
+// Hash after one +90 degree turn about Y: every solid corner moves to its turned position.
 uint8_t rotate_y(uint8_t p_hash) {
 	// Where each corner goes after a +90 degree turn: 0->1->2->3->0 and 4->5->6->7->4.
 	static const uint8_t swap_table[8] = { C1, C2, C3, C0, C5, C6, C7, C4 };
@@ -17,6 +18,7 @@ uint8_t rotate_y(uint8_t p_hash) {
 	return next;
 }
 
+// Turn hash and transform together by p_quarter_turns x 90 degrees about Y.
 void turn_y(
 		uint8_t &p_hash,
 		Transform3D &p_transform,

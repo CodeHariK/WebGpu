@@ -1,5 +1,5 @@
 // MCGrid: save / load the corner grid, and export the cells as JSON for Blender.
-// File layout (version 1): magic 'MCTR', version, grid_size xyz, chunk_size xyz, chunk count,
+// File layout (version 1): magic 'MCTR', version, grid_dims xyz, chunk_dims xyz, chunk count,
 // then per chunk: byte length + RLE bytes. Everything is validated and read into temporaries
 // first; the grid is only changed once the whole file is known to be good.
 #include "godot_cpp/classes/file_access.hpp"
@@ -16,6 +16,7 @@ static const uint32_t MCT_MAGIC = 0x4D435452;
 static const uint32_t MCT_VERSION = 1;
 static const int32_t MCT_MAX_AXIS = 1024; // generous; stops a corrupt header allocating gigabytes
 
+// Header (magic, version, sizes) then every chunk's RLE corner bits.
 void MCGrid::save_grid(const String &p_path) {
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::WRITE);
 	if (f.is_null()) {
@@ -28,12 +29,12 @@ void MCGrid::save_grid(const String &p_path) {
 	f->store_32(MCT_VERSION);
 
 	// 2. Metadata
-	f->store_32(grid_size.x);
-	f->store_32(grid_size.y);
-	f->store_32(grid_size.z);
-	f->store_32(chunk_size.x);
-	f->store_32(chunk_size.y);
-	f->store_32(chunk_size.z);
+	f->store_32(grid_dims.x);
+	f->store_32(grid_dims.y);
+	f->store_32(grid_dims.z);
+	f->store_32(chunk_dims.x);
+	f->store_32(chunk_dims.y);
+	f->store_32(chunk_dims.z);
 
 	// 3. Chunk Data
 	f->store_32(static_cast<uint32_t>(chunks.size()));
@@ -46,6 +47,7 @@ void MCGrid::save_grid(const String &p_path) {
 	UtilityFunctions::print("MCGrid: Saved state to ", p_path);
 }
 
+// Validate the whole file into temporaries first; only then replace the grid and rebuild.
 void MCGrid::load_grid(const String &p_path) {
 	Ref<FileAccess> f = FileAccess::open(p_path, FileAccess::READ);
 	if (f.is_null()) {
@@ -97,7 +99,7 @@ void MCGrid::load_grid(const String &p_path) {
 	}
 
 	// 4. Apply: resize only if needed (that also clears placed objects), then decode
-	if (grid_size != file_grid || chunk_size != file_chunk) {
+	if (grid_dims != file_grid || chunk_dims != file_chunk) {
 		initialize_grid(file_grid.x, file_grid.y, file_grid.z, file_chunk.x, file_chunk.y, file_chunk.z, false);
 	}
 	for (uint32_t i = 0; i < num_chunks; i++) {
@@ -119,14 +121,14 @@ String MCGrid::cells_to_json() const {
 	for (int y = 0; y < size.y; y++) {
 		for (int z = 0; z < size.z; z++) {
 			for (int x = 0; x < size.x; x++) {
-				uint8_t hash = get_cell_hash_at_global_coord(Vector3i(x, y, z));
+				uint8_t hash = get_cell_hash(Vector3i(x, y, z));
 				if (hash != 0) {
 					cells.push_back(vformat("[%d,%d,%d,%d]", x, y, z, hash));
 				}
 			}
 		}
 	}
-	String tiles = mc_node ? mc_node->get_mesh_library_path() : String();
+	String tiles = tile_library ? tile_library->get_tile_set_path() : String();
 	return vformat(
 			"{\"format\":\"mc_cells\",\"version\":1,\"tiles\":\"%s\",\"size\":[%d,%d,%d],\"cells\":[%s]}",
 			tiles.c_escape(), size.x, size.y, size.z, String(",").join(cells)

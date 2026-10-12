@@ -13,6 +13,7 @@
 
 namespace godot {
 
+// Place mode: put a box of the current size next to the hit face, unless blocked.
 void MCManager::_place_click(
 		MCGrid *p_grid,
 		const ClickHit &p_hit
@@ -29,6 +30,8 @@ void MCManager::_place_click(
 	p_grid->add_placed_object(place_pos, current_placement_size);
 }
 
+// Drag mode press: shift toggles an object in the selection; a plain click on an object starts
+// dragging the selection; a click on nothing clears it.
 void MCManager::_select_or_start_drag(
 		MCGrid *p_grid,
 		const ClickHit &p_hit,
@@ -64,6 +67,7 @@ void MCManager::_select_or_start_drag(
 	_start_drag(p_grid, clicked);
 }
 
+// Detach the selected objects from the grid and remember their offsets from the pivot.
 void MCManager::_start_drag(
 		MCGrid *p_grid,
 		MeshInstance3D *p_pivot
@@ -90,6 +94,7 @@ void MCManager::_start_drag(
 	}
 }
 
+// Re-place the dragged objects at their new cells, or back at the start if blocked.
 void MCManager::_finish_drag(MCGrid *p_grid) {
 	// Re-place every dragged object: where it was dropped if the drop is valid, else where it
 	// started. (add_placed_object makes a fresh node, so the dragged one is freed.)
@@ -107,6 +112,7 @@ void MCManager::_finish_drag(MCGrid *p_grid) {
 	selected_nodes.clear(); // the old nodes are gone; selection highlights reset
 }
 
+// Delete a placed object; if it was being dragged, the rest of the group goes back first.
 void MCManager::_delete_object(
 		MCGrid *p_grid,
 		MeshInstance3D *p_object
@@ -138,6 +144,7 @@ void MCManager::_delete_object(
 	p_grid->remove_placed_object(p_object);
 }
 
+// Un-highlight and forget the selected objects.
 void MCManager::_clear_selection() {
 	for (MeshInstance3D *node : selected_nodes) {
 		if (node) {
@@ -147,13 +154,14 @@ void MCManager::_clear_selection() {
 	selected_nodes.clear();
 }
 
+// Put every dragged object back where the drag started.
 void MCManager::cancel_drag() {
 	if (!is_dragging) {
 		drag_group.clear();
 		return;
 	}
 
-	MCGrid *grid = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
+	MCGrid *grid = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
 	if (grid) {
 		for (const SelectedObject &obj : drag_group) {
 			grid->add_placed_object(obj.original_grid_pos, obj.size);

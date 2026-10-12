@@ -2,6 +2,8 @@
 
 ![Marching Cubes Diagram](./mc.excalidraw.svg)
 
+Code map (every file, function and the call order from `_ready`): [src/marching_cubes/MarchingCubes.md](../src/marching_cubes/MarchingCubes.md)
+
 ## Overview
 
 | Feature | Description |
@@ -94,7 +96,7 @@ A vertex is shared by **8 cubes**. To form a continuous surface:
 
 ## 4. Symmetry & Mesh Strategy
 
-`MCNode` loads whatever tiles the `.glb` contains and fills every empty hash by turning a loaded tile about Y. There is no mode setting: the tile set decides.
+`MCTileLibrary` loads whatever tiles the `.glb` contains and fills every empty hash by turning a loaded tile about Y. There is no mode setting: the tile set decides.
 
 | Tile set | Tiles to model | Result in Godot |
 | :--- | :--- | :--- |
@@ -109,8 +111,33 @@ A set using all 24 cube rotations (21 tiles) was dropped: it flips tiles on thei
 ### Mesh variants
 
 Several meshes can be modelled for one hash: `00001111_circle`, `00001111_circle_v2`, `00001111_circle_v3`
-(no ending = variant 1; Blender's `.001` and Godot's `_001` after it are ignored). `MCNode` keeps every
+(no ending = variant 1; Blender's `.001` and Godot's `_001` after it are ignored). `MCTileLibrary` keeps every
 variant of a hash and turns them all; each cell picks one with `mc::variant_index(cell, count)`
 (`core/mc_variant.h`): a hash of the cell's grid position, so the choice looks random but never changes
 between rebuilds or loads. The Blender add-on uses the same formula, so its playground matches the game.
+
+### Chunk meshes
+
+`MCGrid` draws each chunk as one `MeshInstance3D`: every tile of the chunk is placed and appended into
+one `ArrayMesh` (one surface per material) by `MCChunkBuilder` (`grid/mc_chunk_builder.*`), with one
+`ConcavePolygonShape3D` collider on `LAYER_TERRAIN`. Tile mesh arrays are read once and cached
+(`MCSurfaceCache`). A corner edit marks the chunks of the 8 cells around it dirty; they are rebuilt
+once at the end of the frame (`flush_dirty_chunks()`), so many edits in one frame cost one rebuild
+per chunk. Chunk size trades culling and rebuild cost against the number of objects.
+
+See also `docs/TerrainStorage.md`: grid modes (height / corner / sparse), layers (material, water,
+objects), waterfalls, save format v2 with zstd, size per user.
+
+### Names used in the code
+
+| Name | Meaning |
+| :--- | :--- |
+| **corner** | a grid point, solid or empty (`MCGrid::set_corner`, `is_corner_active`) |
+| **cell** | the cube between 8 corners; its **hash** is the 8 corner bits (`get_cell_hash`) |
+| **chunk** | a block of cells stored and drawn together (`Chunk`, one merged mesh + collider) |
+| **tile** | the mesh drawn for one hash (`MCTile`: variant meshes + Y `turn` + `source_hash`) |
+| **tile set** | the `.glb` of modelled tiles, exported by the Blender add-on (`tile_set_path`) |
+| **tile library** | `MCTileLibrary`: `tiles[256]` filled from the tile set by Y turns |
+| **variant** | another mesh for the same hash (`_v2`), picked per cell (`variant_meshes`) |
+| **placed object** | a box placed in object mode (`MCPlacedObjects`) |
 

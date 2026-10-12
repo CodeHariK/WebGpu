@@ -14,6 +14,7 @@
 
 namespace godot {
 
+// Inspector property: show the debug corner cubes.
 void MCGrid::set_show_debug_corners(bool p_show) {
 	if (show_debug_corners == p_show) {
 		return;
@@ -22,14 +23,17 @@ void MCGrid::set_show_debug_corners(bool p_show) {
 	set_debug_corners_visible(show_debug_corners);
 }
 
+// Inspector property: debug corner cubes shown?
 bool MCGrid::get_show_debug_corners() const { return show_debug_corners; }
 
+// Show / hide the debug corner container.
 void MCGrid::set_debug_corners_visible(bool p_visible) {
 	if (debug_corners_container) {
 		debug_corners_container->set_visible(p_visible);
 	}
 }
 
+// Is the debug corner container visible?
 bool MCGrid::is_debug_corners_visible() const {
 	if (debug_corners_container) {
 		return debug_corners_container->is_visible();
@@ -37,6 +41,7 @@ bool MCGrid::is_debug_corners_visible() const {
 	return false;
 }
 
+// Turn the picking colliders of every debug cube on or off.
 void MCGrid::set_corner_collision_enabled(bool p_enabled) {
 	if (!debug_corners_container) {
 		return;
@@ -61,7 +66,10 @@ void MCGrid::set_corner_collision_enabled(bool p_enabled) {
 	}
 }
 
-int MCGrid::_spawn_debug_cubes(Chunk &p_chunk) {
+// Create the debug cubes for the corners this chunk owns: every solid corner (red, with a picking
+// collider when it touches an empty corner) and every empty corner next to a solid one (blue).
+// Returns how many.
+int MCGrid::_spawn_debug_corners(Chunk &p_chunk) {
 	int nx = p_chunk.size_x + 1;
 	int ny = p_chunk.size_y + 1;
 	int nz = p_chunk.size_z + 1;
@@ -139,12 +147,13 @@ int MCGrid::_spawn_debug_cubes(Chunk &p_chunk) {
 	return count;
 }
 
-void MCGrid::_update_debug_at(
+// Recreate the debug cube of one global corner after an edit (or remove it).
+void MCGrid::_update_debug_corner(
 		int gx,
 		int gy,
 		int gz
 ) {
-	// The owning chunk is the one _spawn_debug_cubes used, so this updates the only copy.
+	// The owning chunk is the one _spawn_debug_corners used, so this updates the only copy.
 	int chunk_index = 0;
 	Vector3i local;
 	if (!_dims().corner_to_local(Vector3i(gx, gy, gz), chunk_index, local)) {
@@ -204,6 +213,7 @@ void MCGrid::_update_debug_at(
 	}
 }
 
+// Does any of the 6 neighbours (inside the grid, across chunks) have state p_state?
 bool MCGrid::_has_neighbor_with_state(
 		const Vector3i &p_corner,
 		bool p_state

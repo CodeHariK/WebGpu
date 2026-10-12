@@ -10,6 +10,7 @@
 
 namespace godot {
 
+// Mouse buttons not taken by the UI: raycast once, then dispatch by mode.
 void MCManager::_unhandled_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> mouse_event = p_event;
 	if (mouse_event.is_null()) {
@@ -19,7 +20,7 @@ void MCManager::_unhandled_input(const Ref<InputEvent> &p_event) {
 	if (button != MOUSE_BUTTON_LEFT && button != MOUSE_BUTTON_RIGHT) {
 		return;
 	}
-	MCGrid *grid = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
+	MCGrid *grid = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
 	if (!grid) {
 		return;
 	}
@@ -60,6 +61,7 @@ void MCManager::_unhandled_input(const Ref<InputEvent> &p_event) {
 	}
 }
 
+// Colliders of the dragged objects, so the raycast sees through them.
 TypedArray<RID> MCManager::_drag_group_exclusions() const {
 	TypedArray<RID> exclude;
 	if (!is_dragging) {
@@ -80,6 +82,7 @@ TypedArray<RID> MCManager::_drag_group_exclusions() const {
 	return exclude;
 }
 
+// Raycast the click into the grid and fill r_hit (grid space); false when nothing was hit.
 bool MCManager::_raycast_click(
 		const Ref<InputEvent> &p_event,
 		MCGrid *p_grid,
@@ -112,6 +115,7 @@ bool MCManager::_raycast_click(
 	return true;
 }
 
+// Terrain mode: left click fills the corner next to the hit face, right click empties the hit corner.
 void MCManager::_terrain_click(
 		MCGrid *p_grid,
 		const ClickHit &p_hit,
@@ -120,10 +124,10 @@ void MCManager::_terrain_click(
 	if (p_button == MOUSE_BUTTON_LEFT) {
 		// Add: fill the corner next to the clicked one, on the side that was clicked.
 		Vector3i side(Math::round(p_hit.normal.x), Math::round(p_hit.normal.y), Math::round(p_hit.normal.z));
-		p_grid->modify_corner(p_hit.corner + side, true);
+		p_grid->set_corner(p_hit.corner + side, true);
 	} else {
 		// Remove: empty the clicked corner.
-		p_grid->modify_corner(p_hit.corner, false);
+		p_grid->set_corner(p_hit.corner, false);
 	}
 }
 

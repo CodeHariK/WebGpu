@@ -15,6 +15,7 @@
 
 namespace godot {
 
+// Inspector properties and the generate / clear methods.
 void MCHeightmap::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("initialize_random_noise"), &MCHeightmap::initialize_random_noise);
 	ClassDB::bind_method(
@@ -27,10 +28,11 @@ void MCHeightmap::_bind_methods() {
 			PropertyInfo(Variant::PACKED_BYTE_ARRAY, "heightmap_data"), "set_heightmap_data", "get_heightmap_data"
 	);
 
-	ClassDB::bind_method(D_METHOD("set_mc_node", "node"), &MCHeightmap::set_mc_node);
-	ClassDB::bind_method(D_METHOD("get_mc_node"), &MCHeightmap::get_mc_node);
+	ClassDB::bind_method(D_METHOD("set_tile_library", "node"), &MCHeightmap::set_tile_library);
+	ClassDB::bind_method(D_METHOD("get_tile_library"), &MCHeightmap::get_tile_library);
 	ADD_PROPERTY(
-			PropertyInfo(Variant::OBJECT, "mc_node", PROPERTY_HINT_NODE_TYPE, "MCNode"), "set_mc_node", "get_mc_node"
+			PropertyInfo(Variant::OBJECT, "tile_library", PROPERTY_HINT_NODE_TYPE, "MCTileLibrary"), "set_tile_library",
+			"get_tile_library"
 	);
 
 	ClassDB::bind_method(D_METHOD("set_cell_spacing", "spacing"), &MCHeightmap::set_cell_spacing);
@@ -41,9 +43,9 @@ void MCHeightmap::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_height_scale"), &MCHeightmap::get_height_scale);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "height_scale"), "set_height_scale", "get_height_scale");
 
-	ClassDB::bind_method(D_METHOD("set_grid_size", "size"), &MCHeightmap::set_grid_size);
-	ClassDB::bind_method(D_METHOD("get_grid_size"), &MCHeightmap::get_grid_size);
-	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "grid_size"), "set_grid_size", "get_grid_size");
+	ClassDB::bind_method(D_METHOD("set_grid_dims", "size"), &MCHeightmap::set_grid_dims);
+	ClassDB::bind_method(D_METHOD("get_grid_dims"), &MCHeightmap::get_grid_dims);
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "grid_dims"), "set_grid_dims", "get_grid_dims");
 
 	ClassDB::bind_method(D_METHOD("set_show_debug_spheres", "show"), &MCHeightmap::set_show_debug_spheres);
 	ClassDB::bind_method(D_METHOD("get_show_debug_spheres"), &MCHeightmap::get_show_debug_spheres);
@@ -66,6 +68,7 @@ MCHeightmap::MCHeightmap() = default;
 // touching the scene tree from the C++ destructor is unsafe during engine teardown.
 MCHeightmap::~MCHeightmap() = default;
 
+// Set the noise and regenerate when it changes (outside the editor).
 void MCHeightmap::set_noise_source(const Ref<Noise> &p_noise) {
 	if (noise_source == p_noise) {
 		return;
@@ -80,30 +83,32 @@ void MCHeightmap::set_noise_source(const Ref<Noise> &p_noise) {
 	initialize_random_noise_and_generate();
 }
 
+// New random heights, then rebuild the terrain.
 void MCHeightmap::initialize_random_noise_and_generate() {
 	initialize_random_noise();
 	generate_terrain();
 }
 
+// Clear and spawn one tile per non-empty cell from the heightmap (and the debug spheres).
 void MCHeightmap::generate_terrain() {
 	clear_terrain();
-	int required_size = grid_size.x * grid_size.y;
+	int required_size = grid_dims.x * grid_dims.y;
 	if (heightmap_data.size() < required_size) {
 		UtilityFunctions::print("MCHeightmap: Heightmap data size must be at least ", required_size, " bytes.");
 		return;
 	}
-	if (!mc_node) {
-		UtilityFunctions::print("MCHeightmap: MCNode reference is not set.");
+	if (!tile_library) {
+		UtilityFunctions::print("MCHeightmap: MCTileLibrary reference is not set.");
 		return;
 	}
 
 	const uint8_t *data = heightmap_data.ptr();
-	for (int z = 0; z < grid_size.y - 1; z++) {
-		for (int x = 0; x < grid_size.x - 1; x++) {
-			uint8_t h00 = data[x + z * grid_size.x];
-			uint8_t h10 = data[(x + 1) + z * grid_size.x];
-			uint8_t h11 = data[(x + 1) + (z + 1) * grid_size.x];
-			uint8_t h01 = data[x + (z + 1) * grid_size.x];
+	for (int z = 0; z < grid_dims.y - 1; z++) {
+		for (int x = 0; x < grid_dims.x - 1; x++) {
+			uint8_t h00 = data[x + z * grid_dims.x];
+			uint8_t h10 = data[(x + 1) + z * grid_dims.x];
+			uint8_t h11 = data[(x + 1) + (z + 1) * grid_dims.x];
+			uint8_t h01 = data[x + (z + 1) * grid_dims.x];
 
 			uint8_t h_min = h00;
 			if (h10 < h_min)
@@ -138,8 +143,10 @@ void MCHeightmap::generate_terrain() {
 	}
 }
 
+// Remove the spawned tiles.
 void MCHeightmap::clear_terrain() { _clear_terrain_meshes(); }
 
+// Free every spawned tile and debug sphere.
 void MCHeightmap::_clear_terrain_meshes() {
 	TypedArray<Node> children = get_children();
 	for (int i = 0; i < children.size(); i++) {
@@ -152,16 +159,18 @@ void MCHeightmap::_clear_terrain_meshes() {
 	debug_spheres_container = nullptr;
 }
 
+// A corner is solid when it is below its column's height.
 bool MCHeightmap::_is_corner_active(
 		int x,
 		int y,
 		int z,
 		const uint8_t *data_ptr
 ) const {
-	uint8_t height = data_ptr[x + z * grid_size.x];
+	uint8_t height = data_ptr[x + z * grid_dims.x];
 	return y <= height;
 }
 
+// 8-bit hash of a cell from its 8 corners (same bit order as MCGrid).
 uint8_t MCHeightmap::_get_cell_hash(
 		int x,
 		int y,
@@ -188,13 +197,14 @@ uint8_t MCHeightmap::_get_cell_hash(
 	return hash;
 }
 
+// Spawn the tile for one cell, scaled to cell_spacing / height_scale.
 void MCHeightmap::_spawn_cell_mesh(
 		int x,
 		int y,
 		int z,
 		uint8_t hash
 ) {
-	MeshConfig conf = mc_node->get_mesh_config(hash);
+	const MCTile &conf = tile_library->get_tile(hash);
 	if (conf.mesh.is_null()) {
 		return;
 	}
@@ -208,10 +218,11 @@ void MCHeightmap::_spawn_cell_mesh(
 	Vector3 pos(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, static_cast<float>(z) + 0.5f);
 	pos *= scale;
 
-	mi->set_transform(Transform3D(Basis().scaled(scale), pos) * conf.transform);
+	mi->set_transform(Transform3D(Basis().scaled(scale), pos) * conf.turn);
 	add_child(mi); // generated: not owned by the scene, so it is never saved into the .tscn
 }
 
+// Small spheres at every column height (debug).
 void MCHeightmap::_spawn_debug_spheres(const uint8_t *data_ptr) {
 	if (!debug_spheres_container) {
 		debug_spheres_container = memnew(Node3D);
@@ -228,9 +239,9 @@ void MCHeightmap::_spawn_debug_spheres(const uint8_t *data_ptr) {
 	debug_mat.instantiate();
 	debug_mat->set_albedo(Color(1.0f, 0.0f, 0.0f));
 
-	for (int z = 0; z < grid_size.y; z++) {
-		for (int x = 0; x < grid_size.x; x++) {
-			uint8_t h = data_ptr[x + z * grid_size.x];
+	for (int z = 0; z < grid_dims.y; z++) {
+		for (int x = 0; x < grid_dims.x; x++) {
+			uint8_t h = data_ptr[x + z * grid_dims.x];
 			Vector3 pos(static_cast<float>(x), static_cast<float>(h), static_cast<float>(z));
 			pos.x *= cell_spacing;
 			pos.y *= cell_spacing * height_scale;
@@ -245,17 +256,18 @@ void MCHeightmap::_spawn_debug_spheres(const uint8_t *data_ptr) {
 	}
 }
 
+// Fill heightmap_data from the noise source (or a new random noise).
 void MCHeightmap::initialize_random_noise() {
-	int required_size = grid_size.x * grid_size.y;
+	int required_size = grid_dims.x * grid_dims.y;
 	heightmap_data.resize(required_size);
 	uint8_t *ptrw = heightmap_data.ptrw();
 
 	if (noise_source.is_valid()) {
-		for (int z = 0; z < grid_size.y; z++) {
-			for (int x = 0; x < grid_size.x; x++) {
+		for (int z = 0; z < grid_dims.y; z++) {
+			for (int x = 0; x < grid_dims.x; x++) {
 				float n = noise_source->get_noise_2d(static_cast<float>(x), static_cast<float>(z));
 				float normalized = (n + 1.0f) * 0.5f;
-				ptrw[x + z * grid_size.x] = static_cast<uint8_t>(normalized * 15.0f + 1.0f);
+				ptrw[x + z * grid_dims.x] = static_cast<uint8_t>(normalized * 15.0f + 1.0f);
 			}
 		}
 		return;
@@ -280,19 +292,20 @@ void MCHeightmap::initialize_random_noise() {
 		return val;
 	};
 
-	for (int z = 0; z < grid_size.y; z++) {
-		for (int x = 0; x < grid_size.x; x++) {
+	for (int z = 0; z < grid_dims.y; z++) {
+		for (int x = 0; x < grid_dims.x; x++) {
 			float n = fbm(static_cast<float>(x), static_cast<float>(z));
-			ptrw[x + z * grid_size.x] = static_cast<uint8_t>(n * 10.0f + 1.0f);
+			ptrw[x + z * grid_dims.x] = static_cast<uint8_t>(n * 10.0f + 1.0f);
 		}
 	}
 }
 
+// Outside the editor: make random heights if heightmap_data is too small, then generate.
 void MCHeightmap::_ready() {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
 	}
-	int required_size = grid_size.x * grid_size.y;
+	int required_size = grid_dims.x * grid_dims.y;
 	if (heightmap_data.size() < required_size) {
 		initialize_random_noise();
 	}

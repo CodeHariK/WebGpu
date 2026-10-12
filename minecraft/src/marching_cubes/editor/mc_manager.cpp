@@ -28,14 +28,17 @@
 
 namespace godot {
 
+// Inspector properties (node paths) and the methods the UI buttons call.
 void MCManager::_bind_methods() {
-	ClassDB::bind_method(D_METHOD("set_mc_node_path", "p_path"), &MCManager::set_mc_node_path);
-	ClassDB::bind_method(D_METHOD("get_mc_node_path"), &MCManager::get_mc_node_path);
-	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "mc_node_path"), "set_mc_node_path", "get_mc_node_path");
+	ClassDB::bind_method(D_METHOD("set_tile_library_path", "p_path"), &MCManager::set_tile_library_path);
+	ClassDB::bind_method(D_METHOD("get_tile_library_path"), &MCManager::get_tile_library_path);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::NODE_PATH, "tile_library_path"), "set_tile_library_path", "get_tile_library_path"
+	);
 
-	ClassDB::bind_method(D_METHOD("set_terrain_path", "p_path"), &MCManager::set_terrain_path);
-	ClassDB::bind_method(D_METHOD("get_terrain_path"), &MCManager::get_terrain_path);
-	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "terrain_path"), "set_terrain_path", "get_terrain_path");
+	ClassDB::bind_method(D_METHOD("set_grid_path", "p_path"), &MCManager::set_grid_path);
+	ClassDB::bind_method(D_METHOD("get_grid_path"), &MCManager::get_grid_path);
+	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "grid_path"), "set_grid_path", "get_grid_path");
 
 	ClassDB::bind_method(D_METHOD("initialize_all"), &MCManager::initialize_all);
 	ClassDB::bind_method(D_METHOD("_on_toggle_ui"), &MCManager::_on_toggle_ui);
@@ -52,6 +55,7 @@ MCManager::MCManager() { current_placement_size = Vector3i(2, 3, 4); }
 
 MCManager::~MCManager() {}
 
+// Outside the editor: show the mouse and defer initialize_all until the scene is ready.
 void MCManager::_ready() {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
@@ -62,10 +66,13 @@ void MCManager::_ready() {
 	set_process(true);
 }
 
-void MCManager::set_mc_node_path(const NodePath &p_path) { mc_node_path = p_path; }
+// Node path to the MCTileLibrary.
+void MCManager::set_tile_library_path(const NodePath &p_path) { tile_library_path = p_path; }
 
-NodePath MCManager::get_mc_node_path() const { return mc_node_path; }
+// Node path to the MCTileLibrary.
+NodePath MCManager::get_tile_library_path() const { return tile_library_path; }
 
+// Refresh the stats 10 times a second and run the hover raycast every frame.
 void MCManager::_process(double p_delta) {
 	if (Engine::get_singleton()->is_editor_hint()) {
 		return;
@@ -80,36 +87,39 @@ void MCManager::_process(double p_delta) {
 	_update_hover_raycast();
 }
 
-NodePath MCManager::get_terrain_path() const { return terrain.path; }
+// Node path to the MCGrid.
+NodePath MCManager::get_grid_path() const { return grid_stats.path; }
 
-void MCManager::set_terrain_path(const NodePath &p_path) { terrain.path = p_path; }
+// Node path to the MCGrid.
+void MCManager::set_grid_path(const NodePath &p_path) { grid_stats.path = p_path; }
 
+// Load the library, build the grid, create the UI and previews, register with GameManager.
 void MCManager::initialize_all() {
 	if (!is_inside_tree()) {
 		return;
 	}
 
-	MCNode *mc_node = Object::cast_to<MCNode>(get_node_or_null(mc_node_path));
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
+	MCTileLibrary *tile_library = Object::cast_to<MCTileLibrary>(get_node_or_null(tile_library_path));
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
 
-	if (!mc_node) {
-		UtilityFunctions::print("MCManager Error: MCNode not found at ", mc_node_path);
+	if (!tile_library) {
+		UtilityFunctions::print("MCManager Error: MCTileLibrary not found at ", tile_library_path);
 	}
-	if (!terrain_node) {
-		UtilityFunctions::print("MCManager Error: MCGrid not found at ", terrain.path);
+	if (!grid_node) {
+		UtilityFunctions::print("MCManager Error: MCGrid not found at ", grid_stats.path);
 	}
 
-	if (mc_node && terrain_node) {
+	if (tile_library && grid_node) {
 		UtilityFunctions::print("MCManager: Found all nodes. Forcing sequential initialization...");
 
-		// 1. Force MCNode to be ready (load the tiles and fill the rest by turning them about Y)
-		mc_node->initialize_library();
+		// 1. Force MCTileLibrary to be ready (load the tiles and fill the rest by turning them about Y)
+		tile_library->initialize_library();
 
 		// 2. Link nodes and trigger Terrain generation
-		terrain_node->set_mc_node(mc_node);
-		terrain_node->initialize_grid(
-				terrain_node->get_grid_size().x, terrain_node->get_grid_size().y, terrain_node->get_grid_size().z,
-				terrain_node->get_chunk_size().x, terrain_node->get_chunk_size().y, terrain_node->get_chunk_size().z
+		grid_node->set_tile_library(tile_library);
+		grid_node->initialize_grid(
+				grid_node->get_grid_dims().x, grid_node->get_grid_dims().y, grid_node->get_grid_dims().z,
+				grid_node->get_chunk_dims().x, grid_node->get_chunk_dims().y, grid_node->get_chunk_dims().z
 		);
 
 		// 3. Setup UI
@@ -133,35 +143,40 @@ void MCManager::initialize_all() {
 	}
 }
 
+// Load button: user://terrain.mct.
 void MCManager::_on_load_terrain() { load_terrain("user://terrain.mct"); }
 
+// Save button: user://terrain.mct.
 void MCManager::_on_save_terrain() { save_terrain("user://terrain.mct"); }
 
+// Copy for Blender button: the grid's cells as JSON on the clipboard.
 void MCManager::_on_copy_for_blender() {
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-	if (!terrain_node) {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (!grid_node) {
 		return;
 	}
-	String json = terrain_node->cells_to_json();
+	String json = grid_node->cells_to_json();
 	DisplayServer::get_singleton()->clipboard_set(json);
 	UtilityFunctions::print("MCManager: Copied ", json.length(), " characters of cell JSON for Blender.");
 }
 
+// Save the grid's corners to p_path.
 void MCManager::save_terrain(const String &p_path) {
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-	if (terrain_node) {
-		terrain_node->save_grid(p_path);
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->save_grid(p_path);
 	}
 }
 
+// Load corners from p_path, after putting any dragged objects back.
 void MCManager::load_terrain(const String &p_path) {
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-	if (terrain_node) {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
 		// Loading may free placed objects (when the grid size changes): drop every pointer to them
 		// first, putting a drag back where it started.
 		cancel_drag();
 		_clear_selection();
-		terrain_node->load_grid(p_path);
+		grid_node->load_grid(p_path);
 	}
 }
 

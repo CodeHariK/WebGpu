@@ -31,6 +31,7 @@
 
 namespace godot {
 
+// Build the side panel: stats, buttons, hash inspection, placement mode, variant stats.
 void MCManager::setup_ui() {
 	if (!ui.manager)
 		return;
@@ -59,7 +60,7 @@ void MCManager::setup_ui() {
 	}
 	if (_args.has("--mcshot")) {
 		Ref<SceneTreeTimer> _t = get_tree()->create_timer(1.2);
-		_t->connect("timeout", callable_mp(this, &MCManager::_mc_capture));
+		_t->connect("timeout", callable_mp(this, &MCManager::_save_screenshot_and_quit));
 	}
 
 	// 3. Create Buttons
@@ -107,7 +108,7 @@ void MCManager::setup_ui() {
 	vis_btn->set_custom_minimum_size(Vector2(0, 30));
 
 	ui.manager->add_header(ui.stats_vbox, "Terrain Stats");
-	terrain.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
+	grid_stats.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
 
 	ui.manager->add_header(ui.stats_vbox, "Hash Inspection");
 	ui.hash_label = ui.manager->add_label(ui.stats_vbox, "Hash: N/A\nPos: (0, 0, 0)");
@@ -136,10 +137,11 @@ void MCManager::setup_ui() {
 	}
 }
 
+// Cycle terrain -> place object -> drag object mode and update the button text.
 void MCManager::_on_toggle_placement_mode() {
 	cancel_drag(); // Finalize/Revert any active drag before switching modes
 
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
 
 	// Cycle through modes: Terrain -> Place Object -> Drag Object
 	if (interaction_mode == MODE_TERRAIN) {
@@ -168,6 +170,7 @@ void MCManager::_on_toggle_placement_mode() {
 	update_ui();
 }
 
+// Show / hide the side panel.
 void MCManager::_on_toggle_ui() {
 	if (ui.side_panel) {
 		bool is_visible = !ui.side_panel->is_visible();
@@ -178,6 +181,7 @@ void MCManager::_on_toggle_ui() {
 	}
 }
 
+// Clicks on the panel stay on the panel.
 void MCManager::_on_gui_input(const Ref<InputEvent> &p_event) {
 	Ref<InputEventMouseButton> mb = p_event;
 	if (mb.is_valid()) {
@@ -188,12 +192,13 @@ void MCManager::_on_gui_input(const Ref<InputEvent> &p_event) {
 	}
 }
 
+// Open the help dialog.
 void MCManager::_on_show_help() {
 	if (ui.help_dialog) {
 		ui.help_dialog->open_alert(
 				"Marching Cubes Info",
 				"This project visualizes the 256 voxel configurations of the Marching Cubes algorithm.\n\n"
-				"- 21 base meshes generate all 256 variants via rotations/reflections.\n"
+				"- Modelled tiles fill all 256 cell hashes by turning about Y.\n"
 				"- Transformations are applied via bitwise-mapped rotation matrices.\n"
 				"- Current UI tracks real-time performance and generation stats.\n\n"
 				"- Stats Button: Toggle sidebar visibility",
@@ -202,6 +207,7 @@ void MCManager::_on_show_help() {
 	}
 }
 
+// Refresh FPS, draw calls, tile / chunk counts and the hovered cell's hash.
 void MCManager::update_ui() {
 	if (!ui.stats_vbox || !ui.manager || !is_inside_tree())
 		return;
@@ -231,12 +237,13 @@ void MCManager::update_ui() {
 				String::num(perf_singleton->get_monitor(Performance::MEMORY_STATIC) / 1024.0 / 1024.0, 2) + " MB"
 		);
 
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-	if (terrain_node && terrain.stats_label) {
-		terrain.stats_label->set_text(
-				"MC Meshes: " + String::num_int64(terrain_node->get_total_mc_meshes()) +
-				"\nMC Cells: " + String::num_int64(terrain_node->get_total_cells()) +
-				"\nDebug Corners: " + String::num_int64(terrain_node->get_total_debug_corners())
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node && grid_stats.stats_label) {
+		grid_stats.stats_label->set_text(
+				"MC Tiles: " + String::num_int64(grid_node->get_total_tiles_drawn()) +
+				"\nChunk Meshes: " + String::num_int64(grid_node->get_total_chunk_meshes()) +
+				"\nMC Cells: " + String::num_int64(grid_node->get_total_cells()) +
+				"\nDebug Corners: " + String::num_int64(grid_node->get_total_debug_corners())
 		);
 	}
 
@@ -255,8 +262,8 @@ void MCManager::update_ui() {
 
 	// Update variant counts if side panel is visible
 	if (ui.side_panel && ui.side_panel->is_visible() && ui.variant_stats_vbox) {
-		MCNode *mc_node = Object::cast_to<MCNode>(get_node_or_null(mc_node_path));
-		if (mc_node) {
+		MCTileLibrary *tile_library = Object::cast_to<MCTileLibrary>(get_node_or_null(tile_library_path));
+		if (tile_library) {
 			// Clear children of variant_stats_vbox
 			TypedArray<Node> children = ui.variant_stats_vbox->get_children();
 			for (int i = 0; i < children.size(); i++) {
@@ -264,8 +271,8 @@ void MCManager::update_ui() {
 				child->queue_free();
 			}
 
-			Dictionary counts = mc_node->get_variant_counts();
-			std::vector<uint8_t> base_order = mc_node->get_base_mesh_order();
+			Dictionary counts = tile_library->get_hashes_per_tile();
+			std::vector<uint8_t> base_order = tile_library->get_loaded_hashes();
 			int total = 0;
 			Array keys = counts.keys();
 			for (int i = 0; i < keys.size(); i++) {
@@ -290,7 +297,8 @@ void MCManager::update_ui() {
 	}
 }
 
-void MCManager::_mc_capture() {
+// Debug (--mcshot): save the viewport to docs/png/mc_pretty.png and quit.
+void MCManager::_save_screenshot_and_quit() {
 	Ref<Image> img = get_viewport()->get_texture()->get_image();
 	img->save_png("res://../docs/png/mc_pretty.png");
 	get_tree()->quit();

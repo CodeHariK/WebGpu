@@ -20,15 +20,17 @@
 
 namespace godot {
 
+// Show / hide the grid's debug corner cubes.
 void MCManager::_on_toggle_visual_corners() {
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-	if (terrain_node) {
-		bool current = terrain_node->is_debug_corners_visible();
-		terrain_node->set_debug_corners_visible(!current);
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		bool current = grid_node->is_debug_corners_visible();
+		grid_node->set_debug_corners_visible(!current);
 		UtilityFunctions::print("MCManager: Visual Corners toggled to ", !current);
 	}
 }
 
+// Create the hover materials (yellow ok, red blocked, cyan selected) and the placement box.
 void MCManager::_initialize_previews() {
 	hover_mat_yellow.instantiate();
 	hover_mat_yellow->set_albedo(Color(1, 1, 0, 0.4));
@@ -56,6 +58,7 @@ void MCManager::_initialize_previews() {
 	}
 }
 
+// Size and place the placement box at a cell (grid space -> global), red when blocked.
 void MCManager::_update_hover_box(
 		const Vector3i &p_grid_pos,
 		bool p_is_blocked
@@ -69,9 +72,9 @@ void MCManager::_update_hover_box(
 	}
 	// The box is a child of MCManager but the position is in MCGrid space: place it globally.
 	Vector3 local_centre = Vector3(p_grid_pos) + (Vector3(current_placement_size) * 0.5f);
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-	if (terrain_node) {
-		hover_box_node->set_global_position(terrain_node->to_global(local_centre));
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		hover_box_node->set_global_position(grid_node->to_global(local_centre));
 	} else {
 		hover_box_node->set_position(local_centre);
 	}
@@ -79,10 +82,12 @@ void MCManager::_update_hover_box(
 	hover_box_node->show();
 }
 
+// Every frame: raycast from the mouse, then update the preview for the current mode
+// (placement box, dragged objects, or the hovered corner face).
 void MCManager::_update_hover_raycast() {
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-	if (terrain_node) {
-		terrain_node->hide_hover_preview();
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->hide_hover_preview();
 	}
 	if (hover_box_node) {
 		hover_box_node->hide();
@@ -109,12 +114,12 @@ void MCManager::_update_hover_raycast() {
 		if (collider_node) {
 			Camera3D *camera = viewport->get_camera_3d();
 			if (camera) {
-				MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-				if (terrain_node) {
+				MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+				if (grid_node) {
 					// Work in MCGrid space so a moved/rotated grid still lines up.
-					Vector3 hit_pos = terrain_node->to_local(hit.position);
+					Vector3 hit_pos = grid_node->to_local(hit.position);
 					Vector3 hit_normal =
-							(terrain_node->get_global_transform().basis.inverse().xform(hit.normal)).normalized();
+							(grid_node->get_global_transform().basis.inverse().xform(hit.normal)).normalized();
 					Vector3i grid_pos = Vector3i((hit_pos + hit_normal * 0.5f).floor());
 
 					if (ctrl_held && interaction_mode == MODE_TERRAIN) {
@@ -130,7 +135,7 @@ void MCManager::_update_hover_raycast() {
 						check_size = drag_group[0].size;
 					}
 
-					if (terrain_node->is_area_blocked_by_grid(grid_pos, check_size)) {
+					if (grid_node->is_area_blocked_by_grid(grid_pos, check_size)) {
 						is_blocked = true;
 					}
 
@@ -139,7 +144,7 @@ void MCManager::_update_hover_raycast() {
 								? (drag_group.empty() ? current_placement_size : drag_group[0].size)
 								: current_placement_size;
 						AABB volume = AABB(Vector3(grid_pos), Vector3(check_size_obj));
-						if (terrain_node->is_area_blocked_by_objects(volume)) {
+						if (grid_node->is_area_blocked_by_objects(volume)) {
 							is_blocked = true;
 						}
 					}
@@ -149,10 +154,8 @@ void MCManager::_update_hover_raycast() {
 						for (auto &obj : drag_group) {
 							Vector3i target_pos = grid_pos + obj.relative_offset;
 							obj.node->set_position(Vector3(target_pos) + (Vector3(obj.size) * 0.5f));
-							if (terrain_node->is_area_blocked_by_grid(target_pos, obj.size) ||
-								terrain_node->is_area_blocked_by_objects(
-										AABB(Vector3(target_pos), Vector3(obj.size))
-								)) {
+							if (grid_node->is_area_blocked_by_grid(target_pos, obj.size) ||
+								grid_node->is_area_blocked_by_objects(AABB(Vector3(target_pos), Vector3(obj.size)))) {
 								group_blocked = true;
 							}
 						}
@@ -169,7 +172,7 @@ void MCManager::_update_hover_raycast() {
 						}
 					} else if (interaction_mode == MODE_TERRAIN) {
 						if (ctrl_held) {
-							terrain_node->update_hover_preview(
+							grid_node->update_hover_preview(
 									Vector3(locked_grid_pos) + Vector3(0.5, 0.5, 0.5), hit_normal, camera
 							);
 						} else {
@@ -178,7 +181,7 @@ void MCManager::_update_hover_raycast() {
 							if (parent_node) {
 								Vector3 final_pos = parent_node->get_position();
 								locked_grid_pos = Vector3i(final_pos.round());
-								terrain_node->update_hover_preview(final_pos, hit_normal, camera);
+								grid_node->update_hover_preview(final_pos, hit_normal, camera);
 							}
 						}
 					}
@@ -188,10 +191,11 @@ void MCManager::_update_hover_raycast() {
 	}
 }
 
+// Hash of a grid cell, 0 when there is no grid.
 uint8_t MCManager::_get_cell_hash(const Vector3i &p_grid_pos) {
-	MCGrid *terrain_node = Object::cast_to<MCGrid>(get_node_or_null(terrain.path));
-	if (terrain_node) {
-		return terrain_node->get_cell_hash_at_global_coord(p_grid_pos);
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		return grid_node->get_cell_hash(p_grid_pos);
 	}
 	return 0;
 }
