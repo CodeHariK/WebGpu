@@ -100,8 +100,8 @@ A vertex is shared by **8 cubes**. To form a continuous surface:
 
 | Tile set | Tiles to model | Result in Godot |
 | :--- | :--- | :--- |
-| **XZ Symmetric (68)** | one per Y-turn group | all 254 drawable hashes |
-| **Heightmap (22)** | the 68 set without overhangs (a top corner always has a solid corner below it) | the 79 hashes a heightmap can produce |
+| **X=Z, Y Asymmetric (68)** | one per Y-turn group | all 254 drawable hashes |
+| **X=Z, Y Asymmetric Heightmap (22)** | the 68 set without overhangs (a top corner always has a solid corner below it) | the 79 hashes a heightmap can produce |
 | **Complete (256)** | every hash (254; empty is never drawn, full is optional) | nothing to fill |
 
 Godot prints which hashes are still missing after loading. The Blender add-on in `blender/mc_tiles/mc_tile_tools` shows the same check while modelling (missing tiles, rotated copies, overhangs in a heightmap set).

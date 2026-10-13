@@ -39,7 +39,7 @@ What else heightmap mode changes:
 - **Memory:** 1 byte per column instead of 1 bit per corner per layer (32-high grid: 1 byte vs
   33 bits, about 4× less RAM).
 - **Editing:** a click raises / lowers a whole column, so an overhang can never be created by
-  accident. Every cell uses one of the 22 heightmap tiles (= the add-on's Heightmap (22) set).
+  accident. Every cell uses one of the 22 heightmap tiles (= the add-on's X=Z, Y Asymmetric Heightmap (22) set).
 - **Faster:** a cell's hash comes straight from 4 column heights.
 - **Cost:** no caves, overhangs or arches in that grid. Bridges / arches become placed objects or a
   separate full-3D grid.

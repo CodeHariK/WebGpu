@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "mc_tile_tools"
-version = "0.13.0"
+version = "0.16.0"
 name = "MC Tile Tools"
 tagline = "Manage, check and test-fit marching cubes tiles"
 maintainer = "Hari"

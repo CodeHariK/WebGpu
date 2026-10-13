@@ -10,10 +10,17 @@ KIND_ITEMS = [
 ]
 
 
+def _on_mode(_self, context):
+    """Mode changed: the filter's "Used by Mode" shows a different subset."""
+    from .tilefilter import apply
+
+    apply(context)
+
+
 class MCTilesSetProps(bpy.types.PropertyGroup):
     is_tile_set: bpy.props.BoolProperty(name="Is Tile Set", default=False)
     kind: bpy.props.EnumProperty(name="Kind", items=KIND_ITEMS, default="CUBE")
-    mode: bpy.props.EnumProperty(name="Mode", items=MODE_ITEMS, default="68")
+    mode: bpy.props.EnumProperty(name="Mode", items=MODE_ITEMS, default="68", update=_on_mode)
     export_path: bpy.props.StringProperty(
         name="Export",
         description="The .glb this set exports to",
@@ -25,6 +32,13 @@ def _is_tile_set(_self, collection):
     return collection.mc_tiles.is_tile_set
 
 
+def _on_active_set(_scene, context):
+    """Switching sets: re-apply the viewport filter (unhides the old set's filtered tiles)."""
+    from .tilefilter import apply
+
+    apply(context)
+
+
 def register():
     bpy.utils.register_class(MCTilesSetProps)
     bpy.types.Collection.mc_tiles = bpy.props.PointerProperty(type=MCTilesSetProps)
@@ -33,6 +47,7 @@ def register():
         name="Tile Set",
         type=bpy.types.Collection,
         poll=_is_tile_set,
+        update=_on_active_set,
     )
 
 

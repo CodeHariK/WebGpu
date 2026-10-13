@@ -10,9 +10,10 @@ How it works (the same rules Godot uses):
        the real mesh updates every copy live. A cell whose hash has no tile gets a red box.
 
 Copies live in a "Playground" collection and are named "pg_..." so they never look like tiles.
-Only the centre copy can be selected: Tab into Edit Mode on it edits the real tile's mesh (shared
-data), and every neighbour using the same tile updates too. Neighbours can't be selected and,
-with Helper Debug Material on, get the debug material (role stored in obj["mc_pg_role"]).
+Every copy (centre and neighbours) is selectable and linked: Tab into Edit Mode on any of them edits
+the real tile's mesh (shared data), and every copy of that tile updates too. A copy remembers its
+tile (obj["mc_pg_tile"]), so Build with a copy selected re-centres on that tile. With Helper Debug
+Material on, neighbours get the debug material (role stored in obj["mc_pg_role"]).
 The add-on's Export Set skips them; clear the playground before using the old
 ExportMergeChildMesh.py script (it exports everything visible).
 
@@ -41,6 +42,7 @@ CORNER_OFFSETS = (
 )
 GAP = 3.0  # metres between the tile set and the playground
 ROLE = "mc_pg_role"  # "centre", "neighbour" or "pasted" on every tile copy
+SOURCE = "mc_pg_tile"  # name of the real tile a copy (root) was made from
 
 
 # ---------------------------------------------------------------- corner grid (pure logic)
@@ -159,14 +161,14 @@ def _missing_box(collection, position, h):
 def _copy_tile(root, collection, position, turns, h, role="neighbour", mirrored=False):
     """Copy a tile (root and child parts, sharing mesh data) into a cell, turned about Z.
 
-    role: "centre" (selectable), "neighbour" (not selectable, gets the debug material when it is
-    on) or "pasted" (from Godot: selectable, real material).
+    role: "centre", "neighbour" (gets the debug material when it is on) or "pasted" (from Godot,
+    real material). All are selectable; Edit Mode on any copy edits the real tile's mesh.
     """
     copies = {}
     for obj in [root] + list(root.children_recursive):
         copy = obj.copy()  # shares obj.data: edits to the real mesh show up here
         copy.name = f"pg_{h:08b}_{obj.name}"
-        copy.hide_select = role == "neighbour"
+        copy.hide_select = False
         copy[ROLE] = role
         collection.objects.link(copy)
         copies[obj] = copy
@@ -182,6 +184,7 @@ def _copy_tile(root, collection, position, turns, h, role="neighbour", mirrored=
     # A mirrored tile is a negative X scale: still the shared mesh (live edits), drawn flipped.
     flip = Matrix.Scale(-1.0, 4, Vector((1.0, 0.0, 0.0))) if mirrored else Matrix.Identity(4)
     copies[root].matrix_world = Matrix.Translation(position) @ turn @ flip @ own
+    copies[root][SOURCE] = root.name
     return copies[root]
 
 
@@ -250,11 +253,13 @@ def _select_only(obj):
 
 
 def _selected_tile(context):
-    """(root object, hash) of the selected tile, or (None, None)."""
+    """(root object, hash) of the selected tile, or (None, None). A playground copy counts as its tile."""
     obj = context.active_object
     while obj is not None and obj.parent is not None:
         obj = obj.parent
-    if obj is None or obj.name.startswith("pg_"):
+    if obj is not None and obj.name.startswith("pg_"):
+        obj = bpy.data.objects.get(obj.get(SOURCE, ""))
+    if obj is None:
         return None, None
     h = tile_hash(obj.name, "CUBE")
     return (obj, h) if h is not None else (None, None)

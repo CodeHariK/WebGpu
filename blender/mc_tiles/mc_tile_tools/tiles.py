@@ -66,6 +66,17 @@ def tile_variants(collection, kind):
     return found
 
 
+def variant_clashes(collection):
+    """[(hash, variant, "name, name")] where two objects claim the same hash and variant."""
+    clashes = []
+    for h, objs in sorted(tile_variants(collection, "CUBE").items()):
+        seen = {}
+        for obj in objs:
+            seen.setdefault(variant_number(obj.name), []).append(obj.name)
+        clashes += [(h, v, ", ".join(names)) for v, names in sorted(seen.items()) if len(names) > 1]
+    return clashes
+
+
 def tile_roots(collection, kind):
     """{hash: object} for every tile: the first variant of each hash."""
     return {h: objs[0] for h, objs in tile_variants(collection, kind).items()}

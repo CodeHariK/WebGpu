@@ -1,10 +1,13 @@
 """Cube tile-set modes: which tiles a set must contain.
 
-| Mode (id)                     | Rotations used in Godot | Tiles to model |
-|-------------------------------|-------------------------|----------------|
-| XZ Symmetric (68)             | 4 around Y              | 68             |
-| Complete (256)                | none                    | 254            |
-| Heightmap (22), id HEIGHTMAP  | 4 around Y, no overhang | 22             |
+| Mode (id)                                      | Rotations used in Godot | Tiles to model |
+|------------------------------------------------|-------------------------|----------------|
+| X=Z, Y Asymmetric (68)                         | 4 around Y              | 68             |
+| Complete (256)                                 | none                    | 254            |
+| X=Z, Y Asymmetric Heightmap (22), id HEIGHTMAP | 4 around Y, no overhang | 22             |
+
+X=Z, Y Asymmetric (both modes): the cell is square in X/Z so quarter turns about Y fit; tops
+and bottoms differ, so tiles are never turned or flipped upside down.
 
 Empty (00000000) is never drawn. Full (11111111) is optional: not counted,
 but Godot draws it if the set has one.
@@ -15,9 +18,9 @@ numbers are kept as documentation and as a cross-check for tests.
 MODE_ITEMS = [
     # Identifiers ("68", "256", ...) are saved in .blend files: rename labels only.
     # Godot needs no mode: it turns whatever tiles it loads about Y and fills the gaps.
-    ("68", "XZ Symmetric (68)", "Godot rotates tiles around Y only"),
+    ("68", "X=Z, Y Asymmetric (68)", "Square in X/Z: Godot turns tiles about Y only, never upside down"),
     ("256", "Complete (256)", "Every corner combination is modelled, no rotation"),
-    ("HEIGHTMAP", "Heightmap (22)", "XZ symmetric with no overhangs: a top corner needs the corner below it"),
+    ("HEIGHTMAP", "X=Z, Y Asymmetric Heightmap (22)", "Like X=Z, Y Asymmetric but no overhangs: a top corner needs the corner below it"),
 ]
 
 EXPECTED_TILES = {"68": 68, "256": 254, "HEIGHTMAP": 22}

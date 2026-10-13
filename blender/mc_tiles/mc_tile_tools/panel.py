@@ -1,7 +1,8 @@
 """The "MC Tiles" tab in the 3D view sidebar (N panel).
 
 MC Tiles         pick / make a tile set, its settings and tile count
-  Tiles          searchable list, click to select
+  Tiles          filter (list + viewport) and the tile list, click to select
+  Arrange        lay the tiles out (corners / hash / family / heightmap), Restore, labels
   Playground     the selected tile among random neighbours from the set
   Check          missing tiles, rotated copies, tiles the mode can't use
 """
@@ -10,28 +11,19 @@ import bpy
 
 from . import cube
 from .helpers import draw_move_helpers
+from .arrange import draw_arrange
+from .corners import draw_toggle as draw_corner_toggle
 from .playground import draw_playground
 from .view import draw_view_switch
 from .names import untidy
-from .tiles import tile_roots, tile_variants
-from .variants import variant_number
+from .tilefilter import draw_filter
+from .tiles import tile_roots, tile_variants, variant_clashes
 
 MAX_ROWS = 12  # longer lists end with "... N more"
 
 
 def _active_set(context):
     return context.scene.mc_tiles_active
-
-
-def _variant_clashes(collection):
-    """[(hash, variant, "name, name")] where two objects claim the same hash and variant."""
-    clashes = []
-    for h, objs in sorted(tile_variants(collection, "CUBE").items()):
-        seen = {}
-        for obj in objs:
-            seen.setdefault(variant_number(obj.name), []).append(obj.name)
-        clashes += [(h, v, ", ".join(names)) for v, names in sorted(seen.items()) if len(names) > 1]
-    return clashes
 
 
 def _not_allowed_reason(h):
@@ -55,6 +47,7 @@ class MCTILES_PT_main(bpy.types.Panel):
         row.operator("mc_tiles.remove_set", text="", icon="TRASH")
         layout.operator("mc_tiles.make_set", icon="ADD")
         draw_view_switch(layout, scene)
+        draw_corner_toggle(layout, scene)
 
         collection = _active_set(context)
         if collection is None:
@@ -99,11 +92,29 @@ class MCTILES_PT_tiles(bpy.types.Panel):
         return _active_set(context) is not None
 
     def draw(self, context):
+        collection = _active_set(context)
+        draw_filter(self.layout, context, collection)
         self.layout.template_list(
-            "MCTILES_UL_tiles", "", _active_set(context), "all_objects",
+            "MCTILES_UL_tiles", "", collection, "all_objects",
             context.scene, "mc_tiles_index", rows=8,
         )
-        self.layout.label(text="Search: digits, #3 = 3 corners, or a name")
+
+
+class MCTILES_PT_arrange(bpy.types.Panel):
+    bl_label = "Arrange"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "MC Tiles"
+    bl_parent_id = "MCTILES_PT_main"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        collection = _active_set(context)
+        return collection is not None and collection.mc_tiles.kind == "CUBE"
+
+    def draw(self, context):
+        draw_arrange(self.layout, context)
 
 
 class MCTILES_PT_playground(bpy.types.Panel):
@@ -140,7 +151,7 @@ class MCTILES_PT_check(bpy.types.Panel):
         mode = collection.mc_tiles.mode
         tiles = tile_roots(collection, "CUBE")
         report = cube.check(tiles.keys(), mode)
-        clashes = _variant_clashes(collection)
+        clashes = variant_clashes(collection)
 
         messy = untidy(collection)
         problems = report.missing or report.duplicates or report.not_allowed or clashes or report.partners or messy
@@ -198,4 +209,4 @@ class MCTILES_PT_check(bpy.types.Panel):
             col.label(text=f"... {len(rows) - MAX_ROWS} more")
 
 
-CLASSES = (MCTILES_PT_main, MCTILES_PT_tiles, MCTILES_PT_playground, MCTILES_PT_check)
+CLASSES = (MCTILES_PT_main, MCTILES_PT_tiles, MCTILES_PT_arrange, MCTILES_PT_playground, MCTILES_PT_check)

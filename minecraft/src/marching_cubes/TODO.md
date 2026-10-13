@@ -67,6 +67,20 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
       Cube.glb (68/68) from the committed blend — uncommitted
 - [x] "Move helper objects into Helpers" button (set's non-tile objects → `Helpers` child collection);
       run it on Circus in Marching.blend (48 helpers) — uncommitted
+- [x] Blender: **Filter** (Tiles panel) — search, shapes (no overhang / overhang), corners, variants,
+      problems, family of selected; drives the tile list and (Filter Viewport) hides the rest in the
+      3D view, never unhides what you hid yourself 
+- [x] Blender: **Arrange** — layouts by corner count / hash / family / heightmap, variants behind
+      their base, flipped copies in mirror-on-export slots, red boxes for missing, Restore puts the
+      hand layout back (obj["mc_home"]), "Only Filtered" + Hash Labels overlay — uncommitted
+- [x] Blender: playground neighbours selectable / editable (shared mesh), Build on a copy re-centres
+      on its tile
+- [x] Blender: filter "Used by Mode" (default; Heightmap hides overhangs), Arrange "Filtered First"
+- [x] Blender: Corner Boxes overlay (cell box, solid corners orange / empty light blue); modes renamed
+      "X=Z, Y Asymmetric (68)" / "X=Z, Y Asymmetric Heightmap (22)"
+- [ ] Blender: **Seam check** — fingerprint each tile face (edges on the cell wall, world axes, snapped),
+      every face pair that can touch (same 4 shared corners, full turned + mirrored library) must match;
+      Check section + red outline overlay + "show pair" in the playground; later normals / UVs
 
 ## Later
 

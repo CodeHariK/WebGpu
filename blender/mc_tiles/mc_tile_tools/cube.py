@@ -20,7 +20,7 @@ from .modes import has_overhang
 
 ROTATE_Y = (1, 2, 3, 0, 5, 6, 7, 4)
 # Left <-> right (Godot mirror_x). Godot never mirrors: Export Set writes a flipped copy of a tile
-# whose mirror shape isn't modelled, so in XZ-symmetric mode 53 modelled tiles give all 68.
+# whose mirror shape isn't modelled, so in X=Z, Y-asymmetric mode 53 modelled tiles give all 68.
 MIRROR_X = (1, 0, 3, 2, 5, 4, 7, 6)
 
 EMPTY = 0b00000000

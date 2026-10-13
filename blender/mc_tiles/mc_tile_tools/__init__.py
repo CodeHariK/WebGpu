@@ -14,6 +14,10 @@ Files:
     export.py      export a set to its own .glb, adding mirror copies (replaces ExportMergeChildMesh.py)
     helpers.py     move non-tile objects into the set's Helpers collection
     names.py       hash / hash_vN names in Blender, set name added on export
+    arrange.py     move tiles into a layout (corners / hash / family / heightmap), Restore
+    labels.py      hash labels under tiles in the 3D view
+    corners.py     debug cell box per tile, solid / empty corners as coloured dots
+    tilefilter.py  show a subset of tiles (shapes, corners, variants, problems, family) in list + viewport
     panel.py       the "MC Tiles" sidebar tab
 """
 
@@ -23,7 +27,7 @@ import sys
 # dependencies first, so edits to any file take effect without restarting Blender.
 _MODULES = (
     "variants", "tiles", "modes", "cube", "props", "view", "ops", "tilelist",
-    "playground", "paste", "names", "export", "helpers", "panel",
+    "playground", "paste", "names", "tilefilter", "arrange", "labels", "corners", "export", "helpers", "panel",
 )
 if "bpy" in locals():
     import importlib
@@ -35,13 +39,22 @@ if "bpy" in locals():
 
 import bpy  # noqa: E402
 
-from . import export, helpers, names, ops, panel, paste, playground, props, tilelist, view  # noqa: E402
+from . import (  # noqa: E402
+    arrange, corners, export, helpers, labels, names, ops, panel, paste, playground, props, tilefilter, tilelist, view,
+)
 
-CLASSES = ops.CLASSES + paste.CLASSES + export.CLASSES + helpers.CLASSES + names.CLASSES + panel.CLASSES
+CLASSES = (
+    ops.CLASSES + paste.CLASSES + export.CLASSES + helpers.CLASSES + names.CLASSES + tilefilter.CLASSES
+    + arrange.CLASSES + panel.CLASSES
+)
 
 
 def register():
     props.register()
+    tilefilter.register()
+    arrange.register()
+    labels.register()
+    corners.register()
     view.register()
     playground.register()
     tilelist.register()
@@ -55,4 +68,8 @@ def unregister():
     tilelist.unregister()
     playground.unregister()
     view.unregister()
+    corners.unregister()
+    labels.unregister()
+    arrange.unregister()
+    tilefilter.unregister()
     props.unregister()
