@@ -42,7 +42,11 @@ CORNER_OFFSETS = (
 )
 GAP = 3.0  # metres between the tile set and the playground
 ROLE = "mc_pg_role"  # "centre", "neighbour" or "pasted" on every tile copy
+HOME = "mc_pg_home"  # a real tile's own position while a seam pair has moved it next to the playground
+REF_LABEL = "mc_ar_label"  # label drawn by Hash Labels (labels.py) on seam pair copies
 SOURCE = "mc_pg_tile"  # name of the real tile a copy (root) was made from
+TURNS = "mc_pg_turns"  # quarter turns about Z of a copy (root)
+MIRRORED = "mc_pg_mirrored"  # copy (root) is the left/right mirror
 
 
 # ---------------------------------------------------------------- corner grid (pure logic)
@@ -123,6 +127,13 @@ def _playground_collection(scene):
 
 def clear(scene):
     """Delete every object in the Playground collection (the real tiles are never touched)."""
+    from .seams_ui import clear_shown  # the seam points belong to the pair being cleared
+
+    clear_shown()
+    for obj in scene.objects:  # real tiles a seam pair moved next to the playground go back
+        if HOME in obj:
+            obj.matrix_world.translation = Vector(obj[HOME])
+            del obj[HOME]
     collection = bpy.data.collections.get(COLLECTION_NAME)
     if collection is None:
         return
@@ -185,20 +196,31 @@ def _copy_tile(root, collection, position, turns, h, role="neighbour", mirrored=
     flip = Matrix.Scale(-1.0, 4, Vector((1.0, 0.0, 0.0))) if mirrored else Matrix.Identity(4)
     copies[root].matrix_world = Matrix.Translation(position) @ turn @ flip @ own
     copies[root][SOURCE] = root.name
+    copies[root][TURNS] = turns
+    copies[root][MIRRORED] = mirrored
     return copies[root]
 
 
-def _origin(collection):
-    """Lower corner of the playground: to the right of the tile set."""
+def _origin(collection, near=None, block=SIZE):
+    """Lower corner of a `block`-cell playground, on whole-metre grid lines.
+
+    near (a tile object): one empty cell to the right of the cell that tile sits in, the middle
+    row / layer level with it. Without one: to the right of the whole tile set.
+    """
+    if near is not None:
+        p = near.matrix_world.translation
+        cell = Vector((math.floor(p.x), math.floor(p.y), math.floor(p.z)))  # the cell the tile sits in
+        middle = block // 2
+        return cell + Vector((2.0, -middle, -middle))
     xs = [o.matrix_world.translation.x for o in collection.all_objects if o.parent is None]
     ys = [o.matrix_world.translation.y for o in collection.all_objects if o.parent is None]
     if not xs:
         return Vector((0.0, 0.0, 0.0))
-    return Vector((max(xs) + GAP, min(ys), 0.0))
+    return Vector((math.ceil(max(xs) + GAP), math.floor(min(ys)), 0.0))
 
 
-def build(scene, tile_set, centre_hash, seed):
-    """Rebuild the playground. Returns (cells filled, hashes with no tile)."""
+def build(scene, tile_set, centre_hash, seed, near=None):
+    """Rebuild the playground (next to tile `near` if given). Returns (cells filled, hashes with no tile)."""
     settings = tile_set.mc_tiles
     tiles = tile_variants(tile_set, "CUBE")
     lookup = tile_lookup(tiles.keys(), settings.mode)
@@ -207,7 +229,7 @@ def build(scene, tile_set, centre_hash, seed):
 
     clear(scene)
     collection = _playground_collection(scene)
-    origin = _origin(tile_set)
+    origin = _origin(tile_set, near)
     filled = 0
     missing = []
     centre_copy = None
@@ -234,6 +256,44 @@ def build(scene, tile_set, centre_hash, seed):
     view.refresh(scene)  # neighbours get the debug material if it is on
     _select_only(centre_copy)
     return filled, missing
+
+
+def build_pair(scene, tile_set, a, b, axis, near=None):
+    """Put two library entries side by side (A low, B one cell further along axis), all editable.
+
+    a, b: (object name, hash, quarter turns, mirrored); a name of "" leaves that cell empty.
+    near: a tile to put the pair next to. Returns (A position, B position) of the cell centres.
+    The real A and B tiles (the meshes to fix) are moved next to the pair while it is shown; clearing
+    or rebuilding the playground puts them back (their own position is kept in obj["mc_pg_home"]).
+    """
+    clear(scene)
+    collection = _playground_collection(scene)
+    origin = _origin(tile_set, near, block=1) + Vector((0.5, 0.5, 0.5))
+    step = Vector([1.0 if i == axis else 0.0 for i in range(3)])
+    positions = (origin, origin + step)
+    copies = []
+    for (name, h, turns, mirrored), position, tag in zip((a, b), positions, ("A", "B")):
+        tile = bpy.data.objects.get(name) if name else None
+        if tile is not None:
+            copy = _copy_tile(tile, collection, position, turns, h, "pasted", mirrored)
+            copy[REF_LABEL] = f"{h:08b} {tag}"  # the shape in that cell, as Godot draws it
+            copies.append(copy)
+    # The real tiles, in a row after the pair (+X), one empty cell between each.
+    x = 3.0 if axis == 0 else 2.0
+    for name in dict.fromkeys(n for n, _, _, _ in (a, b) if n):  # a tile against itself: move it once
+        tile = bpy.data.objects.get(name)
+        if tile is None:
+            continue
+        if HOME not in tile:
+            tile[HOME] = list(tile.matrix_world.translation)
+        tile.matrix_world.translation = origin + Vector((x, 0.0, 0.0))
+        x += 2.0
+    view.refresh(scene)
+    if copies:
+        _select_only(copies[0])
+        for obj in copies[1:]:
+            obj.select_set(True)
+    return positions
 
 
 def _select_only(obj):
@@ -277,15 +337,37 @@ def _run(operator, context, new_seed):
         if h < 0:
             operator.report({"WARNING"}, "Select a tile first")
             return {"CANCELLED"}
+        obj = tile_variants(tile_set, "CUBE").get(h, [None])[0]
     if new_seed:
         scene.mc_tiles_pg_seed += 1
     scene.mc_tiles_pg_hash = h
-    filled, missing = build(scene, tile_set, h, scene.mc_tiles_pg_seed)
+    filled, missing = build(scene, tile_set, h, scene.mc_tiles_pg_seed, near=obj)
     text = f"Playground around {h:08b}: {filled} tiles"
     if missing:
         text += f", {len(missing)} missing: " + ", ".join(f"{m:08b}" for m in sorted(set(missing)))
     operator.report({"WARNING"} if missing else {"INFO"}, text)
     return {"FINISHED"}
+
+
+class MCTILES_OT_playground_for(bpy.types.Operator):
+    """Build the playground around this tile, next to it"""
+
+    bl_idname = "mc_tiles.playground_for"
+    bl_label = "Playground for Tile"
+    bl_options = {"REGISTER", "UNDO"}
+
+    name: bpy.props.StringProperty()
+
+    def execute(self, context):
+        obj = bpy.data.objects.get(self.name)
+        if obj is None or obj.name not in context.view_layer.objects:
+            self.report({"WARNING"}, f"{self.name} is not in this view layer")
+            return {"CANCELLED"}
+        for other in context.selected_objects:
+            other.select_set(False)
+        obj.select_set(True)
+        context.view_layer.objects.active = obj
+        return _run(self, context, new_seed=False)
 
 
 class MCTILES_OT_playground_build(bpy.types.Operator):
@@ -340,7 +422,10 @@ def draw_playground(layout, context):
         layout.prop(scene, "mc_tiles_pg_no_overhang")
 
 
-CLASSES = (MCTILES_OT_playground_build, MCTILES_OT_playground_shuffle, MCTILES_OT_playground_clear)
+CLASSES = (
+    MCTILES_OT_playground_build, MCTILES_OT_playground_for, MCTILES_OT_playground_shuffle,
+    MCTILES_OT_playground_clear,
+)
 
 
 def register():

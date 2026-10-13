@@ -78,9 +78,16 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
 - [x] Blender: filter "Used by Mode" (default; Heightmap hides overhangs), Arrange "Filtered First"
 - [x] Blender: Corner Boxes overlay (cell box, solid corners orange / empty light blue); modes renamed
       "X=Z, Y Asymmetric (68)" / "X=Z, Y Asymmetric Heightmap (22)"
-- [ ] Blender: **Seam check** — fingerprint each tile face (edges on the cell wall, world axes, snapped),
-      every face pair that can touch (same 4 shared corners, full turned + mirrored library) must match;
-      Check section + red outline overlay + "show pair" in the playground; later normals / UVs
+- [x] Blender: **Seam check** (Check panel) — each tile caches 6 wall bitmaps (64x64 samples of where
+      its flat wall faces = its solid cross-section; side walls seen from outside so Y turns keep them,
+      u flipped for mirrors); A right == flipped B left, A top == B bottom for every pair that can touch
+      (same 4 shared corners, turned + mirrored library, variants); differences under 0.4% ignored.
+      Click a pair = the two tiles side by side in the playground, red = solid only on A, blue = only
+      on B; real A / B tiles moved next to the pair while shown. Tile list: conflict count (pins the
+      seam list to that tile) + playground button; playground spawns next to its tile on grid lines;
+      Face Hashes overlay; searching a turned / mirrored hash finds the tile that draws it. Point lists were tried first:
+      hundreds of false clashes from hidden internal faces, split wall faces and rounding
+- [ ] Seam check next: normals (shading seams), UVs / materials
 
 ## Later
 

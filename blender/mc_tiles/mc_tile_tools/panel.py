@@ -4,7 +4,7 @@ MC Tiles         pick / make a tile set, its settings and tile count
   Tiles          filter (list + viewport) and the tile list, click to select
   Arrange        lay the tiles out (corners / hash / family / heightmap), Restore, labels
   Playground     the selected tile among random neighbours from the set
-  Check          missing tiles, rotated copies, tiles the mode can't use
+  Check          seams, missing tiles, rotated copies, tiles the mode can't use
 """
 
 import bpy
@@ -16,6 +16,7 @@ from .corners import draw_toggle as draw_corner_toggle
 from .playground import draw_playground
 from .view import draw_view_switch
 from .names import untidy
+from .seams_ui import draw_seams
 from .tilefilter import draw_filter
 from .tiles import tile_roots, tile_variants, variant_clashes
 
@@ -153,6 +154,7 @@ class MCTILES_PT_check(bpy.types.Panel):
         report = cube.check(tiles.keys(), mode)
         clashes = variant_clashes(collection)
 
+        draw_seams(layout, context, collection)
         messy = untidy(collection)
         problems = report.missing or report.duplicates or report.not_allowed or clashes or report.partners or messy
         if not problems:

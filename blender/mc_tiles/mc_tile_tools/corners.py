@@ -86,7 +86,7 @@ def boxes(context):
     for obj in scene.objects:
         label = obj.get(ARRANGE_LABEL)
         if label:
-            add(obj, int(label.split()[0], 2))
+            add(obj, tile_hash(label.split()[0], "CUBE"))  # "00100110 mirror", "00010001_v2 (A)"
         else:
             add(obj, _playground_hash(obj))
     return out

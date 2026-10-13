@@ -32,7 +32,7 @@ def _labels(context):
     for obj in scene.objects:
         text = obj.get(ARRANGE_LABEL)
         if text and obj.visible_get():
-            out.append((obj.matrix_world.translation, text, COLOURS[text.split()[-1]]))
+            out.append((obj.matrix_world.translation, text, COLOURS.get(text.split()[-1], COLOURS["TILE"])))
     return out
 
 

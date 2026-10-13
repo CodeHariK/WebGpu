@@ -1,7 +1,9 @@
 """Show a subset of the active set's tiles: one filter drives the tile list and the viewport.
 
 Settings live on the scene (Scene.mc_tiles_filter):
-    search        "0011" digits, "#3" = 3 solid corners, anything else = part of the name
+    search        "0011" digits, "#3" = 3 solid corners, anything else = part of the name;
+                  a full 8-digit hash no tile is named after finds the tile Godot turns /
+                  mirrors into it (shown under the search box: "= 00011011 turned 2 x 90")
     subset        used by the set's mode (default: Heightmap hides overhangs) / all /
                   no overhang / overhang only                                      (cube sets)
     corners       only tiles with this many solid corners (0 = any)
@@ -100,6 +102,20 @@ def hash_shown(f, collection, h):
     return f.variants != "HAS_VARIANTS" and _hash_passes(f, h, 1, is_cube, None, family, mode)
 
 
+def drawn_by(collection, search):
+    """For a full 8-digit hash with no tile of its own: (tile hash, quarter turns, mirrored) that draws
+    it, False when nothing does (missing), None when the search isn't such a hash."""
+    if collection.mc_tiles.kind != "CUBE" or len(search) != 8 or not set(search) <= {"0", "1"}:
+        return None
+    from .playground import tile_lookup
+
+    tiles = tile_variants(collection, "CUBE")
+    h = int(search, 2)
+    if h in tiles:
+        return None
+    return tile_lookup(tiles.keys(), collection.mc_tiles.mode).get(h, False)
+
+
 def shown_tiles(collection, f):
     """{tile object: shown?} for every tile mesh (base and variants) in the set."""
     kind = collection.mc_tiles.kind
@@ -107,6 +123,9 @@ def shown_tiles(collection, f):
     problems = problem_hashes(collection) if f.problems_only and is_cube else None
     family = family_hashes(f.family_hash, collection.mc_tiles.mode) if f.family_hash >= 0 and is_cube else None
     search = f.search.strip()
+    source = drawn_by(collection, search)
+    if source:
+        search = f"{source[0]:08b}"  # a turned / mirrored shape: find the tile that draws it
 
     shown = {}
     for h, objs in tile_variants(collection, kind).items():
@@ -126,11 +145,30 @@ def _named_children(collection, names):
     return found
 
 
+KEEP_VISIBLE = set()  # tile names always shown (the seam pair in the playground), see keep_visible()
+
+
+def keep_visible(context, names):
+    """Show these tiles whatever the filter says (until called again); unhides them now."""
+    KEEP_VISIBLE.clear()
+    KEEP_VISIBLE.update(n for n in names if n)
+    apply(context)
+    for name in KEEP_VISIBLE:
+        obj = bpy.data.objects.get(name)
+        if obj is not None:
+            for part in [obj] + list(obj.children_recursive):
+                _hide(part, False)  # also undoes a hand hide, so the pair is really visible
+
+
 def _wanted_hidden(collection, f):
     """Objects of the set the filter should hide (children follow their root)."""
     if not f.viewport:
         return set()
     shown = shown_tiles(collection, f)
+    for name in KEEP_VISIBLE:
+        obj = bpy.data.objects.get(name)
+        if obj in shown:
+            shown[obj] = True
     playground = _named_children(collection, {"Playground"})
     roots = set()
     for obj in collection.all_objects:
@@ -273,6 +311,14 @@ def draw_filter(layout, context, collection):
     row.operator("mc_tiles.filter_refresh", text="", icon="FILE_REFRESH")
     row.operator("mc_tiles.filter_reset", text="", icon="LOOP_BACK")
     box.prop(f, "search", text="", icon="VIEWZOOM")
+    source = drawn_by(collection, f.search.strip())
+    if source:
+        h, turns, mirrored = source
+        how = [f"turned {turns} x 90°"] if turns else []
+        how += ["mirrored on export"] if mirrored else []
+        box.label(text=f"{f.search.strip()} = {h:08b} {', '.join(how)}", icon="FILE_REFRESH")
+    elif source is False:
+        box.label(text=f"No tile draws {f.search.strip()} in this mode", icon="ERROR")
 
     col = box.column(align=True)
     if is_cube:
