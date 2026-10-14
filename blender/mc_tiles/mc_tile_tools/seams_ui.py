@@ -25,7 +25,7 @@ from gpu_extras.batch import batch_for_shader
 from mathutils import Vector
 
 from . import cube, seams
-from .tilefilter import KEEP_VISIBLE, apply, keep_visible
+from .tilefilter import KEEP_VISIBLE, apply, keep_visible, shown_tiles
 from .playground import MIRRORED, SOURCE, TURNS, build_pair, tile_lookup
 from .tiles import tile_hash, tile_variants
 
@@ -102,12 +102,25 @@ def _selected_tile_name(context):
 
 
 def _listed(context, report):
-    """Pairs shown in the panel: all, or only those with the pinned tile."""
-    pinned = context.scene.mc_tiles_seam_tile
-    if not pinned:
-        return report.pairs
-    h = tile_hash(pinned, "CUBE")  # any variant of the tile counts
-    return [p for p in report.pairs if h is not None and h in (tile_hash(p.a.name, "CUBE"), tile_hash(p.b.name, "CUBE"))]
+    """Pairs shown in the panel.
+
+    Tile filter (search, shapes, corners...): only pairs where A or B comes from a tile the tile list
+    shows; a turned / mirrored copy counts as its tile, so searching a hash also finds its turns and
+    mirrors. Pinned tile: only pairs with that tile. Both apply together.
+    """
+    scene = context.scene
+    pairs = report.pairs
+    collection = scene.mc_tiles_active
+    if collection is not None:
+        shown = shown_tiles(collection, scene.mc_tiles_filter)
+        if not all(shown.values()):  # the filter narrows the tiles: narrow the pairs too
+            names = {obj.name for obj, ok in shown.items() if ok}
+            pairs = [p for p in pairs if p.a.name in names or p.b.name in names]
+    pinned = scene.mc_tiles_seam_tile
+    if pinned:
+        h = tile_hash(pinned, "CUBE")  # any variant of the tile counts
+        pairs = [p for p in pairs if h is not None and h in (tile_hash(p.a.name, "CUBE"), tile_hash(p.b.name, "CUBE"))]
+    return pairs
 
 
 def conflicts(collection, h):
@@ -292,7 +305,8 @@ def draw_seams(layout, context, collection):
     pages = max(1, (len(listed) + PAGE - 1) // PAGE)
     page = min(scene.mc_tiles_seam_page, pages - 1)
     head = box.row(align=True)
-    head.label(text=f"Clashing pairs: {len(listed)}", icon="ERROR")
+    total = f" of {len(report.pairs)}" if len(listed) != len(report.pairs) else ""
+    head.label(text=f"Clashing pairs: {len(listed)}{total}", icon="ERROR")
     sub = head.row(align=True)
     sub.enabled = page > 0
     sub.operator("mc_tiles.seam_page", text="", icon="TRIA_LEFT").step = -1
