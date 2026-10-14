@@ -1,5 +1,7 @@
 """List of the tiles in the active set. Clicking a row selects the tile.
 
+Icon: cube = modelled, chain = generated and still linked to its pieces, wrench = generated and
+edited (own mesh on a part, or objects added), broken chain = detached (generated, now its own).
 Columns: name · variant (1/2 = first of 2 meshes) · seam conflicts (after Check Seams; click to list
 that tile's clashing pairs in the Check panel) · playground button (build the playground around the
 tile, next to it).
@@ -12,6 +14,7 @@ tiles in the viewport) and sorts rows by hash.
 import bpy
 
 from .ops import select_object
+from .piece_ops import status
 from .seams_ui import conflicts
 from .tilefilter import shown_tiles
 from .tiles import tile_hash, tile_variants
@@ -29,7 +32,9 @@ class MCTILES_UL_tiles(bpy.types.UIList):
         h = tile_hash(item.name, kind)
         row = layout.row(align=True)
         split = row.split(factor=0.45)
-        split.label(text=item.name, icon="MESH_CUBE")
+        state = status(item)[0]
+        icon = {"linked": "LINKED", "edited": "MODIFIER_ON", "detached": "UNLINKED"}.get(state, "MESH_CUBE")
+        split.label(text=item.name, icon=icon)
         rest = split.row(align=True)
         # Variant column: "1/2" = variant 1 of the 2 meshes this hash has; "1" when it has one.
         count = _variant_counts(data).get(h, 1)

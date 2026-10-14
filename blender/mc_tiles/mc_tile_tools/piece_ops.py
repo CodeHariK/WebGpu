@@ -27,7 +27,9 @@ from .pieces import minimum_set
 from .playground import tile_lookup
 from .piece_lib import find_pieces, is_placeholder, set_tiles
 
-PIECE_ROLE = "mc_piece_of"  # on generated tile parts: the hash they were generated for
+PIECE_ROLE = "mc_piece_of"  # on generated tile parts: the tile they were generated for
+PIECE_SOURCE = "mc_piece_source"  # on generated tile parts: the piece object the part copies
+DETACHED = "mc_detached"  # on a detached tile: it was generated, now it is an ordinary tile
 SPACING = 2.0  # whole metres, so every new tile's box keeps whole-number corners
 
 
@@ -83,11 +85,14 @@ def cube_offset(bit):
     return ((0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1))[bit]
 
 
-def _copy_parts(tile, collection, matrix):
-    """Copy a tile and its child parts (sharing mesh data) into the set at `matrix`. Returns the root."""
+def _copy_parts(tile, collection, matrix, mark_source=False):
+    """Copy a tile and its child parts (sharing mesh data) into the set at `matrix`. Returns the root.
+    mark_source: write PIECE_SOURCE (the exact object each part copies) on every copy."""
     copies = {}
     for obj in [tile] + list(tile.children_recursive):
         copy = obj.copy()
+        if mark_source:
+            copy[PIECE_SOURCE] = obj.name
         for key in ("mc_home", "mc_pg_home", "mc_filter_hidden", "mc_helper_debug"):
             if key in copy:
                 del copy[key]
@@ -102,15 +107,25 @@ def _copy_parts(tile, collection, matrix):
     return copies[tile]
 
 
-def generate_built(collection):
-    """Turn every shape built from pieces into a tile of the set. Returns the new tiles."""
+def generate_built(collection, places=None):
+    """Turn every shape built from pieces into a tile of the set. Returns the new tiles.
+
+    places: {hash: position} to reuse (Regenerate puts tiles back where they were).
+    Every part is marked with PIECE_ROLE (the tile's name) and PIECE_SOURCE (the piece object it
+    copies), so status() can tell linked / edited / detached and Select Pieces can find the source.
+    """
     settings = collection.mc_tiles
     tiles = set_tiles(collection)  # own tiles + borrowed pieces
-    report = cube.check(tiles.keys(), settings.mode, pieces=True)
-    lookup = tile_lookup(tiles.keys(), settings.mode)
-    positions = _free_positions(collection, len(report.built))
+    # Generated / detached tiles are never used as pieces: every generated tile is made of real pieces.
+    pieces = {h: objs for h, objs in tiles.items() if not (PIECE_ROLE in objs[0] or DETACHED in objs[0])}
+    report = cube.check(tiles.keys(), settings.mode, pieces=True, piece_hashes=pieces.keys())
+    lookup = tile_lookup(pieces.keys(), settings.mode)
+    tiles = pieces
+    places = places or {}
+    fresh = iter(_free_positions(collection, sum(1 for h, _ in report.built if h not in places)))
     made = []
-    for (h, found), position in zip(report.built, positions):
+    for h, found in report.built:
+        position = places[h] if h in places else next(fresh)
         name = _tile_name(h, collection)
         root = None
         for piece in found:
@@ -119,8 +134,9 @@ def generate_built(collection):
             own = tile.matrix_world.to_3x3().to_4x4()
             turn = Matrix.Rotation(turns * math.pi / 2.0, 4, "Z")
             flip = Matrix.Scale(-1.0, 4, Vector((1.0, 0.0, 0.0))) if mirrored else Matrix.Identity(4)
-            part = _copy_parts(tile, collection, Matrix.Translation(position) @ turn @ flip @ own)
-            part[PIECE_ROLE] = name
+            part = _copy_parts(tile, collection, Matrix.Translation(position) @ turn @ flip @ own, mark_source=True)
+            for obj in [part] + list(part.children_recursive):
+                obj[PIECE_ROLE] = name
             if root is None:
                 root = part
                 root.name = name
@@ -131,6 +147,187 @@ def generate_built(collection):
                 part.name = f"{name.split('.')[0]}_piece"
         made.append(root)
     return made
+
+
+# ---------------------------------------------------------------- customising generated tiles
+
+
+def generated_root(obj):
+    """The generated tile an object belongs to (itself or a parent with PIECE_ROLE), or None."""
+    while obj is not None:
+        if obj.parent is None:
+            return obj if PIECE_ROLE in obj else None
+        obj = obj.parent
+    return None
+
+
+def status(root):
+    """("linked" | "edited", extra objects) for a generated tile, ("detached", 0) / (None, 0) otherwise.
+
+    linked  every part still shares its piece's mesh: editing a piece updates it, Regenerate redoes it
+    edited  at least one part has its own mesh (Make Single User), or objects you added are parented
+            to it: Regenerate leaves it alone
+    """
+    if DETACHED in root:
+        return "detached", 0
+    if PIECE_ROLE not in root:
+        return None, 0
+    parts = [root] + list(root.children_recursive)
+    extras = [p for p in parts if PIECE_ROLE not in p]
+    own_mesh = []
+    for part in parts:
+        if PIECE_ROLE not in part or part.data is None:
+            continue
+        source = bpy.data.objects.get(part.get(PIECE_SOURCE, ""))
+        if source is None or source.data != part.data:  # its own mesh now (or the piece is gone)
+            own_mesh.append(part)
+    return ("edited" if own_mesh or extras else "linked"), len(extras)
+
+
+def detach(root, union=False):
+    """Make a generated tile an ordinary tile: its piece parts joined into one mesh of its own.
+
+    union: Boolean-union the parts (exact solver) instead of a plain join, so hidden internal faces go
+    and the crossings become real edges. Objects you parented to the tile stay as its children.
+    """
+    parts = [p for p in root.children_recursive if PIECE_ROLE in p and p.type == "MESH"]
+    extras = [p for p in root.children if PIECE_ROLE not in p]
+    root.data = root.data.copy()  # never touch the piece's mesh
+    if union:
+        for part in parts:
+            modifier = root.modifiers.new(f"union_{part.name}", "BOOLEAN")
+            modifier.operation = "UNION"
+            modifier.solver = "EXACT"
+            modifier.object = part
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        mesh = bpy.data.meshes.new_from_object(root.evaluated_get(depsgraph))
+        root.modifiers.clear()
+        old = root.data
+        root.data = mesh
+        bpy.data.meshes.remove(old)
+    else:
+        to_root = root.matrix_world.inverted()
+        meshes = []
+        for part in parts:
+            mesh = part.data.copy()
+            mesh.transform(to_root @ part.matrix_world)
+            meshes.append(mesh)
+        _join_meshes(root.data, meshes)
+    for extra in extras:  # keep additions where they are, still parented to the tile
+        world = extra.matrix_world.copy()
+        extra.parent = root
+        extra.matrix_world = world
+    for part in parts:
+        bpy.data.objects.remove(part, do_unlink=True)
+    for key in (PIECE_ROLE, PIECE_SOURCE):
+        if key in root:
+            del root[key]
+    root[DETACHED] = True
+    root.data.name = root.name
+
+
+def _join_meshes(target, meshes):
+    """Append meshes (already in target's space) to target, materials included."""
+    import bmesh
+
+    bm = bmesh.new()
+    bm.from_mesh(target)
+    for mesh in meshes:
+        for material in mesh.materials:
+            if material is not None and material.name not in [m.name for m in target.materials if m]:
+                target.materials.append(material)
+        index = {i: [m.name if m else None for m in target.materials].index(m.name if m else None)
+                 for i, m in enumerate(mesh.materials) if m is not None}
+        before = len(bm.faces)
+        bm.from_mesh(mesh)
+        bm.faces.ensure_lookup_table()
+        for face in bm.faces[before:]:
+            face.material_index = index.get(face.material_index, face.material_index)
+        bpy.data.meshes.remove(mesh)
+    bm.to_mesh(target)
+    bm.free()
+    target.update()
+
+
+def regenerate(collection):
+    """Delete the set's still-linked generated tiles and generate them again in the same spots
+    (after pieces changed shape or choice). Edited / detached tiles are left alone. Returns count."""
+    places = {}
+    for root in [o for o in collection.all_objects if o.parent is None and PIECE_ROLE in o]:
+        if status(root)[0] != "linked":
+            continue
+        from .tiles import tile_hash
+
+        places[tile_hash(root.name, "CUBE")] = root.matrix_world.translation.copy()
+        for part in list(root.children_recursive) + [root]:
+            bpy.data.objects.remove(part, do_unlink=True)
+    return len(generate_built(collection, places))
+
+
+class MCTILES_OT_detach(bpy.types.Operator):
+    """Make the selected generated tile an ordinary tile with its own mesh (it stops following its pieces)"""
+
+    bl_idname = "mc_tiles.detach"
+    bl_label = "Detach"
+    bl_options = {"REGISTER", "UNDO"}
+
+    union: bpy.props.BoolProperty(
+        name="Clean Union", description="Boolean-union the pieces: no hidden faces, crossings become edges",
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return generated_root(context.active_object) is not None
+
+    def execute(self, context):
+        root = generated_root(context.active_object)
+        if context.object is not None and context.object.mode != "OBJECT":
+            bpy.ops.object.mode_set(mode="OBJECT")
+        detach(root, self.union)
+        self.report({"INFO"}, f"{root.name} is now its own tile")
+        return {"FINISHED"}
+
+
+class MCTILES_OT_select_pieces(bpy.types.Operator):
+    """Select the piece tiles the selected generated tile is made of (edit them, every copy follows)"""
+
+    bl_idname = "mc_tiles.select_pieces"
+    bl_label = "Select Pieces"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return generated_root(context.active_object) is not None
+
+    def execute(self, context):
+        root = generated_root(context.active_object)
+        names = {p[PIECE_SOURCE] for p in [root] + list(root.children_recursive) if PIECE_SOURCE in p}
+        found = [bpy.data.objects[n] for n in names if n in bpy.data.objects]
+        found = list({(o.parent if o.parent is not None else o) for o in found})  # the piece tiles, not their parts
+        found = [o for o in found if o.name in context.view_layer.objects]
+        if not found:
+            self.report({"WARNING"}, "Its pieces are gone or hidden")
+            return {"CANCELLED"}
+        for obj in context.selected_objects:
+            obj.select_set(False)
+        for obj in found:
+            obj.hide_set(False)
+            obj.select_set(True)
+        context.view_layer.objects.active = found[0]
+        return {"FINISHED"}
+
+
+class MCTILES_OT_regenerate(bpy.types.Operator):
+    """Rebuild the still-linked generated tiles in place (edited and detached tiles are kept)"""
+
+    bl_idname = "mc_tiles.regenerate"
+    bl_label = "Regenerate Linked"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        count = regenerate(context.scene.mc_tiles_active)
+        self.report({"INFO"}, f"Regenerated {count} tiles")
+        return {"FINISHED"}
 
 
 class MCTILES_OT_add_placeholder(bpy.types.Operator):
@@ -241,12 +438,31 @@ def draw_pieces(layout, collection, tiles):
             owners = ", ".join(c.name for c in item.source.users_collection)
             sub.label(text=owners)
     built = cube.check(tiles.keys(), settings.mode, pieces=True).built
-    generated = sum(1 for o in collection.all_objects if PIECE_ROLE in o and o.parent is None)
+    roots = [o for o in collection.all_objects if PIECE_ROLE in o and o.parent is None]
+    counts = {"linked": 0, "edited": 0}
+    for root in roots:
+        counts[status(root)[0]] += 1
     row = box.row(align=True)
     if built:
         row.operator("mc_tiles.generate_built", text=f"Generate {len(built)} Built Tiles", icon="MOD_BOOLEAN")
-    if generated:
-        row.operator("mc_tiles.delete_generated", text=f"Delete {generated} Generated", icon="TRASH")
+    if roots:
+        row.operator("mc_tiles.delete_generated", text=f"Delete {len(roots)} Generated", icon="TRASH")
+    if roots:
+        line = box.row(align=True)
+        line.label(text=f"Generated: {counts['linked']} linked, {counts['edited']} edited", icon="LINKED")
+        line.operator("mc_tiles.regenerate", text="Regenerate Linked", icon="FILE_REFRESH")
+    active = generated_root(bpy.context.active_object)
+    if active is not None and active.name in collection.all_objects:
+        state, extras = status(active)
+        sub = box.box()
+        sub.label(text=f"{active.name}: {state}" + (f", {extras} added objects" if extras else ""), icon="OBJECT_DATA")
+        line = sub.row(align=True)
+        line.operator("mc_tiles.select_pieces", icon="RESTRICT_SELECT_OFF")
+        line.operator("mc_tiles.detach", text="Detach").union = False
+        line.operator("mc_tiles.detach", text="Detach + Clean Union").union = True
 
 
-CLASSES = (MCTILES_OT_add_placeholder, MCTILES_OT_generate_built, MCTILES_OT_delete_generated, MCTILES_OT_find_pieces)
+CLASSES = (
+    MCTILES_OT_add_placeholder, MCTILES_OT_generate_built, MCTILES_OT_delete_generated, MCTILES_OT_find_pieces,
+    MCTILES_OT_detach, MCTILES_OT_select_pieces, MCTILES_OT_regenerate,
+)

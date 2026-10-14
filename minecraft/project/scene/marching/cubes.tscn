@@ -45,7 +45,7 @@ tile_library_path = NodePath("../MCTileLibrary")
 grid_path = NodePath("../MCGrid")
 
 [node name="MCTileLibrary" type="MCTileLibrary" parent="." unique_id=430891780]
-tile_set_path = "res://assets/Marching/Cube.glb"
+tile_set_path = "res://assets/Marching/GenTiles.glb"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.115, 0, 0)
 
 [node name="GameManager" type="GameManager" parent="." unique_id=514503315]

@@ -95,6 +95,11 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
       (Godot unchanged); playground, Paste from Godot, seam check and search use the same pieces; Check
       lists "Built from pieces"; a modelled tile always wins — uncommitted. Test: the 8 pieces from
       Cube -> 68/68, export 68 tiles covering all 254 hashes
+- [x] Blender: pieces from any collection (Find Pieces, dropdown per piece, linked-mesh copy in the set),
+      one rule (edges + faces), placement on cell centres (x.5, y.5, z.5)
+- [x] Blender: customising generated tiles — status icon in the tile list (linked / edited / detached),
+      Select Pieces, Detach (join, or Detach + Clean Union: exact Boolean), Regenerate Linked (in place,
+      edited / detached kept); generated tiles are never used as pieces — uncommitted
 
 ## Later
 

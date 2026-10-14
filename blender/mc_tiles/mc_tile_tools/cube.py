@@ -110,8 +110,9 @@ class Report:
         self.expected = 0
 
 
-def check(hashes, mode, pieces=False):
-    """Compare the set's tile hashes with what the mode needs (pieces: build missing shapes from pieces)."""
+def check(hashes, mode, pieces=False, piece_hashes=None):
+    """Compare the set's tile hashes with what the mode needs (pieces: build missing shapes from pieces,
+    made of piece_hashes, default all of hashes)."""
     hashes = set(hashes)
     report = Report()
     groups = orbits(mode)
@@ -139,7 +140,7 @@ def check(hashes, mode, pieces=False):
     if pieces and report.missing:
         from . import pieces as piece_rules  # pieces.py imports this module
 
-        shapes = piece_rules.drawable(hashes, mode)
+        shapes = piece_rules.drawable(hashes if piece_hashes is None else piece_hashes, mode)
         still = []
         for h in report.missing:
             found = piece_rules.cover(h, shapes)
