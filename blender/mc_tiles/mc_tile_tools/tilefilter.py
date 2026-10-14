@@ -103,17 +103,20 @@ def hash_shown(f, collection, h):
 
 
 def drawn_by(collection, search):
-    """For a full 8-digit hash with no tile of its own: (tile hash, quarter turns, mirrored) that draws
-    it, False when nothing does (missing), None when the search isn't such a hash."""
+    """For a full 8-digit hash with no tile of its own: [(tile hash, quarter turns, mirrored)] that draw
+    it (one tile, or several pieces for a shape built from pieces), False when nothing does (missing),
+    None when the search isn't such a hash."""
     if collection.mc_tiles.kind != "CUBE" or len(search) != 8 or not set(search) <= {"0", "1"}:
         return None
-    from .playground import tile_lookup
+    from .piece_lib import set_tiles
+    from .playground import tile_placements
 
-    tiles = tile_variants(collection, "CUBE")
+    tiles = set_tiles(collection)
     h = int(search, 2)
     if h in tiles:
         return None
-    return tile_lookup(tiles.keys(), collection.mc_tiles.mode).get(h, False)
+    settings = collection.mc_tiles
+    return tile_placements(tiles.keys(), settings.mode, pieces=True).get(h, False)
 
 
 def shown_tiles(collection, f):
@@ -123,16 +126,16 @@ def shown_tiles(collection, f):
     problems = problem_hashes(collection) if f.problems_only and is_cube else None
     family = family_hashes(f.family_hash, collection.mc_tiles.mode) if f.family_hash >= 0 and is_cube else None
     search = f.search.strip()
-    source = drawn_by(collection, search)
-    if source:
-        search = f"{source[0]:08b}"  # a turned / mirrored shape: find the tile that draws it
+    placed = drawn_by(collection, search)
+    sources = {source for source, _, _ in placed} if placed else None  # turned / mirrored / pieces
 
     shown = {}
     for h, objs in tile_variants(collection, kind).items():
         passes = _hash_passes(f, h, len(objs), is_cube, problems, family, collection.mc_tiles.mode)
         for i, obj in enumerate(objs):
             base_ok = i == 0 or f.variants != "BASE"
-            shown[obj] = passes and base_ok and search_matches(search, h, obj.name)
+            found = h in sources if sources is not None else search_matches(search, h, obj.name)
+            shown[obj] = passes and base_ok and found
     return shown
 
 
@@ -311,13 +314,16 @@ def draw_filter(layout, context, collection):
     row.operator("mc_tiles.filter_refresh", text="", icon="FILE_REFRESH")
     row.operator("mc_tiles.filter_reset", text="", icon="LOOP_BACK")
     box.prop(f, "search", text="", icon="VIEWZOOM")
-    source = drawn_by(collection, f.search.strip())
-    if source:
-        h, turns, mirrored = source
+    placed = drawn_by(collection, f.search.strip())
+    if placed and len(placed) == 1:
+        h, turns, mirrored = placed[0]
         how = [f"turned {turns} x 90°"] if turns else []
         how += ["mirrored on export"] if mirrored else []
         box.label(text=f"{f.search.strip()} = {h:08b} {', '.join(how)}", icon="FILE_REFRESH")
-    elif source is False:
+    elif placed:
+        parts = " + ".join(f"{h:08b}" + (f" ↻{t}" if t else "") + (" ⇋" if m else "") for h, t, m in placed)
+        box.label(text=f"{f.search.strip()} = pieces {parts}", icon="MOD_BOOLEAN")
+    elif placed is False:
         box.label(text=f"No tile draws {f.search.strip()} in this mode", icon="ERROR")
 
     col = box.column(align=True)

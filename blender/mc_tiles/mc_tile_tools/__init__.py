@@ -5,6 +5,9 @@ Files:
     tiles.py       which objects are tiles, and their hash (same as Godot)
     modes.py       cube set modes (68 / 256 / heightmap) and their rules
     cube.py        cube Y turns (same table as Godot) and the tile check
+    pieces.py      build missing shapes from overlapping smaller tiles (edges / faces rule)
+    piece_lib.py   where pieces come from (any collection), set_tiles() used to draw / build / export
+    piece_ops.py   pieces box: which pieces the set has, placeholders, Generate Built Tiles
     props.py       settings saved on each tile-set collection
     view.py        debug material for helper meshes
     ops.py         Make / Remove Tile Set, Select Tile
@@ -28,8 +31,8 @@ import sys
 # Blender's Reload Scripts (F3) re-imports this package but not its submodules: reload them here,
 # dependencies first, so edits to any file take effect without restarting Blender.
 _MODULES = (
-    "variants", "tiles", "modes", "cube", "props", "view", "ops", "playground", "paste", "names",
-    "tilefilter", "arrange", "labels", "corners", "seams", "seams_ui", "tilelist", "export", "helpers", "panel",
+    "variants", "tiles", "modes", "cube", "pieces", "piece_lib", "props", "view", "ops", "playground", "paste", "names",
+    "tilefilter", "arrange", "labels", "corners", "seams", "seams_ui", "piece_ops", "tilelist", "export", "helpers", "panel",
 )
 if "bpy" in locals():
     import importlib
@@ -42,16 +45,17 @@ if "bpy" in locals():
 import bpy  # noqa: E402
 
 from . import (  # noqa: E402
-    arrange, corners, export, helpers, labels, seams_ui, names, ops, panel, paste, playground, props, tilefilter, tilelist, view,
+    arrange, corners, export, helpers, labels, piece_lib, piece_ops, seams_ui, names, ops, panel, paste, playground, props, tilefilter, tilelist, view,
 )
 
 CLASSES = (
     ops.CLASSES + paste.CLASSES + export.CLASSES + helpers.CLASSES + names.CLASSES + tilefilter.CLASSES
-    + arrange.CLASSES + seams_ui.CLASSES + panel.CLASSES
+    + arrange.CLASSES + seams_ui.CLASSES + piece_ops.CLASSES + panel.CLASSES
 )
 
 
 def register():
+    piece_lib.register()
     props.register()
     tilefilter.register()
     arrange.register()
@@ -77,3 +81,4 @@ def unregister():
     arrange.unregister()
     tilefilter.unregister()
     props.unregister()
+    piece_lib.unregister()

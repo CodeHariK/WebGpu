@@ -20,6 +20,8 @@ are laid out first; every other tile goes in a block below, after an empty row (
 Filter Viewport is on). Mirror / missing slots are only made for shapes the filter shows.
 """
 
+import math
+
 import bpy
 from mathutils import Matrix, Vector
 
@@ -32,7 +34,7 @@ from .tiles import tile_variants
 COLLECTION_NAME = "Arrange"
 HOME = "mc_home"  # custom property: the tile's own position before the first Arrange
 LABEL = "mc_ar_label"  # custom property on slot objects: text the label overlay draws
-VARIANT_STEP = 0.6  # variant rows behind their base tile, as a fraction of Spacing
+VARIANT_STEP = 0.5  # variant rows behind their base tile, as a fraction of Spacing (2 m -> 1 m)
 
 LAYOUT_ITEMS = [
     ("CORNERS", "By Corner Count", "One row per number of solid corners"),
@@ -47,7 +49,7 @@ class Entry:
 
     def __init__(self, h, kind, objs=()):
         self.h = h
-        self.kind = kind  # "TILE", "MIRROR" or "MISSING"
+        self.kind = kind  # "TILE", "MIRROR", "PIECE" (borrowed from another collection) or "MISSING"
         self.objs = list(objs)  # TILE: base + variants; MIRROR: the source tile's meshes
 
 
@@ -56,9 +58,13 @@ class Entry:
 
 def entries(collection, scene):
     """(main, rest): slots laid out first, and tiles the filter leaves out (Filtered First)."""
+    from .piece_lib import set_tiles
+
     mode = collection.mc_tiles.mode
     variants = tile_variants(collection, "CUBE")
-    report = cube.check(variants.keys(), mode)
+    drawn = set_tiles(collection)  # own tiles + pieces borrowed from other collections
+    report = cube.check(drawn.keys(), mode, pieces=True)
+    own = {o for objs in variants.values() for o in objs}
     settings = scene.mc_tiles_arrange
     f = scene.mc_tiles_filter
     filtered = settings.only_filtered
@@ -74,7 +80,8 @@ def entries(collection, scene):
             rest.append(Entry(h, "TILE", left))
     if settings.show_slots:
         # Label a mirror slot with the flipped source's own hash, so label and shape agree.
-        out += [Entry(cube.mirror(src), "MIRROR", variants[src][:1]) for _, src in report.mirrored]
+        out += [Entry(cube.mirror(src), "MIRROR", drawn[src][:1]) for _, src in report.mirrored]
+        out += [Entry(h, "PIECE", objs[:1]) for h, objs in drawn.items() if objs[0] not in own]
         out += [Entry(h, "MISSING") for h in report.missing]
         if filtered:
             out = [e for e in out if e.kind == "TILE" or hash_shown(f, collection, e.h)]
@@ -156,7 +163,12 @@ def _origin(collection):
     if not roots:
         return Vector((0.0, 0.0, 0.0))
     homes = [_home(o) for o in roots]
-    return Vector((min(p.x for p in homes), max(p.y for p in homes), min(p.z for p in homes)))
+    # Snapped like the playground: cell centres (x.5, y.5, z.5), so box corners are whole numbers.
+    return Vector((
+        math.floor(min(p.x for p in homes)) + 0.5,
+        math.floor(max(p.y for p in homes)) + 0.5,
+        math.floor(min(p.z for p in homes)) + 0.5,
+    ))
 
 
 def _move(obj, position):
@@ -166,8 +178,9 @@ def _move(obj, position):
     obj.matrix_world.translation = position
 
 
-def _mirror_slot(collection, source, position, h):
-    """Flipped copy of the source tile (and its parts) sharing its meshes, not selectable."""
+def _mirror_slot(collection, source, position, h, flip=True, label="mirror"):
+    """Copy of the source tile (and its parts) sharing its meshes, flipped for a mirror slot, not
+    selectable; also used for a piece borrowed from another collection (flip=False, label "piece")."""
     copies = {}
     for obj in [source] + list(source.children_recursive):
         copy = obj.copy()
@@ -184,9 +197,9 @@ def _mirror_slot(collection, source, position, h):
             copy.matrix_parent_inverse = obj.matrix_parent_inverse.copy()
             copy.matrix_basis = obj.matrix_basis.copy()
     root = copies[source]
-    flip = Matrix.Scale(-1.0, 4, Vector((1.0, 0.0, 0.0)))
-    root.matrix_world = Matrix.Translation(position) @ flip @ source.matrix_world.to_3x3().to_4x4()
-    root[LABEL] = f"{h:08b} mirror"
+    flipping = Matrix.Scale(-1.0, 4, Vector((1.0, 0.0, 0.0))) if flip else Matrix.Identity(4)
+    root.matrix_world = Matrix.Translation(position) @ flipping @ source.matrix_world.to_3x3().to_4x4()
+    root[LABEL] = f"{h:08b} {label}"
 
 
 def _missing_slot(collection, position, h):
@@ -208,11 +221,12 @@ def _missing_slot(collection, position, h):
 def arrange(scene, collection):
     """Lay out the set. Returns (tiles moved, mirror slots, missing slots)."""
     settings = scene.mc_tiles_arrange
-    spacing = settings.spacing
+    spacing = float(max(1, math.ceil(settings.spacing - 1e-6)))  # whole metres: box corners stay whole
+    behind_step = float(max(1, round(spacing * VARIANT_STEP)))
     items, rest = entries(collection, scene)
     most_variants = max((len(e.objs) for e in items + rest if e.kind == "TILE"), default=1)
     behind = settings.variants_behind
-    pitch = spacing * (1.0 + (VARIANT_STEP * (most_variants - 1) if behind else 0.0))
+    pitch = spacing + (behind_step * (most_variants - 1) if behind else 0.0)
 
     if not behind:  # variants get their own slots right after the base
         items, rest = _one_per_mesh(items), _one_per_mesh(rest)
@@ -233,10 +247,13 @@ def arrange(scene, collection):
             position = origin + Vector((c * spacing, -r * pitch, 0.0))
             if e.kind == "TILE":
                 for k, obj in enumerate(e.objs):
-                    _move(obj, position + Vector((0.0, k * spacing * VARIANT_STEP, 0.0)))
+                    _move(obj, position + Vector((0.0, k * behind_step, 0.0)))
                 counts["TILE"] += len(e.objs)
             elif e.kind == "MIRROR":
                 _mirror_slot(slots, e.objs[0], position, e.h)
+                counts["MIRROR"] += 1
+            elif e.kind == "PIECE":
+                _mirror_slot(slots, e.objs[0], position, e.h, flip=False, label="piece")
                 counts["MIRROR"] += 1
             else:
                 _missing_slot(slots, position, e.h)
@@ -321,7 +338,8 @@ class MCTILES_OT_arrange_clear_slots(bpy.types.Operator):
 
 class MCTilesArrangeProps(bpy.types.PropertyGroup):
     layout: bpy.props.EnumProperty(name="Layout", items=LAYOUT_ITEMS, default="CORNERS")
-    spacing: bpy.props.FloatProperty(name="Spacing", default=1.5, min=1.0, max=10.0, unit="LENGTH")
+    spacing: bpy.props.FloatProperty(name="Spacing", default=2.0, min=1.0, max=10.0, step=100, unit="LENGTH",
+                                     description="Whole metres keep every tile's box corners on whole numbers")
     columns: bpy.props.IntProperty(name="Columns", description="Row length for By Hash / By Family / Heightmap overhang rows",
                                    default=12, min=1, max=100)
     variants_behind: bpy.props.BoolProperty(

@@ -26,7 +26,8 @@ from mathutils import Vector
 
 from . import cube, seams
 from .tilefilter import KEEP_VISIBLE, apply, keep_visible, shown_tiles
-from .playground import MIRRORED, SOURCE, TURNS, build_pair, tile_lookup
+from .playground import MIRRORED, SOURCE, TURNS, build_pair, tile_lookup, tile_placements
+from .piece_lib import set_tiles
 from .tiles import tile_hash, tile_variants
 
 A_COLOUR = (1.0, 0.25, 0.2, 1.0)
@@ -70,11 +71,14 @@ def run(context, collection):
     mode = collection.mc_tiles.mode
     variants = {
         h: [(obj.name, tile_geometry(obj, depsgraph)) for obj in objs]
-        for h, objs in tile_variants(collection, "CUBE").items()
+        for h, objs in set_tiles(collection).items()
     }
     geometries = {name: g for objs in variants.values() for name, g in objs}
     allowed = {h for group in cube.orbits(mode) for h in group}
-    instances = seams.library(variants, tile_lookup(variants.keys(), mode), allowed)
+    lookup = tile_lookup(variants.keys(), mode)
+    placements = tile_placements(variants.keys(), mode, pieces=True)
+    built = {h: placed for h, placed in placements.items() if h not in lookup}
+    instances = seams.library(variants, lookup, allowed, built)
     report = seams.check(instances, geometries)
     report.per_hash = {}  # tile hash -> clashing pairs it is in (the tile list's conflict column)
     for pair in report.pairs:
@@ -152,11 +156,13 @@ def _wall_point(u, v, axis):
 def show_pair(context, pair):
     """Rebuild the playground with the pair side by side and mark the shared wall's points."""
     collection = context.scene.mc_tiles_active
-    a = (pair.a.name, pair.a.h, pair.a.turns, pair.a.mirrored)
-    b = (pair.b.name, pair.b.h, pair.b.turns, pair.b.mirrored)
-    near = bpy.data.objects.get(pair.a.name) or bpy.data.objects.get(pair.b.name)
+    a = (pair.a.name, pair.a.h, pair.a.turns, pair.a.mirrored, pair.a.pieces)
+    b = (pair.b.name, pair.b.h, pair.b.turns, pair.b.mirrored, pair.b.pieces)
+    first = [inst.pieces[0][0] if inst.pieces else inst.name for inst in (pair.a, pair.b)]
+    near = bpy.data.objects.get(first[0]) or bpy.data.objects.get(first[1])
     origin, _ = build_pair(context.scene, collection, a, b, pair.axis, near)
-    keep_visible(context, (pair.a.name, pair.b.name))  # the real tiles too, even if the filter hid them
+    real = [p[0] for inst in (pair.a, pair.b) for p in (inst.pieces or [(inst.name,)])]
+    keep_visible(context, real)  # the real tiles too, even if the filter hid them
     _shown.clear()
     for cover, other, colour in ((pair.cover_a, pair.cover_b, A_COLOUR), (pair.cover_b, pair.cover_a, B_COLOUR)):
         for vi, ui in zip(*(cover & ~other).nonzero()):

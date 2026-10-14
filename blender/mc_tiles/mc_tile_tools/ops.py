@@ -2,21 +2,24 @@
 
 import bpy
 
-from .modes import guess_mode
+from .modes import MODE_ITEMS, guess_mode
 from .tiles import guess_kind, tile_roots
 from .view import refresh as refresh_helpers
 
 
 def _target_collection(context):
-    """The collection selected in the Outliner, unless it's the scene root."""
+    """The collection selected in the Outliner, if it can become a tile set: not the scene root, not a
+    set already, and not a sub-collection of a set (its tiles belong to that set)."""
     collection = context.collection
-    if collection is None or collection == context.scene.collection:
+    if collection is None or collection == context.scene.collection or collection.mc_tiles.is_tile_set:
+        return None
+    if _parent_sets(collection):
         return None
     return collection
 
 
 class MCTILES_OT_make_set(bpy.types.Operator):
-    """Make the active collection a tile set, guessing kind and mode from its tiles"""
+    """Make the collection selected in the Outliner a tile set, guessing kind and mode from its tiles"""
 
     bl_idname = "mc_tiles.make_set"
     bl_label = "Make Tile Set"
@@ -34,6 +37,9 @@ class MCTILES_OT_make_set(bpy.types.Operator):
         hashes = list(tile_roots(collection, settings.kind))
         if settings.kind == "CUBE":
             settings.mode = guess_mode(hashes)
+            from .piece_lib import find_pieces
+
+            find_pieces(collection)
         context.scene.mc_tiles_active = collection
         refresh_helpers(context.scene)
         self.report(
@@ -41,6 +47,58 @@ class MCTILES_OT_make_set(bpy.types.Operator):
             f"{collection.name}: {settings.kind.lower()} set, {len(hashes)} tiles",
         )
         return {"FINISHED"}
+
+
+def _parent_sets(collection):
+    """Tile sets that contain this collection somewhere below them."""
+    return [c for c in bpy.data.collections if c.mc_tiles.is_tile_set and collection in c.children_recursive]
+
+
+class MCTILES_OT_new_set(bpy.types.Operator):
+    """Create a new, empty tile set collection (the name must not be taken by any collection)"""
+
+    bl_idname = "mc_tiles.new_set"
+    bl_label = "New Tile Set"
+    bl_options = {"REGISTER", "UNDO"}
+
+    name: bpy.props.StringProperty(name="Name", default="Tiles")
+    mode: bpy.props.EnumProperty(name="Mode", items=MODE_ITEMS, default="HEIGHTMAP")
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        self.layout.prop(self, "name")
+        self.layout.prop(self, "mode")
+        taken = bpy.data.collections.get(self.name.strip())
+        if taken is not None:
+            where = _owner_name(taken)
+            self.layout.label(text=f"'{taken.name}' is taken{where}: pick another name", icon="ERROR")
+
+    def execute(self, context):
+        name = self.name.strip()
+        if not name:
+            self.report({"ERROR"}, "Give the tile set a name")
+            return {"CANCELLED"}
+        taken = bpy.data.collections.get(name)
+        if taken is not None:
+            self.report({"ERROR"}, f"A collection named '{name}' already exists{_owner_name(taken)}")
+            return {"CANCELLED"}
+        collection = bpy.data.collections.new(name)
+        context.scene.collection.children.link(collection)
+        settings = collection.mc_tiles
+        settings.is_tile_set = True
+        settings.kind = "CUBE"
+        settings.mode = self.mode  # also finds the pieces (props._on_mode)
+        context.scene.mc_tiles_active = collection
+        self.report({"INFO"}, f"New tile set {collection.name}")
+        return {"FINISHED"}
+
+
+def _owner_name(collection):
+    """" (inside Cube)" when a collection sits inside another collection, else ""."""
+    owners = [c.name for c in bpy.data.collections if collection.name in c.children]
+    return f" (inside {', '.join(owners)})" if owners else ""
 
 
 class MCTILES_OT_remove_set(bpy.types.Operator):
@@ -91,4 +149,4 @@ class MCTILES_OT_select_tile(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (MCTILES_OT_make_set, MCTILES_OT_remove_set, MCTILES_OT_select_tile)
+CLASSES = (MCTILES_OT_make_set, MCTILES_OT_new_set, MCTILES_OT_remove_set, MCTILES_OT_select_tile)

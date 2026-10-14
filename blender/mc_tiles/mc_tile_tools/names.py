@@ -34,14 +34,24 @@ def export_name(obj, collection):
 
 
 def untidy(collection):
-    """[(object, clean name)] for tiles whose name isn't already the clean form."""
+    """[(object, clean name)] for tiles whose name isn't already the clean form.
+
+    "hash.setname" is fine when another collection owns the bare hash name (names are unique per
+    .blend), e.g. a linked copy of a piece: export writes hash_setname either way.
+    """
     kind = collection.mc_tiles.kind
+    tiles = tile_variants(collection, kind)
+    mine = {o for objs in tiles.values() for o in objs}
     out = []
-    for h, objs in sorted(tile_variants(collection, kind).items()):
+    for h, objs in sorted(tiles.items()):
         for obj in objs:
             wanted = clean_name(h, variant_number(obj.name), kind)
-            if obj.name != wanted:
-                out.append((obj, wanted))
+            if obj.name == wanted:
+                continue
+            owner = bpy.data.objects.get(wanted)
+            if owner is not None and owner not in mine and obj.name.split(".")[0] == wanted:
+                continue  # the bare name belongs to another set: hash.setname is the clean form here
+            out.append((obj, wanted))
     return out
 
 

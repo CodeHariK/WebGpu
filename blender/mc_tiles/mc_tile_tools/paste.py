@@ -18,7 +18,7 @@ import bpy
 from mathutils import Vector
 
 from . import cube, playground, view
-from .tiles import tile_variants
+from .piece_lib import set_tiles
 from .variants import variant_index
 
 MAX_CELLS = 20000  # a guard: every cell becomes one or more objects
@@ -52,8 +52,8 @@ def parse(text):
 
 def build(scene, tile_set, size, cells):
     """Place every cell's tile in the Playground. Returns (tiles placed, missing hashes)."""
-    tiles = tile_variants(tile_set, "CUBE")
-    lookup = playground.tile_lookup(tiles.keys(), tile_set.mc_tiles.mode)
+    tiles = set_tiles(tile_set)  # own tiles + borrowed pieces
+    lookup = playground.tile_placements(tiles.keys(), tile_set.mc_tiles.mode, pieces=True)
     playground.clear(scene)
     collection = playground._playground_collection(scene)
     origin = playground._origin(tile_set)
@@ -63,12 +63,12 @@ def build(scene, tile_set, size, cells):
     for x, y, z, h in cells:
         if h == cube.EMPTY:
             continue
-        position = origin + Vector((x + 0.5, depth - 1 - z + 0.5, y + 0.5))
+        position = playground.cell_centre(origin, x, depth - 1 - z, y)
         if h in lookup:
-            base, turns, mirrored = lookup[h]
-            options = tiles[base]
-            tile = options[variant_index(x, y, z, len(options))]  # Godot coordinates: same as the game
-            playground._copy_tile(tile, collection, position, turns, h, "pasted", mirrored)
+            for base, turns, mirrored in lookup[h]:  # several for a shape built from pieces
+                options = tiles[base]
+                tile = options[variant_index(x, y, z, len(options))]  # Godot coordinates: same as the game
+                playground._copy_tile(tile, collection, position, turns, h, "pasted", mirrored)
             placed += 1
         elif h != cube.FULL:  # full is optional: Godot draws nothing there either
             playground._missing_box(collection, position, h)

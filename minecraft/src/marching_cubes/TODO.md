@@ -88,6 +88,13 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
       Face Hashes overlay; searching a turned / mirrored hash finds the tile that draws it. Point lists were tried first:
       hundreds of false clashes from hidden internal faces, split wall faces and rounding
 - [ ] Seam check next: normals (shading seams), UVs / materials
+- [x] Blender: **Build from pieces** (set setting "Pieces") — a shape with no tile and no mirror is made
+      of smaller tiles (turned / mirrored) overlapping; every solid edge (and, Edges + Faces, every full
+      face) must lie inside one piece. Minimum sets: 68 -> 8 (corner, edge, slab, top corner, top edge,
+      top slab, column, wall), heightmap -> 5; Edges Only: 5 / 4. Export joins the pieces into one tile
+      (Godot unchanged); playground, Paste from Godot, seam check and search use the same pieces; Check
+      lists "Built from pieces"; a modelled tile always wins — uncommitted. Test: the 8 pieces from
+      Cube -> 68/68, export 68 tiles covering all 254 hashes
 
 ## Later
 

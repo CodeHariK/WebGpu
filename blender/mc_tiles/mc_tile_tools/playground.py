@@ -113,6 +113,23 @@ def tile_lookup(tiles, mode):
     return lookup
 
 
+def tile_placements(tiles, mode, pieces=False):
+    """{hash: [(tile hash, quarter turns, mirrored), ...]}: one entry for a tile (turned / mirrored),
+    several for a shape built from pieces (pieces.py), placed together in the same cell."""
+    from .pieces import cover, drawable
+
+    lookup = tile_lookup(tiles, mode)
+    out = {h: [placed] for h, placed in lookup.items()}
+    if pieces:
+        shapes = drawable(tiles, mode)
+        for h in range(1, 255):
+            if h not in out and cube.allowed(h, mode):
+                found = cover(h, shapes)
+                if found:
+                    out[h] = [lookup[p] for p in found]
+    return out
+
+
 # ---------------------------------------------------------------- Blender objects
 
 
@@ -202,7 +219,8 @@ def _copy_tile(root, collection, position, turns, h, role="neighbour", mirrored=
 
 
 def _origin(collection, near=None, block=SIZE):
-    """Lower corner of a `block`-cell playground, on whole-metre grid lines.
+    """First cell of a `block`-cell playground, as whole numbers. Cell (i, j, k) is drawn centred at
+    (i + 0.5, j + 0.5, k + 0.5): every cell's bounding box has whole-number corners (see cell_centre).
 
     near (a tile object): one empty cell to the right of the cell that tile sits in, the middle
     row / layer level with it. Without one: to the right of the whole tile set.
@@ -219,11 +237,18 @@ def _origin(collection, near=None, block=SIZE):
     return Vector((math.ceil(max(xs) + GAP), math.floor(min(ys)), 0.0))
 
 
+def cell_centre(origin, x, y, z):
+    """Where a playground cell's tile goes: its centre, so the cell's box corners are whole numbers."""
+    return origin + Vector((x + 0.5, y + 0.5, z + 0.5))
+
+
 def build(scene, tile_set, centre_hash, seed, near=None):
     """Rebuild the playground (next to tile `near` if given). Returns (cells filled, hashes with no tile)."""
     settings = tile_set.mc_tiles
-    tiles = tile_variants(tile_set, "CUBE")
-    lookup = tile_lookup(tiles.keys(), settings.mode)
+    from .piece_lib import set_tiles
+
+    tiles = set_tiles(tile_set)  # own tiles + borrowed pieces
+    lookup = tile_placements(tiles.keys(), settings.mode, pieces=True)
     heightmap = settings.mode == "HEIGHTMAP" or scene.mc_tiles_pg_no_overhang
     corners = random_corners(centre_hash, heightmap, random.Random(seed))
 
@@ -239,16 +264,16 @@ def build(scene, tile_set, centre_hash, seed, near=None):
                 h = cell_hash(corners, (x, y, z))
                 if h == cube.EMPTY:
                     continue
-                position = origin + Vector((x + 0.5, y + 0.5, z + 0.5))
+                position = cell_centre(origin, x, y, z)
                 if h in lookup:
-                    base, turns, mirrored = lookup[h]
                     is_centre = (x, y, z) == CENTRE
                     role = "centre" if is_centre else "neighbour"
-                    options = tiles[base]
-                    tile = options[variant_index(x, y, z, len(options))]
-                    root = _copy_tile(tile, collection, position, turns, h, role, mirrored)
-                    if is_centre:
-                        centre_copy = root
+                    for base, turns, mirrored in lookup[h]:  # several for a shape built from pieces
+                        options = tiles[base]
+                        tile = options[variant_index(x, y, z, len(options))]
+                        root = _copy_tile(tile, collection, position, turns, h, role, mirrored)
+                        if is_centre and centre_copy is None:
+                            centre_copy = root
                     filled += 1
                 elif h != cube.FULL:  # full is optional: an empty spot is fine
                     _missing_box(collection, position, h)
@@ -261,26 +286,31 @@ def build(scene, tile_set, centre_hash, seed, near=None):
 def build_pair(scene, tile_set, a, b, axis, near=None):
     """Put two library entries side by side (A low, B one cell further along axis), all editable.
 
-    a, b: (object name, hash, quarter turns, mirrored); a name of "" leaves that cell empty.
+    a, b: (object name, hash, quarter turns, mirrored, pieces); a name of "" leaves that cell empty;
+    pieces: [(object name, quarter turns, mirrored)] for a shape built from pieces (name unused).
     near: a tile to put the pair next to. Returns (A position, B position) of the cell centres.
     The real A and B tiles (the meshes to fix) are moved next to the pair while it is shown; clearing
     or rebuilding the playground puts them back (their own position is kept in obj["mc_pg_home"]).
     """
     clear(scene)
     collection = _playground_collection(scene)
-    origin = _origin(tile_set, near, block=1) + Vector((0.5, 0.5, 0.5))
+    origin = cell_centre(_origin(tile_set, near, block=1), 0, 0, 0)
     step = Vector([1.0 if i == axis else 0.0 for i in range(3)])
     positions = (origin, origin + step)
     copies = []
-    for (name, h, turns, mirrored), position, tag in zip((a, b), positions, ("A", "B")):
-        tile = bpy.data.objects.get(name) if name else None
-        if tile is not None:
-            copy = _copy_tile(tile, collection, position, turns, h, "pasted", mirrored)
-            copy[REF_LABEL] = f"{h:08b} {tag}"  # the shape in that cell, as Godot draws it
-            copies.append(copy)
+    for (name, h, turns, mirrored, pieces), position, tag in zip((a, b), positions, ("A", "B")):
+        for part, part_turns, part_mirrored in pieces or [(name, turns, mirrored)]:
+            tile = bpy.data.objects.get(part) if part else None
+            if tile is not None:
+                copy = _copy_tile(tile, collection, position, part_turns, h, "pasted", part_mirrored)
+                copy[REF_LABEL] = f"{h:08b} {tag}"  # the shape in that cell, as Godot draws it
+                copies.append(copy)
     # The real tiles, in a row after the pair (+X), one empty cell between each.
     x = 3.0 if axis == 0 else 2.0
-    for name in dict.fromkeys(n for n, _, _, _ in (a, b) if n):  # a tile against itself: move it once
+    names = []
+    for name, _, _, _, pieces in (a, b):
+        names += [p[0] for p in pieces] if pieces else [name]
+    for name in dict.fromkeys(n for n in names if n):  # a tile used twice: move it once
         tile = bpy.data.objects.get(name)
         if tile is None:
             continue

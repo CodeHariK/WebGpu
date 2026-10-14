@@ -96,6 +96,8 @@ class Report:
                    (export would make them; delete one of the pair unless it differs on purpose)
     duplicates     (hash, kept_hash): a rotated copy of a tile already in the set
     not_allowed    tiles the mode can't use (overhangs in Heightmap, empty)
+    built          (hash, [piece hashes]): groups with no tile and no mirror, built from smaller
+                   tiles overlapping (pieces.py); empty unless check(..., pieces=True)
     """
 
     def __init__(self):
@@ -104,11 +106,12 @@ class Report:
         self.partners = []
         self.duplicates = []
         self.not_allowed = []
+        self.built = []
         self.expected = 0
 
 
-def check(hashes, mode):
-    """Compare the set's tile hashes with what the mode needs."""
+def check(hashes, mode, pieces=False):
+    """Compare the set's tile hashes with what the mode needs (pieces: build missing shapes from pieces)."""
     hashes = set(hashes)
     report = Report()
     groups = orbits(mode)
@@ -133,6 +136,18 @@ def check(hashes, mode):
 
     # Full (11111111) is optional: never required, but Godot draws it if the .glb has one.
     report.not_allowed = sorted(h for h in hashes if h != FULL and not allowed(h, mode))
+    if pieces and report.missing:
+        from . import pieces as piece_rules  # pieces.py imports this module
+
+        shapes = piece_rules.drawable(hashes, mode)
+        still = []
+        for h in report.missing:
+            found = piece_rules.cover(h, shapes)
+            if found:
+                report.built.append((h, found))
+            else:
+                still.append(h)
+        report.missing = still
     report.missing.sort()
     report.mirrored.sort()
     report.partners.sort()

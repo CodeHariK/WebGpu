@@ -9,18 +9,21 @@ Same result as the old script, but per set and without the "everything visible" 
       Godot reads the first 8 digits and the "_v" variant number
     - cube sets: a shape modelled only as its left/right mirror image is written as a flipped copy
       ("mirror on export"), so a 68 set needs only 53 modelled tiles
+    - cube sets: a shape with no tile and no mirror is built from smaller tiles overlapping (pieces.py,
+      every solid edge / full face inside one piece): their meshes, turned / flipped, joined into one tile
     - written to the set's Export path (".glb" added if missing), then the copies are deleted
 """
 
+import math
 import os
 
 import bpy
 from mathutils import Matrix, Vector
 
 from . import cube
-from .names import export_name
+from .names import export_name, set_slug
 
-from .tiles import tile_variants
+from .piece_lib import set_tiles
 from .view import MATERIAL_NAME as DEBUG_MATERIAL
 
 TEMP_COLLECTION = "MC_Export_Temp"
@@ -108,12 +111,53 @@ def _mirror_copies(collection, tiles, by_hash, temp, mesh_names):
     return made
 
 
+def _piece_mesh(root, turns, mirrored, temp, mesh_names):
+    """A copy of an exported tile's mesh, flipped (mirror) then turned about Z, as its own object."""
+    copy = root.copy()
+    copy.data = root.data.copy()
+    mesh_names.add(copy.data.name)
+    temp.objects.link(copy)
+    if mirrored:
+        copy.data.transform(Matrix.Scale(-1.0, 4, Vector((1.0, 0.0, 0.0))))
+        copy.data.flip_normals()
+    if turns:
+        copy.data.transform(Matrix.Rotation(turns * math.pi / 2.0, 4, "Z"))
+    copy.data.update()
+    copy.location = (0.0, 0.0, 0.0)
+    return copy
+
+
+def _built_copies(collection, tiles, by_hash, temp, mesh_names):
+    """One joined tile for every shape built from pieces (base variant of each piece)."""
+    from .playground import tile_lookup  # playground imports view, which imports nothing from here
+
+    settings = collection.mc_tiles
+    report = cube.check(tiles.keys(), settings.mode, pieces=True)
+    lookup = tile_lookup(tiles.keys(), settings.mode)
+    made = []
+    for shape, found in report.built:
+        parts = []
+        for piece in found:
+            source, turns, mirrored = lookup[piece]
+            root = by_hash.get(source, [None])[0]
+            if root is not None and root.type == "MESH":
+                parts.append(_piece_mesh(root, turns, mirrored, temp, mesh_names))
+        if not parts:
+            continue
+        _select_only(parts, parts[0])
+        bpy.ops.object.join()
+        joined = parts[0]
+        joined.name = f"{shape:08b}_{set_slug(collection)}"
+        made.append(joined)
+    return made
+
+
 def export_set(collection):
     """Export one tile set. Returns (tiles exported, path); raises ValueError with a reason."""
     path = export_path(collection)
     if not path:
         raise ValueError(f"{collection.name} has no Export path")
-    tiles = tile_variants(collection, collection.mc_tiles.kind)
+    tiles = set_tiles(collection)  # own tiles + borrowed pieces (piece_lib.py)
     if not tiles:
         raise ValueError(f"{collection.name} has no tiles")
     if bpy.context.object is not None and bpy.context.object.mode != "OBJECT":
@@ -154,6 +198,7 @@ def export_set(collection):
 
         if collection.mc_tiles.kind == "CUBE":
             exported += _mirror_copies(collection, tiles, by_hash, temp, mesh_names)
+            exported += _built_copies(collection, tiles, by_hash, temp, mesh_names)
 
         os.makedirs(os.path.dirname(path), exist_ok=True)
         _select_only(exported, exported[0])

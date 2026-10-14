@@ -43,10 +43,11 @@ def guess_kind(collection):
 
 
 def ignored_objects(collection):
-    """Objects inside Helpers / Playground child collections."""
+    """Objects inside Helpers / Playground child collections, and inside child collections that are
+    tile sets of their own (a set nested in another set belongs only to itself)."""
     ignored = set()
     for child in collection.children_recursive:
-        if child.name.split(".")[0] in IGNORED_COLLECTIONS:
+        if child.name.split(".")[0] in IGNORED_COLLECTIONS or child.mc_tiles.is_tile_set:
             ignored.update(child.all_objects)
     return ignored
 

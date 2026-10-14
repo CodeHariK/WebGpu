@@ -16,6 +16,9 @@ from .corners import draw_toggle as draw_corner_toggle
 from .playground import draw_playground
 from .view import draw_view_switch
 from .names import untidy
+from .ops import _target_collection
+from .piece_lib import set_roots
+from .piece_ops import draw_pieces
 from .seams_ui import draw_seams
 from .tilefilter import draw_filter
 from .tiles import tile_roots, tile_variants, variant_clashes
@@ -46,7 +49,11 @@ class MCTILES_PT_main(bpy.types.Panel):
         row = layout.row(align=True)
         row.prop(scene, "mc_tiles_active", text="")
         row.operator("mc_tiles.remove_set", text="", icon="TRASH")
-        layout.operator("mc_tiles.make_set", icon="ADD")
+        row = layout.row(align=True)
+        row.operator("mc_tiles.new_set", icon="ADD")
+        target = _target_collection(context)
+        if target is not None:  # only a top-level collection that isn't a set yet
+            row.operator("mc_tiles.make_set", text=f"Make '{target.name}' a Set", icon="OUTLINER_COLLECTION")
         draw_view_switch(layout, scene)
         draw_corner_toggle(layout, scene)
 
@@ -64,15 +71,18 @@ class MCTILES_PT_main(bpy.types.Panel):
         row.prop(settings, "export_path")
         row.operator("mc_tiles.export_set", text="", icon="EXPORT")
 
-        tiles = tile_roots(collection, settings.kind)
+        tiles = set_roots(collection)
         if settings.kind == "CUBE":
             # Count groups covered, not objects: a rotated copy or a full block doesn't count.
-            report = cube.check(tiles.keys(), settings.mode)
+            report = cube.check(tiles.keys(), settings.mode, pieces=True)
             covered = report.expected - len(report.missing)
             icon = "CHECKMARK" if covered == report.expected else "INFO"
-            box.label(text=f"Tiles: {covered} / {report.expected}", icon=icon)
+            box.label(text=f"Shapes covered: {covered} / {report.expected}", icon=icon)
             if report.mirrored:
                 box.label(text=f"{len(report.mirrored)} made by mirror on export", icon="MOD_MIRROR")
+            if report.built:
+                box.label(text=f"{len(report.built)} built from pieces", icon="MOD_BOOLEAN")
+            draw_pieces(box, collection, tiles)
         else:
             box.label(text=f"Tiles: {len(tiles)} (prism rules not added yet)")
         extra = sum(len(objs) - 1 for objs in tile_variants(collection, settings.kind).values())
@@ -150,20 +160,24 @@ class MCTILES_PT_check(bpy.types.Panel):
         layout = self.layout
         collection = _active_set(context)
         mode = collection.mc_tiles.mode
-        tiles = tile_roots(collection, "CUBE")
-        report = cube.check(tiles.keys(), mode)
+        tiles = set_roots(collection)
+        report = cube.check(tiles.keys(), mode, pieces=True)
         clashes = variant_clashes(collection)
 
         draw_seams(layout, context, collection)
         messy = untidy(collection)
         problems = report.missing or report.duplicates or report.not_allowed or clashes or report.partners or messy
-        if not problems:
+        if not problems and not report.built:
             layout.label(text="All tiles present, nothing extra", icon="CHECKMARK")
             return
 
         self._section(
             layout, "Missing (model one of each)", "ERROR",
             [(h, None) for h in report.missing], tiles,
+        )
+        self._section(
+            layout, "Built from pieces (model one to replace it)", "MOD_BOOLEAN",
+            [(h, " + ".join(f"{p:08b}" for p in found)) for h, found in report.built], tiles,
         )
         self._section(
             layout, "Rotated copies (Godot makes these)", "DUPLICATE",

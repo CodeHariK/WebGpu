@@ -3,6 +3,7 @@
 import bpy
 
 from .modes import MODE_ITEMS
+from .piece_lib import MCTilesPieceSource, find_pieces
 
 KIND_ITEMS = [
     ("CUBE", "Cube", "8 corners per cell (marching cubes)"),
@@ -10,17 +11,25 @@ KIND_ITEMS = [
 ]
 
 
-def _on_mode(_self, context):
-    """Mode changed: the filter's "Used by Mode" shows a different subset."""
+def _on_mode(self, context):
+    """Mode changed: the filter's "Used by Mode" shows a different subset; the pieces change too."""
     from .tilefilter import apply
 
+    _on_pieces(self, context)
     apply(context)
+
+
+def _on_pieces(self, _context):
+    """Mode changed: refill the piece choices (valid choices are kept)."""
+    if self.is_tile_set and self.kind == "CUBE":
+        find_pieces(self.id_data)
 
 
 class MCTilesSetProps(bpy.types.PropertyGroup):
     is_tile_set: bpy.props.BoolProperty(name="Is Tile Set", default=False)
     kind: bpy.props.EnumProperty(name="Kind", items=KIND_ITEMS, default="CUBE")
     mode: bpy.props.EnumProperty(name="Mode", items=MODE_ITEMS, default="68", update=_on_mode)
+    piece_sources: bpy.props.CollectionProperty(type=MCTilesPieceSource)
     export_path: bpy.props.StringProperty(
         name="Export",
         description="The .glb this set exports to",

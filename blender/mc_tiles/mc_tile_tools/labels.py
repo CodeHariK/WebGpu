@@ -12,7 +12,8 @@ from mathutils import Vector
 from .tiles import tile_variants
 
 OFFSET = Vector((0.0, -0.6, -0.5))  # under the tile, towards the front
-COLOURS = {"TILE": (1.0, 1.0, 1.0, 0.9), "mirror": (0.55, 0.8, 1.0, 0.9), "missing": (1.0, 0.35, 0.35, 0.95)}
+COLOURS = {"TILE": (1.0, 1.0, 1.0, 0.9), "mirror": (0.55, 0.8, 1.0, 0.9), "missing": (1.0, 0.35, 0.35, 0.95),
+           "piece": (1.0, 0.8, 0.4, 0.95)}
 ARRANGE_LABEL = "mc_ar_label"  # set by arrange.py on slot objects
 SIZE = 11
 

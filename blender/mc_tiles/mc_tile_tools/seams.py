@@ -71,12 +71,13 @@ class TileFaces:
 class Instance:
     """One library entry: hash h drawn by tile `name` turned `turns` x 90 degrees, maybe mirrored."""
 
-    def __init__(self, h, name, faces, turns=0, mirrored=False):
+    def __init__(self, h, name, faces, turns=0, mirrored=False, pieces=None):
         self.h = h
-        self.name = name  # "" for the empty cell
+        self.name = name  # "" for the empty cell, "<hash> (built)" for a shape built from pieces
         self.faces = faces  # TileFaces
         self.turns = turns
         self.mirrored = mirrored
+        self.pieces = pieces  # [(tile name, turns, mirrored)] when built from pieces, else None
 
 
 class Pair:
@@ -334,11 +335,12 @@ def check(instances, geometries=None, tolerance=TOLERANCE):
     return report
 
 
-def library(variants, lookup, allowed):
+def library(variants, lookup, allowed, built=None):
     """[Instance] for every allowed hash (each variant of the tile that draws it) plus an empty cell.
 
     variants: {tile hash: [(name, TileGeometry)]}; lookup: {hash: (tile hash, turns, mirrored)}
-    (playground.tile_lookup); allowed: hashes the mode uses.
+    (playground.tile_lookup); allowed: hashes the mode uses; built: {hash: [(tile hash, turns,
+    mirrored)]} for shapes built from pieces (their geometry is the pieces together).
     """
     faces = {name: TileFaces(g) for objs in variants.values() for name, g in objs}
     out = [Instance(cube.EMPTY, "", TileFaces(TileGeometry()))]
@@ -348,4 +350,16 @@ def library(variants, lookup, allowed):
         source, turns, mirrored = lookup[h]
         for name, _ in variants[source]:
             out.append(Instance(h, name, faces[name], turns, mirrored))
+    for h, placed in sorted((built or {}).items()):
+        if h not in allowed:
+            continue
+        points, polygons, parts = [], [], []
+        for source, turns, mirrored in placed:
+            name, geometry = variants[source][0]
+            base = len(points)
+            points += [transform(p, turns, mirrored) for p in geometry.points]
+            polygons += [tuple(base + i for i in poly) for poly in geometry.polygons]
+            parts.append((name, turns, mirrored))
+        whole = TileGeometry(points, polygons)
+        out.append(Instance(h, f"{h:08b} (built)", TileFaces(whole), pieces=parts))
     return out
