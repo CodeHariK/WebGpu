@@ -70,6 +70,55 @@ def parse(name):
 ADDON_HELPER_KEYS = ("mc_piece_link", "mc_piece_of", "mc_pg_tile", "mc_pg_role")
 
 
+MC_NAME = re.compile(r"^([01]{8})(?:_v(\d+))?(?:\.|$)")  # "11001101", "11001101_v2", "11001101.brickblock_l"
+OURS_TO_SRC = (4, 5, 1, 0, 6, 7, 3, 2)  # our corner i -> source bit
+
+
+def from_ours(h):
+    """MC Tile Tools / Godot hash -> source hash (the inverse of to_ours)."""
+    return sum(1 << OURS_TO_SRC[i] for i in range(8) if (h >> i) & 1)
+
+
+def name_identity(obj):
+    """(level or None, variant, source hash) read from the object's name, or None:
+    "indexMA13" (source hash) or "11001101_v2" (our hash, variant B; the level then comes from the
+    "BrickBlock L / M / H" collection)."""
+    m = NAME.match(obj.name)
+    if m:
+        return m.group(1), m.group(2), int(m.group(3))
+    m = MC_NAME.match(obj.name)
+    if m:
+        return None, chr(ord("A") + max(1, int(m.group(2) or 1)) - 1), from_ours(int(m.group(1), 2))
+    return None
+
+
+def sync_from_names(scene):
+    """The name decides what a tile is: re-tag every mesh whose name is a tile name (so a duplicated
+    and renamed mesh, or one made from scratch in a BrickBlock set, is what its name says, not what
+    the mesh it was copied from was). Returns how many meshes changed."""
+    changed = 0
+    for obj in scene.objects:
+        if obj.type != "MESH" or "bb_src" in obj or any(key in obj for key in ADDON_HELPER_KEYS):
+            continue  # playground / seam / add-on copies keep their tags
+        identity = name_identity(obj)
+        if identity is None:
+            continue
+        level, variant, h = identity
+        if level is None:
+            sets = [c.name[len(SET_PREFIX):][:1] for c in obj.users_collection if c.name.startswith(SET_PREFIX)]
+            level = sets[0] if sets else obj.get("bb_level")
+        if level is None:
+            continue  # a tile name, but no level known: leave it alone
+        if (obj.get("bb_level"), obj.get("bb_variant"), obj.get("bb_hash")) != (level, variant, h):
+            obj["bb_level"], obj["bb_variant"], obj["bb_hash"] = level, variant, h
+            if "bb_mc_hash" in obj:
+                obj["bb_mc_hash"] = to_ours(h)
+            if "bb_mirror" in obj:
+                del obj["bb_mirror"]  # Arrange works it out again
+            changed += 1
+    return changed
+
+
 def tagged_meshes(scene):
     return [o for o in scene.objects if o.type == "MESH" and "bb_hash" in o
             and not any(key in o for key in ADDON_HELPER_KEYS)]
@@ -158,6 +207,7 @@ def checked_meshes(scene):
 
 def _on_levels(_self, context):
     scene = context.scene
+    sync_from_names(scene)
     shown = set(shown_meshes(scene))
     if getattr(scene, "bb_hide_mirrored", False):
         shown -= mirrored_meshes(list(shown))
@@ -208,6 +258,7 @@ class BB_OT_arrange(bpy.types.Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        sync_from_names(context.scene)
         if not tagged_meshes(context.scene):
             self.report({"WARNING"}, "Press Remove Empties first")
             return {"CANCELLED"}
@@ -309,6 +360,7 @@ class BB_OT_convert_names(bpy.types.Operator):
 
     def execute(self, context):
         scene = context.scene
+        sync_from_names(scene)
         meshes = tagged_meshes(scene)
         if not meshes:
             self.report({"WARNING"}, "Press Remove Empties first")
@@ -613,6 +665,7 @@ class BB_OT_seam_check(bpy.types.Operator):
 
     def execute(self, context):
         scene = context.scene
+        sync_from_names(scene)
         if not tagged_meshes(scene):
             self.report({"WARNING"}, "Press Remove Empties first")
             return {"CANCELLED"}
@@ -925,6 +978,7 @@ class BB_OT_playground(bpy.types.Operator):
 
     def execute(self, context):
         scene = context.scene
+        sync_from_names(scene)
         tile = bpy.data.objects.get(scene.bb_pg_tile) if self.shuffle else _playground_tile(context)
         if tile is None:
             self.report({"WARNING"}, "Select a BrickBlock mesh (or a playground copy)")
