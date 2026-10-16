@@ -14,9 +14,12 @@
 
 namespace godot {
 
-// For each modelled tile (load order) and each of its 3 turns: if that hash is still empty,
-// use this tile turned. Never replaces a modelled tile. Returns how many were filled.
-int MCTileLibrary::fill_by_y_turns() {
+// For each modelled tile of one level (load order) and each of its 3 turns: if that hash is still
+// empty, use this tile turned. Never replaces a modelled tile. Returns how many were filled.
+static int fill_level_by_y_turns(
+		MCTile *tiles,
+		const std::vector<uint8_t> &loaded_hashes
+) {
 	int generated = 0;
 	for (uint8_t base_h : loaded_hashes) {
 		for (int turns = 1; turns <= 3; turns++) {
@@ -33,6 +36,14 @@ int MCTileLibrary::fill_by_y_turns() {
 			generated++;
 		}
 	}
+	return generated;
+}
+
+// Fill M a, then the ground (L) and roof (H) levels. Returns how many M a entries were filled.
+int MCTileLibrary::fill_by_y_turns() {
+	int generated = fill_level_by_y_turns(tiles, loaded_hashes);
+	fill_level_by_y_turns(ground.tiles, ground.loaded_hashes);
+	fill_level_by_y_turns(roof.tiles, roof.loaded_hashes);
 	return generated;
 }
 

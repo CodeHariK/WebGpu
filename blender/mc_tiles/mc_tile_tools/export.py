@@ -9,7 +9,8 @@ Same result as the old script, but per set and without the "everything visible" 
       variants.py); Godot reads the first 8 digits and the tag (height, group, number)
     - every role (height + group) is written; cube sets: within each role, a shape modelled only
       as its left/right mirror image is written as a flipped copy ("mirror on export"), so a 68
-      set needs only 53 modelled tiles
+      set needs only 53 modelled tiles, and a shape it can build from its own pieces is built (so
+      Godot's L / M / H tables have the same shapes as the add-on's playground levels)
     - cube sets: a shape with no tile and no mirror is built from smaller tiles overlapping (pieces.py,
       every solid edge / full face inside one piece): their meshes, turned / flipped, joined into one tile
     - generated tiles (mirror copies, built tiles) are placed above the tile they come from, LIFT
@@ -142,8 +143,9 @@ def _piece_mesh(root, turns, mirrored, temp, mesh_names):
     return copy
 
 
-def _built_copies(collection, tiles, by_hash, temp, mesh_names, stacks):
-    """One joined tile for every shape built from pieces (base variant of each piece)."""
+def _built_copies(collection, tiles, by_hash, temp, mesh_names, stacks, role=MAIN_ROLE):
+    """One joined tile for every shape built from pieces (base variant of each piece), all from
+    one role's own tiles, named with that role's tag (so L / H are as complete as the playground)."""
     from .playground import tile_lookup  # playground imports view, which imports nothing from here
 
     settings = collection.mc_tiles
@@ -164,7 +166,7 @@ def _built_copies(collection, tiles, by_hash, temp, mesh_names, stacks):
         _select_only(parts, parts[0])
         bpy.ops.object.join()
         joined = parts[0]
-        joined.name = f"{shape:08b}_{tag_text(*MAIN_ROLE, 1)}_{set_slug(collection)}"
+        joined.name = f"{shape:08b}_{tag_text(*role, 1)}_{set_slug(collection)}"
         _stack_above(first, joined, stacks)
         made.append(joined)
     return made
@@ -223,10 +225,9 @@ def export_set(collection):
 
         if collection.mc_tiles.kind == "CUBE":
             stacks = {}  # exported tile name -> copies stacked above it so far
-            for role, tiles in roles.items():  # mirrors within each role; pieces only build M a
+            for role, tiles in roles.items():  # mirrors and pieces within each role, never mixed
                 exported += _mirror_copies(collection, tiles, by_hash[role], temp, mesh_names, stacks)
-                if role == MAIN_ROLE:
-                    exported += _built_copies(collection, tiles, by_hash[role], temp, mesh_names, stacks)
+                exported += _built_copies(collection, tiles, by_hash[role], temp, mesh_names, stacks, role)
 
         os.makedirs(os.path.dirname(path), exist_ok=True)
         _select_only(exported, exported[0])

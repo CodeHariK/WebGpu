@@ -52,14 +52,15 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 				if (hash == 0) {
 					continue;
 				}
-				const MCTile &conf = tile_library->get_tile(hash);
-				if (conf.mesh.is_null()) {
+				Vector3i cell = origin + Vector3i(lx, ly, lz);
+				// The tile of the cell's level (L / M / H; M when that level has none for the hash).
+				const MCTile *conf = &tile_library->get_tile_for_level(mc::LEVEL_LETTERS[_level_at(cell)], hash);
+				if (conf->mesh.is_null()) {
 					continue;
 				}
-				Vector3i cell = origin + Vector3i(lx, ly, lz);
 				Transform3D cell_t;
 				cell_t.origin = Vector3(cell) + Vector3(0.5f, 0.5f, 0.5f); // cell centre
-				builder.add(conf.mesh_for_cell(cell), cell_t * conf.turn, surface_cache);
+				builder.add(conf->mesh_for_cell(cell), cell_t * conf->turn, surface_cache);
 				tiles++;
 			}
 		}
@@ -119,6 +120,7 @@ void MCGrid::_queue_rebuild() {
 // Rebuild every chunk marked dirty since the last flush.
 void MCGrid::flush_dirty_chunks() {
 	rebuild_queued = false;
+	_update_levels(); // an edit can change the level of cells further away (a roof region)
 	for (Chunk &chunk : chunks) {
 		if (chunk.dirty) {
 			_build_chunk_mesh(chunk);

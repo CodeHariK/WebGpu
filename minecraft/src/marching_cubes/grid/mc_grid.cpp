@@ -42,6 +42,15 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_show_debug_corners"), &MCGrid::get_show_debug_corners);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "show_debug_corners"), "set_show_debug_corners", "get_show_debug_corners");
 
+	ClassDB::bind_method(D_METHOD("set_solid_floor", "solid"), &MCGrid::set_solid_floor);
+	ClassDB::bind_method(D_METHOD("get_solid_floor"), &MCGrid::get_solid_floor);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "solid_floor"), "set_solid_floor", "get_solid_floor");
+
+	ClassDB::bind_method(D_METHOD("get_cell_hash", "pos"), &MCGrid::get_cell_hash);
+	ClassDB::bind_method(D_METHOD("get_cell_level", "pos"), &MCGrid::get_cell_level);
+	ClassDB::bind_method(D_METHOD("randomize_levels", "seed", "tries"), &MCGrid::randomize_levels, DEFVAL(300));
+	ClassDB::bind_method(D_METHOD("get_last_plan"), &MCGrid::get_last_plan);
+
 	ClassDB::bind_method(D_METHOD("set_tile_library", "node"), &MCGrid::set_tile_library);
 	ClassDB::bind_method(D_METHOD("get_tile_library"), &MCGrid::get_tile_library);
 
@@ -149,6 +158,7 @@ void MCGrid::initialize_grid(
 
 	placed_list.clear();
 	_clear_placed_objects(); // their grid positions mean nothing in the new grid
+	roof_m.clear(); // no M roof choices in a new grid
 
 	if (p_refresh) {
 		refresh_grid();
@@ -159,6 +169,7 @@ void MCGrid::initialize_grid(
 void MCGrid::refresh_grid() {
 	_free_spawned_nodes();
 	surface_cache.clear(); // the library may have been reloaded
+	_update_levels(); // every chunk is rebuilt below, so the dirty marks don't matter
 	Vector3i cells = _dims().max_corner();
 	total_cells = cells.x * cells.y * cells.z;
 
@@ -201,8 +212,9 @@ void MCGrid::_initialize_boundaries(Chunk &p_chunk) const {
 					continue;
 				}
 
-				// Standard internal corners are now always empty (false) by default
-				p_chunk.set_corner(lx, ly, lz, false);
+				// Inside corners start empty, except the floor (y = 0): a flat ground, editable when
+				// solid_floor is off
+				p_chunk.set_corner(lx, ly, lz, gy == 0);
 			}
 		}
 	}
@@ -219,11 +231,14 @@ bool MCGrid::_is_boundary_corner(
 	int max_gy = grid_dims.y * chunk_dims.y;
 	int max_gz = grid_dims.z * chunk_dims.z;
 
-	// Bottommost (Y=0) is always 1 (solid)
-	// Topmost (Y=max) is always 0 (empty)
-	// X and Z horizontal boundaries are always 0 (empty)
-	if (gy == 0 || gy == max_gy || gx == 0 || gx == max_gx || gz == 0 || gz == max_gz) {
-		r_required_state = (gy == 0);
+	// Bottommost (Y=0) is solid when solid_floor is on (otherwise editable, except its side edges);
+	// topmost (Y=max) and the X / Z sides are always empty.
+	if (gy == 0 && solid_floor) {
+		r_required_state = true;
+		return true;
+	}
+	if (gy == max_gy || gx == 0 || gx == max_gx || gz == 0 || gz == max_gz) {
+		r_required_state = false;
 		return true;
 	}
 
@@ -253,9 +268,36 @@ void MCGrid::set_corner(
 		return;
 	}
 
-	bool actual_modified = false;
+	_write_corner(p_grid_pos, p_active);
 
-	// Update the logic states in all shared chunks
+	// The 8 cells around the corner changed: rebuild the chunk(s) they belong to, once each.
+	for (int cy = gy - 1; cy <= gy; cy++) {
+		for (int cz = gz - 1; cz <= gz; cz++) {
+			for (int cx = gx - 1; cx <= gx; cx++) {
+				_mark_cell_dirty(cx, cy, cz);
+			}
+		}
+	}
+	_queue_rebuild();
+
+	// Update debug corners (itself + 6 neighbors)
+	_update_debug_corner(gx, gy, gz);
+	_update_debug_corner(gx - 1, gy, gz);
+	_update_debug_corner(gx + 1, gy, gz);
+	_update_debug_corner(gx, gy - 1, gz);
+	_update_debug_corner(gx, gy + 1, gz);
+	_update_debug_corner(gx, gy, gz - 1);
+	_update_debug_corner(gx, gy, gz + 1);
+}
+
+// Write a global corner into every chunk that stores it (chunks share their border corners).
+void MCGrid::_write_corner(
+		const Vector3i &p_grid_pos,
+		bool p_active
+) {
+	int gx = p_grid_pos.x;
+	int gy = p_grid_pos.y;
+	int gz = p_grid_pos.z;
 	int start_cx = (gx == 0) ? 0 : (gx - 1) / chunk_dims.x;
 	int end_cx = (gx >= grid_dims.x * chunk_dims.x) ? grid_dims.x - 1 : gx / chunk_dims.x;
 	int start_cy = (gy == 0) ? 0 : (gy - 1) / chunk_dims.y;
@@ -271,30 +313,8 @@ void MCGrid::set_corner(
 				chunk.set_corner(
 						gx - (cx * chunk_dims.x), gy - (cy * chunk_dims.y), gz - (cz * chunk_dims.z), p_active
 				);
-				actual_modified = true;
 			}
 		}
-	}
-
-	if (actual_modified) {
-		// The 8 cells around the corner changed: rebuild the chunk(s) they belong to, once each.
-		for (int cy = gy - 1; cy <= gy; cy++) {
-			for (int cz = gz - 1; cz <= gz; cz++) {
-				for (int cx = gx - 1; cx <= gx; cx++) {
-					_mark_cell_dirty(cx, cy, cz);
-				}
-			}
-		}
-		_queue_rebuild();
-
-		// Update debug corners (itself + 6 neighbors)
-		_update_debug_corner(gx, gy, gz);
-		_update_debug_corner(gx - 1, gy, gz);
-		_update_debug_corner(gx + 1, gy, gz);
-		_update_debug_corner(gx, gy - 1, gz);
-		_update_debug_corner(gx, gy + 1, gz);
-		_update_debug_corner(gx, gy, gz - 1);
-		_update_debug_corner(gx, gy, gz + 1);
 	}
 }
 

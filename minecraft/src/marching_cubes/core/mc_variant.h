@@ -64,7 +64,7 @@ struct TileTag {
 	char group = 'a';
 	int number = 1;
 
-	// The main role (M a): the only tiles MCTileLibrary draws until L / H are placed by grid rules.
+	// The main role (M a); L a / H a are the ground / roof levels (core/mc_level_plan.h).
 	bool is_main_role() const { return height == 'm' && group == 'a'; }
 };
 

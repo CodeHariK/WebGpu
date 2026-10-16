@@ -41,6 +41,7 @@ void MCManager::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::NODE_PATH, "grid_path"), "set_grid_path", "get_grid_path");
 
 	ClassDB::bind_method(D_METHOD("initialize_all"), &MCManager::initialize_all);
+	ClassDB::bind_method(D_METHOD("_on_randomize_grid"), &MCManager::_on_randomize_grid);
 	ClassDB::bind_method(D_METHOD("_on_toggle_ui"), &MCManager::_on_toggle_ui);
 	ClassDB::bind_method(D_METHOD("_on_toggle_visual_corners"), &MCManager::_on_toggle_visual_corners);
 	ClassDB::bind_method(D_METHOD("_on_gui_input", "p_event"), &MCManager::_on_gui_input);

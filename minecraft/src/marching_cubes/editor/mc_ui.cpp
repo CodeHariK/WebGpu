@@ -129,6 +129,8 @@ void MCManager::setup_ui() {
 	mode_btn->set_name("PlacementModeButton"); // For easy lookup if needed
 	mode_btn->set_custom_minimum_size(Vector2(0, 30));
 
+	_setup_randomize_ui();
+
 	ui.manager->add_header(ui.stats_vbox, "Mesh Variants");
 	ui.variant_stats_vbox = ui.manager->add_vbox(ui.stats_vbox, "VariantStats");
 
@@ -252,8 +254,10 @@ void MCManager::update_ui() {
 			uint8_t h = _get_cell_hash(locked_grid_pos);
 			String bin = mc::hash_to_binary(h);
 			Vector3 display_pos = Vector3(locked_grid_pos);
+			String level = grid_node ? grid_node->get_cell_level(locked_grid_pos).to_upper() : String();
 			ui.hash_label->set_text(
-					"Hash: " + bin + " (" + String::num_int64(h) + ")" + "\nPos: " + String(display_pos)
+					"Hash: " + bin + " (" + String::num_int64(h) + ")" + (level.is_empty() ? "" : "  Level: " + level) +
+					"\nPos: " + String(display_pos)
 			);
 		} else {
 			ui.hash_label->set_text("Hash: N/A\nPos: N/A");

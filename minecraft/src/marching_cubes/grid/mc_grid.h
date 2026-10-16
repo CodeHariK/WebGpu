@@ -1,6 +1,7 @@
 // MCGrid: the editable corner grid, split into chunks, and everything spawned for it.
 //   mc_grid.cpp                setup, properties, corner edits, corner/cell queries
 //   mc_grid_cells.cpp          the tiles of each chunk merged into one mesh + collider
+//   mc_grid_levels.cpp         each cell's level (L / M / H, core/mc_level_plan.h) and Randomize
 //   mc_grid_debug_corners.cpp  debug cubes on the corners (+ their picking colliders)
 //   mc_grid_hover.cpp          hover preview quads
 //   mc_grid_objects.cpp        placed objects (with mc_spatial)
@@ -10,10 +11,12 @@
 
 #include "marching_cubes/core/mc_chunk.h"
 #include "marching_cubes/core/mc_grid_dims.h"
+#include "marching_cubes/core/mc_level_plan.h"
 #include "marching_cubes/grid/mc_chunk_builder.h"
 #include "marching_cubes/grid/mc_placed_objects.h"
 #include <cstdint>
 #include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
 #include <vector>
@@ -35,6 +38,10 @@ private:
 	Vector3i chunk_dims = Vector3i(16, 16, 16);
 	MCTileLibrary *tile_library = nullptr;
 	bool show_debug_corners = false;
+	bool solid_floor = true; // floor corners (y = 0) locked solid; off: editable (random on Randomize)
+	std::vector<uint8_t> cell_levels; // per cell (mc::CellBlock order): which level's tile it draws
+	std::vector<uint8_t> roof_m; // per cell: roof regions Randomize made M (kept through edits)
+	mc::LevelPlan last_plan; // the last Randomize
 	std::vector<Chunk> chunks;
 	MCPlacedObjects placed_list; // boxes placed in object mode
 	int total_tiles_drawn = 0; // tiles drawn (cells with a mesh)
@@ -70,6 +77,17 @@ private:
 	MCSurfaceCache surface_cache; // tile mesh arrays, read once (cleared when the library changes)
 	// Ask for flush_dirty_chunks at the end of the frame (once, however many edits).
 	void _queue_rebuild();
+	// The grid's cells as a level block (cells per axis).
+	mc::CellBlock _cell_block() const;
+	// The level of a cell (mc::LEVEL_L / M / H); M outside the grid or before the first update.
+	uint8_t _level_at(const Vector3i &p_cell) const;
+	// Recompute every cell's level from the corners; cells whose level changed are marked dirty.
+	void _update_levels();
+	// Write one global corner into every chunk that stores it (no boundary check, no rebuild).
+	void _write_corner(
+			const Vector3i &p_grid_pos,
+			bool p_active
+	);
 	// Merge every tile of the chunk into one mesh + one collider (replaces the old ones).
 	void _build_chunk_mesh(Chunk &p_chunk);
 	// Free the chunk's merged mesh node (and its collider) and reset its counters.
@@ -168,6 +186,18 @@ public:
 
 	// The 8-bit corner hash of the cell at p_pos (0 outside the grid).
 	uint8_t get_cell_hash(const Vector3i &p_pos) const;
+	// The level of the cell at p_pos: 'l', 'm' or 'h' (as a String for scripts; "" outside).
+	String get_cell_level(const Vector3i &p_pos) const;
+	// New random corners following the level rules (L bottom layer, H on column tops and beside H,
+	// L -> M -> H up a column), the best of p_tries layouts for p_seed; rebuilds the grid. Returns
+	// a summary: "seed 3: 120 cells, L 40 M 50 H 30, 0 missing".
+	String randomize_levels(
+			int p_seed,
+			int p_tries = 300
+	);
+	// The last Randomize as data: hashes / levels (PackedByteArray, x fastest, then y, then z;
+	// 0 L, 1 M, 2 H), size, gaps, column_breaks, bottom_solved.
+	Dictionary get_last_plan() const;
 	// Write the corner grid to a .mct file (format in mc_grid_io.cpp).
 	void save_grid(const String &p_path);
 	// Read a .mct file; the grid only changes once the whole file has been validated.
@@ -195,6 +225,10 @@ public:
 	void set_chunk_dims(const Vector3i &p_size);
 	// Cells per chunk per axis.
 	Vector3i get_chunk_dims() const { return chunk_dims; }
+
+	// Floor corners locked solid (default) or editable / random (needed for L ground tiles).
+	void set_solid_floor(bool p_solid);
+	bool get_solid_floor() const { return solid_floor; }
 
 	// Show or hide the debug corner cubes.
 	void set_debug_corners_visible(bool p_visible);

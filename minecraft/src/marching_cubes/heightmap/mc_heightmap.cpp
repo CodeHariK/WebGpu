@@ -7,6 +7,7 @@
 
 #include "marching_cubes/heightmap/mc_heightmap.h"
 #include "marching_cubes/library/mc_library.h"
+#include <algorithm>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/sphere_mesh.hpp>
@@ -103,6 +104,13 @@ void MCHeightmap::generate_terrain() {
 	}
 
 	const uint8_t *data = heightmap_data.ptr();
+	int top = 0;
+	for (int i = 0; i < required_size; i++) {
+		top = std::max(top, static_cast<int>(data[i]));
+	}
+	// Cells: one fewer than the height columns per side, up to one above the highest column.
+	mc::CellBlock block{ grid_dims.x - 1, std::min(top + 1, 254) + 1, grid_dims.y - 1 };
+	std::vector<uint8_t> levels = _cell_levels(block, data);
 	for (int z = 0; z < grid_dims.y - 1; z++) {
 		for (int x = 0; x < grid_dims.x - 1; x++) {
 			uint8_t h00 = data[x + z * grid_dims.x];
@@ -132,7 +140,8 @@ void MCHeightmap::generate_terrain() {
 			for (int y = start_y; y <= end_y; y++) {
 				uint8_t hash = _get_cell_hash(x, y, z, data);
 				if (hash > 0 && hash < 255) {
-					_spawn_cell_mesh(x, y, z, hash);
+					uint8_t level = y < block.y ? levels[static_cast<size_t>(block.cell_index(x, y, z))] : mc::LEVEL_M;
+					_spawn_cell_mesh(x, y, z, hash, level);
 				}
 			}
 		}
@@ -197,14 +206,43 @@ uint8_t MCHeightmap::_get_cell_hash(
 	return hash;
 }
 
-// Spawn the tile for one cell, scaled to cell_spacing / height_scale.
+// Each cell's level with MCGrid's rules: L bottom layer, H roof regions only beside H, M the rest;
+// some roof regions are M (seeded from the heights, so a terrain always gets the same roofs).
+std::vector<uint8_t> MCHeightmap::_cell_levels(
+		const mc::CellBlock &p_block,
+		const uint8_t *data_ptr
+) const {
+	std::vector<uint8_t> corners(static_cast<size_t>(p_block.corner_count()));
+	for (int z = 0; z <= p_block.z; z++) {
+		for (int y = 0; y <= p_block.y; y++) {
+			for (int x = 0; x <= p_block.x; x++) {
+				corners[static_cast<size_t>(p_block.corner_index(x, y, z))] = _is_corner_active(x, y, z, data_ptr) ? 1 : 0;
+			}
+		}
+	}
+	bool have_l = tile_library->has_level('l');
+	bool have_h = tile_library->has_level('h');
+	std::array<bool, 256> m_shapes = {};
+	for (int h = 1; h < 255; h++) {
+		m_shapes[static_cast<size_t>(h)] = tile_library->get_tile(static_cast<uint8_t>(h)).mesh.is_valid();
+	}
+	uint32_t seed = 2166136261u; // FNV-1a of the heights
+	for (int i = 0; i < heightmap_data.size(); i++) {
+		seed = (seed ^ data_ptr[i]) * 16777619u;
+	}
+	std::vector<uint8_t> roof_m = mc::choose_roof_m(p_block, corners, have_l, have_h, m_shapes, 0.5f, seed);
+	return mc::assign_levels(p_block, corners, have_l, have_h, &roof_m);
+}
+
+// Spawn the tile of one cell's level, scaled to cell_spacing / height_scale.
 void MCHeightmap::_spawn_cell_mesh(
 		int x,
 		int y,
 		int z,
-		uint8_t hash
+		uint8_t hash,
+		uint8_t level
 ) {
-	const MCTile &conf = tile_library->get_tile(hash);
+	const MCTile &conf = tile_library->get_tile_for_level(mc::LEVEL_LETTERS[level], hash);
 	if (conf.mesh.is_null()) {
 		return;
 	}

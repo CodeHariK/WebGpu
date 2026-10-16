@@ -8,12 +8,14 @@
 #ifndef MC_HEIGHTMAP_H
 #define MC_HEIGHTMAP_H
 
+#include "marching_cubes/core/mc_level_plan.h"
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/noise.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
+#include <vector>
 
 namespace godot {
 
@@ -72,8 +74,14 @@ private:
 			int x,
 			int y,
 			int z,
-			uint8_t hash
+			uint8_t hash,
+			uint8_t level
 	);
+	// Each cell's level (L / M / H) with MCGrid's rules (core/mc_level_plan.h), cells of p_block.
+	std::vector<uint8_t> _cell_levels(
+			const mc::CellBlock &p_block,
+			const uint8_t *data_ptr
+	) const;
 
 	// Spawns debug spheres at heightmap corner elevations.
 	void _spawn_debug_spheres(const uint8_t *data_ptr);

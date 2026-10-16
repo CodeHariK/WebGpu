@@ -39,13 +39,14 @@ material = ExtResource("1_8vtj5")
 [node name="MCGrid" type="MCGrid" parent="." unique_id=139198405]
 grid_dims = Vector3i(2, 2, 2)
 chunk_dims = Vector3i(4, 3, 4)
+solid_floor = false
 
 [node name="MCManager" type="MCManager" parent="." unique_id=387674285]
 tile_library_path = NodePath("../MCTileLibrary")
 grid_path = NodePath("../MCGrid")
 
 [node name="MCTileLibrary" type="MCTileLibrary" parent="." unique_id=430891780]
-tile_set_path = "res://assets/Marching/GenTiles.glb"
+tile_set_path = "res://assets/Marching/BrickBlock91.glb"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.115, 0, 0)
 
 [node name="GameManager" type="GameManager" parent="." unique_id=514503315]

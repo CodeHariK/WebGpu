@@ -4,6 +4,7 @@
 //   mc_object_mode.cpp    placing, selecting, dragging, deleting objects
 //   mc_manager_hover.cpp  per-frame hover raycast and previews
 //   mc_ui.cpp             side panel, stats, help
+//   mc_manager_randomize.cpp   Randomize section of the side panel (grid corners by the L / M / H rules)
 #ifndef MC_MANAGER_H
 #define MC_MANAGER_H
 
@@ -62,6 +63,8 @@ public:
 
 private:
 	NodePath tile_library_path;
+	int randomize_seed = 0; // the last Randomize seed (0 = not randomized yet)
+	Label *randomize_label = nullptr;
 
 	MCUI ui;
 	GridStats grid_stats;
@@ -166,6 +169,11 @@ public:
 	void set_grid_path(const NodePath &p_path);
 	// Path to the MCGrid node this editor works on.
 	NodePath get_grid_path() const;
+
+	// Randomize section: the button and the last result's summary.
+	void _setup_randomize_ui();
+	// Randomize button: next seed, new grid corners by the L / M / H rules.
+	void _on_randomize_grid();
 
 	// Load the tile library, build the grid, create the UI and previews, register with GameManager.
 	void initialize_all();
