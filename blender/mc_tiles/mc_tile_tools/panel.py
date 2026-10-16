@@ -21,13 +21,32 @@ from .piece_lib import set_roots
 from .piece_ops import draw_pieces
 from .seams_ui import draw_seams
 from .tilefilter import draw_filter
-from .tiles import tile_roots, tile_variants, variant_clashes
+from .tiles import tile_roots, tile_variants, tiles_by_role, variant_clashes
+from .variants import MAIN_ROLE, role_text
 
 MAX_ROWS = 12  # longer lists end with "... N more"
 
 
 def _active_set(context):
     return context.scene.mc_tiles_active
+
+
+def draw_roles(layout, collection):
+    """One line per role (height + group) when the set has more than the main one:
+    "M a: 52 / 53 shapes, 81 tiles". Turns and mirrors count, as Godot and the export use them."""
+    roles = tiles_by_role(collection, collection.mc_tiles.kind)
+    if list(roles) in ([], [MAIN_ROLE]):
+        return
+    col = layout.column(align=True)
+    for role, tiles in roles.items():
+        count = sum(len(objs) for objs in tiles.values())
+        if collection.mc_tiles.kind == "CUBE":
+            report = cube.check(tiles.keys(), collection.mc_tiles.mode)
+            covered = report.expected - len(report.missing)
+            text = f"{role_text(role)}: {covered} / {report.expected} shapes, {count} tiles"
+        else:
+            text = f"{role_text(role)}: {count} tiles"
+        col.label(text=text, icon="CHECKMARK" if role == MAIN_ROLE else "DOT")
 
 
 def _not_allowed_reason(h):
@@ -87,7 +106,8 @@ class MCTILES_PT_main(bpy.types.Panel):
             box.label(text=f"Tiles: {len(tiles)} (prism rules not added yet)")
         extra = sum(len(objs) - 1 for objs in tile_variants(collection, settings.kind).values())
         if extra:
-            box.label(text=f"Variants: {extra} extra meshes (_v2, _v3...)", icon="MOD_ARRAY")
+            box.label(text=f"Variants: {extra} extra meshes (_ma2, _ma3...)", icon="MOD_ARRAY")
+        draw_roles(box, collection)
         draw_move_helpers(box, collection)
 
 
@@ -193,7 +213,7 @@ class MCTILES_PT_check(bpy.types.Panel):
         )
         if messy:
             box = layout.box()
-            box.label(text=f"Names not in hash / hash_vN form: {len(messy)}", icon="SORTALPHA")
+            box.label(text=f"Names not in hash / hash_<tag> form: {len(messy)}", icon="SORTALPHA")
             col = box.column(align=True)
             for obj, wanted in messy[:MAX_ROWS]:
                 col.label(text=f"{obj.name}  ->  {wanted}")
@@ -201,8 +221,8 @@ class MCTILES_PT_check(bpy.types.Panel):
                 col.label(text=f"... {len(messy) - MAX_ROWS} more")
             box.operator("mc_tiles.tidy_names", icon="SORTALPHA")
         self._section(
-            layout, "Same hash and variant twice (rename one _v2...)", "ERROR",
-            [(h, f"variant {v}: {names}") for h, v, names in clashes], tiles,
+            layout, "Same hash and tag twice (rename one _ma2...)", "ERROR",
+            [(h, f"{tag}: {names}") for h, tag, names in clashes], tiles,
         )
 
     def _section(self, layout, title, icon, rows, tiles):

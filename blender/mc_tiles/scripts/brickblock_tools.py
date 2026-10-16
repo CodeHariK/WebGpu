@@ -70,7 +70,9 @@ def parse(name):
 ADDON_HELPER_KEYS = ("mc_piece_link", "mc_piece_of", "mc_pg_tile", "mc_pg_role")
 
 
-MC_NAME = re.compile(r"^([01]{8})(?:_v(\d+))?(?:\.|$)")  # "11001101", "11001101_v2", "11001101.brickblock_l"
+# "11001101", "11001101_mb1" (tag: height, group, number), and the older "11001101_v2" /
+# "11001101.brickblock_l" forms an earlier Convert wrote.
+MC_NAME = re.compile(r"^([01]{8})(?:_([lmh])([a-z])(\d+)|_v(\d+))?(?:[._]|$)")
 OURS_TO_SRC = (4, 5, 1, 0, 6, 7, 3, 2)  # our corner i -> source bit
 
 
@@ -80,16 +82,20 @@ def from_ours(h):
 
 
 def name_identity(obj):
-    """(level or None, variant, source hash) read from the object's name, or None:
-    "indexMA13" (source hash) or "11001101_v2" (our hash, variant B; the level then comes from the
-    "BrickBlock L / M / H" collection)."""
+    """(level or None, group letter, source hash, number) read from the object's name, or None:
+    "indexMA13" (source hash); "11001101_mb1" (our hash, M, group B, 1); "11001101" (M, A, 1 unless
+    it sits in an old "BrickBlock L / H" collection); old "11001101_v2" (group B)."""
     m = NAME.match(obj.name)
     if m:
-        return m.group(1), m.group(2), int(m.group(3))
+        return m.group(1), m.group(2), int(m.group(3)), 1
     m = MC_NAME.match(obj.name)
-    if m:
-        return None, chr(ord("A") + max(1, int(m.group(2) or 1)) - 1), from_ours(int(m.group(1), 2))
-    return None
+    if not m:
+        return None
+    h = from_ours(int(m.group(1), 2))
+    if m.group(2):
+        return m.group(2).upper(), m.group(3).upper(), h, int(m.group(4))
+    group = chr(ord("A") + max(1, int(m.group(5) or 1)) - 1)
+    return None, group, h, 1
 
 
 def sync_from_names(scene):
@@ -103,12 +109,16 @@ def sync_from_names(scene):
         identity = name_identity(obj)
         if identity is None:
             continue
-        level, variant, h = identity
-        if level is None:
-            sets = [c.name[len(SET_PREFIX):][:1] for c in obj.users_collection if c.name.startswith(SET_PREFIX)]
-            level = sets[0] if sets else obj.get("bb_level")
-        if level is None:
-            continue  # a tile name, but no level known: leave it alone
+        level, variant, h, number = identity
+        in_sets = [c.name for c in obj.users_collection if c.name.split(".")[0] == SET_NAME
+                   or c.name.startswith(SET_PREFIX)]
+        if not NAME.match(obj.name) and not in_sets and "bb_hash" not in obj:
+            continue  # a hash name outside BrickBlock (another tile set in this file): not ours
+        if level is None:  # untagged: an old per-level collection ("BrickBlock L") says, else M
+            old = [n[len(SET_PREFIX):][:1] for n in in_sets if n[len(SET_PREFIX):][:1] in LEVELS]
+            level = old[0] if old else "M"
+        if obj.get("bb_number") != number:
+            obj["bb_number"] = number
         if (obj.get("bb_level"), obj.get("bb_variant"), obj.get("bb_hash")) != (level, variant, h):
             obj["bb_level"], obj["bb_variant"], obj["bb_hash"] = level, variant, h
             if "bb_mc_hash" in obj:
@@ -325,15 +335,17 @@ class BB_OT_restore(bpy.types.Operator):
 # The add-on (and Godot) read the hash from the name, in OUR corner order:
 #   C0 (-x,-y,bottom) C1 (+x,-y,bottom) C2 (+x,+y,bottom) C3 (-x,+y,bottom), C4..C7 the same on top.
 # The source bit i is our corner SRC_TO_OURS[i] (see the diagram in the docs: bit = x + 2*top + 4*front).
-# Convert puts each level in its own tile set collection ("BrickBlock L" / "M" / "H"), named
-# "<our 8 binary digits>" plus "_v2".. for variants B, C, D. Object names are unique per .blend, so M
-# owns the bare names and L / H get ".<set>" endings where M has the same name; the add-on accepts that
-# form (and export writes "hash_set" either way). The old name and collections are remembered, so
-# Restore Names undoes it. bb_hash keeps the source hash, so everything else in this script still works.
+# Convert puts every tile in one tile set collection, "BrickBlock", named "<our 8 binary digits>"
+# plus the tag the add-on reads (mc_tile_tools/variants.py): height l / m / h, group a..d (the
+# BrickBlock variant letter), number 1, 2.. (more meshes of the same height, group and hash):
+#   MA13 -> "<hash>_ma1", MB13 -> "<hash>_mb1", LA3 -> "<hash>_la1".
+# The old name and collections are remembered, so Restore Names undoes it. bb_hash keeps the source
+# hash, so everything else in this script still works. (An earlier Convert made one set per level,
+# "BrickBlock L / M / H", with "_v2" for variant B; those names are still read and are renamed.)
 
 SRC_TO_OURS = (3, 2, 7, 6, 0, 1, 4, 5)
-SET_PREFIX = "BrickBlock "
-NAME_ORDER = ("M", "L", "H")  # who gets the bare names first
+SET_NAME = "BrickBlock"
+SET_PREFIX = "BrickBlock "  # the old per-level sets: "BrickBlock L"
 
 
 def to_ours(h):
@@ -341,10 +353,10 @@ def to_ours(h):
     return sum(1 << SRC_TO_OURS[i] for i in range(8) if (h >> i) & 1)
 
 
-def addon_name(obj):
-    """The MC Tile Tools name wanted for a tile: "00001000", "00001000_v2" for variant B."""
-    variant = ord(obj["bb_variant"]) - ord("A") + 1
-    return f"{to_ours(obj['bb_hash']):08b}" + (f"_v{variant}" if variant > 1 else "")
+def addon_name(obj, number=1):
+    """The MC Tile Tools name for a tile: "00001000_ma1", "00001000_mb1", "00001000_la2"."""
+    tag = f"{obj['bb_level'].lower()}{obj['bb_variant'].lower()}{number}"
+    return f"{to_ours(obj['bb_hash']):08b}_{tag}"
 
 
 def _slug(name):
@@ -352,7 +364,8 @@ def _slug(name):
 
 
 class BB_OT_convert_names(bpy.types.Operator):
-    """Rename every tile to its MC Tile Tools hash name (our corner order) and put each level in its own tile set"""
+    """Rename every tile to its MC Tile Tools name (our corner order + height / group / number tag)
+    and put them all in one tile set, "BrickBlock\""""
 
     bl_idname = "brickblock.convert_names"
     bl_label = "Convert to MC Tile Names"
@@ -365,39 +378,79 @@ class BB_OT_convert_names(bpy.types.Operator):
         if not meshes:
             self.report({"WARNING"}, "Press Remove Empties first")
             return {"CANCELLED"}
-        sets = {}
-        for level in sorted({o["bb_level"] for o in meshes}):
-            coll = bpy.data.collections.get(SET_PREFIX + level) or bpy.data.collections.new(SET_PREFIX + level)
-            if coll.name not in scene.collection.children:
-                scene.collection.children.link(coll)
-            sets[level] = coll
-            if hasattr(coll, "mc_tiles"):  # MC Tile Tools is enabled: make it a cube tile set, 68 mode
-                coll.mc_tiles.is_tile_set = True
-                coll.mc_tiles.kind = "CUBE"
-                coll.mc_tiles.mode = "68"
-        order = {level: i for i, level in enumerate(NAME_ORDER)}
-        meshes.sort(key=lambda o: (order.get(o["bb_level"], len(order)), o.name))
+        coll = bpy.data.collections.get(SET_NAME) or bpy.data.collections.new(SET_NAME)
+        if coll.name not in scene.collection.children:
+            scene.collection.children.link(coll)
+        if hasattr(coll, "mc_tiles"):  # MC Tile Tools is enabled: make it a cube tile set, 68 mode
+            coll.mc_tiles.is_tile_set = True
+            coll.mc_tiles.kind = "CUBE"
+            coll.mc_tiles.mode = "68"
+        meshes.sort(key=lambda o: (o.get("bb_number", 1), o.name))
         for i, obj in enumerate(meshes):  # park on temporary names so renames can't collide
             if "bb_name" not in obj:
                 obj["bb_name"] = obj.name
                 obj["bb_collections"] = [c.name for c in obj.users_collection]
             obj.name = f"__bb_convert_{i}"
-        renamed = 0
+        numbers = {}  # (level, group, hash) -> next free number
         for obj in meshes:
-            coll = sets[obj["bb_level"]]
             for old in list(obj.users_collection):
                 if old is not coll:
                     old.objects.unlink(obj)
             if coll not in obj.users_collection:
                 coll.objects.link(obj)
-            wanted = addon_name(obj)
-            if wanted in bpy.data.objects:
-                wanted += "." + _slug(coll.name)  # another level owns the bare name
-            obj.name = wanted
-            obj.data.name = wanted
+            key = (obj["bb_level"], obj["bb_variant"], obj["bb_hash"])
+            numbers[key] = numbers.get(key, 0) + 1
+            obj.name = obj.data.name = addon_name(obj, numbers[key])
+            obj["bb_number"] = numbers[key]
             obj["bb_mc_hash"] = to_ours(obj["bb_hash"])
-            renamed += 1
-        self.report({"INFO"}, f"{renamed} tiles renamed into " + ", ".join(c.name for c in sets.values()))
+        for level in LEVELS:  # the per-level sets an earlier Convert made, now empty
+            old = bpy.data.collections.get(SET_PREFIX + level)
+            if old is not None and not old.all_objects and not old.children:
+                bpy.data.collections.remove(old)
+        roles = sorted({(o["bb_level"], o["bb_variant"]) for o in meshes})
+        self.report({"INFO"}, f"{len(meshes)} tiles renamed into '{coll.name}': "
+                              + " ".join(f"{lv}{g.lower()}" for lv, g in roles))
+        return {"FINISHED"}
+
+
+def _addon_module(name):
+    """A module of the enabled MC Tile Tools add-on (e.g. "export"), or None."""
+    import sys
+
+    return next((m for key, m in sys.modules.items() if key.endswith("mc_tile_tools." + name)), None)
+
+
+class BB_OT_export(bpy.types.Operator):
+    """Export the BrickBlock tile set to one .glb with MC Tile Tools' exporter: every height and
+    group ("00001000_ma1_brickblock", "00001000_hb1_brickblock"), every number, and per role the
+    shapes modelled only as a mirror written as flipped copies"""
+
+    bl_idname = "brickblock.export"
+    bl_label = "Export"
+
+    def execute(self, context):
+        sync_from_names(context.scene)
+        export = _addon_module("export")
+        if export is None:
+            self.report({"ERROR"}, "Enable the MC Tile Tools add-on: its exporter writes the .glb")
+            return {"CANCELLED"}
+        coll = bpy.data.collections.get(SET_NAME)
+        if coll is None or not coll.mc_tiles.is_tile_set:
+            self.report({"ERROR"}, "Press Convert to MC Tile Names first (it makes the BrickBlock tile set)")
+            return {"CANCELLED"}
+        if not coll.mc_tiles.export_path.strip():  # default: beside the .blend
+            coll.mc_tiles.export_path = f"//{_slug(SET_NAME)}.glb"
+        selected, active = list(context.selected_objects), context.view_layer.objects.active
+        try:
+            count, path = export.export_set(coll)
+        except (ValueError, RuntimeError) as error:
+            self.report({"ERROR"}, str(error))
+            return {"CANCELLED"}
+        finally:
+            for obj in context.view_layer.objects:
+                obj.select_set(obj in selected)
+            context.view_layer.objects.active = active
+        self.report({"INFO"}, f"Exported {count} tiles to {path}")
         return {"FINISHED"}
 
 
@@ -1147,6 +1200,7 @@ class BB_PT_panel(bpy.types.Panel):
         row = layout.row(align=True)
         row.operator("brickblock.convert_names", icon="SORTALPHA")
         row.operator("brickblock.restore_names", text="", icon="LOOP_BACK")
+        row.operator("brickblock.export", icon="EXPORT")
         row = layout.row(align=True)
         row.operator("brickblock.playground", icon="MESH_GRID")
         row.operator("brickblock.playground", text="Shuffle", icon="FILE_REFRESH").shuffle = True
@@ -1162,7 +1216,8 @@ class BB_PT_panel(bpy.types.Panel):
 
 
 CLASSES = (BB_SeamItem, BB_OT_remove_empties, BB_OT_arrange, BB_OT_restore, BB_OT_seam_check, BB_UL_seams,
-           BB_OT_playground, BB_OT_playground_clear, BB_OT_convert_names, BB_OT_restore_names, BB_PT_panel)
+           BB_OT_playground, BB_OT_playground_clear, BB_OT_convert_names, BB_OT_restore_names, BB_OT_export,
+           BB_PT_panel)
 
 
 PROPS = ("bb_labels", "bb_corner_boxes", "bb_seams", "bb_seam_index", "bb_seam_selected_only",

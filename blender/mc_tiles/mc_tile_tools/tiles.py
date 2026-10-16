@@ -2,15 +2,15 @@
 
 A tile is a root object (no parent) whose name starts with a binary string,
 one digit per corner: 8 digits for a cube, 6 for a prism. Anything after the
-digits ("00110011.house", "00110011_circle") is ignored, except a "_v2" ending, which makes the
-object an extra mesh variant for the same hash (see variants.py).
+digits ("00110011.house", "00110011_circle") is ignored, except a tag ("_hb2": height, group,
+number) or the older "_v2" ending, which make the object a variant for the same hash (variants.py).
 
 The string is written most significant bit first, exactly like Godot's
 mc::binary_to_hash: the LAST character is corner 0, the first is corner 7.
 So int(name, 2) gives the same hash Godot uses (bit i = corner i).
 """
 
-from .variants import variant_number
+from .variants import MAIN_ROLE, name_role, name_tag, tag_text
 
 # Child collections with these names are never tiles and never exported.
 IGNORED_COLLECTIONS = {"Helpers", "Playground"}
@@ -52,29 +52,42 @@ def ignored_objects(collection):
     return ignored
 
 
-def tile_variants(collection, kind):
-    """{hash: [object, ...]} for every tile, variants in number order ("_v2" after the base)."""
+def tile_variants(collection, kind, role=MAIN_ROLE):
+    """{hash: [object, ...]} for the tiles of one role (height, group; variants.py), numbers in
+    order ("_ma2" after the base). The main role (M a) by default, which is what Check, Arrange,
+    Playground and the rest work on; role=None gives every role mixed (e.g. to list all tiles)."""
     ignored = ignored_objects(collection)
     found = {}
     for obj in collection.all_objects:
         if obj.parent is not None or obj in ignored:
             continue
+        if role is not None and name_role(obj.name) != role:
+            continue
         h = tile_hash(obj.name, kind)
         if h is not None:
             found.setdefault(h, []).append(obj)
     for objs in found.values():
-        objs.sort(key=lambda o: (variant_number(o.name), o.name))
+        objs.sort(key=lambda o: (name_tag(o.name), o.name))
     return found
 
 
+def tiles_by_role(collection, kind):
+    """{(height, group): {hash: [object, ...]}} for every role the set has, main role first."""
+    roles = {}
+    for h, objs in tile_variants(collection, kind, role=None).items():
+        for obj in objs:
+            roles.setdefault(name_role(obj.name), {}).setdefault(h, []).append(obj)
+    return dict(sorted(roles.items(), key=lambda kv: (kv[0] != MAIN_ROLE, "lmh".index(kv[0][0]), kv[0][1])))
+
+
 def variant_clashes(collection):
-    """[(hash, variant, "name, name")] where two objects claim the same hash and variant."""
+    """[(hash, tag, "name, name")] where two objects claim the same hash and tag ("ma2")."""
     clashes = []
-    for h, objs in sorted(tile_variants(collection, "CUBE").items()):
+    for h, objs in sorted(tile_variants(collection, "CUBE", role=None).items()):
         seen = {}
         for obj in objs:
-            seen.setdefault(variant_number(obj.name), []).append(obj.name)
-        clashes += [(h, v, ", ".join(names)) for v, names in sorted(seen.items()) if len(names) > 1]
+            seen.setdefault(tag_text(*name_tag(obj.name)), []).append(obj.name)
+        clashes += [(h, tag, ", ".join(names)) for tag, names in sorted(seen.items()) if len(names) > 1]
     return clashes
 
 

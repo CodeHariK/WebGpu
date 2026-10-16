@@ -1,7 +1,7 @@
 """MC Tile Tools: manage, check and test-fit marching cubes / prism tiles.
 
 Files:
-    variants.py    mesh variants (_v2...) and the per-cell pick shared with Godot
+    variants.py    tile tags (height, group, number: _ma2, _hb1; old _v2) and the per-cell pick shared with Godot
     tiles.py       which objects are tiles, and their hash (same as Godot)
     modes.py       cube set modes (68 / 256 / heightmap) and their rules
     cube.py        cube Y turns (same table as Godot) and the tile check

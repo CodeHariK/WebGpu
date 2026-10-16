@@ -5,10 +5,11 @@ Same result as the old script, but per set and without the "everything visible" 
       whether visible or not
     - each tile is copied (objects AND mesh data, so the originals are never changed),
       rotation and scale applied (location kept), modifiers applied, child meshes joined into it
-    - named hash + set name + variant ("00000001_circus", "00000001_circus_v2"; names.py);
-      Godot reads the first 8 digits and the "_v" variant number
-    - cube sets: a shape modelled only as its left/right mirror image is written as a flipped copy
-      ("mirror on export"), so a 68 set needs only 53 modelled tiles
+    - named hash + tag + set name ("00000001_ma1_circus", "00000001_hb2_circus"; names.py,
+      variants.py); Godot reads the first 8 digits and the tag (height, group, number)
+    - every role (height + group) is written; cube sets: within each role, a shape modelled only
+      as its left/right mirror image is written as a flipped copy ("mirror on export"), so a 68
+      set needs only 53 modelled tiles
     - cube sets: a shape with no tile and no mirror is built from smaller tiles overlapping (pieces.py,
       every solid edge / full face inside one piece): their meshes, turned / flipped, joined into one tile
     - written to the set's Export path (".glb" added if missing), then the copies are deleted
@@ -24,6 +25,8 @@ from . import cube
 from .names import export_name, set_slug
 
 from .piece_lib import set_tiles
+from .tiles import tiles_by_role
+from .variants import MAIN_ROLE, tag_text
 from .view import MATERIAL_NAME as DEBUG_MATERIAL
 
 TEMP_COLLECTION = "MC_Export_Temp"
@@ -147,7 +150,7 @@ def _built_copies(collection, tiles, by_hash, temp, mesh_names):
         _select_only(parts, parts[0])
         bpy.ops.object.join()
         joined = parts[0]
-        joined.name = f"{shape:08b}_{set_slug(collection)}"
+        joined.name = f"{shape:08b}_{tag_text(*MAIN_ROLE, 1)}_{set_slug(collection)}"
         made.append(joined)
     return made
 
@@ -157,8 +160,14 @@ def export_set(collection):
     path = export_path(collection)
     if not path:
         raise ValueError(f"{collection.name} has no Export path")
-    tiles = set_tiles(collection)  # own tiles + borrowed pieces (piece_lib.py)
-    if not tiles:
+    # Every role (height, group; variants.py) is written: the main role (M a) with its borrowed
+    # pieces (piece_lib.py), the others as modelled.
+    roles = {MAIN_ROLE: set_tiles(collection)}
+    for role, role_tiles in tiles_by_role(collection, collection.mc_tiles.kind).items():
+        if role != MAIN_ROLE:
+            roles[role] = role_tiles
+    roles = {role: tiles for role, tiles in roles.items() if tiles}
+    if not roles:
         raise ValueError(f"{collection.name} has no tiles")
     if bpy.context.object is not None and bpy.context.object.mode != "OBJECT":
         bpy.ops.object.mode_set(mode="OBJECT")
@@ -167,12 +176,13 @@ def export_set(collection):
     bpy.context.scene.collection.children.link(temp)
     mesh_names = set()
     try:
-        roots = []
-        for h in sorted(tiles):
-            for original in tiles[h]:  # every variant ("_v2", ...) is exported
-                copies = _copy_tile(original, temp)
-                mesh_names.update(c.data.name for c in copies.values() if c.type == "MESH")
-                roots.append((original, copies[original]))
+        roots = []  # (role, original, copy)
+        for role, tiles in roles.items():
+            for h in sorted(tiles):
+                for original in tiles[h]:  # every number ("_ma2", ...) is exported
+                    copies = _copy_tile(original, temp)
+                    mesh_names.update(c.data.name for c in copies.values() if c.type == "MESH")
+                    roots.append((role, original, copies[original]))
         bpy.context.view_layer.update()
         everything = list(temp.objects)
         meshes = [o for o in everything if o.type == "MESH"]
@@ -186,19 +196,21 @@ def export_set(collection):
 
         # Join each tile's child meshes into it and give it its clean name.
         exported = []
-        by_hash = {}
-        for original, root in roots:
+        by_hash = {role: {} for role in roles}  # per role: {hash: [exported copy, ...]}
+        for role, original, root in roots:
             parts = [c for c in root.children_recursive if c.type == "MESH"]
             if parts and root.type == "MESH":
                 _select_only([root] + parts, root)
                 bpy.ops.object.join()
             root.name = export_name(original, collection)
             exported.append(root)
-            by_hash.setdefault(int(root.name[:8], 2), []).append(root)
+            by_hash[role].setdefault(int(root.name[:8], 2), []).append(root)
 
         if collection.mc_tiles.kind == "CUBE":
-            exported += _mirror_copies(collection, tiles, by_hash, temp, mesh_names)
-            exported += _built_copies(collection, tiles, by_hash, temp, mesh_names)
+            for role, tiles in roles.items():  # mirrors within each role; pieces only build M a
+                exported += _mirror_copies(collection, tiles, by_hash[role], temp, mesh_names)
+                if role == MAIN_ROLE:
+                    exported += _built_copies(collection, tiles, by_hash[role], temp, mesh_names)
 
         os.makedirs(os.path.dirname(path), exist_ok=True)
         _select_only(exported, exported[0])
