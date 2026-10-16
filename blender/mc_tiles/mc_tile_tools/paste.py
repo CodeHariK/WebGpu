@@ -53,7 +53,7 @@ def parse(text):
 def build(scene, tile_set, size, cells):
     """Place every cell's tile in the Playground. Returns (tiles placed, missing hashes)."""
     tiles = set_tiles(tile_set)  # own tiles + borrowed pieces
-    lookup = playground.tile_placements(tiles.keys(), tile_set.mc_tiles.mode, pieces=True)
+    lookup = playground.tile_placements(tiles.keys(), tile_set.mc_tiles.mode, pieces=tile_set.mc_tiles.build_from_pieces)
     playground.clear(scene)
     collection = playground._playground_collection(scene)
     origin = playground._origin(tile_set)

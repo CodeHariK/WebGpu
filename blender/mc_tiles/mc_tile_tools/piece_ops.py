@@ -415,6 +415,8 @@ def draw_pieces(layout, collection, tiles):
     needed = minimum_set(settings.mode)
     items = {item.hash: item for item in settings.piece_sources}
     box = layout.box()
+    if not settings.build_from_pieces:
+        box.label(text="Build from Pieces is off: only modelled tiles are used", icon="INFO")
     row = box.row(align=True)
     have = sum(1 for h in needed if h in items and items[h].source is not None)
     row.label(text=f"Pieces: {have} of {len(needed)}", icon="MOD_BOOLEAN")

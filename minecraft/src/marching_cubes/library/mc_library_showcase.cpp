@@ -1,82 +1,76 @@
-// MCTileLibrary::build_showcase(): every tile in a grid (one row per base mesh), labelled, for checking.
+// MCTileLibrary::build_showcase(): every loaded mesh where it was in Blender (the add-on's Arrange,
+// then Export), labelled, each clickable (LAYER_TILE_LIBRARY) so MCManager can pin it in the grid.
+#include "game_manager/game_constants.h"
 #include "marching_cubes/core/mc_hash.h"
 #include "marching_cubes/library/mc_library.h"
-#include <algorithm>
-#include <godot_cpp/classes/engine.hpp>
-#include <godot_cpp/classes/input_event.hpp>
-#include <godot_cpp/classes/input_event_mouse_button.hpp>
+#include <godot_cpp/classes/box_shape3d.hpp>
+#include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/label3d.hpp>
 #include <godot_cpp/classes/mesh.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
-#include <godot_cpp/classes/packed_scene.hpp>
-#include <godot_cpp/classes/panel.hpp>
-#include <godot_cpp/classes/resource_loader.hpp>
-#include <godot_cpp/core/class_db.hpp>
-#include <godot_cpp/templates/hash_map.hpp>
-#include <vector>
+#include <godot_cpp/classes/static_body3d.hpp>
 
 namespace godot {
 
-// Replace the children with one row per modelled tile, holding every hash it fills, each
-// labelled with its corner count and hash.
+namespace {
+
+// A 1 m click box around the tile's cell, carrying what MCManager needs to pin it.
+StaticBody3D *make_click_box(const MCShowcaseTile &p_tile) {
+	StaticBody3D *body = memnew(StaticBody3D);
+	body->set_collision_layer(toLayer(LAYER_TILE_LIBRARY));
+	body->set_collision_mask(0);
+	body->set_position(p_tile.transform.origin);
+	body->set_meta("mc_hash", p_tile.hash);
+	body->set_meta("mc_level", String::chr(p_tile.height));
+	body->set_meta("mc_name", p_tile.name);
+	body->set_meta("mc_mesh", p_tile.mesh);
+	Ref<BoxShape3D> box;
+	box.instantiate();
+	box->set_size(Vector3(1, 1, 1));
+	CollisionShape3D *shape = memnew(CollisionShape3D);
+	shape->set_shape(box);
+	body->add_child(shape);
+	return body;
+}
+
+} // namespace
+
+// Replace the children with every loaded mesh at its Blender position, a label and a click box.
 void MCTileLibrary::build_showcase() {
 	for (int i = get_child_count() - 1; i >= 0; i--) {
 		Node *child = get_child(i);
-		child->queue_free();
 		remove_child(child);
+		child->queue_free();
 	}
+	for (const MCShowcaseTile &tile : showcase_tiles) {
+		MeshInstance3D *mi = memnew(MeshInstance3D);
+		mi->set_mesh(tile.mesh);
+		mi->set_name(tile.name);
+		mi->set_transform(tile.transform);
+		add_child(mi);
 
-	float spacing = 2.0f; // 1 unit mesh + 1 unit gap
+		Label3D *label = memnew(Label3D);
+		label->set_text(String::chr(tile.height).to_upper() + " " + tile.name);
+		label->set_position(tile.transform.origin + Vector3(0, 0.9f, 0));
+		label->set_billboard_mode(BaseMaterial3D::BILLBOARD_ENABLED);
+		label->set_font_size(24);
+		add_child(label);
 
-	// 1. Arrange Rows (Base meshes along Z based on master sorted order)
-	for (int row = 0; row < (int)loaded_hashes.size(); row++) {
-		uint8_t base_h = loaded_hashes[row];
-
-		// 2. Find all variants for this row
-		std::vector<uint8_t> variants;
-		if (tiles[base_h].mesh.is_valid()) {
-			variants.push_back(base_h);
-		}
-
-		for (int i = 0; i < 256; i++) {
-			if (i == base_h) {
-				continue;
-			}
-			if (tiles[i].mesh.is_valid() && tiles[i].source_hash == base_h) {
-				variants.push_back((uint8_t)i);
-			}
-		}
-
-		for (int col = 0; col < (int)variants.size(); col++) {
-			uint8_t variant_h = variants[col];
-			const MCTile &conf = tiles[variant_h];
-
-			MeshInstance3D *mi = memnew(MeshInstance3D);
-			mi->set_mesh(conf.mesh);
-			String h_str = mc::hash_to_binary(variant_h);
-			mi->set_name(h_str);
-
-			Transform3D grid_t;
-			grid_t.origin = Vector3(col * spacing, 0, row * spacing);
-			mi->set_transform(grid_t * conf.turn);
-
-			add_child(mi);
-			if (Engine::get_singleton()->is_editor_hint()) {
-				mi->set_owner(get_owner());
-			}
-
-			Label3D *label = memnew(Label3D);
-			int bit_count = mc::corner_count(variant_h);
-			label->set_text(String::num_int64(bit_count) + " : " + h_str);
-			label->set_position(grid_t.origin + Vector3(0, 1.5f, -0.2f));
-			label->set_billboard_mode(BaseMaterial3D::BILLBOARD_ENABLED);
-			label->set_font_size(24);
-			add_child(label);
-			if (Engine::get_singleton()->is_editor_hint()) {
-				label->set_owner(get_owner());
-			}
-		}
+		add_child(make_click_box(tile));
 	}
+}
+
+// World-space bounds of the shown tiles (each a 1 m cell around its position).
+AABB MCTileLibrary::get_showcase_bounds() const {
+	AABB bounds;
+	bool first = true;
+	Transform3D to_world = is_inside_tree() ? get_global_transform() : get_transform();
+	for (const MCShowcaseTile &tile : showcase_tiles) {
+		AABB cell(to_world.xform(tile.transform.origin) - Vector3(0.5f, 0.5f, 0.5f), Vector3(1, 1, 1));
+		bounds = first ? cell : bounds.merge(cell);
+		first = false;
+	}
+	return bounds;
 }
 
 } // namespace godot

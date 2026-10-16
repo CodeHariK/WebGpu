@@ -76,7 +76,7 @@ def run(context, collection):
     geometries = {name: g for objs in variants.values() for name, g in objs}
     allowed = {h for group in cube.orbits(mode) for h in group}
     lookup = tile_lookup(variants.keys(), mode)
-    placements = tile_placements(variants.keys(), mode, pieces=True)
+    placements = tile_placements(variants.keys(), mode, pieces=collection.mc_tiles.build_from_pieces)
     built = {h: placed for h, placed in placements.items() if h not in lookup}
     instances = seams.library(variants, lookup, allowed, built)
     report = seams.check(instances, geometries)

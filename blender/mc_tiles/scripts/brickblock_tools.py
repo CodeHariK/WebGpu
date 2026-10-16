@@ -385,6 +385,7 @@ class BB_OT_convert_names(bpy.types.Operator):
             coll.mc_tiles.is_tile_set = True
             coll.mc_tiles.kind = "CUBE"
             coll.mc_tiles.mode = "68"
+            coll.mc_tiles.build_from_pieces = False  # BrickBlock has every tile it needs: nothing built
         meshes.sort(key=lambda o: (o.get("bb_number", 1), o.name))
         for i, obj in enumerate(meshes):  # park on temporary names so renames can't collide
             if "bb_name" not in obj:

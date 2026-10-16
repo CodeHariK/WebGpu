@@ -33,6 +33,10 @@ void MCManager::_unhandled_input(const Ref<InputEvent> &p_event) {
 		return;
 	}
 
+	if (button == MOUSE_BUTTON_LEFT && !is_dragging && _try_pin_click(p_event, grid)) {
+		return; // a library tile was clicked: pinned
+	}
+
 	ClickHit hit;
 	if (!_raycast_click(p_event, grid, hit)) {
 		return;

@@ -69,6 +69,7 @@ String MCTileLibrary::get_tile_set_path() const { return tile_set_path; }
 
 struct LoadMeta {
 	Node *child = nullptr;
+	Transform3D transform; // node (and mesh instance) transform in the .glb
 	MeshInstance3D *mi = nullptr;
 	int ones_count = 0;
 	uint8_t hash = 0;
@@ -195,6 +196,11 @@ void MCTileLibrary::load_tiles() {
 
 		if (mi && mi->get_mesh().is_valid()) {
 			LoadMeta meta(child, mi);
+			Node3D *child_3d = Object::cast_to<Node3D>(child);
+			meta.transform = child_3d ? child_3d->get_transform() : Transform3D();
+			if (mi != child) {
+				meta.transform = meta.transform * mi->get_transform();
+			}
 			if (meta.is_valid && !meta.group_a) {
 				other_groups++;
 			} else if (meta.is_valid) {
@@ -212,10 +218,18 @@ void MCTileLibrary::load_tiles() {
 	// 2. Sort by bit-density (number of active corners)
 	std::sort(candidates.begin(), candidates.end());
 
-	// 3. Each mesh into its level, in that order
+	// 3. Each mesh into its level, in that order (and into the showcase, at its Blender position)
 	int variant_count = 0;
 	int last_variant[3][256] = {};
+	showcase_tiles.clear();
 	for (const LoadMeta &meta : candidates) {
+		MCShowcaseTile shown;
+		shown.mesh = meta.mi->get_mesh();
+		shown.transform = meta.transform;
+		shown.hash = meta.hash;
+		shown.height = meta.height;
+		shown.name = mc::hash_to_binary(meta.hash) + "_" + String::chr(meta.height) + "a" + String::num_int64(meta.variant);
+		showcase_tiles.push_back(shown);
 		bool extra = false;
 		if (meta.height == 'l') {
 			extra = add_loaded(ground.tiles, ground.loaded_hashes, last_variant[0], meta);

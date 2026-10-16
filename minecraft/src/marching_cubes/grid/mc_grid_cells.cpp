@@ -53,13 +53,19 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 					continue;
 				}
 				Vector3i cell = origin + Vector3i(lx, ly, lz);
+				Transform3D cell_t;
+				cell_t.origin = Vector3(cell) + Vector3(0.5f, 0.5f, 0.5f); // cell centre
+				const mc::LevelPin *live_pin = _live_pin();
+				if (live_pin && cell == Vector3i(live_pin->x, live_pin->y, live_pin->z) && pin_mesh.is_valid()) {
+					builder.add(pin_mesh, cell_t, surface_cache); // the pinned tile itself, as modelled
+					tiles++;
+					continue;
+				}
 				// The tile of the cell's level (L / M / H; M when that level has none for the hash).
 				const MCTile *conf = &tile_library->get_tile_for_level(mc::LEVEL_LETTERS[_level_at(cell)], hash);
 				if (conf->mesh.is_null()) {
 					continue;
 				}
-				Transform3D cell_t;
-				cell_t.origin = Vector3(cell) + Vector3(0.5f, 0.5f, 0.5f); // cell centre
 				builder.add(conf->mesh_for_cell(cell), cell_t * conf->turn, surface_cache);
 				tiles++;
 			}

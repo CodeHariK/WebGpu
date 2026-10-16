@@ -17,6 +17,10 @@
 //                cleared), and the best of many random layouts is kept: the column order kept,
 //                then the fewest cells whose level has no tile.
 //
+// A pinned cell (one tile picked from the library) keeps its 8 corners and its level, like the
+// selected tile in the add-on's playground: faces, the bottom solve, roof spreading and clearing
+// above H never change them, and the layouts are planned around it.
+//
 // Plain data, no nodes. Corner order and axes as mc_corners.h (Godot: +Y up, +Z near).
 #ifndef MC_LEVEL_PLAN_H
 #define MC_LEVEL_PLAN_H
@@ -59,12 +63,23 @@ struct CellBlock {
 	}
 };
 
+// One fixed cell: its hash (corners) and level are kept.
+struct LevelPin {
+	bool active = false;
+	int x = 0;
+	int y = 0;
+	int z = 0;
+	uint8_t hash = 0;
+	uint8_t level = LEVEL_M;
+};
+
 struct LevelPlanInput {
 	CellBlock block;
 	uint32_t seed = 1;
 	int tries = 300; // random layouts planned; the best one is kept
 	bool solid_floor = false; // floor corners (y = 0) solid instead of random
 	float roof_m_chance = 0.5f; // chance that a roof region is M rather than H
+	LevelPin pin; // optional fixed cell
 	LevelShapes shapes = {};
 };
 
@@ -76,6 +91,7 @@ struct LevelPlan {
 	std::vector<uint8_t> roof_m; // per cell: 1 = its roof region was chosen M
 	int gaps = 0; // cells (not empty / full) whose level has no tile for their hash
 	int column_breaks = 0; // cells breaking L -> M -> H up a column (0 unless no layout keeps it)
+	int side_breaks = 0; // H joined side by side to a non-H (only near a pin that forces it)
 	bool bottom_solved = true; // false when no all-L bottom layer was found
 };
 
@@ -86,7 +102,8 @@ std::vector<uint8_t> assign_levels(
 		const std::vector<uint8_t> &p_corners,
 		bool p_have_l,
 		bool p_have_h,
-		const std::vector<uint8_t> *p_roof_m = nullptr
+		const std::vector<uint8_t> *p_roof_m = nullptr,
+		const LevelPin *p_pin = nullptr
 );
 
 // The roof_m list for existing corners: each H roof region becomes M with p_chance (seeded), when

@@ -63,7 +63,7 @@ def entries(collection, scene):
     mode = collection.mc_tiles.mode
     variants = tile_variants(collection, "CUBE", role=None)  # every role: L / H go behind M a
     drawn = set_tiles(collection)  # M a tiles + pieces borrowed from other collections
-    report = cube.check(drawn.keys(), mode, pieces=True)
+    report = cube.check(drawn.keys(), mode, pieces=collection.mc_tiles.build_from_pieces)
     own = {o for objs in variants.values() for o in objs}
     settings = scene.mc_tiles_arrange
     f = scene.mc_tiles_filter

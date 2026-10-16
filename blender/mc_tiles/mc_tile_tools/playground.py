@@ -436,10 +436,11 @@ def _block_origin(tile_set, near, centre):
     return Vector((x, math.ceil(max(ys) + GAP), math.floor(min(zs))))
 
 
-def _placed(tiles, mode):
-    """{hash: [(objects, quarter turns, mirrored, tile hash), ...]} for `tiles` ({hash: [objects]})."""
+def _placed(tiles, mode, pieces=True):
+    """{hash: [(objects, quarter turns, mirrored, tile hash), ...]} for `tiles` ({hash: [objects]});
+    pieces: also shapes built from the tiles (the set's Build from Pieces)."""
     return {h: [(tiles[base], turns, mirrored, base) for base, turns, mirrored in placed]
-            for h, placed in tile_placements(tiles.keys(), mode, pieces=True).items()}
+            for h, placed in tile_placements(tiles.keys(), mode, pieces=pieces).items()}
 
 
 def _level_tiles(tile_set, group):
@@ -456,7 +457,7 @@ def _level_tiles(tile_set, group):
         role = (height, group) if (height, group) in have else (height, "a")
         tiles = set_tiles(tile_set, role)
         if tiles:
-            out[height] = _placed(tiles, mode)
+            out[height] = _placed(tiles, mode, tile_set.mc_tiles.build_from_pieces)
     return out
 
 

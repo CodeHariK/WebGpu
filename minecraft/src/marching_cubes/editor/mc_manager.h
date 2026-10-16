@@ -65,6 +65,7 @@ private:
 	NodePath tile_library_path;
 	int randomize_seed = 0; // the last Randomize seed (0 = not randomized yet)
 	Label *randomize_label = nullptr;
+	String pinned_name; // "00001100_la1" of the pinned library tile ("" = none)
 
 	MCUI ui;
 	GridStats grid_stats;
@@ -174,6 +175,14 @@ public:
 	void _setup_randomize_ui();
 	// Randomize button: next seed, new grid corners by the L / M / H rules.
 	void _on_randomize_grid();
+	// Unpin button: Randomize no longer keeps a library tile.
+	void _on_unpin();
+	// Left click on a library tile (nearest hit): pin it, move the grid into a row behind the
+	// library with the pinned column lined up with the tile, Randomize. False when no tile was hit.
+	bool _try_pin_click(
+			const Ref<InputEvent> &p_event,
+			MCGrid *p_grid
+	);
 
 	// Load the tile library, build the grid, create the UI and previews, register with GameManager.
 	void initialize_all();

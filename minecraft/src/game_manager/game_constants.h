@@ -20,7 +20,8 @@ enum CollisionLayer : uint8_t {
 	LAYER_OBJECTS = 4, // Layer 4 (Stations, Ingredients, Interactables)
 	LAYER_CORNERS = 5, // Layer 6 (MC Grid Debug)
 	LAYER_CELLS = 6, // Layer 7 (MC Grid Dual)
-	LAYER_MOVING_OBJECTS = 7
+	LAYER_MOVING_OBJECTS = 7,
+	LAYER_TILE_LIBRARY = 8 // MC tile library showcase: click a tile to pin it in the grid
 };
 
 inline uint32_t toLayer(CollisionLayer layer) { return 1 << (static_cast<uint32_t>(layer) - 1); }

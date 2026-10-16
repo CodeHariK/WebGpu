@@ -117,7 +117,7 @@ def drawn_by(collection, search):
     if h in tiles:
         return None
     settings = collection.mc_tiles
-    return tile_placements(tiles.keys(), settings.mode, pieces=True).get(h, False)
+    return tile_placements(tiles.keys(), settings.mode, pieces=settings.build_from_pieces).get(h, False)
 
 
 def shown_tiles(collection, f):

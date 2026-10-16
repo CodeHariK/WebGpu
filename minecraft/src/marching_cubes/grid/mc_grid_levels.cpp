@@ -6,6 +6,7 @@
 // the library (MCTileLibrary::get_level_tile); a set with no L / H tiles is all M, as before.
 #include "marching_cubes/grid/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
+#include <algorithm>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -36,6 +37,42 @@ String MCGrid::get_cell_level(const Vector3i &p_pos) const {
 	return String::chr(mc::LEVEL_LETTERS[_level_at(p_pos)]);
 }
 
+// Pin one library tile in the middle column: L bottom layer, M one up, H the top layer.
+void MCGrid::set_pin(
+		int p_hash,
+		const String &p_level,
+		const Ref<Mesh> &p_mesh
+) {
+	mc::CellBlock block = _cell_block();
+	char letter = p_level.is_empty() ? 'm' : static_cast<char>(p_level[0]);
+	pin.active = true;
+	pin.hash = static_cast<uint8_t>(p_hash);
+	pin.level = letter == 'l' ? mc::LEVEL_L : (letter == 'h' ? mc::LEVEL_H : mc::LEVEL_M);
+	pin.x = block.x / 2;
+	pin.z = block.z / 2;
+	pin.y = pin.level == mc::LEVEL_L ? 0 : (pin.level == mc::LEVEL_H ? block.y - 1 : std::min(1, block.y - 1));
+	pin_mesh = p_mesh;
+}
+
+// Remove the pin.
+void MCGrid::clear_pin() {
+	pin = mc::LevelPin();
+	pin_mesh.unref();
+	_update_levels();
+	_queue_rebuild();
+}
+
+// The pinned cell, or (-1, -1, -1).
+Vector3i MCGrid::get_pin_cell() const { return pin.active ? Vector3i(pin.x, pin.y, pin.z) : Vector3i(-1, -1, -1); }
+
+// The pin while its cell still has the pinned hash.
+const mc::LevelPin *MCGrid::_live_pin() const {
+	if (!pin.active || get_cell_hash(Vector3i(pin.x, pin.y, pin.z)) != pin.hash) {
+		return nullptr;
+	}
+	return &pin;
+}
+
 // Recompute the levels from the corners; mark the cells whose level changed for a rebuild.
 void MCGrid::_update_levels() {
 	mc::CellBlock block = _cell_block();
@@ -49,7 +86,7 @@ void MCGrid::_update_levels() {
 	}
 	bool have_l = tile_library && tile_library->has_level('l');
 	bool have_h = tile_library && tile_library->has_level('h');
-	std::vector<uint8_t> levels = mc::assign_levels(block, corners, have_l, have_h, &roof_m);
+	std::vector<uint8_t> levels = mc::assign_levels(block, corners, have_l, have_h, &roof_m, _live_pin());
 	if (levels.size() == cell_levels.size()) {
 		for (int z = 0; z < block.z; z++) {
 			for (int y = 0; y < block.y; y++) {
@@ -81,6 +118,7 @@ String MCGrid::randomize_levels(
 	input.seed = static_cast<uint32_t>(p_seed);
 	input.tries = p_tries;
 	input.solid_floor = solid_floor;
+	input.pin = pin;
 	for (int level = 0; level < 3; level++) {
 		for (int h = 1; h < 255; h++) {
 			input.shapes[static_cast<size_t>(level)][static_cast<size_t>(h)] =

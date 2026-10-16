@@ -50,6 +50,9 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_cell_level", "pos"), &MCGrid::get_cell_level);
 	ClassDB::bind_method(D_METHOD("randomize_levels", "seed", "tries"), &MCGrid::randomize_levels, DEFVAL(300));
 	ClassDB::bind_method(D_METHOD("get_last_plan"), &MCGrid::get_last_plan);
+	ClassDB::bind_method(D_METHOD("set_pin", "hash", "level", "mesh"), &MCGrid::set_pin);
+	ClassDB::bind_method(D_METHOD("clear_pin"), &MCGrid::clear_pin);
+	ClassDB::bind_method(D_METHOD("get_pin_cell"), &MCGrid::get_pin_cell);
 
 	ClassDB::bind_method(D_METHOD("set_tile_library", "node"), &MCGrid::set_tile_library);
 	ClassDB::bind_method(D_METHOD("get_tile_library"), &MCGrid::get_tile_library);
@@ -159,6 +162,8 @@ void MCGrid::initialize_grid(
 	placed_list.clear();
 	_clear_placed_objects(); // their grid positions mean nothing in the new grid
 	roof_m.clear(); // no M roof choices in a new grid
+	pin = mc::LevelPin(); // nor a pin
+	pin_mesh.unref();
 
 	if (p_refresh) {
 		refresh_grid();

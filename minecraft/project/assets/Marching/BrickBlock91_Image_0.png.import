@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ctqcfwp2qnwyl"
-path="res://.godot/imported/BrickBlock91_Image_0.png-7eac52535b799e7fc83646e82429724d.ctex"
+path.s3tc="res://.godot/imported/BrickBlock91_Image_0.png-7eac52535b799e7fc83646e82429724d.s3tc.ctex"
+path.etc2="res://.godot/imported/BrickBlock91_Image_0.png-7eac52535b799e7fc83646e82429724d.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "0c0c849e159cacacde08cf22a028a0db"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/Marching/BrickBlock91_Image_0.png"
-dest_files=["res://.godot/imported/BrickBlock91_Image_0.png-7eac52535b799e7fc83646e82429724d.ctex"]
+dest_files=["res://.godot/imported/BrickBlock91_Image_0.png-7eac52535b799e7fc83646e82429724d.s3tc.ctex", "res://.godot/imported/BrickBlock91_Image_0.png-7eac52535b799e7fc83646e82429724d.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

@@ -15,6 +15,7 @@
 #include "marching_cubes/grid/mc_chunk_builder.h"
 #include "marching_cubes/grid/mc_placed_objects.h"
 #include <cstdint>
+#include <godot_cpp/classes/mesh.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
@@ -26,6 +27,7 @@ namespace godot {
 class Camera3D;
 class BoxMesh;
 class MCTileLibrary;
+class Mesh;
 class MeshInstance3D;
 class StandardMaterial3D;
 
@@ -42,6 +44,8 @@ private:
 	std::vector<uint8_t> cell_levels; // per cell (mc::CellBlock order): which level's tile it draws
 	std::vector<uint8_t> roof_m; // per cell: roof regions Randomize made M (kept through edits)
 	mc::LevelPlan last_plan; // the last Randomize
+	mc::LevelPin pin; // one library tile fixed in the grid (Randomize plans around it)
+	Ref<Mesh> pin_mesh; // the pinned tile's own mesh, drawn at its cell
 	std::vector<Chunk> chunks;
 	MCPlacedObjects placed_list; // boxes placed in object mode
 	int total_tiles_drawn = 0; // tiles drawn (cells with a mesh)
@@ -83,6 +87,8 @@ private:
 	uint8_t _level_at(const Vector3i &p_cell) const;
 	// Recompute every cell's level from the corners; cells whose level changed are marked dirty.
 	void _update_levels();
+	// The pin, while its cell still has the pinned hash (an edit there drops it); else nullptr.
+	const mc::LevelPin *_live_pin() const;
 	// Write one global corner into every chunk that stores it (no boundary check, no rebuild).
 	void _write_corner(
 			const Vector3i &p_grid_pos,
@@ -195,6 +201,17 @@ public:
 			int p_seed,
 			int p_tries = 300
 	);
+	// Pin one tile (hash, level 'l' / 'm' / 'h', its mesh): its cell is the middle column, in the
+	// bottom layer for L, one up for M, the top layer for H. Randomize keeps it and plans around it.
+	void set_pin(
+			int p_hash,
+			const String &p_level,
+			const Ref<Mesh> &p_mesh
+	);
+	// Remove the pin (the cell keeps its corners until the next Randomize).
+	void clear_pin();
+	// The pinned cell, or (-1, -1, -1) when nothing is pinned.
+	Vector3i get_pin_cell() const;
 	// The last Randomize as data: hashes / levels (PackedByteArray, x fastest, then y, then z;
 	// 0 L, 1 M, 2 H), size, gaps, column_breaks, bottom_solved.
 	Dictionary get_last_plan() const;

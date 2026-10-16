@@ -86,6 +86,7 @@ class MCTILES_PT_main(bpy.types.Panel):
         box.prop(settings, "kind")
         if settings.kind == "CUBE":
             box.prop(settings, "mode")
+            box.prop(settings, "build_from_pieces")
         row = box.row(align=True)
         row.prop(settings, "export_path")
         row.operator("mc_tiles.export_set", text="", icon="EXPORT")
@@ -93,7 +94,7 @@ class MCTILES_PT_main(bpy.types.Panel):
         tiles = set_roots(collection)
         if settings.kind == "CUBE":
             # Count groups covered, not objects: a rotated copy or a full block doesn't count.
-            report = cube.check(tiles.keys(), settings.mode, pieces=True)
+            report = cube.check(tiles.keys(), settings.mode, pieces=settings.build_from_pieces)
             covered = report.expected - len(report.missing)
             icon = "CHECKMARK" if covered == report.expected else "INFO"
             box.label(text=f"Shapes covered: {covered} / {report.expected}", icon=icon)
@@ -181,7 +182,7 @@ class MCTILES_PT_check(bpy.types.Panel):
         collection = _active_set(context)
         mode = collection.mc_tiles.mode
         tiles = set_roots(collection)
-        report = cube.check(tiles.keys(), mode, pieces=True)
+        report = cube.check(tiles.keys(), mode, pieces=collection.mc_tiles.build_from_pieces)
         clashes = variant_clashes(collection)
 
         draw_seams(layout, context, collection)

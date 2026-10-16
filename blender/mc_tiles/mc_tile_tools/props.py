@@ -30,6 +30,13 @@ class MCTilesSetProps(bpy.types.PropertyGroup):
     kind: bpy.props.EnumProperty(name="Kind", items=KIND_ITEMS, default="CUBE")
     mode: bpy.props.EnumProperty(name="Mode", items=MODE_ITEMS, default="68", update=_on_mode)
     piece_sources: bpy.props.CollectionProperty(type=MCTilesPieceSource)
+    build_from_pieces: bpy.props.BoolProperty(
+        name="Build from Pieces",
+        description="Shapes the set has no tile for (even turned / mirrored) are made from smaller tiles "
+                    "overlapping: drawn in the playground, written by Export. Off: only the modelled tiles "
+                    "(and their turns / mirrors) are used, for a set that already has every tile it needs",
+        default=True,
+    )
     export_path: bpy.props.StringProperty(
         name="Export",
         description="The .glb this set exports to",

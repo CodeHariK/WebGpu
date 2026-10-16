@@ -33,9 +33,20 @@ Cell step(
 struct Layout {
 	CellBlock block;
 	std::vector<uint8_t> grid;
+	std::vector<uint8_t> fixed; // 1 = a pinned corner: never changed
+	int pin_cell = -1; // cell index of the pin, -1 = none
+	uint8_t pin_level = LEVEL_M;
 
 	explicit Layout(const CellBlock &p_block) :
-			block(p_block), grid(static_cast<size_t>(p_block.corner_count()), UNSET) {}
+			block(p_block),
+			grid(static_cast<size_t>(p_block.corner_count()), UNSET),
+			fixed(static_cast<size_t>(p_block.corner_count()), 0) {}
+
+	// Remember the pin's cell and level (p_fix_corners: also write and lock its 8 corners).
+	void set_pin(
+			const LevelPin *p_pin,
+			bool p_fix_corners
+	);
 
 	// Grid index of corner p_bit of a cell.
 	int key(
@@ -90,6 +101,29 @@ struct Layout {
 	}
 };
 
+void Layout::set_pin(
+		const LevelPin *p_pin,
+		bool p_fix_corners
+) {
+	if (!p_pin || !p_pin->active) {
+		return;
+	}
+	Cell cell = { p_pin->x, p_pin->y, p_pin->z };
+	if (!inside(cell)) {
+		return;
+	}
+	pin_cell = static_cast<int>(this->cell(cell));
+	pin_level = p_pin->level;
+	if (!p_fix_corners) {
+		return;
+	}
+	for (int bit = 0; bit < 8; bit++) {
+		size_t k = static_cast<size_t>(key(cell, bit));
+		grid[k] = static_cast<uint8_t>((p_pin->hash >> bit) & 1);
+		fixed[k] = 1;
+	}
+}
+
 // Call p_fn(cell) for every cell with y >= p_from_y.
 template <typename F>
 void for_cells(
@@ -116,7 +150,11 @@ void set_faces(
 	for (int z = 0; z <= b.z; z++) {
 		for (int y = 0; y <= b.y; y++) {
 			for (int x = 0; x <= b.x; x++) {
-				uint8_t &corner = p_layout.grid[static_cast<size_t>(b.corner_index(x, y, z))];
+				size_t k = static_cast<size_t>(b.corner_index(x, y, z));
+				uint8_t &corner = p_layout.grid[k];
+				if (p_layout.fixed[k]) {
+					continue; // the pin's corners
+				}
 				if (y == 0 && p_solid_floor) {
 					corner = 1;
 				} else if (x == 0 || x == b.x || z == 0 || z == b.z || y == b.y) {
@@ -215,6 +253,14 @@ void spread_roofs(Layout &p_layout) {
 				if (!p_layout.inside(other) || p_layout.roof(other) || !p_layout.joined(cell, other)) {
 					continue;
 				}
+				bool pinned = false; // a neighbour keeping a pinned corner stays as it is
+				for (int bit : TOP_BITS) {
+					size_t k = static_cast<size_t>(p_layout.key(other, bit));
+					pinned = pinned || (p_layout.fixed[k] && p_layout.grid[k] == 1);
+				}
+				if (pinned) {
+					continue;
+				}
 				for (int bit : TOP_BITS) {
 					p_layout.grid[static_cast<size_t>(p_layout.key(other, bit))] = 0;
 				}
@@ -236,11 +282,18 @@ std::vector<uint8_t> find_h_cells(
 		size_t i = p_layout.cell(cell);
 		h_cells[i] = p_layout.roof(cell) && !(use_m && (*p_roof_m)[i]);
 	});
+	size_t pin = static_cast<size_t>(p_layout.pin_cell);
+	if (p_layout.pin_cell >= 0) {
+		h_cells[pin] = p_layout.pin_level == LEVEL_H; // a pinned H stays H (and is never demoted)
+	}
 	bool changed = true;
 	while (changed) {
 		changed = false;
 		for_cells(p_layout.block, 1, [&](const Cell &cell) {
 			if (!h_cells[p_layout.cell(cell)]) {
+				return;
+			}
+			if (p_layout.pin_cell >= 0 && p_layout.cell(cell) == pin) {
 				return;
 			}
 			for (const auto &dir : SIDES) {
@@ -276,6 +329,9 @@ std::vector<uint8_t> levels_of(
 			levels[i] = LEVEL_H;
 		}
 	});
+	if (p_layout.pin_cell >= 0) {
+		levels[static_cast<size_t>(p_layout.pin_cell)] = p_layout.pin_level;
+	}
 	return levels;
 }
 
@@ -311,7 +367,9 @@ std::vector<uint8_t> choose_m_roofs(
 				}
 			}
 		}
-		bool m_draws_all = std::all_of(region.begin(), region.end(), [&](const Cell &c) { return p_m_shapes[p_layout.hash(c)]; });
+		bool m_draws_all = std::all_of(region.begin(), region.end(), [&](const Cell &c) {
+			return p_m_shapes[p_layout.hash(c)] && static_cast<int>(p_layout.cell(c)) != p_layout.pin_cell;
+		});
 		if (m_draws_all && coin(p_rng) < p_chance) {
 			for (const Cell &c : region) {
 				roof_m[p_layout.cell(c)] = 1;
@@ -336,9 +394,12 @@ int clear_above_h(
 				Cell cell = { x, y, z };
 				if (above_h) {
 					for (int bit : TOP_BITS) {
-						uint8_t &corner = p_layout.grid[static_cast<size_t>(p_layout.key(cell, bit))];
-						cleared += corner == 1 ? 1 : 0;
-						corner = 0;
+						size_t k = static_cast<size_t>(p_layout.key(cell, bit));
+						if (p_layout.fixed[k]) {
+							continue; // the pin's corners
+						}
+						cleared += p_layout.grid[k] == 1 ? 1 : 0;
+						p_layout.grid[k] = 0;
 					}
 				} else if (p_levels[p_layout.cell(cell)] == LEVEL_H && p_layout.hash(cell) != 0) {
 					above_h = true;
@@ -372,6 +433,28 @@ int count_column_breaks(const LevelPlan &p_plan) {
 	return breaks;
 }
 
+// H cells joined side by side to a cell of another level (each pair counted once per H cell).
+int count_side_breaks(
+		const Layout &p_layout,
+		const std::vector<uint8_t> &p_levels
+) {
+	int breaks = 0;
+	for_cells(p_layout.block, 1, [&](const Cell &cell) {
+		size_t i = p_layout.cell(cell);
+		if (p_levels[i] != LEVEL_H) {
+			return;
+		}
+		for (const auto &dir : SIDES) {
+			Cell other = step(cell, dir);
+			if (p_layout.inside(other) && p_levels[p_layout.cell(other)] != LEVEL_H && p_layout.hash(other) != 0 &&
+				p_layout.joined(cell, other)) {
+				breaks++;
+			}
+		}
+	});
+	return breaks;
+}
+
 bool has_any(const std::array<bool, 256> &p_shapes) {
 	return std::any_of(p_shapes.begin(), p_shapes.end(), [](bool b) { return b; });
 }
@@ -384,6 +467,7 @@ LevelPlan plan_once(
 	bool have_l = has_any(p_input.shapes[LEVEL_L]);
 	bool have_h = has_any(p_input.shapes[LEVEL_H]);
 	Layout layout(p_input.block);
+	layout.set_pin(&p_input.pin, true);
 	set_faces(layout, p_input.solid_floor);
 	LevelPlan plan;
 	plan.block = p_input.block;
@@ -412,11 +496,12 @@ LevelPlan plan_once(
 		size_t i = layout.cell(cell);
 		uint8_t h = layout.hash(cell);
 		plan.hashes[i] = h;
-		if (h != 0 && h != 255 && !p_input.shapes[plan.levels[i]][h]) {
+		if (h != 0 && h != 255 && !p_input.shapes[plan.levels[i]][h] && static_cast<int>(i) != layout.pin_cell) {
 			plan.gaps++;
 		}
 	});
 	plan.column_breaks = count_column_breaks(plan);
+	plan.side_breaks = count_side_breaks(layout, plan.levels);
 	plan.corners = std::move(layout.grid);
 	return plan;
 }
@@ -428,10 +513,12 @@ std::vector<uint8_t> assign_levels(
 		const std::vector<uint8_t> &p_corners,
 		bool p_have_l,
 		bool p_have_h,
-		const std::vector<uint8_t> *p_roof_m
+		const std::vector<uint8_t> *p_roof_m,
+		const LevelPin *p_pin
 ) {
 	Layout layout(p_block);
 	layout.grid = p_corners;
+	layout.set_pin(p_pin, false);
 	return levels_of(layout, p_have_l, p_have_h, p_roof_m);
 }
 
@@ -460,13 +547,14 @@ LevelPlan plan_levels(const LevelPlanInput &p_input) {
 	for (int attempt = 0; attempt < tries; attempt++) {
 		std::mt19937 rng(p_input.seed * 7919u + static_cast<uint32_t>(attempt));
 		LevelPlan plan = plan_once(p_input, rng);
-		bool better = !have_best || plan.column_breaks < best.column_breaks ||
-				(plan.column_breaks == best.column_breaks && plan.gaps < best.gaps);
+		int breaks = plan.column_breaks + plan.side_breaks;
+		int best_breaks = best.column_breaks + best.side_breaks;
+		bool better = !have_best || breaks < best_breaks || (breaks == best_breaks && plan.gaps < best.gaps);
 		if (better) {
 			best = std::move(plan);
 			have_best = true;
 		}
-		if (best.column_breaks == 0 && best.gaps == 0) {
+		if (best.column_breaks == 0 && best.side_breaks == 0 && best.gaps == 0) {
 			break;
 		}
 	}

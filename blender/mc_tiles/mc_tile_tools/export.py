@@ -9,8 +9,8 @@ Same result as the old script, but per set and without the "everything visible" 
       variants.py); Godot reads the first 8 digits and the tag (height, group, number)
     - every role (height + group) is written; cube sets: within each role, a shape modelled only
       as its left/right mirror image is written as a flipped copy ("mirror on export"), so a 68
-      set needs only 53 modelled tiles, and a shape it can build from its own pieces is built (so
-      Godot's L / M / H tables have the same shapes as the add-on's playground levels)
+      set needs only 53 modelled tiles, and (with Build from Pieces on) a shape it can build from its
+      own pieces is built (so Godot's L / M / H tables have the same shapes as the playground levels)
     - cube sets: a shape with no tile and no mirror is built from smaller tiles overlapping (pieces.py,
       every solid edge / full face inside one piece): their meshes, turned / flipped, joined into one tile
     - generated tiles (mirror copies, built tiles) are placed above the tile they come from, LIFT
@@ -227,7 +227,8 @@ def export_set(collection):
             stacks = {}  # exported tile name -> copies stacked above it so far
             for role, tiles in roles.items():  # mirrors and pieces within each role, never mixed
                 exported += _mirror_copies(collection, tiles, by_hash[role], temp, mesh_names, stacks)
-                exported += _built_copies(collection, tiles, by_hash[role], temp, mesh_names, stacks, role)
+                if collection.mc_tiles.build_from_pieces:  # off: only modelled tiles (and mirrors)
+                    exported += _built_copies(collection, tiles, by_hash[role], temp, mesh_names, stacks, role)
 
         os.makedirs(os.path.dirname(path), exist_ok=True)
         _select_only(exported, exported[0])

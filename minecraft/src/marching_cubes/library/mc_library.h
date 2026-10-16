@@ -42,6 +42,15 @@ struct MCTile {
 	Ref<Mesh> mesh_for_cell(const Vector3i &p_cell) const;
 };
 
+// One mesh of the .glb as Blender laid it out: shown by build_showcase where it was in Blender.
+struct MCShowcaseTile {
+	Ref<Mesh> mesh;
+	Transform3D transform; // the node's transform in the .glb (Blender's position)
+	String name; // "00001100_la1" (hash + tag, without the set name)
+	uint8_t hash = 0;
+	char height = 'm'; // tag height: 'l', 'm', 'h'
+};
+
 // The tiles of one level: tiles[hash] and the modelled hashes in load order.
 struct MCTileLevel {
 	MCTile tiles[256];
@@ -61,6 +70,7 @@ private:
 	// Hashes of the modelled M a tiles in load order (fewest corners first, then hash).
 	std::vector<uint8_t> loaded_hashes;
 
+	std::vector<MCShowcaseTile> showcase_tiles; // every loaded mesh, at its Blender position
 	MCTileLevel ground; // L a ("_la1"): bottom layer only
 	MCTileLevel roof; // H a ("_ha1"): roof cells (column tops)
 
@@ -85,8 +95,11 @@ public:
 
 	// Read every tile (and variant) from the .glb into tiles[], replacing what was there.
 	void load_tiles();
-	// Debug: one row per modelled tile with every hash it fills, labelled, as child nodes.
+	// Every loaded mesh where it was in Blender (Arrange there, then Export), labelled, each with a
+	// click box on LAYER_TILE_LIBRARY (metadata: mc_hash, mc_level, mc_name, mc_mesh) to pin it.
 	void build_showcase();
+	// The showcase's bounds in world space (empty AABB before build_showcase).
+	AABB get_showcase_bounds() const;
 	// Fill empty entries of every level by turning each loaded tile about Y; returns how many M a
 	// entries were filled.
 	int fill_by_y_turns();
