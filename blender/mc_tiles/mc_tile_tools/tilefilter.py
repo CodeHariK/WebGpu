@@ -25,6 +25,7 @@ from . import cube
 from .modes import has_overhang
 from .names import untidy
 from .tiles import tile_hash, tile_variants, variant_clashes
+from .variants import name_role
 
 MARK = "mc_filter_hidden"  # custom property on objects this filter hid
 
@@ -130,10 +131,13 @@ def shown_tiles(collection, f):
     sources = {source for source, _, _ in placed} if placed else None  # turned / mirrored / pieces
 
     shown = {}
-    for h, objs in tile_variants(collection, kind).items():
+    for h, objs in tile_variants(collection, kind, role=None).items():  # every role (L, M, H)
         passes = _hash_passes(f, h, len(objs), is_cube, problems, family, collection.mc_tiles.mode)
-        for i, obj in enumerate(objs):
-            base_ok = i == 0 or f.variants != "BASE"
+        bases = {}  # the first tile of each role is its base
+        for obj in objs:
+            bases.setdefault(name_role(obj.name), obj)
+        for obj in objs:
+            base_ok = bases[name_role(obj.name)] is obj or f.variants != "BASE"
             found = h in sources if sources is not None else search_matches(search, h, obj.name)
             shown[obj] = passes and base_ok and found
     return shown

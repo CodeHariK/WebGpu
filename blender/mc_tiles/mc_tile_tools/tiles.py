@@ -54,8 +54,9 @@ def ignored_objects(collection):
 
 def tile_variants(collection, kind, role=MAIN_ROLE):
     """{hash: [object, ...]} for the tiles of one role (height, group; variants.py), numbers in
-    order ("_ma2" after the base). The main role (M a) by default, which is what Check, Arrange,
-    Playground and the rest work on; role=None gives every role mixed (e.g. to list all tiles)."""
+    order ("_ma2" after the base). The main role (M a) by default, which is what Check and the
+    piece / coverage rules work on; role=None gives every role (main role first), for listing,
+    labels, corner boxes and Arrange."""
     ignored = ignored_objects(collection)
     found = {}
     for obj in collection.all_objects:
@@ -67,8 +68,13 @@ def tile_variants(collection, kind, role=MAIN_ROLE):
         if h is not None:
             found.setdefault(h, []).append(obj)
     for objs in found.values():
-        objs.sort(key=lambda o: (name_tag(o.name), o.name))
+        objs.sort(key=lambda o: (role_order(name_role(o.name)), name_tag(o.name)[2], o.name))
     return found
+
+
+def role_order(role):
+    """Sort key for roles: the main role (M a) first, then L, M, H, each by group."""
+    return role != MAIN_ROLE, "lmh".index(role[0]), role[1]
 
 
 def tiles_by_role(collection, kind):
@@ -77,7 +83,7 @@ def tiles_by_role(collection, kind):
     for h, objs in tile_variants(collection, kind, role=None).items():
         for obj in objs:
             roles.setdefault(name_role(obj.name), {}).setdefault(h, []).append(obj)
-    return dict(sorted(roles.items(), key=lambda kv: (kv[0] != MAIN_ROLE, "lmh".index(kv[0][0]), kv[0][1])))
+    return dict(sorted(roles.items(), key=lambda kv: role_order(kv[0])))
 
 
 def variant_clashes(collection):

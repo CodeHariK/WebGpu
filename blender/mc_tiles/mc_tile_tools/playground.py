@@ -13,7 +13,8 @@ How it works:
          M  every other cell above the bottom layer; M roof shapes can top a column too.
        Each level uses only its own role's tiles and chosen pieces: turned 0-3 quarter turns about Z
        (Godot's Y), then mirrored, then built from that level's pieces. The role is the selected
-       tile's group (a if the set has none of that group). Variant number: picked per cell.
+       tile's group (a if the set has none of that group). Variant number: Godot's per-cell pick
+       (variants.variant_index) for the copy's world cell, shifted by the seed so Shuffle varies it.
     4. The bottom layer's corners are solved (backtracking) so every bottom cell is an L shape. The
        rest are random (a Heightmap set: random column heights). Roof cells spread to the side
        neighbours they are joined to (their top corners cleared) so H regions stay whole.
@@ -42,7 +43,7 @@ from mathutils import Matrix, Vector
 from . import cube
 from . import view
 from .tiles import tile_hash, tile_variants, tiles_by_role
-from .variants import MAIN_ROLE, name_role, name_tag, tag_text, variant_index
+from .variants import MAIN_ROLE, name_tag, tag_text, variant_index
 
 COLLECTION_NAME = "Playground"
 MISSING_MATERIAL = "MC_Missing"
@@ -444,30 +445,24 @@ def _placed(tiles, mode):
 def _level_tiles(tile_set, group):
     """{height: {hash: [(objects, turns, mirrored, tile hash), ...]}} for L, M and H in `group` (group a
     when the set has none of that group); a height with nothing is left out. Each level has only its
-    own role's tiles and chosen pieces (from set_tiles, the same tiles Godot draws with): an L wall
-    piece never fills an M cell."""
+    own role's tiles (piece_lib.set_tiles: for M a with its chosen M a pieces), so an L wall piece
+    never fills an M cell; shapes a level has no tile for are built from that level's own tiles."""
     from .piece_lib import set_tiles
 
     mode = tile_set.mc_tiles.mode
-    kit = set_tiles(tile_set)  # main-role tiles + chosen pieces of any role
-    by_role = tiles_by_role(tile_set, "CUBE")
-    pieces = {o for objs in kit.values() for o in objs if name_role(o.name) != MAIN_ROLE}
+    have = tiles_by_role(tile_set, "CUBE")
     out = {}
     for height in ("l", "m", "h"):
-        role = (height, group) if (height, group) in by_role else (height, "a")
-        if role == MAIN_ROLE:
-            tiles = {h: [o for o in objs if name_role(o.name) == role] for h, objs in kit.items()}
-        else:
-            tiles = {h: list(objs) for h, objs in by_role.get(role, {}).items()}
-            for obj in pieces:  # a chosen piece of this role (often a linked copy of the tile)
-                if name_role(obj.name) == role:
-                    h = tile_hash(obj.name, "CUBE")
-                    if obj not in tiles.get(h, []):
-                        tiles.setdefault(h, []).insert(0, obj)
-        tiles = {h: objs for h, objs in tiles.items() if objs}
+        role = (height, group) if (height, group) in have else (height, "a")
+        tiles = set_tiles(tile_set, role)
         if tiles:
             out[height] = _placed(tiles, mode)
     return out
+
+
+def godot_cell(position):
+    """The Godot grid cell (x, y up, z towards the viewer) of a Blender cell centre."""
+    return math.floor(position.x), math.floor(position.z), -math.floor(position.y) - 1
 
 
 def build(scene, tile_set, centre_hash, seed, near=None):
@@ -511,7 +506,8 @@ def build(scene, tile_set, centre_hash, seed, near=None):
                     continue
                 role = "centre" if cell == centre else "neighbour"
                 for options, turns, mirrored, base in levels[level][h]:  # several for a shape from pieces
-                    tile = options[variant_index(x, y, z, len(options))]
+                    gx, gy, gz = godot_cell(position)  # same pick as Godot at this world cell,
+                    tile = options[variant_index(gx + seed * SIZE, gy, gz, len(options))]  # moved by Shuffle
                     root = _copy_tile(tile, collection, position, turns, h, role, mirrored)
                     root[REF_LABEL] = (f"{h:08b} {tag_text(*name_tag(tile.name))} {base:08b} r{turns * 90}"
                                        + (" m" if mirrored else ""))
@@ -635,7 +631,7 @@ def _run(operator, context, new_seed):
 
 
 class MCTILES_OT_playground_for(bpy.types.Operator):
-    """Build the playground around this tile, next to it"""
+    """Build the playground around this tile (in its own row behind the tile set)"""
 
     bl_idname = "mc_tiles.playground_for"
     bl_label = "Playground for Tile"

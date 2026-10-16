@@ -17,13 +17,18 @@ from .ops import select_object
 from .piece_ops import status
 from .seams_ui import conflicts
 from .tilefilter import shown_tiles
-from .tiles import tile_hash, tile_variants
-from .variants import variant_number
+from .tiles import role_order, tile_hash, tile_variants
+from .variants import name_role, variant_number
 
 
 def _variant_counts(collection):
-    """{hash: number of variant meshes} for the set."""
-    return {h: len(objs) for h, objs in tile_variants(collection, collection.mc_tiles.kind).items()}
+    """{(hash, role): number of variant meshes} for the set, every role (L, M, H)."""
+    counts = {}
+    for h, objs in tile_variants(collection, collection.mc_tiles.kind, role=None).items():
+        for obj in objs:
+            key = (h, name_role(obj.name))
+            counts[key] = counts.get(key, 0) + 1
+    return counts
 
 
 class MCTILES_UL_tiles(bpy.types.UIList):
@@ -36,8 +41,8 @@ class MCTILES_UL_tiles(bpy.types.UIList):
         icon = {"linked": "LINKED", "edited": "MODIFIER_ON", "detached": "UNLINKED"}.get(state, "MESH_CUBE")
         split.label(text=item.name, icon=icon)
         rest = split.row(align=True)
-        # Variant column: "1/2" = variant 1 of the 2 meshes this hash has; "1" when it has one.
-        count = _variant_counts(data).get(h, 1)
+        # Variant column: "1/2" = variant 1 of the 2 meshes this hash has in its role; "1" for one.
+        count = _variant_counts(data).get((h, name_role(item.name)), 1)
         rest.label(text=f"{variant_number(item.name)}/{count}" if count > 1 else "1")
         if kind != "CUBE" or h is None:
             return
@@ -58,16 +63,22 @@ class MCTILES_UL_tiles(bpy.types.UIList):
         objects = getattr(data, propname)
         kind = data.mc_tiles.kind
         shown = shown_tiles(data, context.scene.mc_tiles_filter)
-        # One row per hash: the base tile, shown when the filter lets it through.
-        tile_names = {objs[0].name: h for h, objs in tile_variants(data, kind).items()}
+        # One row per hash and role (M a first, then L, M, H groups): its base tile, shown when the
+        # filter lets it through.
+        tile_names = {}
+        for h, objs in tile_variants(data, kind, role=None).items():
+            for obj in objs:
+                role = name_role(obj.name)
+                tile_names.setdefault((h, role), obj.name)
+        rows = {name: key for key, name in tile_names.items()}
 
         flags = []
         order = []
         for obj in objects:
-            h = tile_names.get(obj.name)
-            visible = h is not None and shown.get(obj, False)
+            key = rows.get(obj.name)
+            visible = key is not None and shown.get(obj, False)
             flags.append(self.bitflag_filter_item if visible else 0)
-            order.append(h if h is not None else 1000)
+            order.append((key[0], role_order(key[1])) if key is not None else (1000,))
         # Sort rows by hash: new_order[i] is the row position of item i.
         ranked = sorted(range(len(order)), key=lambda i: order[i])
         new_order = [0] * len(order)

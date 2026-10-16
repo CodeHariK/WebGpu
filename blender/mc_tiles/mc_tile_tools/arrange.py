@@ -61,8 +61,8 @@ def entries(collection, scene):
     from .piece_lib import set_tiles
 
     mode = collection.mc_tiles.mode
-    variants = tile_variants(collection, "CUBE")
-    drawn = set_tiles(collection)  # own tiles + pieces borrowed from other collections
+    variants = tile_variants(collection, "CUBE", role=None)  # every role: L / H go behind M a
+    drawn = set_tiles(collection)  # M a tiles + pieces borrowed from other collections
     report = cube.check(drawn.keys(), mode, pieces=True)
     own = {o for objs in variants.values() for o in objs}
     settings = scene.mc_tiles_arrange
@@ -159,7 +159,7 @@ def _home(obj):
 
 def _origin(collection):
     """Top-left of the layout: the set's own top-left (+Y), from home positions, so it stays put."""
-    roots = [o for objs in tile_variants(collection, "CUBE").values() for o in objs]
+    roots = [o for objs in tile_variants(collection, "CUBE", role=None).values() for o in objs]
     if not roots:
         return Vector((0.0, 0.0, 0.0))
     homes = [_home(o) for o in roots]
@@ -272,7 +272,7 @@ def _one_per_mesh(items):
 def restore(collection):
     """Move every arranged tile back to its own position. Returns how many moved."""
     moved = 0
-    for objs in tile_variants(collection, "CUBE").values():
+    for objs in tile_variants(collection, "CUBE", role=None).values():
         for obj in objs:
             if HOME in obj:
                 obj.matrix_world.translation = Vector(obj[HOME])
@@ -344,7 +344,8 @@ class MCTilesArrangeProps(bpy.types.PropertyGroup):
                                    default=12, min=1, max=100)
     variants_behind: bpy.props.BoolProperty(
         name="Variants Behind", default=True,
-        description="Put _v2, _v3... behind their base tile instead of in their own slots",
+        description="Put variants (_ma2, _ma3...) and the L / H tiles of a hash behind its base tile "
+                    "instead of in their own slots",
     )
     show_slots: bpy.props.BoolProperty(
         name="Mirror / Missing Slots", default=True,

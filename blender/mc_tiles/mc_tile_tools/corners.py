@@ -80,7 +80,7 @@ def boxes(context):
     if collection is not None and collection.mc_tiles.is_tile_set:
         kind = collection.mc_tiles.kind
         if kind == "CUBE":
-            for objs in tile_variants(collection, kind).values():
+            for objs in tile_variants(collection, kind, role=None).values():
                 for obj in objs:
                     add(obj, tile_hash(obj.name, kind))
     for obj in scene.objects:

@@ -11,9 +11,11 @@ the original updates it), named "<hash>.<set>" because the bare hash name belong
 dropdown swaps the copy; choosing a tile of the set itself removes it. So the set always holds its
 pieces and everything else (arrange, export, playground...) only looks at the set.
 
-set_tiles(collection): the set's tiles, with each piece group reduced to its chosen piece (other
-tiles of that group in the set, e.g. a placeholder, are left out). Choices are saved on the set
-(Collection.mc_tiles.piece_sources).
+set_tiles(collection, role): one role's tiles (variants.py: height + group). For the main role (M a)
+each piece group is reduced to its chosen piece (other tiles of that group in the set, e.g. a
+placeholder, are left out); a chosen piece of another role (an L or H tile) is never drawn as M a,
+it stays a tile of its own role. Other roles are their tiles as modelled (linked copies included).
+Choices are saved on the set (Collection.mc_tiles.piece_sources).
 """
 
 import bpy
@@ -21,6 +23,7 @@ import bpy
 from . import cube
 from .pieces import minimum_set
 from .tiles import tile_hash, tile_variants
+from .variants import MAIN_ROLE, name_role
 
 SKIP_COLLECTIONS = {"Playground", "Arrange", "MC_Export_Temp"}
 GENERATED = "mc_piece_of"  # generated tiles (piece_ops.generate_built): never offered as pieces
@@ -131,11 +134,12 @@ def sync_copies(collection):
         copy[LINKED] = source.name
 
 
-def set_tiles(collection):
-    """{hash: [objects]} the set draws with: its tiles, each piece group swapped for its chosen source."""
+def set_tiles(collection, role=MAIN_ROLE):
+    """{hash: [objects]} one role draws with: its tiles; for the main role each piece group swapped
+    for its chosen source (only a source of the main role)."""
     settings = collection.mc_tiles
-    tiles = tile_variants(collection, settings.kind)
-    if settings.kind != "CUBE" or not len(settings.piece_sources):
+    tiles = tile_variants(collection, settings.kind, role)
+    if role != MAIN_ROLE or settings.kind != "CUBE" or not len(settings.piece_sources):
         return tiles
     out = dict(tiles)
     own = {o for objs in tiles.values() for o in objs}
@@ -145,12 +149,13 @@ def set_tiles(collection):
             continue
         group = piece_group(item.hash)
         mine = source if source in own else _linked_copy(collection, item.hash)
-        if mine is None:
-            continue
+        if mine is None or name_role(mine.name) != MAIN_ROLE:
+            continue  # an L / H tile is its own role's tile, never an M a piece
         h = tile_hash(mine.name, "CUBE")
         for g in group:  # only the chosen piece draws its group (a placeholder of the set is left out)
             out.pop(g, None)
-        out[h] = [mine]
+        # The chosen piece with its own variants (_ma2...): a piece of the set keeps them all.
+        out[h] = list(tiles[h]) if mine in own and h in tiles else [mine]
     return out
 
 

@@ -51,7 +51,8 @@ def untidy(collection):
             if obj.name == wanted:
                 continue
             owner = bpy.data.objects.get(wanted)
-            if owner is not None and owner not in mine and "." in obj.name and name_tag(obj.name) == (height, group, number):
+            base = obj.name.split(".")[0]
+            if owner is not None and owner not in mine and "." in obj.name and base in (wanted, wanted.split("_")[0]):
                 continue  # another set owns the name: "hash_ma1.setname" / "hash.setname" is clean here
             out.append((obj, wanted))
     return out

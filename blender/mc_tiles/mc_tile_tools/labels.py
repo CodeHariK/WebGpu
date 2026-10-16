@@ -26,7 +26,7 @@ def _labels(context):
     collection = scene.mc_tiles_active
     out = []
     if collection is not None and collection.mc_tiles.is_tile_set:
-        for objs in tile_variants(collection, collection.mc_tiles.kind).values():
+        for objs in tile_variants(collection, collection.mc_tiles.kind, role=None).values():
             for obj in objs:
                 if obj.visible_get():
                     out.append((obj.matrix_world.translation, obj.name, COLOURS["TILE"]))

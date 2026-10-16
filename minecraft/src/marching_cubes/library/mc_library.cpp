@@ -72,7 +72,8 @@ struct LoadMeta {
 	MeshInstance3D *mi = nullptr;
 	int ones_count = 0;
 	uint8_t hash = 0;
-	int variant = 1; // "_v2" suffix -> 2
+	int variant = 1; // tag number: "_ma2" (or the old "_v2") -> 2
+	bool main_role = true; // tag is M a (or untagged): the tiles this library draws
 	bool is_valid = true;
 
 	LoadMeta(
@@ -96,7 +97,9 @@ struct LoadMeta {
 			}
 			if (is_valid) {
 				hash = mc::binary_to_hash(p_bin);
-				variant = mc::variant_number(child->get_name());
+				mc::TileTag tag = mc::tile_tag(child->get_name());
+				variant = tag.number;
+				main_role = tag.is_main_role();
 			}
 		} else {
 			is_valid = false;
@@ -116,7 +119,7 @@ struct LoadMeta {
 	}
 };
 
-// Instantiate the .glb, read every node named like a tile (hash + optional _vN) into tiles[],
+// Instantiate the .glb, read every node named like a tile (hash + tag, or the old _vN) into tiles[],
 // variants in number order, and list the modelled hashes in loaded_hashes.
 void MCTileLibrary::load_tiles() {
 	for (int i = 0; i < 256; i++) {
@@ -134,8 +137,9 @@ void MCTileLibrary::load_tiles() {
 		return;
 	}
 
-	// 1. Collect all candidates
+	// 1. Collect all candidates (M a only: L / H and other groups are not placed yet)
 	std::vector<LoadMeta> candidates;
+	int other_roles = 0;
 	TypedArray<Node> children = inst->get_children();
 	for (int i = 0; i < children.size(); i++) {
 		Node *child = Object::cast_to<Node>(children[i]);
@@ -152,12 +156,20 @@ void MCTileLibrary::load_tiles() {
 
 		if (mi && mi->get_mesh().is_valid()) {
 			LoadMeta meta(child, mi);
-			if (meta.is_valid) {
+			if (meta.is_valid && !meta.main_role) {
+				other_roles++;
+			} else if (meta.is_valid) {
 				candidates.push_back(meta);
 			} else {
 				UtilityFunctions::print("MCTileLibrary: Skipping mesh with invalid name: ", child->get_name());
 			}
 		}
+	}
+
+	if (other_roles > 0) {
+		UtilityFunctions::print(
+				"MCTileLibrary: ", other_roles, " L / H / other-group tiles left out (only M a is drawn for now)."
+		);
 	}
 
 	// 2. Sort by bit-density (number of active corners)
