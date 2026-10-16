@@ -15,6 +15,9 @@ Same result as the old script, but per set and without the "everything visible" 
       every solid edge / full face inside one piece): their meshes, turned / flipped, joined into one tile
     - generated tiles (mirror copies, built tiles) are placed above the tile they come from, LIFT
       metres per copy, so nothing in the .glb overlaps (Godot only reads the meshes)
+    - sockets (sockets.py) stay child nodes of their tile, named "socket_<type>_p<percent>" (mirror
+      copies get mirrored sockets); the set's Decor pieces are written as "decor_<type>_<n>";
+      socket previews are never written
     - written to the set's Export path (".glb" added if missing), then the copies are deleted
 """
 
@@ -28,6 +31,7 @@ from . import cube
 from .names import export_name, set_slug
 
 from .piece_lib import set_tiles
+from .sockets import CHANCE, PREVIEW, SOCKET, decor_library, export_name as socket_name, is_socket, sockets_of
 from .tiles import tiles_by_role
 from .variants import MAIN_ROLE, tag_text
 from .view import MATERIAL_NAME as DEBUG_MATERIAL
@@ -58,7 +62,9 @@ def export_path(collection):
 def _copy_tile(root, temp):
     """Copy a tile and its parts (with their own mesh data) into the temp collection."""
     copies = {}
-    for obj in [root] + list(root.children_recursive):
+    previews = {o for o in root.children_recursive if PREVIEW in o}
+    previews |= {c for o in previews for c in o.children_recursive}
+    for obj in [root] + [o for o in root.children_recursive if o not in previews]:
         copy = obj.copy()
         if obj.data is not None:
             copy.data = obj.data.copy()
@@ -123,6 +129,37 @@ def _mirror_copies(collection, tiles, by_hash, temp, mesh_names, stacks):
             copy.data.update()
             copy.name = f"{cube.mirror(source):08b}{root.name[8:]}"
             _stack_above(root, copy, stacks)
+            _mirror_sockets(root, copy, flip, temp)
+            made.append(copy)
+    return made
+
+
+def _mirror_sockets(root, copy, flip, temp):
+    """The tile's sockets, flipped like its mesh, on a mirror copy (same place relative to the tile)."""
+    to_tile = root.matrix_world.inverted()
+    for socket in sockets_of(root):
+        mirrored = bpy.data.objects.new(socket.name, None)
+        mirrored[SOCKET] = socket[SOCKET]
+        mirrored[CHANCE] = socket.get(CHANCE, 1.0)
+        temp.objects.link(mirrored)
+        mirrored.parent = copy
+        mirrored.matrix_parent_inverse = Matrix.Identity(4)
+        mirrored.matrix_basis = flip @ (to_tile @ socket.matrix_world) @ flip  # stays a proper turn
+
+
+def _decor_copies(collection, temp, mesh_names):
+    """The set's decor pieces ("decor_<type>_<n>"), rotation and scale in the mesh, origin kept."""
+    made = []
+    for kind, pieces in decor_library(collection).items():
+        for i, piece in enumerate(pieces):
+            copy = piece.copy()
+            copy.data = piece.data.copy()
+            mesh_names.add(copy.data.name)
+            temp.objects.link(copy)
+            copy.data.transform(piece.matrix_world.to_3x3().to_4x4())
+            copy.data.update()
+            copy.matrix_world = Matrix.Translation(piece.matrix_world.translation)
+            copy.name = f"decor_{kind}_{i + 1}"
             made.append(copy)
     return made
 
@@ -204,7 +241,9 @@ def export_set(collection):
         everything = list(temp.objects)
         meshes = [o for o in everything if o.type == "MESH"]
 
-        # Rotation and scale into the meshes (location kept), then modifiers.
+        # Rotation and scale into the meshes (location kept), then modifiers. Sockets keep their own
+        # turn (it says where a piece faces), so they are left out.
+        everything = [o for o in everything if not is_socket(o)]
         _select_only(everything, meshes[0] if meshes else everything[0])
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
         if meshes:
@@ -215,6 +254,12 @@ def export_set(collection):
         exported = []
         by_hash = {role: {} for role in roles}  # per role: {hash: [exported copy, ...]}
         for role, original, root in roots:
+            for socket in sockets_of(root):  # onto the tile itself, so joining parts keeps them
+                world = socket.matrix_world.copy()
+                socket.parent = root
+                socket.matrix_parent_inverse = root.matrix_world.inverted()
+                socket.matrix_world = world
+                socket.name = socket_name(socket)
             parts = [c for c in root.children_recursive if c.type == "MESH"]
             if parts and root.type == "MESH":
                 _select_only([root] + parts, root)
@@ -230,8 +275,10 @@ def export_set(collection):
                 if collection.mc_tiles.build_from_pieces:  # off: only modelled tiles (and mirrors)
                     exported += _built_copies(collection, tiles, by_hash[role], temp, mesh_names, stacks, role)
 
+        exported += _decor_copies(collection, temp, mesh_names)
+
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        _select_only(exported, exported[0])
+        _select_only(exported + [s for root in exported for s in sockets_of(root)], exported[0])
         bpy.ops.export_scene.gltf(filepath=path, use_selection=True, export_format="GLB")
         return len(exported), path
     finally:

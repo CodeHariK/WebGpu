@@ -41,6 +41,7 @@ private:
 	MCTileLibrary *tile_library = nullptr;
 	bool show_debug_corners = false;
 	bool solid_floor = true; // floor corners (y = 0) locked solid; off: editable (random on Randomize)
+	int decor_seed = 0; // socket decor roll; Randomize sets it to its seed (saved with the scene)
 	std::vector<uint8_t> cell_levels; // per cell (mc::CellBlock order): which level's tile it draws
 	std::vector<uint8_t> roof_m; // per cell: roof regions Randomize made M (kept through edits)
 	mc::LevelPlan last_plan; // the last Randomize
@@ -246,6 +247,8 @@ public:
 	// Floor corners locked solid (default) or editable / random (needed for L ground tiles).
 	void set_solid_floor(bool p_solid);
 	bool get_solid_floor() const { return solid_floor; }
+	void set_decor_seed(int p_seed);
+	int get_decor_seed() const { return decor_seed; }
 
 	// Show or hide the debug corner cubes.
 	void set_debug_corners_visible(bool p_visible);

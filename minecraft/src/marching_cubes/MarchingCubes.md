@@ -86,7 +86,7 @@ MCHeightmap::_ready
 
 | File | Functions |
 |---|---|
-| `mc_library.h/.cpp` | `MCTile` (mesh, variant_meshes, turn, source_hash) · `MCTileLevel` · `mesh_for_cell` · `_ready` · `initialize_library` · `load_tiles` (M a → tiles, L a → ground, H a → roof) · `get_tile` · `get_level_tile` · `get_tile_for_level` (M when the level has none) · `has_level` · `get_hashes_per_tile` · `set/get_tile_set_path` |
+| `mc_library.h/.cpp` | `MCTile` (mesh, variant_meshes, variant_sockets, turn, source_hash; `variant_for_cell` · `sockets_for_cell`) · `MCSocket` (`socket_<type>_p<percent>` child nodes) · decor pieces (`decor_<type>_<n>`: `get_decor` · `decor_for_socket`, rolled per cell + the grid's `decor_seed`, which Randomize sets) · `MCTileLevel` · `mesh_for_cell` · `_ready` · `initialize_library` · `load_tiles` (M a → tiles, L a → ground, H a → roof) · `get_tile` · `get_level_tile` · `get_tile_for_level` (M when the level has none) · `has_level` · `get_hashes_per_tile` · `set/get_tile_set_path` |
 | `mc_library_fill.cpp` | `fill_by_y_turns` (every level) · `report_missing` |
 | `mc_library_showcase.cpp` | `build_showcase` (every mesh at its Blender position, labelled, click box on LAYER_TILE_LIBRARY) · `get_showcase_bounds` |
 
@@ -95,9 +95,9 @@ MCHeightmap::_ready
 | File | Functions |
 |---|---|
 | `mc_grid.h/.cpp` | `_ready` · `set_grid_dims` · `set_chunk_dims` · `set/get_tile_library` · `initialize_grid` · `refresh_grid` · `_initialize_boundaries` · `_is_boundary_corner` · `set_corner` · `get_cell_hash` · `is_corner_active` |
-| `mc_grid_cells.cpp` | `_build_chunk_mesh` (tile of the cell's level, M if that level has none) · `_free_chunk_mesh` · `_mark_cell_dirty` · `_queue_rebuild` · `flush_dirty_chunks` · `_free_spawned_nodes` |
+| `mc_grid_cells.cpp` | `_build_chunk_mesh` (tile of the cell's level, M if that level has none; its sockets filled with decor, not collided) · `_free_chunk_mesh` · `_mark_cell_dirty` · `_queue_rebuild` · `flush_dirty_chunks` · `_free_spawned_nodes` |
 | `mc_grid_levels.cpp` | `_cell_block` · `_level_at` · `get_cell_level` · `_update_levels` (after every edit / refresh) · `set_solid_floor` · `set_pin` / `clear_pin` / `get_pin_cell` · `_live_pin` · `randomize_levels` · `get_last_plan` |
-| `mc_chunk_builder.h/.cpp` | `MCSurfaceCache::get / clear` · `MCChunkBuilder::add` · `_surface_for` · `_append` · `is_empty` · `commit` · `get_faces` |
+| `mc_chunk_builder.h/.cpp` | `MCSurfaceCache::get / clear` · `MCChunkBuilder::add` (p_collide false: drawn only, socket decor) · `_surface_for` · `_append` · `is_empty` · `commit` · `get_faces` |
 | `mc_grid_debug_corners.cpp` | `set/get_show_debug_corners` · `set/is_debug_corners_visible` · `set_corner_collision_enabled` · `_spawn_debug_corners` · `_update_debug_corner` · `_has_neighbor_with_state` |
 | `mc_grid_hover.cpp` | `_initialize_hover_previews` · `update_hover_preview` · `hide_hover_preview` |
 | `mc_grid_objects.cpp` | `is_area_blocked_by_grid` · `is_area_blocked_by_objects` · `add_placed_object` · `remove_placed_object` · `detach_placed_object` · `get_placed_object` · `_clear_placed_objects` |

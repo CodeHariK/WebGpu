@@ -53,6 +53,7 @@ class MCChunkBuilder {
 
 	std::vector<Surface> surfaces; // one per material, first-seen order
 	PackedVector3Array faces; // every triangle, 3 vertices each, for ConcavePolygonShape3D
+	bool collide = true; // the mesh being added goes into the collider too (decor does not)
 
 	// The surface collecting p_material's triangles (created on first use).
 	Surface &_surface_for(const Ref<Material> &p_material);
@@ -62,11 +63,13 @@ class MCChunkBuilder {
 			const Transform3D &p_xform);
 
 public:
-	// Add one placed tile (every surface of p_mesh, moved by p_xform).
+	// Add one placed tile (every surface of p_mesh, moved by p_xform); p_collide false: drawn only
+	// (socket decor), not part of the collider.
 	void
 	add(const Ref<Mesh> &p_mesh,
 		const Transform3D &p_xform,
-		MCSurfaceCache &r_cache);
+		MCSurfaceCache &r_cache,
+		bool p_collide = true);
 	// Nothing added yet (or only empty meshes).
 	bool is_empty() const { return faces.is_empty(); }
 	// One ArrayMesh with a surface per material.

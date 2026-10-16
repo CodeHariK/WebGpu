@@ -57,6 +57,17 @@ void MCTileLibrary::build_showcase() {
 		add_child(label);
 
 		add_child(make_click_box(tile));
+
+		for (const MCSocket &socket : tile.sockets) {
+			const std::vector<Ref<Mesh>> &pieces = get_decor(socket.type);
+			if (pieces.empty()) {
+				continue;
+			}
+			MeshInstance3D *piece = memnew(MeshInstance3D);
+			piece->set_mesh(pieces[0]);
+			piece->set_transform(tile.transform * socket.transform);
+			add_child(piece);
+		}
 	}
 }
 

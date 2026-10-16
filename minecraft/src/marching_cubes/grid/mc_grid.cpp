@@ -45,6 +45,9 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_solid_floor", "solid"), &MCGrid::set_solid_floor);
 	ClassDB::bind_method(D_METHOD("get_solid_floor"), &MCGrid::get_solid_floor);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "solid_floor"), "set_solid_floor", "get_solid_floor");
+	ClassDB::bind_method(D_METHOD("set_decor_seed", "seed"), &MCGrid::set_decor_seed);
+	ClassDB::bind_method(D_METHOD("get_decor_seed"), &MCGrid::get_decor_seed);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "decor_seed"), "set_decor_seed", "get_decor_seed");
 
 	ClassDB::bind_method(D_METHOD("get_cell_hash", "pos"), &MCGrid::get_cell_hash);
 	ClassDB::bind_method(D_METHOD("get_cell_level", "pos"), &MCGrid::get_cell_level);

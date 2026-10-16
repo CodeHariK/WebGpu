@@ -13,7 +13,7 @@ So int(name, 2) gives the same hash Godot uses (bit i = corner i).
 from .variants import MAIN_ROLE, name_role, name_tag, tag_text
 
 # Child collections with these names are never tiles and never exported.
-IGNORED_COLLECTIONS = {"Helpers", "Playground"}
+IGNORED_COLLECTIONS = {"Helpers", "Playground", "Decor", "SocketPreview"}  # Decor: socket pieces (sockets.py)
 
 CORNERS = {"CUBE": 8, "PRISM": 6}
 

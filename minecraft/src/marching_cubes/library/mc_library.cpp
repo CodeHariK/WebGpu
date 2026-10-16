@@ -67,9 +67,32 @@ void MCTileLibrary::set_tile_set_path(const String &p_path) { tile_set_path = p_
 // The tile-set .glb to load.
 String MCTileLibrary::get_tile_set_path() const { return tile_set_path; }
 
+// Sockets under a tile node: children named "socket_<type>_p<percent>" (Blender: sockets.py).
+static std::vector<MCSocket> read_sockets(Node *p_tile) {
+	std::vector<MCSocket> out;
+	for (int i = 0; i < p_tile->get_child_count(); i++) {
+		Node3D *child = Object::cast_to<Node3D>(p_tile->get_child(i));
+		if (!child || !String(child->get_name()).begins_with("socket_")) {
+			continue;
+		}
+		PackedStringArray parts = String(child->get_name()).get_slice(".", 0).split("_");
+		MCSocket socket;
+		socket.type = parts.size() > 1 ? parts[1] : String();
+		for (int p = 2; p < parts.size(); p++) {
+			if (parts[p].begins_with("p") && parts[p].substr(1).is_valid_int()) {
+				socket.chance = static_cast<float>(parts[p].substr(1).to_int()) / 100.0f;
+			}
+		}
+		socket.transform = child->get_transform();
+		out.push_back(socket);
+	}
+	return out;
+}
+
 struct LoadMeta {
 	Node *child = nullptr;
 	Transform3D transform; // node (and mesh instance) transform in the .glb
+	std::vector<MCSocket> sockets; // the tile's sockets
 	MeshInstance3D *mi = nullptr;
 	int ones_count = 0;
 	uint8_t hash = 0;
@@ -149,6 +172,7 @@ static bool add_loaded(
 		extra = true;
 	}
 	config.variant_meshes.push_back(meta.mi->get_mesh());
+	config.variant_sockets.push_back(meta.sockets);
 	last_variant[h] = meta.variant;
 	return extra;
 }
@@ -165,6 +189,7 @@ void MCTileLibrary::load_tiles() {
 	loaded_hashes.clear();
 	ground.loaded_hashes.clear();
 	roof.loaded_hashes.clear();
+	decor.clear();
 
 	Ref<PackedScene> scene = ResourceLoader::get_singleton()->load(tile_set_path);
 	if (scene.is_null()) {
@@ -194,8 +219,14 @@ void MCTileLibrary::load_tiles() {
 			}
 		}
 
+		if (mi && mi->get_mesh().is_valid() && String(child->get_name()).begins_with("decor_")) {
+			String type = String(child->get_name()).get_slice("_", 1); // "decor_window_2" -> window
+			decor[type].push_back(mi->get_mesh());
+			continue;
+		}
 		if (mi && mi->get_mesh().is_valid()) {
 			LoadMeta meta(child, mi);
+			meta.sockets = read_sockets(child);
 			Node3D *child_3d = Object::cast_to<Node3D>(child);
 			meta.transform = child_3d ? child_3d->get_transform() : Transform3D();
 			if (mi != child) {
@@ -228,6 +259,7 @@ void MCTileLibrary::load_tiles() {
 		shown.transform = meta.transform;
 		shown.hash = meta.hash;
 		shown.height = meta.height;
+		shown.sockets = meta.sockets;
 		shown.name = mc::hash_to_binary(meta.hash) + "_" + String::chr(meta.height) + "a" + String::num_int64(meta.variant);
 		showcase_tiles.push_back(shown);
 		bool extra = false;
@@ -291,12 +323,50 @@ bool MCTileLibrary::has_level(char p_height) const {
 	return !loaded_hashes.empty();
 }
 
+// Which variant a cell uses, chosen from the cell position (stable across rebuilds).
+size_t MCTile::variant_for_cell(const Vector3i &p_cell) const {
+	if (variant_meshes.size() <= 1) {
+		return 0;
+	}
+	return static_cast<size_t>(mc::variant_index(p_cell, static_cast<int>(variant_meshes.size())));
+}
+
 // One of the variants, chosen from the cell position (stable across rebuilds).
 Ref<Mesh> MCTile::mesh_for_cell(const Vector3i &p_cell) const {
-	if (variant_meshes.size() <= 1) {
-		return mesh;
+	return variant_meshes.empty() ? mesh : variant_meshes[variant_for_cell(p_cell)];
+}
+
+// The sockets of the variant the cell uses.
+const std::vector<MCSocket> &MCTile::sockets_for_cell(const Vector3i &p_cell) const {
+	static const std::vector<MCSocket> none;
+	size_t v = variant_for_cell(p_cell);
+	return v < variant_sockets.size() ? variant_sockets[v] : none;
+}
+
+// The decor pieces of a socket type.
+const std::vector<Ref<Mesh>> &MCTileLibrary::get_decor(const String &p_type) const {
+	static const std::vector<Ref<Mesh>> none;
+	const std::vector<Ref<Mesh>> *found = decor.getptr(p_type);
+	return found ? *found : none;
+}
+
+// Roll the socket's chance and pick a piece, both from the cell position and the socket index.
+Ref<Mesh> MCTileLibrary::decor_for_socket(
+		const MCSocket &p_socket,
+		const Vector3i &p_cell,
+		int p_index,
+		uint32_t p_seed
+) const {
+	const std::vector<Ref<Mesh>> &pieces = get_decor(p_socket.type);
+	if (pieces.empty()) {
+		return Ref<Mesh>();
 	}
-	return variant_meshes[static_cast<size_t>(mc::variant_index(p_cell, static_cast<int>(variant_meshes.size())))];
+	uint32_t roll = mc::cell_seed(p_cell + Vector3i(0, 0, (p_index + 1) * 7919));
+	roll = mc::cell_seed(Vector3i(static_cast<int>(roll), static_cast<int>(p_seed), p_index)); // mix in the seed
+	if (static_cast<float>(roll & 0xFFFFu) / 65535.0f >= p_socket.chance) {
+		return Ref<Mesh>();
+	}
+	return pieces[static_cast<size_t>((roll >> 16) % static_cast<uint32_t>(pieces.size()))];
 }
 
 // For the stats panel: how many hashes each modelled tile draws.

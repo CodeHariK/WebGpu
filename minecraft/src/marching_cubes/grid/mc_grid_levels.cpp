@@ -105,6 +105,14 @@ void MCGrid::_update_levels() {
 // Floor corners locked solid, or editable (Randomize makes them random).
 void MCGrid::set_solid_floor(bool p_solid) { solid_floor = p_solid; }
 
+// Seed of the socket decor rolls; a new seed re-rolls every socket (rebuilds a live grid).
+void MCGrid::set_decor_seed(int p_seed) {
+	decor_seed = p_seed;
+	if (tile_library && !chunks.empty()) {
+		refresh_grid();
+	}
+}
+
 // New random corners that follow the level rules, then a full rebuild.
 String MCGrid::randomize_levels(
 		int p_seed,
@@ -127,6 +135,7 @@ String MCGrid::randomize_levels(
 	}
 	last_plan = mc::plan_levels(input);
 	roof_m = last_plan.roof_m; // M roof regions stay M when levels are recomputed
+	decor_seed = p_seed; // new socket decor rolls too
 
 	const mc::CellBlock &block = last_plan.block;
 	for (int z = 0; z <= block.z; z++) {

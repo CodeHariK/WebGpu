@@ -19,6 +19,7 @@ from .names import untidy
 from .ops import _target_collection
 from .piece_lib import set_roots
 from .piece_ops import draw_pieces
+from .sockets import draw_sockets
 from .seams_ui import draw_seams
 from .tilefilter import draw_filter
 from .tiles import tile_roots, tile_variants, tiles_by_role, variant_clashes
@@ -103,6 +104,7 @@ class MCTILES_PT_main(bpy.types.Panel):
             if report.built:
                 box.label(text=f"{len(report.built)} built from pieces", icon="MOD_BOOLEAN")
             draw_pieces(box, collection, tiles)
+            draw_sockets(box, context)
         else:
             box.label(text=f"Tiles: {len(tiles)} (prism rules not added yet)")
         extra = sum(len(objs) - 1 for objs in tile_variants(collection, settings.kind).values())

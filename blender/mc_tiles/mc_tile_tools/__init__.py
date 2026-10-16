@@ -23,6 +23,7 @@ Files:
     seams.py       seam check logic: face outlines must match on every face pair that can touch
     seams_ui.py    Check Seams button, results in the Check panel, red / green outline overlay
     tilefilter.py  show a subset of tiles (shapes, corners, variants, problems, family) in list + viewport
+    sockets.py     sockets on tiles (decor pieces picked per cell), preview, Add Socket
     panel.py       the "MC Tiles" sidebar tab
 """
 
@@ -32,7 +33,8 @@ import sys
 # dependencies first, so edits to any file take effect without restarting Blender.
 _MODULES = (
     "variants", "tiles", "modes", "cube", "pieces", "piece_lib", "props", "view", "ops", "playground", "paste", "names",
-    "tilefilter", "arrange", "labels", "corners", "seams", "seams_ui", "piece_ops", "tilelist", "export", "helpers", "panel",
+    "tilefilter", "arrange", "labels", "corners", "seams", "seams_ui", "piece_ops", "tilelist", "sockets", "export", "helpers",
+    "panel",
 )
 if "bpy" in locals():
     import importlib
@@ -45,12 +47,13 @@ if "bpy" in locals():
 import bpy  # noqa: E402
 
 from . import (  # noqa: E402
-    arrange, corners, export, helpers, labels, piece_lib, piece_ops, seams_ui, names, ops, panel, paste, playground, props, tilefilter, tilelist, view,
+    arrange, corners, export, helpers, labels, piece_lib, piece_ops, seams_ui, names, ops, panel, paste, playground, props,
+    sockets, tilefilter, tilelist, view,
 )
 
 CLASSES = (
     ops.CLASSES + paste.CLASSES + export.CLASSES + helpers.CLASSES + names.CLASSES + tilefilter.CLASSES
-    + arrange.CLASSES + seams_ui.CLASSES + piece_ops.CLASSES + panel.CLASSES
+    + arrange.CLASSES + seams_ui.CLASSES + piece_ops.CLASSES + sockets.CLASSES + panel.CLASSES
 )
 
 
@@ -65,6 +68,7 @@ def register():
     view.register()
     playground.register()
     tilelist.register()
+    sockets.register()
     for cls in CLASSES:
         bpy.utils.register_class(cls)
 
@@ -72,6 +76,7 @@ def register():
 def unregister():
     for cls in reversed(CLASSES):
         bpy.utils.unregister_class(cls)
+    sockets.unregister()
     tilelist.unregister()
     playground.unregister()
     view.unregister()

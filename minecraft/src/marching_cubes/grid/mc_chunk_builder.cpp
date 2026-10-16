@@ -136,13 +136,15 @@ void MCChunkBuilder::_append(
 	const int64_t index_base = r_surface.indices.size();
 	const int64_t face_base = faces.size();
 	r_surface.indices.resize(index_base + index_count);
-	faces.resize(face_base + index_count);
+	faces.resize(face_base + (collide ? index_count : 0));
 	int32_t *wi = r_surface.indices.ptrw() + index_base;
-	Vector3 *wf = faces.ptrw() + face_base;
+	Vector3 *wf = collide ? faces.ptrw() + face_base : nullptr;
 	for (int64_t i = 0; i < index_count; i++) {
 		int32_t vi = ri ? ri[i] : static_cast<int32_t>(i);
 		wi[i] = static_cast<int32_t>(base) + vi;
-		wf[i] = wv[vi];
+		if (wf) {
+			wf[i] = wv[vi];
+		}
 	}
 }
 
@@ -150,8 +152,10 @@ void MCChunkBuilder::_append(
 void MCChunkBuilder::add(
 		const Ref<Mesh> &p_mesh,
 		const Transform3D &p_xform,
-		MCSurfaceCache &r_cache
+		MCSurfaceCache &r_cache,
+		bool p_collide
 ) {
+	collide = p_collide;
 	const std::vector<Array> &arrays = r_cache.get(p_mesh);
 	const ArrayMesh *array_mesh = Object::cast_to<ArrayMesh>(p_mesh.ptr());
 	for (int s = 0; s < static_cast<int>(arrays.size()); s++) {
@@ -160,6 +164,7 @@ void MCChunkBuilder::add(
 		}
 		_append(_surface_for(p_mesh->surface_get_material(s)), arrays[static_cast<size_t>(s)], p_xform);
 	}
+	collide = true;
 }
 
 // Build the merged ArrayMesh: one surface per material, only the arrays some tile had.

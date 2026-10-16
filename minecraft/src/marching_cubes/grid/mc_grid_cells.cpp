@@ -58,6 +58,20 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 				const mc::LevelPin *live_pin = _live_pin();
 				if (live_pin && cell == Vector3i(live_pin->x, live_pin->y, live_pin->z) && pin_mesh.is_valid()) {
 					builder.add(pin_mesh, cell_t, surface_cache); // the pinned tile itself, as modelled
+					// its sockets: those of the variant whose mesh it is
+					const MCTile &pinned = tile_library->get_level_tile(mc::LEVEL_LETTERS[live_pin->level], hash);
+					for (size_t v = 0; v < pinned.variant_meshes.size() && v < pinned.variant_sockets.size(); v++) {
+						if (pinned.variant_meshes[v] != pin_mesh) {
+							continue;
+						}
+						for (size_t i = 0; i < pinned.variant_sockets[v].size(); i++) {
+							const MCSocket &socket = pinned.variant_sockets[v][i];
+							Ref<Mesh> piece = tile_library->decor_for_socket(socket, cell, static_cast<int>(i), static_cast<uint32_t>(decor_seed));
+							if (piece.is_valid()) {
+								builder.add(piece, cell_t * socket.transform, surface_cache, false);
+							}
+						}
+					}
 					tiles++;
 					continue;
 				}
@@ -67,6 +81,13 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 					continue;
 				}
 				builder.add(conf->mesh_for_cell(cell), cell_t * conf->turn, surface_cache);
+				const std::vector<MCSocket> &sockets = conf->sockets_for_cell(cell);
+				for (size_t i = 0; i < sockets.size(); i++) { // decor: drawn, not collided
+					Ref<Mesh> piece = tile_library->decor_for_socket(sockets[i], cell, static_cast<int>(i), static_cast<uint32_t>(decor_seed));
+					if (piece.is_valid()) {
+						builder.add(piece, cell_t * conf->turn * sockets[i].transform, surface_cache, false);
+					}
+				}
 				tiles++;
 			}
 		}

@@ -28,18 +28,30 @@ class Panel;
 class AcceptDialog;
 class CUI;
 
+// A spot on a tile where a decor piece may go (Blender: sockets.py), in the tile mesh's space.
+struct MCSocket {
+	String type; // "window": filled from the library's decor_window_* pieces
+	float chance = 1.0f; // chance it is filled in a cell
+	Transform3D transform; // piece placement relative to the tile (its +Y is the outside)
+};
+
 // Everything needed to draw one cell hash: the tile's mesh (and its variants) and the Y turn that
 // makes a modelled tile fit this hash. tiles[hash] in MCTileLibrary; mesh is null when the set has
 // no tile for the hash (that cell draws nothing).
 struct MCTile {
 	Ref<Mesh> mesh; // the first variant; null = no tile for this hash
 	std::vector<Ref<Mesh>> variant_meshes; // every modelled variant, by number (variant_meshes[0] == mesh)
+	std::vector<std::vector<MCSocket>> variant_sockets; // the sockets of each variant mesh
 	Transform3D turn; // Y turn applied to the modelled tile (identity for tiles loaded as they are)
 	uint8_t source_hash = 0; // hash of the modelled tile this entry was made from
 
-	// The mesh a cell at p_cell (grid coordinates) uses: one of the variants, picked from the
-	// cell position (see core/mc_variant.h).
+	// Which variant a cell at p_cell (grid coordinates) uses, picked from the cell position
+	// (see core/mc_variant.h).
+	size_t variant_for_cell(const Vector3i &p_cell) const;
+	// The mesh a cell at p_cell uses: its variant's mesh.
 	Ref<Mesh> mesh_for_cell(const Vector3i &p_cell) const;
+	// The sockets of the variant a cell at p_cell uses (empty when it has none).
+	const std::vector<MCSocket> &sockets_for_cell(const Vector3i &p_cell) const;
 };
 
 // One mesh of the .glb as Blender laid it out: shown by build_showcase where it was in Blender.
@@ -47,6 +59,7 @@ struct MCShowcaseTile {
 	Ref<Mesh> mesh;
 	Transform3D transform; // the node's transform in the .glb (Blender's position)
 	String name; // "00001100_la1" (hash + tag, without the set name)
+	std::vector<MCSocket> sockets; // shown filled with the first piece of their type
 	uint8_t hash = 0;
 	char height = 'm'; // tag height: 'l', 'm', 'h'
 };
@@ -71,6 +84,7 @@ private:
 	std::vector<uint8_t> loaded_hashes;
 
 	std::vector<MCShowcaseTile> showcase_tiles; // every loaded mesh, at its Blender position
+	HashMap<String, std::vector<Ref<Mesh>>> decor; // socket pieces by type ("decor_window_2")
 	MCTileLevel ground; // L a ("_la1"): bottom layer only
 	MCTileLevel roof; // H a ("_ha1"): roof cells (column tops)
 
@@ -108,6 +122,17 @@ public:
 
 	// The tile for a cell hash (mesh is null if the set has none).
 	const MCTile &get_tile(uint8_t p_hash) const { return tiles[p_hash]; }
+	// The decor pieces of a socket type (empty when the set has none).
+	const std::vector<Ref<Mesh>> &get_decor(const String &p_type) const;
+	// The decor piece a cell's socket p_index gets, or a null mesh when it stays empty. Each socket
+	// rolls its own chance from the cell position, the socket index and p_seed (the grid's decor
+	// seed, new on every Randomize).
+	Ref<Mesh> decor_for_socket(
+			const MCSocket &p_socket,
+			const Vector3i &p_cell,
+			int p_index,
+			uint32_t p_seed
+	) const;
 	// The tile of a level for a cell hash: 'l' ground, 'm' main (get_tile), 'h' roof.
 	const MCTile &get_level_tile(
 			char p_height,
