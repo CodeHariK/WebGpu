@@ -101,6 +101,44 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
       Select Pieces, Detach (join, or Detach + Clean Union: exact Boolean), Regenerate Linked (in place,
       edited / detached kept); generated tiles are never used as pieces — uncommitted
 
+## Levels, BrickBlock set, sockets (Oct 2026)
+
+- [x] **L / M / H levels**: tags `hash_<height><group><number>` (`00001101_ma1`); L only in the bottom
+      layer, H only beside H, L -> M -> H up a column, M or H can top a column (`roof_m`); same rules in
+      the Blender playground, MCGrid Randomize (`core/mc_level_plan`) and MCHeightmap
+- [x] BrickBlock set (`BrickBlock88.blend` -> `BrickBlock91.glb`, 75 modelled + 16 mirrors) loaded by `cubes.tscn`
+- [x] **Build from Pieces** set toggle (on for Circus, off for BrickBlock); generated copies exported
+      2 m above their source
+- [x] **Pin a tile**: click a showcase tile (laid out at its Blender position) -> grid moves next to it,
+      randomizes around the pinned cell
+- [x] **Sockets**: empties on a tile (`socket_<type>_p<pct>`, +Z out, mirrored with mirror copies),
+      decor pieces `decor_<type>_<n>` in a `Decor` collection; add-on preview (pick / shuffle);
+      Godot rolls each socket per cell (chance, then piece) from cell + `MCGrid.decor_seed` (set by
+      Randomize); decor drawn, not collided. Checked: 4 sockets x 400 seeds match 50% / even piece split
+
+## Next (paused — agreed, not started)
+
+- [ ] **Blender playground socket rolls**: each copied tile rolls its sockets (chance, then piece) like
+      Godot, new roll on rebuild; today every copy shows the source tile's preview
+- [ ] **Export & Reload**: add-on button exports the glb then runs the headless reimport (Godot + project
+      path in add-on prefs); debug builds: MCTileLibrary watches the glb mtime and reloads it at runtime
+      (`GLTFDocument`) + rebuilds the grid
+- [ ] **Groups a/b/c/d**: load every group (only `a` today); no painting — each connected solid region
+      rolls its group from position + seed (merged regions take one); a cell falls back to group `a`
+      when its group lacks the shape
+- [ ] **Undo / redo** (Ctrl+Z / Ctrl+Shift+Z) for corner clicks, Randomize and pin changes (own stack,
+      game-side); editing stays one corner per click (no brush)
+- [ ] Multi-pin (Shift-click showcase tiles) — optional
+- [ ] **Mobile perf**: decor through MultiMesh with visibility range, chunk LOD, one merged material per chunk
+- [ ] Socket fit check: skip a socket in a cell when the corners in front of it (its +Z, piece depth) are
+      solid — big pieces (awnings, balconies) poking into neighbours
+- [ ] Same decor style per building (roll per connected region, not per cell)
+- [ ] Decor collision per type (e.g. crates collide, vines don't)
+- [ ] Add-on Check: decor leaving the cell, sockets with no decor of their type, piece facing not +Z
+- [ ] Level-aware Arrange (L / M / H blocks)
+- [ ] Simple AI floor graph (only when AI needs it): `00001111` cells = flat floor at their height,
+      same-height neighbours linked, no automatic links between heights (no ladders / stairs)
+
 ## Later
 
 - [ ] Prism kind in the add-on (read `src/terrain/marching_prism` for corner order + 120° turns)
