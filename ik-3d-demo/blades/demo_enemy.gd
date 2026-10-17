@@ -15,6 +15,7 @@ var yanked := false ## a move is carrying it
 var bound := 0.0 ## seconds left held by Chain Bind (can't move)
 var thrown := false ## flying after a Whirl: knocks over others until it lands
 var cooldown := 0.0 ## can't be body-hit again for this long
+var squash := 0.0 ## 1 when smashed into the ground (a slam), springs back to 0: flattens the capsule
 var mesh: MeshInstance3D
 var material: StandardMaterial3D
 
@@ -34,6 +35,7 @@ func _init(
 
 func update(delta: float) -> void:
 	flash = maxf(flash - delta * 4.0, 0.0)
+	squash = maxf(squash - delta * 3.0, 0.0)
 	cooldown = maxf(cooldown - delta, 0.0)
 	if yanked:
 		return
@@ -51,6 +53,8 @@ func update(delta: float) -> void:
 
 
 func draw() -> void:
-	mesh.position = position
+	var flat := squash * squash # quick to spring back at the end
+	mesh.scale = Vector3(1.0 + flat * 0.35, 1.0 - flat * 0.5, 1.0 + flat * 0.35)
+	mesh.position = position - Vector3.UP * (STAND_HEIGHT * flat * 0.5) # squashed onto the ground, not into the air
 	material.emission_enabled = flash > 0.0
 	material.emission = Color(1, 0.3, 0.2) * flash

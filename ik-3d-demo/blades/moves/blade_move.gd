@@ -131,7 +131,7 @@ func launch(
 		easing: String
 ) -> void:
 	const HANDLE := 0.4
-	var hand := demo.hand(blade.side)
+	var hand := blade.tip # where it hangs right now (BladesDemo.rest): the curve starts there, no jump
 	var wind := wind_point(blade)
 	var target := path[3]
 	var through := (target - hand).normalized() # the direction the blade passes the wind point in
@@ -171,7 +171,7 @@ func start_together(
 
 ## Reel the blade home along a curve that bows out on its own side.
 func back(blade: Blade) -> void:
-	var hand := demo.hand(blade.side)
+	var hand := demo.rest(blade.side) # (kept on it every frame while reeling: BladesDemo._update_blade)
 	var right := demo.right() * blade.side
 	var distance := hand.distance_to(blade.tip)
 	var p1 := blade.tip + Vector3.UP * distance * 0.2 + right * distance * 0.25

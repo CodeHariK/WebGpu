@@ -4,7 +4,8 @@
 ##
 ##   Throw  (left click)   ThrowMove     Pull   (E)      PullMove      Rush   (Space)  RushMove
 ##   Sweep  (right click)  SweepMove     Slice  (F)      SliceMove     Whirl  (X)      WhirlMove
-##   Spin   (Q)            SpinMove      Bind   (G)      BindMove
+##   Spin   (Q)            SpinMove      Bind   (G)      BindMove      Slam   (Z)      SlamMove
+##   Lasso  (H, H again to throw)  LassoMove
 ##   WASD move · C curves (BladeDebug) · T slow motion · V fire step (BladeFire) · R reset
 ## The player is a PlayerBody (B switches): SophiaBody — her animation clips underneath, custom IK
 ## modifiers for the arms and the spine lean on top — or the capsule BladeBody. Both pose from the
@@ -71,7 +72,7 @@ func _ready() -> void:
 		bodies.append(each)
 	_use_body(0)
 	for move: BladeMove in [ThrowMove.new(self), SweepMove.new(self), SpinMove.new(self), PullMove.new(self),
-			SliceMove.new(self), BindMove.new(self), RushMove.new(self), WhirlMove.new(self)]:
+			SliceMove.new(self), BindMove.new(self), RushMove.new(self), WhirlMove.new(self), SlamMove.new(self), LassoMove.new(self)]:
 		moves[move.key] = move
 	fire = BladeFire.new()
 	add_child(fire)
@@ -135,6 +136,7 @@ func _process(delta: float) -> void:
 	for enemy in enemies:
 		enemy.update(game_delta)
 	moves.whirl.tick(game_delta)
+	moves.lasso.tick(game_delta)
 	_draw(delta)
 
 
@@ -152,6 +154,12 @@ func hand(side: float) -> Vector3:
 ## Where the chain actually leaves the body: the shown body's hand (PlayerBody.grip).
 func grip(side: float) -> Vector3:
 	return body.grip(side)
+
+
+## Where an idle blade hangs: just under the grip. Attacks start from here and reels end here, so
+## a blade never jumps between hanging and a path.
+func rest(side: float) -> Vector3:
+	return grip(side) + Vector3(0, -0.15, 0)
 
 
 ## Where the mouse points on the plane 1 m above the ground (enemy height).
@@ -230,17 +238,17 @@ func _update_blade(
 ) -> void:
 	blade.previous_tip = blade.tip
 	if blade.phase == Blade.IDLE:
-		blade.tip = grip(blade.side) + Vector3(0, -0.15, 0)
+		blade.tip = rest(blade.side)
 		return
 	if blade.delay > 0.0:
 		blade.delay -= delta
-		blade.tip = grip(blade.side)
+		blade.tip = rest(blade.side)
 		blade.path[0] = blade.tip
 		return
 	var move: BladeMove = moves[blade.move]
 	blade.time += delta
 	if blade.phase == Blade.BACK:
-		blade.path[3] = hand(blade.side) # the hand moves while the blade comes home
+		blade.path[3] = rest(blade.side) # the hand moves while the blade comes home
 	else:
 		var live := move.live_path(blade)
 		if not live.is_empty():
@@ -321,10 +329,10 @@ func _aim_blade(blade: Blade) -> void:
 
 
 func _draw_hud() -> void:
-	var fling: String = moves.pull.fling_name()
-	hud.text = "left %s · right %s%s%s%s\nLeft click throw   Right click sweep   Q spin   E pull   F slice   G bind   Space rush   X whirl   WASD move   C curves   T slow motion   V fire (%s)   B body   R reset" % [
+	var fling: String = moves.slam.fling_name() if moves.slam.left > 0 else moves.pull.fling_name()
+	hud.text = "left %s · right %s%s%s%s\nLeft click throw   Right click sweep   Q spin   E pull   F slice   G bind   Space rush   X whirl   Z slam   H lasso (H: throw)   WASD move   C curves   T slow motion   V fire (%s)   B body   R reset" % [
 		Blade.PHASE_NAMES[blades[0].phase], Blade.PHASE_NAMES[blades[1].phase],
-		"   pull: %s" % fling if fling != "" else "", "   [curves]" if debug.enabled else "", "   [slow]" if _slow else "",
+		"   fling: %s" % fling if fling != "" else "", "   [curves]" if debug.enabled else "", "   [slow]" if _slow else "",
 		fire.step_name()]
 
 
@@ -355,6 +363,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_G: moves.bind.start()
 			KEY_SPACE: moves.rush.start()
 			KEY_X: moves.whirl.start()
+			KEY_Z: moves.slam.start()
+			KEY_H: moves.lasso.start()
 			KEY_V: fire.next_step()
 			KEY_C: debug.enabled = not debug.enabled
 			KEY_T:

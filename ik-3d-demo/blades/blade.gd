@@ -16,7 +16,8 @@ const YANK := 5 ## enemy (and blades) along a lifted arc
 const BACK := 6 ## → hand
 const SLICE := 7 ## one slash of a slice combo
 const WHIRL := 8 ## swinging a hooked enemy round the player
-const PHASE_NAMES := ["idle", "out", "hold", "sweep", "spin", "yank", "back", "slice", "whirl"]
+const LASSO := 9 ## one chain swinging a hooked enemy in a ring above the player's head
+const PHASE_NAMES := ["idle", "out", "hold", "sweep", "spin", "yank", "back", "slice", "whirl", "lasso"]
 
 var side := 1.0 ## +1 right hand, −1 left hand
 var phase := IDLE

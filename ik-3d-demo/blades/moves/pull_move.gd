@@ -60,8 +60,16 @@ func _yank_together(
 	var to: Vector3 = demo.player + fling.to + Vector3(0, DemoEnemy.STAND_HEIGHT, 0)
 	var lift: float = fling.lift
 	demo.enemies[index].yanked = true
-	var path := PackedVector3Array([from, from + Vector3.UP * lift, to + Vector3.UP * lift * 0.8, to])
-	start_together(hooked, caller, Blade.YANK, path, fling.duration, "in")
+	start_together(hooked, caller, Blade.YANK, _yank_path(from, to, lift), fling.duration, "in")
+
+
+## The yank's curve from `from` to `to`: straight up off the spot, over, and down onto it.
+func _yank_path(
+		from: Vector3,
+		to: Vector3,
+		lift: float
+) -> PackedVector3Array:
+	return PackedVector3Array([from, from + Vector3.UP * lift, to + Vector3.UP * lift * 0.8, to])
 
 
 func fling_name() -> String:

@@ -12,7 +12,7 @@
 ## Heading:
 ##   spin    the body turns with the orbit, chest between the two blades (they're out to its sides)
 ##   whirl   the body faces the swung enemy (a hammer thrower)
-##   yank    the body turns toward where the pull is throwing the enemy (left, right, behind:
+##   yank    the body turns toward where the pull (or slam) is throwing the enemy (left, right, behind:
 ##           it pivots with the throw; a throw straight behind always turns her to her right first,
 ##           so it never flips a coin between left and right)
 ##   else    the mouse direction (it springs back the short way round)
@@ -35,7 +35,11 @@
 class_name BodyPose
 extends RefCounted
 
-const MAX_LEAN := 0.6 ## radians-ish: how far the torso can tip
+const MAX_LEAN := 0.35 ## radians-ish: how far the torso can tip
+const LEAN_SCALE := 0.5 ## every lean below is scaled by this (one knob for how much she leans)
+const LOOK_PITCH := 0.5 ## the head follows this share of the blades' height (it doesn't stare up at them) …
+const LOOK_UP := 0.2 ## … and looks at most this far up (radians) …
+const LOOK_DOWN := 0.35 ## … or down
 const MAX_TWIST := 1.2 ## radians: how far the chest can turn from the hips
 const ARM_FADE := 0.15 ## seconds for an arm to blend between animation and IK
 const LEAD := 0.5 ## share of the heading lag the chest makes up by twisting (chest ahead of the hips)
@@ -124,8 +128,8 @@ func update(delta: float) -> void:
 		arm_weight[i] = move_toward(arm_weight[i], wanted, delta / ARM_FADE)
 	var yaw := heading + twist # the look is sprung in the chest's frame: it turns with the body
 	var looked := _look_spring.update(delta, _look_target().rotated(Vector3.UP, -yaw)).rotated(Vector3.UP, yaw)
-	if looked.length() > 1e-3:
-		look = looked.normalized()
+	if looked.length() > 1e-3: # clamped again: a spring swinging the look far round can tip it up
+		look = _level(looked.normalized(), 1.0)
 
 
 ## Whether arm i (0 left, 1 right) is reaching for its blade right now.
@@ -183,7 +187,11 @@ func _carried() -> bool:
 
 # Where the head should look: between the two blades (the mean of the directions to them) while
 # either is out, else the mouse direction. Blades straight opposite (a spin) → the chest's facing.
+# Lasso → the mouse direction (where she'll throw), not the enemy over her head.
 func _look_target() -> Vector3:
+	for blade in _demo.blades:
+		if blade.phase == Blade.LASSO: # swinging overhead: she watches where she'll throw
+			return _demo.facing
 	var eye := _demo.player + Vector3.UP * EYE_HEIGHT
 	var sum := Vector3.ZERO
 	var count := 0
@@ -195,7 +203,20 @@ func _look_target() -> Vector3:
 		return _demo.facing
 	if count == 2 and sum.length() < 0.5:
 		return chest_forward()
-	return sum.normalized()
+	return _level(sum.normalized(), LOOK_PITCH)
+
+
+# A look direction with its pitch scaled by `share` and clamped (LOOK_UP / LOOK_DOWN): the blades
+# fly high (wind-up, slams), but she keeps her eyes near the horizon.
+func _level(
+		direction: Vector3,
+		share: float
+) -> Vector3:
+	var flat := Vector3(direction.x, 0.0, direction.z)
+	if flat.length() < 1e-3:
+		flat = chest_forward()
+	var pitch := clampf(asin(clampf(direction.y, -1.0, 1.0)) * share, -LOOK_DOWN, LOOK_UP)
+	return flat.normalized() * cos(pitch) + Vector3.UP * sin(pitch)
 
 
 # Where the whole body should face: carried round by a spin or a whirl, else the mouse.
@@ -207,15 +228,16 @@ func _heading_target() -> Vector3:
 	if right_blade.phase == Blade.SPIN: # chest between the blades: the right blade at the right side
 		return Vector3.UP.cross(_flat_toward(right_blade.tip, _demo.right()))
 	for blade in _demo.blades:
-		if blade.phase == Blade.YANK: # pivot with the throw
-			return _throw_direction()
+		if blade.phase == Blade.YANK: # pivot with the throw (a pull's, or a slam's)
+			return _throw_direction(blade)
 	return _demo.facing
 
 
-# Where the pull is throwing the enemy (horizontal). Straight behind is nudged to her right, so
-# the turn always goes the same way round.
-func _throw_direction() -> Vector3:
-	var fling: Dictionary = _demo.moves.pull.fling
+# Where the blade's pull (or slam) is throwing the enemy (horizontal). Straight behind is nudged
+# to her right, so the turn always goes the same way round.
+func _throw_direction(blade: Blade) -> Vector3:
+	var move: BladeMove = _demo.moves[blade.move]
+	var fling: Dictionary = (move as PullMove).fling if move is PullMove else {}
 	var to: Vector3 = fling.get("to", _demo.facing)
 	to.y = 0.0
 	if to.length() < 0.5: # "at your feet": no turn
@@ -258,8 +280,11 @@ func _target() -> Vector3:
 				turn += clampf(front.signed_angle_to(toward, Vector3.UP), -1.2, 1.2) * 0.4
 			Blade.SPIN: # sit back into the turn (the two blades pull out evenly)
 				tilt -= front * 0.12
+			Blade.LASSO: # a little away from the swung enemy
+				tilt -= toward * 0.12
 			Blade.WHIRL: # counterweight: lean well away from the enemy (both blades add up)
 				tilt -= toward * 0.22
+	tilt *= LEAN_SCALE
 	return Vector3(tilt.x, turn, tilt.z)
 
 
