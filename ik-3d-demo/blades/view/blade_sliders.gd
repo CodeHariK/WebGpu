@@ -9,11 +9,12 @@ static func build(
 		hud: CanvasLayer
 ) -> void:
 	var panel := PanelContainer.new()
-	panel.position = Vector2(16, demo.get_viewport().get_visible_rect().size.y - 170)
+	panel.position = Vector2(16, demo.get_viewport().get_visible_rect().size.y - 200)
 	var box := VBoxContainer.new()
 	panel.add_child(box)
 	hud.add_child(panel)
 	_slider(box, "Wind-up behind", 0.0, 3.0, 0.05, demo.top_behind, "%.2f m", func(v: float) -> void: demo.top_behind = v)
+	_slider(box, "Wind-up side", 0.0, 2.0, 0.05, demo.wind_side, "%.2f m", func(v: float) -> void: demo.wind_side = v)
 	_slider(box, "Wind-up height", 1.4, 4.5, 0.05, demo.top_height, "%.2f m", func(v: float) -> void: demo.top_height = v)
 	_slider(box, "Wind-up time", 0.04, 0.6, 0.01, demo.windup_time, "%.2f s", func(v: float) -> void: demo.windup_time = v)
 	_slider(box, "Swing tilt (out)", 0.0, 80.0, 1.0, demo.swing_tilt, "%.0f°", func(v: float) -> void: demo.swing_tilt = v)

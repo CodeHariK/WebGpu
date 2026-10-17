@@ -23,7 +23,7 @@ func start() -> void:
 		blade.spin_forward = demo.facing
 		var hand := demo.hand(blade.side)
 		var start_point := spin_path(blade)[0]
-		launch(blade, PackedVector3Array([hand, hand.lerp(start_point, 0.33), hand.lerp(start_point, 0.66), start_point]), 0.1, "linear")
+		launch(blade, PackedVector3Array([hand, hand.lerp(start_point, 0.33), hand.lerp(start_point, 0.66), start_point]), 0.1, "accelerate")
 
 
 ## TURNS full circles round the player, 4 quarter-circle Beziers per turn. The right blade starts

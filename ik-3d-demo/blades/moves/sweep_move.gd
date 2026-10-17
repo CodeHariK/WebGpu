@@ -20,7 +20,7 @@ func start() -> void:
 		var hand := demo.hand(blade.side)
 		var start_point := sweep_path(blade)[0]
 		var lift := Vector3.UP * 0.5
-		launch(blade, PackedVector3Array([hand, hand.lerp(start_point, 0.33) + lift, hand.lerp(start_point, 0.66) + lift, start_point]), 0.1, "linear")
+		launch(blade, PackedVector3Array([hand, hand.lerp(start_point, 0.33) + lift, hand.lerp(start_point, 0.66) + lift, start_point]), 0.1, "accelerate")
 
 
 ## A quarter circle from the blade's side round to the front: one cubic Bezier with handles

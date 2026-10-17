@@ -3,7 +3,11 @@
 ##                 normally, but carried round by the blades in a spin or whirl
 ##   lean, twist   the torso on top of that, sprung (SecondOrder: overshoots a little and settles)
 ##   arm weight    per arm, 0 (the animation's arm) … 1 (reaching for its blade), eased
-##   reach         per arm, where its hand wants to be, sprung so it lags a touch
+##   reach         per arm, where its hand wants to be, sprung (in the chest's frame) so it lags a
+##                 touch; each arm stays
+##                 in its own half (the left hand never crosses to the right of the chest)
+##   look          where the head looks (sprung in the chest's frame): between the two blades while they're out, else
+##                 the mouse direction
 ##
 ## Heading:
 ##   spin    the body turns with the orbit, chest between the two blades (they're out to its sides)
@@ -13,7 +17,10 @@
 ##           so it never flips a coin between left and right)
 ##   else    the mouse direction (it springs back the short way round)
 ## The heading spring is slow and heavy, so the blades lead and the body is dragged after them;
-## the twist then turns the chest a bit further toward where the blades already are.
+## the twist then turns the chest a bit further toward where the blades already are. While the
+## blades carry the body round (spin, whirl) the spring is aimed ahead of the goal by the goal's
+## turn rate × the spring's own lag, so at a steady spin the body keeps up exactly (the right
+## blade stays at her right) instead of trailing up to half a turn behind.
 ## The heading is an unwrapped angle (it can pass 2π), so a body spinning round and round never
 ## snaps back a full turn.
 ##
@@ -32,6 +39,13 @@ const MAX_LEAN := 0.6 ## radians-ish: how far the torso can tip
 const MAX_TWIST := 1.2 ## radians: how far the chest can turn from the hips
 const ARM_FADE := 0.15 ## seconds for an arm to blend between animation and IK
 const LEAD := 0.5 ## share of the heading lag the chest makes up by twisting (chest ahead of the hips)
+const HEADING_F := 1.6 ## heading spring: frequency (Hz) …
+const HEADING_ZETA := 0.85 ## … and damping
+const CARRY_LEAD := 2.0 * HEADING_ZETA / (TAU * HEADING_F) ## seconds: that spring's lag at a steady turn
+const MAX_RATE := 25.0 ## rad/s: the goal's turn rate is clamped to this …
+const JUMP := 0.6 ## … and a goal step bigger than this (radians) in one frame is a jump, not a turn
+const MIN_OUT := 0.25 ## each arm points at least this much out to its own side (dot with chest right)
+const EYE_HEIGHT := 1.55 ## m: where the look is measured from
 
 var lean := Vector3.ZERO ## horizontal: the direction the upper body tips; length = how far
 var twist := 0.0
@@ -40,8 +54,11 @@ var arm_weight := PackedFloat32Array([0.0, 0.0]) ## [left, right]
 
 var _demo: BladesDemo
 var _spring := SecondOrder.new(2.5, 0.45, 1.2)
-var _heading_spring := SecondOrder.new(1.6, 0.85, 0.0) ## heavy: no head start, little overshoot
+var _heading_spring := SecondOrder.new(HEADING_F, HEADING_ZETA, 0.0) ## heavy: no head start, little overshoot
 var _heading_goal := 0.0 ## unwrapped target angle
+var _goal_rate := 0.0 ## rad/s, smoothed: how fast the goal is turning (only while carried)
+var look := Vector3.FORWARD ## unit: where the head looks
+var _look_spring := SecondOrder.new(3.0, 0.8, 0.5)
 var _reach: Array[SecondOrder] = [SecondOrder.new(4.0, 0.6, 1.0), SecondOrder.new(4.0, 0.6, 1.0)]
 
 
@@ -56,8 +73,11 @@ func reset(hands: Array[Vector3]) -> void:
 	heading = _angle_of(_demo.facing)
 	_heading_goal = heading
 	_heading_spring.reset(Vector3(heading, 0.0, 0.0))
+	_goal_rate = 0.0
+	look = _demo.facing
+	_look_spring.reset(look.rotated(Vector3.UP, -heading))
 	for i in 2:
-		_reach[i].reset(hands[i])
+		_reach[i].reset((hands[i] - _demo.player).rotated(Vector3.UP, -heading))
 		arm_weight[i] = 0.0
 
 
@@ -71,6 +91,16 @@ func goal_forward() -> Vector3:
 	return Vector3(sin(_heading_goal), 0.0, cos(_heading_goal))
 
 
+## Which way the chest faces: the heading turned by the twist.
+func chest_forward() -> Vector3:
+	return forward().rotated(Vector3.UP, twist)
+
+
+## The chest's right: the side the right arm keeps to.
+func chest_right() -> Vector3:
+	return chest_forward().cross(Vector3.UP)
+
+
 ## The body's right (its forward × up).
 func right() -> Vector3:
 	return forward().cross(Vector3.UP)
@@ -80,8 +110,11 @@ func update(delta: float) -> void:
 	if delta <= 0.0: # hit-stop: hold the pose
 		return
 	# heading: follow the goal round, however many turns (unwrap by the short step each frame)
-	_heading_goal += angle_difference(_heading_goal, _angle_of(_heading_target()))
-	heading = _heading_spring.update(delta, Vector3(_heading_goal, 0.0, 0.0)).x
+	var turn := angle_difference(_heading_goal, _angle_of(_heading_target()))
+	_heading_goal += turn
+	var rate := _goal_rate if absf(turn) > JUMP else clampf(turn / delta, -MAX_RATE, MAX_RATE)
+	_goal_rate = lerpf(_goal_rate, rate if _carried() else 0.0, 1.0 - exp(-10.0 * delta))
+	heading = _heading_spring.update(delta, Vector3(_heading_goal + _goal_rate * CARRY_LEAD, 0.0, 0.0)).x
 	var lag := _heading_goal - heading
 	var pose := _spring.update(delta, _target())
 	lean = Vector3(pose.x, 0.0, pose.z).limit_length(MAX_LEAN)
@@ -89,6 +122,10 @@ func update(delta: float) -> void:
 	for i in 2:
 		var wanted := 1.0 if is_reaching(i) else 0.0
 		arm_weight[i] = move_toward(arm_weight[i], wanted, delta / ARM_FADE)
+	var yaw := heading + twist # the look is sprung in the chest's frame: it turns with the body
+	var looked := _look_spring.update(delta, _look_target().rotated(Vector3.UP, -yaw)).rotated(Vector3.UP, yaw)
+	if looked.length() > 1e-3:
+		look = looked.normalized()
 
 
 ## Whether arm i (0 left, 1 right) is reaching for its blade right now.
@@ -108,8 +145,57 @@ func reach(
 	var wanted := rest
 	if is_reaching(i):
 		var to_blade := _demo.blades[i].tip - shoulder
-		wanted = shoulder + to_blade.normalized() * minf(to_blade.length(), arm_length * 0.95)
-	return _reach[i].update(delta, wanted) if delta > 0.0 else _reach[i].value
+		wanted = shoulder + _own_side(i, to_blade.normalized()) * minf(to_blade.length(), arm_length * 0.95)
+	# sprung in the chest's frame, so a fast turn carries the hand round instead of leaving it behind
+	var yaw := heading + twist
+	var local := (wanted - _demo.player).rotated(Vector3.UP, -yaw)
+	var sprung := _reach[i].update(delta, local) if delta > 0.0 else _reach[i].value
+	var target := _demo.player + sprung.rotated(Vector3.UP, yaw)
+	if is_reaching(i): # the spring's overshoot must not cross the chest either
+		var to := target - shoulder
+		target = shoulder + _own_side(i, to.normalized()) * to.length()
+	return target
+
+
+# `direction`, turned out to arm i's own side if it points across the chest: its part along the
+# chest's right (signed by the side) is at least MIN_OUT. Straight across → straight out.
+func _own_side(
+		i: int,
+		direction: Vector3
+) -> Vector3:
+	var out := chest_right() * (-1.0 if i == 0 else 1.0)
+	var along := direction.dot(out)
+	if along >= MIN_OUT:
+		return direction
+	var rest := direction - out * along
+	if rest.length() < 1e-3:
+		return out
+	return out * MIN_OUT + rest.normalized() * sqrt(1.0 - MIN_OUT * MIN_OUT)
+
+
+# Whether the blades are carrying the body round (spin, whirl).
+func _carried() -> bool:
+	for blade in _demo.blades:
+		if blade.phase == Blade.SPIN or blade.phase == Blade.WHIRL:
+			return true
+	return false
+
+
+# Where the head should look: between the two blades (the mean of the directions to them) while
+# either is out, else the mouse direction. Blades straight opposite (a spin) → the chest's facing.
+func _look_target() -> Vector3:
+	var eye := _demo.player + Vector3.UP * EYE_HEIGHT
+	var sum := Vector3.ZERO
+	var count := 0
+	for i in 2:
+		if is_reaching(i):
+			sum += (_demo.blades[i].tip - eye).normalized()
+			count += 1
+	if count == 0:
+		return _demo.facing
+	if count == 2 and sum.length() < 0.5:
+		return chest_forward()
+	return sum.normalized()
 
 
 # Where the whole body should face: carried round by a spin or a whirl, else the mouse.
@@ -153,7 +239,7 @@ func _target() -> Vector3:
 		var toward := _flat_toward(blade.tip, front)
 		match blade.phase:
 			Blade.OUT:
-				if blade.segment_times.size() > 1 and blade.eased < 0.5: # winding up
+				if blade.eased < blade.swing_end: # winding up
 					tilt -= front * 0.3
 					turn += blade.side * 0.4
 				else:

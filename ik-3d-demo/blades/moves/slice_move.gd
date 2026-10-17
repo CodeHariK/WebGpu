@@ -43,7 +43,7 @@ func slash_out(blade: Blade) -> void:
 	var start_point := slice_path(blade)[0]
 	var hand := demo.hand(blade.side)
 	var lift := Vector3.UP * 0.8
-	launch(blade, PackedVector3Array([hand, hand.lerp(start_point, 0.33) + lift, hand.lerp(start_point, 0.66) + lift, start_point]), 0.08, "linear")
+	launch(blade, PackedVector3Array([hand, hand.lerp(start_point, 0.33) + lift, hand.lerp(start_point, 0.66) + lift, start_point]), 0.08, "accelerate")
 
 
 ## One slash: down through the enemy from above and out on the blade's own side, in a plane that

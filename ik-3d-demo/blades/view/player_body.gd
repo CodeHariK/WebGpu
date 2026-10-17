@@ -9,6 +9,7 @@
 ##            really leaves from (the line between them is how far the arm is off the path's anchor)
 ##   arms     green = the IK's solved arm (shoulder → elbow → wrist), dim white = the clip's arm,
 ##            red cross = the reach target, cyan cross + line = the pole the elbow bends toward
+##   head     yellow arrow = where the head is told to look (between the blades, or the mouse)
 ##   label    heading / lean / twist and each arm's weight (0 clip … 1 IK)
 class_name PlayerBody
 extends Node3D
@@ -45,6 +46,11 @@ func chest() -> Vector3:
 	return demo.player + Vector3.UP * 1.3
 
 
+## About the head (where the look arrow starts).
+func head() -> Vector3:
+	return chest() + Vector3.UP * 0.5
+
+
 ## The debug view of the body (see the header for the colours).
 func draw_debug(debug: BladeDebug) -> void:
 	var feet := demo.player + Vector3.UP * 0.05
@@ -55,6 +61,7 @@ func draw_debug(debug: BladeDebug) -> void:
 	debug.cross(c, Color.WHITE, 0.05)
 	debug.arrow(c, c + pose.lean * 2.0, Color(1.0, 0.3, 0.3))
 	debug.arrow(c, c + pose.forward().rotated(Vector3.UP, pose.twist) * 0.6, Color(1.0, 0.3, 0.9))
+	debug.arrow(head(), head() + pose.look * 1.2, Color(1.0, 0.9, 0.2))
 	for i in 2:
 		var side := -1.0 if i == 0 else 1.0
 		var anchor := demo.hand(side)

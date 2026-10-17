@@ -50,9 +50,10 @@ var body: PlayerBody ## the one showing (B switches)
 var bodies: Array[PlayerBody] = [] ## [Sophia, capsule]
 
 # Tuned live with the sliders (BladeSliders).
-var windup_time := 0.16 ## the wind-up segment: hand → top
-var top_height := 2.7 ## the wind-up's top: this high …
-var top_behind := 0.9 ## … this far behind the hand
+var windup_time := 0.16 ## extra time an attack's OUT curve gets for its wind-up
+var top_height := 2.2 ## the wind point (BladeMove.wind_point): this high …
+var top_behind := 0.9 ## … this far behind you …
+var wind_side := 0.6 ## … and this far out to the blade's own side
 var swing_tilt := 40.0 ## degrees each blade's swing plane leans out to its own side
 
 var _renderer: LimbRenderer

@@ -101,7 +101,7 @@ func throw_both(
 		var distance := hand.distance_to(target)
 		# Comes down onto the target from above and out on its own side (its tilted plane).
 		var p2 := target + swing_up(blade) * distance * 0.25
-		launch(blade, PackedVector3Array([hand, hand, p2, target]), 0.15 + distance * 0.008, "out")
+		launch(blade, PackedVector3Array([hand, hand, p2, target]), 0.15 + distance * 0.008, "swing")
 
 
 ## Each blade swings in its own plane: it holds your forward direction and an "up" that leans out
@@ -112,35 +112,43 @@ func swing_up(blade: Blade) -> Vector3:
 	return (Vector3.UP * cos(tilt) + demo.right() * blade.side * sin(tilt)).normalized()
 
 
-## Every attack's OUT path = wind-up segment + strike segment, one smooth curve, in the blade's plane:
-##   wind-up  hand → top (up the tilted plane, top_behind back); its last handle sits behind the
-##            top, so the blade arrives at the top moving forward
-##   strike   top → target; its first handle sits ahead of the top on the same line (the tangents
-##            match: no kink), its last two points come from the attack's own `path` (p2, p3)
-## The wind-up eases into the top (slows: the hang), the strike uses the attack's easing.
-## Control points 0–3 = wind-up, 4–7 = strike (3 and 4 are the same point: the join).
+## Every attack's OUT path: ONE curve from the hand, back through the wind point behind you and on
+## to the attack's target, played with ONE easing along its length (Blade.start_even) — so there is
+## no stop or speed jump between wind-up and strike.
+##   hand → wind point   leaves the hand going back and up, and comes into the wind point already
+##                       heading for the target (its handle sits behind the point on that line)
+##   wind point → target the handle on the far side continues that same line (the tangents match:
+##                       no kink); the last two points come from the attack's own `path` (p2, p3)
+## The handles either side of the wind point are the same share (HANDLE) of their piece's length,
+## so the speed along the curve is the same on both sides of it too. Control points 0–3 and 4–7
+## (3 and 4 are the wind point). `easing` runs over the whole curve ("swing": slow back, fast
+## through, soft landing; "accelerate": still speeding up at the end, into a spin or sweep).
+## Time: windup_time + the attack's `duration`.
 func launch(
 		blade: Blade,
 		path: PackedVector3Array,
 		duration: float,
 		easing: String
 ) -> void:
+	const HANDLE := 0.4
 	var hand := demo.hand(blade.side)
-	var up := swing_up(blade)
-	var top := wind_top(blade)
-	var forward := demo.facing
-	var reach := top.distance_to(path[3])
-	var windup := [hand, hand + up * 0.6 - forward * demo.top_behind * 0.5, top - forward * 0.8, top]
-	var strike := [top, top + forward * reach * 0.35, path[2], path[3]]
-	blade.start_segments(Blade.OUT, PackedVector3Array(windup + strike),
-			PackedFloat32Array([demo.windup_time, duration]), ["smooth", easing])
+	var wind := wind_point(blade)
+	var target := path[3]
+	var through := (target - hand).normalized() # the direction the blade passes the wind point in
+	var leave := (swing_up(blade) - demo.facing).normalized() # back and up, in the blade's own plane
+	var first := hand.distance_to(wind) * 1.4 # the hand → wind piece bows out: a bit longer than straight
+	var second := wind.distance_to(target)
+	var windup := [hand, hand + leave * first * HANDLE, wind - through * first * HANDLE, wind]
+	var strike := [wind, wind + through * second * HANDLE, path[2], target]
+	blade.start_even(Blade.OUT, PackedVector3Array(windup + strike), demo.windup_time + duration, easing)
+	blade.swing_end = 0.5 # the wind point: the end of the first segment
 
 
-## The top of the wind-up: up the blade's tilted plane to top_height, top_behind back.
-func wind_top(blade: Blade) -> Vector3:
-	var hand := demo.hand(blade.side)
-	var up := swing_up(blade)
-	return hand + up * (demo.top_height - BladesDemo.HAND_HEIGHT) / maxf(up.y, 0.2) - demo.facing * demo.top_behind
+## The wind point: behind you (against your facing) by top_behind, out to the blade's own side by
+## wind_side, top_height above the ground — so the left blade winds up behind-left, the right one
+## behind-right.
+func wind_point(blade: Blade) -> Vector3:
+	return demo.player + Vector3.UP * demo.top_height - demo.facing * demo.top_behind + demo.right() * blade.side * demo.wind_side
 
 
 ## Start the same path on several blades on one clock. `caller` is the blade whose update is

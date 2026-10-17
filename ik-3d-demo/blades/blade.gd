@@ -1,7 +1,7 @@
 ## One blade on its chain: where it is, which move and phase it is in, and the path it is playing.
 ##
 ## A phase plays a path — one or more cubic Beziers, 4 control points each — over a fixed time
-## with an easing curve (start / start_segments). Each frame the demo advances `time`, reads
+## with an easing curve (start / start_segments / start_even). Each frame the demo advances `time`, reads
 ## eased_position() and puts the tip on the path there. When the time is up the blade's move
 ## decides what comes next (BladeMove.next_phase).
 class_name Blade
@@ -28,6 +28,7 @@ var segment_times := PackedFloat32Array() ## one time per path segment (or one f
 var segment_easings := [] ## an easing name per segment
 var eased := 0.0 ## where along the path the tip is (0..1, over all segments)
 var path := PackedVector3Array() ## 4 control points per Bezier segment
+var swing_end := 0.0 ## OUT: where along the path (0..1) the wind-up ends (0: this path has none)
 var tip := Vector3.ZERO
 var previous_tip := Vector3.ZERO
 var enemy := -1 ## the hooked enemy (pull, rush, whirl)
@@ -38,6 +39,10 @@ var spin_forward := Vector3.FORWARD
 var slice_angles: Array[float] = [] ## slice: this blade's slash planes still to do
 var chain: LimbChain
 var mesh: MeshInstance3D
+
+const LENGTH_SAMPLES := 16 ## per segment, for start_even's length table
+
+var _lengths := PackedFloat32Array() ## start_even: arc length from the path start at each sample (empty: segments share time equally)
 
 
 ## Play `path` over `duration` with one easing for the whole of it.
@@ -59,6 +64,8 @@ func start_segments(
 ) -> void:
 	phase = new_phase
 	path = new_path
+	swing_end = 0.0
+	_lengths.clear()
 	segment_times = times
 	segment_easings = easings
 	duration = 0.0
@@ -67,6 +74,25 @@ func start_segments(
 	time = 0.0
 	eased = 0.0
 	turn = 0
+
+
+## Play `path` over `duration` with one easing measured along its LENGTH: the tip's speed follows
+## the easing whatever the segments' sizes, so a path of several segments plays as one curve
+## (no speed jump where they join).
+func start_even(
+		new_phase: int,
+		new_path: PackedVector3Array,
+		new_duration: float,
+		easing: String
+) -> void:
+	start(new_phase, new_path, new_duration, easing)
+	_lengths.append(0.0)
+	var last := path[0]
+	for k in range(0, path.size() - 3, 4):
+		for s in LENGTH_SAMPLES:
+			var p := Bezier.point(path[k], path[k + 1], path[k + 2], path[k + 3], (s + 1.0) / LENGTH_SAMPLES)
+			_lengths.append(_lengths[-1] + last.distance_to(p))
+			last = p
 
 
 ## Stay where the tip is for `hold_time`.
@@ -83,7 +109,8 @@ func progress() -> float:
 ## each segment then gets its own share of the time and its own speed curve.
 func eased_position() -> float:
 	if segment_times.size() == 1:
-		return eased_time(progress(), segment_easings[0])
+		var along := eased_time(progress(), segment_easings[0])
+		return along if _lengths.is_empty() else _at_length(along * _lengths[-1])
 	var start_time := 0.0
 	for i in segment_times.size():
 		if time < start_time + segment_times[i] or i == segment_times.size() - 1:
@@ -91,6 +118,21 @@ func eased_position() -> float:
 			return (i + eased_time(local, segment_easings[i])) / segment_times.size()
 		start_time += segment_times[i]
 	return 1.0
+
+
+# The path position (0..1) at `length` along the path (start_even's table, linear in between).
+func _at_length(length: float) -> float:
+	var low := 0
+	var high := _lengths.size() - 1
+	while high - low > 1: # binary search: _lengths[low] <= length < _lengths[high]
+		var middle := (low + high) / 2
+		if _lengths[middle] <= length:
+			low = middle
+		else:
+			high = middle
+	var span := _lengths[high] - _lengths[low]
+	var fraction := (length - _lengths[low]) / span if span > 1e-6 else 0.0
+	return clampf((low + fraction) / (_lengths.size() - 1), 0.0, 1.0)
 
 
 ## The speed curves: how a phase's time t (0..1) maps to distance along its path.
@@ -103,4 +145,7 @@ static func eased_time(
 		"in": return t * t * t # slow start, violent end: the yank
 		"accelerate": return t * t # faster and faster: the whirl
 		"smooth": return t * t * (3.0 - 2.0 * t)
+		"swing": # wind-up + strike as one motion: slow back, fast through, soft landing
+			var u := pow(t, 1.6)
+			return u * u * (3.0 - 2.0 * u)
 	return t

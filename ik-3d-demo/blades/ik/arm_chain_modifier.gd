@@ -1,4 +1,4 @@
-## Custom two-bone arm IK as a SkeletonModifier3D: your LimbChain maths, Godot's ordering.
+## Custom two-bone arm IK as a SkeletonModifier3D (legs use it too, via LegPlantModifier): your LimbChain maths, Godot's ordering.
 ##
 ## Godot runs modifiers right after the AnimationPlayer / AnimationTree has posed the skeleton, so
 ## this starts from the animated arm every frame and bends it toward `target`. Its `influence`
@@ -23,6 +23,8 @@ extends SkeletonModifier3D
 var target := Vector3.ZERO ## world position the wrist reaches for
 var pole := Vector3.ZERO ## world position the elbow bends toward
 var hand_position := Vector3.ZERO ## world: the grip — just past where the wrist ended up (after the influence blend)
+var animated_start := Vector3.ZERO ## skeleton space: the shoulder (or hip) the solve started from, last frame
+var animated_end := Vector3.ZERO ## skeleton space: the clip's wrist (or ankle) before the solve, last frame
 var animated_points := PackedVector3Array() ## world, for the debug view: the clip's shoulder, elbow, wrist
 var solved_points := PackedVector3Array() ## world, for the debug view: the IK's shoulder, elbow, wrist (full influence)
 
@@ -60,6 +62,8 @@ func _process_modification() -> void:
 	var solved_grip := solved + (solved - forearm.origin).normalized() * grip_offset
 	hand_position = skeleton.global_transform * animated_grip.lerp(solved_grip, influence)
 	var to_world := skeleton.global_transform
+	animated_end = animated_wrist
+	animated_start = shoulder
 	animated_points = PackedVector3Array([to_world * shoulder, to_world * elbow, to_world * animated_wrist])
 	solved_points = PackedVector3Array([to_world * shoulder, to_world * new_elbow, to_world * new_wrist])
 

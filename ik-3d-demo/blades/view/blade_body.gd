@@ -74,7 +74,7 @@ func update(delta: float) -> void:
 		var arm := _arms[i]
 		arm.root = shoulder
 		arm.target = pose.reach(i, shoulder, UPPER_ARM + FOREARM, _rest_hand(side), delta)
-		arm.pole = shoulder + Vector3.DOWN * 0.3 + _torso_basis.x * side * 0.45 - pose.forward() * 0.2 # elbow out, down, back
+		arm.pole = shoulder + Vector3.DOWN * 0.3 + _torso_basis.x * side * 0.45 - pose.chest_forward() * 0.2 # elbow out, down, back (of the chest)
 		arm.solve()
 	_legs.position = demo.player + Vector3.UP * 0.5
 	_legs.basis = Basis(Vector3.UP, pose.heading)
