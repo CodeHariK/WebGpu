@@ -7,6 +7,9 @@
 ##   Spin   (Q)            SpinMove      Bind   (G)      BindMove      Slam   (Z)      SlamMove
 ##   Lasso  (H, H again to throw)  LassoMove
 ##   WASD move · C curves (BladeDebug) · T slow motion · V fire step (BladeFire) · R reset
+## Combos: a move pressed while the blades are busy is queued (BUFFER seconds) and starts the moment
+## they're free — and they're free as soon as they start reeling home (BACK), so the next move
+## cuts in from wherever they are on the way back (attacks start from the blade's own position).
 ## The player is a PlayerBody (B switches): SophiaBody — her animation clips underneath, custom IK
 ## modifiers for the arms and the spine lean on top — or the capsule BladeBody. Both pose from the
 ## same BodyPose; the chains start at the body's hands.
@@ -30,6 +33,7 @@ const PICK_RADIUS := 4.0 ## moves aimed at an enemy take the one within this of 
 const ENEMY_POSITIONS := [Vector3(-3, 0, -5), Vector3(2, 0, -6), Vector3(5, 0, -3), Vector3(-5, 0, -2), Vector3(0, 0, -9)]
 const CAMERA_OFFSET := Vector3(0, 7.5, 8.5)
 const FIRE := Color(1.0, 0.45, 0.1)
+const BUFFER := 1.0 ## seconds a move pressed while the blades are busy waits for them (a throw is ~0.6 s out)
 
 @onready var camera: Camera3D = $Camera3D
 @onready var hud: Label = $Hud/Label
@@ -58,6 +62,9 @@ var wind_side := 0.6 ## … and this far out to the blade's own side
 var swing_tilt := 40.0 ## degrees each blade's swing plane leans out to its own side
 
 var _renderer: LimbRenderer
+var _queued := Callable() ## the move pressed while the blades were busy (empty: none)
+var _queued_name := ""
+var _queued_for := 0.0 ## seconds it still waits
 var _slow := false
 
 
@@ -128,6 +135,7 @@ func _process(delta: float) -> void:
 	if hitstop > 0.0: # hit-stop: the moves and the enemies freeze, the camera still shakes
 		hitstop -= delta
 		game_delta = 0.0
+	_run_queued(delta)
 	moves.rush.tick(game_delta)
 	for blade in blades:
 		_update_blade(blade, game_delta)
@@ -166,6 +174,48 @@ func rest(side: float) -> Vector3:
 func mouse_point() -> Vector3:
 	var hit_point = Plane(Vector3.UP, 1.0).intersects_ray(camera.project_ray_origin(mouse), camera.project_ray_normal(mouse))
 	return hit_point if hit_point != null else player + facing * 5.0 + Vector3(0, 1, 0)
+
+
+## Whether a new move may start: every blade is idle or on its last reel home (BACK, and its move
+## says that reel ends it), and no rush is carrying the player.
+func blades_free() -> bool:
+	if moves.rush.rushing:
+		return false
+	for blade in blades:
+		if blade.phase == Blade.IDLE:
+			continue
+		if blade.phase != Blade.BACK or not (moves[blade.move] as BladeMove).done_after_back(blade):
+			return false
+	return true
+
+
+## Start `action` (a move's start) now if the blades are free, else queue it: it starts the moment
+## they are, unless BUFFER seconds pass first. A newer press replaces the queued one.
+func request(
+		move_name: String,
+		action: Callable
+) -> void:
+	if blades_free():
+		action.call()
+		return
+	_queued = action
+	_queued_name = move_name
+	_queued_for = BUFFER
+
+
+# The queued move: start it once the blades are free, or drop it when its time runs out.
+func _run_queued(delta: float) -> void:
+	if not _queued.is_valid():
+		return
+	_queued_for -= delta
+	if blades_free():
+		var action := _queued
+		_queued = Callable()
+		_queued_name = ""
+		action.call()
+	elif _queued_for <= 0.0:
+		_queued = Callable()
+		_queued_name = ""
 
 
 func both_idle() -> bool:
@@ -240,9 +290,9 @@ func _update_blade(
 	if blade.phase == Blade.IDLE:
 		blade.tip = rest(blade.side)
 		return
-	if blade.delay > 0.0:
+	if blade.delay > 0.0: # waiting to leave: drift to the rest point (a blade cut off mid-reel eases in)
 		blade.delay -= delta
-		blade.tip = rest(blade.side)
+		blade.tip = blade.tip.lerp(rest(blade.side), 1.0 - exp(-20.0 * delta))
 		blade.path[0] = blade.tip
 		return
 	var move: BladeMove = moves[blade.move]
@@ -330,8 +380,9 @@ func _aim_blade(blade: Blade) -> void:
 
 func _draw_hud() -> void:
 	var fling: String = moves.slam.fling_name() if moves.slam.left > 0 else moves.pull.fling_name()
-	hud.text = "left %s · right %s%s%s%s\nLeft click throw   Right click sweep   Q spin   E pull   F slice   G bind   Space rush   X whirl   Z slam   H lasso (H: throw)   WASD move   C curves   T slow motion   V fire (%s)   B body   R reset" % [
+	hud.text = "left %s · right %s%s%s%s%s\nLeft click throw   Right click sweep   Q spin   E pull   F slice   G bind   Space rush   X whirl   Z slam   H lasso (H: throw)   WASD move   C curves   T slow motion   V fire (%s)   B body   R reset" % [
 		Blade.PHASE_NAMES[blades[0].phase], Blade.PHASE_NAMES[blades[1].phase],
+		"   next: %s" % _queued_name if _queued_name != "" else "",
 		"   fling: %s" % fling if fling != "" else "", "   [curves]" if debug.enabled else "", "   [slow]" if _slow else "",
 		fire.step_name()]
 
@@ -352,19 +403,23 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed:
 		mouse = event.position
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			moves.throw.start(mouse_point())
+			request("throw", moves.throw.start.bind(mouse_point())) # aimed where you clicked
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			moves.sweep.start()
+			request("sweep", moves.sweep.start)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
-			KEY_Q: moves.spin.start()
-			KEY_E: moves.pull.start()
-			KEY_F: moves.slice.start()
-			KEY_G: moves.bind.start()
-			KEY_SPACE: moves.rush.start()
-			KEY_X: moves.whirl.start()
-			KEY_Z: moves.slam.start()
-			KEY_H: moves.lasso.start()
+			KEY_Q: request("spin", moves.spin.start)
+			KEY_E: request("pull", moves.pull.start)
+			KEY_F: request("slice", moves.slice.start)
+			KEY_G: moves.bind.start() # its own chains: never waits for the blades
+			KEY_SPACE: request("rush", moves.rush.start)
+			KEY_X: request("whirl", moves.whirl.start)
+			KEY_Z: request("slam", moves.slam.start)
+			KEY_H:
+				if moves.lasso.held >= 0: # swinging: H throws, right now
+					moves.lasso.start()
+				else:
+					request("lasso", moves.lasso.start)
 			KEY_V: fire.next_step()
 			KEY_C: debug.enabled = not debug.enabled
 			KEY_T:

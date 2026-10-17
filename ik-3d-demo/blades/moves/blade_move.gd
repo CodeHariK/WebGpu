@@ -8,6 +8,7 @@
 ##   hitstop_scale()       how long a hit freezes the game (× BladesDemo.HITSTOP)
 ##   after_hit(blade)      right after one of this move's hits
 ##   next_phase(blade)     the phase's time is up: what comes next
+##   done_after_back(blade) BACK: is this the last reel of the move (then a new move may cut in)
 ## plus per-frame tick(delta), draw_debug(debug) and reset() for moves with their own state.
 ##
 ## It also holds what every attack shares: the wind-up + strike launch, the reel back to the hand,
@@ -63,6 +64,13 @@ func hitstop_scale() -> float:
 
 func after_hit(_blade: Blade) -> void:
 	pass
+
+
+## Whether this reel home ends the move: then the blade counts as free (BladesDemo.blades_free) and
+## the next move can start from wherever it is on the way back. False for a reel between the
+## steps of a combo (a slice reels home between slashes).
+func done_after_back(_blade: Blade) -> bool:
+	return true
 
 
 ## Default order: out → a short hold in the target → back → idle.

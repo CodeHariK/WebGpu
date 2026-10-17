@@ -22,7 +22,7 @@ func _init(owner: BladesDemo) -> void:
 
 
 func start() -> void:
-	if not demo.both_idle():
+	if not demo.blades_free():
 		return
 	var target := demo.enemy_near_mouse(RANGE, false)
 	if target < 0:
@@ -86,6 +86,11 @@ func knocks_back() -> bool:
 
 func hitstop_scale() -> float:
 	return 0.5
+
+
+## Only the reel after the last slash ends the combo.
+func done_after_back(blade: Blade) -> bool:
+	return blade.slice_angles.is_empty()
 
 
 func next_phase(blade: Blade) -> void:

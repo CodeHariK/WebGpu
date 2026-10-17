@@ -27,7 +27,7 @@ func reset() -> void:
 
 
 func start() -> void:
-	if not demo.both_idle() or rushing:
+	if not demo.blades_free() or rushing:
 		return
 	var camera := demo.camera
 	var best_pixels := PICK_PIXELS

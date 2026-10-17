@@ -37,7 +37,7 @@ func reset() -> void:
 
 func start() -> void:
 	var enemy := demo.enemy_near_mouse(RANGE, true)
-	if enemy >= 0 and demo.both_idle():
+	if enemy >= 0 and demo.blades_free():
 		left = SLAMS
 		fling = _pick_slam(enemy)
 		throw_both(demo.enemies[enemy].position, enemy)

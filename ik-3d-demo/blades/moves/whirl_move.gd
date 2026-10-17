@@ -31,7 +31,7 @@ func reset() -> void:
 
 
 func start() -> void:
-	if not demo.both_idle():
+	if not demo.blades_free():
 		return
 	var enemy := demo.enemy_near_mouse(RANGE, true)
 	if enemy >= 0:

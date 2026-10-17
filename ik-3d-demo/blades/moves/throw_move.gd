@@ -10,7 +10,7 @@ func _init(owner: BladesDemo) -> void:
 
 
 func start(aim: Vector3) -> void:
-	if demo.both_idle():
+	if demo.blades_free():
 		throw_both(aim)
 
 

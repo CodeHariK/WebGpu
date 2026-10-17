@@ -14,7 +14,7 @@ func _init(owner: BladesDemo) -> void:
 
 
 func start() -> void:
-	if not demo.both_idle():
+	if not demo.blades_free():
 		return
 	for blade in demo.blades:
 		begin(blade)
