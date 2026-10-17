@@ -143,6 +143,24 @@ func wind_top(blade: Blade) -> Vector3:
 	return hand + up * (demo.top_height - BladesDemo.HAND_HEIGHT) / maxf(up.y, 0.2) - demo.facing * demo.top_behind
 
 
+## Start the same path on several blades on one clock. `caller` is the blade whose update is
+## running now (it already stepped this frame); blades updated after it this frame would step
+## once more, so they start one step back — and all of them stay on exactly the same point.
+func start_together(
+		blades: Array[Blade],
+		caller: Blade,
+		phase: int,
+		path: PackedVector3Array,
+		duration: float,
+		easing: String
+) -> void:
+	var caller_index := demo.blades.find(caller)
+	for blade in blades:
+		blade.start(phase, path, duration, easing)
+		if demo.blades.find(blade) > caller_index:
+			blade.time = -demo.game_delta
+
+
 ## Reel the blade home along a curve that bows out on its own side.
 func back(blade: Blade) -> void:
 	var hand := demo.hand(blade.side)

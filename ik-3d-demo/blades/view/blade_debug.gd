@@ -5,7 +5,8 @@
 ##   smooth curve     the Bezier itself
 ##   tangents         green ticks along the curve: its direction (and, by length, its speed in t)
 ## plus the blade's own tangent right now (yellow), the joins between segments (magenta), and
-## whatever each move adds (draw_debug: the rush arc, the bind routes).
+## whatever each move adds (draw_debug: the rush arc, the bind routes), and the body's own debug
+## (PlayerBody.draw_debug: facing, lean, twist, arm IK targets and poles).
 class_name BladeDebug
 extends Node3D
 
@@ -13,6 +14,7 @@ var enabled := false
 
 var _mesh := ImmediateMesh.new()
 var _labels: Array[Label3D] = []
+var _used := 0 ## labels shown this frame
 
 
 func _ready() -> void:
@@ -22,6 +24,7 @@ func _ready() -> void:
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.vertex_color_use_as_albedo = true
 	material.no_depth_test = true
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA # dim lines really are dim
 	instance.material_override = material
 	add_child(instance)
 
@@ -31,9 +34,18 @@ func draw(
 		taut_chains: Array[PackedVector3Array]
 ) -> void:
 	_mesh.clear_surfaces()
+	_used = 0
+	if enabled:
+		_draw_lines(demo, taut_chains)
+	for k in range(_used, _labels.size()):
+		_labels[k].visible = false
+
+
+func _draw_lines(
+		demo: BladesDemo,
+		taut_chains: Array[PackedVector3Array]
+) -> void:
 	_label_points(demo.blades)
-	if not enabled:
-		return
 	_mesh.surface_begin(Mesh.PRIMITIVE_LINES)
 	for blade in demo.blades:
 		if blade.phase == Blade.IDLE or blade.path.size() < 4:
@@ -49,6 +61,7 @@ func draw(
 		curve_lines(c, Color(0.3, 0.9, 1.0))
 	for move: BladeMove in demo.moves.values():
 		move.draw_debug(self)
+	demo.body.draw_debug(self)
 	_mesh.surface_end()
 
 
@@ -85,6 +98,41 @@ func line(
 	_mesh.surface_add_vertex(b)
 
 
+## A line with a small arrow head at `b`.
+func arrow(
+		a: Vector3,
+		b: Vector3,
+		color: Color
+) -> void:
+	line(a, b, color)
+	var along := b - a
+	if along.length() < 1e-3:
+		return
+	var back := -along.normalized() * minf(0.12, along.length() * 0.4)
+	var side := back.cross(Vector3.UP)
+	if side.length() < 1e-4:
+		side = back.cross(Vector3.RIGHT)
+	side = side.normalized() * back.length() * 0.5
+	line(b, b + back + side, color)
+	line(b, b + back - side, color)
+
+
+## A text label at `p` this frame (labels are pooled; unused ones hide after the frame).
+func label(
+		p: Vector3,
+		text: String,
+		color: Color
+) -> void:
+	if _used == _labels.size():
+		_labels.append(_new_label())
+	var l := _labels[_used]
+	l.text = text
+	l.modulate = color
+	l.position = p
+	l.visible = true
+	_used += 1
+
+
 func cross(
 		p: Vector3,
 		color: Color,
@@ -96,26 +144,16 @@ func cross(
 
 # Control point ids on each moving blade's path: L0… left, R0… right; the join reads "L3/4".
 func _label_points(blades: Array[Blade]) -> void:
-	var used := 0
-	if enabled:
-		for blade in blades:
-			if blade.phase == Blade.IDLE or blade.path.size() < 4:
+	for blade in blades:
+		if blade.phase == Blade.IDLE or blade.path.size() < 4:
+			continue
+		var prefix := "L" if blade.side < 0.0 else "R"
+		var color := Color(1.0, 0.75, 0.5) if blade.side < 0.0 else Color(1.0, 0.95, 0.5)
+		for i in blade.path.size():
+			if i > 0 and i % 4 == 0 and blade.path[i].is_equal_approx(blade.path[i - 1]):
+				_labels[_used - 1].text += "/%d" % i # same point as the last one: the join
 				continue
-			var prefix := "L" if blade.side < 0.0 else "R"
-			for i in blade.path.size():
-				if i > 0 and i % 4 == 0 and blade.path[i].is_equal_approx(blade.path[i - 1]):
-					_labels[used - 1].text += "/%d" % i # same point as the last one: the join
-					continue
-				if used == _labels.size():
-					_labels.append(_new_label())
-				var label := _labels[used]
-				label.text = "%s%d" % [prefix, i]
-				label.modulate = Color(1.0, 0.75, 0.5) if blade.side < 0.0 else Color(1.0, 0.95, 0.5)
-				label.position = blade.path[i] + Vector3(0, 0.18, 0)
-				label.visible = true
-				used += 1
-	for k in range(used, _labels.size()):
-		_labels[k].visible = false
+			label(blade.path[i] + Vector3(0, 0.18, 0), "%s%d" % [prefix, i], color)
 
 
 func _new_label() -> Label3D:

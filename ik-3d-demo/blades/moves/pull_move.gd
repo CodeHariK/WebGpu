@@ -1,6 +1,7 @@
 ## Pull (E): both blades hook the enemy nearest the mouse, hit-stop, then YANK it along a lifted
 ## arc (ease-in: slow, then violent) to a random spot: your feet, flung off to your left or right,
-## or over your head to land behind you.
+## or over your head to land behind you. The first blade in waits for the second; then both yank
+## together on one curve, side by side, and let go together when it lands.
 class_name PullMove
 extends BladeMove
 
@@ -39,6 +40,30 @@ func pick_fling() -> Dictionary:
 	return choices[randi() % choices.size()]
 
 
+## The blades hooked into enemy `index` (both, in a pull).
+func _hooked_to(index: int) -> Array[Blade]:
+	var hooked: Array[Blade] = []
+	for blade in demo.blades:
+		if blade.enemy == index and blade.move == key:
+			hooked.append(blade)
+	return hooked
+
+
+## One yank for every blade in the enemy: the same curve and the same clock, so the enemy flies
+## as one piece and neither blade lets go mid-air (each still sits PAIR_GAP to its own side).
+func _yank_together(
+		caller: Blade,
+		hooked: Array[Blade]
+) -> void:
+	var index := caller.enemy
+	var from := demo.enemies[index].position
+	var to: Vector3 = demo.player + fling.to + Vector3(0, DemoEnemy.STAND_HEIGHT, 0)
+	var lift: float = fling.lift
+	demo.enemies[index].yanked = true
+	var path := PackedVector3Array([from, from + Vector3.UP * lift, to + Vector3.UP * lift * 0.8, to])
+	start_together(hooked, caller, Blade.YANK, path, fling.duration, "in")
+
+
 func fling_name() -> String:
 	return fling.get("name", "")
 
@@ -61,19 +86,23 @@ func next_phase(blade: Blade) -> void:
 			if blade.enemy < 0:
 				back(blade)
 				return
-			var from := demo.enemies[blade.enemy].position
-			var to: Vector3 = demo.player + fling.to + Vector3(0, DemoEnemy.STAND_HEIGHT, 0)
-			var lift: float = fling.lift
-			demo.enemies[blade.enemy].yanked = true
-			blade.start(Blade.YANK, PackedVector3Array([from, from + Vector3.UP * lift, to + Vector3.UP * lift * 0.8, to]), fling.duration, "in")
-		Blade.YANK:
-			var enemy := demo.enemies[blade.enemy]
+			var hooked := _hooked_to(blade.enemy)
+			for other in hooked:
+				if other.phase == Blade.OUT: # the other blade is still on its way: wait for it
+					blade.hold(0.02)
+					return
+			_yank_together(blade, hooked)
+		Blade.YANK: # the shared yank ends for both blades at once: land the enemy, reel both home
+			var index := blade.enemy
+			var enemy := demo.enemies[index]
 			enemy.yanked = false
 			var arrival := blade.path[3] - blade.path[0] # keep going the way the throw went
 			arrival.y = 0.0
 			enemy.velocity = arrival.normalized() * float(fling.carry) if arrival.length() > 1e-3 else Vector3.ZERO
-			demo.hit(blade, blade.enemy, false) # lands: hit-stop + flash, no knockback
-			blade.enemy = -1
-			back(blade)
+			demo.hit(blade, index, false) # lands: hit-stop + flash, no knockback
+			for other in demo.blades:
+				if other.enemy == index:
+					other.enemy = -1
+					back(other)
 		_:
 			super(blade)

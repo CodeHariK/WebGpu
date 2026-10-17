@@ -6,6 +6,9 @@
 ##   Sweep  (right click)  SweepMove     Slice  (F)      SliceMove     Whirl  (X)      WhirlMove
 ##   Spin   (Q)            SpinMove      Bind   (G)      BindMove
 ##   WASD move · C curves (BladeDebug) · T slow motion · V fire step (BladeFire) · R reset
+## The player is a PlayerBody (B switches): SophiaBody — her animation clips underneath, custom IK
+## modifiers for the arms and the spine lean on top — or the capsule BladeBody. Both pose from the
+## same BodyPose; the chains start at the body's hands.
 ##
 ## This node owns the shared state (player, blades, enemies, hit-stop, shake, the slider settings)
 ## and runs the frame: each blade plays its path and its move (moves/) decides what happens at each
@@ -38,10 +41,13 @@ var blades: Array[Blade] = [] ## [left, right]
 var enemies: Array[DemoEnemy] = []
 var hitstop := 0.0
 var shake := 0.0
+var game_delta := 0.0 ## this frame's game time step (0 during hit-stop)
 var mouse := Vector2.ZERO
 var moves := {} ## key → BladeMove
 var fire: BladeFire
 var debug: BladeDebug
+var body: PlayerBody ## the one showing (B switches)
+var bodies: Array[PlayerBody] = [] ## [Sophia, capsule]
 
 # Tuned live with the sliders (BladeSliders).
 var windup_time := 0.16 ## the wind-up segment: hand → top
@@ -50,7 +56,6 @@ var top_behind := 0.9 ## … this far behind the hand
 var swing_tilt := 40.0 ## degrees each blade's swing plane leans out to its own side
 
 var _renderer: LimbRenderer
-var _player_mesh: MeshInstance3D
 var _slow := false
 
 
@@ -59,7 +64,11 @@ func _ready() -> void:
 	DemoProps.add_posts(self, RushMove.POSTS)
 	_renderer = LimbRenderer.new()
 	add_child(_renderer)
-	_player_mesh = DemoProps.mesh_instance(self, DemoProps.capsule(0.3, 1.6), Color(0.85, 0.85, 0.8))
+	for each: PlayerBody in [SophiaBody.new(), BladeBody.new()]:
+		add_child(each)
+		each.setup(self)
+		bodies.append(each)
+	_use_body(0)
 	for move: BladeMove in [ThrowMove.new(self), SweepMove.new(self), SpinMove.new(self), PullMove.new(self),
 			SliceMove.new(self), BindMove.new(self), RushMove.new(self), WhirlMove.new(self)]:
 		moves[move.key] = move
@@ -89,6 +98,8 @@ func _reset() -> void:
 		blades.append(_new_blade(side))
 	for p: Vector3 in ENEMY_POSITIONS:
 		enemies.append(DemoEnemy.new(self, p))
+	for each in bodies:
+		each.reset()
 
 
 func _new_blade(side: float) -> Blade:
@@ -111,13 +122,14 @@ func _new_blade(side: float) -> Blade:
 
 func _process(delta: float) -> void:
 	_move_player(delta)
-	var game_delta := delta
+	game_delta = delta
 	if hitstop > 0.0: # hit-stop: the moves and the enemies freeze, the camera still shakes
 		hitstop -= delta
 		game_delta = 0.0
 	moves.rush.tick(game_delta)
 	for blade in blades:
 		_update_blade(blade, game_delta)
+	body.update(game_delta) # torso lean + arms, from what the blades just did
 	moves.bind.tick(game_delta)
 	for enemy in enemies:
 		enemy.update(game_delta)
@@ -131,8 +143,14 @@ func right() -> Vector3:
 	return facing.cross(Vector3.UP).normalized()
 
 
+## Where blade paths start and end for this side (a fixed point by the hip: paths stay stable).
 func hand(side: float) -> Vector3:
 	return player + right() * side * HAND_SPREAD + Vector3(0, HAND_HEIGHT, 0)
+
+
+## Where the chain actually leaves the body: the shown body's hand (PlayerBody.grip).
+func grip(side: float) -> Vector3:
+	return body.grip(side)
 
 
 ## Where the mouse points on the plane 1 m above the ground (enemy height).
@@ -211,11 +229,11 @@ func _update_blade(
 ) -> void:
 	blade.previous_tip = blade.tip
 	if blade.phase == Blade.IDLE:
-		blade.tip = hand(blade.side) + Vector3(0, -0.15, 0)
+		blade.tip = grip(blade.side) + Vector3(0, -0.15, 0)
 		return
 	if blade.delay > 0.0:
 		blade.delay -= delta
-		blade.tip = hand(blade.side)
+		blade.tip = grip(blade.side)
 		blade.path[0] = blade.tip
 		return
 	var move: BladeMove = moves[blade.move]
@@ -253,8 +271,6 @@ func _check_hits(blade: Blade) -> void:
 # --- drawing ------------------------------------------------------------------------------------
 
 func _draw(delta: float) -> void:
-	_player_mesh.position = player + Vector3(0, 0.8, 0)
-	_player_mesh.rotation.y = atan2(-facing.x, -facing.z)
 	var taut: Array[PackedVector3Array] = [] # taut chains' control points, for the debug view
 	for blade in blades:
 		blade.chain.points = _chain_points(blade, delta, taut)
@@ -279,7 +295,7 @@ func _chain_points(
 		delta: float,
 		taut_controls: Array[PackedVector3Array]
 ) -> PackedVector3Array:
-	var from := hand(blade.side)
+	var from := grip(blade.side)
 	if blade.delay <= 0.0 and blade.phase == Blade.OUT and (moves[blade.move] as BladeMove).chain_on_path(blade):
 		return BladeChain.on_path(from, blade.path, 0.0, blade.eased, true, LINKS)
 	if blade.delay <= 0.0 and blade.phase == Blade.BACK:
@@ -298,17 +314,25 @@ func _aim_blade(blade: Blade) -> void:
 	var links := blade.chain.points
 	var heading := links[-1] - links[-2]
 	if heading.length() < 1e-3:
-		heading = blade.tip - hand(blade.side)
+		heading = blade.tip - grip(blade.side)
 	if heading.length() > 1e-3 and absf(heading.normalized().dot(Vector3.UP)) < 0.99:
 		blade.mesh.look_at(blade.tip + heading, Vector3.UP)
 
 
 func _draw_hud() -> void:
 	var fling: String = moves.pull.fling_name()
-	hud.text = "left %s · right %s%s%s%s\nLeft click throw   Right click sweep   Q spin   E pull   F slice   G bind   Space rush   X whirl   WASD move   C curves   T slow motion   V fire (%s)   R reset" % [
+	hud.text = "left %s · right %s%s%s%s\nLeft click throw   Right click sweep   Q spin   E pull   F slice   G bind   Space rush   X whirl   WASD move   C curves   T slow motion   V fire (%s)   B body   R reset" % [
 		Blade.PHASE_NAMES[blades[0].phase], Blade.PHASE_NAMES[blades[1].phase],
 		"   pull: %s" % fling if fling != "" else "", "   [curves]" if debug.enabled else "", "   [slow]" if _slow else "",
 		fire.step_name()]
+
+
+## Show one body and hide the others (only the shown one updates).
+func _use_body(index: int) -> void:
+	body = bodies[index]
+	for each in bodies:
+		each.visible = each == body
+	body.reset()
 
 
 # --- input ----------------------------------------------------------------------------------------
@@ -335,4 +359,5 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_T:
 				_slow = not _slow
 				Engine.time_scale = 0.2 if _slow else 1.0
+			KEY_B: _use_body((bodies.find(body) + 1) % bodies.size())
 			KEY_R: _reset()

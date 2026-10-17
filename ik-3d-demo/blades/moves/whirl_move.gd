@@ -47,7 +47,7 @@ func next_phase(blade: Blade) -> void:
 		return
 	demo.hit(blade, blade.enemy, false)
 	if held < 0:
-		_start_whirl(blade.enemy)
+		_start_whirl(blade)
 	elif blade.phase == Blade.OUT:
 		blade.start(Blade.WHIRL, whirl_path(), TIME, "accelerate")
 		blade.time = demo.blades[0].time if blade.side > 0.0 else demo.blades[1].time
@@ -55,7 +55,8 @@ func next_phase(blade: Blade) -> void:
 
 ## The circle starts where the enemy already is (its angle round the player), in a frame fixed
 ## now, so turning to aim doesn't spin the circle.
-func _start_whirl(enemy: int) -> void:
+func _start_whirl(caller: Blade) -> void:
+	var enemy := caller.enemy
 	held = enemy
 	_right = demo.right()
 	_forward = demo.facing
@@ -63,8 +64,7 @@ func _start_whirl(enemy: int) -> void:
 	_angle = atan2(offset.dot(_forward), offset.dot(_right))
 	_from = demo.enemies[enemy].position
 	demo.enemies[enemy].yanked = true # the path moves it now
-	for blade in demo.blades:
-		blade.start(Blade.WHIRL, whirl_path(), TIME, "accelerate")
+	start_together(demo.blades, caller, Blade.WHIRL, whirl_path(), TIME, "accelerate") # one clock: one swing
 
 
 ## Lead-in (from the enemy to the circle, arriving along its tangent) + TURNS turns of
