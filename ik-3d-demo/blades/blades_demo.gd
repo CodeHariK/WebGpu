@@ -32,10 +32,14 @@ const HAND_SPREAD := 0.35
 const PLAYER_SPEED := 4.5
 const GRAVITY := 25.0
 const HIT_RADIUS := 0.8
+const HAMMER_HIT_RADIUS := 1.1 ## a hammer head is bigger than a blade
+const WEAPONS := ["blades", "hammers"] ## M switches: the same chains, a blade or a hammer head on the end
+const HAMMER_MOVES := {"throw": "meteor", "sweep": "wrecking", "spin": "tornado", "slam": "pound", "rush": "leap"} ## with the hammers out, these keys play these moves
 const PAIR_GAP := 0.25 ## the two blades land this far either side of the aim
 const STAGGER := 0.05 ## the right blade leaves this much later
 const PICK_RADIUS := 4.0 ## moves aimed at an enemy take the one within this of the mouse point
 const ENEMY_POSITIONS := [Vector3(-3, 0, -5), Vector3(2, 0, -6), Vector3(5, 0, -3), Vector3(-5, 0, -2), Vector3(0, 0, -9)]
+const ENEMY_HEIGHTS := [2.0, 1.5, 2.6, 1.8, 2.4] ## m: the top of each one's head (robots come in different sizes)
 const CAMERA_OFFSET := Vector3(0, 7.5, 8.5)
 const FIRE := Color(1.0, 0.45, 0.1)
 const KEYS := {KEY_Q: "spin", KEY_E: "pull", KEY_F: "slice", KEY_G: "bind", KEY_SPACE: "rush",
@@ -61,6 +65,11 @@ var hit_count := 0 ## hits so far (the preview's timeline marks them)
 var game_delta := 0.0 ## this frame's game time step (0 during hit-stop)
 var mouse := Vector2.ZERO
 var moves := {} ## key → BladeMove
+var weapon := 0 ## WEAPONS: 0 blades, 1 hammers
+var impacts: HammerImpacts ## the hammers' crashes: scrap, sparks, scorches, smears, the camera's lurch, slow motion
+var scary := false ## the look (L switches): the plain grey test ground, or dusk, haze and dirt
+var _ground: MeshInstance3D
+var _fov := 55.0 ## the camera's own view (impacts narrow it for a moment)
 var fire: BladeFire
 var debug: BladeDebug
 var body: PlayerBody ## the one showing (B switches)
@@ -108,7 +117,7 @@ var _jolt := RandomNumberGenerator.new() ## camera shake: its own random numbers
 
 
 func _ready() -> void:
-	DemoProps.add_ground(self)
+	_ground = DemoProps.add_ground(self)
 	DemoProps.add_posts(self, RushMove.POSTS)
 	_renderer = LimbRenderer.new()
 	add_child(_renderer)
@@ -118,11 +127,15 @@ func _ready() -> void:
 		bodies.append(each)
 	_use_body(0)
 	for move: BladeMove in [ThrowMove.new(self), SweepMove.new(self), SpinMove.new(self), PullMove.new(self),
-			SliceMove.new(self), BindMove.new(self), RushMove.new(self), WhirlMove.new(self), SlamMove.new(self), LassoMove.new(self), AnchorMove.new(self), RipMove.new(self)]:
+			SliceMove.new(self), BindMove.new(self), RushMove.new(self), WhirlMove.new(self), SlamMove.new(self), LassoMove.new(self), AnchorMove.new(self), RipMove.new(self),
+			MeteorMove.new(self), WreckingMove.new(self), TornadoMove.new(self), PoundMove.new(self), LeapMove.new(self)]:
 		moves[move.key] = move
 	fire = BladeFire.new()
 	add_child(fire)
 	fire.setup($WorldEnvironment.environment)
+	impacts = HammerImpacts.new()
+	add_child(impacts)
+	_fov = camera.fov
 	debug = BladeDebug.new()
 	add_child(debug)
 	tuning = MoveTuning.new(self) # the code's values become the defaults …
@@ -169,8 +182,10 @@ func _reset() -> void:
 	for move: BladeMove in moves.values():
 		move.reset()
 	fire.clear()
+	impacts.clear()
 	for blade in blades:
 		blade.mesh.queue_free()
+		blade.head.queue_free()
 	for enemy in enemies:
 		enemy.mesh.queue_free()
 	for slab in props:
@@ -181,8 +196,8 @@ func _reset() -> void:
 	_renderer.clear()
 	for side in [-1.0, 1.0]:
 		blades.append(_new_blade(side))
-	for p: Vector3 in ENEMY_POSITIONS:
-		enemies.append(DemoEnemy.new(self, p))
+	for i in ENEMY_POSITIONS.size():
+		enemies.append(DemoEnemy.new(self, ENEMY_POSITIONS[i], ENEMY_HEIGHTS[i]))
 	for p: Vector3 in RipMove.PROPS:
 		props.append(RipProp.new(self, p))
 	for each in bodies:
@@ -204,15 +219,31 @@ func _new_blade(side: float) -> Blade:
 	blade.chain.color = Color(0.22, 0.2, 0.19)
 	_renderer.add(blade.chain)
 	blade.mesh = DemoProps.mesh_instance(self, DemoProps.blade_mesh(), FIRE, true)
+	blade.head = HammerHead.build(self)
+	_arm(blade)
 	return blade
+
+
+## Hammers: the heavy chains with a hammer head on the end; blades: the blade.
+func hammers() -> bool:
+	return weapon == 1
+
+
+# Show the blade or the hammer head on this blade's chain (and a heavier chain for the hammer).
+func _arm(blade: Blade) -> void:
+	blade.mesh.visible = not hammers()
+	blade.head.visible = hammers()
+	blade.chain.radius = 0.045 if hammers() else 0.03
 
 
 ## A frame: the game steps once by `delta` — or, while a preview plays, by as many fixed steps as
 ## it asks for (none while it's paused or scrubbed) — then everything is drawn.
 func _process(delta: float) -> void:
 	if not preview.active:
-		simulate(delta)
-		_draw(delta, delta)
+		var step := delta * (HammerImpacts.SLOW_SPEED if impacts.slow_left > 0.0 else 1.0) # a heavy impact: time crawls a moment
+		impacts.slow_left = maxf(impacts.slow_left - delta, 0.0)
+		simulate(step)
+		_draw(step, delta)
 		return
 	var steps := preview.steps(delta)
 	_draw(STEP_DRAW if steps > 0 else 0.0, delta) # the camera keeps moving even while paused
@@ -229,6 +260,8 @@ func simulate(delta: float) -> void:
 	moves.rush.tick(game_delta)
 	moves.anchor.tick(game_delta)
 	moves.rip.tick(game_delta)
+	moves.leap.tick(game_delta)
+	moves.pound.tick(game_delta)
 	for blade in blades:
 		_update_blade(blade, game_delta)
 	body.update(game_delta) # torso lean + arms, from what the blades just did
@@ -274,7 +307,7 @@ func mouse_point() -> Vector3:
 ## Whether a new move may start: every blade is idle or on its last reel home (BACK, and its move
 ## says that reel ends it), and no rush is carrying the player.
 func blades_free() -> bool:
-	if moves.rush.rushing:
+	if moves.rush.rushing or moves.leap.carrying:
 		return false
 	for blade in blades:
 		if blade.phase == Blade.IDLE:
@@ -302,7 +335,15 @@ func request(
 ## move that's waiting for its second press (lasso: throw, rip: tug), do that right now. The
 ## preview presses moves through this too.
 func press(action: String) -> void:
+	if hammers():
+		action = HAMMER_MOVES.get(action, action)
 	match action:
+		"meteor": request("meteor", moves.meteor.start.bind(mouse_point())) # aimed where you clicked
+		"leap":
+			if moves.leap.bouncing(): # in the air off a head: leap on right now
+				moves.leap.start()
+			else:
+				request("leap", moves.leap.start)
 		"throw": request("throw", moves.throw.start.bind(mouse_point())) # aimed where you clicked
 		"bind": moves.bind.start() # its own chains: never waits for the blades
 		"rip":
@@ -369,16 +410,21 @@ func hit(
 		var away := enemy.position - player
 		away.y = 0.0
 		enemy.velocity = away.normalized() * 7.0 + Vector3.UP * 2.0
+		if hammers(): # a hammer head sends it flying, and dents it
+			enemy.velocity = away.normalized() * 12.0 + Vector3.UP * 6.0
+			enemy.squash = maxf(enemy.squash, 0.6)
+	if hammers():
+		impacts.impact(blade.tip, 6, 18, 6.0, Color(0.3, 0.32, 0.35), 0.0, false) # scrap and sparks off the robot
 	hit_count += 1
 	hitstop = hitstop_time * move.hitstop_scale()
-	shake = hit_shake
+	shake = hit_shake * (1.8 if hammers() else 1.0)
 	move.after_hit(blade)
 
 
 # --- the frame ------------------------------------------------------------------------------------
 
 func _move_player(delta: float) -> void:
-	if moves.rush.rushing or moves.anchor.hauling: # a rush / the anchor's haul moves the player
+	if moves.rush.rushing or moves.anchor.hauling or moves.leap.carrying: # a rush / the anchor's haul / a leap moves the player
 		return
 	var input := Vector3(float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)), 0,
 			float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W)))
@@ -439,7 +485,7 @@ func _check_hits(blade: Blade) -> void:
 			continue
 		# the whole stretch the blade covered this frame, so a fast blade can't skip through
 		var closest := Geometry3D.get_closest_point_to_segment(enemies[i].position, blade.previous_tip, blade.tip)
-		if closest.distance_to(enemies[i].position) < HIT_RADIUS:
+		if closest.distance_to(enemies[i].position) < (HAMMER_HIT_RADIUS if hammers() else HIT_RADIUS):
 			blade.hit.append(i)
 			hit(blade, i, true)
 
@@ -459,8 +505,11 @@ func _draw(
 	_renderer.draw()
 	moves.bind.draw()
 	fire.draw(blades, delta)
-	for enemy in enemies:
-		enemy.draw()
+	impacts.update(delta, view_delta, blades, hammers())
+	var aimed := -1 if preview.active else enemy_near_mouse(INF, false) # the one a click would go for glows
+	for i in enemies.size():
+		enemies[i].highlight = 1.0 if i == aimed else 0.0
+		enemies[i].draw()
 	for slab in props:
 		slab.draw()
 	shake = maxf(shake - delta, 0.0)
@@ -475,6 +524,7 @@ func _draw(
 	camera.position = _eye + jolt
 	camera.h_offset = lerpf(camera.h_offset, _panel_shift(), 1.0 - exp(-6.0 * view_delta))
 	camera.look_at(_focus)
+	camera.fov = _fov - (0.0 if preview.active else impacts.fov_kick())
 	debug.draw(self, taut)
 	_draw_hud()
 
@@ -567,8 +617,12 @@ func _chain_shape(
 	return Bezier.even_points(c[0], c[1], c[2], c[3], LINKS)
 
 
-## The blade continues the chain: it points along the last link, away from the hand.
+## The blade continues the chain: it points along the last link, away from the hand. A hammer
+## head (a ball) hangs off the chain's end by its ring.
 func _aim_blade(blade: Blade) -> void:
+	if hammers():
+		_aim_head(blade)
+		return
 	blade.mesh.position = blade.tip
 	var links := blade.chain.points
 	var heading := links[-1] - links[-2]
@@ -578,13 +632,51 @@ func _aim_blade(blade: Blade) -> void:
 		blade.mesh.look_at(blade.tip + heading, Vector3.UP)
 
 
+func _aim_head(blade: Blade) -> void:
+	var links := blade.chain.points
+	var along := links[-1] - links[-2]
+	if along.length() < 1e-3:
+		along = blade.tip - grip(blade.side)
+	along = along.normalized() if along.length() > 1e-3 else Vector3.DOWN
+	var across := along.cross(Vector3.UP)
+	if across.length() < 0.1: # hanging straight down (or up): across your facing
+		across = right()
+	across = across.normalized()
+	var back := -along # the head's +Y points back up the chain
+	blade.head.global_transform = Transform3D(Basis(across, back, across.cross(back)), blade.tip)
+
+
+## The look (L): the plain test scene, or the hammer demo's scary one — a dusk sky, a red haze,
+## dark dirt, a low warm sun.
+func _set_look(dark: bool) -> void:
+	scary = dark
+	var environment: Environment = $WorldEnvironment.environment
+	var sky: ProceduralSkyMaterial = environment.sky.sky_material
+	sky.sky_top_color = Color(0.08, 0.06, 0.12) if dark else Color(0.38, 0.55, 0.8)
+	sky.sky_horizon_color = Color(0.45, 0.18, 0.1) if dark else Color(0.72, 0.8, 0.88)
+	sky.ground_horizon_color = Color(0.2, 0.1, 0.08) if dark else Color(0.72, 0.8, 0.88)
+	environment.fog_enabled = dark
+	environment.fog_light_color = Color(0.3, 0.16, 0.12)
+	environment.fog_density = 0.012
+	var sun: DirectionalLight3D = $Sun
+	sun.light_color = Color(1.0, 0.75, 0.6) if dark else Color.WHITE
+	(_ground.material_override as StandardMaterial3D).albedo_color = Color(0.2, 0.18, 0.15) if dark else Color(0.3, 0.28, 0.27)
+
+
+## Switch weapons (M): blades ↔ hammer heads, on the same chains.
+func _switch_weapon() -> void:
+	weapon = (weapon + 1) % WEAPONS.size()
+	for blade in blades:
+		_arm(blade)
+
+
 func _draw_hud() -> void:
 	var fling: String = moves.slam.fling_name() if moves.slam.left > 0 else moves.pull.fling_name()
-	hud.text = "left %s · right %s%s%s%s%s\nLeft click throw   Right click sweep   Q spin   E pull   F slice   G bind   Space rush   X whirl   Z slam   H lasso (H: throw)   J ground anchor   K rip (K: tug)   Tab tuning   WASD move   C curves   T slow motion   V fire (%s)   B body   R reset" % [
+	hud.text = "left %s · right %s%s%s%s%s\nLeft click throw   Right click sweep   Q spin   E pull   F slice   G bind   Space rush   X whirl   Z slam   H lasso (H: throw)   J ground anchor   K rip (K: tug)   Tab tuning   WASD move   C curves   T slow motion   V fire (%s)   B body   M weapon: %s   N robots / dummies   L look   R reset" % [
 		Blade.PHASE_NAMES[blades[0].phase], Blade.PHASE_NAMES[blades[1].phase],
 		"   next: %s" % _queued_name if _queued_name != "" else "",
 		"   fling: %s" % fling if fling != "" else "", "   [curves]" if debug.enabled else "", "   [slow]" if _slow else "",
-		fire.step_name()]
+		fire.step_name(), WEAPONS[weapon] + (" (click meteor, right click wrecking swing, Q tornado, Z ground pound, Space jump smash — again in the air: next head%s)" % ("   combo x%d" % moves.leap.combo if moves.leap.combo > 1 else "") if hammers() else "")]
 
 
 ## Whether the tuning panel (the editor) is open.
@@ -648,4 +740,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_slow = not _slow
 				Engine.time_scale = 0.2 if _slow else 1.0
 			KEY_B: _use_body((bodies.find(body) + 1) % bodies.size())
+			KEY_M: _switch_weapon()
+			KEY_N: DemoEnemy.robots = not DemoEnemy.robots # robots ↔ capsule dummies
+			KEY_L: _set_look(not scary)
 			KEY_R: _reset()

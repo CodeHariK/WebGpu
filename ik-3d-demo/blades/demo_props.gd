@@ -71,7 +71,7 @@ static func add_posts(
 		ring_instance.rotation.x = PI / 2.0
 
 
-static func add_ground(parent: Node3D) -> void:
+static func add_ground(parent: Node3D) -> MeshInstance3D:
 	var mesh := PlaneMesh.new()
 	mesh.size = Vector2(60, 60)
 	var ground := MeshInstance3D.new()
@@ -80,3 +80,4 @@ static func add_ground(parent: Node3D) -> void:
 	material.albedo_color = Color(0.3, 0.28, 0.27)
 	ground.material_override = material
 	parent.add_child(ground)
+	return ground

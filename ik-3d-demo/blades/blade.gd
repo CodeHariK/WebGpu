@@ -45,6 +45,7 @@ var snap_from := PackedVector3Array() ## the chain's shape when it switched (it 
 var snap_time := 99.0 ## seconds since it switched
 var sway := ChainSway.new() ## the chain's weight: it follows its shape on springs
 var mesh: MeshInstance3D
+var head: Node3D ## the hammer head shown instead of the blade (weapon mode "hammers")
 
 static var shaper := Callable() ## BladesDemo.shape_path: the curve editor's offsets, added to every path a blade starts
 static var timing: PhaseTiming ## the timing editor's edits (time scale, speed curve), applied to every phase a blade starts
