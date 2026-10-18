@@ -8,6 +8,8 @@
 ## timeline scrubs to any moment of it, ■ ends the preview and gives the scene back. Dragging a slider
 ## while a preview is on replays it to the same moment, so the curves (C) change live as you drag.
 ## ⟲ View puts the editor camera (OrbitView: orbit / pan / zoom with the mouse) back to the game's view.
+## With the curves on (C) and a preview on, left-drag a curve's control point to bend the move there
+## (CurveEditor); Save keeps the bends, Defaults on a move's page removes them.
 class_name TuningPanel
 extends PanelContainer
 
@@ -119,7 +121,7 @@ func _rebuild() -> void:
 	var target: Object = _tuning.targets[section]
 	for entry: Array in target.tunables():
 		var name: String = entry[0]
-		var whole: bool = float(entry[3]) >= 1.0
+		var digits := 0 if float(entry[3]) >= 1.0 else (3 if float(entry[3]) < 0.01 else 2) # decimals the step needs
 		var row := HBoxContainer.new()
 		var label := Label.new()
 		label.custom_minimum_size.x = 170
@@ -130,10 +132,10 @@ func _rebuild() -> void:
 		slider.value = float(target.get(name))
 		slider.custom_minimum_size.x = 220
 		slider.focus_mode = Control.FOCUS_NONE # keep the keys for the game
-		label.text = _label(name, slider.value, whole)
+		label.text = _label(name, slider.value, digits)
 		slider.value_changed.connect(func(v: float) -> void:
 			_tuning.apply(section, name, v)
-			label.text = _label(name, v, whole)
+			label.text = _label(name, v, digits)
 			_preview.refresh()) # a preview on: replay to the same moment, so the curve changes as you drag
 		row.add_child(label)
 		row.add_child(slider)
@@ -144,9 +146,9 @@ func _rebuild() -> void:
 func _label(
 		name: String,
 		value: float,
-		whole: bool
+		digits: int
 ) -> String:
-	return "%s  %s" % [name.replace("_", " "), "%d" % int(round(value)) if whole else "%.2f" % value]
+	return "%s  %s" % [name.replace("_", " "), String.num(value, digits)]
 
 
 func _save() -> void:

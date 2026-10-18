@@ -115,7 +115,7 @@ func throw_both(
 		var distance := hand.distance_to(target)
 		# Comes down onto the target from above and out on its own side (its tilted plane).
 		var p2 := target + swing_up(blade) * distance * demo.drop
-		launch(blade, PackedVector3Array([hand, hand, p2, target]), 0.15 + distance * 0.008, "swing")
+		launch(blade, PackedVector3Array([hand, hand, p2, target]), demo.throw_time + distance * demo.throw_per_m, "swing")
 
 
 ## Each blade swings in its own plane: it holds your forward direction and an "up" that leans out

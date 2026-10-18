@@ -29,6 +29,7 @@ var segment_times := PackedFloat32Array() ## one time per path segment (or one f
 var segment_easings := [] ## an easing name per segment
 var eased := 0.0 ## where along the path the tip is (0..1, over all segments)
 var path := PackedVector3Array() ## 4 control points per Bezier segment
+var base_path := PackedVector3Array() ## the path as its move built it (before the curve editor's offsets)
 var swing_end := 0.0 ## OUT: where along the path (0..1) the wind-up ends (0: this path has none)
 var tip := Vector3.ZERO
 var previous_tip := Vector3.ZERO
@@ -39,7 +40,12 @@ var spin_right := Vector3.RIGHT ## spin: the circle's frame, fixed when the spin
 var spin_forward := Vector3.FORWARD
 var slice_angles: Array[float] = [] ## slice: this blade's slash planes still to do
 var chain: LimbChain
+var chain_on_path := false ## last frame the chain lay on the path (thrown / reeling); else taut
+var snap_from := PackedVector3Array() ## the chain's shape when it switched (it blends from this)
+var snap_time := 99.0 ## seconds since it switched
 var mesh: MeshInstance3D
+
+static var shaper := Callable() ## BladesDemo.shape_path: the curve editor's offsets, added to every path a blade starts
 
 const LENGTH_SAMPLES := 16 ## per segment, for start_even's length table
 
@@ -64,7 +70,8 @@ func start_segments(
 		easings: Array
 ) -> void:
 	phase = new_phase
-	path = new_path
+	base_path = new_path
+	path = shaper.call(self, new_path) if shaper.is_valid() else new_path
 	swing_end = 0.0
 	_lengths.clear()
 	segment_times = times

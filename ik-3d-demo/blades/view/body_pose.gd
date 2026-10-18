@@ -51,6 +51,9 @@ const MAX_RATE := 25.0 ## rad/s: the goal's turn rate is clamped to this …
 const JUMP := 0.6 ## … and a goal step bigger than this (radians) in one frame is a jump, not a turn
 const MIN_OUT := 0.25 ## each arm points at least this much out to its own side (dot with chest right)
 const EYE_HEIGHT := 1.55 ## m: where the look is measured from
+const HEAVE := 0.45 ## the moment a yank starts, the hands snap in toward the body by this share …
+const HEAVE_TIME := 0.3 ## … and out again over this long (the heave on the chain)
+const YANK_KICK := 2.0 ## … and the torso is kicked back this hard (lean velocity)
 
 var lean := Vector3.ZERO ## horizontal: the direction the upper body tips; length = how far
 var twist := 0.0
@@ -64,6 +67,7 @@ var _heading_goal := 0.0 ## unwrapped target angle
 var _goal_rate := 0.0 ## rad/s, smoothed: how fast the goal is turning (only while carried)
 var look := Vector3.FORWARD ## unit: where the head looks
 var _look_spring := SecondOrder.new(3.0, 0.8, 0.5)
+var _last_phase := [Blade.IDLE, Blade.IDLE] ## each blade's phase last frame (to see a yank start)
 var _reach: Array[SecondOrder] = [SecondOrder.new(4.0, 0.6, 1.0), SecondOrder.new(4.0, 0.6, 1.0)]
 
 
@@ -121,6 +125,7 @@ func update(delta: float) -> void:
 	_goal_rate = lerpf(_goal_rate, rate if _carried() else 0.0, 1.0 - exp(-10.0 * delta))
 	heading = _heading_spring.update(delta, Vector3(_heading_goal + _goal_rate * CARRY_LEAD, 0.0, 0.0)).x
 	var lag := _heading_goal - heading
+	_kick_on_yank()
 	var pose := _spring.update(delta, _target())
 	lean = Vector3(pose.x, 0.0, pose.z).limit_length(MAX_LEAN)
 	twist = clampf(pose.y + lag * LEAD, -MAX_TWIST, MAX_TWIST)
@@ -149,8 +154,12 @@ func reach(
 ) -> Vector3:
 	var wanted := rest
 	if is_reaching(i):
-		var to_blade := _demo.blades[i].tip - shoulder
-		wanted = shoulder + _own_side(i, to_blade.normalized()) * minf(to_blade.length(), arm_length * 0.95)
+		var blade := _demo.blades[i]
+		var to_blade := blade.tip - shoulder
+		var length := minf(to_blade.length(), arm_length * 0.95)
+		if blade.phase == Blade.YANK: # the heave: hands in toward the body, then out again
+			length *= 1.0 - HEAVE * sin(PI * clampf(blade.time / HEAVE_TIME, 0.0, 1.0))
+		wanted = shoulder + _own_side(i, to_blade.normalized()) * length
 	# sprung in the chest's frame, so a fast turn carries the hand round instead of leaving it behind
 	var yaw := heading + twist
 	var local := (wanted - _demo.player).rotated(Vector3.UP, -yaw)
@@ -160,6 +169,18 @@ func reach(
 		var to := target - shoulder
 		target = shoulder + _own_side(i, to.normalized()) * to.length()
 	return target
+
+
+# A yank just started (either blade, once): kick the torso back, so the pull comes from the body.
+func _kick_on_yank() -> void:
+	var started := false
+	for i in 2:
+		var phase := _demo.blades[i].phase
+		started = started or (phase == Blade.YANK and _last_phase[i] != Blade.YANK)
+		_last_phase[i] = phase
+	if started:
+		var front := forward()
+		_spring.kick(Vector3(-front.x, 0.0, -front.z) * YANK_KICK)
 
 
 # `direction`, turned out to arm i's own side if it points across the chest: its part along the

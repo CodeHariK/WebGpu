@@ -62,6 +62,7 @@ func _draw_lines(
 	for move: BladeMove in demo.moves.values():
 		move.draw_debug(self)
 	demo.body.draw_debug(self)
+	demo.curves.draw_debug(self)
 	_mesh.surface_end()
 
 

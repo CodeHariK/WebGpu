@@ -11,7 +11,8 @@
 ##   Tab tuning panel (TuningPanel): the wind-up and every move's numbers as sliders, saved to
 ##       MoveTuning.TUNING_PATH; and a preview (MovePreview): play the picked move on a set target
 ##       and scrub its timeline. While it's open the camera is an editor camera (OrbitView):
-##       right drag / two-finger swipe orbits, middle or shift + right drag pans, wheel / pinch zooms
+##       right drag / two-finger swipe orbits, middle or shift + right drag pans, wheel / pinch zooms;
+##       with the curves on (C) and a preview on, left-drag a curve point to bend it (CurveEditor)
 ## Combos: a move pressed while the blades are busy is queued (BUFFER seconds) and starts the moment
 ## they're free — and they're free as soon as they start reeling home (BACK), so the next move
 ## cuts in from wherever they are on the way back (attacks start from the blade's own position).
@@ -40,6 +41,8 @@ const CAMERA_OFFSET := Vector3(0, 7.5, 8.5)
 const FIRE := Color(1.0, 0.45, 0.1)
 const KEYS := {KEY_Q: "spin", KEY_E: "pull", KEY_F: "slice", KEY_G: "bind", KEY_SPACE: "rush",
 		KEY_X: "whirl", KEY_Z: "slam", KEY_J: "anchor", KEY_K: "rip", KEY_H: "lasso"} ## key → move (press)
+const SNAP_TIME := 0.3 ## seconds a chain takes to go from its thrown shape to taut (or back)
+const SNAP_LAG := 0.6 ## … the straightening runs from the hand out to the blade (a whip)
 const STEP_DRAW := 1.0 / 60.0 ## the draw step while a preview plays (MovePreview.STEP)
 const BUFFER := 1.0 ## seconds a move pressed while the blades are busy waits for them (a throw is ~0.6 s out)
 
@@ -72,9 +75,12 @@ var swing_tilt := 40.0 ## degrees each blade's swing plane leans out to its own 
 var strike_handle := 0.4 ## the attack curve's handles at the wind point, as a share of each piece's length (rounder ↔ sharper)
 var windup_bow := 1.4 ## how far the hand → wind-point piece bows out (× its straight length)
 var drop := 0.25 ## a throw comes down onto its target from this high (× the throw's length)
+var throw_time := 0.15 ## a throw's strike takes this long … (every move that throws both blades out)
+var throw_per_m := 0.008 ## … plus this per metre to the target
 
 var tuning: MoveTuning
 var preview: MovePreview
+var curves := CurveEditor.new(self) ## drag curve points (panel open, preview on, curves shown)
 var orbit := OrbitView.new() ## the editor camera, used while the tuning panel is open
 var aim_override := Vector3.INF ## when set (a preview), mouse_point() returns this instead of the mouse
 var _renderer: LimbRenderer
@@ -109,6 +115,7 @@ func _ready() -> void:
 	add_child(debug)
 	tuning = MoveTuning.new(self) # the code's values become the defaults …
 	tuning.load_saved() # … then the saved ones (if any) replace them
+	Blade.shaper = shape_path
 	preview = MovePreview.new(self)
 	_panel = TuningPanel.new()
 	$Hud.add_child(_panel)
@@ -129,6 +136,8 @@ func tunables() -> Array:
 		["strike_handle", 0.05, 1.0, 0.01],
 		["windup_bow", 1.0, 3.0, 0.05],
 		["drop", 0.0, 1.0, 0.01],
+		["throw_time", 0.05, 0.6, 0.01],
+		["throw_per_m", 0.0, 0.05, 0.001],
 	]
 
 
@@ -386,7 +395,8 @@ func _update_blade(
 	else:
 		var live := move.live_path(blade)
 		if not live.is_empty():
-			blade.path = live
+			blade.base_path = live
+			blade.path = shape_path(blade, live)
 	blade.eased = blade.eased_position()
 	blade.tip = Bezier.path_point(blade.path, blade.eased)
 	if move.after_tip(blade):
@@ -447,16 +457,69 @@ func _draw(
 
 
 ## The chain: on the blade's path while it flies out (wind-up and strike) or reels back, else taut.
-## `taut_controls` gets each taut chain's control points (for the debug view).
+## When it switches (the blade bites: thrown shape → taut; the reel starts: taut → on the path) it
+## doesn't jump: for SNAP_TIME it blends from the shape it had, link by link, starting at the hand
+## and running out to the blade, with a little overshoot — the crack of a heavy chain going tight.
 func _chain_points(
 		blade: Blade,
 		delta: float,
 		taut_controls: Array[PackedVector3Array]
 ) -> PackedVector3Array:
+	var on_path := _lies_on_path(blade)
+	var points := _chain_shape(blade, delta, taut_controls, on_path)
+	if on_path != blade.chain_on_path and blade.chain.points.size() == points.size():
+		blade.snap_from = blade.chain.points.duplicate()
+		blade.snap_time = 0.0
+	blade.chain_on_path = on_path
+	if blade.phase == Blade.IDLE:
+		blade.snap_time = SNAP_TIME # home: no blend (one cut short would leave the chain hanging out)
+	if blade.snap_time < SNAP_TIME and blade.snap_from.size() == points.size():
+		blade.snap_time += delta
+		var from := blade.snap_from
+		if on_path and blade.phase == Blade.BACK: # reeling in: blend from the taut chain to the blade
+			var unused: Array[PackedVector3Array] = [] # now, not the one it had out at the target
+			from = _chain_shape(blade, delta, unused, false)
+		points = _snap(from, points, blade.snap_time / SNAP_TIME)
+	return points
+
+
+# Whether the chain lies on the blade's path now (flying out, or reeling back), else it's taut.
+func _lies_on_path(blade: Blade) -> bool:
+	if blade.delay > 0.0:
+		return false
+	if blade.phase == Blade.BACK:
+		return true
+	return blade.phase == Blade.OUT and (moves[blade.move] as BladeMove).chain_on_path(blade)
+
+
+# `from` → `to` link by link at time t (0..1): the hand's end first, the blade's end last, each link
+# easing in and out (smoothstep) with a small overshoot that settles, so no link jumps in one frame.
+static func _snap(
+		from: PackedVector3Array,
+		to: PackedVector3Array,
+		t: float
+) -> PackedVector3Array:
+	var out := to.duplicate()
+	var last := maxf(to.size() - 1, 1)
+	for k in to.size():
+		var x := clampf(t * (1.0 + SNAP_LAG) - k / last * SNAP_LAG, 0.0, 1.0)
+		var w := x * x * (3.0 - 2.0 * x) + 0.12 * sin(PI * x) * x # smooth, a touch past its place near the end
+		out[k] = from[k].lerp(to[k], w)
+	return out
+
+
+# The chain's shape for its mode: on the path, or taut from the hand to the tip.
+## `taut_controls` gets each taut chain's control points (for the debug view).
+func _chain_shape(
+		blade: Blade,
+		delta: float,
+		taut_controls: Array[PackedVector3Array],
+		on_path: bool
+) -> PackedVector3Array:
 	var from := grip(blade.side)
-	if blade.delay <= 0.0 and blade.phase == Blade.OUT and (moves[blade.move] as BladeMove).chain_on_path(blade):
+	if on_path and blade.phase == Blade.OUT:
 		return BladeChain.on_path(from, blade.path, 0.0, blade.eased, true, LINKS)
-	if blade.delay <= 0.0 and blade.phase == Blade.BACK:
+	if on_path:
 		return BladeChain.on_path(from, blade.path, blade.eased, 1.0, false, LINKS)
 	var motion := blade.tip - blade.previous_tip
 	var speed := motion.length() / maxf(delta, 1e-4)
@@ -486,6 +549,19 @@ func _draw_hud() -> void:
 		fire.step_name()]
 
 
+## Whether the tuning panel (the editor) is open.
+func is_editing() -> bool:
+	return _panel != null and _panel.visible
+
+
+## A path as a blade will play it: its move's path plus the curve editor's offsets.
+func shape_path(
+		blade: Blade,
+		path: PackedVector3Array
+) -> PackedVector3Array:
+	return curves.shape(blade, path)
+
+
 # With the tuning panel open (it covers the right side), slide the view right by half the panel's
 # width so the player sits in the middle of what's still visible.
 func _panel_shift() -> float:
@@ -509,8 +585,12 @@ func _use_body(index: int) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		mouse = event.position
+	if curves.handle(event): # dragging a curve point
+		return
 	if _panel.visible and orbit.handle(event, camera): # the editor camera's mouse / trackpad
 		return
+	if preview.active and (event is InputEventMouseButton or (event is InputEventKey and KEYS.has(event.keycode))):
+		return # the preview owns the scene: no moves of your own until ■ Stop
 	if event is InputEventMouseButton and event.pressed:
 		mouse = event.position
 		if event.button_index == MOUSE_BUTTON_LEFT:

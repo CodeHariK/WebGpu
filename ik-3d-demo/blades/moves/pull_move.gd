@@ -9,10 +9,34 @@ const RANGE := 12.0
 
 var fling := {} ## where the yanked enemy goes {name, to, lift, duration, carry}, picked once per pull
 
+# The four flings (tuning panel): at your feet / to your side / over your head behind you.
+var which := 0 ## 0: a random one each pull, 1 feet, 2 left, 3 right, 4 over your head
+var feet_distance := 1.6 ## m in front of you
+var feet_lift := 2.0
+var feet_time := 0.32
+var side_distance := 4.5 ## m out to the side (and 0.5 forward)
+var side_lift := 2.5
+var side_time := 0.36
+var side_carry := 5.0 ## m/s it keeps sliding after landing
+var over_distance := 5.0 ## m behind you
+var over_lift := 5.0
+var over_time := 0.48
+var over_carry := 4.0
+
 
 func _init(owner: BladesDemo) -> void:
 	super(owner)
 	key = "pull"
+
+
+## The tuning panel's sliders for this move: [var name, min, max, step].
+func tunables() -> Array:
+	return [
+		["which", 0, 4, 1],
+		["feet_distance", 0.5, 4, 0.1], ["feet_lift", 0, 6, 0.1], ["feet_time", 0.1, 1, 0.02],
+		["side_distance", 1, 8, 0.1], ["side_lift", 0, 6, 0.1], ["side_time", 0.1, 1, 0.02], ["side_carry", 0, 12, 0.5],
+		["over_distance", 1, 10, 0.1], ["over_lift", 0, 10, 0.1], ["over_time", 0.1, 1.2, 0.02], ["over_carry", 0, 12, 0.5],
+	]
 
 
 func reset() -> void:
@@ -32,12 +56,12 @@ func pick_fling() -> Dictionary:
 	var right := demo.right()
 	var forward := demo.facing
 	var choices := [
-		{"name": "at your feet", "to": forward * 1.6, "lift": 2.0, "duration": 0.32, "carry": 0.0},
-		{"name": "flung left", "to": -right * 4.5 + forward * 0.5, "lift": 2.5, "duration": 0.36, "carry": 5.0},
-		{"name": "flung right", "to": right * 4.5 + forward * 0.5, "lift": 2.5, "duration": 0.36, "carry": 5.0},
-		{"name": "over your head", "to": -forward * 5.0, "lift": 5.0, "duration": 0.48, "carry": 4.0},
+		{"name": "at your feet", "to": forward * feet_distance, "lift": feet_lift, "duration": feet_time, "carry": 0.0},
+		{"name": "flung left", "to": -right * side_distance + forward * 0.5, "lift": side_lift, "duration": side_time, "carry": side_carry},
+		{"name": "flung right", "to": right * side_distance + forward * 0.5, "lift": side_lift, "duration": side_time, "carry": side_carry},
+		{"name": "over your head", "to": -forward * over_distance, "lift": over_lift, "duration": over_time, "carry": over_carry},
 	]
-	return choices[randi() % choices.size()]
+	return choices[which - 1] if which > 0 else choices[randi() % choices.size()]
 
 
 ## The blades hooked into enemy `index` (both, in a pull).
@@ -63,13 +87,17 @@ func _yank_together(
 	start_together(hooked, caller, Blade.YANK, _yank_path(from, to, lift), fling.duration, "in")
 
 
-## The yank's curve from `from` to `to`: straight up off the spot, over, and down onto it.
+## The yank's curve from `from` to `to`: it starts off along the chain (toward your hands — the taut
+## chain flows straight into the arc, no kink), lifts, comes over and down onto the spot.
 func _yank_path(
 		from: Vector3,
 		to: Vector3,
 		lift: float
 ) -> PackedVector3Array:
-	return PackedVector3Array([from, from + Vector3.UP * lift, to + Vector3.UP * lift * 0.8, to])
+	var hands := demo.player + Vector3.UP * BladesDemo.HAND_HEIGHT
+	var along := (hands - from).normalized()
+	var p1 := from + along * lift * 0.7 + Vector3.UP * lift * 0.55
+	return PackedVector3Array([from, p1, to + Vector3.UP * lift * 0.8, to])
 
 
 func fling_name() -> String:

@@ -63,7 +63,7 @@ func start() -> void:
 	var hand := demo.hand(blade.side)
 	var target := demo.enemies[enemy].position
 	var distance := hand.distance_to(target)
-	launch(blade, PackedVector3Array([hand, hand, target + swing_up(blade) * distance * 0.25, target]), 0.15 + distance * 0.008, "swing")
+	launch(blade, PackedVector3Array([hand, hand, target + swing_up(blade) * distance * demo.drop, target]), demo.throw_time + distance * demo.throw_per_m, "swing")
 
 
 func next_phase(blade: Blade) -> void:

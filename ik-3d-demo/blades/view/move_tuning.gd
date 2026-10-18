@@ -3,7 +3,8 @@
 ##
 ## A "target" is anything with `tunables() -> Array` of [var name, min, max, step] whose vars it
 ## reads with get() / set(): every BladeMove, and BladesDemo itself for the shared wind-up settings
-## (section "shared"). The values the code starts with are kept as the defaults.
+## (section "shared"). The values the code starts with are kept as the defaults. The curve editor's
+## point offsets go in section "curves" ("move/phase/point" = Vector3).
 class_name MoveTuning
 extends RefCounted
 
@@ -11,10 +12,12 @@ const TUNING_PATH := "res://blades/moves/tuning.cfg"
 
 var targets := {} ## section name → target
 var defaults := {} ## section name → {var name: the code's value}
+var _curves: CurveEditor
 
 
 ## Every move with tunables, plus the demo's shared settings; remembers their code defaults.
 func _init(demo: BladesDemo) -> void:
+	_curves = demo.curves
 	targets["shared"] = demo
 	for move: BladeMove in demo.moves.values():
 		if not move.tunables().is_empty():
@@ -45,6 +48,10 @@ func load_saved() -> bool:
 		for entry: Array in targets[section].tunables():
 			if file.has_section_key(section, entry[0]):
 				apply(section, entry[0], float(file.get_value(section, entry[0])))
+	_curves.offsets.clear()
+	if file.has_section("curves"):
+		for key in file.get_section_keys("curves"):
+			_curves.offsets[key] = file.get_value("curves", key)
 	return true
 
 
@@ -54,10 +61,13 @@ func save() -> Error:
 	for section: String in targets:
 		for entry: Array in targets[section].tunables():
 			file.set_value(section, entry[0], targets[section].get(entry[0]))
+	for key: String in _curves.offsets:
+		file.set_value("curves", key, _curves.offsets[key])
 	return file.save(TUNING_PATH)
 
 
-## Put one section back to the code's values.
+## Put one section back to the code's values (a move's page: its curve edits too).
 func reset_section(section: String) -> void:
+	_curves.clear(section)
 	for name: String in defaults[section]:
 		targets[section].set(name, defaults[section][name])
