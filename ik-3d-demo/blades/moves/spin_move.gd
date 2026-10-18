@@ -1,16 +1,25 @@
-## Spin (Q): both blades orbit you, opposite each other, TURNS times round; every turn each enemy
+## Spin (Q): both blades orbit you, opposite each other, turns times round; every turn each enemy
 ## can be hit again. The circle is quarter-circle Beziers, in a frame fixed when the spin starts.
 class_name SpinMove
 extends BladeMove
 
-const RADIUS := 3.8
-const TURNS := 3
-const TIME := 1.05
+var radius := 3.8
+var turns := 3
+var spin_time := 1.05
 
 
 func _init(owner: BladesDemo) -> void:
 	super(owner)
 	key = "spin"
+
+
+## The tuning panel's sliders for this move: [var name, min, max, step].
+func tunables() -> Array:
+	return [
+		["radius", 1, 6, 0.1],
+		["turns", 1, 6, 1],
+		["spin_time", 0.4, 3, 0.05],
+	]
 
 
 func start() -> void:
@@ -26,14 +35,14 @@ func start() -> void:
 		launch(blade, PackedVector3Array([hand, hand.lerp(start_point, 0.33), hand.lerp(start_point, 0.66), start_point]), 0.1, "accelerate")
 
 
-## TURNS full circles round the player, 4 quarter-circle Beziers per turn. The right blade starts
+## turns full circles round the player, 4 quarter-circle Beziers per turn. The right blade starts
 ## on your right (angle 0), the left one opposite (angle π); both go the same way round.
 func spin_path(blade: Blade) -> PackedVector3Array:
 	var center := demo.player + Vector3(0, 1.1, 0)
 	var start_angle := 0.0 if blade.side > 0.0 else PI
-	var k := Bezier.QUARTER_CIRCLE * RADIUS
+	var k := Bezier.QUARTER_CIRCLE * radius
 	var path := PackedVector3Array()
-	for q in TURNS * 4:
+	for q in turns * 4:
 		var a0 := start_angle + q * PI / 2.0
 		var a1 := a0 + PI / 2.0
 		var p0 := _circle(blade, center, a0)
@@ -49,7 +58,7 @@ func live_path(blade: Blade) -> PackedVector3Array:
 ## A new turn: every enemy can be hit again.
 func after_tip(blade: Blade) -> bool:
 	if blade.phase == Blade.SPIN:
-		var turn := int(blade.eased * TURNS)
+		var turn := int(blade.eased * turns)
 		if turn != blade.turn:
 			blade.turn = turn
 			blade.hit.clear()
@@ -66,7 +75,7 @@ func chain_on_path(_blade: Blade) -> bool:
 
 func next_phase(blade: Blade) -> void:
 	if blade.phase == Blade.OUT:
-		blade.start(Blade.SPIN, spin_path(blade), TIME, "linear")
+		blade.start(Blade.SPIN, spin_path(blade), spin_time, "linear")
 	else:
 		super(blade)
 
@@ -76,7 +85,7 @@ func _circle(
 		center: Vector3,
 		angle: float
 ) -> Vector3:
-	return center + (blade.spin_right * cos(angle) + blade.spin_forward * sin(angle)) * RADIUS
+	return center + (blade.spin_right * cos(angle) + blade.spin_forward * sin(angle)) * radius
 
 
 func _tangent(

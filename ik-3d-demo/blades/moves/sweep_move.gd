@@ -3,13 +3,21 @@
 class_name SweepMove
 extends BladeMove
 
-const RADIUS := 4.5
-const TIME := 0.22
+var radius := 4.5
+var sweep_time := 0.22
 
 
 func _init(owner: BladesDemo) -> void:
 	super(owner)
 	key = "sweep"
+
+
+## The tuning panel's sliders for this move: [var name, min, max, step].
+func tunables() -> Array:
+	return [
+		["radius", 1, 7, 0.1],
+		["sweep_time", 0.1, 0.6, 0.01],
+	]
 
 
 func start() -> void:
@@ -28,9 +36,9 @@ func start() -> void:
 func sweep_path(blade: Blade) -> PackedVector3Array:
 	var side := demo.right() * blade.side
 	var center := demo.player + Vector3(0, 1.1, 0)
-	var a := center + side * RADIUS
-	var b := center + demo.facing * RADIUS + side * 0.3
-	var k := Bezier.QUARTER_CIRCLE * RADIUS
+	var a := center + side * radius
+	var b := center + demo.facing * radius + side * 0.3
+	var k := Bezier.QUARTER_CIRCLE * radius
 	return PackedVector3Array([a, a + demo.facing * k, b + side * k, b])
 
 
@@ -48,6 +56,6 @@ func chain_on_path(_blade: Blade) -> bool:
 
 func next_phase(blade: Blade) -> void:
 	if blade.phase == Blade.OUT:
-		blade.start(Blade.SWEEP, sweep_path(blade), TIME, "smooth")
+		blade.start(Blade.SWEEP, sweep_path(blade), sweep_time, "smooth")
 	else:
 		super(blade)

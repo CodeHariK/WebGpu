@@ -102,6 +102,8 @@ func draw_debug(debug: BladeDebug) -> void:
 		debug.arrow(head(), head() + _head.face * 1.0, Color(1.0, 1.0, 1.0, 0.8))
 	var homes := _foot_homes()
 	for i in 2:
+		if _feet.weight <= 0.0: # not planting (running, in the air): nothing to show
+			break
 		var leg := _legs[i]
 		var foot := _feet.feet[i]
 		var points := leg.solved_points
@@ -158,7 +160,7 @@ func _shoulder(arm: ArmChainModifier) -> Vector3:
 func _plant_feet(delta: float) -> void:
 	if delta <= 0.0: # hit-stop: hold
 		return
-	var standing: bool = demo.player.y <= 0.05 and not _moving and not demo.moves.rush.rushing
+	var standing: bool = demo.player.y <= 0.05 and not _moving and not demo.moves.rush.rushing and not demo.moves.anchor.hauling
 	_feet.update(delta, _foot_homes(), pose.heading, standing)
 	for i in 2:
 		var leg := _legs[i]

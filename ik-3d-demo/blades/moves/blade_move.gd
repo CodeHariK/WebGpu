@@ -9,7 +9,8 @@
 ##   after_hit(blade)      right after one of this move's hits
 ##   next_phase(blade)     the phase's time is up: what comes next
 ##   done_after_back(blade) BACK: is this the last reel of the move (then a new move may cut in)
-## plus per-frame tick(delta), draw_debug(debug) and reset() for moves with their own state.
+## plus per-frame tick(delta), draw_debug(debug) and reset() for moves with their own state, and
+## tunables(): the move's numbers the tuning panel (Tab) edits and MoveTuning saves.
 ##
 ## It also holds what every attack shares: the wind-up + strike launch, the reel back to the hand,
 ## and the paired throw of both blades.
@@ -28,6 +29,11 @@ func _init(owner: BladesDemo) -> void:
 
 func reset() -> void:
 	pass
+
+
+## The tuning panel's sliders for this move: [var name, min, max, step] per tunable var.
+func tunables() -> Array:
+	return []
 
 
 func tick(_delta: float) -> void:
@@ -108,7 +114,7 @@ func throw_both(
 		var target := aim + demo.right() * blade.side * BladesDemo.PAIR_GAP
 		var distance := hand.distance_to(target)
 		# Comes down onto the target from above and out on its own side (its tilted plane).
-		var p2 := target + swing_up(blade) * distance * 0.25
+		var p2 := target + swing_up(blade) * distance * demo.drop
 		launch(blade, PackedVector3Array([hand, hand, p2, target]), 0.15 + distance * 0.008, "swing")
 
 
@@ -127,7 +133,7 @@ func swing_up(blade: Blade) -> Vector3:
 ##                       heading for the target (its handle sits behind the point on that line)
 ##   wind point → target the handle on the far side continues that same line (the tangents match:
 ##                       no kink); the last two points come from the attack's own `path` (p2, p3)
-## The handles either side of the wind point are the same share (HANDLE) of their piece's length,
+## The handles either side of the wind point are the same share (demo.strike_handle) of their piece's length,
 ## so the speed along the curve is the same on both sides of it too. Control points 0–3 and 4–7
 ## (3 and 4 are the wind point). `easing` runs over the whole curve ("swing": slow back, fast
 ## through, soft landing; "accelerate": still speeding up at the end, into a spin or sweep).
@@ -138,16 +144,16 @@ func launch(
 		duration: float,
 		easing: String
 ) -> void:
-	const HANDLE := 0.4
 	var hand := blade.tip # where it hangs right now (BladesDemo.rest): the curve starts there, no jump
 	var wind := wind_point(blade)
 	var target := path[3]
 	var through := (target - hand).normalized() # the direction the blade passes the wind point in
 	var leave := (swing_up(blade) - demo.facing).normalized() # back and up, in the blade's own plane
-	var first := hand.distance_to(wind) * 1.4 # the hand → wind piece bows out: a bit longer than straight
+	var first := hand.distance_to(wind) * demo.windup_bow # the hand → wind piece bows out: longer than straight
 	var second := wind.distance_to(target)
-	var windup := [hand, hand + leave * first * HANDLE, wind - through * first * HANDLE, wind]
-	var strike := [wind, wind + through * second * HANDLE, path[2], target]
+	var handle := demo.strike_handle
+	var windup := [hand, hand + leave * first * handle, wind - through * first * handle, wind]
+	var strike := [wind, wind + through * second * handle, path[2], target]
 	blade.start_even(Blade.OUT, PackedVector3Array(windup + strike), demo.windup_time + duration, easing)
 	blade.swing_end = 0.5 # the wind point: the end of the first segment
 

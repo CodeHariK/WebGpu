@@ -7,7 +7,7 @@ extends BladeMove
 
 const POSTS := [Vector3(-7, 4.5, -9), Vector3(7, 5.5, -11), Vector3(0, 6.5, -16)] ## grapple rings (tops)
 const PICK_PIXELS := 90.0 ## the target: the enemy or ring nearest the mouse on screen, this close
-const STOP := 1.3 ## an enemy rush ends this far in front of it
+var stop := 1.3 ## an enemy rush ends this far in front of it
 
 var rushing := false
 var _path := PackedVector3Array() ## the player's feet: 4 control points
@@ -22,6 +22,13 @@ func _init(owner: BladesDemo) -> void:
 	key = "rush"
 
 
+## The tuning panel's sliders for this move: [var name, min, max, step].
+func tunables() -> Array:
+	return [
+		["stop", 0.5, 3, 0.1],
+	]
+
+
 func reset() -> void:
 	rushing = false
 
@@ -29,28 +36,46 @@ func reset() -> void:
 func start() -> void:
 	if not demo.blades_free() or rushing:
 		return
-	var camera := demo.camera
-	var best_pixels := PICK_PIXELS
 	var target := Vector3.ZERO
 	var enemy := -2
-	for i in demo.enemies.size():
-		var p := demo.enemies[i].position
-		var pixels := camera.unproject_position(p).distance_to(demo.mouse)
-		if pixels < best_pixels and not camera.is_position_behind(p):
-			best_pixels = pixels
-			target = p
-			enemy = i
-	for top: Vector3 in POSTS:
-		var pixels := camera.unproject_position(top).distance_to(demo.mouse)
-		if pixels < best_pixels and not camera.is_position_behind(top):
-			best_pixels = pixels
-			target = top
-			enemy = -1
+	var candidates: Array[Vector3] = []
+	for e in demo.enemies:
+		candidates.append(e.position)
+	candidates.append_array(POSTS)
+	var best := _pick(candidates)
+	if best >= 0:
+		target = candidates[best]
+		enemy = best if best < demo.enemies.size() else -1
 	if enemy == -2:
 		return
 	_enemy = enemy
 	_target = target
 	throw_both(target, enemy)
+
+
+# Which of `points` you aim at: nearest the mouse on screen (within PICK_PIXELS) — or, in a
+# preview (an aim point instead of the mouse, while you move the editor camera), nearest that
+# point (within BladesDemo.PICK_RADIUS); −1: none.
+func _pick(points: Array[Vector3]) -> int:
+	var best := -1
+	if demo.aim_override != Vector3.INF:
+		var best_distance := BladesDemo.PICK_RADIUS
+		for i in points.size():
+			var d := points[i].distance_to(demo.aim_override)
+			if d < best_distance:
+				best = i
+				best_distance = d
+		return best
+	var camera := demo.camera
+	var best_pixels := PICK_PIXELS
+	for i in points.size():
+		if camera.is_position_behind(points[i]):
+			continue
+		var pixels := camera.unproject_position(points[i]).distance_to(demo.mouse)
+		if pixels < best_pixels:
+			best = i
+			best_pixels = pixels
+	return best
 
 
 ## Hooked: stay in the target while the player travels to it.
@@ -74,7 +99,7 @@ func _start_rush() -> void:
 		var foot := demo.enemies[_enemy].position
 		foot.y = 0.0
 		var flat := foot - Vector3(from.x, 0.0, from.z)
-		to = foot - flat.normalized() * STOP if flat.length() > STOP else from
+		to = foot - flat.normalized() * stop if flat.length() > stop else from
 	else:
 		to = _target + Vector3(0, -BladesDemo.HAND_HEIGHT - 0.4, 0) # hands just under the ring
 	var distance := from.distance_to(to)

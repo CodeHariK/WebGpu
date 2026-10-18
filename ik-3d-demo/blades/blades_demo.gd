@@ -5,8 +5,13 @@
 ##   Throw  (left click)   ThrowMove     Pull   (E)      PullMove      Rush   (Space)  RushMove
 ##   Sweep  (right click)  SweepMove     Slice  (F)      SliceMove     Whirl  (X)      WhirlMove
 ##   Spin   (Q)            SpinMove      Bind   (G)      BindMove      Slam   (Z)      SlamMove
-##   Lasso  (H, H again to throw)  LassoMove
+##   Lasso  (H, H again to throw)  LassoMove      Ground anchor (J)  AnchorMove
+##   Rip    (K, K again to tug)    RipMove        — tears a heavy slab (RipProp) out of the ground
 ##   WASD move · C curves (BladeDebug) · T slow motion · V fire step (BladeFire) · R reset
+##   Tab tuning panel (TuningPanel): the wind-up and every move's numbers as sliders, saved to
+##       MoveTuning.TUNING_PATH; and a preview (MovePreview): play the picked move on a set target
+##       and scrub its timeline. While it's open the camera is an editor camera (OrbitView):
+##       right drag / two-finger swipe orbits, middle or shift + right drag pans, wheel / pinch zooms
 ## Combos: a move pressed while the blades are busy is queued (BUFFER seconds) and starts the moment
 ## they're free — and they're free as soon as they start reeling home (BACK), so the next move
 ## cuts in from wherever they are on the way back (attacks start from the blade's own position).
@@ -33,6 +38,9 @@ const PICK_RADIUS := 4.0 ## moves aimed at an enemy take the one within this of 
 const ENEMY_POSITIONS := [Vector3(-3, 0, -5), Vector3(2, 0, -6), Vector3(5, 0, -3), Vector3(-5, 0, -2), Vector3(0, 0, -9)]
 const CAMERA_OFFSET := Vector3(0, 7.5, 8.5)
 const FIRE := Color(1.0, 0.45, 0.1)
+const KEYS := {KEY_Q: "spin", KEY_E: "pull", KEY_F: "slice", KEY_G: "bind", KEY_SPACE: "rush",
+		KEY_X: "whirl", KEY_Z: "slam", KEY_J: "anchor", KEY_K: "rip", KEY_H: "lasso"} ## key → move (press)
+const STEP_DRAW := 1.0 / 60.0 ## the draw step while a preview plays (MovePreview.STEP)
 const BUFFER := 1.0 ## seconds a move pressed while the blades are busy waits for them (a throw is ~0.6 s out)
 
 @onready var camera: Camera3D = $Camera3D
@@ -44,6 +52,7 @@ var facing := Vector3.FORWARD
 var player_velocity := Vector3.ZERO ## only used in the air (after a grapple)
 var blades: Array[Blade] = [] ## [left, right]
 var enemies: Array[DemoEnemy] = []
+var props: Array[RipProp] = [] ## heavy slabs stuck in the ground (RipMove tears them out)
 var hitstop := 0.0
 var shake := 0.0
 var game_delta := 0.0 ## this frame's game time step (0 during hit-stop)
@@ -54,18 +63,30 @@ var debug: BladeDebug
 var body: PlayerBody ## the one showing (B switches)
 var bodies: Array[PlayerBody] = [] ## [Sophia, capsule]
 
-# Tuned live with the sliders (BladeSliders).
+# Tuned live on the tuning panel's "wind-up" page (Tab).
 var windup_time := 0.16 ## extra time an attack's OUT curve gets for its wind-up
 var top_height := 2.2 ## the wind point (BladeMove.wind_point): this high …
 var top_behind := 0.9 ## … this far behind you …
 var wind_side := 0.6 ## … and this far out to the blade's own side
 var swing_tilt := 40.0 ## degrees each blade's swing plane leans out to its own side
+var strike_handle := 0.4 ## the attack curve's handles at the wind point, as a share of each piece's length (rounder ↔ sharper)
+var windup_bow := 1.4 ## how far the hand → wind-point piece bows out (× its straight length)
+var drop := 0.25 ## a throw comes down onto its target from this high (× the throw's length)
 
+var tuning: MoveTuning
+var preview: MovePreview
+var orbit := OrbitView.new() ## the editor camera, used while the tuning panel is open
+var aim_override := Vector3.INF ## when set (a preview), mouse_point() returns this instead of the mouse
 var _renderer: LimbRenderer
+var _panel: TuningPanel
 var _queued := Callable() ## the move pressed while the blades were busy (empty: none)
 var _queued_name := ""
 var _queued_for := 0.0 ## seconds it still waits
 var _slow := false
+var _game_view := OrbitView.new() ## the game's camera (never changed)
+var _eye := Vector3.ZERO ## where the camera is easing to / looking at
+var _focus := Vector3.ZERO
+var _jolt := RandomNumberGenerator.new() ## camera shake: its own random numbers, so a preview's moves replay the same
 
 
 func _ready() -> void:
@@ -79,15 +100,36 @@ func _ready() -> void:
 		bodies.append(each)
 	_use_body(0)
 	for move: BladeMove in [ThrowMove.new(self), SweepMove.new(self), SpinMove.new(self), PullMove.new(self),
-			SliceMove.new(self), BindMove.new(self), RushMove.new(self), WhirlMove.new(self), SlamMove.new(self), LassoMove.new(self)]:
+			SliceMove.new(self), BindMove.new(self), RushMove.new(self), WhirlMove.new(self), SlamMove.new(self), LassoMove.new(self), AnchorMove.new(self), RipMove.new(self)]:
 		moves[move.key] = move
 	fire = BladeFire.new()
 	add_child(fire)
 	fire.setup($WorldEnvironment.environment)
 	debug = BladeDebug.new()
 	add_child(debug)
-	BladeSliders.build(self, $Hud)
+	tuning = MoveTuning.new(self) # the code's values become the defaults …
+	tuning.load_saved() # … then the saved ones (if any) replace them
+	preview = MovePreview.new(self)
+	_panel = TuningPanel.new()
+	$Hud.add_child(_panel)
+	_panel.setup(tuning, preview, orbit.reset)
+	_eye = _game_view.eye(player)
+	_focus = _game_view.focus(player)
 	_reset()
+
+
+## The shared settings: the tuning panel's "wind-up" page (MoveTuning section "shared").
+func tunables() -> Array:
+	return [
+		["windup_time", 0.04, 0.6, 0.01],
+		["top_height", 1.4, 4.5, 0.05],
+		["top_behind", 0.0, 3.0, 0.05],
+		["wind_side", 0.0, 2.0, 0.05],
+		["swing_tilt", 0.0, 80.0, 1.0],
+		["strike_handle", 0.05, 1.0, 0.01],
+		["windup_bow", 1.0, 3.0, 0.05],
+		["drop", 0.0, 1.0, 0.01],
+	]
 
 
 func _reset() -> void:
@@ -100,13 +142,18 @@ func _reset() -> void:
 		blade.mesh.queue_free()
 	for enemy in enemies:
 		enemy.mesh.queue_free()
+	for slab in props:
+		slab.mesh.queue_free()
 	blades.clear()
 	enemies.clear()
+	props.clear()
 	_renderer.clear()
 	for side in [-1.0, 1.0]:
 		blades.append(_new_blade(side))
 	for p: Vector3 in ENEMY_POSITIONS:
 		enemies.append(DemoEnemy.new(self, p))
+	for p: Vector3 in RipMove.PROPS:
+		props.append(RipProp.new(self, p))
 	for each in bodies:
 		each.reset()
 
@@ -129,7 +176,19 @@ func _new_blade(side: float) -> Blade:
 	return blade
 
 
+## A frame: the game steps once by `delta` — or, while a preview plays, by as many fixed steps as
+## it asks for (none while it's paused or scrubbed) — then everything is drawn.
 func _process(delta: float) -> void:
+	if not preview.active:
+		simulate(delta)
+		_draw(delta, delta)
+		return
+	var steps := preview.steps(delta)
+	_draw(STEP_DRAW if steps > 0 else 0.0, delta) # the camera keeps moving even while paused
+
+
+## One game step: the player, hit-stop, queued moves, the moves, the blades, the body, the enemies.
+func simulate(delta: float) -> void:
 	_move_player(delta)
 	game_delta = delta
 	if hitstop > 0.0: # hit-stop: the moves and the enemies freeze, the camera still shakes
@@ -137,6 +196,8 @@ func _process(delta: float) -> void:
 		game_delta = 0.0
 	_run_queued(delta)
 	moves.rush.tick(game_delta)
+	moves.anchor.tick(game_delta)
+	moves.rip.tick(game_delta)
 	for blade in blades:
 		_update_blade(blade, game_delta)
 	body.update(game_delta) # torso lean + arms, from what the blades just did
@@ -145,7 +206,6 @@ func _process(delta: float) -> void:
 		enemy.update(game_delta)
 	moves.whirl.tick(game_delta)
 	moves.lasso.tick(game_delta)
-	_draw(delta)
 
 
 # --- shared helpers (used by the moves) ---------------------------------------------------------
@@ -167,11 +227,15 @@ func grip(side: float) -> Vector3:
 ## Where an idle blade hangs: just under the grip. Attacks start from here and reels end here, so
 ## a blade never jumps between hanging and a path.
 func rest(side: float) -> Vector3:
+	if preview.active: # the fixed anchor: the body's animated grip would make a replay differ
+		return hand(side) + Vector3(0, -0.15, 0)
 	return grip(side) + Vector3(0, -0.15, 0)
 
 
 ## Where the mouse points on the plane 1 m above the ground (enemy height).
 func mouse_point() -> Vector3:
+	if aim_override != Vector3.INF:
+		return aim_override
 	var hit_point = Plane(Vector3.UP, 1.0).intersects_ray(camera.project_ray_origin(mouse), camera.project_ray_normal(mouse))
 	return hit_point if hit_point != null else player + facing * 5.0 + Vector3(0, 1, 0)
 
@@ -201,6 +265,26 @@ func request(
 	_queued = action
 	_queued_name = move_name
 	_queued_for = BUFFER
+
+
+## What a move's key (or mouse button) does: start it — queued if the blades are busy — or, for a
+## move that's waiting for its second press (lasso: throw, rip: tug), do that right now. The
+## preview presses moves through this too.
+func press(action: String) -> void:
+	match action:
+		"throw": request("throw", moves.throw.start.bind(mouse_point())) # aimed where you clicked
+		"bind": moves.bind.start() # its own chains: never waits for the blades
+		"rip":
+			if moves.rip.hooked: # hooked: K tugs, right now
+				moves.rip.start()
+			else:
+				request("rip", moves.rip.start)
+		"lasso":
+			if moves.lasso.held >= 0: # swinging: H throws, right now
+				moves.lasso.start()
+			else:
+				request("lasso", moves.lasso.start)
+		_: request(action, moves[action].start)
 
 
 # The queued move: start it once the blades are free, or drop it when its time runs out.
@@ -262,7 +346,7 @@ func hit(
 # --- the frame ------------------------------------------------------------------------------------
 
 func _move_player(delta: float) -> void:
-	if moves.rush.rushing: # the rush path moves the player
+	if moves.rush.rushing or moves.anchor.hauling: # a rush / the anchor's haul moves the player
 		return
 	var input := Vector3(float(Input.is_key_pressed(KEY_D)) - float(Input.is_key_pressed(KEY_A)), 0,
 			float(Input.is_key_pressed(KEY_S)) - float(Input.is_key_pressed(KEY_W)))
@@ -329,7 +413,12 @@ func _check_hits(blade: Blade) -> void:
 
 # --- drawing ------------------------------------------------------------------------------------
 
-func _draw(delta: float) -> void:
+## Draw the frame: `delta` is the game time that passed (0 while a preview is paused), `view_delta`
+## the real time (the camera follows on real time).
+func _draw(
+		delta: float,
+		view_delta: float
+) -> void:
 	var taut: Array[PackedVector3Array] = [] # taut chains' control points, for the debug view
 	for blade in blades:
 		blade.chain.points = _chain_points(blade, delta, taut)
@@ -339,10 +428,20 @@ func _draw(delta: float) -> void:
 	fire.draw(blades, delta)
 	for enemy in enemies:
 		enemy.draw()
+	for slab in props:
+		slab.draw()
 	shake = maxf(shake - delta, 0.0)
-	var jolt := Vector3(randf_range(-1, 1), randf_range(-1, 1), 0) * shake * 0.4
-	camera.position = camera.position.lerp(player + CAMERA_OFFSET, 1.0 - exp(-5.0 * delta)) + jolt
-	camera.look_at(camera.position - CAMERA_OFFSET - jolt + Vector3(0, 0.5, 0))
+	var jolt := Vector3(_jolt.randf_range(-1, 1), _jolt.randf_range(-1, 1), 0) * shake * 0.4
+	if preview.active: # a steady view while previewing
+		jolt = Vector3.ZERO
+	var editing := _panel.visible
+	var view := orbit if editing else _game_view
+	var follow := 1.0 - exp(-(12.0 if editing else 5.0) * view_delta) # the editor camera answers faster
+	_eye = _eye.lerp(view.eye(player), follow)
+	_focus = _focus.lerp(view.focus(player), follow)
+	camera.position = _eye + jolt
+	camera.h_offset = lerpf(camera.h_offset, _panel_shift(), 1.0 - exp(-6.0 * view_delta))
+	camera.look_at(_focus)
 	debug.draw(self, taut)
 	_draw_hud()
 
@@ -380,11 +479,21 @@ func _aim_blade(blade: Blade) -> void:
 
 func _draw_hud() -> void:
 	var fling: String = moves.slam.fling_name() if moves.slam.left > 0 else moves.pull.fling_name()
-	hud.text = "left %s · right %s%s%s%s%s\nLeft click throw   Right click sweep   Q spin   E pull   F slice   G bind   Space rush   X whirl   Z slam   H lasso (H: throw)   WASD move   C curves   T slow motion   V fire (%s)   B body   R reset" % [
+	hud.text = "left %s · right %s%s%s%s%s\nLeft click throw   Right click sweep   Q spin   E pull   F slice   G bind   Space rush   X whirl   Z slam   H lasso (H: throw)   J ground anchor   K rip (K: tug)   Tab tuning   WASD move   C curves   T slow motion   V fire (%s)   B body   R reset" % [
 		Blade.PHASE_NAMES[blades[0].phase], Blade.PHASE_NAMES[blades[1].phase],
 		"   next: %s" % _queued_name if _queued_name != "" else "",
 		"   fling: %s" % fling if fling != "" else "", "   [curves]" if debug.enabled else "", "   [slow]" if _slow else "",
 		fire.step_name()]
+
+
+# With the tuning panel open (it covers the right side), slide the view right by half the panel's
+# width so the player sits in the middle of what's still visible.
+func _panel_shift() -> float:
+	if _panel == null or not _panel.visible:
+		return 0.0
+	var screen := get_viewport().get_visible_rect().size
+	var tall := 2.0 * orbit.distance * tan(deg_to_rad(camera.fov) * 0.5) # metres seen top to bottom at the player
+	return (_panel.size.x + 16.0) * 0.5 / screen.x * tall * screen.x / screen.y
 
 
 ## Show one body and hide the others (only the shown one updates).
@@ -400,28 +509,23 @@ func _use_body(index: int) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		mouse = event.position
-	elif event is InputEventMouseButton and event.pressed:
+	if _panel.visible and orbit.handle(event, camera): # the editor camera's mouse / trackpad
+		return
+	if event is InputEventMouseButton and event.pressed:
 		mouse = event.position
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			request("throw", moves.throw.start.bind(mouse_point())) # aimed where you clicked
+			press("throw")
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			request("sweep", moves.sweep.start)
+			press("sweep")
 	elif event is InputEventKey and event.pressed and not event.echo:
+		var action: String = KEYS.get(event.keycode, "")
+		if action != "":
+			press(action)
+			return
 		match event.keycode:
-			KEY_Q: request("spin", moves.spin.start)
-			KEY_E: request("pull", moves.pull.start)
-			KEY_F: request("slice", moves.slice.start)
-			KEY_G: moves.bind.start() # its own chains: never waits for the blades
-			KEY_SPACE: request("rush", moves.rush.start)
-			KEY_X: request("whirl", moves.whirl.start)
-			KEY_Z: request("slam", moves.slam.start)
-			KEY_H:
-				if moves.lasso.held >= 0: # swinging: H throws, right now
-					moves.lasso.start()
-				else:
-					request("lasso", moves.lasso.start)
 			KEY_V: fire.next_step()
 			KEY_C: debug.enabled = not debug.enabled
+			KEY_TAB: _panel.visible = not _panel.visible
 			KEY_T:
 				_slow = not _slow
 				Engine.time_scale = 0.2 if _slow else 1.0

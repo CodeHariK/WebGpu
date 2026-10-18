@@ -31,7 +31,8 @@
 ##   sweep              away from the blade, twisted toward it
 ##   spin               back and away from the leading blade (sitting into the turn)
 ##   whirl              well back, away from the swung enemy (counterweight)
-##   rushing            forward (diving at the target)
+##   rushing, hauled    forward (diving at the target / the ground)
+##   rip tug            well back (heaving on the slab)
 class_name BodyPose
 extends RefCounted
 
@@ -253,7 +254,9 @@ func _target() -> Vector3:
 	var front := forward()
 	var tilt := Vector3.ZERO
 	var turn := 0.0
-	if _demo.moves.rush.rushing:
+	if _demo.moves.rip.tug_time > 0.0: # heaving on the slab: lean right back
+		tilt -= front * 0.7
+	if _demo.moves.rush.rushing or _demo.moves.anchor.hauling:
 		tilt += front * 0.45
 	for blade in _demo.blades:
 		if blade.phase == Blade.IDLE or blade.delay > 0.0:
@@ -273,7 +276,7 @@ func _target() -> Vector3:
 			Blade.YANK:
 				tilt -= front * 0.35
 			Blade.HOLD:
-				if blade.move == "pull" or blade.move == "rush":
+				if blade.move == "pull" or blade.move == "rush" or blade.move == "rip":
 					tilt -= front * 0.15
 			Blade.SWEEP:
 				tilt -= toward * 0.25

@@ -4,7 +4,7 @@
 ## point if none is near), on a ballistic arc that lands right on it — bowling over whoever it hits
 ## (thrown enemies are handled by WhirlMove.tick).
 ##
-## The circle: quarter-circle Beziers in a horizontal ring HEIGHT above your feet, rebuilt every
+## The circle: quarter-circle Beziers in a horizontal ring height above your feet, rebuilt every
 ## frame round where you are (so it moves with you). The first lap starts with a lead-in from where
 ## the enemy was hooked onto the ring; after that each lap is one ring, played at constant speed
 ## (Blade.start_even), and the next lap starts when one ends.
@@ -12,12 +12,12 @@ class_name LassoMove
 extends BladeMove
 
 const RANGE := 12.0
-const RADIUS := 2.0 ## m: the ring round your head
-const HEIGHT := 3.3 ## m above your feet
-const LAP_TIME := 0.55 ## seconds per lap
-const LEAD_TIME := 0.3 ## seconds from the hook onto the ring
+var radius := 2.0 ## m: the ring round your head
+var height := 3.3 ## m above your feet
+var lap_time := 0.55 ## seconds per lap
+var lead_time := 0.3 ## seconds from the hook onto the ring
 const AIM := 0.92 ## let go when the swing direction · the aim direction is above this
-const THROW_SPEED := 16.0 ## m/s across the ground
+var throw_speed := 16.0 ## m/s across the ground
 
 var held := -1 ## the enemy on the chain
 var throwing := false ## H pressed again: let go at the next good moment
@@ -29,6 +29,17 @@ var _lead := false ## the lap playing now has the lead-in in front of it
 func _init(owner: BladesDemo) -> void:
 	super(owner)
 	key = "lasso"
+
+
+## The tuning panel's sliders for this move: [var name, min, max, step].
+func tunables() -> Array:
+	return [
+		["radius", 1, 4, 0.1],
+		["height", 2, 5, 0.1],
+		["lap_time", 0.2, 1.5, 0.05],
+		["lead_time", 0.1, 1, 0.05],
+		["throw_speed", 5, 30, 0.5],
+	]
 
 
 func reset() -> void:
@@ -69,10 +80,10 @@ func next_phase(blade: Blade) -> void:
 			var offset := _from - demo.player
 			_angle = atan2(offset.x, offset.z)
 			_lead = true
-			blade.start_even(Blade.LASSO, lap_path(), LEAD_TIME + LAP_TIME, "linear")
+			blade.start_even(Blade.LASSO, lap_path(), lead_time + lap_time, "linear")
 		Blade.LASSO: # a lap is done: another one
 			_lead = false
-			blade.start_even(Blade.LASSO, lap_path(), LAP_TIME, "linear")
+			blade.start_even(Blade.LASSO, lap_path(), lap_time, "linear")
 		_:
 			super(blade)
 
@@ -80,8 +91,8 @@ func next_phase(blade: Blade) -> void:
 ## One lap of the ring round your head (4 quarter-circle Beziers from _angle), with the lead-in
 ## from the hook spot in front of it on the first lap.
 func lap_path() -> PackedVector3Array:
-	var center := demo.player + Vector3.UP * HEIGHT
-	var k := Bezier.QUARTER_CIRCLE * RADIUS
+	var center := demo.player + Vector3.UP * height
+	var k := Bezier.QUARTER_CIRCLE * radius
 	var start_point := _ring(center, _angle)
 	var path := PackedVector3Array()
 	if _lead:
@@ -158,7 +169,7 @@ func hits_during(phase: int) -> bool:
 
 
 # Let go: a ballistic arc from where it is now that comes down on `target` (horizontal speed
-# THROW_SPEED, gravity DemoEnemy.GRAVITY), as a thrown enemy that bowls over whoever it touches.
+# throw_speed, gravity DemoEnemy.GRAVITY), as a thrown enemy that bowls over whoever it touches.
 func _release(
 		blade: Blade,
 		target: Vector3
@@ -168,7 +179,7 @@ func _release(
 	enemy.thrown = true
 	var to := target - enemy.position
 	var flat := Vector3(to.x, 0.0, to.z)
-	var time := maxf(flat.length() / THROW_SPEED, 0.25)
+	var time := maxf(flat.length() / throw_speed, 0.25)
 	enemy.velocity = flat / time + Vector3.UP * (to.y + 0.5 * DemoEnemy.GRAVITY * time * time) / time
 	held = -1
 	throwing = false
@@ -181,7 +192,7 @@ func _ring(
 		center: Vector3,
 		angle: float
 ) -> Vector3:
-	return center + Vector3(sin(angle), 0.0, cos(angle)) * RADIUS
+	return center + Vector3(sin(angle), 0.0, cos(angle)) * radius
 
 
 func _tangent(angle: float) -> Vector3:

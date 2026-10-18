@@ -6,12 +6,12 @@
 class_name SliceMove
 extends BladeMove
 
-const SLICES := 6 ## slashes per combo (3 per blade)
-const TIME := 0.17
-const SIZE := 1.6 ## how far from the enemy's line a slash starts
+var slices := 6 ## slashes per combo (3 per blade)
+var slash_time := 0.17
+var size := 1.6 ## how far from the enemy's line a slash starts
 const RANGE := 9.0
-const TILT_MIN := 15.0 ## a slash plane leans this many degrees (or more) toward its blade's side …
-const TILT_MAX := 65.0 ## … and at most this many
+var tilt_min := 15.0 ## a slash plane leans this many degrees (or more) toward its blade's side …
+var tilt_max := 65.0 ## … and at most this many
 
 var enemy := -1
 
@@ -19,6 +19,17 @@ var enemy := -1
 func _init(owner: BladesDemo) -> void:
 	super(owner)
 	key = "slice"
+
+
+## The tuning panel's sliders for this move: [var name, min, max, step].
+func tunables() -> Array:
+	return [
+		["slices", 2, 12, 1],
+		["slash_time", 0.08, 0.5, 0.01],
+		["size", 0.5, 3, 0.05],
+		["tilt_min", 0, 90, 1],
+		["tilt_max", 0, 90, 1],
+	]
 
 
 func start() -> void:
@@ -31,9 +42,9 @@ func start() -> void:
 	for blade in demo.blades:
 		begin(blade)
 		blade.slice_angles.clear()
-	for k in SLICES: # alternate blades; each slash in its own random plane
-		demo.blades[(k + 1) % 2].slice_angles.append(deg_to_rad(randf_range(TILT_MIN, TILT_MAX)))
-	demo.blades[1].delay = (demo.windup_time + 0.08 + TIME + 0.2) * 0.5
+	for k in slices: # alternate blades; each slash in its own random plane
+		demo.blades[(k + 1) % 2].slice_angles.append(deg_to_rad(randf_range(tilt_min, tilt_max)))
+	demo.blades[1].delay = (demo.windup_time + 0.08 + slash_time + 0.2) * 0.5
 	for blade in demo.blades:
 		slash_out(blade)
 
@@ -63,8 +74,8 @@ func slice_path(blade: Blade) -> PackedVector3Array:
 	var side := demo.right() * blade.side
 	side = (side - x * x.dot(side)).normalized()
 	var angle := blade.slice_angles[0]
-	var o0 := (up * cos(angle) + side * sin(angle)) * SIZE # high, out on its own side
-	var o3 := -up * SIZE * 0.8 # straight below
+	var o0 := (up * cos(angle) + side * sin(angle)) * size # high, out on its own side
+	var o3 := -up * size * 0.8 # straight below
 	var o1 := o0 * 0.5
 	var o2 := -(o0 + o1 * 3.0 + o3) / 3.0
 	var near := hand + x * distance * 0.55
@@ -97,7 +108,7 @@ func next_phase(blade: Blade) -> void:
 	match blade.phase:
 		Blade.OUT:
 			blade.hit.clear()
-			blade.start(Blade.SLICE, slice_path(blade), TIME, "smooth")
+			blade.start(Blade.SLICE, slice_path(blade), slash_time, "smooth")
 		Blade.SLICE: # reel the chain fully home before the next slash
 			blade.slice_angles.pop_front()
 			back(blade)
