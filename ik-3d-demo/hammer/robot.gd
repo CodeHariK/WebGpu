@@ -1,9 +1,12 @@
 ## A boxy robot to smash: a body, a head on top with two glowing eyes. Robots come in different
 ## heights, so the jump has to find each one's head.
 ##
-## Its reaction to a hit is a pure function of the time since the hit (react), so a paused or
-## scrubbed attack shows it exactly: the head flattens (and sinks into the shoulders), then springs
-## back with a wobble; the body squashes a little; stars circle the head for a while.
+## Its reactions are pure functions of the time since what happened (react), so a paused or
+## scrubbed attack shows them exactly:
+##   hit on the head   the head flattens (and sinks into the shoulders), then springs back with a
+##                     wobble; the body squashes a little; stars circle the head for a while
+##   knocked (a ground pound's shockwave)  it hops, tips over away from the blast, wobbles back up
+##                     on its base, and sees stars too
 class_name Robot
 extends Node3D
 
@@ -15,6 +18,7 @@ const STAR_TIME := 1.6 ## seconds the stars circle
 var height := 1.8 ## the top of its head above the ground
 var highlight := 0.0 ## 0..1: picked as the target (glows)
 
+var _pivot := Node3D.new() ## everything that tips over (about its base) when knocked
 var _body: MeshInstance3D
 var _head: MeshInstance3D
 var _stars: Array[MeshInstance3D] = []
@@ -28,6 +32,7 @@ func setup(
 ) -> void:
 	position = at
 	height = new_height
+	add_child(_pivot)
 	var body_height := height - HEAD
 	_body = _box(Vector3(BODY.x, body_height, BODY.y), color)
 	_body_material = _body.material_override
@@ -47,7 +52,7 @@ func setup(
 		prism.size = Vector3(0.16, 0.16, 0.05)
 		star.mesh = prism
 		star.material_override = _glow(Color(1.0, 0.9, 0.2))
-		add_child(star)
+		_pivot.add_child(star)
 		_stars.append(star)
 	react(-1.0)
 
@@ -64,8 +69,14 @@ func head_top() -> Vector3:
 	return global_position + Vector3.UP * height
 
 
-## Pose it `since` seconds after a hit (negative: not hit).
-func react(since: float) -> void:
+## Pose it `since` seconds after a hit on the head and `knock` seconds after a shockwave reached it
+## from the direction `away` points away from (negative: not happened).
+func react(
+		since: float,
+		knock := -1.0,
+		away := Vector3.ZERO
+) -> void:
+	_knock(knock, away)
 	var head_squash := 0.0 # 1: flat
 	var body_squash := 0.0
 	if since >= 0.0:
@@ -77,16 +88,35 @@ func react(since: float) -> void:
 	var head_height := HEAD * (1.0 - head_squash)
 	_head.scale = Vector3(1.0 + head_squash * 0.7, 1.0 - head_squash, 1.0 + head_squash * 0.7)
 	_head.position = Vector3.UP * (body_height + head_height * 0.5)
-	var dizzy := since >= 0.0 and since < STAR_TIME
+	var dazed := since if since >= 0.0 else knock
+	var dizzy := dazed >= 0.0 and dazed < STAR_TIME
 	for i in STARS:
 		var star := _stars[i]
 		star.visible = dizzy
 		if dizzy:
-			var a := since * 7.0 + i * TAU / STARS
+			var a := dazed * 7.0 + i * TAU / STARS
 			star.position = Vector3(cos(a) * 0.5, body_height + head_height + 0.18 + 0.05 * sin(a * 2.0), sin(a) * 0.5)
 			star.rotation = Vector3(0.0, -a, 0.0)
 	_body_material.emission_enabled = highlight > 0.0
 	_body_material.emission = Color(1.0, 0.6, 0.2) * highlight * 0.6
+
+
+# Knocked: a hop off the ground and a tip away from the blast that wobbles back upright (about its
+# base, so it rocks on its feet).
+func _knock(
+		knock: float,
+		away: Vector3
+) -> void:
+	var hop := 0.0
+	var tip := 0.0
+	if knock >= 0.0:
+		hop = 0.45 * sin(PI * knock / 0.35) if knock < 0.35 else 0.0
+		tip = 0.6 * exp(-knock * 3.0) * sin(knock * 10.0) # tips out (~20°), then rocks back and settles
+	var local := global_transform.basis.inverse() * Vector3(away.x, 0.0, away.z) # it's turned to face you
+	local.y = 0.0
+	var axis := Vector3.UP.cross(local.normalized()) if local.length() > 1e-3 else Vector3.RIGHT
+	_pivot.basis = Basis(axis, tip)
+	_pivot.position.y = hop
 
 
 func _box(
@@ -100,7 +130,7 @@ func _box(
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	instance.material_override = material
-	add_child(instance)
+	_pivot.add_child(instance)
 	return instance
 
 

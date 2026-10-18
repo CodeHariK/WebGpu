@@ -1,7 +1,7 @@
 ## The hammer demo's debug view (C), for the last attack:
 ##   blue     his feet's path: the jump arc, the hop back, the landing (crosses: takeoff, contact, landing)
 ##   orange   the hammer head's path over the whole attack (dots every 1/30 s: close = slow, far = fast)
-##   red      the contact: the robot's head top, where the hammer lands
+##   red      the contact: where the hammer lands (a robot's head, or the ground)
 ##   white    his shoulders now (the swing's centre) and the hammer's line from them
 ##   green    the arms as the IK solved them; red crosses: where the hands are told to grip
 class_name HammerDebug
@@ -41,7 +41,7 @@ func draw(
 		return
 	_mesh.surface_begin(Mesh.PRIMITIVE_LINES)
 	var attack := demo.attack
-	if demo.target >= 0:
+	if demo.time >= 0.0:
 		var count := ceili(attack.length() * SAMPLES_PER_SECOND)
 		var last_feet := Vector3.INF
 		var last_head := Vector3.INF
@@ -56,7 +56,7 @@ func draw(
 			last_head = head
 		for t in [attack.crouch_time, attack.contact_time(), attack.contact_time() + attack.hitstop + attack.recover_time]:
 			_cross(attack.sample(t).feet, Color(0.3, 0.6, 1.0), 0.12)
-		_cross(attack.head_top(), Color(1.0, 0.2, 0.2), 0.2)
+		_cross(attack.contact_point(), Color(1.0, 0.2, 0.2), 0.2)
 	var body := demo.body
 	_cross(body.shoulders, Color.WHITE, 0.08)
 	_line(body.shoulders, body.head_point, Color(1, 1, 1, 0.6))
