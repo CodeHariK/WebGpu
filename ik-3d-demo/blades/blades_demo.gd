@@ -33,7 +33,7 @@ const PLAYER_SPEED := 4.5
 const GRAVITY := 25.0
 const HIT_RADIUS := 0.8
 const HAMMER_HIT_RADIUS := 1.1 ## a hammer head is bigger than a blade
-const WEAPONS := ["blades", "hammers"] ## M switches: the same chains, a blade or a hammer head on the end
+const WEAPONS := ["blades", "hammers", "revolver"] ## M switches: a blade or a hammer head on the chains, or the revolver
 const HAMMER_MOVES := {"throw": "meteor", "sweep": "wrecking", "spin": "tornado", "slam": "pound", "rush": "leap"} ## with the hammers out, these keys play these moves
 const PAIR_GAP := 0.25 ## the two blades land this far either side of the aim
 const STAGGER := 0.05 ## the right blade leaves this much later
@@ -65,7 +65,8 @@ var hit_count := 0 ## hits so far (the preview's timeline marks them)
 var game_delta := 0.0 ## this frame's game time step (0 during hit-stop)
 var mouse := Vector2.ZERO
 var moves := {} ## key → BladeMove
-var weapon := 0 ## WEAPONS: 0 blades, 1 hammers
+var weapon := 0 ## WEAPONS: 0 blades, 1 hammers, 2 revolver
+var revolver: Revolver ## the six-shooter (weapon 2): click shoots, right click fans the hammer
 var impacts: HammerImpacts ## the hammers' crashes: scrap, sparks, scorches, smears, the camera's lurch, slow motion
 var scary := false ## the look (L switches): the plain grey test ground, or dusk, haze and dirt
 var _ground: MeshInstance3D
@@ -135,6 +136,9 @@ func _ready() -> void:
 	fire.setup($WorldEnvironment.environment)
 	impacts = HammerImpacts.new()
 	add_child(impacts)
+	revolver = Revolver.new()
+	add_child(revolver)
+	revolver.setup(self)
 	_fov = camera.fov
 	debug = BladeDebug.new()
 	add_child(debug)
@@ -183,6 +187,7 @@ func _reset() -> void:
 		move.reset()
 	fire.clear()
 	impacts.clear()
+	revolver.clear()
 	for blade in blades:
 		blade.mesh.queue_free()
 		blade.head.queue_free()
@@ -229,11 +234,13 @@ func hammers() -> bool:
 	return weapon == 1
 
 
-# Show the blade or the hammer head on this blade's chain (and a heavier chain for the hammer).
+# Show the blade or the hammer head on this blade's chain (and a heavier chain for the hammer); with
+# the revolver out, no chains at all.
 func _arm(blade: Blade) -> void:
-	blade.mesh.visible = not hammers()
+	blade.mesh.visible = weapon == 0
 	blade.head.visible = hammers()
-	blade.chain.radius = 0.045 if hammers() else 0.03
+	blade.chain.radius = [0.03, 0.045, 0.0001][weapon]
+	revolver.visible = weapon == 2
 
 
 ## A frame: the game steps once by `delta` — or, while a preview plays, by as many fixed steps as
@@ -261,6 +268,8 @@ func simulate(delta: float) -> void:
 	moves.anchor.tick(game_delta)
 	moves.rip.tick(game_delta)
 	moves.leap.tick(game_delta)
+	if weapon == 2:
+		revolver.update(game_delta)
 	moves.pound.tick(game_delta)
 	for blade in blades:
 		_update_blade(blade, game_delta)
@@ -291,6 +300,8 @@ func grip(side: float) -> Vector3:
 ## Where an idle blade hangs: just under the grip. Attacks start from here and reels end here, so
 ## a blade never jumps between hanging and a path.
 func rest(side: float) -> Vector3:
+	if weapon == 2 and side > 0.0 and not preview.active: # the right hand holds the revolver out
+		return revolver.hold_point()
 	if preview.active: # the fixed anchor: the body's animated grip would make a replay differ
 		return hand(side) + Vector3(0, -0.15, 0)
 	return grip(side) + Vector3(0, -0.15, 0)
@@ -335,6 +346,8 @@ func request(
 ## move that's waiting for its second press (lasso: throw, rip: tug), do that right now. The
 ## preview presses moves through this too.
 func press(action: String) -> void:
+	if weapon == 2: # the revolver: no chain moves
+		return
 	if hammers():
 		action = HAMMER_MOVES.get(action, action)
 	match action:
@@ -506,6 +519,8 @@ func _draw(
 	moves.bind.draw()
 	fire.draw(blades, delta)
 	impacts.update(delta, view_delta, blades, hammers())
+	if weapon == 2:
+		revolver.place()
 	var aimed := -1 if preview.active else enemy_near_mouse(INF, false) # the one a click would go for glows
 	for i in enemies.size():
 		enemies[i].highlight = 1.0 if i == aimed else 0.0
@@ -676,7 +691,7 @@ func _draw_hud() -> void:
 		Blade.PHASE_NAMES[blades[0].phase], Blade.PHASE_NAMES[blades[1].phase],
 		"   next: %s" % _queued_name if _queued_name != "" else "",
 		"   fling: %s" % fling if fling != "" else "", "   [curves]" if debug.enabled else "", "   [slow]" if _slow else "",
-		fire.step_name(), WEAPONS[weapon] + (" (click meteor, right click wrecking swing, Q tornado, Z ground pound, Space jump smash — again in the air: next head%s)" % ("   combo x%d" % moves.leap.combo if moves.leap.combo > 1 else "") if hammers() else "")]
+		fire.step_name(), WEAPONS[weapon] + (" (click meteor, right click wrecking swing, Q tornado, Z ground pound, Space jump smash — again in the air: next head%s)" % ("   combo x%d" % moves.leap.combo if moves.leap.combo > 1 else "") if hammers() else "") + ("  %s  (click shoot, right click fan the hammer)" % revolver.status() if weapon == 2 else "")]
 
 
 ## Whether the tuning panel (the editor) is open.
@@ -723,7 +738,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return # the preview owns the scene: no moves of your own until ■ Stop
 	if event is InputEventMouseButton and event.pressed:
 		mouse = event.position
-		if event.button_index == MOUSE_BUTTON_LEFT:
+		if weapon == 2: # the revolver: click shoots, right click fans the hammer
+			if event.button_index == MOUSE_BUTTON_LEFT:
+				revolver.fire()
+			elif event.button_index == MOUSE_BUTTON_RIGHT:
+				revolver.fan()
+		elif event.button_index == MOUSE_BUTTON_LEFT:
 			press("throw")
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			press("sweep")

@@ -138,8 +138,16 @@ func update(delta: float) -> void:
 		look = _level(looked.normalized(), 1.0)
 
 
-## Whether arm i (0 left, 1 right) is reaching for its blade right now.
+## A shove to the torso (a gun's recoil rocks you back): the lean spring takes it.
+func kick_back(push: Vector3) -> void:
+	_spring.kick(push)
+
+
+## Whether arm i (0 left, 1 right) is reaching for its blade right now (the right one always holds
+## the revolver out, when it's the weapon).
 func is_reaching(i: int) -> bool:
+	if i == 1 and _demo.weapon == 2:
+		return true
 	var blade := _demo.blades[i]
 	return blade.phase != Blade.IDLE and blade.delay <= 0.0
 
