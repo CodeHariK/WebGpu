@@ -48,6 +48,10 @@ signal landed ## touched down after launch()
 		if is_inside_tree():
 			_build()
 
+## A layout built elsewhere (e.g. orbwarden/orb_layout.gd) used instead of layout_preset. Set it
+## before the spider enters the tree (or call rebuild()).
+var layout_override: SpiderLayout = null
+
 @export_group("Movement")
 @export var auto_walk := true ## walk in a circle by itself; off = arrow keys
 @export var move_speed := 1.6 ## m/s
@@ -221,7 +225,7 @@ func _build() -> void:
 	_target_markers.clear()
 	homes.clear()
 	home_rays.clear()
-	var layout := SpiderLayout.preset(layout_preset)
+	var layout := layout_override if layout_override != null else SpiderLayout.preset(layout_preset)
 	_walk_groups = layout.groups()
 	_run_groups = layout.groups(true)
 	_groups = _walk_groups
@@ -255,6 +259,35 @@ func _build() -> void:
 	_apply_step_curve()
 	_apply_knee_yaw()
 	rebuilt.emit()
+
+
+## Rebuild the legs from the current layout (after changing layout_override).
+func rebuild() -> void:
+	_build()
+
+
+## Re-read which legs walk (after a leg's `walks` changed at runtime, e.g. one broke off): the step
+## groups, the wave phases and the turning radius, without rebuilding the legs.
+func refresh_gait() -> void:
+	_walk_groups = rig.layout.groups()
+	_run_groups = rig.layout.groups(true)
+	_groups = _run_groups if _running else _walk_groups
+	_next_group = 0
+	_foot_radius = 0.0
+	for leg in legs.size():
+		var definition := rig.layout.legs[leg]
+		if definition.walks:
+			_foot_radius = maxf(_foot_radius, Vector2(definition.rest_foot().x, definition.rest_foot().z).length())
+		else:
+			legs[leg].override = false
+			legs[leg].stepping = false
+	_apply_wave_gait()
+
+
+## Shove the body spring: (height m/s, pitch rad/s, roll rad/s) added to its velocity — a slam,
+## a hit. The spring brings it back with the layout's own bounce.
+func kick_body(pose_velocity: Vector3) -> void:
+	_body_pose_velocity += pose_velocity
 
 
 ## Put the spider somewhere new (e.g. a respawn), facing `yaw`, standing still, with every foot
@@ -398,7 +431,7 @@ func _update_gait(delta: float) -> void:
 		legs[leg].noise_amount = step_noise
 		legs[leg].noise_rate = step_noise_rate
 		if definition.walks or legs[leg].override:
-			legs[leg].update(delta, leg_step_time(leg), step_height * definition.lift_scale * (WAVE_LIFT if wave_gait else 1.0))
+			legs[leg].update(delta, leg_step_time(leg), step_height * definition.lift_scale * (_wave_lift() if wave_gait else 1.0))
 			if legs[leg].just_planted:
 				_push_off(leg)
 		else:
@@ -417,7 +450,7 @@ func leg_step_distance(leg: int) -> float:
 ## heavy arm) applies on top.
 func leg_step_time(leg: int) -> float:
 	if wave_gait: # in the air for the short part of the cycle
-		return _wave_period * (1.0 - WAVE_DUTY)
+		return _wave_period * (1.0 - _wave_duty())
 	if rig.layout.step_period > 0.0: # clocked: a step takes step_fill of its half-cycle
 		return rig.layout.step_period * 0.5 * rig.layout.step_fill
 	var foot_speed := velocity.length() + absf(_turn_rate) * _foot_radius
@@ -517,7 +550,8 @@ func _gait_waves() -> PackedVector2Array:
 # step_distance); each leg steps when the clock passes its phase — if it has anywhere to go.
 func _wave_steps(delta: float) -> void:
 	var foot_speed := velocity.length() + absf(_turn_rate) * _foot_radius
-	_wave_period = clampf(step_distance * 1.6 / maxf(foot_speed, 0.01), WAVE_PERIOD.x, WAVE_PERIOD.y)
+	var period := rig.layout.wave_period if rig.layout.wave_period != Vector2.ZERO else WAVE_PERIOD
+	_wave_period = clampf(step_distance * 1.6 / maxf(foot_speed, 0.01), period.x, period.y)
 	var before := _wave_clock
 	_wave_clock += delta / _wave_period
 	for leg in legs.size():
@@ -531,8 +565,16 @@ func _wave_steps(delta: float) -> void:
 
 # Each walking leg's phase in the wave: per side, back legs first, rippling forward; the right side
 # half a cycle after the left. Legs on the centre line join the side with fewer legs.
+# A layout's own wave_phases (one per leg) replace this.
 func _apply_wave_gait() -> void:
 	if rig == null:
+		return
+	if rig.layout.wave_phases.size() == rig.layout.legs.size():
+		_wave_phase.clear()
+		for phase in rig.layout.wave_phases:
+			_wave_phase.append(phase)
+		for leg in legs:
+			leg.quick = wave_gait
 		return
 	var sides: Array = [[], []] # left, right: leg indices
 	for leg in rig.layout.legs.size():
@@ -551,6 +593,15 @@ func _apply_wave_gait() -> void:
 			_wave_phase[ordered[rank]] = fmod(float(rank) / ordered.size() + 0.5 * side, 1.0)
 	for leg in legs:
 		leg.quick = wave_gait
+
+
+# Wave gait: share of the cycle each foot is planted / × step height (the layout's, else the defaults).
+func _wave_duty() -> float:
+	return rig.layout.wave_duty if rig.layout.wave_duty > 0.0 else WAVE_DUTY
+
+
+func _wave_lift() -> float:
+	return rig.layout.wave_lift if rig.layout.wave_lift > 0.0 else WAVE_LIFT
 
 
 # Metronome gait (layout.step_period): every half-cycle the next group steps to its homes, moving

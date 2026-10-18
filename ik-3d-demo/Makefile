@@ -35,6 +35,10 @@ chain: ## Kratos chain: throw, hook, pull crates / grapple a post
 blades: ## Blades of Chaos: Bezier blade paths + Bezier chains (no physics)
 	$(RUN) --scene blades/blades_demo.tscn
 
+# --- Bosses ---
+orb: ## Orb Warden boss: six-legged laser sphere (WASD dodge, F laser)
+	$(RUN) --scene orbwarden/orb_demo.tscn
+
 # --- AI ---
 grid: ## layered tactical grid, A*, senses
 	$(RUN) --scene ai/grid_demo.tscn
@@ -62,4 +66,4 @@ import: ## rescan the project (registers new class_name scripts, reimports asset
 help: ## list the targets
 	@grep -E '^[a-z0-9_]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  make %-10s %s\n", $$1, $$2}'
 
-.PHONY: blades chain e limbs spider gait hex bat flytrap vacuum rope grid squad road adjusted magnet demo2 view modifier import help
+.PHONY: orb blades chain e limbs spider gait hex bat flytrap vacuum rope grid squad road adjusted magnet demo2 view modifier import help

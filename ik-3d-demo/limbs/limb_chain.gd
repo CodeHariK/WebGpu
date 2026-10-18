@@ -52,6 +52,9 @@ var taper := 1.0 ## radius at the tip ÷ radius at the root (segments shrink lin
 var joint_radius := -1.0 ## ROUND joint balls; < 0 = radius × 1.35 (= radius gives a capsule look)
 var gap := 0.0 ## BLOCK: each block is this much shorter at both ends, so the pieces float apart
 var color := Color.WHITE
+## LimbRenderer draws only the first this-many segments (and their joints); −1 = all, 0 = none.
+## The chain still solves in full — a broken-off limb's stump just stops being drawn past the break.
+var shown_segments := -1
 
 var _reach := 0.0
 var _previous := PackedVector3Array() ## ROPE: last step's points (velocity = points − previous)
@@ -69,6 +72,14 @@ func _init(segment_lengths: PackedFloat32Array, start := Vector3.ZERO, chain_sol
 		_reach += lengths[i]
 		points[i + 1] = start + Vector3.DOWN * _reach
 	target = points[-1]
+
+
+func shows_segment(i: int) -> bool:
+	return shown_segments < 0 or i < shown_segments
+
+
+func shows_joint(k: int) -> bool:
+	return shown_segments < 0 or (shown_segments > 0 and k <= shown_segments)
 
 
 func segment_count() -> int:

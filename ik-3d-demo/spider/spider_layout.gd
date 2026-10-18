@@ -156,6 +156,11 @@ var noise_hold := 0.0
 ## The shown body heading moves in steps of this many radians (through turn_spring, so each step
 ## can wind up and snap). 0 = smooth.
 var yaw_step := 0.0
+## Wave gait (Spider.wave_gait) for this layout — empty / zero = the Spider's defaults:
+var wave_phases := PackedFloat32Array() ## per leg, when in the cycle it steps (0..1); −1 = never (an arm)
+var wave_duty := 0.0 ## share of the cycle each foot is planted
+var wave_lift := 0.0 ## × step height
+var wave_period := Vector2.ZERO ## shortest / longest cycle (seconds)
 ## Body spring for this layout: (stiffness, damping); zero = the Spider's body_stiffness / body_damping.
 var body_spring := Vector2.ZERO
 

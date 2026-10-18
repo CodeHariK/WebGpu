@@ -69,6 +69,8 @@ func draw() -> void:
 				basis.x *= r * 2.0
 				basis.y *= maxf(chain.segment_length(i) - chain.gap * 2.0, 0.02)
 				basis.z *= r * 2.0
+				if not chain.shows_segment(i):
+					basis = Basis.from_scale(Vector3.ZERO) # hidden: a zero-size instance
 				blocks.set_instance_transform(block, Transform3D(basis, (chain.points[i] + chain.points[i + 1]) * 0.5))
 				block += 1
 			continue
@@ -78,10 +80,13 @@ func draw() -> void:
 			basis.x *= r
 			basis.y *= chain.segment_length(i)
 			basis.z *= r
+			if not chain.shows_segment(i):
+				basis = Basis.from_scale(Vector3.ZERO) # hidden: a zero-size instance
 			segments.set_instance_transform(segment, Transform3D(basis, (chain.points[i] + chain.points[i + 1]) * 0.5))
 			segment += 1
 		for k in chain.points.size():
-			joints.set_instance_transform(joint, Transform3D(Basis.from_scale(Vector3.ONE * chain.joint_ball_radius(k)), chain.points[k]))
+			var ball := chain.joint_ball_radius(k) if chain.shows_joint(k) else 0.0
+			joints.set_instance_transform(joint, Transform3D(Basis.from_scale(Vector3.ONE * ball), chain.points[k]))
 			joint += 1
 
 

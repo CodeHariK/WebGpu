@@ -15,6 +15,9 @@ const CIRCLE_SEGMENTS := 24
 const CROSS_SIZE := 0.08
 
 @export var spider: Spider
+@export var show_gait := true ## rays, homes, step circles, foot → home, step arcs, velocity
+@export var show_poles := true ## knee poles and the knee → pole lines
+@export var cross_size := CROSS_SIZE ## metres (bigger for a giant)
 
 var _lines := ImmediateMesh.new()
 
@@ -34,17 +37,21 @@ func _process(_delta: float) -> void:
 	_lines.clear_surfaces()
 	if not visible or spider == null or not spider.visible or spider.homes.size() != spider.legs.size() or spider.homes.is_empty():
 		return
+	if not show_gait and not (show_poles and spider.use_knee_poles):
+		return # nothing to draw (an empty surface is an error)
 	_lines.surface_begin(Mesh.PRIMITIVE_LINES)
-	_draw_ray(spider.ground_ray, Color.WHITE)
+	if show_gait:
+		_draw_ray(spider.ground_ray, Color.WHITE)
 	for leg in spider.legs.size():
 		_draw_leg(leg)
-	var origin := spider.global_position + Vector3.UP * 0.05
-	_line(origin, origin + spider.velocity * spider.lead_time, Color(0.3, 0.5, 1.0))
+	if show_gait:
+		var origin := spider.global_position + Vector3.UP * 0.05
+		_line(origin, origin + spider.velocity * spider.lead_time, Color(0.3, 0.5, 1.0))
 	_lines.surface_end()
 
 
 func _draw_leg(leg: int) -> void:
-	if not spider.rig.layout.legs[leg].walks: # an arm (claw): no home, no steps
+	if not spider.rig.layout.legs[leg].walks or not show_gait: # an arm (claw): no home, no steps
 		_draw_pole(leg)
 		return
 	var gait_leg := spider.legs[leg]
@@ -82,7 +89,7 @@ func _draw_arc(gait_leg: SpiderLeg, lift: float) -> void:
 
 
 func _draw_pole(leg: int) -> void:
-	if not spider.use_knee_poles:
+	if not spider.use_knee_poles or not show_poles:
 		return
 	var knee := spider.rig.joint_position(leg, 1)
 	var pole := spider.rig.poles[leg].global_position
@@ -101,9 +108,9 @@ func _line(a: Vector3, b: Vector3, color: Color) -> void:
 
 
 func _cross(at: Vector3, color: Color) -> void:
-	_line(at - Vector3.RIGHT * CROSS_SIZE, at + Vector3.RIGHT * CROSS_SIZE, color)
-	_line(at - Vector3.UP * CROSS_SIZE, at + Vector3.UP * CROSS_SIZE, color)
-	_line(at - Vector3.BACK * CROSS_SIZE, at + Vector3.BACK * CROSS_SIZE, color)
+	_line(at - Vector3.RIGHT * cross_size, at + Vector3.RIGHT * cross_size, color)
+	_line(at - Vector3.UP * cross_size, at + Vector3.UP * cross_size, color)
+	_line(at - Vector3.BACK * cross_size, at + Vector3.BACK * cross_size, color)
 
 
 # Flat circle in the XZ plane, lifted slightly so it isn't hidden in the ground.
