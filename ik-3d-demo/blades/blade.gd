@@ -43,13 +43,17 @@ var chain: LimbChain
 var chain_on_path := false ## last frame the chain lay on the path (thrown / reeling); else taut
 var snap_from := PackedVector3Array() ## the chain's shape when it switched (it blends from this)
 var snap_time := 99.0 ## seconds since it switched
+var sway := ChainSway.new() ## the chain's weight: it follows its shape on springs
 var mesh: MeshInstance3D
 
 static var shaper := Callable() ## BladesDemo.shape_path: the curve editor's offsets, added to every path a blade starts
+static var timing: PhaseTiming ## the timing editor's edits (time scale, speed curve), applied to every phase a blade starts
 
 const LENGTH_SAMPLES := 16 ## per segment, for start_even's length table
 
 var _lengths := PackedFloat32Array() ## start_even: arc length from the path start at each sample (empty: segments share time equally)
+var _curve := Vector4.ZERO ## the timing editor's speed curve for this phase
+var _has_curve := false
 
 
 ## Play `path` over `duration` with one easing for the whole of it.
@@ -82,6 +86,25 @@ func start_segments(
 	time = 0.0
 	eased = 0.0
 	turn = 0
+	_has_curve = false
+	if timing != null:
+		_retime(PhaseTiming.key_of(move, phase))
+
+
+# The timing editor's edits for this phase (key "move/phase"): its time scaled, and its own speed
+# curve over the whole path (measured along its length) in place of the move's easings.
+func _retime(key: String) -> void:
+	var scale := timing.scale_for(key, segment_easings[0], duration)
+	if scale != 1.0:
+		for i in segment_times.size():
+			segment_times[i] *= scale
+		duration *= scale
+	if timing.curves.has(key):
+		_curve = timing.curves[key]
+		_has_curve = true
+		segment_times = PackedFloat32Array([duration])
+		segment_easings = ["linear"]
+		_measure()
 
 
 ## Play `path` over `duration` with one easing measured along its LENGTH: the tip's speed follows
@@ -94,6 +117,12 @@ func start_even(
 		easing: String
 ) -> void:
 	start(new_phase, new_path, new_duration, easing)
+	_measure()
+
+
+# start_even's length table: arc length from the path start at LENGTH_SAMPLES points per segment.
+func _measure() -> void:
+	_lengths.clear()
 	_lengths.append(0.0)
 	var last := path[0]
 	for k in range(0, path.size() - 3, 4):
@@ -117,7 +146,7 @@ func progress() -> float:
 ## each segment then gets its own share of the time and its own speed curve.
 func eased_position() -> float:
 	if segment_times.size() == 1:
-		var along := eased_time(progress(), segment_easings[0])
+		var along := PhaseTiming.curve_at(progress(), _curve) if _has_curve else eased_time(progress(), segment_easings[0])
 		return along if _lengths.is_empty() else _at_length(along * _lengths[-1])
 	var start_time := 0.0
 	for i in segment_times.size():

@@ -137,7 +137,7 @@ func _land() -> void:
 	demo.player = _spot
 	demo.player_velocity = Vector3.ZERO
 	demo.shake = 0.6
-	demo.hitstop = BladesDemo.HITSTOP * 2.5
+	demo.hitstop = demo.hitstop_time * 2.5
 	for i in 8: # a ring of sparks
 		var a := TAU * i / 8.0
 		demo.fire.spark(_spot + Vector3(cos(a), 0.2, sin(a)) * 1.2)

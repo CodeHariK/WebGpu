@@ -10,6 +10,10 @@
 ## ⟲ View puts the editor camera (OrbitView: orbit / pan / zoom with the mouse) back to the game's view.
 ## With the curves on (C) and a preview on, left-drag a curve's control point to bend the move there
 ## (CurveEditor); Save keeps the bends, Defaults on a move's page removes them.
+##
+## Timing (under the sliders): pick one of the move's phases (they appear once it has played in a
+## preview) and change how long it takes (× time) and its speed curve (TimingCurve: drag the dots).
+## The timeline shows when each phase starts and each hit lands (TimelineMarks).
 class_name TuningPanel
 extends PanelContainer
 
@@ -25,6 +29,13 @@ var _timeline := HSlider.new()
 var _clock := Label.new()
 var _scrubbing := false ## the timeline is being moved by the code, not by you
 var _reset_view: Callable
+var _phase_pick := OptionButton.new() ## the timing editor's phase ("pull/yank" …)
+var _phase_keys: Array[String] = []
+var _time_scale := HSlider.new()
+var _time_label := Label.new()
+var _curve := TimingCurve.new()
+var _marks := TimelineMarks.new()
+var _showing := false ## the timing widgets are being set by the code, not by you
 
 
 func setup(
@@ -55,6 +66,7 @@ func setup(
 		b.pressed.connect(button[1])
 		top.add_child(b)
 	box.add_child(_rows)
+	box.add_child(_timing_box())
 	box.add_child(_preview_bar())
 	var scrub := HBoxContainer.new()
 	_timeline.min_value = 0.0
@@ -66,7 +78,12 @@ func setup(
 		if not _scrubbing:
 			_preview.scrub(v))
 	_clock.custom_minimum_size.x = 110
-	scrub.add_child(_timeline)
+	var line := VBoxContainer.new() # the marks right above the timeline, the same width
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_theme_constant_override("separation", 0)
+	line.add_child(_marks)
+	line.add_child(_timeline)
+	scrub.add_child(line)
 	scrub.add_child(_clock)
 	box.add_child(scrub)
 	box.add_child(_status)
@@ -81,7 +98,120 @@ func _process(_delta: float) -> void:
 	_timeline.max_value = maxf(end, _preview.time)
 	_timeline.value = _preview.time
 	_scrubbing = false
+	_marks.show_marks(_preview.marks if _preview.move == _move() else [], _timeline.max_value)
+	_curve.set_playhead(_phase_progress())
+	if _tuning.timing.phases_of(_move()).size() != _phase_keys.size():
+		_fill_phases() # the move has played a new phase: list it
 	_clock.text = "%.2f / %s s" % [_preview.time, "%.2f" % _preview.length if _preview.length > 0.0 else "?"] if _preview.active else "no preview"
+
+
+# The timing editor: phase picker, × time, reset, and the speed curve.
+func _timing_box() -> VBoxContainer:
+	var box := VBoxContainer.new()
+	var top := HBoxContainer.new()
+	var title := Label.new()
+	title.text = "timing"
+	top.add_child(title)
+	_phase_pick.focus_mode = Control.FOCUS_NONE
+	_phase_pick.custom_minimum_size.x = 120
+	_phase_pick.item_selected.connect(func(_index: int) -> void: _show_phase())
+	top.add_child(_phase_pick)
+	_time_scale.min_value = 0.25
+	_time_scale.max_value = 3.0
+	_time_scale.step = 0.05
+	_time_scale.value = 1.0
+	_time_scale.focus_mode = Control.FOCUS_NONE
+	_time_scale.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_time_scale.custom_minimum_size.x = 110
+	_time_scale.value_changed.connect(_set_scale)
+	_time_label.custom_minimum_size.x = 64
+	top.add_child(_time_label)
+	top.add_child(_time_scale)
+	var reset := Button.new()
+	reset.text = "Reset"
+	reset.focus_mode = Control.FOCUS_NONE
+	reset.pressed.connect(_reset_phase)
+	top.add_child(reset)
+	box.add_child(top)
+	_curve.changed.connect(_set_curve)
+	box.add_child(_curve)
+	return box
+
+
+# The move whose phases the timing editor lists (the wind-up page: a throw's).
+func _move() -> String:
+	return "throw" if _section() == "shared" else _section()
+
+
+func _fill_phases() -> void:
+	var keep := _phase_key()
+	_phase_keys = _tuning.timing.phases_of(_move())
+	_phase_pick.clear()
+	for key in _phase_keys:
+		_phase_pick.add_item(key.get_slice("/", 1))
+	if _phase_keys.is_empty():
+		_phase_pick.add_item("play it first")
+	elif keep in _phase_keys:
+		_phase_pick.select(_phase_keys.find(keep))
+	_show_phase()
+
+
+# The picked phase's progress (0..1) on the first blade playing it in the preview; −1: none is.
+func _phase_progress() -> float:
+	var key := _phase_key()
+	if key == "" or not _preview.active:
+		return -1.0
+	for blade: Blade in _preview.blades():
+		if blade.delay <= 0.0 and PhaseTiming.key_of(blade.move, blade.phase) == key:
+			return blade.progress()
+	return -1.0
+
+
+func _phase_key() -> String:
+	var index := _phase_pick.selected
+	return _phase_keys[index] if index >= 0 and index < _phase_keys.size() else ""
+
+
+# Put the picked phase's edits on the widgets.
+func _show_phase() -> void:
+	var key := _phase_key()
+	var timing := _tuning.timing
+	_showing = true
+	_time_scale.editable = key != ""
+	_time_scale.value = float(timing.scales.get(key, 1.0))
+	_showing = false
+	_time_label.text = "× %.2f" % _time_scale.value
+	var seen: Dictionary = timing.seen.get(key, {"easing": "linear", "time": 0.0})
+	_time_label.tooltip_text = "%.2f s as the move makes it" % float(seen.time)
+	_curve.show_phase(seen.easing, timing.curves.get(key))
+
+
+func _set_scale(value: float) -> void:
+	_time_label.text = "× %.2f" % value
+	var key := _phase_key()
+	if _showing or key == "":
+		return
+	if is_equal_approx(value, 1.0):
+		_tuning.timing.scales.erase(key)
+	else:
+		_tuning.timing.scales[key] = value
+	_preview.refresh()
+
+
+func _set_curve(handles: Vector4) -> void:
+	var key := _phase_key()
+	if key == "":
+		return
+	_tuning.timing.curves[key] = handles
+	_preview.refresh()
+
+
+func _reset_phase() -> void:
+	var key := _phase_key()
+	_tuning.timing.curves.erase(key)
+	_tuning.timing.scales.erase(key)
+	_show_phase()
+	_preview.refresh()
 
 
 # ▶ ❚❚ ■ and the speed.
@@ -140,6 +270,7 @@ func _rebuild() -> void:
 		row.add_child(label)
 		row.add_child(slider)
 		_rows.add_child(row)
+	_fill_phases()
 	reset_size.call_deferred() # shrink to fit the new rows
 
 

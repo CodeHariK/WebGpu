@@ -131,7 +131,7 @@ func _tug() -> void:
 	tug_time = 0.25
 	var slab: RipProp = demo.props[prop]
 	demo.shake = 0.2 + 0.05 * tugs
-	demo.hitstop = BladesDemo.HITSTOP * 0.6
+	demo.hitstop = demo.hitstop_time * 0.6
 	demo.fire.spark(slab.base + Vector3.UP * 0.2)
 	if tugs < tugs_needed:
 		_goal = tug_tilt * tugs
@@ -159,7 +159,7 @@ func _rip(slab: RipProp) -> void:
 func _landed(slab: RipProp) -> void:
 	slab.tilt = PI / 2.0
 	demo.shake = 0.5
-	demo.hitstop = BladesDemo.HITSTOP * 2.0
+	demo.hitstop = demo.hitstop_time * 2.0
 	for enemy in demo.enemies:
 		if enemy.yanked or enemy.bound > 0.0:
 			continue

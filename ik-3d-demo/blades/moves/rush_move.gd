@@ -127,7 +127,7 @@ func tick(delta: float) -> void:
 	rushing = false
 	if _enemy >= 0: # land on it: slam
 		demo.hit(demo.blades[0], _enemy, true)
-		demo.hitstop = BladesDemo.HITSTOP * 2.0
+		demo.hitstop = demo.hitstop_time * 2.0
 		demo.shake = 0.4
 	else: # the ring: keep the speed of the arrival and fly on, then fall
 		demo.player_velocity = (demo.player - previous) / maxf(delta, 1e-4) * 0.5

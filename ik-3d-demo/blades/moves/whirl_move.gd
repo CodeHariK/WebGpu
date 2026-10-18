@@ -150,7 +150,7 @@ func tick(_delta: float) -> void:
 			other.flash = 1.0
 			other.cooldown = 0.4
 			demo.fire.spark((weapon.position + other.position) * 0.5)
-			demo.hitstop = BladesDemo.HITSTOP * 0.7
+			demo.hitstop = demo.hitstop_time * 0.7
 			demo.shake = maxf(demo.shake, 0.2)
 
 

@@ -5,7 +5,7 @@
 ##   hits_during(phase)    whether the blade hits enemies in this phase
 ##   chain_on_path(blade)  OUT: does the chain lie on the travelled path (else it is taut)
 ##   knocks_back()         hits push the enemy away
-##   hitstop_scale()       how long a hit freezes the game (× BladesDemo.HITSTOP)
+##   hitstop_scale()       how long a hit freezes the game (× BladesDemo.hitstop_time)
 ##   after_hit(blade)      right after one of this move's hits
 ##   next_phase(blade)     the phase's time is up: what comes next
 ##   done_after_back(blade) BACK: is this the last reel of the move (then a new move may cut in)

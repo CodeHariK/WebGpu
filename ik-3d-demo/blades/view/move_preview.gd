@@ -6,6 +6,9 @@
 ## it's paused), aims at `aim_override` instead of the mouse, and starts blade paths from the fixed
 ## hand anchor (the body's animated grip would differ from one replay to the next).
 ##
+## While it plays it notes what happens when (`marks`: each phase change, each hit) for the
+## timeline's markers — from the furthest run so far, so a scrub back doesn't lose the later ones.
+##
 ## Each move's recipe: what it aims at, and when its key is pressed (some moves need a second press:
 ## the lasso's throw, the rip's tugs).
 class_name MovePreview
@@ -29,6 +32,10 @@ var speed := 1.0 ## playback speed (slow motion: fewer steps per real second)
 var time := 0.0 ## seconds of the move played so far
 var length := 0.0 ## the move's length, once it has played to the end (0: not yet)
 var move := ""
+var marks: Array = [] ## [time, label, is_hit] of the furthest run of this move so far
+
+var _run_marks: Array = [] ## the marks of the run playing now
+var _marks_end := 0.0 ## how far the run that made `marks` got
 
 var _demo: BladesDemo
 var _accum := 0.0
@@ -43,9 +50,16 @@ func _init(demo: BladesDemo) -> void:
 func play(move_key: String) -> void:
 	if move_key != move:
 		length = 0.0
+		marks.clear()
+		_marks_end = 0.0
 	move = move_key
 	_restart()
 	playing = true
+
+
+## The scene's blades (the timing editor follows them).
+func blades() -> Array[Blade]:
+	return _demo.blades
 
 
 ## Pause / go on.
@@ -65,9 +79,11 @@ func scrub(t: float) -> void:
 
 
 ## Something it depends on changed (a slider): replay to the same moment, keep playing or paused.
+## The marks after that moment are from before the change: they are dropped (the next play redoes them).
 func refresh() -> void:
 	if not active:
 		return
+	_marks_end = 0.0
 	var was_playing := playing
 	scrub(time)
 	playing = was_playing
@@ -102,8 +118,32 @@ func _step() -> void:
 	while _pressed < presses.size() and time >= float(presses[_pressed]):
 		_demo.press(move)
 		_pressed += 1
+	var phases := [_demo.blades[0].phase, _demo.blades[1].phase]
+	var hits := _demo.hit_count
 	_demo.simulate(STEP)
 	time += STEP
+	_mark(phases, hits)
+
+
+# Note this step's phase changes (one mark when both blades change to the same phase) and hits.
+func _mark(
+		phases: Array,
+		hits: int
+) -> void:
+	var changed: Array[String] = []
+	for b in 2:
+		var now := _demo.blades[b].phase
+		if now != phases[b]:
+			changed.append(("L " if b == 0 else "R ") + Blade.PHASE_NAMES[now])
+	if changed.size() == 2 and changed[0].substr(2) == changed[1].substr(2):
+		changed = [changed[0].substr(2)]
+	for label in changed:
+		_run_marks.append([time, label, false])
+	if _demo.hit_count > hits:
+		_run_marks.append([time, "hit", true])
+	if time > _marks_end:
+		_marks_end = time
+		marks = _run_marks.duplicate()
 
 
 # Everything back to the start: same scene, same seed, the camera already in place, aimed.
@@ -133,6 +173,8 @@ func _restart() -> void:
 	time = 0.0
 	_accum = 0.0
 	_pressed = 0
+	_run_marks.clear()
+	_demo.hit_count = 0
 
 
 func _recipe() -> Dictionary:

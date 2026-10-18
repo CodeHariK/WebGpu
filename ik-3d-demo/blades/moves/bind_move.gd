@@ -76,7 +76,7 @@ func tick(delta: float) -> void:
 		if bind.phase >= ChainBind.HOLD and not _gripped: # the first chain closes: grip
 			_gripped = true
 			demo.enemies[_enemy].flash = 1.0
-			demo.hitstop = BladesDemo.HITSTOP
+			demo.hitstop = demo.hitstop_time
 			demo.shake = 0.2
 		done = done and bind.phase == ChainBind.DONE
 	if done:

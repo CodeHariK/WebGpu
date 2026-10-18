@@ -32,7 +32,6 @@ const HAND_SPREAD := 0.35
 const PLAYER_SPEED := 4.5
 const GRAVITY := 25.0
 const HIT_RADIUS := 0.8
-const HITSTOP := 0.07 ## seconds of freeze on a hit
 const PAIR_GAP := 0.25 ## the two blades land this far either side of the aim
 const STAGGER := 0.05 ## the right blade leaves this much later
 const PICK_RADIUS := 4.0 ## moves aimed at an enemy take the one within this of the mouse point
@@ -58,6 +57,7 @@ var enemies: Array[DemoEnemy] = []
 var props: Array[RipProp] = [] ## heavy slabs stuck in the ground (RipMove tears them out)
 var hitstop := 0.0
 var shake := 0.0
+var hit_count := 0 ## hits so far (the preview's timeline marks them)
 var game_delta := 0.0 ## this frame's game time step (0 during hit-stop)
 var mouse := Vector2.ZERO
 var moves := {} ## key → BladeMove
@@ -77,6 +77,18 @@ var windup_bow := 1.4 ## how far the hand → wind-point piece bows out (× its 
 var drop := 0.25 ## a throw comes down onto its target from this high (× the throw's length)
 var throw_time := 0.15 ## a throw's strike takes this long … (every move that throws both blades out)
 var throw_per_m := 0.008 ## … plus this per metre to the target
+var hitstop_time := 0.07 ## seconds the moves freeze on a hit (× the move's hitstop_scale)
+var hit_shake := 0.25 ## camera shake on a hit
+# The chains' weight (ChainSway): how far the middle sags (× the chain's length) and how stiff its
+# springs are, when slack (blade home), under load (taut: holding, yanking, swinging round you) and
+# while it lies on a flying blade's path; damping (low: it bounces); how much of the lag shows on a path.
+var chain_sag := 0.12
+var chain_sag_load := 0.03
+var chain_hz := 2.5
+var chain_hz_load := 5.0
+var chain_hz_path := 9.0
+var chain_damping := 0.3
+var chain_path_sway := 0.3
 
 var tuning: MoveTuning
 var preview: MovePreview
@@ -116,6 +128,7 @@ func _ready() -> void:
 	tuning = MoveTuning.new(self) # the code's values become the defaults …
 	tuning.load_saved() # … then the saved ones (if any) replace them
 	Blade.shaper = shape_path
+	Blade.timing = tuning.timing
 	preview = MovePreview.new(self)
 	_panel = TuningPanel.new()
 	$Hud.add_child(_panel)
@@ -138,6 +151,15 @@ func tunables() -> Array:
 		["drop", 0.0, 1.0, 0.01],
 		["throw_time", 0.05, 0.6, 0.01],
 		["throw_per_m", 0.0, 0.05, 0.001],
+		["hitstop_time", 0.0, 0.3, 0.01],
+		["hit_shake", 0.0, 1.0, 0.01],
+		["chain_sag", 0.0, 0.4, 0.01],
+		["chain_sag_load", 0.0, 0.2, 0.005],
+		["chain_hz", 0.5, 8.0, 0.1],
+		["chain_hz_load", 1.0, 15.0, 0.1],
+		["chain_hz_path", 2.0, 25.0, 0.5],
+		["chain_damping", 0.05, 1.0, 0.01],
+		["chain_path_sway", 0.0, 1.0, 0.01],
 	]
 
 
@@ -347,8 +369,9 @@ func hit(
 		var away := enemy.position - player
 		away.y = 0.0
 		enemy.velocity = away.normalized() * 7.0 + Vector3.UP * 2.0
-	hitstop = HITSTOP * move.hitstop_scale()
-	shake = 0.25
+	hit_count += 1
+	hitstop = hitstop_time * move.hitstop_scale()
+	shake = hit_shake
 	move.after_hit(blade)
 
 
@@ -480,7 +503,22 @@ func _chain_points(
 			var unused: Array[PackedVector3Array] = [] # now, not the one it had out at the target
 			from = _chain_shape(blade, delta, unused, false)
 		points = _snap(from, points, blade.snap_time / SNAP_TIME)
-	return points
+	return _weigh(blade, points, on_path, delta)
+
+
+# The chain's weight (ChainSway) for its state: slack at home, under load when taut, light on a path.
+func _weigh(
+		blade: Blade,
+		points: PackedVector3Array,
+		on_path: bool,
+		delta: float
+) -> PackedVector3Array:
+	var length := ChainSway.length_of(points)
+	if on_path:
+		return blade.sway.apply(points, 0.0, chain_hz_path, chain_damping, chain_path_sway, delta)
+	if blade.phase == Blade.IDLE or blade.delay > 0.0:
+		return blade.sway.apply(points, chain_sag * length, chain_hz, chain_damping, 1.0, delta)
+	return blade.sway.apply(points, chain_sag_load * length, chain_hz_load, chain_damping, 1.0, delta)
 
 
 # Whether the chain lies on the blade's path now (flying out, or reeling back), else it's taut.
