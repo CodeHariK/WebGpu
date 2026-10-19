@@ -39,6 +39,10 @@ blades: ## Blades of Chaos: Bezier blade paths + Bezier chains (no physics)
 orb: ## Orb Warden boss: six-legged laser sphere (WASD dodge, F laser)
 	$(RUN) --scene orbwarden/orb_demo.tscn
 
+# --- Look ---
+mood: ## Pumpkin Jack-style night mood: fog, grade, lanterns, embers (N day/night, 1-7 layers, Tab panel)
+	$(RUN) --scene mood/mood_demo.tscn
+
 # --- AI ---
 grid: ## layered tactical grid, A*, senses
 	$(RUN) --scene ai/grid_demo.tscn
@@ -66,4 +70,4 @@ import: ## rescan the project (registers new class_name scripts, reimports asset
 help: ## list the targets
 	@grep -E '^[a-z0-9_]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  make %-10s %s\n", $$1, $$2}'
 
-.PHONY: orb blades chain e limbs spider gait hex bat flytrap vacuum rope grid squad road adjusted magnet demo2 view modifier import help
+.PHONY: orb mood blades chain e limbs spider gait hex bat flytrap vacuum rope grid squad road adjusted magnet demo2 view modifier import help
