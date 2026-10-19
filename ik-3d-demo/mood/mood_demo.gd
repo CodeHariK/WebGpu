@@ -1,50 +1,66 @@
-## Pumpkin Jack–style mood demo (mood/): a lantern-lit path through a foggy night forest, built from
-## primitives, with every part of the look on the panel (Tab) so you can see what each one adds.
-##   WASD  walk the stand-in character (the camera follows behind and above)
-##   N     day ↔ night (eases over two seconds)
-##   1-7   switch a layer off/on: 1 fog  2 colour grade  3 glow  4 lanterns  5 embers  6 vignette
-##         7 purple ambient
-##   C     free fly camera (fly_camera.gd)      Tab  panel
-## The look itself is MoodLook (mood_look.gd); the props are MoodProps (mood_props.gd).
+## Theme demo (mood/): one lantern-lit path through a forest, dressed and lit eight ways —
+## spooky, candy, desert, autumn, cyberpunk, solarpunk, medieval, magical. The layout never
+## changes; each theme swaps the prop kit (MoodKit), the particles (MoodParticles) and every
+## lighting number (MoodTheme), blending from one to the next over 1.5 s (MoodLook).
+##   , .   previous / next theme (or the buttons on the panel)
+##   1-7   switch a layer off/on: 1 fog  2 colour grade  3 glow  4 lamps  5 particles  6 vignette
+##         7 ambient colour — see what each one adds
+##   WASD  walk the stand-in character; the camera (MoodCamera) follows with the theme's feel —
+##         fov, distance, height, pitch, lag, handheld sway, Dutch roll, depth of field, lens
+##         fringing — and three camera zones on the path change it locally:
+##         overhead (z 15), vista (z 33: pull back, wide), corridor (z 50: close and low)
+##   V     show the camera zones (rings on the ground)     X  camera shake
+##   C     free fly camera (fly_camera.gd)      Tab  panel (tune the current theme live)
 extends Node3D
 
-const GROUND := Color(0.24, 0.17, 0.2)
 const PATH_LENGTH := 70.0
 const WALK_SPEED := 4.0
-const CAMERA_BACK := Vector3(0, 4.5, 6.5) ## behind and above the character (its yaw)
 const LAYERS := ["use_fog", "use_grade", "use_glow", "use_lanterns", "use_embers", "use_vignette", "use_ambient"]
-const LAYER_NAMES := ["fog", "colour grade", "glow", "lanterns", "embers", "vignette", "purple ambient"]
+const LAYER_NAMES := ["fog", "colour grade", "glow", "lamps", "particles", "vignette", "ambient colour"]
 
 var look: MoodLook
-var camera: FlyCamera
+var camera: FlyCamera ## free camera (C)
+var rig: MoodCamera ## the follow camera
+var zones_visible := false
 var character: Node3D
 var panel: OrbPanel
 var hud: Label
+var layout := {}
+var _props: Node3D
 var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
 	_rng.seed = 5
-	seed(5)
+	var particles := _add_particles()
 	look = MoodLook.new()
 	look.name = "Look"
 	look.environment = _add_environment()
-	look.sun = _add_moon()
+	look.sky_material = look.environment.sky.sky_material as ProceduralSkyMaterial
+	look.sun = _add_sun()
+	look.embers = particles
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	var lens := _add_screen_shader(layer, "res://mood/lens.gdshader")
+	look.vignette_material = _add_screen_shader(layer, "res://mood/vignette.gdshader")
 	add_child(look)
+	look.theme_changed.connect(_dress)
 	_add_ground()
-	_add_path()
-	_add_forest()
-	_add_background()
+	layout = _layout()
+	_dress(look.theme)
 	character = _add_character()
+	rig = MoodCamera.new()
+	rig.name = "Rig"
+	rig.target = character
+	rig.look = look
+	rig.lens_material = lens
+	add_child(rig)
+	rig.camera.current = true
+	_add_zones()
 	camera = FlyCamera.new()
 	camera.fov = 55.0
 	camera.active = false
 	add_child(camera)
-	camera.global_position = character.global_position + CAMERA_BACK
-	look.embers = _add_embers()
-	var layer := CanvasLayer.new()
-	add_child(layer)
-	look.vignette_material = _add_vignette(layer)
 	hud = Label.new()
 	hud.position = Vector2(16, 12)
 	hud.add_theme_font_size_override("font_size", 15)
@@ -63,18 +79,22 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_walk(delta)
-	if not camera.active:
-		var behind := character.global_transform.basis * CAMERA_BACK
-		camera.global_position = camera.global_position.lerp(character.global_position + behind, 1.0 - exp(-3.0 * delta))
-		camera.look_at(character.global_position + Vector3.UP * 1.0 - character.global_basis.z * 3.0)
-	look.embers.global_position = camera.global_position - camera.global_basis.z * 6.0
+	var eye: Camera3D = camera if camera.active else rig.camera
+	look.embers.global_position = eye.global_position - eye.global_basis.z * 6.0
 	var off: Array[String] = []
 	for i in LAYERS.size():
 		if not look.get(LAYERS[i]):
 			off.append(LAYER_NAMES[i])
-	hud.text = "WASD walk   N day/night (%s)   1-7 layers   C free camera   Tab panel" % ("night" if look.night > 0.5 else "day")
+	hud.text = "theme: %s   , . switch   1-7 layers   WASD walk   V camera zones   X shake   C free camera   Tab panel" % look.theme.name.to_upper()
+	if rig.active_zone != "":
+		hud.text += "\ncamera zone: " + rig.active_zone
 	if not off.is_empty():
 		hud.text += "\nswitched off: " + ", ".join(off)
+
+
+func switch(step: int) -> void:
+	var index := MoodTheme.NAMES.find(look.theme.name)
+	look.switch_to(MoodTheme.NAMES[posmod(index + step, MoodTheme.NAMES.size())])
 
 
 func _walk(delta: float) -> void:
@@ -84,8 +104,7 @@ func _walk(delta: float) -> void:
 	var forward := float(Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP)) - float(Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN))
 	character.rotate_y(turn * 2.2 * delta)
 	character.global_position += -character.global_basis.z * forward * WALK_SPEED * delta
-	var bob := absf(sin(Time.get_ticks_msec() * 0.012)) * 0.06 * absf(forward)
-	character.get_child(0).position.y = bob
+	character.get_child(0).position.y = absf(sin(Time.get_ticks_msec() * 0.012)) * 0.06 * absf(forward)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -97,48 +116,102 @@ func _unhandled_input(event: InputEvent) -> void:
 		look.set(layer, not look.get(layer))
 		return
 	match key.keycode:
-		KEY_N: look.blend_to(0.0 if look.night > 0.5 else 1.0)
+		KEY_COMMA: switch(-1)
+		KEY_PERIOD: switch(1)
 		KEY_C: _set_free_camera(not camera.active)
+		KEY_V: _show_zones(not zones_visible)
+		KEY_X: rig.shake(1.0)
 		KEY_TAB: panel.visible = not panel.visible
 
 
+# --- panel ---------------------------------------------------------------------------------------
+
 func _fill_panel() -> void:
-	panel.button("day ↔ night (N)", func() -> void: look.blend_to(0.0 if look.night > 0.5 else 1.0))
-	panel.slider("day → night", 0.0, 1.0, 0.01, func() -> float: return look.night, func(v: float) -> void: look.night = v)
+	panel.heading("Theme (, .)")
+	for theme_name: String in MoodTheme.NAMES:
+		panel.button(theme_name, func() -> void: look.switch_to(theme_name))
 	panel.heading("Layers (1-7)")
 	for i in LAYERS.size():
 		var layer: String = LAYERS[i]
 		panel.checkbox("%d  %s" % [i + 1, LAYER_NAMES[i]], func() -> bool: return look.get(layer), func(on: bool) -> void: look.set(layer, on))
-	panel.heading("Fog")
-	_slider("fog hue (magenta / orange / violet)", "fog_hue", 0.0, 1.0, 0.01)
-	_slider("fog saturation", "fog_saturation", 0.0, 1.0, 0.01)
-	_slider("fog brightness", "fog_brightness", 0.1, 1.0, 0.01)
-	_slider("fog begins (m)", "fog_begin", 0.0, 30.0, 0.5)
-	_slider("fog solid at (m)", "fog_end", 10.0, 120.0, 1.0)
-	_slider("ground fog", "fog_height_density", 0.0, 1.5, 0.05)
+	panel.heading("Fog (this theme)")
+	_color_slider("fog hue", "fog", 0)
+	_color_slider("fog saturation", "fog", 1)
+	_color_slider("fog brightness", "fog", 2)
+	_slider("fog begins (m)", "fog_begin", 0.0, 60.0, 0.5)
+	_slider("fog solid at (m)", "fog_end", 10.0, 200.0, 1.0)
+	_slider("ground fog", "fog_height_density", 0.0, 1.0, 0.01)
 	panel.heading("Light")
-	_slider("ambient (purple) energy", "ambient_energy", 0.0, 2.0, 0.05)
-	_slider("moon energy", "moon_energy", 0.0, 2.0, 0.05)
-	_slider("moon height (°)", "moon_pitch", -80.0, -5.0, 1.0)
-	_slider("lantern energy", "lantern_energy", 0.0, 6.0, 0.1)
-	_slider("lantern range (m)", "lantern_range", 1.0, 10.0, 0.1)
+	_color_slider("ambient hue", "ambient", 0)
+	_slider("ambient energy", "ambient_energy", 0.0, 2.0, 0.05)
+	_slider("sun / moon energy", "sun_energy", 0.0, 3.0, 0.05)
+	_slider("sun / moon height (°)", "sun_pitch", -85.0, -5.0, 1.0)
+	_slider("sun / moon direction (°)", "sun_yaw", 0.0, 360.0, 1.0)
+	_color_slider("lamp hue", "lamp", 0)
+	_slider("lamp energy", "lamp_energy", 0.0, 8.0, 0.1)
+	_slider("lamp range (m)", "lamp_range", 1.0, 10.0, 0.1)
+	_slider("lamp flicker", "lamp_flicker", 0.0, 1.0, 0.05)
+	panel.heading("Camera (this theme)")
+	_slider("field of view (°)", "cam_fov", 35.0, 90.0, 1.0)
+	_slider("distance (m)", "cam_distance", 2.0, 16.0, 0.1)
+	_slider("height (m)", "cam_height", 0.5, 10.0, 0.1)
+	_slider("look down (°)", "cam_pitch", -10.0, 70.0, 1.0)
+	_slider("follow speed (low = floaty)", "cam_lag", 0.5, 10.0, 0.1)
+	_slider("handheld sway", "cam_sway", 0.0, 1.5, 0.05)
+	_slider("Dutch roll (°)", "cam_roll", 0.0, 10.0, 0.1)
+	_slider("blur beyond (m, 0 = off)", "cam_dof_far", 0.0, 60.0, 0.5)
+	_slider("blur nearer than (m, 0 = off)", "cam_dof_near", 0.0, 15.0, 0.1)
+	_slider("lens fringing", "cam_aberration", 0.0, 1.0, 0.01)
+	panel.checkbox("show camera zones (V)", func() -> bool: return zones_visible, _show_zones)
+	panel.button("shake (X)", func() -> void: rig.shake(1.0))
 	panel.heading("Post")
 	_slider("glow (bloom)", "glow", 0.0, 2.5, 0.05)
 	_slider("saturation", "saturation", 0.5, 2.0, 0.01)
 	_slider("contrast", "contrast", 0.5, 2.0, 0.01)
-	_slider("embers", "ember_amount", 0.0, 1.0, 0.05)
+	_slider("particles", "particle_amount", 0.0, 1.0, 0.05)
 	_slider("vignette", "vignette", 0.0, 1.0, 0.01)
+	_slider("ground shine (low = wet)", "ground_roughness", 0.05, 1.0, 0.01)
 	panel.checkbox("free camera (C)", func() -> bool: return camera.active, _set_free_camera)
+
+
+func _slider(text: String, field: String, low: float, high: float, step: float) -> void:
+	panel.slider(text, low, high, step, func() -> float: return look.theme.get(field), func(v: float) -> void: look.theme.set(field, v))
+
+
+# One HSV channel (0 hue, 1 saturation, 2 value) of a colour field of the current theme.
+func _color_slider(text: String, field: String, channel: int) -> void:
+	var read := func() -> float:
+		var c: Color = look.theme.get(field)
+		return [c.h, c.s, c.v][channel]
+	var write := func(v: float) -> void:
+		var c: Color = look.theme.get(field)
+		var hsv := [c.h, c.s, c.v]
+		hsv[channel] = v
+		look.theme.set(field, Color.from_hsv(hsv[0], hsv[1], hsv[2], c.a))
+	panel.slider(text, 0.0, 1.0, 0.01, read, write)
 
 
 func _set_free_camera(on: bool) -> void:
 	camera.active = on
 	if on:
+		camera.global_transform = rig.camera.global_transform
 		camera.take_over(8.0)
+		camera.current = true
+	else:
+		rig.camera.current = true
 
 
-func _slider(text: String, property: String, low: float, high: float, step: float) -> void:
-	panel.slider(text, low, high, step, func() -> float: return look.get(property), func(v: float) -> void: look.set(property, v))
+# Three places on the path that ask the camera for something else (see MoodCameraZone).
+func _add_zones() -> void:
+	rig.zones.append(MoodCameraZone.create(self, "overhead", _path_point(15.0), 4.0, {"pitch": 55.0, "distance": 11.0, "height": 5.0}, Color(0.3, 0.8, 1.0)))
+	rig.zones.append(MoodCameraZone.create(self, "vista", _path_point(33.0), 6.0, {"fov": 76.0, "distance": 13.0, "height": 6.0, "pitch": 24.0, "lag": 1.2}, Color(1.0, 0.85, 0.2)))
+	rig.zones.append(MoodCameraZone.create(self, "corridor", _path_point(50.0), 5.0, {"fov": 48.0, "distance": 3.8, "height": 1.5, "pitch": 6.0, "sway": 0.6}, Color(1.0, 0.3, 0.4)))
+
+
+func _show_zones(on: bool) -> void:
+	zones_visible = on
+	for zone in rig.zones:
+		zone.show_ring(on)
 
 
 # --- the world ----------------------------------------------------------------------------------
@@ -148,138 +221,104 @@ func _path_point(z: float) -> Vector3:
 	return Vector3(sin(z * 0.11) * 4.0 + sin(z * 0.037) * 3.0, 0.0, -z)
 
 
-func _add_ground() -> void:
-	var body := StaticBody3D.new()
-	var shape := BoxShape3D.new()
-	shape.size = Vector3(200, 1, 200)
-	var collision := CollisionShape3D.new()
-	collision.shape = shape
-	collision.position.y = -0.5
-	body.add_child(collision)
-	MoodProps.box(body, Vector3(200, 1, 200), Vector3(0, -0.5, -40), GROUND)
-	add_child(body)
+func _across(z: float) -> Vector3:
+	return (_path_point(z + 0.5) - _path_point(z)).normalized().cross(Vector3.UP)
 
 
-# Planks along the path (lit by the lanterns: the warm line the eye follows), lanterns on
-# alternating sides, fences and pumpkins along the edges.
-func _add_path() -> void:
+# The scene's layout, made once (seeded) so every theme dresses identical ground:
+#   tiles [at, yaw, index], lamps [at, yaw], fences [a, b], props [at, size, variant],
+#   trees [at, height, variant], landmarks [at, height].
+func _layout() -> Dictionary:
+	var result := {"tiles": [], "lamps": [], "fences": [], "props": [], "trees": [], "landmarks": []}
 	var z := 0.0
+	var index := 0
 	while z < PATH_LENGTH:
 		var at := _path_point(z)
 		var ahead := _path_point(z + 0.5)
-		var yaw := atan2(ahead.x - at.x, ahead.z - at.z)
-		if _rng.randf() > 0.08: # a few missing planks
-			MoodProps.box(self, Vector3(2.2, 0.08, 0.42), at + Vector3(0, 0.04, 0), MoodProps.PLANK, Vector3(0, yaw + _rng.randf_range(-0.06, 0.06), 0))
+		result.tiles.append([at, atan2(ahead.x - at.x, ahead.z - at.z) + _rng.randf_range(-0.05, 0.05), index])
 		z += 0.55
+		index += 1
 	var side := 1.0
 	for i in int(PATH_LENGTH / 7.0):
-		var at := _path_point(4.0 + i * 7.0)
-		var across := _across(4.0 + i * 7.0)
-		var toward := -across * side # the arm (+X) leans out over the path
-		var parts: Array = MoodProps.lantern(self, at + across * 1.6 * side, atan2(-toward.z, toward.x))
-		look.lanterns.append(parts[1])
-		look.flames.append(parts[2])
+		var along := 4.0 + i * 7.0
+		var toward := -_across(along) * side # the lamp's arm (+X) leans out over the path
+		result.lamps.append([_path_point(along) + _across(along) * 1.6 * side, atan2(-toward.z, toward.x)])
 		side = -side
-	for i in 6: # fence runs along stretches of the path edge
+	for i in 6:
 		var start := 8.0 + i * 11.0
 		var s := 1.0 if i % 2 == 0 else -1.0
-		MoodProps.fence(self, _path_point(start) + _across(start) * 2.6 * s, _path_point(start + 6.0) + _across(start + 6.0) * 2.6 * s)
+		result.fences.append([_path_point(start) + _across(start) * 2.6 * s, _path_point(start + 6.0) + _across(start + 6.0) * 2.6 * s])
 	for i in 18:
 		var along := _rng.randf_range(2.0, PATH_LENGTH)
 		var s := 1.0 if _rng.randf() < 0.5 else -1.0
-		MoodProps.pumpkin(self, _path_point(along) + _across(along) * _rng.randf_range(1.6, 3.5) * s, _rng.randf_range(0.18, 0.35), _rng.randf() < 0.3)
-
-
-func _across(z: float) -> Vector3:
-	var a := _path_point(z)
-	var b := _path_point(z + 0.5)
-	return (b - a).normalized().cross(Vector3.UP)
-
-
-# Pines and dead trees either side of the path, thicker further out: they fade into the fog in
-# layers, near ones dark and crisp, far ones flat silhouettes.
-func _add_forest() -> void:
-	for i in 220:
+		result.props.append([_path_point(along) + _across(along) * _rng.randf_range(1.6, 3.5) * s, _rng.randf_range(0.18, 0.35), i])
+	for i in 200:
 		var along := _rng.randf_range(-10.0, PATH_LENGTH + 30.0)
 		var out := _rng.randf_range(5.0, 45.0) * (1.0 if _rng.randf() < 0.5 else -1.0)
-		var at := _path_point(along) + _across(along) * out
-		var height := _rng.randf_range(4.0, 9.0) * (1.0 + absf(out) / 60.0)
-		if _rng.randf() < 0.7:
-			MoodProps.pine(self, at, height)
-		else:
-			MoodProps.dead_tree(self, at, height * 0.7)
-
-
-# Tall stone towers in the distance with lanterns on top, and soft light shafts.
-func _add_background() -> void:
+		result.trees.append([_path_point(along) + _across(along) * out, _rng.randf_range(4.0, 9.0) * (1.0 + absf(out) / 60.0), i])
 	for i in 5:
 		var along := 20.0 + i * 13.0
 		var s := 1.0 if i % 2 == 0 else -1.0
-		var at := _path_point(along) + _across(along) * _rng.randf_range(9.0, 16.0) * s
-		var tower := MoodProps.tower(self, at, _rng.randf_range(8.0, 14.0))
-		var parts: Array = MoodProps.lantern(self, at + Vector3.UP * (tower.get_child(-1) as Node3D).position.y, 0.0)
-		look.lanterns.append(parts[1])
-		look.flames.append(parts[2])
-		_add_shaft(at + Vector3(0, 6, 2.5 * s))
+		result.landmarks.append([_path_point(along) + _across(along) * _rng.randf_range(9.0, 16.0) * s, _rng.randf_range(8.0, 14.0)])
+	return result
 
 
-# A light shaft: a tall camera-facing plane with a soft vertical gradient, added on top.
-func _add_shaft(at: Vector3) -> void:
-	var gradient := Gradient.new()
-	gradient.colors = PackedColorArray([Color(1.0, 0.6, 0.5, 0.0), Color(1.0, 0.6, 0.5, 0.25), Color(1.0, 0.6, 0.5, 0.0)])
-	gradient.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
-	var texture := GradientTexture2D.new()
-	texture.gradient = gradient
-	texture.fill_to = Vector2(1, 0) # across the shaft
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	material.albedo_texture = texture
-	material.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	var quad := QuadMesh.new()
-	quad.size = Vector2(2.5, 14.0)
-	var shaft := MeshInstance3D.new()
-	shaft.mesh = quad
-	shaft.material_override = material
-	shaft.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	shaft.position = at
-	add_child(shaft)
+# Swap the prop kit for `theme` (the lighting blends on its own in MoodLook).
+func _dress(theme: MoodTheme) -> void:
+	if _props != null:
+		_props.queue_free()
+	look.lamps.clear()
+	_props = Node3D.new()
+	_props.name = "Props"
+	add_child(_props)
+	seed(theme.name.hash()) # the same theme always gets the same little variations
+	MoodKit.build(theme.kit, _props, layout, look)
 
 
-# A stand-in hero: a coat, a pumpkin head with glowing eyes — rim-lit so it stands out of the fog.
+func _add_ground() -> void:
+	var body := StaticBody3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(220, 1, 220)
+	var collision := CollisionShape3D.new()
+	collision.shape = shape
+	collision.position = Vector3(0, -0.5, -40)
+	body.add_child(collision)
+	MoodProps.box(body, Vector3(220, 1, 220), Vector3(0, -0.5, -40), Color.WHITE).material_override = look.ground_material
+	add_child(body)
+
+
+# A stand-in hero: a coat and a round head with glowing eyes, rim-lit so it stands out of the fog.
 func _add_character() -> Node3D:
 	var root := Node3D.new()
 	root.position = _path_point(1.0)
-	root.rotation.y = 0.0
 	add_child(root)
 	var body := Node3D.new()
 	root.add_child(body)
 	var coat := CapsuleMesh.new()
 	coat.radius = 0.32
 	coat.height = 1.2
-	MoodProps.mesh(body, coat, Vector3(0, 0.75, 0), Color(0.75, 0.62, 0.45)).material_override = MoodProps.material(Color(0.75, 0.62, 0.45), 0.0, 0.8)
+	MoodProps.mesh(body, coat, Vector3(0, 0.75, 0), Color.WHITE).material_override = MoodProps.material(Color(0.75, 0.62, 0.45), 0.0, 0.8)
 	var head := SphereMesh.new()
 	head.radius = 0.3
 	head.height = 0.48
-	MoodProps.mesh(body, head, Vector3(0, 1.55, 0), MoodProps.PUMPKIN).material_override = MoodProps.material(MoodProps.PUMPKIN, 0.0, 0.8)
+	MoodProps.mesh(body, head, Vector3(0, 1.55, 0), Color.WHITE).material_override = MoodProps.material(MoodProps.PUMPKIN, 0.0, 0.8)
 	for x: float in [-0.1, 0.1]:
-		MoodProps.box(body, Vector3(0.08, 0.06, 0.04), Vector3(x, 1.6, -0.28), MoodProps.FLAME).material_override = MoodProps.material(MoodProps.FLAME, 4.0)
+		MoodProps.box(body, Vector3(0.08, 0.06, 0.04), Vector3(x, 1.6, -0.28), Color.WHITE).material_override = MoodProps.material(MoodProps.FLAME, 4.0)
 	return root
 
 
 func _add_environment() -> Environment:
+	var sky := Sky.new()
+	sky.sky_material = ProceduralSkyMaterial.new()
 	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
+	environment.background_mode = Environment.BG_SKY
+	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.fog_enabled = true
 	environment.fog_mode = Environment.FOG_MODE_DEPTH
 	environment.fog_sun_scatter = 0.3
 	environment.fog_height = 1.2
 	environment.fog_depth_curve = 1.4
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	environment.glow_enabled = true
 	environment.glow_hdr_threshold = 1.0
 	environment.glow_bloom = 0.05
 	environment.adjustment_enabled = true
@@ -289,62 +328,30 @@ func _add_environment() -> Environment:
 	return environment
 
 
-func _add_moon() -> DirectionalLight3D:
-	var moon := DirectionalLight3D.new()
-	moon.rotation_degrees = Vector3(-22, 150, 0) # low, from behind-left: long shadows toward the camera
-	moon.shadow_enabled = true
-	moon.directional_shadow_max_distance = 40.0
-	add_child(moon)
-	return moon
+func _add_sun() -> DirectionalLight3D:
+	var sun := DirectionalLight3D.new()
+	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 40.0
+	add_child(sun)
+	return sun
 
 
-# Embers: small additive orange sparks drifting up and wobbling around the camera.
-func _add_embers() -> GPUParticles3D:
-	var process := ParticleProcessMaterial.new()
-	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	process.emission_box_extents = Vector3(12, 4, 12)
-	process.direction = Vector3.UP
-	process.spread = 30.0
-	process.initial_velocity_min = 0.2
-	process.initial_velocity_max = 0.6
-	process.gravity = Vector3(0, 0.15, 0)
-	process.turbulence_enabled = true
-	process.turbulence_noise_strength = 0.6
-	process.scale_min = 0.5
-	process.scale_max = 1.3
-	var fade := Gradient.new()
-	fade.colors = PackedColorArray([Color(1, 0.6, 0.2, 0), Color(1, 0.6, 0.2, 1), Color(1, 0.3, 0.1, 0)])
-	fade.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
-	var fade_texture := GradientTexture1D.new()
-	fade_texture.gradient = fade
-	process.color_ramp = fade_texture
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	material.vertex_color_use_as_albedo = true
-	material.albedo_color = Color(3.0, 2.0, 1.2) # over-bright: caught by the glow
-	var quad := QuadMesh.new()
-	quad.size = Vector2(0.05, 0.05)
-	quad.material = material
-	var embers := GPUParticles3D.new()
-	embers.amount = 300
-	embers.lifetime = 5.0
-	embers.process_material = process
-	embers.draw_pass_1 = quad
-	embers.top_level = true
-	embers.visibility_aabb = AABB(Vector3(-15, -6, -15), Vector3(30, 14, 30))
-	add_child(embers)
-	return embers
+func _add_particles() -> GPUParticles3D:
+	var particles := GPUParticles3D.new()
+	particles.top_level = true
+	particles.visibility_aabb = AABB(Vector3(-15, -6, -15), Vector3(30, 14, 30))
+	add_child(particles)
+	return particles
 
 
-func _add_vignette(layer: CanvasLayer) -> ShaderMaterial:
+# A full-screen ColorRect running `path`'s shader (lens fringing, vignette).
+func _add_screen_shader(layer: CanvasLayer, path: String) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
-	material.shader = load("res://mood/vignette.gdshader")
+	material.shader = load(path)
 	var rect := ColorRect.new()
 	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.material = material
 	layer.add_child(rect)
+	material.set_meta("rect", rect)
 	return material

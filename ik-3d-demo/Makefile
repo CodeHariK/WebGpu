@@ -40,7 +40,7 @@ orb: ## Orb Warden boss: six-legged laser sphere (WASD dodge, F laser)
 	$(RUN) --scene orbwarden/orb_demo.tscn
 
 # --- Look ---
-mood: ## Pumpkin Jack-style night mood: fog, grade, lanterns, embers (N day/night, 1-7 layers, Tab panel)
+mood: ## eight looks on one scene: spooky, candy, desert, autumn, cyberpunk, solarpunk, medieval, magical (, . switch)
 	$(RUN) --scene mood/mood_demo.tscn
 
 # --- AI ---
