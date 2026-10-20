@@ -13,7 +13,7 @@ const NAMES := ["spooky", "candy", "desert", "autumn", "cyberpunk", "solarpunk",
 const BLENDED := ["sky_top", "sky_horizon", "fog", "fog_begin", "fog_end", "fog_height_density", "ambient",
 	"ambient_energy", "sun", "sun_energy", "sun_pitch", "sun_yaw", "glow", "saturation", "contrast", "lamp",
 	"lamp_energy", "lamp_range", "lamp_flicker", "particle_amount", "vignette", "ground", "ground_roughness", "path",
-	"cam_fov", "cam_distance", "cam_height", "cam_pitch", "cam_lag", "cam_sway", "cam_roll", "cam_dof_far", "cam_dof_near", "cam_aberration"]
+	"wind", "wind_dir", "heat", "cam_fov", "cam_distance", "cam_height", "cam_pitch", "cam_lag", "cam_sway", "cam_roll", "cam_dof_far", "cam_dof_near", "cam_aberration"]
 
 var name := "spooky"
 var kit := "spooky" ## MoodKit prop set
@@ -43,6 +43,10 @@ var vignette := 0.55
 var ground := Color(0.24, 0.17, 0.2)
 var ground_roughness := 1.0 ## low = wet, shiny (cyberpunk streets)
 var path := Color(0.42, 0.27, 0.18)
+# Air (MoodShaders, the lens shader).
+var wind := 0.3 ## 0 … 1: how hard trees and flags sway
+var wind_dir := 30.0 ## degrees around +Y the wind blows toward
+var heat := 0.0 ## 0 … 1: heat shimmer around the horizon
 # Camera.
 var cam_fov := 50.0 ## degrees: narrow = tense, cinematic … wide = open, fast
 var cam_distance := 5.5 ## metres behind the character
@@ -134,6 +138,18 @@ static func preset(theme_name: String) -> MoodTheme:
 			t._set_lamps(Color(0.85, 1.0, 0.35), 2.5, 5.0, 1.0, "ash", 1.0)
 			t._set_ground(Color(0.28, 0.26, 0.22), 0.7, Color(0.42, 0.42, 0.4))
 	match theme_name:
+		"candy": t._set_air(0.2, 40.0, 0.0)
+		"desert": t._set_air(0.15, 0.0, 0.8)
+		"autumn": t._set_air(0.55, 60.0, 0.0)
+		"cyberpunk", "toybox": t._set_air(0.0, 0.0, 0.0)
+		"solarpunk": t._set_air(0.4, 20.0, 0.0)
+		"medieval": t._set_air(0.45, 90.0, 0.0)
+		"magical": t._set_air(0.12, 0.0, 0.0)
+		"skyislands": t._set_air(0.6, 120.0, 0.0)
+		"jungle": t._set_air(0.22, 0.0, 0.0)
+		"cloud": t._set_air(0.3, 45.0, 0.0)
+		"toxic": t._set_air(0.25, 200.0, 0.3)
+	match theme_name:
 		"candy": t._set_camera(65.0, 8.5, 4.5, 26.0, 2.2, 0.0, 0.0, 22.0, 0.0, 0.0)
 		"desert": t._set_camera(72.0, 10.0, 5.0, 20.0, 1.5, 0.2, 0.0, 0.0, 0.0, 0.0)
 		"autumn": t._set_camera(58.0, 6.5, 2.0, 10.0, 2.5, 0.15, 0.0, 25.0, 0.0, 0.0)
@@ -197,6 +213,12 @@ func _set_lamps(color: Color, energy: float, reach: float, flicker: float, style
 	lamp_flicker = flicker
 	particles = style
 	particle_amount = amount
+
+
+func _set_air(strength: float, direction: float, shimmer: float) -> void:
+	wind = strength
+	wind_dir = direction
+	heat = shimmer
 
 
 func _set_camera(fov: float, distance: float, height: float, pitch: float, lag: float, sway: float, roll: float, dof_far: float, dof_near: float, aberration: float) -> void:

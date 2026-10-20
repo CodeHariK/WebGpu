@@ -22,25 +22,59 @@ extends RefCounted
 const P := preload("res://mood/mood_props.gd")
 
 
+## Kits whose trees sway in the wind (MoodShaders); the rest are rigid (towers, block stacks).
+const WINDY := ["spooky", "candy", "desert", "autumn", "solarpunk", "medieval", "magical", "skyislands", "jungle", "cloud", "toxic"]
+
+
 ## Build `kit` under `root` on `layout` (MoodDemo._layout), registering lamps with `look`.
+## Then the theme shaders go on (MoodShaders): trees sway, candy turns glossy, magical glows
+## breathe, cyberpunk neon buzzes. The path keeps MoodLook's plain material (its colour blends live).
 static func build(kit: String, root: Node3D, layout: Dictionary, look: MoodLook) -> void:
+	var path := _group(root, "Path")
+	var trees := _group(root, "Trees")
+	var dressing := _group(root, "Dressing") # lamps, fences, props, landmarks
 	for tile: Array in layout.tiles:
-		_tile(kit, root, tile[0], tile[1], tile[2], look)
+		_tile(kit, path, tile[0], tile[1], tile[2], look)
 	for i in layout.lamps.size():
 		var lamp: Array = layout.lamps[i]
-		_lamp(kit, root, lamp[0], lamp[1], i, look)
+		_lamp(kit, dressing, lamp[0], lamp[1], i, look)
 	for run: Array in layout.fences:
-		_fence(kit, root, run[0], run[1])
+		_fence(kit, dressing, run[0], run[1])
 	for prop: Array in layout.props:
-		_prop(kit, root, prop[0], prop[1], prop[2])
+		_prop(kit, dressing, prop[0], prop[1], prop[2])
 	for tree: Array in layout.trees:
-		_tree(kit, root, tree[0], tree[1], tree[2])
+		_tree(kit, trees, tree[0], tree[1], tree[2])
 	for i in layout.landmarks.size():
 		var mark: Array = layout.landmarks[i]
-		_landmark(kit, root, mark[0], mark[1], i, look)
+		_landmark(kit, dressing, mark[0], mark[1], i, look)
+	if kit == "cyberpunk": # rain puddles mirroring the neon, and a probe for them to reflect
+		for k in range(3, layout.tiles.size(), 9):
+			var tile: Array = layout.tiles[k]
+			var across := Basis(Vector3.UP, tile[1]) * Vector3.RIGHT
+			MoodShaders.puddle(path, tile[0] + across * randf_range(-0.6, 0.6), randf_range(0.5, 1.0), randf_range(1.2, 2.0))
+		var probe := ReflectionProbe.new()
+		probe.size = Vector3(60, 24, 90)
+		probe.position = Vector3(0, 4, -35)
+		probe.update_mode = ReflectionProbe.UPDATE_ONCE
+		probe.max_distance = 80.0
+		root.add_child(probe)
 	if SHAFTS.has(kit): # light shafts beside the landmarks
 		for mark: Array in layout.landmarks:
 			_shaft(root, mark[0] + Vector3(0, 6, 2.5), SHAFTS[kit])
+	var candy := kit == "candy"
+	var pulse := 1.0 if kit == "magical" else 0.0
+	var flicker := 1.0 if kit == "cyberpunk" else 0.0
+	if WINDY.has(kit) or candy or pulse > 0.0 or flicker > 0.0:
+		MoodShaders.dress(trees, candy, WINDY.has(kit), pulse, flicker)
+	if candy or pulse > 0.0 or flicker > 0.0:
+		MoodShaders.dress(dressing, candy, false, pulse, flicker)
+
+
+static func _group(root: Node3D, group_name: String) -> Node3D:
+	var group := Node3D.new()
+	group.name = group_name
+	root.add_child(group)
+	return group
 
 
 ## Kits with light shafts, and their colour.
@@ -209,6 +243,9 @@ static func _fence(kit: String, root: Node3D, a: Vector3, b: Vector3) -> void:
 		var at := a.lerp(b, float(i) / count)
 		var lean := 0.12 if kit in ["spooky", "magical", "toxic"] else 0.03
 		P.box(root, Vector3(0.12, 1.1, 0.12), at + Vector3.UP * 0.5, post, Vector3(randf_range(-lean, lean), 0, randf_range(-lean, lean)))
+	if kit == "medieval": # a pennant on the first post
+		var pole := P.box(root, Vector3(0.05, 1.2, 0.05), a + Vector3.UP * 1.6, P.POST)
+		MoodShaders.flag(pole, Vector3(0, 0.4, 0), Vector2(0.7, 0.35), [Color(0.75, 0.15, 0.12), Color(0.15, 0.3, 0.75)][randi() % 2])
 	var middle := a.lerp(b, 0.5)
 	var yaw := atan2(b.x - a.x, b.z - a.z)
 	var heights: Array = [0.85] if kit == "magical" else [0.45, 0.85]
@@ -470,7 +507,7 @@ static func _landmark(kit: String, root: Node3D, at: Vector3, height: float, ind
 			_cylinder(root, 1.8, 2.0, height, at + Vector3.UP * height * 0.5, Color(0.55, 0.53, 0.5))
 			P.cone(root, 2.2, 3.0, at + Vector3.UP * (height + 1.5), Color(0.7, 0.15, 0.12))
 			P.box(root, Vector3(0.06, 1.6, 0.06), at + Vector3.UP * (height + 3.6), P.POST)
-			P.box(root, Vector3(0.9, 0.5, 0.04), at + Vector3(0.45, height + 4.1, 0), Color(0.15, 0.3, 0.75))
+			MoodShaders.flag(root, at + Vector3(0, height + 4.1, 0), Vector2(1.4, 0.8), Color(0.15, 0.3, 0.75))
 			top = height
 		"toybox": # a giant tower of building blocks
 			var y := 0.0
@@ -488,6 +525,8 @@ static func _landmark(kit: String, root: Node3D, at: Vector3, height: float, ind
 			_cylinder(root, 4.0, 4.0, 0.4, at + Vector3.UP * (lift + 0.2), Color(0.45, 0.72, 0.35))
 			P.box(root, Vector3(1.8, 1.4, 1.6), at + Vector3(0.8, lift + 1.1, 0), Color(0.95, 0.9, 0.8))
 			P.cone(root, 1.5, 1.2, at + Vector3(0.8, lift + 2.4, 0), Color(0.8, 0.3, 0.25))
+			P.box(root, Vector3(0.05, 1.4, 0.05), at + Vector3(0.8, lift + 3.6, 0), P.POST)
+			MoodShaders.flag(root, at + Vector3(0.8, lift + 4.0, 0), Vector2(0.8, 0.45), Color(0.95, 0.85, 0.3))
 			var fall := P.box(root, Vector3(0.8, lift + 6.0, 0.1), at + Vector3(-2.5, lift * 0.5 - 3.0, 2.0), Color(0.7, 0.88, 1.0))
 			fall.material_override = P.material(Color(0.7, 0.88, 1.0), 0.6)
 			top = lift + 0.4

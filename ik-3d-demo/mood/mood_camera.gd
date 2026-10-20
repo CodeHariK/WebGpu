@@ -117,5 +117,7 @@ func _apply_lens() -> void:
 	_attributes.dof_blur_amount = 0.12
 	if lens_material != null:
 		var amount: float = _feel.aberration + _shake * 0.5
+		var heat := look.shown.heat
 		lens_material.set_shader_parameter("strength", amount)
-		(lens_material.get_meta("rect") as CanvasItem).visible = amount > 0.01 # a full-screen pass: skip it when off
+		lens_material.set_shader_parameter("heat", heat)
+		(lens_material.get_meta("rect") as CanvasItem).visible = amount > 0.01 or heat > 0.01 # a full-screen pass: skip it when off

@@ -131,5 +131,6 @@ func _apply(t: MoodTheme) -> void:
 	ground_material.albedo_color = t.ground
 	ground_material.roughness = t.ground_roughness
 	ground_material.metallic_specular = 0.5 if t.ground_roughness > 0.5 else 0.9
+	MoodShaders.set_wind(t.wind, t.wind_dir)
 	path_material.albedo_color = t.path
 	path_material.roughness = maxf(t.ground_roughness, 0.3)
