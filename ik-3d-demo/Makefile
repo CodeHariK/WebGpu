@@ -38,6 +38,8 @@ blades: ## Blades of Chaos: Bezier blade paths + Bezier chains (no physics)
 # --- Bosses ---
 orb: ## Orb Warden boss: six-legged laser sphere (WASD dodge, F laser)
 	$(RUN) --scene orbwarden/orb_demo.tscn
+disco: ## Boogey-Pod's disco hall: light-up floor, moving lights (N pattern, T telegraph)
+	$(RUN) --scene disco/disco_demo.tscn
 
 # --- Look ---
 mood: ## eight looks on one scene: spooky, candy, desert, autumn, cyberpunk, solarpunk, medieval, magical (, . switch)
@@ -70,4 +72,4 @@ import: ## rescan the project (registers new class_name scripts, reimports asset
 help: ## list the targets
 	@grep -E '^[a-z0-9_]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  make %-10s %s\n", $$1, $$2}'
 
-.PHONY: orb mood blades chain e limbs spider gait hex bat flytrap vacuum rope grid squad road adjusted magnet demo2 view modifier import help
+.PHONY: orb disco mood blades chain e limbs spider gait hex bat flytrap vacuum rope grid squad road adjusted magnet demo2 view modifier import help
