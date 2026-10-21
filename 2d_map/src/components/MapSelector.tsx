@@ -38,6 +38,12 @@ import Map19 from '../maps/Map19';
 import Map19Explanation from '../maps/Map19Explanation';
 import Map20 from '../maps/Map20';
 import Map20Explanation from '../maps/Map20Explanation';
+import Map21 from '../maps/Map21';
+import Map21Explanation from '../maps/Map21Explanation';
+import Map22 from '../maps/Map22';
+import Map22Explanation from '../maps/Map22Explanation';
+import Map23 from '../maps/Map23';
+import Map23Explanation from '../maps/Map23Explanation';
 
 import './MapSelector.css';
 
@@ -69,10 +75,13 @@ const MAPS: MapEntry[] = [
     { value: 'map18', label: 'Hex Biomes', Comp: Map18, Expl: Map18Explanation },
     { value: 'map19', label: 'Puzzle Islands', Comp: Map19, Expl: Map19Explanation, wide: true },
     { value: 'map20', label: 'Enemy Arena', Comp: Map20, Expl: Map20Explanation },
+    { value: 'map21', label: 'Combat Sandbox', Comp: Map21, Expl: Map21Explanation },
+    { value: 'map22', label: 'Wick', Comp: Map22, Expl: Map22Explanation },
+    { value: 'map23', label: 'Lockpick', Comp: Map23, Expl: Map23Explanation },
 ];
 
 export default function MapSelector() {
-    const [value, setValue] = useState<string>('map20');
+    const [value, setValue] = useState<string>('map23');
 
     return (
         <div className="selector-container">
