@@ -1,0 +1,15 @@
+[gd_resource type="StandardMaterial3D" load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/player/textures/Revolver_Albedo.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/player/textures/Revolver_Metalness.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/player/textures/Revolver_Normals.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/player/textures/Revolver_Roughness.png" id="4"]
+
+[resource]
+resource_name = "Revolver"
+albedo_texture = ExtResource("1")
+metallic = 1.0
+metallic_texture = ExtResource("2")
+roughness_texture = ExtResource("4")
+normal_enabled = true
+normal_texture = ExtResource("3")
