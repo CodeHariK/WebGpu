@@ -28,6 +28,7 @@ const MOVES := [
 	["sprint down it", null, 180, 0, ["move_forward", "sprint"], 3.0, true],
 ]
 
+var level: Node3D
 var player: CharacterBody3D
 var label := Label.new()
 var _auto := false
@@ -40,7 +41,8 @@ var _skip_frame := false  # saving a screenshot makes the next frame long: don't
 
 func _ready() -> void:
 	InputActions.ensure()
-	add_child(Level.new())
+	level = Level.new()
+	add_child(level)
 	player = PLAYER.instantiate()
 	add_child(player)
 	player.global_position = Level.SPAWN
@@ -67,6 +69,13 @@ func _shot_prefix() -> String:
 
 
 func _environment() -> void:
+	var env := _make_environment()
+	var world := WorldEnvironment.new()
+	world.environment = env
+	add_child(world)
+
+
+func _make_environment() -> Environment:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.01, 0.01, 0.012)
@@ -78,9 +87,7 @@ func _environment() -> void:
 	env.fog_light_color = Color(0.05, 0.045, 0.04)
 	env.fog_density = 0.03
 	env.glow_enabled = true
-	var world := WorldEnvironment.new()
-	world.environment = env
-	add_child(world)
+	return env
 
 
 func _hud() -> void:

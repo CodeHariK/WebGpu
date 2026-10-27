@@ -22,6 +22,8 @@ const CORRIDOR_HALF := 2.2  # half the walkable corridor width
 const CORRIDOR_LENGTH := 45.0
 const SPAWN := Vector3(0, 0.05, 10)
 
+var _lamps: Array[Node3D] = []  # bulbs and their lights, for set_lamps()
+
 
 func _ready() -> void:
 	_hall()
@@ -151,6 +153,14 @@ func _lamp(at: Vector3, light_range: float) -> void:
 	light.light_color = Color(1.0, 0.78, 0.5)
 	light.omni_attenuation = 1.2
 	add_child(light)
+	_lamps.append(bulb)
+	_lamps.append(light)
+
+
+## Switch every hanging lamp on or off (the flashlight demo plays in the dark).
+func set_lamps(lit: bool) -> void:
+	for lamp in _lamps:
+		lamp.visible = lit
 
 
 ## A glTF prop with one material and a simple box collider of `size` (centred, standing on the floor).

@@ -60,7 +60,7 @@ Each step ends with something you can run and look at.
 | 2 | **Test level and player** ✅ | A greybox level from a few env pieces; `CharacterBody3D` FPS movement (walk, look, jump, crouch), camera bob | you can walk around |
 | 3 | **First-person arms** ✅ | Arms and revolver on the camera, an AnimationTree with idle low/high, raise/lower, fire, reload; weapon sway | arms react to aim and keys |
 | 4 | **Shooting** ✅ | Hitscan raycast, ammo and reload, muzzle flash, pooled shell ejection and impact decals, recoil | shooting walls feels right |
-| 5 | **Flashlight** | Spotlight with their cookie texture, the only shadowed light; lags behind the view | the level is dark and readable |
+| 5 ✅ | **Flashlight** | Spotlight with their cookie texture, the only shadowed light; lags behind the view | the level is dark and readable |
 | 6 | **Enemy body** | Port the rolling-ball body: RigidBody sphere + NavigationAgent3D on a baked navmesh, steering toward the player, grounded check, launch impulse | a ball hunts you round the level |
 | 7 | **Limb IK** (the core port) | Cultist skeleton on the ball: `TwoBoneIK3D` for 2 hands + 2 feet with pole targets, chest placement, `LookAtModifier3D` head; port the step cycle, raycast targets, Bezier step arcs, kick-off impulses, flailing in the air | the cultist crawls after you on hands and feet |
 | 8 | **Enemy AI** | States: wander, chase, attack lunge, hurt, die; damage and hit reactions; cheap death (dissolve shader instead of their ragdoll) | it can kill you and you can kill it |
@@ -109,6 +109,16 @@ a short unshadowed light, on a BoneAttachment at the barrel), `impacts.gd` (32 b
 that stick to what they hit, 6 dust/spark bursts), `shell_drop.gd` (12 pooled brass casings that
 fall out during the reload). `src/ui/weapon_hud.gd`: crosshair dot and the six chambers. Bullet
 hole and particle textures are gradients made in code.
+
+### Step 5 notes
+
+`make run` opens `demos/step05_flashlight.tscn` (F flashlight, L hall/mine lamps). The level
+starts with the lamps off and almost no ambient light. `src/player/flashlight.gd` is a SpotLight3D
+with their cookie texture, the only light that casts shadows (the shadow atlas is 2048 with one
+quadrant, soft-shadow quality low on mobile, set in `project.godot`). It starts 0.5 m in front of
+the camera, past the hands, because a light right next to the arms blew them out. The beam lags
+behind the view (up to 10°) and flickers briefly when switched. With the lamps off the arms are a
+dark silhouette; the muzzle flash still lights them for a frame.
 
 Step 7 is the heart of it; steps 1–6 set up what it needs (the skeleton and materials, a level
 to walk on, a navmesh, a body to drive). Each step gets its own small files and a demo scene, so

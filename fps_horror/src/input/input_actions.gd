@@ -2,7 +2,7 @@
 ## touch controls that press the same actions).
 ##   move_forward / move_back / move_left / move_right   WASD or arrows
 ##   jump    Space        sprint   Shift        crouch   Ctrl or C (hold)
-##   fire    left mouse   aim      right mouse (hold)    reload   R
+##   fire    left mouse   aim      right mouse (hold)    reload   R      flashlight   F
 ##   release_mouse   Esc (click the game to grab it again)
 extends RefCounted
 
@@ -15,6 +15,7 @@ const KEYS := {
 	"sprint": [KEY_SHIFT],
 	"crouch": [KEY_CTRL, KEY_C],
 	"reload": [KEY_R],
+	"flashlight": [KEY_F],
 	"release_mouse": [KEY_ESCAPE],
 }
 const MOUSE := {
