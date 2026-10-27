@@ -62,7 +62,7 @@ Each step ends with something you can run and look at.
 | 4 | **Shooting** ✅ | Hitscan raycast, ammo and reload, muzzle flash, pooled shell ejection and impact decals, recoil | shooting walls feels right |
 | 5 ✅ | **Flashlight** | Spotlight with their cookie texture, the only shadowed light; lags behind the view | the level is dark and readable |
 | 6 ✅ | **Enemy body** | Port the rolling-ball body: RigidBody sphere + NavigationAgent3D on a baked navmesh, steering toward the player, grounded check, launch impulse | a ball hunts you round the level |
-| 7 | **Limb IK** (the core port) | Cultist skeleton on the ball: `TwoBoneIK3D` for 2 hands + 2 feet with pole targets, chest placement, `LookAtModifier3D` head; port the step cycle, raycast targets, Bezier step arcs, kick-off impulses, flailing in the air | the cultist crawls after you on hands and feet |
+| 7 ✅ | **Limb IK** (the core port) | Cultist skeleton on the ball: `TwoBoneIK3D` for 2 hands + 2 feet with pole targets, chest placement, `LookAtModifier3D` head; port the step cycle, raycast targets, Bezier step arcs, kick-off impulses, flailing in the air | the cultist crawls after you on hands and feet |
 | 8 | **Enemy AI** | States: wander, chase, attack lunge, hurt, die; damage and hit reactions; cheap death (dissolve shader instead of their ragdoll) | it can kill you and you can kill it |
 | 9 | **Level and lighting** | Build the mine from the env pieces; LightmapGI bake, fog, visibility ranges | the full level runs smoothly |
 | 10 | **Audio** | WAV → OGG; pooled 3D sounds for footsteps, gun, enemy | it sounds like the original |
@@ -145,6 +145,26 @@ Changes from the original, each found while testing:
 - The grounded query is built once, not every tick.
 - The test level's mine floor now runs under the doorway (there was a 1 m hole that split the
   navmesh).
+
+### Step 7 notes
+
+`make run` opens `demos/step07_cultist.tscn` (B shows the ball). `scenes/cultist.tscn` is step 6's
+enemy plus a `Rig` node, with the limb markers off. `src/enemy/`:
+- `limb.gd`: one hand or foot point. Steps follow a cubic Bezier (their control-point rules: lift
+  along the surface normal, arc round the body). The point stays on its own side of the torso
+  and flails in the air.
+- `torso.gd`: the body frame. It follows the ball, dips while limbs are mid-step, faces the way it
+  moves, and its up is the surface it's on.
+- `limb_gait.gd`: now drives four `limb.gd` points (arcs instead of jumps) and flailing.
+- `cultist_rig.gd`: the model takes the torso frame, with the chest (root bone) laid face down.
+  - Limbs use one `TwoBoneIK3D` with 4 settings (targets just above the points; poles from their
+    magnet offsets).
+  - The head uses a `LookAtModifier3D` on the neck, aimed at the player, eased, limited to 70°.
+  - The ball is hidden.
+
+The original used deprecated `SkeletonIK3D` (FABRIK, one node per limb). `TwoBoneIK3D` solves
+each limb directly, which is cheaper. It works on walls and the ceiling with no extra code,
+because the torso's up is the surface normal.
 
 Step 7 is the heart of it; steps 1–6 set up what it needs (the skeleton and materials, a level
 to walk on, a navmesh, a body to drive). Each step gets its own small files and a demo scene, so

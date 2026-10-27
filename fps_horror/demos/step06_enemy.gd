@@ -43,12 +43,16 @@ func _ready() -> void:
 	_lamps_lit = true
 	level.set_lamps(true)
 	NavBake.add_to(level)
-	enemy = ENEMY.instantiate()
+	enemy = _enemy_scene().instantiate()
 	enemy.get_node("Body").position = ENEMY_SPAWN
 	add_child(enemy)
 	body = enemy.get_node("Body")
 	debug.body = body
 	add_child(debug)
+
+
+func _enemy_scene() -> PackedScene:
+	return ENEMY
 
 
 func _physics_process(_delta: float) -> void:
