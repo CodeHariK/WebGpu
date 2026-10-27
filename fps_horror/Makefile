@@ -7,7 +7,7 @@
 
 GODOT    ?= /Applications/Godot.app/Contents/MacOS/Godot
 ORIGINAL ?= /Users/Shared/Code/FPSHorrorGDScript/CurrentProject
-DEMO     ?= res://demos/step02_walk.tscn
+DEMO     ?= res://demos/step03_arms.tscn
 
 .PHONY: help import run edit shots assets clean
 

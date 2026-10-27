@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://src/player/player_body.gd" id="1"]
 [ext_resource type="Script" path="res://src/player/player_look.gd" id="2"]
 [ext_resource type="Script" path="res://src/player/camera_motion.gd" id="3"]
+[ext_resource type="Script" path="res://src/player/fp_arms.gd" id="4"]
 
 [sub_resource type="CapsuleShape3D" id="capsule"]
 radius = 0.35
@@ -26,3 +27,6 @@ current = true
 fov = 70.0
 near = 0.05
 script = ExtResource("3")
+
+[node name="Arms" type="Node3D" parent="Head"]
+script = ExtResource("4")

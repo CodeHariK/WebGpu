@@ -5,6 +5,8 @@
 ##   an autopilot climbs the stairs, walks down the ramp, crawls into the tunnel (and tries to
 ##   stand up in it), jumps onto the crate and sprints down the mine; it prints where the player
 ##   ended up after each move and saves shots/step02_*.png
+##
+## Later steps extend this script: they override _moves(), _title() and _status_extra().
 extends Node3D
 
 const InputActions := preload("res://src/input/input_actions.gd")
@@ -33,6 +35,7 @@ var _move := -1
 var _time := 0.0
 var _held: Array = []
 var _shot := 0
+var _skip_frame := false  # saving a screenshot makes the next frame long: don't count it
 
 
 func _ready() -> void:
@@ -45,6 +48,22 @@ func _ready() -> void:
 	_hud()
 	_auto = "--shot" in OS.get_cmdline_user_args()
 	_time = -1.5  # let everything settle first
+
+
+func _moves() -> Array:
+	return MOVES
+
+
+func _title() -> String:
+	return "Step 2 · walk   (click to grab mouse · WASD · Shift sprint · Space jump · Ctrl/C crouch)"
+
+
+func _status_extra() -> String:
+	return ""
+
+
+func _shot_prefix() -> String:
+	return "step02"
 
 
 func _environment() -> void:
@@ -83,31 +102,39 @@ func _status() -> String:
 	var flat := Vector2(player.velocity.x, player.velocity.z).length()
 	var state := "crouching" if player.crouching else ("sprinting" if player.sprinting else ("on floor" if player.is_on_floor() else "in the air"))
 	var lines: PackedStringArray = [
-		"Step 2 · walk   (click to grab mouse · WASD · Shift sprint · Space jump · Ctrl/C crouch)",
+		_title(),
 		"%s · %.1f m/s · height %.2f m · at (%.1f, %.1f, %.1f)" % [state, flat, player.height,
 			player.global_position.x, player.global_position.y, player.global_position.z],
 		"frame: %d fps · %d draw calls · %d primitives" % [Engine.get_frames_per_second(),
 			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
 			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)],
 	]
-	if _auto and _move >= 0 and _move < MOVES.size():
-		lines.append("autopilot: " + MOVES[_move][0])
+	var extra := _status_extra()
+	if extra != "":
+		lines.append(extra)
+	var moves := _moves()
+	if _auto and _move >= 0 and _move < moves.size():
+		lines.append("autopilot: " + moves[_move][0])
 	return "\n".join(lines)
 
 
-## Runs MOVES one after another by pressing the same input actions a player would.
+## Runs the moves one after another by pressing the same input actions a player would.
 func _autopilot(delta: float) -> void:
+	var moves := _moves()
+	if _skip_frame:
+		_skip_frame = false
+		delta = 0.0
 	_time += delta
-	if _move >= 0 and _time < MOVES[_move][5]:
+	if _move >= 0 and _time < moves[_move][5]:
 		return
 	if _move >= 0:
-		_finish_move()
+		_finish_move(moves[_move])
 	_move += 1
-	if _move == MOVES.size():
+	if _move == moves.size():
 		_release_all()
 		get_tree().quit()
 		return
-	_start_move(MOVES[_move])
+	_start_move(moves[_move])
 
 
 func _start_move(move: Array) -> void:
@@ -122,15 +149,17 @@ func _start_move(move: Array) -> void:
 	_time = 0.0
 
 
-func _finish_move() -> void:
+func _finish_move(move: Array) -> void:
 	var p := player.global_position
-	print("%-26s → (%.2f, %.2f, %.2f)  %s  crouching=%s  height=%.2f" % [MOVES[_move][0], p.x, p.y, p.z,
-		"floor" if player.is_on_floor() else "air", player.crouching, player.height])
-	if MOVES[_move][6]:
+	var extra := _status_extra()
+	print("%-26s → (%.2f, %.2f, %.2f)  %s  crouching=%s  height=%.2f  %s" % [move[0], p.x, p.y, p.z,
+		"floor" if player.is_on_floor() else "air", player.crouching, player.height, extra])
+	if move[6]:
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
 		RenderingServer.force_draw()  # in case the OS paused drawing (window covered)
-		get_viewport().get_texture().get_image().save_png("res://shots/step02_%d.png" % _shot)
+		get_viewport().get_texture().get_image().save_png("res://shots/%s_%d.png" % [_shot_prefix(), _shot])
 		_shot += 1
+		_skip_frame = true
 
 
 func _release_all() -> void:

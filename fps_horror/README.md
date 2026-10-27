@@ -58,7 +58,7 @@ Each step ends with something you can run and look at.
 | 0 | **Setup** ✅ | This folder, the copied assets and code, `project.godot` (Mobile, Jolt, ETC2/ASTC) | assets import with no errors |
 | 1 | **Asset viewer** ✅ | Cultist and arms with our own mobile materials, an orbit camera, play each arms animation, show triangle and draw-call counts | both models look right and cheap |
 | 2 | **Test level and player** ✅ | A greybox level from a few env pieces; `CharacterBody3D` FPS movement (walk, look, jump, crouch), camera bob | you can walk around |
-| 3 | **First-person arms** | Arms and revolver on the camera, an AnimationTree with idle low/high, raise/lower, fire, reload; weapon sway | arms react to aim and keys |
+| 3 | **First-person arms** ✅ | Arms and revolver on the camera, an AnimationTree with idle low/high, raise/lower, fire, reload; weapon sway | arms react to aim and keys |
 | 4 | **Shooting** | Hitscan raycast, ammo and reload, muzzle flash, pooled shell ejection and impact decals, recoil | shooting walls feels right |
 | 5 | **Flashlight** | Spotlight with their cookie texture, the only shadowed light; lags behind the view | the level is dark and readable |
 | 6 | **Enemy body** | Port the rolling-ball body: RigidBody sphere + NavigationAgent3D on a baked navmesh, steering toward the player, grounded check, launch impulse | a ball hunts you round the level |
@@ -86,6 +86,17 @@ ceilings), `player_look.gd` (mouse look), `camera_motion.gd` (bob, landing dip, 
 sprint FOV). Input actions are created in code (`src/input/input_actions.gd`). The level
 (`src/level/test_level.gd`) is boxes with box colliders, triplanar materials from their textures
 (`src/look/env_look.gd`), their corridor wall meshes and rail cart, unshadowed lights only.
+
+### Step 3 notes
+
+`make run` opens `demos/step03_arms.tscn` (right mouse aim, left fire, R reload). The arms
+(`src/player/fp_arms.gd`, on the player's Head) use the 8 clips inside `ArmsAnimations.gltf`; the
+original's separate `.res` animation files don't load in 4.7, so they aren't used.
+`src/player/arms_animator.gd` builds the same state machine as their `ArmsPrefab.tscn` in code
+(idle low/high, raise/lower, fire, reload; reloading while aiming lowers the gun). The arms lag
+the view slightly, sway in a figure-8 while walking, tip down while sprinting, never cast shadows.
+Not ported yet: their hand IK on top of the animation (aim spread, flashlight hand pointing,
+pulling the gun back from walls); revisit after step 7 once we know the IK cost.
 
 Step 7 is the heart of it; steps 1–6 set up what it needs (the skeleton and materials, a level
 to walk on, a navmesh, a body to drive). Each step gets its own small files and a demo scene, so
