@@ -61,7 +61,7 @@ Each step ends with something you can run and look at.
 | 3 | **First-person arms** ✅ | Arms and revolver on the camera, an AnimationTree with idle low/high, raise/lower, fire, reload; weapon sway | arms react to aim and keys |
 | 4 | **Shooting** ✅ | Hitscan raycast, ammo and reload, muzzle flash, pooled shell ejection and impact decals, recoil | shooting walls feels right |
 | 5 ✅ | **Flashlight** | Spotlight with their cookie texture, the only shadowed light; lags behind the view | the level is dark and readable |
-| 6 | **Enemy body** | Port the rolling-ball body: RigidBody sphere + NavigationAgent3D on a baked navmesh, steering toward the player, grounded check, launch impulse | a ball hunts you round the level |
+| 6 ✅ | **Enemy body** | Port the rolling-ball body: RigidBody sphere + NavigationAgent3D on a baked navmesh, steering toward the player, grounded check, launch impulse | a ball hunts you round the level |
 | 7 | **Limb IK** (the core port) | Cultist skeleton on the ball: `TwoBoneIK3D` for 2 hands + 2 feet with pole targets, chest placement, `LookAtModifier3D` head; port the step cycle, raycast targets, Bezier step arcs, kick-off impulses, flailing in the air | the cultist crawls after you on hands and feet |
 | 8 | **Enemy AI** | States: wander, chase, attack lunge, hurt, die; damage and hit reactions; cheap death (dissolve shader instead of their ragdoll) | it can kill you and you can kill it |
 | 9 | **Level and lighting** | Build the mine from the env pieces; LightmapGI bake, fog, visibility ranges | the full level runs smoothly |
@@ -119,6 +119,32 @@ quadrant, soft-shadow quality low on mobile, set in `project.godot`). It starts 
 the camera, past the hands, because a light right next to the arms blew them out. The beam lags
 behind the view (up to 10°) and flickers briefly when switched. With the lamps off the arms are a
 dark silhouette; the muzzle flash still lights them for a frame.
+
+### Step 6 notes
+
+`make run` opens `demos/step06_enemy.tscn` (P route lines, L lamps). `scenes/enemy.tscn` is the
+enemy's body only: a RigidBody ball (radius 0.83, mass 2, like theirs) and four limb points shown
+as markers (pale hands, red feet). `src/enemy/`:
+- `enemy_path.gd`: the route. Navmesh path; now and then a stretch is lifted onto a wall or the
+  ceiling with a ray (their "up path"). The last waypoint always stays on the floor.
+- `enemy_body.gd`: follows the route. Desired velocity, grounded state (floor, wall/ceiling, air),
+  no gravity on walls, jump requests. Re-plans along the floor when it stops getting closer.
+- `limb_gait.gd`: the step cycle. One limb every 0.12 s re-plants and kicks the ball; jumps are one
+  big impulse after a 0.25 s crouch. Step 7 hangs the cultist's IK limbs on these points.
+- `path_debug.gd`: route lines for testing.
+
+`src/level/nav_bake.gd` bakes the navmesh when the level loads (only up to 4 m high, so wall and
+roof tops don't become unreachable islands). Physics layers: 1 world, 2 player, 4 enemy.
+
+Changes from the original, each found while testing:
+- Limbs also lead by the desired velocity, and a ball that wants to move but is standing still
+  steps anyway. Theirs only started moving because IK error made the limbs re-step now and then.
+- Getting stuck is measured by progress. Their per-waypoint timer was reset every frame and never
+  fired.
+- Speed is capped at 25 m/s, and the wall press can't build up speed.
+- The grounded query is built once, not every tick.
+- The test level's mine floor now runs under the doorway (there was a 1 m hole that split the
+  navmesh).
 
 Step 7 is the heart of it; steps 1–6 set up what it needs (the skeleton and materials, a level
 to walk on, a navmesh, a body to drive). Each step gets its own small files and a demo scene, so

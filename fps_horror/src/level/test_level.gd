@@ -100,7 +100,7 @@ func _corridor() -> void:
 	var z0 := HALL + 1.0
 	var z1 := z0 + CORRIDOR_LENGTH
 	var mid := (z0 + z1) / 2
-	_box(Vector3(0, -0.5, mid), Vector3(8, 1, CORRIDOR_LENGTH), Env.gravel())
+	_box(Vector3(0, -0.5, (HALL + z1) / 2), Vector3(8, 1, z1 - HALL), Env.gravel())  # from the hall's edge: no gap under the doorway
 	_box(Vector3(0, WALL_HEIGHT + 0.25, mid), Vector3(8, 0.5, CORRIDOR_LENGTH), Env.rock())
 	_box(Vector3(0, WALL_HEIGHT / 2, z1 + 0.5), Vector3(8, WALL_HEIGHT, 1), Env.rock())  # dead end
 	for side in [-1, 1]:  # flat collision just behind the wall meshes' faces
