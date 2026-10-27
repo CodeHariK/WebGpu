@@ -4,6 +4,7 @@
 ##   landing  a dip after a fall, deeper the faster you landed
 ##   steps    when the body pops up a stair, the camera starts that much lower and catches up
 ##   sprint   the field of view widens a little
+##   shake    a quick jolt (gun shots), fading out in a fraction of a second
 extends Camera3D
 
 @export var bob_height := 0.045
@@ -18,6 +19,7 @@ var _bob_weight := 0.0
 var _dip := 0.0
 var _step := 0.0
 var _base_fov := 70.0
+var _shake := 0.0
 
 @onready var _body: CharacterBody3D = owner
 
@@ -36,6 +38,13 @@ func _process(delta: float) -> void:
 	var bob := Vector3(cos(_phase) * bob_side, absf(sin(_phase)) * bob_height, 0.0) * _bob_weight
 	_dip = lerpf(_dip, 0.0, 1.0 - exp(-recover_rate * 0.6 * delta))
 	_step = lerpf(_step, 0.0, 1.0 - exp(-recover_rate * delta))
-	position = bob + Vector3(0.0, _dip + _step, 0.0)
+	_shake = move_toward(_shake, 0.0, delta * 5.0)
+	var jolt := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(0, 1)) * _shake * 0.012
+	position = bob + Vector3(0.0, _dip + _step, 0.0) + jolt
 	var target_fov := _base_fov + (sprint_fov_add if _body.get("sprinting") else 0.0)
 	fov = lerpf(fov, target_fov, 1.0 - exp(-6.0 * delta))
+
+
+## Jolt the camera; `amount` 0..1 (stacks up to 1).
+func shake(amount: float) -> void:
+	_shake = minf(_shake + amount, 1.0)

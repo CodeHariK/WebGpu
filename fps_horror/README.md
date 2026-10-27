@@ -59,7 +59,7 @@ Each step ends with something you can run and look at.
 | 1 | **Asset viewer** ✅ | Cultist and arms with our own mobile materials, an orbit camera, play each arms animation, show triangle and draw-call counts | both models look right and cheap |
 | 2 | **Test level and player** ✅ | A greybox level from a few env pieces; `CharacterBody3D` FPS movement (walk, look, jump, crouch), camera bob | you can walk around |
 | 3 | **First-person arms** ✅ | Arms and revolver on the camera, an AnimationTree with idle low/high, raise/lower, fire, reload; weapon sway | arms react to aim and keys |
-| 4 | **Shooting** | Hitscan raycast, ammo and reload, muzzle flash, pooled shell ejection and impact decals, recoil | shooting walls feels right |
+| 4 | **Shooting** ✅ | Hitscan raycast, ammo and reload, muzzle flash, pooled shell ejection and impact decals, recoil | shooting walls feels right |
 | 5 | **Flashlight** | Spotlight with their cookie texture, the only shadowed light; lags behind the view | the level is dark and readable |
 | 6 | **Enemy body** | Port the rolling-ball body: RigidBody sphere + NavigationAgent3D on a baked navmesh, steering toward the player, grounded check, launch impulse | a ball hunts you round the level |
 | 7 | **Limb IK** (the core port) | Cultist skeleton on the ball: `TwoBoneIK3D` for 2 hands + 2 feet with pole targets, chest placement, `LookAtModifier3D` head; port the step cycle, raycast targets, Bezier step arcs, kick-off impulses, flailing in the air | the cultist crawls after you on hands and feet |
@@ -97,6 +97,18 @@ original's separate `.res` animation files don't load in 4.7, so they aren't use
 the view slightly, sway in a figure-8 while walking, tip down while sprinting, never cast shadows.
 Not ported yet: their hand IK on top of the animation (aim spread, flashlight hand pointing,
 pulling the gun back from walls); revisit after step 7 once we know the IK cost.
+
+### Step 4 notes
+
+`make run` opens `demos/step04_shoot.tscn`. `src/weapon/revolver.gd`: 6 rounds, 0.38 s between
+shots, a ray from the camera through the screen centre (spread 0.4° aimed / 2.5° hip, plus bloom
+per shot), recoil that tips the view up and shakes the camera, pushes RigidBodies, emits `hit` for
+damage later. Empty trigger auto-reloads; rounds refill when the reload clip ends. Effects, all
+made once and reused: `muzzle_flash.gd` (two crossed flame cards from their 6-frame sheet, a glow,
+a short unshadowed light, on a BoneAttachment at the barrel), `impacts.gd` (32 bullet-hole quads
+that stick to what they hit, 6 dust/spark bursts), `shell_drop.gd` (12 pooled brass casings that
+fall out during the reload). `src/ui/weapon_hud.gd`: crosshair dot and the six chambers. Bullet
+hole and particle textures are gradients made in code.
 
 Step 7 is the heart of it; steps 1–6 set up what it needs (the skeleton and materials, a level
 to walk on, a navmesh, a body to drive). Each step gets its own small files and a demo scene, so

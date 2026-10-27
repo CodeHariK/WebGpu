@@ -8,6 +8,9 @@
 ## It follows the camera's position (which already bobs and dips), so the arms never slide
 ## against the view.
 ##
+## Weapon (step 4): a Revolver node (rules, hitscan), a MuzzleFlash on the barrel bone, pooled
+## Impacts and ShellDrop, all made here.
+##
 ## Input: aim (hold right mouse), fire (left mouse), reload (R). Only while the mouse is captured,
 ## and not on the click that captures it. `force_input` turns that check off for test runs.
 ##
@@ -17,6 +20,10 @@ extends Node3D
 const Look := preload("res://src/look/character_look.gd")
 const Animator := preload("res://src/player/arms_animator.gd")
 const ARMS := preload("res://assets/player/ArmsAnimations.gltf")
+const Revolver := preload("res://src/weapon/revolver.gd")
+const MuzzleFlash := preload("res://src/weapon/muzzle_flash.gd")
+const Impacts := preload("res://src/weapon/impacts.gd")
+const ShellDrop := preload("res://src/weapon/shell_drop.gd")
 
 @export var offset := Vector3(0.0, 0.1, 0.0)
 @export var look_lag := 14.0  ## higher = follows the view more tightly
@@ -28,6 +35,7 @@ const ARMS := preload("res://assets/player/ArmsAnimations.gltf")
 @export var sprint_drop := deg_to_rad(22.0)
 
 var animator: Animator
+var revolver: Revolver
 var force_input := false
 
 var _rig: Node3D
@@ -51,6 +59,28 @@ func _ready() -> void:
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	animator = Animator.new(_rig)
 	_lagged = get_parent().global_basis
+	_setup_weapon()
+
+
+func _setup_weapon() -> void:
+	var skeleton: Skeleton3D = _rig.find_children("*", "Skeleton3D", true, false)[0]
+	revolver = Revolver.new()
+	add_child(revolver)
+	revolver.setup(animator, _camera, _body)
+	var barrel := BoneAttachment3D.new()
+	barrel.bone_name = "RevolverFront"
+	skeleton.add_child(barrel)
+	var flash := MuzzleFlash.new()
+	barrel.add_child(flash)
+	revolver.fired.connect(func(_o: Vector3, _d: Vector3) -> void: flash.flash())
+	var impacts := Impacts.new()
+	impacts.top_level = true
+	add_child(impacts)
+	revolver.hit.connect(func(c: Object, p: Vector3, n: Vector3, _d: Vector3) -> void: impacts.spawn(c, p, n))
+	var shells := ShellDrop.new()
+	add_child(shells)
+	shells.setup(skeleton, _body)
+	revolver.reload_started.connect(shells.drop)
 
 
 func _process(delta: float) -> void:
@@ -67,9 +97,9 @@ func _handle_input() -> void:
 	if not can_act:
 		return
 	if Input.is_action_just_pressed("fire"):
-		animator.fire()
+		revolver.try_fire()
 	elif Input.is_action_just_pressed("reload"):
-		animator.reload()
+		revolver.try_reload()
 
 
 func _follow_view(delta: float) -> void:

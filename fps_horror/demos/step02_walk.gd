@@ -121,6 +121,7 @@ func _status() -> String:
 ## Runs the moves one after another by pressing the same input actions a player would.
 func _autopilot(delta: float) -> void:
 	var moves := _moves()
+	_release_strays()
 	if _skip_frame:
 		_skip_frame = false
 		delta = 0.0
@@ -162,7 +163,17 @@ func _finish_move(move: Array) -> void:
 		_skip_frame = true
 
 
+## Test runs press only what the move says: anything else held (stray input reaching the window
+## while the test runs) is let go, so every run behaves the same.
+func _release_strays() -> void:
+	for action: String in InputActions.KEYS.keys() + InputActions.MOUSE.keys():
+		if not action in _held and Input.is_action_pressed(action):
+			print("autopilot: released stray input '%s'" % action)
+			Input.action_release(action)
+
+
 func _release_all() -> void:
 	for action: String in _held:
 		Input.action_release(action)
 	_held = []
+

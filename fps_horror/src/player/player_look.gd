@@ -24,6 +24,12 @@ func look(delta_pixels: Vector2) -> void:
 	rotation.x = clampf(rotation.x - delta_pixels.y * sensitivity, -max_pitch, max_pitch)
 
 
+## Gun recoil: tip the view up (and a little sideways). It stays, like the original.
+func recoil(pitch: float, yaw: float) -> void:
+	_body.rotate_y(yaw)
+	rotation.x = clampf(rotation.x + pitch, -max_pitch, max_pitch)
+
+
 ## Point the view at a yaw and pitch (radians), for spawning and the test autopilot.
 func face(yaw: float, pitch := 0.0) -> void:
 	_body.rotation.y = yaw

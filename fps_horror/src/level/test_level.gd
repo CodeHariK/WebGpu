@@ -5,6 +5,7 @@
 ##     ramp     from the platform's south edge down to the floor (14°)
 ##     tunnel   1.25 m high, 12 m long: only fits crouched (crouch + can't-stand-up test)
 ##     crate    0.7 m high, 2.5 m long, to jump onto; a crate pile in a corner for scale
+##     targets  loose crates (RigidBodies) and a plank wall to shoot, near the spawn
 ##   mine     through a gap in the south wall: their corridor wall meshes either side, gravel
 ##            floor, timber frames with bulbs, a rail cart
 ##
@@ -27,6 +28,7 @@ func _ready() -> void:
 	_stairs_platform_ramp()
 	_tunnel()
 	_crates()
+	_targets()
 	_corridor()
 
 
@@ -67,6 +69,27 @@ func _crates() -> void:
 	_box(Vector3(0, 0.35, -2.75), Vector3(1.2, 0.7, 2.5), Env.planks())  # the one to jump onto
 	for c in [[Vector3(12, 0.5, 11), 1.0], [Vector3(13.1, 0.5, 11.3), 1.0], [Vector3(12.4, 1.5, 11.1), 1.0], [Vector3(13.3, 0.3, 9.8), 0.6]]:
 		_box(c[0], Vector3.ONE * c[1], Env.planks(), Vector3(0, c[0].x * 0.3, 0))
+
+
+## Things to shoot: a plank wall, and a stack of loose crates in front of it that bullets push.
+func _targets() -> void:
+	_box(Vector3(-6, 1.5, 3), Vector3(4, 3, 0.3), Env.planks())
+	for c in [Vector3(-7, 0.3, 4), Vector3(-6.3, 0.3, 4.1), Vector3(-6.65, 0.9, 4.05), Vector3(-4.8, 0.3, 4.2)]:
+		var body := RigidBody3D.new()
+		body.mass = 4.0
+		body.position = c
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3.ONE * 0.6
+		mesh.mesh = box
+		mesh.material_override = Env.planks()
+		body.add_child(mesh)
+		var shape := CollisionShape3D.new()
+		var cube := BoxShape3D.new()
+		cube.size = Vector3.ONE * 0.6
+		shape.shape = cube
+		body.add_child(shape)
+		add_child(body)
 
 
 ## The mine corridor: their bumpy wall meshes on both sides, gravel floor, rock ceiling, timber
