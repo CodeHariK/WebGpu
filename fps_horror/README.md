@@ -56,8 +56,8 @@ Each step ends with something you can run and look at.
 | # | Step | What we build | Done when |
 |---|---|---|---|
 | 0 | **Setup** ✅ | This folder, the copied assets and code, `project.godot` (Mobile, Jolt, ETC2/ASTC) | assets import with no errors |
-| 1 | **Asset viewer** | Cultist and arms with our own mobile materials, an orbit camera, play each arms animation, show triangle and draw-call counts | both models look right and cheap |
-| 2 | **Test level and player** | A greybox level from a few env pieces; `CharacterBody3D` FPS movement (walk, look, jump, crouch), camera bob | you can walk around |
+| 1 | **Asset viewer** ✅ | Cultist and arms with our own mobile materials, an orbit camera, play each arms animation, show triangle and draw-call counts | both models look right and cheap |
+| 2 | **Test level and player** ✅ | A greybox level from a few env pieces; `CharacterBody3D` FPS movement (walk, look, jump, crouch), camera bob | you can walk around |
 | 3 | **First-person arms** | Arms and revolver on the camera, an AnimationTree with idle low/high, raise/lower, fire, reload; weapon sway | arms react to aim and keys |
 | 4 | **Shooting** | Hitscan raycast, ammo and reload, muzzle flash, pooled shell ejection and impact decals, recoil | shooting walls feels right |
 | 5 | **Flashlight** | Spotlight with their cookie texture, the only shadowed light; lags behind the view | the level is dark and readable |
@@ -67,6 +67,25 @@ Each step ends with something you can run and look at.
 | 9 | **Level and lighting** | Build the mine from the env pieces; LightmapGI bake, fog, visibility ranges | the full level runs smoothly |
 | 10 | **Audio** | WAV → OGG; pooled 3D sounds for footsteps, gun, enemy | it sounds like the original |
 | 11 | **Mobile** | Touch controls (move stick, look drag, fire, reload, flashlight); enemy LOD (decimated Cultist, lower IK rate far away); Android export and profiling | 60 fps on a phone |
+
+### Step 1 notes
+
+`make run` opens `demos/step01_viewer.tscn`. Materials live in `materials/` and are put on the
+meshes by name in `src/look/character_look.gd` (their glTFs carry no materials). Costs as
+measured: cultist 23.8k tris / 2 surfaces / 63 bones, arms + revolver 16.9k tris / 13 surfaces /
+53 bones, props 3.9k tris. The cultist is the expensive one: with several on screen we'll want a
+decimated version (~6k tris) in step 11. Normal maps are flagged as normal maps in their
+`.import` files (better ETC2/ASTC quality).
+
+### Step 2 notes
+
+`make run` opens `demos/step02_walk.tscn`; `make shots` runs an autopilot through every move and
+prints where the player ended up. Player: `scenes/player.tscn` with `src/player/player_body.gd`
+(walk 4 m/s, sprint 6.5, crouch 2; jump; step-up 0.35 m; crouch keeps you down under low
+ceilings), `player_look.gd` (mouse look), `camera_motion.gd` (bob, landing dip, smoothed steps,
+sprint FOV). Input actions are created in code (`src/input/input_actions.gd`). The level
+(`src/level/test_level.gd`) is boxes with box colliders, triplanar materials from their textures
+(`src/look/env_look.gd`), their corridor wall meshes and rail cart, unshadowed lights only.
 
 Step 7 is the heart of it; steps 1–6 set up what it needs (the skeleton and materials, a level
 to walk on, a navmesh, a body to drive). Each step gets its own small files and a demo scene, so
