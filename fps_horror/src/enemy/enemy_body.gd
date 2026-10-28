@@ -87,6 +87,8 @@ func die() -> void:
 	set_physics_process(false)
 	desired_velocity = Vector3.ZERO
 	gravity_scale = _gravity
+	linear_damp = 3.0  # nothing steadies it any more: let it settle instead of rolling away
+	angular_damp = 3.0
 	grounded = Grounded.FLOOR
 
 

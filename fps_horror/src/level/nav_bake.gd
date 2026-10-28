@@ -8,7 +8,7 @@
 ## the crouch tunnel), climbs 0.5 m (stairs). Only static colliders on layer 1 count: loose
 ## crates (RigidBodies) are ignored and simply get pushed or climbed over.
 ##
-## Step 9 (the real level) will bake this in the editor and save it instead.
+## A bigger hand-made level could bake this once in the editor and save it instead.
 extends RefCounted
 
 const GROUP := &"nav_source"

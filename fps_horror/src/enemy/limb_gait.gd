@@ -13,6 +13,8 @@
 ##               original, IK error made the limbs step now and then, which started it off).
 ##               And a ball that wants to move but is standing still steps anyway (otherwise
 ##               a ball pinned against something never steps again)
+##   reach       a limb the IK couldn't get within ik_slack of its point (cultist_rig.gd reports
+##               where the hand/foot really is) steps again from where it is, without a kick
 ##   launch      when the body asks (onto/off a wall, toward the ceiling), all limbs plant, then
 ##               after 0.25 s one big impulse toward the next waypoint (and up)
 ##   in the air  limbs flail: each chases a spot circling round its usual one (sin/cos)
@@ -50,6 +52,7 @@ enum Limb { LEFT_HAND, RIGHT_HAND, LEFT_FOOT, RIGHT_FOOT }
 @export var reach_down := 2.5
 @export var flail_speed := 15.0  ## radians per second
 @export var flail_size := 3.0  ## metres
+@export var ik_slack := 0.2  ## a hand/foot this far from its point re-steps (theirs AllowedIKInaccuracies)
 @export var show_limbs := true
 
 var body: EnemyBody
@@ -118,13 +121,17 @@ func _step(limb: int) -> void:
 	var spot := limb_spot(limb)
 	var wants_to_go := body.desired_velocity != Vector3.ZERO
 	var stuck := wants_to_go and body.linear_velocity.length() < 0.5  # pinned: step anyway
-	if point.position.distance_to(spot.position) <= min_step and not stuck:
+	var too_far: bool = point.tip_known and point.tip.distance_to(point.position) > ik_slack
+	if point.position.distance_to(spot.position) <= min_step and not too_far and not stuck:
 		return
-	if (point.on_surface or spot.on_surface) and wants_to_go:
+	var from: Vector3 = point.ik_target(torso.frame)  # kick from where the limb was (theirs: the IK container)
+	if too_far:
+		point.reset_to_tip()
+	if point.on_surface and wants_to_go:
 		var foot := limb >= Limb.LEFT_FOOT
-		var motion: Vector3 = point.position - spot.position if foot else spot.position - point.position
+		var motion: Vector3 = from - spot.position if foot else spot.position - from
 		var direction := motion.normalized().lerp(body.desired_velocity, foot_bias if foot else hand_bias)
-		_kick(direction.normalized(), point.position.lerp(body.global_position, 0.8))
+		_kick(direction.normalized(), from.lerp(body.global_position, 0.8))
 	point.step_to(spot.position, spot.normal, spot.on_surface, body.global_position)
 
 
@@ -226,7 +233,7 @@ func _reach(limb: int, velocity_lead: float) -> Array[Vector3]:
 	var left := limb == Limb.LEFT_HAND or limb == Limb.LEFT_FOOT
 	var centre := body.global_position + up + (body.linear_velocity * velocity_lead + body.desired_velocity) * lead
 	centre += heading * body_length * 0.5 * (-1.0 if foot else 1.0)
-	var side := heading.cross(up).normalized() * (-1.0 if left else 1.0)
+	var side := heading.cross(up) * (-1.0 if left else 1.0)  # not normalised, like theirs
 	return [centre + side * shoulder_width * 0.5, centre + side * hip_width * 0.5 - up * (reach_down + 1.0)]
 
 

@@ -64,9 +64,9 @@ Each step ends with something you can run and look at.
 | 6 ✅ | **Enemy body** | Port the rolling-ball body: RigidBody sphere + NavigationAgent3D on a baked navmesh, steering toward the player, grounded check, launch impulse | a ball hunts you round the level |
 | 7 ✅ | **Limb IK** (the core port) | Cultist skeleton on the ball: `TwoBoneIK3D` for 2 hands + 2 feet with pole targets, chest placement, `LookAtModifier3D` head; port the step cycle, raycast targets, Bezier step arcs, kick-off impulses, flailing in the air | the cultist crawls after you on hands and feet |
 | 8 ✅ | **Enemy AI** | States: wander, chase, attack lunge, hurt, die; damage and hit reactions; cheap death (dissolve shader instead of their ragdoll) | it can kill you and you can kill it |
-| 9 | **Level and lighting** | Build the mine from the env pieces; LightmapGI bake, fog, visibility ranges | the full level runs smoothly |
-| 10 | **Audio** | WAV → OGG; pooled 3D sounds for footsteps, gun, enemy | it sounds like the original |
-| 11 | **Mobile** | Touch controls (move stick, look drag, fire, reload, flashlight); enemy LOD (decimated Cultist, lower IK rate far away); Android export and profiling | 60 fps on a phone |
+| 9 ⏭️ | ~~**Level and lighting**~~ | Skipped: no light baking. The test level stays, lit by live unshadowed bulbs; its cheap fixes moved to step 11 | — |
+| 10 ⏭️ | ~~**Audio**~~ | WAV → OGG; pooled 3D sounds for footsteps, gun, enemy | it sounds like the original |
+| 11 ⏭️ | ~~**Mobile**~~ | Touch controls (move stick, look drag, fire, reload, flashlight); enemy LOD (decimated Cultist, lower IK rate far away); lighter corridor walls (theirs are 15k triangles each) and visibility ranges; Android export and profiling | 60 fps on a phone |
 
 ### Step 1 notes
 
@@ -161,6 +161,16 @@ enemy plus a `Rig` node, with the limb markers off. `src/enemy/`:
     magnet offsets).
   - The head uses a `LookAtModifier3D` on the neck, aimed at the player, eased, limited to 70°.
   - The ball is hidden.
+
+Checked against theirs afterwards and matched:
+- **Re-step:** a hand or foot the IK can't get within 0.2 m of its point steps again from where it
+  really is (`cultist_rig.gd` reads the solved positions back into `limb.tip`).
+- **Hands and feet:** `end_bone_aim.gd` turns them like their `override_tip_basis`. Palms and soles
+  lie flat on the surface facing away from the body; in the air they point along the bend.
+- **Head:** like their 2-bone head IK, the neck aims at a point 1.66 m ahead that swings toward you
+  at 2/s, the head takes its rotation, and both fade out as you go behind it.
+- **Small fixes:** kicks come from the lifted IK point and only off a surface, and the side vector
+  is no longer normalised.
 
 The original used deprecated `SkeletonIK3D` (FABRIK, one node per limb). `TwoBoneIK3D` solves
 each limb directly, which is cheaper. It works on walls and the ceiling with no extra code,
