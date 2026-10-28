@@ -8,3 +8,6 @@ gdzig/*
 
 # preview images saved by Claude (copies of shots/)
 Claude outputs/
+
+# AI agent skill files written into the workspace by tools (not project code)
+/skills/
