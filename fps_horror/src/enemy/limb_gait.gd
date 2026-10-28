@@ -18,6 +18,10 @@
 ##   in the air  limbs flail: each chases a spot circling round its usual one (sin/cos)
 ##   landing     every limb steps to the ground at once
 ##   torso       torso.gd: the body frame the cultist's chest is laid along
+##   attack      attack(target): the same crouch-and-leap as a launch, aimed at the target,
+##               flatter (half the height bonus); enemy_ai.gd decides when
+##   stagger     stagger(s): no steps for a moment (hit by a shot), the ball just rolls
+##   die         die(): limbs drop to the ground once and stay; no more steps or jumps
 ##
 ## show_limbs draws each limb point as a marker (step 6, before there was a body to see).
 ## Far-away enemies (step 11) can run only this file: the same movement, no IK.
@@ -53,6 +57,9 @@ var limbs: Array = []  ## LimbPoint × 4, in Limb order
 var torso: Torso
 var heading := Vector3.FORWARD  ## last direction the ball moved in
 var launching := false
+var alive := true
+
+var _stagger := 0.0
 
 var _timer := 0.0
 var _next := 0
@@ -83,13 +90,14 @@ func _physics_process(delta: float) -> void:
 	if body.grounded != _was_grounded:
 		_flight = 0.0
 		for point in limbs:
-			point.set_airborne(flying)
+			point.set_airborne(flying and alive)
 		if not flying:
 			_step_all()
 		_was_grounded = body.grounded
+	_stagger = maxf(_stagger - delta, 0.0)
 	if flying:
 		_flight += delta * flail_speed
-	elif not launching:
+	elif not launching and alive and _stagger <= 0.0:
 		_timer += delta
 		while _timer >= step_interval:
 			_timer -= step_interval
@@ -100,7 +108,7 @@ func _physics_process(delta: float) -> void:
 		stepping += 1 if point.traveling else 0
 	torso.update(delta, body.global_position, heading, _up(), stepping)
 	for limb in 4:
-		limbs[limb].update(delta, torso.frame, _flail_spot(limb) if flying else Vector3.ZERO)
+		limbs[limb].update(delta, torso.frame, _flail_spot(limb) if flying and alive else Vector3.ZERO)
 	_move_markers()
 
 
@@ -130,18 +138,44 @@ func _kick(direction: Vector3, at: Vector3) -> void:
 	body.apply_impulse(impulse, at - body.global_position)
 
 
-## The body wants to jump: plant everything, crouch for a moment, then leap at the next waypoint.
+## The body wants to jump: leap at the next waypoint, high (twice the distance up).
 func _launch() -> void:
-	if launching:
+	_leap_at(func() -> Vector3: return body.next_waypoint().position, 2.0)
+
+
+## Lunge at `target` (enemy_ai.gd's attack). Returns false if already mid-jump.
+func attack(target: Node3D) -> bool:
+	if launching or not alive:
+		return false
+	_leap_at(func() -> Vector3: return target.global_position, 0.5)
+	return true
+
+
+func stagger(seconds: float) -> void:
+	_stagger = maxf(_stagger, seconds)
+
+
+func die() -> void:
+	alive = false
+	for point in limbs:
+		point.set_airborne(false)
+	_step_all()
+
+
+## Plant everything, crouch for a moment, then one impulse toward where `aim_at` says (asked
+## after the crouch, so it leads a moving target less), lifted by `lift` times the distance.
+## Theirs: OnLaunchRequested (lift 2) and OnAttackLaunchRequested (lift 0.5).
+func _leap_at(aim_at: Callable, lift: float) -> void:
+	if launching or not alive:
 		return
 	launching = true
 	_step_all()
 	await get_tree().create_timer(0.25, false, true).timeout
 	launching = false
-	if not is_instance_valid(body):
+	if not is_instance_valid(body) or not alive:
 		return
-	var to: Vector3 = body.next_waypoint().position
-	var aim := to + Vector3.UP * body.global_position.distance_to(to) * 2.0
+	var to: Vector3 = aim_at.call()
+	var aim := to + Vector3.UP * body.global_position.distance_to(to) * lift
 	var impulse := (aim - body.global_position) * launch_scale - body.linear_velocity
 	body.apply_impulse(impulse.limit_length(max_launch))
 

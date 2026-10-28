@@ -22,7 +22,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_lines.clear_surfaces()
-	if body == null or not visible:
+	if not is_instance_valid(body) or not visible:
 		return
 	_lines.surface_begin(Mesh.PRIMITIVE_LINES)
 	var from := body.global_position

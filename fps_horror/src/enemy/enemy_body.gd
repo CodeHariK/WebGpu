@@ -23,6 +23,7 @@ const EnemyPath := preload("res://src/enemy/enemy_path.gd")
 enum Grounded { NONE, FLOOR, WALL_ROOF }
 
 signal launch_request
+signal hit_taken(point: Vector3, force: Vector3, attacker: Node3D)  ## the ball is the enemy's hitbox
 
 @export var max_speed := 2.0  ## m/s, the speed the limbs aim for
 @export var stop_distance := 3.0  ## a waypoint is reached this close
@@ -74,6 +75,19 @@ func _plan(on_wall: bool) -> void:
 	_stalled = 0.0
 	target = route.last().position if not route.is_empty() else global_position
 	_take_front()
+
+
+## Shot (or otherwise hurt). enemy_ai.gd decides what it means.
+func take_hit(point: Vector3, force: Vector3, attacker: Node3D) -> void:
+	hit_taken.emit(point, force, attacker)
+
+
+## Dead: stop steering and let the ball roll to rest (falls off a wall or the ceiling).
+func die() -> void:
+	set_physics_process(false)
+	desired_velocity = Vector3.ZERO
+	gravity_scale = _gravity
+	grounded = Grounded.FLOOR
 
 
 func target_reached() -> bool:

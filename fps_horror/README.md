@@ -63,7 +63,7 @@ Each step ends with something you can run and look at.
 | 5 ✅ | **Flashlight** | Spotlight with their cookie texture, the only shadowed light; lags behind the view | the level is dark and readable |
 | 6 ✅ | **Enemy body** | Port the rolling-ball body: RigidBody sphere + NavigationAgent3D on a baked navmesh, steering toward the player, grounded check, launch impulse | a ball hunts you round the level |
 | 7 ✅ | **Limb IK** (the core port) | Cultist skeleton on the ball: `TwoBoneIK3D` for 2 hands + 2 feet with pole targets, chest placement, `LookAtModifier3D` head; port the step cycle, raycast targets, Bezier step arcs, kick-off impulses, flailing in the air | the cultist crawls after you on hands and feet |
-| 8 | **Enemy AI** | States: wander, chase, attack lunge, hurt, die; damage and hit reactions; cheap death (dissolve shader instead of their ragdoll) | it can kill you and you can kill it |
+| 8 ✅ | **Enemy AI** | States: wander, chase, attack lunge, hurt, die; damage and hit reactions; cheap death (dissolve shader instead of their ragdoll) | it can kill you and you can kill it |
 | 9 | **Level and lighting** | Build the mine from the env pieces; LightmapGI bake, fog, visibility ranges | the full level runs smoothly |
 | 10 | **Audio** | WAV → OGG; pooled 3D sounds for footsteps, gun, enemy | it sounds like the original |
 | 11 | **Mobile** | Touch controls (move stick, look drag, fire, reload, flashlight); enemy LOD (decimated Cultist, lower IK rate far away); Android export and profiling | 60 fps on a phone |
@@ -165,6 +165,30 @@ enemy plus a `Rig` node, with the limb markers off. `src/enemy/`:
 The original used deprecated `SkeletonIK3D` (FABRIK, one node per limb). `TwoBoneIK3D` solves
 each limb directly, which is cheaper. It works on walls and the ceiling with no extra code,
 because the torso's up is the surface normal.
+
+### Step 8 notes
+
+`make run` opens `demos/step08_ai.tscn`. `scenes/cultist.tscn` now has the AI on its root.
+
+- `src/enemy/enemy_ai.gd` cycles through wander, chase, attack, retreat and dead.
+  - **Wander:** walks to random spots near home, pausing between them.
+  - **Chase:** re-plans to you every 3 m you move.
+  - **Attack:** within 6 m and with its timer ready, it lunges (`limb_gait.attack()`). Within 2 m it
+    hits you (`take_hit`).
+  - **Retreat:** after a hit it bounces off you, backs away 8 m, then chases again.
+  - **Noticing you:** being shot (like theirs), plus sight (an 18 m cone, or 5 m in any direction,
+    one ray every 0.2 s) and hearing gunshots within 30 m.
+  - **Health:** it takes 3 shots (theirs died to one), and each hit makes it stagger.
+- **Death:** the limbs drop and the ball rolls to rest; a body on the ceiling falls. Then
+  `dissolve.gd` swaps in `materials/cultist_dissolve.gdshader`, where noise holes with glowing blue
+  edges eat through the body over 2.5 s while blue sparks rise, and the enemy is freed. This
+  replaces their ragdoll: no physics bones. The shader only runs while a body dissolves.
+- **Player:** `src/player/player_health.gd` gives you 3 hits. Each hit shoves you and shakes the
+  camera, and you heal after 10 s without a hit. `src/ui/damage_overlay.gd` draws their vein
+  texture as a red overlay that grows as you get hurt. When you die, the demo respawns you after
+  3 s.
+- **Hits:** anything with `take_hit(point, force, attacker)` can be hurt: the revolver calls it on
+  what it hits, and the enemy calls it on you.
 
 Step 7 is the heart of it; steps 1–6 set up what it needs (the skeleton and materials, a level
 to walk on, a navmesh, a body to drive). Each step gets its own small files and a demo scene, so

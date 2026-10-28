@@ -32,6 +32,7 @@ func _ready() -> void:
 	debug.visible = false
 	rig = enemy.get_node("Rig")
 	rig.look_target = player.get_node("Head")
+	enemy.set_physics_process(false)  # no AI yet (step 8): the demo's chase drives it
 
 
 func _enemy_scene() -> PackedScene:

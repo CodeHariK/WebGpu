@@ -1,10 +1,11 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://src/player/player_body.gd" id="1"]
 [ext_resource type="Script" path="res://src/player/player_look.gd" id="2"]
 [ext_resource type="Script" path="res://src/player/camera_motion.gd" id="3"]
 [ext_resource type="Script" path="res://src/player/fp_arms.gd" id="4"]
 [ext_resource type="Script" path="res://src/player/flashlight.gd" id="5"]
+[ext_resource type="Script" path="res://src/player/player_health.gd" id="6"]
 
 [sub_resource type="CapsuleShape3D" id="capsule"]
 radius = 0.35
@@ -36,3 +37,6 @@ script = ExtResource("4")
 
 [node name="Flashlight" type="SpotLight3D" parent="Head"]
 script = ExtResource("5")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("6")

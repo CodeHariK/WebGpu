@@ -48,6 +48,7 @@ var _chest := -1
 var _targets: Array[Node3D] = []
 var _poles: Array[Node3D] = []
 var _head_target := Node3D.new()
+var _look: LookAtModifier3D
 
 
 func _ready() -> void:
@@ -103,6 +104,7 @@ func _make_head_look() -> void:
 	_head_target.top_level = true
 	add_child(_head_target)
 	var look := LookAtModifier3D.new()
+	_look = look
 	look.name = "HeadLook"
 	skeleton.add_child(look)  # after the limb IK: modifiers run in child order
 	look.bone_name = HEAD_BONE
@@ -115,6 +117,18 @@ func _make_head_look() -> void:
 	look.primary_limit_angle = head_limit
 	look.secondary_limit_angle = head_limit
 	look.target_node = look.get_path_to(_head_target)
+
+
+## Dead: the head stops following anything and hangs in its rest pose.
+func set_head_active(on: bool) -> void:
+	_look.active = on
+
+
+## The meshes of the model (the dissolve swaps their materials).
+func meshes() -> Array[MeshInstance3D]:
+	var out: Array[MeshInstance3D] = []
+	out.assign(model.find_children("*", "MeshInstance3D", true, false))
+	return out
 
 
 func _marker(marker_name: String) -> Node3D:

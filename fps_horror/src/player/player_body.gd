@@ -8,6 +8,7 @@ extends CharacterBody3D
 
 signal landed(fall_speed: float)  ## hit the ground after falling (m/s, positive)
 signal stepped(height: float)  ## popped up a step this tick (the camera smooths it out)
+signal hit_taken(point: Vector3, force: Vector3, attacker: Node3D)  ## see take_hit()
 
 @export var walk_speed := 4.0
 @export var sprint_speed := 6.5
@@ -26,6 +27,7 @@ signal stepped(height: float)  ## popped up a step this tick (the camera smooths
 var crouching := false
 var sprinting := false
 var height := 1.8
+var controls_enabled := true  ## false: ignores move/jump input (dead)
 
 @onready var _shape: CollisionShape3D = $Collision
 @onready var _head: Node3D = $Head
@@ -37,7 +39,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back") if controls_enabled else Vector2.ZERO
 	_update_crouch(delta)
 	sprinting = Input.is_action_pressed("sprint") and input.y < -0.5 and not crouching and is_on_floor()
 	var speed := crouch_speed if crouching else (sprint_speed if sprinting else walk_speed)
@@ -48,7 +50,7 @@ func _physics_process(delta: float) -> void:
 	velocity.x = lerpf(velocity.x, wish.x, blend)
 	velocity.z = lerpf(velocity.z, wish.z, blend)
 	if is_on_floor():
-		if Input.is_action_just_pressed("jump") and not crouching:
+		if controls_enabled and Input.is_action_just_pressed("jump") and not crouching:
 			velocity.y = jump_velocity
 	else:
 		velocity.y -= gravity * delta
@@ -58,6 +60,11 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 	if was_falling and is_on_floor():
 		landed.emit(fall_speed)
+
+
+## Something hit the player (an enemy's lunge). player_health.gd does the rest.
+func take_hit(point: Vector3, force: Vector3, attacker: Node3D) -> void:
+	hit_taken.emit(point, force, attacker)
 
 
 ## Hold crouch to crouch; let go and stand up again once there's room above.

@@ -6,8 +6,8 @@
 ##   recoil   kicks the view up a little (that stays, like the original) and shakes the camera
 ##   reload   R, or automatically when you pull the trigger on an empty gun; the rounds are
 ##            refilled when the reload clip finishes
-##   hits     RigidBodies get pushed; the `hit` signal tells anyone else (impacts now, enemy
-##            damage in step 8)
+##   hits     RigidBodies get pushed; whatever has take_hit(point, force, attacker) is hurt
+##            (enemies); the `hit` signal tells anyone else (impacts)
 ##
 ## Mobile: one ray query per shot, nothing per frame except two timers.
 extends Node
@@ -116,6 +116,8 @@ func _cast(origin: Vector3, direction: Vector3) -> void:
 	var collider: Object = result.collider
 	if collider is RigidBody3D:
 		collider.apply_impulse(direction * push, result.position - collider.global_position)
+	if collider.has_method("take_hit"):  # enemies (and anything else that can be hurt)
+		collider.take_hit(result.position, direction * push, _body)
 	hit.emit(collider, result.position, result.normal, direction)
 
 
