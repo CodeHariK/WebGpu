@@ -18,6 +18,8 @@ gait: ## clock-driven spider gait + footfall chart
 	$(RUN) --scene gaitspider/gait_demo.tscn
 hex: ## hex foot / pole picking prototype
 	$(RUN) --scene hexspider/hex_demo.tscn
+hybrid: ## crawler: spider gait + cultist wall-crawling and physics (ARGS=--shot: autopilot + screenshots)
+	$(RUN) --scene hybrid/hybrid_demo.tscn $(if $(ARGS),-- $(ARGS))
 bat: ## bat on LimbChains
 	$(RUN) --scene bat/bat_demo.tscn
 flytrap: ## flytrap on FK LimbChains
@@ -70,4 +72,4 @@ import: ## rescan the project (registers new class_name scripts, reimports asset
 help: ## list the targets
 	@grep -E '^[a-z0-9_]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  make %-10s %s\n", $$1, $$2}'
 
-.PHONY: orb mood blades chain e limbs spider gait hex bat flytrap vacuum rope grid squad road adjusted magnet demo2 view modifier import help
+.PHONY: hybrid orb mood blades chain e limbs spider gait hex bat flytrap vacuum rope grid squad road adjusted magnet demo2 view modifier import help
