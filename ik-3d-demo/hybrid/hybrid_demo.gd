@@ -1,10 +1,13 @@
 ## Demo world for the crawler (spider × cultist hybrid): a floor with a crate to climb over, a
 ## pillar to climb up, a low tunnel to crawl into and onto its ceiling, a ramp and a glowing orb
 ## it watches.
-##   W/S forward/back · A/D turn       G chase the orb on/off (it steers itself)
+##   W/S forward/back · A/D turn       Shift run (fast enough to gallop)
+##   G chase the orb on/off (it steers itself, galloping when it's far)
 ##   Space leap at the orb             K knock it (a blow from the camera's direction)
 ##   O move the orb to the next spot   R put it back at the start
-##   B debug lines on/off              mouse wheel: camera distance
+##   B debug lines on/off              T slow motion on/off (time scale 1 ↔ 0.2)
+##   P all pole-gait options on/off (crawler_poles.gd; each has its own switch in the panel)
+##   mouse wheel: camera distance
 ## Right: a panel with every debug layer and the main tuning numbers (crawler_debug.gd draws the
 ## rays, homes, foothold candidates, step arcs and IK; crawler_chart.gd is the footfall chart).
 ##
@@ -19,8 +22,19 @@ const START := Vector3(0, 0, 2)
 const SHOT_DIR := "res://Claude outputs/hybrid"
 
 ## Autopilot: [name, place at (or null), facing, ahead, turn, action, seconds, screenshot, camera offset]
-## action: "" | "leap" | "knock" | "chase" | "stop"
+## action: "" | "leap" | "knock" | "chase" | "run" (gallop) | "stop"
 const MOVES := [
+	["gallop: setting off", Vector3(11, 0, 10), Vector3.LEFT, 1.0, 0.0, "run", 0.9, true, Vector3(0.0, 0.8, 3.5)],
+	["gallop: a", null, null, 1.0, 0.0, "run", 0.07, true, Vector3(0.0, 0.8, 3.5)],
+	["gallop: b", null, null, 1.0, 0.0, "run", 0.07, true, Vector3(0.0, 0.8, 3.5)],
+	["gallop: c", null, null, 1.0, 0.0, "run", 0.07, true, Vector3(0.0, 0.8, 3.5)],
+	["gallop: d", null, null, 1.0, 0.0, "run", 0.07, true, Vector3(0.0, 0.8, 3.5)],
+	["gallop: e", null, null, 1.0, 0.0, "run", 0.07, true, Vector3(0.0, 0.8, 3.5)],
+	["gallop: f", null, null, 1.0, 0.0, "run", 0.07, true, Vector3(0.0, 0.8, 3.5)],
+	["gallop: slowing to a walk", null, null, 0.3, 0.0, "", 1.5, true, Vector3(0.0, 0.8, 3.0)],
+	["pole gait all on: walking", Vector3(0, 0, 8), Vector3.LEFT, 1.0, 0.0, "poles", 1.2, true, Vector3(0.0, 0.8, 2.5)],
+	["pole gait all on: up the pillar", Vector3(5, 0, 0), Vector3.FORWARD, 1.0, 0.0, "poles", 2.6, true, Vector3(3.0, 1.0, 2.5)],
+	["pole gait off again", null, null, 0.0, 0.0, "nopoles", 0.2, false, Vector3(3.0, 1.0, 2.5)],
 	["standing", START, Vector3.FORWARD, 0.0, 0.0, "", 1.0, true, Vector3(2.0, 1.2, 2.5)],
 	["walk to the crate", null, null, 1.0, 0.0, "", 2.6, true, Vector3(2.5, 1.0, 1.0)],
 	["climb the crate", null, null, 1.0, 0.0, "", 0.9, true, Vector3(3.0, 1.2, 0.5)],
@@ -94,6 +108,7 @@ func _physics_process(delta: float) -> void:
 	if _auto:
 		_autopilot(delta)
 	else:
+		crawler.run = Input.is_physical_key_pressed(KEY_SHIFT)
 		crawler.ahead = Input.get_axis("ui_down", "ui_up") if not Input.is_physical_key_pressed(KEY_W) and not Input.is_physical_key_pressed(KEY_S) else (1.0 if Input.is_physical_key_pressed(KEY_W) else -1.0)
 		crawler.turn = (1.0 if Input.is_physical_key_pressed(KEY_A) else 0.0) - (1.0 if Input.is_physical_key_pressed(KEY_D) else 0.0)
 
@@ -121,6 +136,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		KEY_O: _next_orb_spot()
 		KEY_R: crawler.place(START, Vector3.FORWARD)
 		KEY_B: debug.visible = not debug.visible
+		KEY_T: Engine.time_scale = 0.2 if Engine.time_scale > 0.5 else 1.0
+		KEY_P: _all_poles(not crawler.rig.poles.lift_on)
 
 
 func _process_chart() -> void:
@@ -139,6 +156,8 @@ func _build_panel(layer: CanvasLayer) -> void:
 	panel.offset_bottom = -10
 	panel.offset_right = -10
 	layer.add_child(panel)
+	panel.heading("Time")
+	panel.slider("time scale (T: 1 ↔ 0.2)", 0.02, 1.0, 0.01, func() -> float: return Engine.time_scale, func(v: float) -> void: Engine.time_scale = v)
 	panel.heading("Debug")
 	panel.checkbox("debug lines (B)", func() -> bool: return debug.visible, func(on: bool) -> void: debug.visible = on)
 	panel.checkbox("ALL rays (fading)", func() -> bool: return debug.show_rays, func(on: bool) -> void: debug.show_rays = on)
@@ -152,19 +171,56 @@ func _build_panel(layer: CanvasLayer) -> void:
 	panel.checkbox("IK poles + misses", func() -> bool: return debug.show_ik, func(on: bool) -> void: debug.show_ik = on)
 	panel.checkbox("footfall chart", func() -> bool: return chart.visible, func(on: bool) -> void: chart.visible = on)
 	panel.heading("Walk")
-	panel.slider("speed (m/s)", 0.2, 3.0, 0.1, func() -> float: return walker.speed, func(v: float) -> void: walker.speed = v)
+	panel.checkbox("run (Shift)", func() -> bool: return crawler.run, func(on: bool) -> void: crawler.run = on)
+	panel.slider("walk speed (m/s)", 0.2, 3.0, 0.1, func() -> float: return crawler.walk_speed, func(v: float) -> void: crawler.walk_speed = v)
+	panel.slider("run speed (m/s)", 2.0, 10.0, 0.1, func() -> float: return crawler.run_speed, func(v: float) -> void: crawler.run_speed = v)
 	panel.slider("turn rate (rad/s)", 0.5, 6.0, 0.1, func() -> float: return walker.turn_rate, func(v: float) -> void: walker.turn_rate = v)
 	panel.heading("Gait")
 	panel.slider("step distance (m)", 0.1, 0.6, 0.01, func() -> float: return gait.step_distance, func(v: float) -> void: gait.step_distance = v)
 	panel.slider("lead time (s)", 0.0, 0.8, 0.01, func() -> float: return gait.lead_time, func(v: float) -> void: gait.lead_time = v)
 	panel.slider("step time (s)", 0.08, 0.6, 0.01, func() -> float: return gait.step_time, func(v: float) -> void: gait.step_time = v)
 	panel.slider("arc lift (m)", 0.02, 0.4, 0.01, func() -> float: return gait.steps[0].lift, _set_lift)
+	panel.heading("Gallop (leaps)")
+	var gallop := gait.gallop
+	panel.slider("starts above (m/s)", 1.0, 6.0, 0.1, func() -> float: return gallop.start_speed, func(v: float) -> void: gallop.start_speed = v)
+	panel.slider("leap height (m)", 0.0, 2.0, 0.05, func() -> float: return gallop.hop_height, func(v: float) -> void: gallop.hop_height = v)
+	panel.slider("leap gravity (m/s²)", 9.8, 120.0, 1.0, func() -> float: return gallop.hop_gravity, func(v: float) -> void: gallop.hop_gravity = v, "%.0f")
+	panel.slider("ride offset (m)", -0.25, 0.8, 0.01, func() -> float: return gallop.ride_offset, func(v: float) -> void: gallop.ride_offset = v)
+	panel.slider("stance time (s)", 0.04, 0.5, 0.01, func() -> float: return gallop.stance_time, func(v: float) -> void: gallop.stance_time = v)
+	panel.slider("crouch (m)", 0.0, 0.3, 0.01, func() -> float: return gallop.crouch, func(v: float) -> void: gallop.crouch = v)
+	panel.slider("reach before landing (s)", 0.04, 0.4, 0.01, func() -> float: return gallop.reach_ahead, func(v: float) -> void: gallop.reach_ahead = v)
+	panel.slider("hind lands later (s)", 0.0, 0.2, 0.01, func() -> float: return gallop.stagger, func(v: float) -> void: gallop.stagger = v)
+	panel.slider("landing arc lift (m)", 0.02, 0.4, 0.01, func() -> float: return gallop.lift, func(v: float) -> void: gallop.lift = v)
+	panel.slider("rock (rad)", 0.0, 1.0, 0.01, func() -> float: return gallop.rock, func(v: float) -> void: gallop.rock = v)
+	panel.heading("Free limbs")
+	panel.slider("relax rate (1/s)", 0.5, 20.0, 0.5, func() -> float: return gait.relax_rate, func(v: float) -> void: gait.relax_rate = v)
+	panel.slider("flail size (m)", 0.0, 0.5, 0.01, func() -> float: return gait.flail_size, func(v: float) -> void: gait.flail_size = v)
+	panel.heading("Pole gait (all off = the old poles)")
+	var poles := crawler.rig.poles
+	panel.checkbox("lift while stepping", func() -> bool: return poles.lift_on, func(on: bool) -> void: poles.lift_on = on)
+	panel.slider("   lift (m)", 0.0, 1.0, 0.01, func() -> float: return poles.lift_amount, func(v: float) -> void: poles.lift_amount = v)
+	panel.checkbox("sweep with the stride", func() -> bool: return poles.sweep_on, func(on: bool) -> void: poles.sweep_on = on)
+	panel.slider("   sweep (rad)", 0.0, 2.5, 0.05, func() -> float: return poles.sweep_amount, func(v: float) -> void: poles.sweep_amount = v)
+	panel.checkbox("tuck in the air", func() -> bool: return poles.tuck_on, func(on: bool) -> void: poles.tuck_on = on)
+	panel.slider("   tuck (share)", 0.0, 1.0, 0.05, func() -> float: return poles.tuck_amount, func(v: float) -> void: poles.tuck_amount = v)
+	panel.checkbox("keep off the surface", func() -> bool: return poles.surface_on, func(on: bool) -> void: poles.surface_on = on)
+	panel.slider("   clearance (m)", 0.0, 0.8, 0.01, func() -> float: return poles.clearance, func(v: float) -> void: poles.clearance = v)
+	panel.checkbox("hex corner per step", func() -> bool: return poles.hex_on, func(on: bool) -> void: poles.hex_on = on)
+	panel.slider("   hex radius (m)", 0.0, 0.8, 0.01, func() -> float: return poles.hex_radius, func(v: float) -> void: poles.hex_radius = v)
+	panel.checkbox("noise wobble", func() -> bool: return poles.noise_on, func(on: bool) -> void: poles.noise_on = on)
+	panel.slider("   wobble (m)", 0.0, 0.5, 0.01, func() -> float: return poles.noise_amount, func(v: float) -> void: poles.noise_amount = v)
+	panel.slider("   wobble rate (Hz)", 0.1, 6.0, 0.1, func() -> float: return poles.noise_rate, func(v: float) -> void: poles.noise_rate = v)
+	panel.checkbox("smooth (spring)", func() -> bool: return poles.smooth_on, func(on: bool) -> void: poles.smooth_on = on)
+	panel.slider("   spring (Hz)", 0.5, 12.0, 0.1, func() -> float: return poles.smooth_frequency, func(v: float) -> void: poles.smooth_frequency = v)
+	panel.button("all pole options on", func() -> void: _all_poles(true))
+	panel.button("all pole options off (old poles)", func() -> void: _all_poles(false))
 	panel.heading("Footholds")
 	panel.checkbox("search candidates (off: 1 ray)", func() -> bool: return foothold.enabled, func(on: bool) -> void: foothold.enabled = on)
 	panel.slider("ring radius (m)", 0.05, 0.4, 0.01, func() -> float: return foothold.radius, func(v: float) -> void: foothold.radius = v)
 	panel.slider("max reach (share)", 0.6, 1.0, 0.01, func() -> float: return foothold.max_reach, func(v: float) -> void: foothold.max_reach = v)
 	panel.slider("tilt cost", 0.0, 1.0, 0.05, func() -> float: return foothold.tilt_cost, func(v: float) -> void: foothold.tilt_cost = v)
 	panel.heading("Body")
+	panel.slider("ride height (m)", 0.2, 0.7, 0.01, func() -> float: return crawler.pose.ride_height, func(v: float) -> void: crawler.pose.ride_height = v)
 	panel.slider("dip per step (m)", 0.0, 0.1, 0.005, func() -> float: return crawler.pose.dip_per_step, func(v: float) -> void: crawler.pose.dip_per_step = v, "%.3f")
 	panel.slider("max tilt (rad)", 0.0, 1.2, 0.05, func() -> float: return crawler.pose.max_tilt, func(v: float) -> void: crawler.pose.max_tilt = v)
 	panel.heading("Actions")
@@ -173,6 +229,17 @@ func _build_panel(layer: CanvasLayer) -> void:
 	panel.button("chase the orb on/off (G)", func() -> void: crawler.goal = null if crawler.goal is Vector3 else orb.global_position)
 	panel.button("move the orb (O)", _next_orb_spot)
 	panel.button("reset (R)", func() -> void: crawler.place(START, Vector3.FORWARD))
+
+
+func _all_poles(on: bool) -> void:
+	var poles := crawler.rig.poles
+	poles.lift_on = on
+	poles.sweep_on = on
+	poles.tuck_on = on
+	poles.surface_on = on
+	poles.hex_on = on
+	poles.noise_on = on
+	poles.smooth_on = on
 
 
 func _set_lift(value: float) -> void:
@@ -195,11 +262,11 @@ func _next_orb_spot() -> void:
 
 func _status() -> String:
 	var errors := crawler.rig.errors
-	return "Crawler (spider × cultist)   W/S A/D move · G chase · Space leap · K knock · O orb · R reset\n" + \
-		"%s · on %s · %.1f m/s · stepping %d · IK miss %.2f %.2f %.2f %.2f m · %d fps%s" % [
-		"WALK" if crawler.mode == Crawler.Mode.WALK else "TUMBLE",
+	return "Crawler (spider × cultist)   W/S A/D move · Shift run · G chase · Space leap · K knock · O orb · R reset\n" + \
+		"%s · on %s · %.1f m/s · stepping %d · IK miss %.2f %.2f %.2f %.2f m · %d fps · time ×%.2f%s" % [
+		("GALLOP" if crawler.gait.gallop.active else "WALK") if crawler.mode == Crawler.Mode.WALK else "TUMBLE",
 		_surface_name(), crawler.walker.velocity.length() if crawler.mode == Crawler.Mode.WALK else crawler.ball.linear_velocity.length(),
-		crawler.gait.stepping_count(), errors[0], errors[1], errors[2], errors[3], Engine.get_frames_per_second(),
+		crawler.gait.stepping_count(), errors[0], errors[1], errors[2], errors[3], Engine.get_frames_per_second(), Engine.time_scale,
 		"\nautopilot: " + MOVES[_move][0] if _auto and _move >= 0 and _move < MOVES.size() else ""] + "\n" + _ray_counts()
 
 
@@ -244,9 +311,13 @@ func _start(move: Array) -> void:
 		crawler.place(move[1], move[2])
 	crawler.ahead = move[3]
 	crawler.turn = move[4]
+	crawler.run = move[5] == "run"
+	debug.visible = move[5] != "run"
 	cam_offset = move[8]
 	match move[5]:
 		"leap": crawler.leap(orb.global_position)
+		"poles": _all_poles(true)
+		"nopoles": _all_poles(false)
 		"knock": crawler.hit(crawler.ball.global_position, Vector3(0, 3, 14))
 		"chase":
 			_next_orb_spot()

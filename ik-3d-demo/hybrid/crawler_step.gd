@@ -9,7 +9,9 @@
 ##             one along the surface it leaves, so it peels off. Both are pushed at least
 ##             `clearance` from the body's centre line, so the arc swings round the body.
 ##             Eased in and out (smoothstep): quick in the middle, soft at both ends.
-##   airborne  no arcs: it chases the spot the gait gives it (flailing, reaching for the ground)
+##   airborne  no arcs: it eases toward the spot the gait gives it (its relaxed pose, flailing a
+##   hanging   little); `hanging` is the same on the ground: nothing in reach to hold, so it
+##             hangs relaxed (following the body) instead of stretching for the air
 class_name CrawlerStep
 extends RefCounted
 
@@ -21,6 +23,7 @@ var normal := Vector3.UP ## the surface under it (blends from old to new during 
 var on_surface := false
 var stepping := false
 var airborne := false
+var hanging := false
 var just_planted := false ## true for the one update in which a step lands
 
 var _t := 0.0
@@ -40,21 +43,37 @@ func place(spot: Vector3, surface_normal: Vector3, hit: bool) -> void:
 	_to_normal = surface_normal
 	on_surface = hit
 	stepping = false
+	hanging = false
 
 
 ## Start a step to `spot`, taking `duration` seconds. `centre`/`up`: the body's centre and up
-## (the arc keeps clear of the line through them).
-func step_to(spot: Vector3, surface_normal: Vector3, hit: bool, duration: float, centre: Vector3, up: Vector3) -> void:
+## (the arc keeps clear of the line through them). `arc_lift` overrides `lift` for this step
+## (the gallop's lower, quicker swings); < 0 uses `lift`.
+func step_to(spot: Vector3, surface_normal: Vector3, hit: bool, duration: float, centre: Vector3, up: Vector3, arc_lift := -1.0) -> void:
+	var height := lift if arc_lift < 0.0 else arc_lift
 	_from = position
 	_to = spot
 	_from_normal = normal
 	_to_normal = surface_normal
-	_from_control = _clear(position + _from_normal * lift, centre, up)
-	_to_control = _clear(spot + surface_normal * lift, centre, up)
+	_from_control = _clear(position + _from_normal * height, centre, up)
+	_to_control = _clear(spot + surface_normal * height, centre, up)
 	_duration = maxf(duration, 0.05)
 	_t = 0.0
 	stepping = true
+	hanging = false
 	on_surface = hit
+
+
+## Nothing to hold: let go and hang relaxed until the gait finds a foothold again.
+func hang() -> void:
+	hanging = true
+	stepping = false
+	on_surface = false
+
+
+## 0..1 through the step in progress (0 when not stepping).
+func progress() -> float:
+	return _t if stepping else 0.0
 
 
 ## Where it is planted, or where the step in progress lands.
@@ -74,16 +93,17 @@ func arc(count: int) -> PackedVector3Array:
 ## Leave the ground (true) or come back to it (false; the gait then steps every limb down).
 func set_airborne(flying: bool) -> void:
 	airborne = flying
+	hanging = false
 	if flying:
 		stepping = false
 		on_surface = false
 
 
-## Advance the step, or (in the air) chase `fly_to`.
-func update(delta: float, fly_to: Vector3) -> void:
+## Advance the step, or (in the air / hanging) ease toward `relaxed` at `relax_rate` per second.
+func update(delta: float, relaxed: Vector3, relax_rate := 5.0) -> void:
 	just_planted = false
-	if airborne:
-		position = position.lerp(fly_to, minf(delta * 12.0, 1.0))
+	if airborne or hanging:
+		position = position.lerp(relaxed, 1.0 - exp(-relax_rate * delta))
 		return
 	if not stepping:
 		return

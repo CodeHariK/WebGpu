@@ -15,9 +15,13 @@
 ##   rescue    a planted limb steps now, out of turn, if it's about to overstretch (spider) or the
 ##             IK couldn't reach it last frame (`ik_errors` from crawler_rig.gd: the cultist's
 ##             feedback check, done without reading bones back)
-##   air       the cultist's flailing: each limb chases a spot circling round its usual one in
-##             the body's side plane, each out of step with the others
+##   air       limbs ease (relax_rate) to their relaxed pose (layout RELAXED) with a small flail
+##             (the cultist's circles, flail_size), instead of stretching out
+##   no hold   a forced step (rescue, landing) that finds no foothold makes the limb hang relaxed
+##             instead of reaching into the air; it grabs again when a foothold comes in reach
 ##   landing   coming down, every limb steps to its home at once (cultist)
+##   gallop    above crawler_gallop.gd's start_speed the distance rule hands over to that file's
+##             clock: a bounding gallop with flight phases (the cultist's speed and hop)
 ##
 ## Mobile: one ray per limb per frame for the homes; up to ~25 when a limb steps (about four
 ## steps a second while walking).
@@ -32,11 +36,13 @@ var fast_step_time := 0.12 ## the quickest a step gets (s)
 var overreach := 0.95 ## step now if a planted limb is this share of its reach from its root
 var ik_slack := 0.08 ## step now if the IK missed the limb's spot by more than this (m)
 var flail_speed := 14.0 ## rad/s
-var flail_size := 0.35 ## m
+var flail_size := 0.1 ## m round the relaxed pose
+var relax_rate := 5.0 ## 1/s: how quickly a free limb settles into its relaxed pose
 var world_mask := 1
 
 var steps: Array[CrawlerStep] = []
 var foothold := CrawlerFoothold.new()
+var gallop := CrawlerGallop.new()
 var rays: CrawlerRays: ## every ray goes through this log (the foothold search shares it)
 	set(value):
 		rays = value
@@ -48,6 +54,7 @@ var home_normals := PackedVector3Array()
 var home_hits: Array[bool] = []
 var airborne := false
 
+var _last_body := Vector3.INF # body position last frame: free limbs travel with it
 var _next_group := 0
 var _flight := 0.0
 const _FLAIL_PHASE := [0.0, 2.1, 4.2, 1.0]
@@ -82,17 +89,53 @@ func update(space: PhysicsDirectSpaceState3D, delta: float, frame: Transform3D, 
 		if not flying:
 			_update_homes(space, frame, velocity, body)
 			_step_all(space, frame, body, step_time * 0.7)
+	_carry_free_limbs(body)
 	if airborne:
 		_flight += delta * flail_speed
 		for limb in CrawlerLayout.COUNT:
-			steps[limb].update(delta, _flail_spot(limb, body))
+			steps[limb].update(delta, _flail_spot(limb, body), relax_rate)
 		return
 	_update_homes(space, frame, velocity, body)
-	var duration := _step_duration(velocity)
-	_maybe_start_group(space, frame, body, duration)
-	_rescue(space, frame, body, ik_errors, duration)
-	for step in steps:
-		step.update(delta, Vector3.ZERO)
+	gallop.blend(delta)
+	if gallop.wants(velocity.length()):
+		gallop.update(self, space, delta, frame, velocity, body)
+	else:
+		var duration := _step_duration(velocity)
+		_maybe_start_group(space, frame, body, duration)
+		_rescue(space, frame, body, ik_errors, duration)
+	for limb in CrawlerLayout.COUNT:
+		steps[limb].update(delta, relaxed_point(limb, body), relax_rate)
+
+
+## Step `limb` to the best foothold round `home` (any point on the surface frame's plane),
+## taking `duration`, arcing `lift` high (the gallop's landings). No foothold: it hangs.
+func step_limb_to(space: PhysicsDirectSpaceState3D, frame: Transform3D, limb: int, body: Transform3D, home: Vector3, duration: float, lift: float) -> void:
+	var spot := foothold.pick(space, limb, home, frame, body, _others(limb))
+	if spot.hit:
+		steps[limb].step_to(spot.position, spot.normal, spot.hit, duration, body.origin, body.basis.y, lift)
+	else:
+		steps[limb].hang()
+
+
+## Free limbs (in the air or hanging) move with the body, then ease toward their relaxed pose,
+## so a fast-moving body doesn't leave them trailing behind, stretched.
+func _carry_free_limbs(body: Transform3D) -> void:
+	if _last_body != Vector3.INF:
+		var moved := body.origin - _last_body
+		for step in steps:
+			if step.airborne or step.hanging:
+				step.position += moved
+	_last_body = body.origin
+
+
+## Let go: the limb eases to its relaxed pose (the gallop's take-off).
+func hang_limb(limb: int) -> void:
+	steps[limb].hang()
+
+
+## Where `limb` hangs when it holds nothing: its relaxed pose on the posed body.
+func relaxed_point(limb: int, body: Transform3D) -> Vector3:
+	return body * CrawlerLayout.RELAXED[limb]
 
 
 ## How many limbs are mid-step (the body dips a little for each).
@@ -130,7 +173,7 @@ func _maybe_start_group(space: PhysicsDirectSpaceState3D, frame: Transform3D, bo
 func _rescue(space: PhysicsDirectSpaceState3D, frame: Transform3D, body: Transform3D, ik_errors: PackedFloat32Array, duration: float) -> void:
 	for limb in CrawlerLayout.COUNT:
 		var step := steps[limb]
-		if step.stepping:
+		if step.stepping or step.hanging:
 			continue
 		var root: Vector3 = body * CrawlerLayout.ROOTS[limb]
 		var stretched := root.distance_to(step.position) > CrawlerLayout.reach(limb) * overreach
@@ -146,7 +189,10 @@ func _step(space: PhysicsDirectSpaceState3D, frame: Transform3D, limb: int, body
 	var step := steps[limb]
 	if spot.position.distance_to(step.position) < 0.05:
 		return false
-	if not spot.hit and step.on_surface and not forced:
+	if not spot.hit:
+		if forced and not step.hanging:
+			step.hang()  # nothing in reach: hang relaxed rather than reach into the air
+			return true
 		return false
 	step.step_to(spot.position, spot.normal, spot.hit, duration, body.origin, body.basis.y)
 	return true
@@ -178,11 +224,10 @@ func _update_homes(space: PhysicsDirectSpaceState3D, frame: Transform3D, velocit
 		home_normals[limb] = hit.normal if home_hits[limb] else up
 
 
-## In the air: a spot below and beside the body, swung round a circle in the body's side plane.
+## In the air: the relaxed pose, swung round a small circle in the body's side plane.
 func _flail_spot(limb: int, body: Transform3D) -> Vector3:
-	var rest := CrawlerLayout.rest(limb) + Vector3(0.0, -CrawlerLayout.RIDE_HEIGHT * 0.6, 0.0)
 	var angle: float = _flight + _FLAIL_PHASE[limb]
-	return body * rest + body.basis * (Vector3(0.0, sin(angle), cos(angle)) * flail_size)
+	return relaxed_point(limb, body) + body.basis * (Vector3(0.0, sin(angle), cos(angle)) * flail_size)
 
 
 func _ray(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Dictionary:

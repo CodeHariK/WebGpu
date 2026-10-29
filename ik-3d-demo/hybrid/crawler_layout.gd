@@ -28,6 +28,10 @@ const REST := [Vector2(-0.55, -0.6), Vector2(0.55, -0.6), Vector2(-0.5, 0.6), Ve
 ## Where each elbow/knee points, body frame, from the middle of the limb: the cultist's magnet
 ## offsets scaled down (elbows out, up and back; knees out, up and forward).
 const POLES := [Vector3(-0.6, 0.6, 0.3), Vector3(0.6, 0.6, 0.3), Vector3(-0.6, 0.4, -0.4), Vector3(0.6, 0.4, -0.4)]
+## Where a hand/foot hangs when it has nothing to hold (in the air, or no foothold in reach):
+## body frame, about half its reach from the shoulder/hip, bent, a little forward/back. Limbs ease
+## toward these instead of stretching straight at a spot they can't reach.
+const RELAXED := [Vector3(-0.36, -0.3, -0.45), Vector3(0.36, -0.3, -0.45), Vector3(-0.33, -0.32, 0.42), Vector3(0.33, -0.32, 0.42)]
 ## IK target this far off the surface (palm / sole thickness).
 const LIFT := [0.035, 0.035, 0.045, 0.045]
 

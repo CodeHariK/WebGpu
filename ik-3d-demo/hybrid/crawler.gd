@@ -13,7 +13,10 @@
 ##
 ## Control (from a brain or a player), each physics frame:
 ##   ahead, turn   -1..1 inputs (forward/back, left/right about the surface normal), or
-##   goal          a world point: it steers there by itself (overrides ahead/turn)
+##   goal          a world point: it steers there by itself (overrides ahead/turn); it runs
+##                 when the goal is more than run_distance away
+##   run           full speed (run_speed instead of walk_speed): fast enough that the gait turns
+##                 into a bounding gallop (crawler_gallop.gd)
 ##   look_target   a node the head watches (null: looks ahead)
 ##   leap(at)      crouch, then jump at a point (cultist lunge: a ballistic arc)
 ##   hit(p, f)     a blow at p with force f: small ones make it flinch, big ones (or any while on a
@@ -34,6 +37,10 @@ enum Mode { WALK, TUMBLE }
 
 var ahead := 0.0
 var turn := 0.0
+var run := false
+var walk_speed := 1.6 ## m/s
+var run_speed := 6.0 ## m/s (the cultist ran at 6–9)
+var run_distance := 4.0 ## chasing a goal further than this, it runs
 var goal: Variant = null ## Vector3 or null
 var stop_distance := 0.8 ## goal reached this close (m)
 
@@ -105,7 +112,7 @@ func _physics_process(delta: float) -> void:
 	else:
 		_roll(space, delta)
 	var watch: Variant = look_target.global_position if look_target else null
-	rig.update(delta, pose.transform, gait.steps, watch)
+	rig.update(delta, pose.transform, gait.steps, watch, gait.gallop.in_flight())
 
 
 func _walk(space: PhysicsDirectSpaceState3D, delta: float) -> void:
@@ -116,15 +123,18 @@ func _walk(space: PhysicsDirectSpaceState3D, delta: float) -> void:
 		if _crouch <= 0.0:
 			_tumble(_ballistic(pose.transform.origin, _leap_to))
 			return
+	walker.speed = run_speed if _running() else walk_speed
 	if not walker.move(space, delta, inputs.x, inputs.y):
 		_tumble(walker.velocity)
 		return
 	_heading = walker.forward()
 	gait.update(space, delta, walker.frame, walker.velocity, pose.transform, rig.errors, false)
-	var target := pose.walk_target(walker.frame, gait.steps, gait.stepping_count())
+	var bob := gait.gallop.body_motion()
+	var stepping := 0 if gait.gallop.active else gait.stepping_count()
+	var target := pose.walk_target(walker.frame, gait.steps, stepping)
 	if _crouch > 0.0:
 		target.origin -= target.basis.y * crouch_depth * (1.0 - _crouch / crouch_time)
-	pose.update(delta, target)
+	pose.update(delta, target, bob)
 	ball.carry(pose.transform.origin)
 
 
@@ -148,6 +158,12 @@ func _tumble(velocity: Vector3) -> void:
 	_crouch = 0.0
 	ball.global_position = pose.transform.origin
 	ball.release(velocity)
+
+
+func _running() -> bool:
+	if goal is Vector3:
+		return walker.frame.origin.distance_to(goal) > run_distance
+	return run
 
 
 ## (ahead, turn) from the goal if there is one, else the inputs as given.

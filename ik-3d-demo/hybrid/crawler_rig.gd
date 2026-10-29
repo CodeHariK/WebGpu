@@ -2,7 +2,8 @@
 ##
 ##   limbs   four LimbChains (limbs/limb_chain.gd: exact two-bone IK, law of cosines, the
 ##           knee/elbow bending toward a pole). Root on the shoulder/hip, target the step's spot
-##           lifted off its surface, pole the layout's magnet offset (cultist). The upper and
+##           lifted off its surface, pole from crawler_poles.gd (the layout's magnet offset, the
+##           cultist's, plus whichever pole behaviours are switched on). The upper and
 ##           lower segments, their joints, the neck and the spine are all drawn by one
 ##           LimbRenderer (3 MultiMesh draw calls for everything).
 ##   errors  after solving, how far each limb's tip missed its target (chain.error()), handed to
@@ -31,6 +32,7 @@ var head_limit := 1.3 ## radians from straight ahead
 var chains: Array[LimbChain] = []
 var errors := PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
 var renderer := LimbRenderer.new()
+var poles := CrawlerPoles.new()
 
 var _neck := LimbChain.new(PackedFloat32Array([0.22]), Vector3.ZERO, LimbChain.Solver.FK)
 var _spine := LimbChain.new(PackedFloat32Array([0.6]), Vector3.ZERO, LimbChain.Solver.FK)
@@ -66,32 +68,32 @@ func _ready() -> void:
 
 
 ## Pose everything for this frame. `body`: the posed body; `steps`: the gait's hands and feet;
-## `watch`: a world point to watch (null: straight ahead).
-func update(delta: float, body: Transform3D, steps: Array[CrawlerStep], watch: Variant) -> void:
+## `watch`: a world point to watch (null: straight ahead); `leaping`: mid gallop leap.
+func update(delta: float, body: Transform3D, steps: Array[CrawlerStep], watch: Variant, leaping := false) -> void:
 	_pelvis_basis = Basis(_pelvis_basis.get_rotation_quaternion().slerp(body.basis.get_rotation_quaternion(), minf(delta * pelvis_lag, 1.0)))
 	var pelvis := Transform3D(_pelvis_basis, body * PELVIS_OFFSET)
 	_chest.global_transform = body
 	_pelvis.global_transform = pelvis
 	for limb in CrawlerLayout.COUNT:
-		_pose_limb(limb, body, pelvis, steps[limb])
+		_pose_limb(limb, body, pelvis, steps[limb], delta, leaping)
 	_spine.points[0] = body.origin
 	_spine.points[1] = pelvis.origin
 	_pose_head(delta, body, watch)
 	renderer.draw()
 
 
-func _pose_limb(limb: int, body: Transform3D, pelvis: Transform3D, step: CrawlerStep) -> void:
+func _pose_limb(limb: int, body: Transform3D, pelvis: Transform3D, step: CrawlerStep, delta: float, leaping: bool) -> void:
 	var chain := chains[limb]
 	var root_local: Vector3 = CrawlerLayout.ROOTS[limb]
 	chain.root = pelvis * (root_local - PELVIS_OFFSET) if CrawlerLayout.is_foot(limb) else body * root_local
 	chain.target = step.position + step.normal * CrawlerLayout.LIFT[limb]
-	chain.pole = (chain.root + chain.target) * 0.5 + body.basis * CrawlerLayout.POLES[limb]
+	chain.pole = poles.pole(limb, chain.root, chain.target, body, step, delta, leaping)
 	chain.solve()
 	errors[limb] = chain.error()
 	var tip := chain.tip()
 	var facing: Vector3
 	var up: Vector3
-	if step.airborne:
+	if step.airborne or step.hanging:
 		facing = (tip - body.origin) * 0.5 + body.basis * CrawlerLayout.POLES[limb]
 		up = body.basis.y
 	else:

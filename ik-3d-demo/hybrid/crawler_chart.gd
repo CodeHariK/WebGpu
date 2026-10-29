@@ -35,14 +35,14 @@ func _physics_process(_delta: float) -> void:
 	_head = (_head + 1) % SAMPLES
 	for limb in CrawlerLayout.COUNT:
 		var step := crawler.gait.steps[limb]
-		_history[limb][_head] = AIR if step.airborne else (STEPPING if step.stepping else PLANTED)
+		_history[limb][_head] = AIR if step.airborne or step.hanging else (STEPPING if step.stepping else PLANTED)
 	queue_redraw()
 
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, custom_minimum_size), Color(0, 0, 0, 0.5))
 	var font := ThemeDB.fallback_font
-	draw_string(font, Vector2(4, 14), "footfalls (bar = planted, gap = stepping, red = air)", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.85, 0.85, 0.85))
+	draw_string(font, Vector2(4, 14), "footfalls (bar = planted, gap = stepping, red = free/hanging)", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.85, 0.85, 0.85))
 	var step := WIDTH / SAMPLES
 	for limb in CrawlerLayout.COUNT:
 		var y := 22.0 + limb * ROW

@@ -11,9 +11,12 @@
 ##           spider's SecondOrder): position lags and settles with a little weight; facing
 ##           (forward and up separately) overshoots a touch on turns and surface changes, which
 ##           also hides the walker's snaps from floor to wall. kick() shoves it (a flinch).
+##   extra   (height, pitch) added AFTER the springs (the gallop's leaps): springs would soften
+##           a fast drop, and the leap should land hard
 class_name CrawlerPose
 extends RefCounted
 
+var ride_height := CrawlerLayout.RIDE_HEIGHT ## chest above the surface when relaxed (m)
 var dip_per_step := 0.035 ## m lower per limb mid-step
 var max_tilt := 0.6 ## radians, pitch and roll each
 
@@ -44,20 +47,24 @@ func kick(velocity: Vector3) -> void:
 	_position.kick(velocity)
 
 
-func update(delta: float, target: Transform3D) -> void:
+func update(delta: float, target: Transform3D, extra := Vector2.ZERO) -> void:
 	var at := _position.update(delta, target.origin)
 	var up := _up.update(delta, target.basis.y)
 	var forward := _forward.update(delta, -target.basis.z)
 	if up.length() < 1e-3:
 		up = target.basis.y
 	transform = Transform3D(SurfaceWalker.surface_basis(up.normalized(), forward), at)
+	if extra != Vector2.ZERO:
+		transform.origin += transform.basis.y * extra.x
+		transform.basis = transform.basis * Basis(Vector3.RIGHT, extra.y)
 
 
 ## Walking: the body over `frame` (the walker's surface frame), fitted to the planted limbs.
 func walk_target(frame: Transform3D, steps: Array[CrawlerStep], stepping: int) -> Transform3D:
 	var fit := _fit(frame, steps)
-	var height := CrawlerLayout.RIDE_HEIGHT + fit.x - dip_per_step * stepping
-	var tilt := Basis.from_euler(Vector3(clampf(fit.y, -max_tilt, max_tilt), 0.0, clampf(fit.z, -max_tilt, max_tilt)))
+	var height := ride_height + fit.x - dip_per_step * stepping
+	var pitch := clampf(fit.y, -max_tilt, max_tilt)
+	var tilt := Basis.from_euler(Vector3(pitch, 0.0, clampf(fit.z, -max_tilt, max_tilt)))
 	return Transform3D(frame.basis * tilt, frame * Vector3(0.0, height, 0.0))
 
 
@@ -73,7 +80,7 @@ func _fit(frame: Transform3D, steps: Array[CrawlerStep]) -> Vector3:
 	var inverse := frame.affine_inverse()
 	var samples: Array[Vector3] = []
 	for limb in steps.size():
-		if steps[limb].airborne:
+		if steps[limb].airborne or steps[limb].hanging:
 			continue
 		var local := inverse * steps[limb].position
 		var rest := CrawlerLayout.rest(limb)
