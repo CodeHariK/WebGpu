@@ -19,7 +19,6 @@ const COCK := 0.3 ## seconds between aimed shots (cocking the hammer)
 const FAN_GAP := 0.09 ## seconds between shots when fanning …
 const FAN_SPREAD := 7.0 ## … and how far (degrees) they stray
 const RELOAD := 1.0 ## seconds: swing out, spin, swing in
-const RANGE := 40.0
 const HIT := 0.55 ## m: a shot this close to a robot's middle (plus some for its size) hits it
 const KICK_UP := 38.0 ## degrees the muzzle kicks up at full recoil …
 const KICK_BACK := 0.16 ## … and m the gun comes back
@@ -29,6 +28,7 @@ const STEEL := Color(0.08, 0.08, 0.09)
 const BONE := Color(0.82, 0.78, 0.68)
 
 var ammo := ROUNDS
+var shot_range := 40.0 ## m a shot reaches (a demo with far targets raises it)
 var kick := 0.0 ## the recoil now (0 at rest; a shot adds 1; it springs back)
 
 var _demo: BladesDemo
@@ -178,7 +178,7 @@ func _shoot(spread: float) -> void:
 	if spread > 0.0:
 		var stray := deg_to_rad(spread)
 		aim = aim.rotated(Vector3.UP, randf_range(-stray, stray)).rotated(aim.cross(Vector3.UP).normalized(), randf_range(-stray, stray) * 0.6).normalized()
-	var end := muzzle + aim * RANGE
+	var end := muzzle + aim * shot_range
 	var hit := _first_hit(muzzle, end)
 	if hit >= 0:
 		var enemy := _demo.enemies[hit]

@@ -38,6 +38,8 @@ blades: ## Blades of Chaos: Bezier blade paths + Bezier chains (no physics)
 	$(RUN) --scene blades/blades_demo.tscn
 
 # --- Bosses ---
+skyship: ## Skyship boss: floating carrier, timed attack patterns, shield pylons, repair bots; the blades player (ARGS=--shot: autopilot + screenshots)
+	$(RUN) --scene skyship/skyship_demo.tscn $(if $(ARGS),-- $(ARGS))
 orb: ## Orb Warden boss: six-legged laser sphere (WASD dodge, F laser)
 	$(RUN) --scene orbwarden/orb_demo.tscn
 
@@ -72,4 +74,4 @@ import: ## rescan the project (registers new class_name scripts, reimports asset
 help: ## list the targets
 	@grep -E '^[a-z0-9_]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  make %-10s %s\n", $$1, $$2}'
 
-.PHONY: hybrid orb mood blades chain e limbs spider gait hex bat flytrap vacuum rope grid squad road adjusted magnet demo2 view modifier import help
+.PHONY: skyship hybrid orb mood blades chain e limbs spider gait hex bat flytrap vacuum rope grid squad road adjusted magnet demo2 view modifier import help
