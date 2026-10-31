@@ -23,7 +23,8 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
       (32x8x32 cells, Forward+): render objects 1091 → 12, draw calls 24 → 12 (Godot was already
       instancing identical tiles), primitives +19% (culling per chunk, not per cell), build 24 → 32 ms,
       one edit 0.03 → 0.55 ms — uncommitted
-- [ ] MCHeightmap still spawns one node per cell: move it onto the same chunk builder
+- [ ] ~~MCHeightmap onto the chunk builder~~ → replaced by **heightmap mode in MCGrid** (see the
+      Animal Crossing / Link's Awakening section)
 - [ ] **Layered height grid + water/waterfalls + save v2 (zstd per chunk)** — plan in `docs/TerrainStorage.md`
 - [ ] **Separate collision meshes** (modelled in Blender):
       - Blender: child object `<tile>_col` (e.g. `00010001_col`, `00010001_v2_col`), moves/turns with the tile;
@@ -139,6 +140,45 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
 - [ ] Simple AI floor graph (only when AI needs it): `00001111` cells = flat floor at their height,
       same-height neighbours linked, no automatic links between heights (no ladders / stairs)
 
+## Animal Crossing / Link's Awakening terrain (design agreed, not started)
+
+Rule: if it changes how you walk between heights and comes from the corners, it's terrain (tiles);
+everything built on top is an object. Terrain stays pure corners.
+
+- [ ] **Cliff tile set** in the AC / LA look (heightmap mode, the 22 no-overhang tiles): grass lip on
+      top, rock face; rounded (AC) and / or blocky (LA) as tile groups
+- [ ] **Slopes = tiles, not a system**: the same corner pattern that draws a cliff step ("high on one
+      side, low on the other") modelled as a tilted surface in another group (`a` cliffs, `b` slopes),
+      rolled per region or chosen; collider follows the mesh, so walkable for free.
+      Catch: one level over one cell is 45°: try half-height levels (0.5 high, ~27°) first; two-cell
+      slopes (neighbour-aware tiles) only if that's not enough. (LA's smooth height changes look like
+      slope tiles — guessed from how it looks, not checked)
+- [ ] **Stairs / ramps = objects** (any width / height / depth), standing on the lower level in front
+      of the cliff, back against the face, top landing on the upper edge — not cut into the cliff, so
+      wall → stair → wall needs no special tiles (the cliff runs on behind it). Built from pieces: left
+      end, middle repeated across the width, right end; height from the levels it spans, depth =
+      height × run per level; own collider (steps or ramp)
+      - Placement check: snaps to a cliff edge; footprint on the lower level flat and free
+        (`MCPlacedObjects`); top meets ground exactly its height above
+      - Protection: corners under the footprint and the cliff-top corners it lands on are locked while
+        it stands (block the click, or remove the stair and give it back) — no floating / buried stairs
+- [ ] **Fences / walls = objects on cell edges** (no thickness), height read from the terrain under
+      them, auto-connect to neighbours (straight / corner / T / end pieces)
+- [ ] **Water layer + waterfalls** per `docs/TerrainStorage.md` §7: water height per column, see-through
+      surface mesh per chunk, waterfalls derived where neighbouring water heights differ (+ splash)
+- [ ] **Ground material per cell** (grass / sand / path) baked into the atlas (see Material variants)
+- [ ] **Heightmap mode in MCGrid** (decided: fold MCHeightmap into MCGrid, not grow it into a second
+      terrain). One terrain system: chunk meshes + colliders, editing, hover, save, placed objects,
+      stairs / fences, water and streaming written once.
+      - Storage: height byte per column (1 B / column vs ~4 B of corner bits at 32 high);
+        `is_corner_active` = `y < height[x][z]`; corner mode stays for special areas (caves, arches)
+      - Editing rule: a click raises / lowers a whole column (no overhangs possible)
+      - Save v2 height layer (`docs/TerrainStorage.md`)
+      - MCHeightmap's noise code becomes the start of the island generator, writing heights into
+        MCGrid; remove the MCHeightmap node / demo only after the grid mode works (port first)
+- [ ] **Island generator**: coastline + beach, 2–3 cliff tiers, a river down to the sea, a pond; still
+      editable one corner per click
+
 ## Later
 
 - [ ] Prism kind in the add-on (read `src/terrain/marching_prism` for corner order + 120° turns)
@@ -147,7 +187,7 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
       lattice neighbours checked, wireframe ids miss `loc_y`, per-cell nodes + BoxShape3D, cell-corner
       code duplicated 4×
 - [ ] Skip the runtime library showcase (`display_library`) outside debug
-- [ ] MCHeightmap: don't let its noise overwrite heights loaded from a save
+- [ ] Island generator (from MCHeightmap's noise): don't overwrite heights loaded from a save
 - [ ] Heightmap set: copy the 22 no-overhang tiles out of Circus into their own set
 
 ## Streaming (chunk border corners)
