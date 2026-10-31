@@ -62,7 +62,7 @@ There are more than three ways to store a grid:
 
 | Mode | Stores | Can do | Used by |
 |---|---|---|---|
-| **Height** (2.5D) | one height per column | hills, cliffs, terraces; no caves | Animal Crossing-style islands; our `MCHeightmap` |
+| **Height** (2.5D) | one height per column | hills, cliffs, terraces; no caves | Animal Crossing-style islands; MCGrid's heightmap mode |
 | **Corner** (3D bits) | solid / empty per corner | anything: caves, overhangs, arches | our MCGrid today |
 | **Cell / block** (3D types) | one type id per cell | anything, a type per block | **Minecraft** |
 | **Column spans** | per column, a few (start, end) solid spans | caves / overhangs, almost as small as height | some voxel engines |
@@ -180,4 +180,4 @@ Rough, extrapolated from the generated terrain above (real islands with lots of 
    water, objects. Corner mode only for special areas (caves, arches).
 2. **Save v2:** layer list per chunk, zstd per chunk, v1 still loads.
 3. First two layers to build: **height + surface material**; then water + derived waterfalls.
-4. Fold `MCHeightmap` (separate class, one node per cell today) into this.
+4. ~~Fold `MCHeightmap` into this~~ done: MCGrid heightmap mode (`grid/mc_grid_heights.cpp`); MCHeightmap removed.

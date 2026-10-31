@@ -29,6 +29,24 @@ void MCTileLibrary::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("build_showcase"), &MCTileLibrary::build_showcase);
 	ClassDB::bind_method(D_METHOD("fill_by_y_turns"), &MCTileLibrary::fill_by_y_turns);
 	ClassDB::bind_method(D_METHOD("get_hashes_per_tile"), &MCTileLibrary::get_hashes_per_tile);
+	ClassDB::bind_method(D_METHOD("get_cell_tile", "level", "hash", "cell"), &MCTileLibrary::get_cell_tile);
+}
+
+// The mesh variant and turn a cell of this level and hash draws (empty when there is none).
+Dictionary MCTileLibrary::get_cell_tile(
+		const String &p_level,
+		int p_hash,
+		const Vector3i &p_cell
+) const {
+	Dictionary result;
+	char level = p_level.is_empty() ? 'm' : static_cast<char>(p_level[0]);
+	const MCTile &tile = get_tile_for_level(level, static_cast<uint8_t>(p_hash));
+	if (tile.mesh.is_null()) {
+		return result;
+	}
+	result["mesh"] = tile.mesh_for_cell(p_cell);
+	result["turn"] = tile.turn;
+	return result;
 }
 
 MCTileLibrary::MCTileLibrary() = default;

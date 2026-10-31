@@ -144,6 +144,13 @@ public:
 			char p_height,
 			uint8_t p_hash
 	) const;
+	// What a cell draws, for scripts / tests: {"mesh": the variant for p_cell, "turn": Transform3D}
+	// of get_tile_for_level(p_level 'l' / 'm' / 'h', p_hash); empty when there is none.
+	Dictionary get_cell_tile(
+			const String &p_level,
+			int p_hash,
+			const Vector3i &p_cell
+	) const;
 	// Does the set have any tile of this level ('l', 'm', 'h')?
 	bool has_level(char p_height) const;
 	// {modelled tile hash as "00001111": how many hashes it draws}, for the stats panel.

@@ -70,7 +70,6 @@
 
 #include "marching_cubes/library/mc_library.h"
 #include "marching_cubes/grid/mc_grid.h"
-#include "marching_cubes/heightmap/mc_heightmap.h"
 #include "marching_cubes/editor/mc_manager.h"
 #include "surface_nets/sn_grid.h"
 #include "terrain/marching_prism/mp.h"
@@ -197,7 +196,6 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(MCTileLibrary);
 	GDREGISTER_CLASS(MCManager);
 	GDREGISTER_CLASS(MCGrid);
-	GDREGISTER_CLASS(MCHeightmap);
 	GDREGISTER_CLASS(MPNode);
 	GDREGISTER_CLASS(MPGrid);
 	GDREGISTER_CLASS(MPManager);

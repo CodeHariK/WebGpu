@@ -121,6 +121,9 @@ String MCGrid::randomize_levels(
 	if (!tile_library || chunks.empty()) {
 		return "no tile library / grid";
 	}
+	if (heightmap_mode) {
+		return randomize_heights(p_seed); // the level planner makes overhangs: an island instead
+	}
 	mc::LevelPlanInput input;
 	input.block = _cell_block();
 	input.seed = static_cast<uint32_t>(p_seed);

@@ -2,6 +2,7 @@
 //   mc_grid.cpp                setup, properties, corner edits, corner/cell queries
 //   mc_grid_cells.cpp          the tiles of each chunk merged into one mesh + collider
 //   mc_grid_levels.cpp         each cell's level (L / M / H, core/mc_level_plan.h) and Randomize
+//   mc_grid_heights.cpp        heightmap mode: one height per corner column, no overhangs, islands
 //   mc_grid_debug_corners.cpp  debug cubes on the corners (+ their picking colliders)
 //   mc_grid_hover.cpp          hover preview quads
 //   mc_grid_objects.cpp        placed objects (with mc_spatial)
@@ -46,6 +47,9 @@ private:
 	std::vector<uint8_t> roof_m; // per cell: roof regions Randomize made M (kept through edits)
 	mc::LevelPlan last_plan; // the last Randomize
 	mc::LevelPin pin; // one library tile fixed in the grid (Randomize plans around it)
+	bool heightmap_mode = false; // one height per corner column (no overhangs): mc_grid_heights.cpp
+	std::vector<uint8_t> column_heights; // heightmap mode: per corner column (x + z * columns.x)
+	bool lock_rim = true; // heightmap mode: outer columns locked to the floor (off: open edge)
 	Ref<Mesh> pin_mesh; // the pinned tile's own mesh, drawn at its cell
 	std::vector<Chunk> chunks;
 	MCPlacedObjects placed_list; // boxes placed in object mode
@@ -140,6 +144,38 @@ private:
 	// Create the three hover quads (one per axis) used to highlight the corner under the mouse.
 	void _initialize_hover_previews();
 
+	// --- heightmap mode (mc_grid_heights.cpp) ---
+	// Corner columns per side (cells + 1), as (x, z).
+	Vector2i _column_counts() const;
+	// Index of corner column (x, z) in column_heights; -1 outside the grid.
+	int _column_index(
+			int p_x,
+			int p_z
+	) const;
+	// The floor (1 with solid_floor, else 0) and the highest height (the top layer stays empty).
+	int _min_column_height() const;
+	int _max_column_height() const;
+	// Outer columns (on the grid's edge) are locked to the floor.
+	bool _is_edge_column(
+			int p_x,
+			int p_z
+	) const;
+	// Heights from the corners (the solid run up from the floor); overhangs above it are emptied.
+	void _heights_from_corners();
+	// Write one column's corners for a height (no checks, no rebuild).
+	void _write_column(
+			int p_x,
+			int p_z,
+			int p_height
+	);
+	// The M roofs for the current corners, MCHeightmap's rule, seeded.
+	void _roll_roof_m(uint32_t p_seed);
+	// set_corner in heightmap mode: fill -> column rises to just above it, empty -> drops below it.
+	void _set_corner_as_height(
+			const Vector3i &p_grid_pos,
+			bool p_active
+	);
+
 protected:
 	// Inspector properties and the methods scripts / MCManager call.
 	static void _bind_methods();
@@ -216,6 +252,31 @@ public:
 	// The last Randomize as data: hashes / levels (PackedByteArray, x fastest, then y, then z;
 	// 0 L, 1 M, 2 H), size, gaps, column_breaks, bottom_solved.
 	Dictionary get_last_plan() const;
+	// Heightmap mode: every corner column has one height, so no overhangs; edits (set_corner,
+	// clicks) move whole columns. Turning it on flattens a live grid's overhangs.
+	void set_heightmap_mode(bool p_on);
+	bool get_heightmap_mode() const { return heightmap_mode; }
+	// Height of corner column (x, z) = its solid corners (y < height); -1 outside / not in the mode.
+	int get_column_height(const Vector2i &p_column) const;
+	// Set a column's height (clamped to floor .. top - 1; outer columns locked); queues a rebuild.
+	void set_column_height(
+			const Vector2i &p_column,
+			int p_height
+	);
+	// An island from noise for p_seed (turns heightmap mode on): tiers rising to the middle, the rim
+	// at the floor, M roofs rolled; rebuilds the grid. Returns "island 3: heights 0x40 1x30 …".
+	String randomize_heights(int p_seed);
+	// Heightmap mode: outer columns locked to the floor (default), or editable with the terrain
+	// ending open at the grid's edge (like MCHeightmap).
+	void set_lock_rim(bool p_lock);
+	bool get_lock_rim() const { return lock_rim; }
+	// MCHeightmap's heightmap_data (p_size columns, a column solid up to and including its value)
+	// into the grid (corner columns = p_size, or p_size + 2 with the rim locked), with MCHeightmap's
+	// M-roof roll; turns heightmap mode on, rebuilds. Returns "" or what was wrong / clipped.
+	String load_heights(
+			const PackedByteArray &p_data,
+			const Vector2i &p_size
+	);
 	// Write the corner grid to a .mct file (format in mc_grid_io.cpp).
 	void save_grid(const String &p_path);
 	// Read a .mct file; the grid only changes once the whole file has been validated.

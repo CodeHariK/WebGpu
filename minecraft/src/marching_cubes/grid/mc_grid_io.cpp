@@ -107,6 +107,9 @@ void MCGrid::load_grid(const String &p_path) {
 	}
 
 	UtilityFunctions::print("MCGrid: Loaded state from ", p_path);
+	if (heightmap_mode) {
+		_heights_from_corners(); // a save made in corner mode may overhang: flattened
+	}
 	refresh_grid();
 }
 

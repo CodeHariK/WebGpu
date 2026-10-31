@@ -106,7 +106,8 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
 
 - [x] **L / M / H levels**: tags `hash_<height><group><number>` (`00001101_ma1`); L only in the bottom
       layer, H only beside H, L -> M -> H up a column, M or H can top a column (`roof_m`); same rules in
-      the Blender playground, MCGrid Randomize (`core/mc_level_plan`) and MCHeightmap
+      the Blender playground, MCGrid Randomize (`core/mc_level_plan`) and MCHeightmap (now MCGrid's
+      heightmap mode)
 - [x] BrickBlock set (`BrickBlock88.blend` -> `BrickBlock91.glb`, 75 modelled + 16 mirrors) loaded by `cubes.tscn`
 - [x] **Build from Pieces** set toggle (on for Circus, off for BrickBlock); generated copies exported
       2 m above their source
@@ -168,14 +169,22 @@ everything built on top is an object. Terrain stays pure corners.
       surface mesh per chunk, waterfalls derived where neighbouring water heights differ (+ splash)
 - [ ] **Ground material per cell** (grass / sand / path) baked into the atlas (see Material variants)
 - [ ] **Heightmap mode in MCGrid** (decided: fold MCHeightmap into MCGrid, not grow it into a second
-      terrain). One terrain system: chunk meshes + colliders, editing, hover, save, placed objects,
+      terrain). **Step 1 done (uncommitted):** `heightmap_mode` property + "Heightmap mode" button;
+      a height per corner column kept in step with the corner bits (`grid/mc_grid_heights.cpp`);
+      set_corner / clicks move whole columns; switching on / loading flattens overhangs; Randomize
+      in the mode = `randomize_heights` (noise island). Checked: 0 corner/height mismatches, edits
+      clamp, rim locked. **Port verified:** `load_heights` (MCHeightmap's data + its M-roof roll) with
+      `lock_rim` off rebuilds cubes.tscn's MCHeightmap cell for cell — 686 cells, 189 tiles: 0 hash,
+      0 drawn, 0 mesh-variant / turn / level differences (MCGrid adds socket decor, MCHeightmap
+      doesn't). MCHeightmap removed (heightmap/ folder, the node in cubes.tscn).
+      Still to do: save v2 height layer (today saves the corner bits), a cliff tile set (BrickBlock reads as buildings). One terrain system: chunk meshes + colliders, editing, hover, save, placed objects,
       stairs / fences, water and streaming written once.
       - Storage: height byte per column (1 B / column vs ~4 B of corner bits at 32 high);
         `is_corner_active` = `y < height[x][z]`; corner mode stays for special areas (caves, arches)
       - Editing rule: a click raises / lowers a whole column (no overhangs possible)
       - Save v2 height layer (`docs/TerrainStorage.md`)
-      - MCHeightmap's noise code becomes the start of the island generator, writing heights into
-        MCGrid; remove the MCHeightmap node / demo only after the grid mode works (port first)
+      - Island generator: `randomize_heights` (noise island) is its start; MCHeightmap's optional
+        Noise resource (Inspector) isn't ported — add a `noise_source` property if wanted
 - [ ] **Island generator**: coastline + beach, 2–3 cliff tiers, a river down to the sea, a pond; still
       editable one corner per click
 
@@ -187,7 +196,7 @@ everything built on top is an object. Terrain stays pure corners.
       lattice neighbours checked, wireframe ids miss `loc_y`, per-cell nodes + BoxShape3D, cell-corner
       code duplicated 4×
 - [ ] Skip the runtime library showcase (`display_library`) outside debug
-- [ ] Island generator (from MCHeightmap's noise): don't overwrite heights loaded from a save
+- [ ] Island generator: don't overwrite heights loaded from a save
 - [ ] Heightmap set: copy the 22 no-overhang tiles out of Circus into their own set
 
 ## Streaming (chunk border corners)

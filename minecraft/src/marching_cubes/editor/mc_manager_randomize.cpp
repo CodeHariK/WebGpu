@@ -1,5 +1,6 @@
 // MCManager: the Randomize section of the side panel (grid corners by the L / M / H rules,
-// MCGrid::randomize_levels, core/mc_level_plan.h) and pinning: a left click on a library tile
+// MCGrid::randomize_levels, core/mc_level_plan.h; in heightmap mode an island, MCGrid::
+// randomize_heights — the "Heightmap mode" button switches it) and pinning: a left click on a library tile
 // pins it, moves the grid into a row behind the library (pinned column lined up with the tile)
 // and randomizes around it, like the Blender add-on's playground.
 #include "cui/cui.h"
@@ -30,6 +31,25 @@ void MCManager::_setup_randomize_ui() {
 	Button *unpin_btn = ui.manager->add_button(ui.stats_vbox, "Unpin", Callable(this, "_on_unpin"));
 	unpin_btn->set_custom_minimum_size(Vector2(0, 30));
 	randomize_label = ui.manager->add_label(ui.stats_vbox, "Click a library tile to pin it");
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	bool on = grid_node && grid_node->get_heightmap_mode();
+	heightmap_button = ui.manager->add_button(
+			ui.stats_vbox, on ? "Heightmap mode: on" : "Heightmap mode: off", Callable(this, "_on_toggle_heightmap")
+	);
+	heightmap_button->set_custom_minimum_size(Vector2(0, 30));
+}
+
+// Heightmap mode on / off: on, clicks move whole columns and Randomize makes an island.
+void MCManager::_on_toggle_heightmap() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (!grid_node) {
+		return;
+	}
+	cancel_drag();
+	grid_node->set_heightmap_mode(!grid_node->get_heightmap_mode());
+	if (heightmap_button) {
+		heightmap_button->set_text(grid_node->get_heightmap_mode() ? "Heightmap mode: on" : "Heightmap mode: off");
+	}
 }
 
 // Next seed, new corners for the whole grid (around the pin, if any); the summary label follows.

@@ -43,6 +43,7 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("initialize_all"), &MCManager::initialize_all);
 	ClassDB::bind_method(D_METHOD("_on_randomize_grid"), &MCManager::_on_randomize_grid);
 	ClassDB::bind_method(D_METHOD("_on_unpin"), &MCManager::_on_unpin);
+	ClassDB::bind_method(D_METHOD("_on_toggle_heightmap"), &MCManager::_on_toggle_heightmap);
 	ClassDB::bind_method(D_METHOD("_on_toggle_ui"), &MCManager::_on_toggle_ui);
 	ClassDB::bind_method(D_METHOD("_on_toggle_visual_corners"), &MCManager::_on_toggle_visual_corners);
 	ClassDB::bind_method(D_METHOD("_on_gui_input", "p_event"), &MCManager::_on_gui_input);

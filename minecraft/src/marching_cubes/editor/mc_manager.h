@@ -27,6 +27,7 @@ class VBoxContainer;
 class Panel;
 class CUIModal;
 class Label;
+class Button;
 class InputEvent;
 class MeshInstance3D;
 class Camera3D;
@@ -65,6 +66,7 @@ private:
 	NodePath tile_library_path;
 	int randomize_seed = 0; // the last Randomize seed (0 = not randomized yet)
 	Label *randomize_label = nullptr;
+	Button *heightmap_button = nullptr; // "Heightmap mode: on / off"
 	String pinned_name; // "00001100_la1" of the pinned library tile ("" = none)
 
 	MCUI ui;
@@ -177,6 +179,8 @@ public:
 	void _on_randomize_grid();
 	// Unpin button: Randomize no longer keeps a library tile.
 	void _on_unpin();
+	// Heightmap mode on / off (MCGrid::set_heightmap_mode); the button shows the state.
+	void _on_toggle_heightmap();
 	// Left click on a library tile (nearest hit): pin it, move the grid into a row behind the
 	// library with the pinned column lined up with the tile, Randomize. False when no tile was hit.
 	bool _try_pin_click(

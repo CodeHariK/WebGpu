@@ -10,7 +10,6 @@ save formats are in [docs/TerrainStorage.md](../../docs/TerrainStorage.md).
 | `MCTileLibrary` | MCTileLibrary | Loads the tile-set `.glb` (BrickBlock91: L / M / H) and fills all 256 hashes per level |
 | `MCGrid` | MCGrid | Corner bits in chunks, one merged mesh + collider per chunk; each cell drawn from its level (L / M / H); Randomize (`solid_floor` off) |
 | `MCManager` | MCManager | Wires library → grid, UI, mouse editing, save / load |
-| `MCHeightmap` | MCHeightmap | Separate demo: heightmap → one tile node per cell |
 
 ## Call order
 
@@ -53,10 +52,6 @@ MCManager::_unhandled_input (click)
    │     └─ _update_debug_corner
    ├─ place mode:  _place_click → grid->add_placed_object
    └─ drag mode:   _select_or_start_drag → _start_drag … _finish_drag / _delete_object
-
-MCHeightmap::_ready
-└─ initialize_random_noise               (if heightmap_data is too small)
-└─ generate_terrain → _spawn_cell_mesh per cell, _spawn_debug_spheres
 ```
 
 ## Folders
@@ -66,7 +61,6 @@ MCHeightmap::_ready
 | `core/` | Plain data + math, no nodes: corners, hashes, turns, chunk bits, variants |
 | `library/` | `MCTileLibrary`: tiles from Blender |
 | `grid/` | `MCGrid`: the editable world, chunk meshes, placed objects, save / load |
-| `heightmap/` | `MCHeightmap`: heightmap demo |
 | `editor/` | `MCManager`: setup, UI, input, hover, object mode |
 | `util/` | Collider helpers |
 
@@ -96,6 +90,7 @@ MCHeightmap::_ready
 |---|---|
 | `mc_grid.h/.cpp` | `_ready` · `set_grid_dims` · `set_chunk_dims` · `set/get_tile_library` · `initialize_grid` · `refresh_grid` · `_initialize_boundaries` · `_is_boundary_corner` · `set_corner` · `get_cell_hash` · `is_corner_active` |
 | `mc_grid_cells.cpp` | `_build_chunk_mesh` (tile of the cell's level, M if that level has none; its sockets filled with decor, not collided) · `_free_chunk_mesh` · `_mark_cell_dirty` · `_queue_rebuild` · `flush_dirty_chunks` · `_free_spawned_nodes` |
+| `mc_grid_heights.cpp` | heightmap mode: `set/get_heightmap_mode` · `get/set_column_height` · `randomize_heights` (island from FastNoiseLite: tiers to the middle, rim at the floor, M roofs rolled) · `set/get_lock_rim` · `load_heights` (MCHeightmap's data, its M-roof seed) · `_roll_roof_m` · `_heights_from_corners` (flattens overhangs) · `_write_column` · `_set_corner_as_height` (set_corner in the mode: fill → column up to just above, empty → down to just below) · `_column_counts` · `_column_index` · `_is_edge_column` |
 | `mc_grid_levels.cpp` | `_cell_block` · `_level_at` · `get_cell_level` · `_update_levels` (after every edit / refresh) · `set_solid_floor` · `set_pin` / `clear_pin` / `get_pin_cell` · `_live_pin` · `randomize_levels` · `get_last_plan` |
 | `mc_chunk_builder.h/.cpp` | `MCSurfaceCache::get / clear` · `MCChunkBuilder::add` (p_collide false: drawn only, socket decor) · `_surface_for` · `_append` · `is_empty` · `commit` · `get_faces` |
 | `mc_grid_debug_corners.cpp` | `set/get_show_debug_corners` · `set/is_debug_corners_visible` · `set_corner_collision_enabled` · `_spawn_debug_corners` · `_update_debug_corner` · `_has_neighbor_with_state` |
@@ -103,12 +98,6 @@ MCHeightmap::_ready
 | `mc_grid_objects.cpp` | `is_area_blocked_by_grid` · `is_area_blocked_by_objects` · `add_placed_object` · `remove_placed_object` · `detach_placed_object` · `get_placed_object` · `_clear_placed_objects` |
 | `mc_placed_objects.h/.cpp` | `MCPlacedObjects`: `add_object` · `remove_object_at` · `remove_object_by_node` · `is_area_blocked` · `get_object_by_node` · `clear` |
 | `mc_grid_io.cpp` | `save_grid` · `load_grid` (validates first) · `cells_to_json` (Copy for Blender) |
-
-## heightmap/
-
-| File | Functions |
-|---|---|
-| `mc_heightmap.h/.cpp` | `_ready` · `initialize_random_noise` · `initialize_random_noise_and_generate` · `set_noise_source` · `generate_terrain` · `clear_terrain` · `_clear_terrain_meshes` · `_is_corner_active` · `_get_cell_hash` · `_cell_levels` (same L / M / H rules as MCGrid; M roofs seeded from the heights) · `_spawn_cell_mesh` (tile of the cell's level) · `_spawn_debug_spheres` |
 
 ## editor/ (all `MCManager`)
 

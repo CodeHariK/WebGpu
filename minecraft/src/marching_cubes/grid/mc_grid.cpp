@@ -49,7 +49,19 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_decor_seed"), &MCGrid::get_decor_seed);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "decor_seed"), "set_decor_seed", "get_decor_seed");
 
+	ClassDB::bind_method(D_METHOD("set_heightmap_mode", "on"), &MCGrid::set_heightmap_mode);
+	ClassDB::bind_method(D_METHOD("get_heightmap_mode"), &MCGrid::get_heightmap_mode);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "heightmap_mode"), "set_heightmap_mode", "get_heightmap_mode");
+	ClassDB::bind_method(D_METHOD("get_column_height", "column"), &MCGrid::get_column_height);
+	ClassDB::bind_method(D_METHOD("set_column_height", "column", "height"), &MCGrid::set_column_height);
+	ClassDB::bind_method(D_METHOD("randomize_heights", "seed"), &MCGrid::randomize_heights);
+	ClassDB::bind_method(D_METHOD("set_lock_rim", "lock"), &MCGrid::set_lock_rim);
+	ClassDB::bind_method(D_METHOD("get_lock_rim"), &MCGrid::get_lock_rim);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "lock_rim"), "set_lock_rim", "get_lock_rim");
+	ClassDB::bind_method(D_METHOD("load_heights", "data", "size"), &MCGrid::load_heights);
+
 	ClassDB::bind_method(D_METHOD("get_cell_hash", "pos"), &MCGrid::get_cell_hash);
+	ClassDB::bind_method(D_METHOD("is_corner_active", "pos"), &MCGrid::is_corner_active);
 	ClassDB::bind_method(D_METHOD("get_cell_level", "pos"), &MCGrid::get_cell_level);
 	ClassDB::bind_method(D_METHOD("randomize_levels", "seed", "tries"), &MCGrid::randomize_levels, DEFVAL(300));
 	ClassDB::bind_method(D_METHOD("get_last_plan"), &MCGrid::get_last_plan);
@@ -161,6 +173,9 @@ void MCGrid::initialize_grid(
 	for (Chunk &chunk : chunks) {
 		_initialize_boundaries(chunk);
 	}
+	if (heightmap_mode) {
+		_heights_from_corners(); // a flat floor: every column at the floor
+	}
 
 	placed_list.clear();
 	_clear_placed_objects(); // their grid positions mean nothing in the new grid
@@ -266,6 +281,11 @@ void MCGrid::set_corner(
 	// Reject anything outside the grid (e.g. one below the floor when clicking a corner's underside):
 	// the chunk maths below would turn it into a negative index.
 	if (!_dims().contains_corner(p_grid_pos)) {
+		return;
+	}
+
+	if (heightmap_mode) { // whole columns move instead (mc_grid_heights.cpp)
+		_set_corner_as_height(p_grid_pos, p_active);
 		return;
 	}
 
