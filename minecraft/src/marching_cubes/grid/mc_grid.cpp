@@ -74,6 +74,9 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("settle_water"), &MCGrid::settle_water);
 	ClassDB::bind_method(D_METHOD("set_debug_wireframe", "on"), &MCGrid::set_debug_wireframe);
 	ClassDB::bind_method(D_METHOD("is_debug_wireframe"), &MCGrid::is_debug_wireframe);
+	ClassDB::bind_method(D_METHOD("set_water_drop", "drop"), &MCGrid::set_water_drop);
+	ClassDB::bind_method(D_METHOD("get_water_drop"), &MCGrid::get_water_drop);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "water_drop", PROPERTY_HINT_RANGE, "0,0.95,0.01"), "set_water_drop", "get_water_drop");
 	ClassDB::bind_method(D_METHOD("set_water_square", "on"), &MCGrid::set_water_square);
 	ClassDB::bind_method(D_METHOD("get_water_square"), &MCGrid::get_water_square);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "water_square"), "set_water_square", "get_water_square");

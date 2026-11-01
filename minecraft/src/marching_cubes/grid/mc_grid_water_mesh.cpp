@@ -26,6 +26,7 @@
 // 0 (-x, -y), 1 (+x, -y), 2 (+x, +y), 3 (-x, +y) in hash bit order; Godot z = -y, so corner 0 is the
 // column (x, z + 1), 1 (x + 1, z + 1), 2 (x + 1, z), 3 (x, z).
 #include "marching_cubes/grid/mc_grid.h"
+#include <godot_cpp/templates/hash_map.hpp>
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -35,6 +36,7 @@ namespace godot {
 namespace {
 const float EDGE = 0.05f; // the water runs this far on into the rock (shape units ~ metres)
 const float BEHIND = 0.03f; // a fall checks for its water this far behind its top edge
+const float MIN_FALL_RUN = 0.08f; // m: shorter straight runs of a fall are corner stubs, left out
 const float WALL_GAP = 0.01f; // square tiles: falls stop this short of a wall (never in its plane)
 const float ROUNDING = 0.15f; // blocky: radius of a corner that sticks out (as the tiles)
 const float EPS = 1e-3f; // rounded: regions shrink this much (as the tiles)
@@ -173,6 +175,18 @@ struct Body {
 	// how far the surface runs on into the rock / past the step: EDGE hides the rounded tiles'
 	// grooves; square tiles have flat rock, so the water stops exactly at it (nothing pokes out)
 	float tuck() const { return square ? 0.0f : EDGE; }
+	// how far past the bed's edge the surface reaches: to the falls' line, so a fall's top edge sits
+	// exactly on the surface's edge (one continuous sheet, no gap or step between them)
+	float lip() const { return square ? WALL_GAP : EDGE; }
+	// the surface's reach past the bed's edge at p: lip(), fading out right beside a bank so the
+	// surface doesn't run along a wall's foot as a thin sliver (square tiles)
+	float lip_at(const Vector2 &p) const {
+		if (!square) {
+			return EDGE;
+		}
+		float away = -blend(above, p.x, p.y); // metres from the bank
+		return lip() * Math::clamp(away / WALL_GAP - 1.0f, 0.0f, 1.0f);
+	}
 	Color flow[4];
 
 	float height(const Vector2 &) const { return top; }
@@ -180,7 +194,7 @@ struct Body {
 
 	// Where the body's water is: not in a bank, on the bed, not over dry ground (>= 0 inside).
 	float water_field(const Vector2 &p) const {
-		float f = std::min(tuck() - blend(above, p.x, p.y), blend(bed, p.x, p.y) + tuck());
+		float f = std::min(tuck() - blend(above, p.x, p.y), blend(bed, p.x, p.y) + lip_at(p));
 		return wet.all() ? f : std::min(f, blend(wet, p.x, p.y));
 	}
 
@@ -222,7 +236,7 @@ void emit_body(
 			std::vector<float> values;
 			for (const Vector2 &p : points) {
 				float bv = blend(*layers[pass], p.x, p.y);
-				values.push_back(pass == 0 ? p_body.tuck() - bv : (pass == 1 ? bv + p_body.tuck() : bv));
+				values.push_back(pass == 0 ? p_body.tuck() - bv : (pass == 1 ? bv + p_body.lip_at(p) : bv));
 			}
 			clip(points, values);
 		}
@@ -244,7 +258,7 @@ void emit_fall(
 		return; // no edge in this cell
 	}
 	// square tiles: WALL_GAP off the step's rock face (never in its plane), else EDGE past it
-	auto edge_field = [&](const Vector2 &p) { return blend(p_body.bed, p.x, p.y) + (p_body.square ? WALL_GAP : EDGE); };
+	auto edge_field = [&](const Vector2 &p) { return blend(p_body.bed, p.x, p.y) + p_body.lip(); }; // the surface's edge
 	// the part of the water other than the bed's edge: not in a bank, not over dry ground
 	auto reach = [&](const Vector2 &p) {
 		float f = (p_body.square ? -WALL_GAP : EDGE) - blend(p_body.above, p.x, p.y);
@@ -300,25 +314,109 @@ void emit_fall(
 		out = out.length_squared() > 1e-12f ? out.normalized() : Vector3(1, 0, 0);
 		Vector3 pa(p_centre.x + a.x, 0, p_centre.y - a.y);
 		Vector3 pb(p_centre.x + b.x, 0, p_centre.y - b.y);
-		const Vector3 sheet[4] = { pa + Vector3(0, p_bottom, 0), pb + Vector3(0, p_bottom, 0), pb + Vector3(0, top_b, 0),
-			pa + Vector3(0, top_a, 0) };
-		// UV: x along the ground (metres, continuous between segments), y metres down from the top;
-		// UV2.x: metres above the landing
-		float ua = pa.x + pa.z;
-		float ub = pb.x + pb.z;
-		float drop_a = top_a - p_bottom;
-		float drop_b = top_b - p_bottom;
-		const Vector2 uv[4] = { Vector2(ua, drop_a), Vector2(ub, drop_b), Vector2(ub, 0), Vector2(ua, 0) };
-		const Vector2 uv2[4] = { Vector2(0, 0), Vector2(0, 0), Vector2(drop_b, 0), Vector2(drop_a, 0) };
-		for (int k : { 0, 1, 2, 0, 2, 3 }) {
-			r_out.fall_vertices.push_back(sheet[k]);
-			r_out.fall_normals.push_back(out);
-			r_out.fall_uvs.push_back(uv[k]);
-			r_out.fall_uv2s.push_back(uv2[k]);
-		}
+		MCWaterArrays::FallPiece piece;
+		piece.a = pa;
+		piece.b = pb;
+		piece.top = (top_a + top_b) * 0.5f; // flat water: the same at both ends
+		piece.bottom = p_bottom;
+		piece.out = out;
+		r_out.fall_pieces.push_back(piece);
 	});
 }
 } // namespace
+
+// Join the fall pieces into whole falls: pieces that share an end and have the same top and bottom
+// are one fall, walked from one end to the other; each straight run of it becomes a single quad,
+// and UV.x is the distance along the whole fall, so the streaks run on unbroken round corners and
+// across cells. UV.y: metres down from the top; UV2.x: metres above the landing.
+void MCGrid::_merge_falls(MCWaterArrays &r_out) const {
+	std::vector<MCWaterArrays::FallPiece> &pieces = r_out.fall_pieces;
+	auto key = [](const Vector3 &p_point, float p_top, float p_bottom) {
+		return String::num_int64(static_cast<int64_t>(std::lround(p_point.x * 500.0f))) + "," +
+				String::num_int64(static_cast<int64_t>(std::lround(p_point.z * 500.0f))) + "," +
+				String::num_int64(static_cast<int64_t>(std::lround(p_top * 100.0f))) + "," +
+				String::num_int64(static_cast<int64_t>(std::lround(p_bottom * 100.0f)));
+	};
+	// which pieces touch each end point
+	HashMap<String, std::vector<int>> ends;
+	for (int i = 0; i < static_cast<int>(pieces.size()); i++) {
+		const MCWaterArrays::FallPiece &p = pieces[static_cast<size_t>(i)];
+		ends[key(p.a, p.top, p.bottom)].push_back(i);
+		ends[key(p.b, p.top, p.bottom)].push_back(i);
+	}
+	std::vector<uint8_t> used(pieces.size(), 0);
+	auto emit_quad = [&](const Vector3 &p_a, const Vector3 &p_b, float p_ua, float p_ub, float p_top, float p_bottom,
+			const Vector3 &p_out) {
+		float drop = p_top - p_bottom;
+		const Vector3 sheet[4] = { Vector3(p_a.x, p_bottom, p_a.z), Vector3(p_b.x, p_bottom, p_b.z),
+			Vector3(p_b.x, p_top, p_b.z), Vector3(p_a.x, p_top, p_a.z) };
+		const Vector2 uv[4] = { Vector2(p_ua, drop), Vector2(p_ub, drop), Vector2(p_ub, 0), Vector2(p_ua, 0) };
+		const Vector2 uv2[4] = { Vector2(0, 0), Vector2(0, 0), Vector2(drop, 0), Vector2(drop, 0) };
+		for (int k : { 0, 1, 2, 0, 2, 3 }) {
+			r_out.fall_vertices.push_back(sheet[k]);
+			r_out.fall_normals.push_back(p_out);
+			r_out.fall_uvs.push_back(uv[k]);
+			r_out.fall_uv2s.push_back(uv2[k]);
+		}
+	};
+	// the next unused piece touching point p (with the same top / bottom), and its far end
+	auto next_from = [&](const Vector3 &p_point, float p_top, float p_bottom, int &r_index, Vector3 &r_far) {
+		const std::vector<int> *list = ends.getptr(key(p_point, p_top, p_bottom));
+		if (!list) {
+			return false;
+		}
+		for (int j : *list) {
+			if (used[static_cast<size_t>(j)]) {
+				continue;
+			}
+			const MCWaterArrays::FallPiece &q = pieces[static_cast<size_t>(j)];
+			r_index = j;
+			r_far = key(q.a, p_top, p_bottom) == key(p_point, p_top, p_bottom) ? q.b : q.a;
+			return true;
+		}
+		return false;
+	};
+	for (int start = 0; start < static_cast<int>(pieces.size()); start++) {
+		if (used[static_cast<size_t>(start)]) {
+			continue;
+		}
+		const MCWaterArrays::FallPiece first = pieces[static_cast<size_t>(start)];
+		used[static_cast<size_t>(start)] = 1;
+		// grow the chain both ways from the first piece
+		std::vector<Vector3> points = { first.a, first.b };
+		std::vector<Vector3> outs = { first.out };
+		int index;
+		Vector3 far;
+		while (next_from(points.back(), first.top, first.bottom, index, far)) {
+			used[static_cast<size_t>(index)] = 1;
+			points.push_back(far);
+			outs.push_back(pieces[static_cast<size_t>(index)].out);
+		}
+		while (next_from(points.front(), first.top, first.bottom, index, far)) {
+			used[static_cast<size_t>(index)] = 1;
+			points.insert(points.begin(), far);
+			outs.insert(outs.begin(), pieces[static_cast<size_t>(index)].out);
+		}
+		// one quad per straight run, UV.x the distance along the fall
+		float u = 0.0f;
+		size_t run = 0;
+		for (size_t k = 1; k < points.size(); k++) {
+			bool last = k + 1 == points.size();
+			bool turns = !last && (points[k] - points[run]).normalized().dot((points[k + 1] - points[k]).normalized()) < 0.9999f;
+			if (last || turns) {
+				float length = Vector2(points[k].x - points[run].x, points[k].z - points[run].z).length();
+				// a few-cm run is where the edge turns into a wall at the fall's end: not water
+				// falling, just a thin strip hanging down the rock corner, so it is left out
+				if (length >= MIN_FALL_RUN) {
+					emit_quad(points[run], points[k], u, u + length, first.top, first.bottom, outs[run]);
+				}
+				u += length;
+				run = k;
+			}
+		}
+	}
+	pieces.clear();
+}
 
 void MCGrid::set_water_square(bool p_on) {
 	water_square = p_on;

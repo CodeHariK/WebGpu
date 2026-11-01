@@ -232,6 +232,7 @@ public:
 	void _on_toggle_visual_corners();
 	// Debug views: terrain wireframe, water overlay, replay the last pour.
 	void _on_toggle_wireframe();
+	void _on_water_drop(double p_value); // the water drop slider
 	void _on_toggle_edge_corners(); // inactive corners with an edge to an active one
 	void _on_toggle_water_debug();
 	void _on_replay_pour();

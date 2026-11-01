@@ -48,6 +48,16 @@ struct MCWaterArrays {
 	PackedVector3Array fall_normals;
 	PackedVector2Array fall_uvs; // x along the ground, y metres down
 	PackedVector2Array fall_uv2s; // x metres above the landing
+	// the falls as small pieces along the step edges (one per sub-grid triangle), before
+	// _merge_falls joins them into one sheet per fall
+	struct FallPiece {
+		Vector3 a; // top edge ends (y unused)
+		Vector3 b;
+		float top = 0.0f;
+		float bottom = 0.0f;
+		Vector3 out; // faces down the step
+	};
+	std::vector<FallPiece> fall_pieces;
 };
 
 // One step of a pour's flood fill (for the step-by-step debug): the column taken off the front of the
@@ -106,6 +116,7 @@ private:
 	bool lock_rim = true; // heightmap mode: outer columns locked to the floor (off: open edge)
 	std::vector<uint8_t> water_levels; // per corner column, like column_heights (0 = dry)
 	String water_blocky_groups = "b"; // groups whose water edges use the blocky shape
+	float water_drop = 0.15f; // m held water's surface sits below the bank one tier up (UI slider)
 	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
 	bool water_dirty = false; // the water mesh is rebuilt at the end of the frame
@@ -310,6 +321,8 @@ private:
 			std::vector<float> &r_surface,
 			std::vector<uint8_t> &r_held
 	) const;
+	// Join the fall pieces into whole falls (one quad per straight run, UV along the whole fall).
+	void _merge_falls(MCWaterArrays &r_out) const;
 	// Every cell's water (surface + falls) with the cliff tiles' shape, into r_out.
 	void _emit_water_cells(
 			const std::vector<float> &p_surface,
@@ -500,6 +513,11 @@ public:
 	// falls, the last pour's order); replay the last pour.
 	void set_debug_wireframe(bool p_on);
 	bool is_debug_wireframe() const { return debug_wireframe; }
+	// How far held water's surface sits below the bank one tier up (0 .. 0.95 m, default 0.15).
+	void set_water_drop(float p_drop);
+	float get_water_drop() const { return water_drop; }
+	// The surface height of held water at level p_level (grid space).
+	float _surface_y(int p_level) const;
 	// Blocky water with sharp corners, for the square tile set (no rounding).
 	void set_water_square(bool p_on);
 	bool get_water_square() const { return water_square; }

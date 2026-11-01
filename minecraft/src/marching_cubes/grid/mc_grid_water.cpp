@@ -2,8 +2,8 @@
 // docs/TerrainStorage.md §7.
 //
 // Water is not a volume: each corner column has a water level L (0 = dry), like its ground height.
-// The column is wet when L is above its ground (L > height); the surface then sits DROP below where
-// ground of height L would be (y = L - 0.5 - DROP), so banks one tier up stand just above it.
+// The column is wet when L is above its ground (L > height); the surface then sits water_drop below where
+// ground of height L would be (y = L - 0.5 - water_drop), so banks one tier up stand just above it.
 // Drawn on the same grid as the cliffs: a column's water is a 1 x 1 square centred on the column,
 // and a cliff between two columns stands half way between them — so where two wet neighbours have
 // different levels, the step is exactly where the cliff is, and a waterfall sheet fills it.
@@ -19,7 +19,7 @@
 //   clear_water       dry the connected water (any level: a river with its falls), not the sea
 //   sea_level         randomize_heights floods the sea from the grid's corner at this level (0: none):
 //                     every connected column below it
-// Held water and streams (_water_surfaces): water stands one layer deep (surface DROP below the next
+// Held water and streams (_water_surfaces): water stands one layer deep (surface water_drop below the next
 // tier) only where banks hold it in — every side a bank, the same held water, or a waterfall cut into
 // the land (_fall_framed) onto lower water; the sea is held. Elsewhere (it ran out of a channel onto
 // open ground, or a tier's open edge is beside it) it is a stream: a thin sheet STREAM above the ground
@@ -53,7 +53,6 @@
 namespace godot {
 
 namespace {
-const float DROP = 0.15f; // m held water's surface sits below the bank one tier up
 const float STREAM = 0.1f; // m a stream's surface sits above its ground
 const float SAME = 0.02f; // m: surfaces closer than this are the same water
 const char *SURFACE_SHADER = "res://material/shaders/terrain/water_surface.gdshader";
@@ -75,14 +74,22 @@ const Vector2i STEPS[4] = { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vec
 } // namespace
 
 // The water surface height of level p_level (world y in grid space).
-static float surface_y(int p_level) { return static_cast<float>(p_level) - 0.5f - DROP; }
+float MCGrid::_surface_y(int p_level) const { return static_cast<float>(p_level) - 0.5f - water_drop; }
+
+void MCGrid::set_water_drop(float p_drop) {
+	water_drop = Math::clamp(p_drop, 0.0f, 0.95f);
+	if (!chunks.empty() && water_levels.size() == column_heights.size()) {
+		_queue_water();
+	}
+}
 
 // Does water at p_level spill onto dry ground of height p_ground beside it (ground below the surface)?
 static bool _spills_onto(
 		int p_ground,
-		int p_level
+		int p_level,
+		float p_drop
 ) {
-	return static_cast<float>(p_ground) - 0.5f < surface_y(p_level);
+	return static_cast<float>(p_ground) - 0.5f < static_cast<float>(p_level) - 0.5f - p_drop;
 }
 
 int MCGrid::get_water_level(const Vector2i &p_column) const {
@@ -428,7 +435,7 @@ void MCGrid::_water_surfaces(
 					}
 					int other = _column_index(n.x, n.y);
 					if (!_is_wet(other)) {
-						held = held && !_spills_onto(column_heights[static_cast<size_t>(other)], level);
+						held = held && !_spills_onto(column_heights[static_cast<size_t>(other)], level, water_drop);
 					} else if (water_levels[static_cast<size_t>(other)] < level) {
 						held = held && _fall_framed(Vector2i(x, z), step, level);
 					}
@@ -462,7 +469,7 @@ void MCGrid::_water_surfaces(
 	}
 	for (size_t i = 0; i < count; i++) {
 		if (_is_wet(static_cast<int>(i))) {
-			r_surface[i] = r_held[i] ? surface_y(water_levels[i]) : static_cast<float>(column_heights[i]) - 0.5f + STREAM;
+			r_surface[i] = r_held[i] ? _surface_y(water_levels[i]) : static_cast<float>(column_heights[i]) - 0.5f + STREAM;
 		}
 	}
 }
@@ -536,6 +543,7 @@ void MCGrid::_rebuild_water() {
 		_water_surfaces(surface, held);
 		std::vector<Color> flow = _water_flow(surface);
 		_emit_water_cells(surface, held, flow, arrays_out);
+		_merge_falls(arrays_out);
 		if (debug_water) {
 			_rebuild_water_debug(surface, held, flow);
 		}

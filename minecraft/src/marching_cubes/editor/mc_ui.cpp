@@ -116,6 +116,14 @@ void MCManager::setup_ui() {
 		button->set_custom_minimum_size(Vector2(0, 30));
 	}
 
+	// water surface height: metres below the bank one tier up
+	ui.manager->add_label(ui.stats_vbox, "Water drop (m below bank)");
+	{
+		MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+		float drop = grid_node ? grid_node->get_water_drop() : 0.15f;
+		ui.manager->add_hslider(ui.stats_vbox, 0.0f, 0.95f, 0.01f, drop, Callable(this, "_on_water_drop"), "WaterDrop");
+	}
+
 	ui.manager->add_header(ui.stats_vbox, "Terrain Stats");
 	grid_stats.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
 

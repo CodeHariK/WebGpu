@@ -47,6 +47,14 @@ void MCManager::_on_toggle_edge_corners() {
 	}
 }
 
+// Water drop slider: how far held water sits below the bank.
+void MCManager::_on_water_drop(double p_value) {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_water_drop(static_cast<float>(p_value));
+	}
+}
+
 // Water overlay on / off (held / stream / sea, flow arrows, framed / open falls, last pour).
 void MCManager::_on_toggle_water_debug() {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
