@@ -4,6 +4,7 @@
 //   mc_grid_levels.cpp         each cell's level (L / M / H, core/mc_level_plan.h) and Randomize
 //   mc_grid_heights.cpp        heightmap mode: one height per corner column, no overhangs, islands
 //   mc_grid_groups.cpp         each cell's tile group (a, b …): one rolled per connected solid region
+//   mc_grid_water_sampled.cpp  the water mesh from a sample grid + marching squares (water_sampled)
 //   mc_grid_water_mesh.cpp     the water mesh: surface + falls per cell with the cliff tiles' shape
 //   mc_grid_water.cpp          the water layer (heightmap mode): ponds, rivers, sea, waterfalls
 //   mc_grid_debug_corners.cpp  debug dots on the corners (+ their picking colliders)
@@ -37,6 +38,10 @@
 
 namespace godot {
 
+namespace mc_water {
+struct Body; // mc_water_shape.h
+}
+
 // The water mesh being built (mc_grid_water_mesh.cpp): surface (with flow colour) and falls.
 struct MCWaterArrays {
 	PackedVector3Array vertices;
@@ -58,6 +63,7 @@ struct MCWaterArrays {
 		Vector3 out; // faces down the step
 	};
 	std::vector<FallPiece> fall_pieces;
+	std::vector<Vector3> samples; // water_sampled: the wet sample points (debug overlay)
 };
 
 // One step of a pour's flood fill (for the step-by-step debug): the column taken off the front of the
@@ -116,6 +122,9 @@ private:
 	bool lock_rim = true; // heightmap mode: outer columns locked to the floor (off: open edge)
 	std::vector<uint8_t> water_levels; // per corner column, like column_heights (0 = dry)
 	String water_blocky_groups = "b"; // groups whose water edges use the blocky shape
+	bool water_sampled = true; // water mesh from a sample grid + marching squares (else per cell)
+	int water_sample_rate = 8; // samples per cell side (water_sampled)
+	std::vector<Vector3> water_debug_samples; // the last build's wet sample points (debug overlay)
 	float water_drop = 0.15f; // m held water's surface sits below the bank one tier up (UI slider)
 	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
@@ -323,6 +332,23 @@ private:
 	) const;
 	// Join the fall pieces into whole falls (one quad per straight run, UV along the whole fall).
 	void _merge_falls(MCWaterArrays &r_out) const;
+	// The water mesh from a fine sample grid + marching squares (mc_grid_water_sampled.cpp).
+	void _emit_water_sampled(
+			const std::vector<float> &p_surface,
+			const std::vector<uint8_t> &p_held,
+			const std::vector<Color> &p_flow,
+			MCWaterArrays &r_out
+	) const;
+	// The water bodies of one cell (one per level) and where each one's fall lands.
+	void _water_bodies(
+			int p_cx,
+			int p_cz,
+			const std::vector<float> &p_surface,
+			const std::vector<uint8_t> &p_held,
+			const std::vector<Color> &p_flow,
+			std::vector<mc_water::Body> &r_bodies,
+			std::vector<float> &r_bottoms
+	) const;
 	// Every cell's water (surface + falls) with the cliff tiles' shape, into r_out.
 	void _emit_water_cells(
 			const std::vector<float> &p_surface,
@@ -513,6 +539,11 @@ public:
 	// falls, the last pour's order); replay the last pour.
 	void set_debug_wireframe(bool p_on);
 	bool is_debug_wireframe() const { return debug_wireframe; }
+	// Which water mesh builder: sampled (sample grid + marching squares) or per cell.
+	void set_water_sampled(bool p_on);
+	bool get_water_sampled() const { return water_sampled; }
+	void set_water_sample_rate(int p_rate); // samples per cell side, 2 .. 32
+	int get_water_sample_rate() const { return water_sample_rate; }
 	// How far held water's surface sits below the bank one tier up (0 .. 0.95 m, default 0.15).
 	void set_water_drop(float p_drop);
 	float get_water_drop() const { return water_drop; }

@@ -542,8 +542,13 @@ void MCGrid::_rebuild_water() {
 		std::vector<uint8_t> held;
 		_water_surfaces(surface, held);
 		std::vector<Color> flow = _water_flow(surface);
-		_emit_water_cells(surface, held, flow, arrays_out);
-		_merge_falls(arrays_out);
+		if (water_sampled) {
+			_emit_water_sampled(surface, held, flow, arrays_out);
+		} else {
+			_emit_water_cells(surface, held, flow, arrays_out);
+			_merge_falls(arrays_out);
+		}
+		water_debug_samples = arrays_out.samples;
 		if (debug_water) {
 			_rebuild_water_debug(surface, held, flow);
 		}

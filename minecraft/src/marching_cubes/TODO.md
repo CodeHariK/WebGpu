@@ -221,6 +221,12 @@ everything built on top is an object. Terrain stays pure corners.
       **Square tiles** (`cliff_tiles.py --style square` → `Cliff_square.glb`, `cliffs_square.tscn`,
       `make run_cliffs_square`): blocky with no curves — sharp corners, flat rock faces; the grid's
       `water_square` gives the water the same sharp shape; its falls sit 1 cm off the rock.
+      **Sampled water mesh** (default, `water_sampled`, `grid/mc_grid_water_sampled.cpp`): a fine sample
+      grid (`water_sample_rate` per cell, 8) asks each cell's bodies for the height; marching squares
+      per height with bisected, cached edge crossings (neighbours share points exactly); falls built
+      from the same contour points where lower water / lower dry ground is just outside; whole cells
+      are one quad. Shape code shared in `grid/mc_water_shape.h`. Debug: wet samples as dots.
+      Still: 45° chamfers of up to one sample at sharp corners (square tiles).
       Tried and dropped: skirts (curved / vertical lips / overflow sheets at open water edges).
       Open: a dry corner of the bed tier reached only diagonally (terrain.mct (11, 22) by (12, 21))
       is a real gap in the terrain — the water either leaks out there or ends at it (now: ends).

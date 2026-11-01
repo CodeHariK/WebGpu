@@ -7,6 +7,7 @@
 //   wireframe the triangles of every chunk mesh drawn as dark lines over the shaded terrain
 //             (an overlay shader with render_mode wireframe), so tile seams and tile shapes show.
 //   water     an overlay above the water, drawn on top of everything:
+//               - water_sampled: a dot per wet sample of the sample grid, coloured by height
 //               - a square per wet column: blue = held one layer deep, green = stream, navy = sea
 //               - a white arrow along the flow (toward the nearest fall)
 //               - a line along the top of each fall: green when it is cut into the land (framed),
@@ -344,6 +345,20 @@ void MCGrid::_rebuild_water_debug(
 				bool framed = water_levels[j] < level && _fall_framed(Vector2i(x, z), step, level);
 				debug.line(mid - across * 0.45f, mid + across * 0.45f, framed ? FRAMED : OPEN_EDGE);
 			}
+		}
+	}
+	// the sample grid (water_sampled): a dot per wet sample, coloured by its height
+	if (!water_debug_samples.empty()) {
+		float lo = 1e6f;
+		float hi = -1e6f;
+		for (const Vector3 &s : water_debug_samples) {
+			lo = std::min(lo, s.y);
+			hi = std::max(hi, s.y);
+		}
+		for (const Vector3 &s : water_debug_samples) {
+			float t = hi > lo ? (s.y - lo) / (hi - lo) : 0.0f;
+			Color c = Color(0.2f, 0.4f, 1.0f).lerp(Color(1.0f, 0.4f, 0.2f), t);
+			debug.square(s + Vector3(0, LIFT * 1.5f, 0), 0.012f, c);
 		}
 	}
 	// the last pour: one step of it (step-by-step debug), or a dot per column in the order it was reached

@@ -55,6 +55,22 @@ void MCManager::_on_water_drop(double p_value) {
 	}
 }
 
+// Water mesh builder: sample grid + marching squares, or per cell.
+void MCManager::_on_toggle_water_sampled() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_water_sampled(!grid_node->get_water_sampled());
+	}
+}
+
+// Water samples slider: sample grid points per cell side (sampled water).
+void MCManager::_on_water_samples(double p_value) {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_water_sample_rate(static_cast<int>(p_value));
+	}
+}
+
 // Water overlay on / off (held / stream / sea, flow arrows, framed / open falls, last pour).
 void MCManager::_on_toggle_water_debug() {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));

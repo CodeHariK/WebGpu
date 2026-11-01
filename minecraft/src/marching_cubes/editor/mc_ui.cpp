@@ -106,10 +106,11 @@ void MCManager::setup_ui() {
 	ui.manager->add_header(ui.stats_vbox, "Diagnostics");
 
 	// debug views: inspect mode (mc_manager_inspect.cpp), terrain wireframe, water overlay + pour replay
-	const char *debug_buttons[5][2] = { { "Inspect", "_on_toggle_inspect" },
+	const char *debug_buttons[6][2] = { { "Inspect", "_on_toggle_inspect" },
 		{ "Edge corners", "_on_toggle_edge_corners" },
 		{ "Wireframe", "_on_toggle_wireframe" },
 		{ "Water debug", "_on_toggle_water_debug" },
+		{ "Water: sampled / cells", "_on_toggle_water_sampled" },
 		{ "Replay pour", "_on_replay_pour" } };
 	for (const auto &entry : debug_buttons) {
 		Button *button = ui.manager->add_button(ui.stats_vbox, entry[0], Callable(this, entry[1]));
@@ -122,6 +123,13 @@ void MCManager::setup_ui() {
 		MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
 		float drop = grid_node ? grid_node->get_water_drop() : 0.15f;
 		ui.manager->add_hslider(ui.stats_vbox, 0.0f, 0.95f, 0.01f, drop, Callable(this, "_on_water_drop"), "WaterDrop");
+	}
+
+	ui.manager->add_label(ui.stats_vbox, "Water samples per cell");
+	{
+		MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+		float rate = grid_node ? static_cast<float>(grid_node->get_water_sample_rate()) : 8.0f;
+		ui.manager->add_hslider(ui.stats_vbox, 2.0f, 32.0f, 1.0f, rate, Callable(this, "_on_water_samples"), "WaterSamples");
 	}
 
 	ui.manager->add_header(ui.stats_vbox, "Terrain Stats");
