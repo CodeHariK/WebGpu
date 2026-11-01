@@ -32,6 +32,8 @@
 // outlet (a pond, the sea) is still. The column a fall lands in gets foam. The mesh carries this in
 // its vertex COLOR (averaged with same-level neighbours at the square's corners, so it turns
 // smoothly) for water_surface.gdshader: rg direction as 0..1, b flows, a landing foam.
+// The mesh itself is built cell by cell with the cliff tiles' shape (mc_grid_water_mesh.cpp), so its
+// edges and falls follow the cliffs exactly.
 // One water mesh for the whole grid (surface + falls, two surfaces), rebuilt at the end of a frame
 // in which water or ground changed (flush_dirty_chunks) and on refresh_grid. Saved by save v2.
 #include "marching_cubes/grid/mc_grid.h"
@@ -67,31 +69,6 @@ Ref<Material> shader_material(const char *p_path) {
 	material.instantiate();
 	material->set_shader(shader);
 	return material;
-}
-
-// Append one quad (a, b, c, d counter-clockwise seen from where it faces) as two triangles.
-void add_quad(
-		PackedVector3Array &r_vertices,
-		PackedVector3Array &r_normals,
-		PackedVector2Array &r_uvs,
-		PackedVector2Array &r_uv2s,
-		PackedColorArray *r_colors,
-		const Vector3 p_corners[4],
-		const Vector2 p_uv[4],
-		const Vector2 p_uv2[4],
-		const Color *p_colors,
-		const Vector3 &p_normal
-) {
-	const int order[6] = { 0, 1, 2, 0, 2, 3 };
-	for (int i : order) {
-		r_vertices.push_back(p_corners[i]);
-		r_normals.push_back(p_normal);
-		r_uvs.push_back(p_uv[i]);
-		r_uv2s.push_back(p_uv2[i]);
-		if (r_colors) {
-			r_colors->push_back(p_colors[i]);
-		}
-	}
 }
 
 const Vector2i STEPS[4] = { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1) };
@@ -463,11 +440,15 @@ void MCGrid::_water_surfaces(
 			}
 		}
 	}
-	// same-level water beside a stream runs out through it
+	// same-level water beside a stream runs out through it — diagonal neighbours too: they share a
+	// terrain cell, and the cell's water (mc_grid_water_mesh.cpp) has one surface per level, so a held
+	// corner diagonal to a stream corner would lift the stream to the held height (floating water)
+	const Vector2i AROUND[8] = { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1),
+		Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1) };
 	for (size_t head = 0; head < open.size(); head++) {
 		Vector2i c = open[head];
 		uint8_t level = water_levels[static_cast<size_t>(_column_index(c.x, c.y))];
-		for (const Vector2i &step : STEPS) {
+		for (const Vector2i &step : AROUND) {
 			Vector2i n = c + step;
 			if (!inside(n)) {
 				continue;
@@ -544,181 +525,22 @@ std::vector<Color> MCGrid::_water_flow(const std::vector<float> &p_surface) cons
 }
 
 // Rebuild the water mesh: a square per wet column at its surface (held or stream), a fall sheet
-// wherever two wet neighbours' surfaces differ and wherever water stands above dry ground beside it.
+// Rebuild the water mesh: surfaces and falls cell by cell with the cliff tiles' shape
+// (mc_grid_water_mesh.cpp), the flow in the vertex colour.
 void MCGrid::_rebuild_water() {
 	water_dirty = false;
-	PackedVector3Array vertices, normals, fall_vertices, fall_normals;
-	PackedVector2Array uvs, uv2s, fall_uvs, fall_uv2s;
-	PackedColorArray colors;
-	Vector2i columns = _column_counts();
-	float max_x = static_cast<float>(columns.x - 1);
-	float max_z = static_cast<float>(columns.y - 1);
+	MCWaterArrays arrays_out;
 	if (heightmap_mode && water_levels.size() == column_heights.size()) {
 		std::vector<float> surface;
 		std::vector<uint8_t> held;
 		_water_surfaces(surface, held);
 		std::vector<Color> flow = _water_flow(surface);
-		// Is column p_c dry land whose ground stands above p_y (a bank the water tucks under)? The bank's
-		// own terrain hides whatever of the water reaches into it, so the visible water edge follows the
-		// rounded cliff instead of the column's square.
-		auto is_bank = [&](const Vector2i &p_c, float p_y) {
-			if (p_c.x < 0 || p_c.y < 0 || p_c.x >= columns.x || p_c.y >= columns.y) {
-				return false;
-			}
-			int i = _column_index(p_c.x, p_c.y);
-			return !_is_wet(i) && static_cast<float>(column_heights[static_cast<size_t>(i)]) - 0.5f > p_y + SAME;
-		};
-		// a fall sheet from column p_from toward its neighbour p_step, from p_top down to p_bottom,
-		// half way between the columns, facing the lower side; an end beside a bank runs on into it
-		auto add_fall = [&](const Vector2i &p_from, const Vector2i &p_step, float p_top, float p_bottom) {
-			Vector3 out(static_cast<float>(p_step.x), 0, static_cast<float>(p_step.y));
-			Vector3 mid = Vector3(static_cast<float>(p_from.x), 0, static_cast<float>(p_from.y)) + out * 0.5f;
-			Vector2i side(std::abs(p_step.y), std::abs(p_step.x));
-			Vector3 across(static_cast<float>(side.x), 0, static_cast<float>(side.y));
-			float reach_minus = is_bank(p_from - side, p_top) ? 1.0f : 0.5f;
-			float reach_plus = is_bank(p_from + side, p_top) ? 1.0f : 0.5f;
-			float width = reach_minus + reach_plus;
-			float drop = p_top - p_bottom;
-			Vector3 a = mid - across * reach_minus;
-			Vector3 b = mid + across * reach_plus;
-			Vector3 sheet[4] = { a + Vector3(0, p_bottom, 0), b + Vector3(0, p_bottom, 0), b + Vector3(0, p_top, 0),
-				a + Vector3(0, p_top, 0) };
-			// UV: x across in metres, y metres down from the top; UV2.x: metres above the landing
-			const Vector2 fall_uv[4] = { Vector2(0, drop), Vector2(width, drop), Vector2(width, 0), Vector2(0, 0) };
-			const Vector2 fall_uv2[4] = { Vector2(0, 0), Vector2(0, 0), Vector2(drop, 0), Vector2(drop, 0) };
-			add_quad(fall_vertices, fall_normals, fall_uvs, fall_uv2s, nullptr, sheet, fall_uv, fall_uv2, nullptr, out);
-		};
-		// the vertex colour at a square's corner (toward p_sx, p_sz): the average flow of the up to
-		// four columns around that corner whose water is at the same surface p_y
-		auto corner_flow = [&](int p_x, int p_z, int p_sx, int p_sz, float p_y) {
-			Color sum(0, 0, 0, 0);
-			int count = 0;
-			const Vector2i around[4] = { Vector2i(p_x, p_z), Vector2i(p_x + p_sx, p_z), Vector2i(p_x, p_z + p_sz),
-				Vector2i(p_x + p_sx, p_z + p_sz) };
-			for (const Vector2i &c : around) {
-				if (c.x < 0 || c.y < 0 || c.x >= columns.x || c.y >= columns.y) {
-					continue;
-				}
-				size_t i = static_cast<size_t>(_column_index(c.x, c.y));
-				if (_is_wet(static_cast<int>(i)) && std::abs(surface[i] - p_y) < SAME) {
-					sum += flow[i];
-					count++;
-				}
-			}
-			sum /= static_cast<float>(std::max(count, 1));
-			// direction to 0..1 for the vertex colour
-			return Color(sum.r * 0.5f + 0.5f, sum.g * 0.5f + 0.5f, sum.b, sum.a);
-		};
-		for (int z = 0; z < columns.y; z++) {
-			for (int x = 0; x < columns.x; x++) {
-				int index = _column_index(x, z);
-				if (!_is_wet(index)) {
-					continue;
-				}
-				float y = surface[static_cast<size_t>(index)];
-				// UV2.x: 1 on a stream (the shader keeps its shore foam down)
-				float stream = held[static_cast<size_t>(index)] ? 0.0f : 1.0f;
-				// a flat rectangle of water between (p_x0, p_z0) and (p_x1, p_z1), kept inside the grid, with
-				// the flow colour at its four corners (c00 at x0 z0, c10 at x1 z0, c11 at x1 z1, c01 at x0 z1)
-				auto rect = [&](float p_x0, float p_z0, float p_x1, float p_z1, Color c00, Color c10, Color c11, Color c01) {
-					if (p_x0 > p_x1) {
-						std::swap(p_x0, p_x1);
-						std::swap(c00, c10);
-						std::swap(c01, c11);
-					}
-					if (p_z0 > p_z1) {
-						std::swap(p_z0, p_z1);
-						std::swap(c00, c01);
-						std::swap(c10, c11);
-					}
-					p_x0 = std::max(p_x0, 0.0f);
-					p_z0 = std::max(p_z0, 0.0f);
-					p_x1 = std::min(p_x1, max_x);
-					p_z1 = std::min(p_z1, max_z);
-					if (p_x1 - p_x0 < 1e-4f || p_z1 - p_z0 < 1e-4f) {
-						return;
-					}
-					const Vector3 quad[4] = { Vector3(p_x0, y, p_z1), Vector3(p_x1, y, p_z1), Vector3(p_x1, y, p_z0),
-						Vector3(p_x0, y, p_z0) };
-					const Vector2 uv[4] = { Vector2(p_x0, p_z1), Vector2(p_x1, p_z1), Vector2(p_x1, p_z0), Vector2(p_x0, p_z0) };
-					const Vector2 uv2[4] = { Vector2(stream, 0), Vector2(stream, 0), Vector2(stream, 0), Vector2(stream, 0) };
-					const Color tint[4] = { c01, c11, c10, c00 };
-					add_quad(vertices, normals, uvs, uv2s, &colors, quad, uv, uv2, tint, Vector3(0, 1, 0));
-				};
-				// the flow colour at the square's corners, edge middles and centre
-				Color corner[2][2]; // [sx > 0][sz > 0]
-				for (int i = 0; i < 2; i++) {
-					for (int j = 0; j < 2; j++) {
-						corner[i][j] = corner_flow(x, z, i ? 1 : -1, j ? 1 : -1, y);
-					}
-				}
-				Color centre = (corner[0][0] + corner[0][1] + corner[1][0] + corner[1][1]) * 0.25f;
-				float fx = static_cast<float>(x);
-				float fz = static_cast<float>(z);
-				// four quarters; each runs on under a bank beside it (and the diagonal, if both sides are)
-				for (int i = 0; i < 2; i++) {
-					for (int j = 0; j < 2; j++) {
-						int sx = i ? 1 : -1;
-						int sz = j ? 1 : -1;
-						Color c = corner[i][j];
-						Color edge_x = (corner[i][0] + corner[i][1]) * 0.5f; // middle of the side toward sx
-						Color edge_z = (corner[0][j] + corner[1][j]) * 0.5f; // middle of the side toward sz
-						float hx = fx + 0.5f * static_cast<float>(sx);
-						float hz = fz + 0.5f * static_cast<float>(sz);
-						float ox = fx + static_cast<float>(sx);
-						float oz = fz + static_cast<float>(sz);
-						rect(fx, fz, hx, hz, centre, edge_x, c, edge_z);
-						bool bank_x = is_bank(Vector2i(x + sx, z), y);
-						bool bank_z = is_bank(Vector2i(x, z + sz), y);
-						if (bank_x) {
-							rect(hx, fz, ox, hz, edge_x, edge_x, c, c);
-						}
-						if (bank_z) {
-							rect(fx, hz, hx, oz, edge_z, c, c, edge_z);
-						}
-						if (bank_x && bank_z && is_bank(Vector2i(x + sx, z + sz), y)) {
-							rect(hx, hz, ox, oz, c, c, c, c);
-						}
-					}
-				}
-				// spills: a fall onto dry ground lower than the surface, any side
-				for (const Vector2i &step : STEPS) {
-					Vector2i n(x + step.x, z + step.y);
-					if (n.x < 0 || n.y < 0 || n.x >= columns.x || n.y >= columns.y) {
-						continue;
-					}
-					int other = _column_index(n.x, n.y);
-					float ground = static_cast<float>(column_heights[static_cast<size_t>(other)]) - 0.5f;
-					if (!_is_wet(other) && ground < y - SAME) {
-						add_fall(Vector2i(x, z), step, y, ground);
-					}
-				}
-				// falls to the +x and +z neighbours (each pair once): half way between the columns
-				const Vector2i sides[2] = { Vector2i(1, 0), Vector2i(0, 1) };
-				for (const Vector2i &side : sides) {
-					int nx = x + side.x;
-					int nz = z + side.y;
-					if (nx >= columns.x || nz >= columns.y) {
-						continue;
-					}
-					int other = _column_index(nx, nz);
-					if (!_is_wet(other)) {
-						continue;
-					}
-					float y_other = surface[static_cast<size_t>(other)];
-					if (y > y_other + SAME) {
-						add_fall(Vector2i(x, z), side, y, y_other);
-					} else if (y_other > y + SAME) {
-						add_fall(Vector2i(nx, nz), -side, y_other, y);
-					}
-				}
-			}
-		}
+		_emit_water_cells(surface, held, flow, arrays_out);
 		if (debug_water) {
 			_rebuild_water_debug(surface, held, flow);
 		}
 	}
-	if (vertices.is_empty()) {
+	if (arrays_out.vertices.is_empty()) {
 		if (water_node) {
 			water_node->set_mesh(Ref<Mesh>());
 		}
@@ -738,25 +560,28 @@ void MCGrid::_rebuild_water() {
 	}
 	if (waterfall_material.is_null()) {
 		waterfall_material = shader_material(FALL_SHADER);
+		if (waterfall_material.is_valid()) {
+			waterfall_material->set_render_priority(-1); // falls first, then the surfaces (see waterfall.gdshader)
+		}
 	}
 	Ref<ArrayMesh> mesh;
 	mesh.instantiate();
 	Array arrays;
 	arrays.resize(Mesh::ARRAY_MAX);
-	arrays[Mesh::ARRAY_VERTEX] = vertices;
-	arrays[Mesh::ARRAY_NORMAL] = normals;
-	arrays[Mesh::ARRAY_TEX_UV] = uvs;
-	arrays[Mesh::ARRAY_TEX_UV2] = uv2s;
-	arrays[Mesh::ARRAY_COLOR] = colors;
+	arrays[Mesh::ARRAY_VERTEX] = arrays_out.vertices;
+	arrays[Mesh::ARRAY_NORMAL] = arrays_out.normals;
+	arrays[Mesh::ARRAY_TEX_UV] = arrays_out.uvs;
+	arrays[Mesh::ARRAY_TEX_UV2] = arrays_out.uv2s;
+	arrays[Mesh::ARRAY_COLOR] = arrays_out.colors;
 	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
 	mesh->surface_set_material(0, water_material);
-	if (!fall_vertices.is_empty()) {
+	if (!arrays_out.fall_vertices.is_empty()) {
 		Array falls;
 		falls.resize(Mesh::ARRAY_MAX);
-		falls[Mesh::ARRAY_VERTEX] = fall_vertices;
-		falls[Mesh::ARRAY_NORMAL] = fall_normals;
-		falls[Mesh::ARRAY_TEX_UV] = fall_uvs;
-		falls[Mesh::ARRAY_TEX_UV2] = fall_uv2s;
+		falls[Mesh::ARRAY_VERTEX] = arrays_out.fall_vertices;
+		falls[Mesh::ARRAY_NORMAL] = arrays_out.fall_normals;
+		falls[Mesh::ARRAY_TEX_UV] = arrays_out.fall_uvs;
+		falls[Mesh::ARRAY_TEX_UV2] = arrays_out.fall_uv2s;
 		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, falls);
 		mesh->surface_set_material(1, waterfall_material);
 	}

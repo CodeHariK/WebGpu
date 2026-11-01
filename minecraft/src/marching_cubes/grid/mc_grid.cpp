@@ -74,6 +74,12 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("settle_water"), &MCGrid::settle_water);
 	ClassDB::bind_method(D_METHOD("set_debug_wireframe", "on"), &MCGrid::set_debug_wireframe);
 	ClassDB::bind_method(D_METHOD("is_debug_wireframe"), &MCGrid::is_debug_wireframe);
+	ClassDB::bind_method(D_METHOD("set_water_square", "on"), &MCGrid::set_water_square);
+	ClassDB::bind_method(D_METHOD("get_water_square"), &MCGrid::get_water_square);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "water_square"), "set_water_square", "get_water_square");
+	ClassDB::bind_method(D_METHOD("set_water_blocky_groups", "groups"), &MCGrid::set_water_blocky_groups);
+	ClassDB::bind_method(D_METHOD("get_water_blocky_groups"), &MCGrid::get_water_blocky_groups);
+	ADD_PROPERTY(PropertyInfo(Variant::STRING, "water_blocky_groups"), "set_water_blocky_groups", "get_water_blocky_groups");
 	ClassDB::bind_method(D_METHOD("set_debug_edge_corners", "on"), &MCGrid::set_debug_edge_corners);
 	ClassDB::bind_method(D_METHOD("is_debug_edge_corners"), &MCGrid::is_debug_edge_corners);
 	ClassDB::bind_method(D_METHOD("set_debug_water", "on"), &MCGrid::set_debug_water);

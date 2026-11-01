@@ -214,6 +214,16 @@ everything built on top is an object. Terrain stays pure corners.
       bank's terrain hides the overlap), so the water's edge follows the rounded cliffs, not the
       column squares; fall sheets run into banks at their ends; waterfall shader rewritten (opaque
       threads scrolling down, white lip, landing foam).
+      **Water mesh per cell** (`grid/mc_grid_water_mesh.cpp`): surfaces and falls built on the dual grid
+      with the cliff tiles' shape function (rounded / blocky per group, `water_blocky_groups`), so
+      water edges and falls follow the cliffs exactly — no grass wedges at fall feet, no straight
+      falls on curved cliffs; edges run 5 cm into the rock; a fully covered cell is one quad.
+      **Square tiles** (`cliff_tiles.py --style square` → `Cliff_square.glb`, `cliffs_square.tscn`,
+      `make run_cliffs_square`): blocky with no curves — sharp corners, flat rock faces; the grid's
+      `water_square` gives the water the same sharp shape; its falls sit 1 cm off the rock.
+      Tried and dropped: skirts (curved / vertical lips / overflow sheets at open water edges).
+      Open: a dry corner of the bed tier reached only diagonally (terrain.mct (11, 22) by (12, 21))
+      is a real gap in the terrain — the water either leaks out there or ends at it (now: ends).
       **Debug tools** (Stats panel → Diagnostics; `grid/mc_grid_debug_view.cpp`): Inspect (click a cell: an orange wire cube marks it and a side panel — a
       SubViewport with its own world — shows its tile + wireframe, cube and 8 corner dots numbered by
       hash bit, orange active / black inactive, slowly turning, drag to orbit, scroll to zoom; text:

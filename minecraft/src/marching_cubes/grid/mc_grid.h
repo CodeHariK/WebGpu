@@ -4,6 +4,7 @@
 //   mc_grid_levels.cpp         each cell's level (L / M / H, core/mc_level_plan.h) and Randomize
 //   mc_grid_heights.cpp        heightmap mode: one height per corner column, no overhangs, islands
 //   mc_grid_groups.cpp         each cell's tile group (a, b …): one rolled per connected solid region
+//   mc_grid_water_mesh.cpp     the water mesh: surface + falls per cell with the cliff tiles' shape
 //   mc_grid_water.cpp          the water layer (heightmap mode): ponds, rivers, sea, waterfalls
 //   mc_grid_debug_corners.cpp  debug dots on the corners (+ their picking colliders)
 //   mc_grid_inspect.cpp        inspect mode: mark a cell, build its preview (tile + numbered corners) + info
@@ -26,12 +27,28 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
+#include <godot_cpp/variant/packed_vector3_array.hpp>
+#include <godot_cpp/variant/packed_vector2_array.hpp>
+#include <godot_cpp/variant/packed_color_array.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
 namespace godot {
+
+// The water mesh being built (mc_grid_water_mesh.cpp): surface (with flow colour) and falls.
+struct MCWaterArrays {
+	PackedVector3Array vertices;
+	PackedVector3Array normals;
+	PackedVector2Array uvs; // world x z
+	PackedVector2Array uv2s; // x: 1 on a stream
+	PackedColorArray colors; // flow: rg direction 0..1, b flows, a landing foam
+	PackedVector3Array fall_vertices;
+	PackedVector3Array fall_normals;
+	PackedVector2Array fall_uvs; // x along the ground, y metres down
+	PackedVector2Array fall_uv2s; // x metres above the landing
+};
 
 // One step of a pour's flood fill (for the step-by-step debug): the column taken off the front of the
 // queue and what happened to each of its 4 neighbours (+x, -x, +z, -z).
@@ -88,6 +105,8 @@ private:
 	std::vector<uint8_t> column_heights; // heightmap mode: per corner column (x + z * columns.x)
 	bool lock_rim = true; // heightmap mode: outer columns locked to the floor (off: open edge)
 	std::vector<uint8_t> water_levels; // per corner column, like column_heights (0 = dry)
+	String water_blocky_groups = "b"; // groups whose water edges use the blocky shape
+	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
 	bool water_dirty = false; // the water mesh is rebuilt at the end of the frame
 	MeshInstance3D *water_node = nullptr; // surface + waterfalls (two surfaces)
@@ -291,6 +310,13 @@ private:
 			std::vector<float> &r_surface,
 			std::vector<uint8_t> &r_held
 	) const;
+	// Every cell's water (surface + falls) with the cliff tiles' shape, into r_out.
+	void _emit_water_cells(
+			const std::vector<float> &p_surface,
+			const std::vector<uint8_t> &p_held,
+			const std::vector<Color> &p_flow,
+			MCWaterArrays &r_out
+	) const;
 	// Which way each wet column flows: Color(dir x, dir z, 1 = flows, 1 = a fall lands here).
 	std::vector<Color> _water_flow(const std::vector<float> &p_surface) const;
 	// Where water poured at p_column flows (ground not higher, 4 neighbours), skipping r_seen.
@@ -474,6 +500,12 @@ public:
 	// falls, the last pour's order); replay the last pour.
 	void set_debug_wireframe(bool p_on);
 	bool is_debug_wireframe() const { return debug_wireframe; }
+	// Blocky water with sharp corners, for the square tile set (no rounding).
+	void set_water_square(bool p_on);
+	bool get_water_square() const { return water_square; }
+	// Groups (letters) whose water edges use the blocky shape, like their tiles (default "b").
+	void set_water_blocky_groups(const String &p_groups);
+	String get_water_blocky_groups() const { return water_blocky_groups; }
 	// Edge corners: every inactive corner with an edge to an active corner (a dot + those edges).
 	void set_debug_edge_corners(bool p_on);
 	bool is_debug_edge_corners() const { return debug_edge_corners; }

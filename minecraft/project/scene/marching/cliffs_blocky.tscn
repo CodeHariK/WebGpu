@@ -38,6 +38,7 @@ grid_dims = Vector3i(4, 1, 4)
 chunk_dims = Vector3i(8, 4, 8)
 solid_floor = false
 heightmap_mode = true
+water_blocky_groups = "ab"
 
 [node name="MCManager" type="MCManager" parent="." unique_id=387674285]
 tile_library_path = NodePath("../MCTileLibrary")

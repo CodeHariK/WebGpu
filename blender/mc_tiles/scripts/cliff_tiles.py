@@ -12,6 +12,8 @@ Run (writes the .blend and the .glb next to each other):
     add --style blocky (Cliff_blocky.blend / .glb) for the Link's Awakening look: square tiers along
     the cells' middle lines, rounded outer corners, sharp inner ones (blocky() below);
     --style both (Cliffs.blend / .glb): one set, rounded tiles as group a, blocky as group b
+    --style square (Cliff_square.blend / .glb): blocky with no curves at all — sharp outer corners
+    (ROUNDING 0) and flat rock faces (no strata grooves)
     ("00001111_mb1"); MCGrid gives each connected region one group
 
 or open it in Blender's Text Editor and Run Script (builds the "Cliff" collection in the open file).
@@ -243,7 +245,7 @@ def wall_point(c, n, z):
     point = (c[0] - n[0] * d, c[1] - n[1] * d, z)
     normal = (n[0], n[1], groove_slope(z))
     length = math.sqrt(normal[0] ** 2 + normal[1] ** 2 + normal[2] ** 2)
-    shade = 1.0 - GROOVE_SHADE * d / GROOVE
+    shade = 1.0 - GROOVE_SHADE * d / GROOVE if GROOVE > 0 else 1.0
     return point, (normal[0] / length, normal[1] / length, normal[2] / length), shade
 
 
@@ -394,7 +396,11 @@ def build_collection(bpy, group="a", row=0):
 
 
 def use_style(style):
-    global STYLE, N
+    global STYLE, N, ROUNDING, GROOVE
+    if style == "square":  # blocky, no curves: sharp corners, flat rock faces
+        style = "blocky"
+        ROUNDING = 0.0
+        GROOVE = 0.0
     STYLE = style
     N = 11 if style == "blocky" else 9
 

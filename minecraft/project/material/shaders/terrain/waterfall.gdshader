@@ -4,7 +4,10 @@
 //   UV2.x metres above the landing (0 at the bottom)
 // Built up one idea per step:
 shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_disabled;
+// depth_draw_always: the falls write depth, and the grid draws them before the water surfaces
+// (render priority -1), so a surface behind a fall is hidden and one in front blends over it — the
+// surfaces themselves don't write depth, so without this a fall drawn after them shows through them.
+render_mode blend_mix, depth_draw_always, cull_disabled;
 
 // Step 1: a base colour: lighter than the pool (falling water is full of air), nearly opaque, so
 // the sheet reads as pouring water, not glass.
