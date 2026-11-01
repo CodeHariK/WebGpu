@@ -214,11 +214,17 @@ everything built on top is an object. Terrain stays pure corners.
       bank's terrain hides the overlap), so the water's edge follows the rounded cliffs, not the
       column squares; fall sheets run into banks at their ends; waterfall shader rewritten (opaque
       threads scrolling down, white lip, landing foam).
-      **Debug tools** (Stats panel → Diagnostics; `grid/mc_grid_debug_view.cpp`): Corners (the hover shows thick white wire cubes on the active corners in the
-      3 x 3 x 3 round the hovered corner, or a cell's active corners on a Ctrl / Cmd cell hover;
-      nothing drawn over the rest of the terrain), Wireframe (overlay on chunk meshes), Water debug (held /
+      **Debug tools** (Stats panel → Diagnostics; `grid/mc_grid_debug_view.cpp`): Inspect (click a cell: an orange wire cube marks it and a side panel — a
+      SubViewport with its own world — shows its tile + wireframe, cube and 8 corner dots numbered by
+      hash bit, orange active / black inactive, slowly turning, drag to orbit, scroll to zoom; text:
+      cell, hash, modelled tile + turn, group, level, variant; the terrain never changes;
+      `grid/mc_grid_inspect.cpp`, `editor/mc_manager_inspect.cpp`), Edge corners (every inactive corner with an edge to an
+      active corner: a light blue dot + a thin line along each such edge; follows edits), Wireframe (overlay on chunk meshes), Water debug (held /
       stream / sea squares, flow arrows, framed vs open falls, last pour order), Replay pour (the
-      flood fill's order animated). Hover: wire cube + outlined face (`util/mc_wire.*`); the
+      flood fill's order animated). Step through the last pour with . / , (Shift: 10
+      steps), / for the whole pour: done columns, the queue, the column taken, each neighbour's
+      result (queued / already queued / higher ground) and a label explaining the step
+      (`MCPourStep` trace from `_flow_region`). Hover: wire cube + outlined face (`util/mc_wire.*`); the
       placement box is a wire box too.
       Still: one water mesh per grid (per chunk for big worlds), no splash particles, water in corner
       mode, a drag-to-paint stroke (each click is one column)

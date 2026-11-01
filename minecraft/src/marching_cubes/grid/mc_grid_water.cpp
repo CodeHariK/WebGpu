@@ -189,8 +189,10 @@ int MCGrid::fill_water(
 		return 0;
 	}
 	std::vector<uint8_t> seen(column_heights.size(), 0);
-	std::vector<int> region = _flow_region(p_column, seen);
-	last_pour = region; // for the debug overlay's replay
+	last_pour_trace.clear();
+	std::vector<int> region = _flow_region(p_column, seen, &last_pour_trace);
+	last_pour = region; // for the debug overlay's replay and step-by-step view
+	pour_step = -1;
 	for (int index : region) {
 		size_t i = static_cast<size_t>(index);
 		int wanted = index == start ? level : depth_one(i);
@@ -203,11 +205,16 @@ int MCGrid::fill_water(
 	return static_cast<int>(region.size());
 }
 
-// Where water poured at p_column runs: breadth-first onto 4-neighbours whose ground is not higher
-// than the column it comes from. Columns already in p_seen are skipped (and the reached ones added).
+// Where water poured at p_column runs: a breadth-first flood fill. The poured column goes in a queue;
+// each step takes the column at the front and looks at its 4 neighbours (+x, -x, +z, -z): off the
+// grid -> skipped; already queued -> skipped; ground higher than this column's -> rejected (a bank);
+// otherwise (same or lower ground) -> marked and added to the back of the queue. It ends when the
+// queue is used up; the queue in order is the region (nearest first). Columns already in r_seen are
+// skipped (and the reached ones added). r_trace (optional) records every step for the debug view.
 std::vector<int> MCGrid::_flow_region(
 		const Vector2i &p_column,
-		std::vector<uint8_t> &r_seen
+		std::vector<uint8_t> &r_seen,
+		std::vector<MCPourStep> *r_trace
 ) const {
 	std::vector<int> region;
 	int start = _column_index(p_column.x, p_column.y);
@@ -222,16 +229,28 @@ std::vector<int> MCGrid::_flow_region(
 		int index = _column_index(c.x, c.y);
 		region.push_back(index);
 		int ground = column_heights[static_cast<size_t>(index)];
-		for (const Vector2i &step : STEPS) {
-			Vector2i n = c + step;
+		MCPourStep trace;
+		trace.column = index;
+		for (int k = 0; k < 4; k++) {
+			Vector2i n = c + STEPS[k];
 			if (n.x < 0 || n.y < 0 || n.x >= columns.x || n.y >= columns.y) {
+				trace.result[k] = MCPourStep::OUTSIDE;
 				continue;
 			}
 			size_t i = static_cast<size_t>(_column_index(n.x, n.y));
-			if (!r_seen[i] && column_heights[i] <= ground) {
+			if (r_seen[i]) {
+				trace.result[k] = MCPourStep::SEEN;
+			} else if (column_heights[i] > ground) {
+				trace.result[k] = MCPourStep::HIGHER;
+			} else {
+				trace.result[k] = MCPourStep::QUEUED;
 				r_seen[i] = 1;
 				queue.push_back(n);
 			}
+		}
+		if (r_trace) {
+			trace.queue_size = static_cast<int>(queue.size());
+			r_trace->push_back(trace);
 		}
 	}
 	return region;

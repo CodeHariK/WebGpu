@@ -2,6 +2,7 @@
 //   mc_manager.cpp        lifecycle, node paths, save/load
 //   mc_manager_input.cpp  mouse clicks: raycast once, then terrain edits or hand off to object mode
 //   mc_object_mode.cpp    placing, selecting, dragging, deleting objects
+//   mc_manager_inspect.cpp inspect mode: click a cell, see its tile + corners in a side view
 //   mc_manager_hover.cpp  per-frame hover raycast and previews
 //   mc_ui.cpp             side panel, stats, help
 //   mc_manager_randomize.cpp   Randomize section of the side panel (grid corners by the L / M / H rules)
@@ -231,8 +232,40 @@ public:
 	void _on_toggle_visual_corners();
 	// Debug views: terrain wireframe, water overlay, replay the last pour.
 	void _on_toggle_wireframe();
+	void _on_toggle_edge_corners(); // inactive corners with an edge to an active one
 	void _on_toggle_water_debug();
 	void _on_replay_pour();
+	// --- mc_manager_inspect.cpp: inspect mode (a clicked cell shown in a side view) ---
+	struct InspectView {
+		class PanelContainer *panel = nullptr; // bottom right; hidden until a cell is inspected
+		Node3D *pivot = nullptr; // turns the camera round the cell
+		class Camera3D *camera = nullptr;
+		Node3D *preview = nullptr; // MCGrid::make_cell_preview of the cell
+		class Label *info = nullptr; // MCGrid::get_cell_info
+		float yaw = 0.6f;
+		float pitch = -0.5f;
+		float distance = 3.6f;
+		bool spinning = true; // turns slowly until orbited by hand
+	} inspect;
+	void _on_toggle_inspect();
+	// Inspect a cell from code (turns inspect mode on): marks it and shows it in the panel.
+	void inspect_at_cell(const Vector3i &p_cell);
+	bool _inspect_active(MCGrid *p_grid) const;
+	void _setup_inspect_panel();
+	void _place_inspect_camera();
+	void _show_inspect_cell(
+			MCGrid *p_grid,
+			const Vector3i &p_cell
+	);
+	void _on_inspect_view_input(const Ref<InputEvent> &p_event);
+	void _update_inspect_view(double p_delta);
+	// Clicks in inspect mode (left: inspect the cell, right: clear); true when the event was used.
+	bool _inspect_input(
+			MCGrid *p_grid,
+			const Ref<InputEvent> &p_event
+	);
+	// . , / step through the last pour's flood fill (water debug); true when the key was used.
+	bool _pour_step_shortcut(const Ref<InputEvent> &p_event);
 	// _unhandled_input (not _input): clicks on UI buttons are consumed by the GUI first and never
 	// reach the terrain behind them.
 	void _unhandled_input(const Ref<InputEvent> &p_event) override;

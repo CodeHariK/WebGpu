@@ -6,6 +6,7 @@
 //   mc_grid_groups.cpp         each cell's tile group (a, b …): one rolled per connected solid region
 //   mc_grid_water.cpp          the water layer (heightmap mode): ponds, rivers, sea, waterfalls
 //   mc_grid_debug_corners.cpp  debug dots on the corners (+ their picking colliders)
+//   mc_grid_inspect.cpp        inspect mode: mark a cell, build its preview (tile + numbered corners) + info
 //   mc_grid_debug_view.cpp     debug views: corner dot look, terrain wireframe, water overlay + pour replay
 //   mc_grid_hover.cpp          hover preview quads
 //   mc_grid_objects.cpp        placed objects (with mc_spatial)
@@ -32,6 +33,20 @@
 
 namespace godot {
 
+// One step of a pour's flood fill (for the step-by-step debug): the column taken off the front of the
+// queue and what happened to each of its 4 neighbours (+x, -x, +z, -z).
+struct MCPourStep {
+	enum Result : uint8_t {
+		QUEUED, // ground not higher: water flows there, added to the back of the queue
+		SEEN, // already in the queue or done: skipped
+		HIGHER, // ground higher than here: a bank, rejected
+		OUTSIDE, // off the grid
+	};
+	int column = -1; // corner column index
+	Result result[4] = { OUTSIDE, OUTSIDE, OUTSIDE, OUTSIDE };
+	int queue_size = 0; // queue length after this step (the queue holds every column found so far)
+};
+
 // One undoable edit: the old values it changed (index, value), and the decor seed and M roofs as
 // they were when it began (mc_grid_undo.cpp).
 struct MCEdit {
@@ -51,6 +66,7 @@ class Mesh;
 class MeshInstance3D;
 class StandardMaterial3D;
 class ShaderMaterial;
+class MultiMeshInstance3D;
 
 class MCGrid : public Node3D {
 	GDCLASS(MCGrid,
@@ -99,15 +115,30 @@ private:
 	std::vector<Ref<StandardMaterial3D>> _debug_corner_materials; // solid dots, by corner y
 	bool debug_wireframe = false; // chunk meshes get a wireframe overlay
 	Ref<Material> _wireframe_material;
+	bool debug_edge_corners = false; // inactive corners joined to an active one are shown
+	Node3D *edge_corners_root = nullptr;
+	MultiMeshInstance3D *edge_corners_dots = nullptr;
+	MeshInstance3D *edge_corners_lines = nullptr;
 	bool debug_water = false; // the water overlay is shown
 	MeshInstance3D *water_debug_node = nullptr;
 	Ref<ShaderMaterial> water_debug_material;
 	std::vector<int> last_pour; // the columns the last fill_water reached, in the order it reached them
+	std::vector<MCPourStep> last_pour_trace; // the last fill_water, step by step
+	bool inspect_mode = false; // inspect mode: a clicked cell is shown in the editor's side view
+	Vector3i inspect_cell_pos; // the inspected cell
+	bool inspect_has_cell = false;
+	Node3D *inspect_root = nullptr;
+	MeshInstance3D *inspect_highlight = nullptr; // orange wire cube on the inspected cell
+	Ref<Material> _inspect_cube_material;
+	Ref<Material> _inspect_on_material;
+	Ref<Material> _inspect_off_material;
+	Ref<Mesh> _inspect_dot_mesh;
+	int pour_step = -1; // step-by-step debug: the step shown (-1: the whole pour)
+	class Label3D *pour_step_label = nullptr; // explains the shown step, over its column
 	Node3D *hover_root = nullptr;
 	MeshInstance3D *hover_cube = nullptr; // wire cube round the hovered corner
 	MeshInstance3D *hover_face = nullptr; // the face the mouse is on: outline + faint fill
-	Node3D *hover_corners_root = nullptr; // Corners debug: cubes on the active corners round the hover
-	MeshInstance3D *hover_corner_cubes[27] = {}; // a pool: 3 x 3 x 3 at most
+
 
 	// Index into chunks[] of the chunk at chunk coordinates (x, y, z).
 	int _get_chunk_index(
@@ -265,8 +296,14 @@ private:
 	// Where water poured at p_column flows (ground not higher, 4 neighbours), skipping r_seen.
 	std::vector<int> _flow_region(
 			const Vector2i &p_column,
-			std::vector<uint8_t> &r_seen
+			std::vector<uint8_t> &r_seen,
+			std::vector<MCPourStep> *r_trace = nullptr
 	) const;
+	// The step-by-step overlay of the last pour at pour_step (added to the water overlay).
+	void _add_pour_step_debug(
+			struct MCDebugMesh &r_debug,
+			const std::vector<float> &p_surface
+	);
 	// --- debug views (mc_grid_debug_view.cpp) ---
 	// A corner's debug node: solid -> a dot coloured by height, empty -> a small faint dot.
 	void _style_debug_corner(
@@ -274,13 +311,8 @@ private:
 			bool p_solid,
 			int p_y
 	);
-	// The thick white wire cube mesh + material for an active corner.
-	void _ensure_corner_cube_look();
-	// Corners debug: wire cubes on the active corners round the hover (3 x 3 x 3, or a cell's 8).
-	void _show_hover_corners(
-			const Vector3 &p_pos,
-			bool p_cell
-	);
+	// The edge-corner view (rebuilt after edits while it is on); returns how many corners it shows.
+	int _rebuild_edge_corners();
 	// The wireframe overlay on a chunk mesh (on or off by debug_wireframe).
 	void _apply_wireframe(MeshInstance3D *p_node);
 	// Build the water overlay from the surfaces, held flags and flow _rebuild_water worked out.
@@ -442,9 +474,30 @@ public:
 	// falls, the last pour's order); replay the last pour.
 	void set_debug_wireframe(bool p_on);
 	bool is_debug_wireframe() const { return debug_wireframe; }
+	// Edge corners: every inactive corner with an edge to an active corner (a dot + those edges).
+	void set_debug_edge_corners(bool p_on);
+	bool is_debug_edge_corners() const { return debug_edge_corners; }
 	void set_debug_water(bool p_on);
 	bool is_debug_water() const { return debug_water; }
 	void replay_water_debug();
+	// Step through the last pour's flood fill (turns the water overlay on): -1 shows the whole pour,
+	// 0 .. count-1 one step. Keys in the editor: . next, , back (Shift: 10 at a time), / whole pour.
+	void set_pour_step(int p_step);
+	int get_pour_step() const { return pour_step; }
+	int get_pour_step_count() const { return static_cast<int>(last_pour_trace.size()); }
+	// What the shown step did, in words ("" when showing the whole pour).
+	String get_pour_step_text() const;
+	// Inspect mode (mc_grid_inspect.cpp): mark a cell (orange wire cube) for the editor's side view;
+	// the terrain is never changed. inspect_cell: false if the cell is empty (still marked).
+	void set_inspect_mode(bool p_on);
+	bool is_inspect_mode() const { return inspect_mode; }
+	bool inspect_cell(const Vector3i &p_cell);
+	void clear_inspect();
+	Vector3i get_inspect_cell() const; // (-1, -1, -1) when none
+	// What the side view shows: the cell's tile (+ wireframe), its cube and 8 numbered corner dots,
+	// centred on the origin (a new node; the caller owns it). And the text beside it.
+	Node3D *make_cell_preview(const Vector3i &p_cell);
+	String get_cell_info(const Vector3i &p_cell) const;
 	// Let all standing water flow again (after a load or a terrain edit). Returns columns changed.
 	int settle_water();
 	// Dry the connected water (any level), leaving the sea. Returns how many columns.

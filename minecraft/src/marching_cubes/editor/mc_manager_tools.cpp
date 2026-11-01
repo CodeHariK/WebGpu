@@ -12,6 +12,7 @@
 // (grid/mc_grid_undo.cpp). Every terrain / water click and every Randomize is one step.
 #include "cui/cui.h"
 #include "marching_cubes/editor/mc_manager.h"
+#include <algorithm>
 #include "marching_cubes/grid/mc_grid.h"
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/button_group.hpp>
@@ -120,6 +121,34 @@ bool MCManager::_history_shortcut(const Ref<InputEvent> &p_event) {
 		return true;
 	}
 	return false;
+}
+
+// Step through the last pour (water debug): . next step, , back (Shift: 10 steps), / the whole pour.
+// The first . starts at step 1. True when the key was used.
+bool MCManager::_pour_step_shortcut(const Ref<InputEvent> &p_event) {
+	Ref<InputEventKey> key = p_event;
+	if (key.is_null() || !key->is_pressed() || key->is_command_or_control_pressed()) {
+		return false;
+	}
+	Key code = key->get_keycode();
+	if (code != KEY_PERIOD && code != KEY_COMMA && code != KEY_SLASH) {
+		return false;
+	}
+	MCGrid *grid = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (!grid || grid->get_pour_step_count() == 0) {
+		return false;
+	}
+	int stride = key->is_shift_pressed() ? 10 : 1;
+	int step = grid->get_pour_step();
+	if (code == KEY_SLASH) {
+		step = -1;
+	} else if (code == KEY_PERIOD) {
+		step = step < 0 ? 0 : step + stride;
+	} else {
+		step = step < 0 ? grid->get_pour_step_count() - 1 : std::max(step - stride, 0);
+	}
+	grid->set_pour_step(step);
+	return true;
 }
 
 // Water tool (heightmap mode): left fills the clicked column's hole one tier deep, right drains the

@@ -39,6 +39,14 @@ void MCManager::_on_toggle_wireframe() {
 	}
 }
 
+// Edge corners on / off: inactive corners joined by an edge to an active corner.
+void MCManager::_on_toggle_edge_corners() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_debug_edge_corners(!grid_node->is_debug_edge_corners());
+	}
+}
+
 // Water overlay on / off (held / stream / sea, flow arrows, framed / open falls, last pour).
 void MCManager::_on_toggle_water_debug() {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
@@ -124,12 +132,16 @@ void MCManager::_update_hover_raycast() {
 
 	TypedArray<RID> exclude = _drag_group_exclusions();
 
-	bool ctrl_held =
-			Input::get_singleton()->is_key_pressed(KEY_CTRL) || Input::get_singleton()->is_key_pressed(KEY_META);
+	// Ctrl / Cmd (or inspect mode) hovers cells instead of corners
+	bool ctrl_held = Input::get_singleton()->is_key_pressed(KEY_CTRL) ||
+			Input::get_singleton()->is_key_pressed(KEY_META) || _inspect_active(grid_node);
 
 	uint32_t mask = toLayer(LAYER_OBJECTS) | toLayer(LAYER_CORNERS);
 	if (ctrl_held && interaction_mode == MODE_TERRAIN) {
 		mask |= toLayer(LAYER_TERRAIN);
+	}
+	if (_inspect_active(grid_node)) {
+		mask = toLayer(LAYER_TERRAIN); // the same cell the click pulls out (mc_manager_inspect.cpp)
 	}
 
 	MCRaycastHit hit = raycast_from_mouse(this, viewport->get_mouse_position(), mask, 1000.0f, exclude);

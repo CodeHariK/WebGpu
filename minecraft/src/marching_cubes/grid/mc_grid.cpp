@@ -74,11 +74,24 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("settle_water"), &MCGrid::settle_water);
 	ClassDB::bind_method(D_METHOD("set_debug_wireframe", "on"), &MCGrid::set_debug_wireframe);
 	ClassDB::bind_method(D_METHOD("is_debug_wireframe"), &MCGrid::is_debug_wireframe);
+	ClassDB::bind_method(D_METHOD("set_debug_edge_corners", "on"), &MCGrid::set_debug_edge_corners);
+	ClassDB::bind_method(D_METHOD("is_debug_edge_corners"), &MCGrid::is_debug_edge_corners);
 	ClassDB::bind_method(D_METHOD("set_debug_water", "on"), &MCGrid::set_debug_water);
 	ClassDB::bind_method(D_METHOD("is_debug_water"), &MCGrid::is_debug_water);
 	ClassDB::bind_method(D_METHOD("replay_water_debug"), &MCGrid::replay_water_debug);
+	ClassDB::bind_method(D_METHOD("set_pour_step", "step"), &MCGrid::set_pour_step);
+	ClassDB::bind_method(D_METHOD("get_pour_step"), &MCGrid::get_pour_step);
+	ClassDB::bind_method(D_METHOD("get_pour_step_count"), &MCGrid::get_pour_step_count);
+	ClassDB::bind_method(D_METHOD("get_pour_step_text"), &MCGrid::get_pour_step_text);
 	ClassDB::bind_method(D_METHOD("update_hover_preview", "corner_pos", "hit_normal", "camera"), &MCGrid::update_hover_preview);
 	ClassDB::bind_method(D_METHOD("hide_hover_preview"), &MCGrid::hide_hover_preview);
+	ClassDB::bind_method(D_METHOD("set_inspect_mode", "on"), &MCGrid::set_inspect_mode);
+	ClassDB::bind_method(D_METHOD("is_inspect_mode"), &MCGrid::is_inspect_mode);
+	ClassDB::bind_method(D_METHOD("inspect_cell", "cell"), &MCGrid::inspect_cell);
+	ClassDB::bind_method(D_METHOD("clear_inspect"), &MCGrid::clear_inspect);
+	ClassDB::bind_method(D_METHOD("get_inspect_cell"), &MCGrid::get_inspect_cell);
+	ClassDB::bind_method(D_METHOD("make_cell_preview", "cell"), &MCGrid::make_cell_preview);
+	ClassDB::bind_method(D_METHOD("get_cell_info", "cell"), &MCGrid::get_cell_info);
 	ClassDB::bind_method(D_METHOD("clear_water", "column"), &MCGrid::clear_water);
 	ClassDB::bind_method(D_METHOD("set_sea_level", "level"), &MCGrid::set_sea_level);
 	ClassDB::bind_method(D_METHOD("get_sea_level"), &MCGrid::get_sea_level);
@@ -254,6 +267,7 @@ void MCGrid::refresh_grid() {
 		debug_corners_container->set_visible(show_debug_corners);
 	}
 	_rebuild_water();
+	_rebuild_edge_corners();
 	UtilityFunctions::print("MCGrid Refresh: ", spawn_count, " visual nodes spawned.");
 }
 

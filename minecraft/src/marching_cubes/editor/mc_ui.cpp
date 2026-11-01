@@ -105,8 +105,9 @@ void MCManager::setup_ui() {
 
 	ui.manager->add_header(ui.stats_vbox, "Diagnostics");
 
-	// debug views (mc_grid_debug_view.cpp): corner dots, terrain wireframe, water overlay + pour replay
-	const char *debug_buttons[4][2] = { { "Corners", "_on_toggle_visual_corners" },
+	// debug views: inspect mode (mc_manager_inspect.cpp), terrain wireframe, water overlay + pour replay
+	const char *debug_buttons[5][2] = { { "Inspect", "_on_toggle_inspect" },
+		{ "Edge corners", "_on_toggle_edge_corners" },
 		{ "Wireframe", "_on_toggle_wireframe" },
 		{ "Water debug", "_on_toggle_water_debug" },
 		{ "Replay pour", "_on_replay_pour" } };

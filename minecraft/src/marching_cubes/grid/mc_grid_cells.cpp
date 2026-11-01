@@ -153,10 +153,15 @@ void MCGrid::_queue_rebuild() {
 void MCGrid::flush_dirty_chunks() {
 	rebuild_queued = false;
 	_update_levels(); // an edit can change the level of cells further away (a roof region)
+	bool rebuilt = false;
 	for (Chunk &chunk : chunks) {
 		if (chunk.dirty) {
 			_build_chunk_mesh(chunk);
+			rebuilt = true;
 		}
+	}
+	if (rebuilt && debug_edge_corners) {
+		_rebuild_edge_corners();
 	}
 	if (water_dirty) {
 		_rebuild_water();
@@ -170,7 +175,8 @@ void MCGrid::_free_spawned_nodes() {
 	for (int i = 0; i < children.size(); i++) {
 		Node *child = Object::cast_to<Node>(children[i]);
 		if (child && child != debug_corners_container && child != hover_root && child != placed_objects_container &&
-				child != water_node && child != water_debug_node && child != hover_corners_root) {
+				child != water_node && child != water_debug_node && child != inspect_root &&
+				child != edge_corners_root) {
 			remove_child(child);
 			child->queue_free();
 		}

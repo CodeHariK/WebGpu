@@ -50,6 +50,10 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_toggle_ui"), &MCManager::_on_toggle_ui);
 	ClassDB::bind_method(D_METHOD("_on_toggle_visual_corners"), &MCManager::_on_toggle_visual_corners);
 	ClassDB::bind_method(D_METHOD("_on_toggle_wireframe"), &MCManager::_on_toggle_wireframe);
+	ClassDB::bind_method(D_METHOD("_on_toggle_inspect"), &MCManager::_on_toggle_inspect);
+	ClassDB::bind_method(D_METHOD("_on_toggle_edge_corners"), &MCManager::_on_toggle_edge_corners);
+	ClassDB::bind_method(D_METHOD("_on_inspect_view_input", "event"), &MCManager::_on_inspect_view_input);
+	ClassDB::bind_method(D_METHOD("inspect_at_cell", "cell"), &MCManager::inspect_at_cell);
 	ClassDB::bind_method(D_METHOD("_on_toggle_water_debug"), &MCManager::_on_toggle_water_debug);
 	ClassDB::bind_method(D_METHOD("_on_replay_pour"), &MCManager::_on_replay_pour);
 	ClassDB::bind_method(D_METHOD("_on_gui_input", "p_event"), &MCManager::_on_gui_input);
@@ -93,6 +97,7 @@ void MCManager::_process(double p_delta) {
 	}
 
 	_update_hover_raycast();
+	_update_inspect_view(p_delta);
 }
 
 // Node path to the MCGrid.

@@ -1,10 +1,9 @@
 // MCGrid: debug views for looking inside the terrain and the water.
 //
-//   corners   the hover shows the corners around it: a thick white wire cube (edges only, drawn
-//             through terrain) on every active corner in the 3 x 3 x 3 block round the hovered
-//             corner, or, on a cell hover (Ctrl / Cmd), on the cell's active corners among its 8 —
-//             the ones that pick its tile. Nothing is drawn over the rest of the terrain. (The
-//             per-corner nodes from mc_grid_debug_corners.cpp are only picking colliders.)
+//   corners   see inspect mode (mc_grid_inspect.cpp): pull a tile out and its corners are shown.
+//   edge corners  every inactive corner joined by an edge (one of its 6 neighbours) to an active
+//             corner: a light blue dot, and a thin line along each such edge to the active corner —
+//             the edges the surface crosses. One MultiMesh for the dots, one line mesh.
 //   wireframe the triangles of every chunk mesh drawn as dark lines over the shaded terrain
 //             (an overlay shader with render_mode wireframe), so tile seams and tile shapes show.
 //   water     an overlay above the water, drawn on top of everything:
@@ -15,11 +14,18 @@
 //               - the last pour (fill_water): a dot per column it reached, coloured by the order the
 //                 flood fill reached it (yellow first -> magenta last); replay_water_debug() replays
 //                 it, the dots appearing in that order over two seconds
+//               - or one step of that pour (set_pour_step; editor keys . , /): done columns yellow,
+//                 the queue cyan, the column the step takes outlined white, a line to each neighbour
+//                 (green queued, grey already queued, red + cross higher ground) and a label
+//                 explaining the step
 #include "marching_cubes/grid/mc_grid.h"
 #include "marching_cubes/util/mc_wire.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/geometry_instance3d.hpp>
+#include <godot_cpp/classes/label3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/multi_mesh.hpp>
+#include <godot_cpp/classes/multi_mesh_instance3d.hpp>
 #include <godot_cpp/classes/property_tweener.hpp>
 #include <godot_cpp/classes/shader.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
@@ -82,8 +88,10 @@ Ref<ShaderMaterial> material_from_code(const char *p_code) {
 	return material;
 }
 
+} // namespace
+
 // The water overlay's geometry, built up piece by piece.
-struct DebugLines {
+struct MCDebugMesh {
 	PackedVector3Array tri_vertices, line_vertices;
 	PackedColorArray tri_colors, line_colors;
 	PackedVector2Array tri_uvs, line_uvs;
@@ -127,12 +135,11 @@ struct DebugLines {
 		return mesh;
 	}
 };
-} // namespace
 
 // --- corners ---
 
-// Corner nodes are only picking colliders now: they draw nothing. (The Corners view is the hover's
-// 3 x 3 x 3 neighbourhood, below.)
+// Corner nodes are only picking colliders: they draw nothing. (To look at corners, use inspect mode:
+// mc_grid_inspect.cpp.)
 void MCGrid::_style_debug_corner(
 		MeshInstance3D *p_node,
 		bool p_solid,
@@ -143,73 +150,102 @@ void MCGrid::_style_debug_corner(
 	p_node->set_mesh(Ref<Mesh>());
 }
 
-// The thick white wire cube drawn on an active corner near the hover (edges only, through terrain).
-void MCGrid::_ensure_corner_cube_look() {
-	if (_debug_dot_solid.is_valid()) {
-		return;
-	}
-	Ref<ArrayMesh> cube = mc_wire_cube(Vector3(1, 1, 1), 0.03f);
-	cube->surface_remove(1); // no faces: see-through
-	_debug_dot_solid = cube;
-	Ref<StandardMaterial3D> material;
-	material.instantiate();
-	material->set_albedo(Color(1, 1, 1, 0.95f));
-	material->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
-	material->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
-	material->set_cull_mode(BaseMaterial3D::CULL_DISABLED);
-	material->set_flag(BaseMaterial3D::FLAG_DISABLE_DEPTH_TEST, true);
-	material->set_render_priority(1);
-	_debug_corner_materials.assign(1, material);
+// --- edge corners ---
+
+void MCGrid::set_debug_edge_corners(bool p_on) {
+	debug_edge_corners = p_on;
+	_rebuild_edge_corners();
 }
 
-// Show a wire cube on every active corner around the hover: the 3 x 3 x 3 corners round the hovered
-// corner, or (cell hover, p_cell) the cell's 8 corners — the ones that pick its tile. Grid space.
-void MCGrid::_show_hover_corners(
-		const Vector3 &p_pos,
-		bool p_cell
-) {
-	_ensure_corner_cube_look();
-	if (!hover_corners_root) {
-		hover_corners_root = memnew(Node3D);
-		hover_corners_root->set_name("HoverCorners");
-		add_child(hover_corners_root);
-		for (MeshInstance3D *&cube : hover_corner_cubes) {
-			cube = memnew(MeshInstance3D);
-			cube->set_mesh(_debug_dot_solid);
-			cube->set_material_override(_debug_corner_materials[0]);
-			cube->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
-			hover_corners_root->add_child(cube);
+// Rebuild the edge-corner view (or hide it when off). Returns how many corners it shows.
+int MCGrid::_rebuild_edge_corners() {
+	if (!debug_edge_corners) {
+		if (edge_corners_root) {
+			edge_corners_root->hide();
 		}
+		return 0;
 	}
-	hover_corners_root->show();
-	int used = 0;
-	auto show_if_active = [&](const Vector3i &p_corner) {
-		if (used < 27 && _dims().contains_corner(p_corner) && is_corner_active(p_corner)) {
-			hover_corner_cubes[used]->set_position(Vector3(p_corner));
-			hover_corner_cubes[used]->show();
-			used++;
-		}
-	};
-	if (p_cell) {
-		Vector3i base(static_cast<int>(Math::floor(p_pos.x)), static_cast<int>(Math::floor(p_pos.y)),
-				static_cast<int>(Math::floor(p_pos.z)));
-		for (int i = 0; i < 8; i++) {
-			show_if_active(base + Vector3i(i & 1, (i >> 1) & 1, (i >> 2) & 1));
-		}
-	} else {
-		Vector3i centre(static_cast<int>(Math::round(p_pos.x)), static_cast<int>(Math::round(p_pos.y)),
-				static_cast<int>(Math::round(p_pos.z)));
-		for (int dy = -1; dy <= 1; dy++) {
-			for (int dz = -1; dz <= 1; dz++) {
-				for (int dx = -1; dx <= 1; dx++) {
-					show_if_active(centre + Vector3i(dx, dy, dz));
+	if (!edge_corners_root) {
+		edge_corners_root = memnew(Node3D);
+		edge_corners_root->set_name("EdgeCorners");
+		add_child(edge_corners_root);
+		edge_corners_dots = memnew(MultiMeshInstance3D);
+		edge_corners_dots->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
+		edge_corners_root->add_child(edge_corners_dots);
+		edge_corners_lines = memnew(MeshInstance3D);
+		edge_corners_lines->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
+		edge_corners_root->add_child(edge_corners_lines);
+	}
+	static const Vector3i NEIGHBOURS[6] = { Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 1, 0),
+		Vector3i(0, -1, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1) };
+	Vector3i size = _dims().max_corner() + Vector3i(1, 1, 1);
+	std::vector<Vector3> dots;
+	PackedVector3Array lines;
+	for (int y = 0; y < size.y; y++) {
+		for (int z = 0; z < size.z; z++) {
+			for (int x = 0; x < size.x; x++) {
+				Vector3i corner(x, y, z);
+				if (is_corner_active(corner)) {
+					continue;
+				}
+				bool edge = false;
+				for (const Vector3i &step : NEIGHBOURS) {
+					Vector3i n = corner + step;
+					if (_dims().contains_corner(n) && is_corner_active(n)) {
+						edge = true;
+						lines.push_back(Vector3(corner));
+						lines.push_back(Vector3(n));
+					}
+				}
+				if (edge) {
+					dots.push_back(Vector3(corner));
 				}
 			}
 		}
 	}
-	for (int i = used; i < 27; i++) {
-		hover_corner_cubes[i]->hide();
+	// the dots: one sphere mesh, one instance each
+	Ref<SphereMesh> sphere;
+	sphere.instantiate();
+	sphere->set_radius(0.06f);
+	sphere->set_height(0.12f);
+	sphere->set_radial_segments(10);
+	sphere->set_rings(5);
+	Ref<StandardMaterial3D> dot_material;
+	dot_material.instantiate();
+	dot_material->set_albedo(Color(0.45f, 0.8f, 1.0f));
+	dot_material->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+	Ref<StandardMaterial3D> dot_xray;
+	dot_xray.instantiate();
+	dot_xray->set_albedo(Color(0.45f, 0.8f, 1.0f, 0.3f));
+	dot_xray->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+	dot_xray->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
+	dot_xray->set_flag(BaseMaterial3D::FLAG_DISABLE_DEPTH_TEST, true);
+	dot_material->set_next_pass(dot_xray);
+	sphere->set_material(dot_material);
+	Ref<MultiMesh> multi;
+	multi.instantiate();
+	multi->set_transform_format(MultiMesh::TRANSFORM_3D);
+	multi->set_mesh(sphere);
+	multi->set_instance_count(static_cast<int>(dots.size()));
+	for (size_t i = 0; i < dots.size(); i++) {
+		multi->set_instance_transform(static_cast<int>(i), Transform3D(Basis(), dots[i]));
 	}
+	edge_corners_dots->set_multimesh(multi);
+	// the edges to the active corners
+	if (lines.is_empty()) {
+		edge_corners_lines->set_mesh(Ref<Mesh>());
+	} else {
+		Array arrays;
+		arrays.resize(Mesh::ARRAY_MAX);
+		arrays[Mesh::ARRAY_VERTEX] = lines;
+		Ref<ArrayMesh> mesh;
+		mesh.instantiate();
+		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINES, arrays);
+		edge_corners_lines->set_mesh(mesh);
+		edge_corners_lines->set_material_override(mc_wire_material(Color(1.0f, 1.0f, 1.0f, 0.55f)));
+	}
+	edge_corners_root->show();
+	return static_cast<int>(dots.size());
 }
 
 // --- wireframe ---
@@ -270,7 +306,7 @@ void MCGrid::_rebuild_water_debug(
 	}
 	Vector2i columns = _column_counts();
 	auto inside = [&](const Vector2i &c) { return c.x >= 0 && c.y >= 0 && c.x < columns.x && c.y < columns.y; };
-	DebugLines debug;
+	MCDebugMesh debug;
 	for (int z = 0; z < columns.y; z++) {
 		for (int x = 0; x < columns.x; x++) {
 			size_t i = static_cast<size_t>(_column_index(x, z));
@@ -310,8 +346,13 @@ void MCGrid::_rebuild_water_debug(
 			}
 		}
 	}
-	// the last pour, a dot per column in the order it was reached
-	size_t count = last_pour.size();
+	// the last pour: one step of it (step-by-step debug), or a dot per column in the order it was reached
+	if (pour_step >= 0) {
+		_add_pour_step_debug(debug, p_surface);
+	} else if (pour_step_label) {
+		pour_step_label->hide();
+	}
+	size_t count = pour_step >= 0 ? 0 : last_pour.size();
 	for (size_t k = 0; k < count; k++) {
 		size_t i = static_cast<size_t>(last_pour[k]);
 		if (i >= p_surface.size() || !_is_wet(static_cast<int>(i))) {
@@ -329,6 +370,122 @@ void MCGrid::_rebuild_water_debug(
 	}
 	water_debug_node->set_mesh(mesh);
 	water_debug_node->show();
+}
+
+// --- the pour, step by step ---
+
+namespace {
+const Color DONE_DOT(1.0f, 0.85f, 0.3f, 0.9f); // taken off the queue already
+const Color QUEUE_DOT(0.3f, 0.9f, 1.0f, 1.0f); // waiting in the queue
+const Color CURRENT(1.0f, 1.0f, 1.0f, 1.0f); // the column this step takes
+const Color RESULT_COLOR[4] = {
+	Color(0.3f, 1.0f, 0.4f, 1.0f), // QUEUED
+	Color(0.6f, 0.6f, 0.6f, 1.0f), // SEEN
+	Color(1.0f, 0.3f, 0.25f, 1.0f), // HIGHER
+	Color(0.6f, 0.6f, 0.6f, 0.0f), // OUTSIDE (not drawn)
+};
+const char *RESULT_TEXT[4] = { "queued", "already queued", "higher ground, rejected", "off the grid" };
+const char *SIDE_TEXT[4] = { "+x", "-x", "+z", "-z" };
+const Vector2i SIDES[4] = { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1) };
+} // namespace
+
+void MCGrid::set_pour_step(int p_step) {
+	int count = get_pour_step_count();
+	pour_step = count == 0 ? -1 : std::clamp(p_step, -1, count - 1);
+	if (!debug_water) {
+		set_debug_water(true); // rebuilds
+	} else {
+		_rebuild_water();
+	}
+}
+
+String MCGrid::get_pour_step_text() const {
+	if (pour_step < 0 || pour_step >= get_pour_step_count()) {
+		return String();
+	}
+	const MCPourStep &step = last_pour_trace[static_cast<size_t>(pour_step)];
+	Vector2i columns = _column_counts();
+	Vector2i c(step.column % columns.x, step.column / columns.x);
+	int ground = column_heights[static_cast<size_t>(step.column)];
+	String text = vformat("step %d / %d: take (%d, %d) off the queue, ground %d", pour_step + 1,
+			get_pour_step_count(), c.x, c.y, ground);
+	for (int k = 0; k < 4; k++) {
+		Vector2i n = c + SIDES[k];
+		if (step.result[k] == MCPourStep::OUTSIDE) {
+			text += vformat("\n%s: off the grid", SIDE_TEXT[k]);
+			continue;
+		}
+		int other = column_heights[static_cast<size_t>(_column_index(n.x, n.y))];
+		text += vformat("\n%s (%d, %d) ground %d: %s", SIDE_TEXT[k], n.x, n.y, other, RESULT_TEXT[step.result[k]]);
+	}
+	int waiting = step.queue_size - pour_step - 1;
+	text += vformat("\nqueue: %d waiting", waiting);
+	return text;
+}
+
+// Draw the pour as it stood at pour_step: the columns already done (yellow dots), the queue (cyan
+// dots), the column this step takes (white square) with a line to each neighbour coloured by what
+// happened to it (green queued, grey already queued, red higher ground), and a label explaining it.
+void MCGrid::_add_pour_step_debug(
+		MCDebugMesh &r_debug,
+		const std::vector<float> &p_surface
+) {
+	if (pour_step < 0 || pour_step >= get_pour_step_count()) {
+		return;
+	}
+	Vector2i columns = _column_counts();
+	// where to draw over a column: its water, or its ground if dry
+	auto top_of = [&](int p_index) {
+		size_t i = static_cast<size_t>(p_index);
+		float y = _is_wet(p_index) ? p_surface[i] : static_cast<float>(column_heights[i]) - 0.5f;
+		return Vector3(static_cast<float>(p_index % columns.x), y + LIFT * 3.0f, static_cast<float>(p_index / columns.x));
+	};
+	const MCPourStep &step = last_pour_trace[static_cast<size_t>(pour_step)];
+	// done: the columns taken before this step; queue: found but not taken yet
+	for (int k = 0; k < pour_step; k++) {
+		r_debug.square(top_of(last_pour[static_cast<size_t>(k)]), 0.1f, DONE_DOT);
+	}
+	for (int k = pour_step + 1; k < step.queue_size && k < static_cast<int>(last_pour.size()); k++) {
+		r_debug.square(top_of(last_pour[static_cast<size_t>(k)]), 0.16f, QUEUE_DOT);
+	}
+	// the column this step takes, outlined, and its four neighbours
+	Vector3 centre = top_of(step.column);
+	const Vector3 ring[4] = { Vector3(-0.45f, 0, -0.45f), Vector3(0.45f, 0, -0.45f), Vector3(0.45f, 0, 0.45f),
+		Vector3(-0.45f, 0, 0.45f) };
+	for (int k = 0; k < 4; k++) {
+		r_debug.line(centre + ring[k], centre + ring[(k + 1) % 4], CURRENT);
+	}
+	Vector2i c(step.column % columns.x, step.column / columns.x);
+	for (int k = 0; k < 4; k++) {
+		if (step.result[k] == MCPourStep::OUTSIDE) {
+			continue;
+		}
+		Vector2i n = c + SIDES[k];
+		Vector3 to = top_of(_column_index(n.x, n.y));
+		const Color &color = RESULT_COLOR[step.result[k]];
+		r_debug.line(centre, to, color);
+		if (step.result[k] == MCPourStep::HIGHER) { // a cross on the rejected column
+			r_debug.line(to + Vector3(-0.2f, 0, -0.2f), to + Vector3(0.2f, 0, 0.2f), color);
+			r_debug.line(to + Vector3(-0.2f, 0, 0.2f), to + Vector3(0.2f, 0, -0.2f), color);
+		} else if (step.result[k] == MCPourStep::QUEUED) { // a square on the newly queued column
+			r_debug.square(to, 0.16f, color);
+		}
+	}
+	// the explanation, floating over the column
+	if (!pour_step_label) {
+		pour_step_label = memnew(Label3D);
+		pour_step_label->set_billboard_mode(BaseMaterial3D::BILLBOARD_ENABLED);
+		pour_step_label->set_draw_flag(Label3D::FLAG_DISABLE_DEPTH_TEST, true);
+		pour_step_label->set_pixel_size(0.006f);
+		pour_step_label->set_font_size(40);
+		pour_step_label->set_outline_size(12);
+		pour_step_label->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_LEFT);
+		pour_step_label->set_vertical_alignment(VERTICAL_ALIGNMENT_BOTTOM);
+		water_debug_node->add_child(pour_step_label);
+	}
+	pour_step_label->set_text(get_pour_step_text());
+	pour_step_label->set_position(centre + Vector3(0.3f, 0.6f, 0));
+	pour_step_label->show();
 }
 
 } // namespace godot

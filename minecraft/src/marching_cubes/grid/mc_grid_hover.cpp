@@ -1,7 +1,6 @@
 // MCGrid: the hover preview on the corner under the mouse: a wire cube round the corner (the space
 // that corner owns) and the face the mouse is on outlined and lightly filled, like an editor gizmo.
-// With the Corners debug on, the active corners around it get thick wire cubes too
-// (_show_hover_corners in mc_grid_debug_view.cpp).
+// (In inspect mode the editor hovers cells, Ctrl / Cmd style, to pick the tile to pull out.)
 // Lines stay faintly visible behind terrain (mc_wire_material), so the cube never disappears.
 #include "marching_cubes/grid/mc_grid.h"
 #include "marching_cubes/util/mc_wire.h"
@@ -51,13 +50,6 @@ void MCGrid::update_hover_preview(
 	}
 	hover_root->set_position(p_corner_pos);
 	hover_root->show();
-	// Corners debug on: the active corners round the hover (a cell hover sits on a .5 centre)
-	if (show_debug_corners) {
-		bool cell = Math::abs(p_corner_pos.x - Math::round(p_corner_pos.x)) > 0.25f;
-		_show_hover_corners(p_corner_pos, cell);
-	} else if (hover_corners_root) {
-		hover_corners_root->hide();
-	}
 
 	// the face: on the side the normal points to, turned so its +Z faces out
 	Vector3 n = p_hit_normal;
@@ -82,9 +74,7 @@ void MCGrid::hide_hover_preview() {
 	if (hover_root) {
 		hover_root->hide();
 	}
-	if (hover_corners_root) {
-		hover_corners_root->hide();
-	}
+
 }
 
 } // namespace godot

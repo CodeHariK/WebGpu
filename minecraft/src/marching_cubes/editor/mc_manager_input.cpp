@@ -17,6 +17,14 @@ void MCManager::_unhandled_input(const Ref<InputEvent> &p_event) {
 		get_viewport()->set_input_as_handled();
 		return;
 	}
+	if (_pour_step_shortcut(p_event)) {
+		get_viewport()->set_input_as_handled();
+		return;
+	}
+	if (_inspect_input(Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path)), p_event)) {
+		get_viewport()->set_input_as_handled(); // inspect mode: the mouse moves pieces, not terrain
+		return;
+	}
 	Ref<InputEventMouseButton> mouse_event = p_event;
 	if (mouse_event.is_null()) {
 		return;

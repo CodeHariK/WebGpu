@@ -32,9 +32,6 @@ bool MCGrid::get_show_debug_corners() const { return show_debug_corners; }
 // themselves draw nothing; they are the picking colliders).
 void MCGrid::set_debug_corners_visible(bool p_visible) {
 	show_debug_corners = p_visible;
-	if (!p_visible && hover_corners_root) {
-		hover_corners_root->hide();
-	}
 }
 
 // Is the Corners debug on?
