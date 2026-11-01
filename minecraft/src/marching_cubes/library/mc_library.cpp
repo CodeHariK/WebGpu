@@ -29,18 +29,21 @@ void MCTileLibrary::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("build_showcase"), &MCTileLibrary::build_showcase);
 	ClassDB::bind_method(D_METHOD("fill_by_y_turns"), &MCTileLibrary::fill_by_y_turns);
 	ClassDB::bind_method(D_METHOD("get_hashes_per_tile"), &MCTileLibrary::get_hashes_per_tile);
-	ClassDB::bind_method(D_METHOD("get_cell_tile", "level", "hash", "cell"), &MCTileLibrary::get_cell_tile);
+	ClassDB::bind_method(D_METHOD("get_cell_tile", "level", "hash", "cell", "group"), &MCTileLibrary::get_cell_tile, DEFVAL("a"));
+	ClassDB::bind_method(D_METHOD("get_groups"), &MCTileLibrary::get_groups);
 }
 
 // The mesh variant and turn a cell of this level and hash draws (empty when there is none).
 Dictionary MCTileLibrary::get_cell_tile(
 		const String &p_level,
 		int p_hash,
-		const Vector3i &p_cell
+		const Vector3i &p_cell,
+		const String &p_group
 ) const {
 	Dictionary result;
 	char level = p_level.is_empty() ? 'm' : static_cast<char>(p_level[0]);
-	const MCTile &tile = get_tile_for_level(level, static_cast<uint8_t>(p_hash));
+	char group = p_group.is_empty() ? 'a' : static_cast<char>(p_group[0]);
+	const MCTile &tile = get_group_tile(group, level, static_cast<uint8_t>(p_hash));
 	if (tile.mesh.is_null()) {
 		return result;
 	}
@@ -116,7 +119,8 @@ struct LoadMeta {
 	uint8_t hash = 0;
 	int variant = 1; // tag number: "_ma2" (or the old "_v2") -> 2
 	char height = 'm'; // tag height: 'l', 'm' or 'h'
-	bool group_a = true; // tag group is a (other groups are not used yet)
+	char group = 'a'; // tag group: 'a' .. 'z'
+	bool group_a = true; // tag group is a
 	bool is_valid = true;
 
 	LoadMeta(
@@ -143,6 +147,7 @@ struct LoadMeta {
 				mc::TileTag tag = mc::tile_tag(child->get_name());
 				variant = tag.number;
 				height = tag.height;
+				group = tag.group;
 				group_a = tag.group == 'a';
 			}
 		} else {
@@ -220,9 +225,13 @@ void MCTileLibrary::load_tiles() {
 		return;
 	}
 
-	// 1. Collect all candidates (group a only: other groups are not placed yet)
+	for (MCTileGroup &group : groups) {
+		group = MCTileGroup();
+	}
+	group_letters.clear();
+
+	// 1. Collect all candidates (every group)
 	std::vector<LoadMeta> candidates;
-	int other_groups = 0;
 	TypedArray<Node> children = inst->get_children();
 	for (int i = 0; i < children.size(); i++) {
 		Node *child = Object::cast_to<Node>(children[i]);
@@ -250,18 +259,12 @@ void MCTileLibrary::load_tiles() {
 			if (mi != child) {
 				meta.transform = meta.transform * mi->get_transform();
 			}
-			if (meta.is_valid && !meta.group_a) {
-				other_groups++;
-			} else if (meta.is_valid) {
+			if (meta.is_valid) {
 				candidates.push_back(meta);
 			} else {
 				UtilityFunctions::print("MCTileLibrary: Skipping mesh with invalid name: ", child->get_name());
 			}
 		}
-	}
-
-	if (other_groups > 0) {
-		UtilityFunctions::print("MCTileLibrary: ", other_groups, " tiles of groups b..z left out (only group a is used).");
 	}
 
 	// 2. Sort by bit-density (number of active corners)
@@ -278,10 +281,14 @@ void MCTileLibrary::load_tiles() {
 		shown.hash = meta.hash;
 		shown.height = meta.height;
 		shown.sockets = meta.sockets;
-		shown.name = mc::hash_to_binary(meta.hash) + "_" + String::chr(meta.height) + "a" + String::num_int64(meta.variant);
+		shown.name = mc::hash_to_binary(meta.hash) + "_" + String::chr(meta.height) + String::chr(meta.group) +
+				String::num_int64(meta.variant);
 		showcase_tiles.push_back(shown);
 		bool extra = false;
-		if (meta.height == 'l') {
+		if (!meta.group_a) { // groups b..z: their own three levels
+			MCTileLevel *table = _level_table(meta.group, meta.height);
+			extra = add_loaded(table->tiles, table->loaded_hashes, table->last_variant, meta);
+		} else if (meta.height == 'l') {
 			extra = add_loaded(ground.tiles, ground.loaded_hashes, last_variant[0], meta);
 		} else if (meta.height == 'h') {
 			extra = add_loaded(roof.tiles, roof.loaded_hashes, last_variant[2], meta);
@@ -289,6 +296,20 @@ void MCTileLibrary::load_tiles() {
 			extra = add_loaded(tiles, loaded_hashes, last_variant[1], meta);
 		}
 		variant_count += extra ? 1 : 0;
+	}
+	if (!loaded_hashes.empty() || !ground.loaded_hashes.empty() || !roof.loaded_hashes.empty()) {
+		group_letters.push_back('a');
+	}
+	for (int g = 1; g < 26; g++) {
+		const MCTileGroup &group = groups[g];
+		if (!group.ground.loaded_hashes.empty() || !group.main.loaded_hashes.empty() || !group.roof.loaded_hashes.empty()) {
+			group_letters.push_back(static_cast<char>('a' + g));
+			UtilityFunctions::print(
+					"MCTileLibrary: group ", String::chr('a' + g), ": ", static_cast<int64_t>(group.main.loaded_hashes.size()),
+					" M, ", static_cast<int64_t>(group.ground.loaded_hashes.size()), " L, ",
+					static_cast<int64_t>(group.roof.loaded_hashes.size()), " H tiles."
+			);
+		}
 	}
 	UtilityFunctions::print(
 			"MCTileLibrary: ", static_cast<int64_t>(loaded_hashes.size()), " M tiles, ",
@@ -328,6 +349,50 @@ const MCTile &MCTileLibrary::get_tile_for_level(
 ) const {
 	const MCTile &tile = get_level_tile(p_height, p_hash);
 	return tile.mesh.is_valid() ? tile : tiles[p_hash];
+}
+
+// One group's level table ('a': the members; b..z: groups[]).
+MCTileLevel *MCTileLibrary::_level_table(
+		char p_group,
+		char p_height
+) {
+	MCTileGroup &group = groups[p_group - 'a'];
+	if (p_height == 'l') {
+		return &group.ground;
+	}
+	if (p_height == 'h') {
+		return &group.roof;
+	}
+	return &group.main;
+}
+
+// A group's tile for a cell: its level's tile, else its M tile, else group a's.
+const MCTile &MCTileLibrary::get_group_tile(
+		char p_group,
+		char p_height,
+		uint8_t p_hash
+) const {
+	if (p_group > 'a' && p_group <= 'z') {
+		const MCTileGroup &group = groups[p_group - 'a'];
+		const MCTile &level =
+				p_height == 'l' ? group.ground.tiles[p_hash] : (p_height == 'h' ? group.roof.tiles[p_hash] : group.main.tiles[p_hash]);
+		if (level.mesh.is_valid()) {
+			return level;
+		}
+		if (group.main.tiles[p_hash].mesh.is_valid()) {
+			return group.main.tiles[p_hash];
+		}
+	}
+	return get_tile_for_level(p_height, p_hash);
+}
+
+// The groups with tiles as a String ("ab").
+String MCTileLibrary::get_groups() const {
+	String out;
+	for (char letter : group_letters) {
+		out += String::chr(letter);
+	}
+	return out;
 }
 
 // Does the set have any tile of this level?

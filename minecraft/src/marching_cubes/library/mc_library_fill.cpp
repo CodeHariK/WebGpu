@@ -39,11 +39,17 @@ static int fill_level_by_y_turns(
 	return generated;
 }
 
-// Fill M a, then the ground (L) and roof (H) levels. Returns how many M a entries were filled.
+// Fill M a, then the ground (L) and roof (H) levels, then every other group's levels. Returns how
+// many M a entries were filled.
 int MCTileLibrary::fill_by_y_turns() {
 	int generated = fill_level_by_y_turns(tiles, loaded_hashes);
 	fill_level_by_y_turns(ground.tiles, ground.loaded_hashes);
 	fill_level_by_y_turns(roof.tiles, roof.loaded_hashes);
+	for (int g = 1; g < 26; g++) { // groups b..z
+		fill_level_by_y_turns(groups[g].ground.tiles, groups[g].ground.loaded_hashes);
+		fill_level_by_y_turns(groups[g].main.tiles, groups[g].main.loaded_hashes);
+		fill_level_by_y_turns(groups[g].roof.tiles, groups[g].roof.loaded_hashes);
+	}
 	return generated;
 }
 

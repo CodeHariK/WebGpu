@@ -125,11 +125,19 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
 - [ ] **Export & Reload**: add-on button exports the glb then runs the headless reimport (Godot + project
       path in add-on prefs); debug builds: MCTileLibrary watches the glb mtime and reloads it at runtime
       (`GLTFDocument`) + rebuilds the grid
-- [ ] **Groups a/b/c/d**: load every group (only `a` today); no painting — each connected solid region
-      rolls its group from position + seed (merged regions take one); a cell falls back to group `a`
-      when its group lacks the shape
-- [ ] **Undo / redo** (Ctrl+Z / Ctrl+Shift+Z) for corner clicks, Randomize and pin changes (own stack,
-      game-side); editing stays one corner per click (no brush)
+- [x] **Groups a/b/c/d**: every group loads (MCTileGroup per letter, filled by Y turns); each
+      connected solid region (corners joined across cube edges) rolls one group from its first
+      corner + `decor_seed` (`grid/mc_grid_groups.cpp`); a group without a shape falls back to
+      group a (`MCTileLibrary::get_group_tile`); `get_cell_group` / `get_groups` for scripts.
+      Checked: Cliffs.glb (rounded a + blocky b), 4 islands in one grid -> groups a b a a — uncommitted
+- [x] **Undo / redo** (Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y, and Undo / Redo buttons):
+      `grid/mc_grid_undo.cpp` — between begin_edit / end_edit every changed value records its old
+      value once (heights + water in heightmap mode, corners in corner mode, plus decor seed + M roofs);
+      undo writes them back while recording the redo; 100 steps; cleared on initialize / load / mode
+      switch. Each terrain / water click and Randomize is one step. Placed objects and pins aren't in it.
+      **Tool bar** (`editor/mc_manager_tools.cpp`): Terrain / Water / Place / Move in the top bar (one
+      active, "● Name"), replacing the "Mode" cycle button and the "Water brush" toggle. Checked:
+      undo / redo of a column edit, a water fill, Randomize, corner edits — uncommitted
 - [ ] Multi-pin (Shift-click showcase tiles) — optional
 - [ ] **Mobile perf**: decor through MultiMesh with visibility range, chunk LOD, one merged material per chunk
 - [ ] Socket fit check: skip a socket in a cell when the corners in front of it (its +Z, piece depth) are
@@ -147,7 +155,21 @@ Rule: if it changes how you walk between heights and comes from the corners, it'
 everything built on top is an object. Terrain stays pure corners.
 
 - [ ] **Cliff tile set** in the AC / LA look (heightmap mode, the 22 no-overhang tiles): grass lip on
-      top, rock face; rounded (AC) and / or blocky (LA) as tile groups
+      top, rock face; rounded (AC) and / or blocky (LA) as tile groups.
+      **v1 generated (uncommitted):** `blender/mc_tiles/scripts/cliff_tiles.py` computes the 22
+      tiles from their corner bits (bilinear corner blend per layer: straight sides, rounded outer /
+      inner corners, always seamless), grass top + grass lip + rock face, writes `Cliff.blend` +
+      `Cliff.glb`; `scene/marching/cliffs.tscn` (`make run_cliffs`) = MCGrid heightmap mode on it.
+      **v2:** rock strata (STRATA bands per half cell, grooves pushed in by a height-only function
+      that is 0 at z -0.5 / 0 / 0.5, darker in the grooves via vertex colour); wall normals and the
+      groove push kept in the cell side's plane where a wall meets it (seamless shading); grass
+      material plain colour (Godot only enabled vertex colour as albedo on one material).
+      **Blocky style** (`--style blocky` -> `Cliff_blocky.blend/.glb`, `scene/marching/cliffs_blocky.tscn`,
+      `make run_cliffs_blocky`): each solid corner owns its quarter of the cell, edges along the
+      cells' middle lines, a corner rounded only where it sticks out, inner corners sharp.
+      **Both styles in one set** (`--style both` -> `Cliffs.blend/.glb`: rounded = group a, blocky =
+      group b "_mb1"); `cliffs.tscn` now loads Cliffs.glb, each island rolls its style.
+      Next: UVs + textures, bumps along the face (would need the same 0-on-sides rule)
 - [ ] **Slopes = tiles, not a system**: the same corner pattern that draws a cliff step ("high on one
       side, low on the other") modelled as a tilted surface in another group (`a` cliffs, `b` slopes),
       rolled per region or chosen; collider follows the mesh, so walkable for free.
@@ -166,7 +188,40 @@ everything built on top is an object. Terrain stays pure corners.
 - [ ] **Fences / walls = objects on cell edges** (no thickness), height read from the terrain under
       them, auto-connect to neighbours (straight / corner / T / end pieces)
 - [ ] **Water layer + waterfalls** per `docs/TerrainStorage.md` §7: water height per column, see-through
-      surface mesh per chunk, waterfalls derived where neighbouring water heights differ (+ splash)
+      surface mesh per chunk, waterfalls derived where neighbouring water heights differ (+ splash).
+      **v1 done (uncommitted):** `grid/mc_grid_water.cpp` — a water level per corner column (wet when
+      above its ground; surface 0.15 below the next tier), drawn as a square per wet column (same dual
+      grid as the cliffs, so a level step sits exactly on the cliff) + a waterfall sheet per step between
+      wet neighbours (never stored); `fill_water` (bucket fill below the level, stops at banks),
+      `clear_water`, `set_water_level`; `sea_level` (cliffs.tscn: 1) fills the sea on randomize_heights;
+      editor "Water brush" (left: fill the clicked hole one tier deep, right: drain); shaders
+      `material/shaders/terrain/water_surface.gdshader` / `waterfall.gdshader` (stepwise comments).
+      **v2 done (uncommitted):** looks like water and flows. `fill_water` (Water tool left click) pours:
+      a flood fill onto 4-neighbours whose ground is not higher (same tier spreads, lower falls and
+      carries on), one layer deep everywhere (level = ground + 1); higher ground is a bank.
+      `settle_water` re-pours all standing water (after load_grid and every terrain click, same undo
+      step), so old saves and freshly dug channels flow. `clear_water` dries connected water at any
+      level but not the sea. `paint_water` (dig one tier + water) kept in the API. Spill falls onto
+      lower dry ground. Flow field (`_water_flow`) toward the falls in vertex COLOR, foam at fall feet.
+      Shader: depth colour, shore foam, flow-map ripples, glints, glow. Checked: Hari's
+      user://terrain.mct channel now runs down and out.
+      **Held vs stream** (`_water_surfaces`, `_fall_framed`): water stands one layer deep only where
+      banks hold it (every side a bank, held water, or a fall cut into the land onto lower water; the
+      sea); elsewhere it's a stream 0.1 m over its ground that keeps running and pours over edges
+      (no more slabs floating over open tier edges). Derived at mesh build, not stored. Shader:
+      UV2.x = stream (no shore foam on streams).
+      **Look pass:** the water surface is built in quarters that run on under a bank beside them (the
+      bank's terrain hides the overlap), so the water's edge follows the rounded cliffs, not the
+      column squares; fall sheets run into banks at their ends; waterfall shader rewritten (opaque
+      threads scrolling down, white lip, landing foam).
+      **Debug tools** (Stats panel → Diagnostics; `grid/mc_grid_debug_view.cpp`): Corners (the hover shows thick white wire cubes on the active corners in the
+      3 x 3 x 3 round the hovered corner, or a cell's active corners on a Ctrl / Cmd cell hover;
+      nothing drawn over the rest of the terrain), Wireframe (overlay on chunk meshes), Water debug (held /
+      stream / sea squares, flow arrows, framed vs open falls, last pour order), Replay pour (the
+      flood fill's order animated). Hover: wire cube + outlined face (`util/mc_wire.*`); the
+      placement box is a wire box too.
+      Still: one water mesh per grid (per chunk for big worlds), no splash particles, water in corner
+      mode, a drag-to-paint stroke (each click is one column)
 - [ ] **Ground material per cell** (grass / sand / path) baked into the atlas (see Material variants)
 - [ ] **Heightmap mode in MCGrid** (decided: fold MCHeightmap into MCGrid, not grow it into a second
       terrain). **Step 1 done (uncommitted):** `heightmap_mode` property + "Heightmap mode" button;
@@ -182,7 +237,7 @@ everything built on top is an object. Terrain stays pure corners.
       - Storage: height byte per column (1 B / column vs ~4 B of corner bits at 32 high);
         `is_corner_active` = `y < height[x][z]`; corner mode stays for special areas (caves, arches)
       - Editing rule: a click raises / lowers a whole column (no overhangs possible)
-      - Save v2 height layer (`docs/TerrainStorage.md`)
+      - Save v2 height layer (`docs/TerrainStorage.md`) — **done (uncommitted):** `grid/mc_grid_save_v2.cpp`
       - Island generator: `randomize_heights` (noise island) is its start; MCHeightmap's optional
         Noise resource (Inspector) isn't ported — add a `noise_source` property if wanted
 - [ ] **Island generator**: coastline + beach, 2–3 cliff tiers, a river down to the sea, a pond; still
@@ -207,8 +262,13 @@ builds and loads on its own. Keep the duplicates (+20% bits at 16^3, mostly gone
 - [ ] Edits next to an unloaded chunk: `set_corner` only updates chunks in memory, so the unloaded
       neighbour's saved border goes stale. Write the change into its saved block, or keep a pending
       border-edit list applied when that chunk loads
-- [ ] Per-chunk save blocks: `save_grid` writes one `.mct` for the whole grid; streaming needs seekable
-      blocks (offset table in the header, or one file per region) — fits save v2 in `docs/TerrainStorage.md`
+- [x] **Per-chunk save blocks**: save v2 (`grid/mc_grid_save_v2.cpp`) writes a block per chunk (corner
+      mode) or chunk column (heightmap mode) with a size table up front, so a reader can seek to one
+      block; layers (corners / heights / water) zstd'd when smaller; unknown layer ids skipped; v1
+      still loads. Round trips checked (heightmap: heights, water, corners, groups; corner mode;
+      an old v1 user://terrain.mct). Size: 33x5x33 island 1416 B (16 blocks of 81 columns: per-block
+      headers + tiny blocks compress poorly; corner bits of so short a grid are only 5 bits a column) —
+      the win is on tall grids (32 high: 2 bytes vs 33 bits a column) — uncommitted
 - [ ] Debug-build border check after load: compare each chunk's shared faces with its neighbour's and
       report mismatches (catches stale copies from the first item)
 

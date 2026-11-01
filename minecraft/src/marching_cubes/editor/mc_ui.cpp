@@ -74,6 +74,8 @@ void MCManager::setup_ui() {
 	help_btn->set_v_size_flags(Control::SIZE_SHRINK_BEGIN);
 	help_btn->set_custom_minimum_size(Vector2(80, 40));
 
+	_setup_tool_bar(main_hbox); // Terrain / Water / Place / Move, Undo / Redo (mc_manager_tools.cpp)
+
 	// 4. Create Help Modal (reusable CUIModal — themed to match the sidebar,
 	//    with a header band and focus-free buttons; opened via _on_show_help).
 	ui.help_dialog = memnew(CUIModal);
@@ -103,9 +105,15 @@ void MCManager::setup_ui() {
 
 	ui.manager->add_header(ui.stats_vbox, "Diagnostics");
 
-	Button *vis_btn =
-			ui.manager->add_button(ui.stats_vbox, "Toggle Visual Corners", Callable(this, "_on_toggle_visual_corners"));
-	vis_btn->set_custom_minimum_size(Vector2(0, 30));
+	// debug views (mc_grid_debug_view.cpp): corner dots, terrain wireframe, water overlay + pour replay
+	const char *debug_buttons[4][2] = { { "Corners", "_on_toggle_visual_corners" },
+		{ "Wireframe", "_on_toggle_wireframe" },
+		{ "Water debug", "_on_toggle_water_debug" },
+		{ "Replay pour", "_on_replay_pour" } };
+	for (const auto &entry : debug_buttons) {
+		Button *button = ui.manager->add_button(ui.stats_vbox, entry[0], Callable(this, entry[1]));
+		button->set_custom_minimum_size(Vector2(0, 30));
+	}
 
 	ui.manager->add_header(ui.stats_vbox, "Terrain Stats");
 	grid_stats.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
@@ -123,12 +131,6 @@ void MCManager::setup_ui() {
 			ui.manager->add_button(ui.stats_vbox, "Copy for Blender", Callable(this, "_on_copy_for_blender"));
 	copy_btn->set_custom_minimum_size(Vector2(0, 30));
 
-	ui.manager->add_header(ui.stats_vbox, "Placement");
-	Button *mode_btn =
-			ui.manager->add_button(ui.stats_vbox, "Mode: Terrain", Callable(this, "_on_toggle_placement_mode"));
-	mode_btn->set_name("PlacementModeButton"); // For easy lookup if needed
-	mode_btn->set_custom_minimum_size(Vector2(0, 30));
-
 	_setup_randomize_ui();
 
 	ui.manager->add_header(ui.stats_vbox, "Mesh Variants");
@@ -137,39 +139,6 @@ void MCManager::setup_ui() {
 	if (_args.has("--mcshot") && ui.help_dialog) {
 		call_deferred("_on_show_help");
 	}
-}
-
-// Cycle terrain -> place object -> drag object mode and update the button text.
-void MCManager::_on_toggle_placement_mode() {
-	cancel_drag(); // Finalize/Revert any active drag before switching modes
-
-	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-
-	// Cycle through modes: Terrain -> Place Object -> Drag Object
-	if (interaction_mode == MODE_TERRAIN) {
-		interaction_mode = MODE_PLACE_OBJECT;
-	} else if (interaction_mode == MODE_PLACE_OBJECT) {
-		interaction_mode = MODE_DRAG_OBJECT;
-	} else {
-		interaction_mode = MODE_TERRAIN;
-	}
-
-	String mode_name = "Terrain";
-	if (interaction_mode == MODE_PLACE_OBJECT)
-		mode_name = "Place Object";
-	else if (interaction_mode == MODE_DRAG_OBJECT)
-		mode_name = "Drag Object";
-
-	UtilityFunctions::print("MCManager: Interaction mode toggled to ", mode_name);
-
-	// Update button text
-	if (ui.stats_vbox) {
-		Button *btn = Object::cast_to<Button>(ui.stats_vbox->get_node_or_null("PlacementModeButton"));
-		if (btn) {
-			btn->set_text("Mode: " + mode_name);
-		}
-	}
-	update_ui();
 }
 
 // Show / hide the side panel.
@@ -213,6 +182,7 @@ void MCManager::_on_show_help() {
 void MCManager::update_ui() {
 	if (!ui.stats_vbox || !ui.manager || !is_inside_tree())
 		return;
+	_update_history_buttons(); // a load / mode switch may have cleared the history
 
 	Performance *perf_singleton = Performance::get_singleton();
 

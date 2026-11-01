@@ -1,4 +1,5 @@
-// MCGrid: save / load the corner grid, and export the cells as JSON for Blender.
+// MCGrid: save / load, and export the cells as JSON for Blender. Saving writes version 2
+// (mc_grid_save_v2.cpp); loading reads version 2 there and version 1 here.
 // File layout (version 1): magic 'MCTR', version, grid_dims xyz, chunk_dims xyz, chunk count,
 // then per chunk: byte length + RLE bytes. Everything is validated and read into temporaries
 // first; the grid is only changed once the whole file is known to be good.
@@ -24,26 +25,7 @@ void MCGrid::save_grid(const String &p_path) {
 		return;
 	}
 
-	// 1. Header
-	f->store_32(MCT_MAGIC);
-	f->store_32(MCT_VERSION);
-
-	// 2. Metadata
-	f->store_32(grid_dims.x);
-	f->store_32(grid_dims.y);
-	f->store_32(grid_dims.z);
-	f->store_32(chunk_dims.x);
-	f->store_32(chunk_dims.y);
-	f->store_32(chunk_dims.z);
-
-	// 3. Chunk Data
-	f->store_32(static_cast<uint32_t>(chunks.size()));
-	for (const Chunk &chunk : chunks) {
-		PackedByteArray rle_data = chunk.serialize_rle();
-		f->store_32(static_cast<uint32_t>(rle_data.size()));
-		f->store_buffer(rle_data);
-	}
-
+	_save_v2(f); // version 2: mc_grid_save_v2.cpp
 	UtilityFunctions::print("MCGrid: Saved state to ", p_path);
 }
 
@@ -61,6 +43,15 @@ void MCGrid::load_grid(const String &p_path) {
 		return;
 	}
 	uint32_t version = f->get_32();
+	clear_history(); // whatever is loaded, the old edits don't apply to it
+	if (version == 2) {
+		if (_load_v2(f, p_path)) {
+			UtilityFunctions::print("MCGrid: Loaded state from ", p_path);
+			settle_water(); // older saves hold water that couldn't flow yet
+			refresh_grid();
+		}
+		return;
+	}
 	if (version != MCT_VERSION) {
 		UtilityFunctions::push_error("MCGrid: unsupported terrain file version ", version, " in ", p_path);
 		return;

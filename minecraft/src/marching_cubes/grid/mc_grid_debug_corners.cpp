@@ -1,4 +1,6 @@
-// MCGrid: debug cubes on surface corners (red = solid, blue = empty) and their picking colliders.
+// MCGrid: debug dots on surface corners (solid ones touching air, coloured by height; faint ones on
+// the empty corners beside them) and the solid ones' picking colliders. The look is in
+// mc_grid_debug_view.cpp (_style_debug_corner).
 #include "marching_cubes/grid/mc_grid.h"
 #include "marching_cubes/util/mc_physics.h"
 #include <godot_cpp/classes/box_mesh.hpp>
@@ -26,20 +28,17 @@ void MCGrid::set_show_debug_corners(bool p_show) {
 // Inspector property: debug corner cubes shown?
 bool MCGrid::get_show_debug_corners() const { return show_debug_corners; }
 
-// Show / hide the debug corner container.
+// Corners debug on / off: the hover then shows the active corners around it (the corner nodes
+// themselves draw nothing; they are the picking colliders).
 void MCGrid::set_debug_corners_visible(bool p_visible) {
-	if (debug_corners_container) {
-		debug_corners_container->set_visible(p_visible);
+	show_debug_corners = p_visible;
+	if (!p_visible && hover_corners_root) {
+		hover_corners_root->hide();
 	}
 }
 
-// Is the debug corner container visible?
-bool MCGrid::is_debug_corners_visible() const {
-	if (debug_corners_container) {
-		return debug_corners_container->is_visible();
-	}
-	return false;
-}
+// Is the Corners debug on?
+bool MCGrid::is_debug_corners_visible() const { return show_debug_corners; }
 
 // Turn the picking colliders of every debug cube on or off.
 void MCGrid::set_corner_collision_enabled(bool p_enabled) {
@@ -75,23 +74,6 @@ int MCGrid::_spawn_debug_corners(Chunk &p_chunk) {
 	int nz = p_chunk.size_z + 1;
 	int count = 0;
 
-	if (_debug_box_mesh.is_null()) {
-		_debug_box_mesh.instantiate();
-		_debug_box_mesh->set_size(Vector3(0.1, 0.1, 0.1));
-	}
-
-	if (_debug_mat_red.is_null()) {
-		_debug_mat_red.instantiate();
-		_debug_mat_red->set_albedo(Color(1, 0, 0));
-		_debug_mat_red->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
-	}
-
-	if (_debug_mat_blue.is_null()) {
-		_debug_mat_blue.instantiate();
-		_debug_mat_blue->set_albedo(Color(0, 0, 1));
-		_debug_mat_blue->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
-	}
-
 	for (int ly = 0; ly < ny; ly++) {
 		for (int lz = 0; lz < nz; lz++) {
 			for (int lx = 0; lx < nx; lx++) {
@@ -107,14 +89,15 @@ int MCGrid::_spawn_debug_corners(Chunk &p_chunk) {
 				bool has_active = _has_neighbor_with_state(corner, true);
 				bool has_inactive = _has_neighbor_with_state(corner, false);
 
-				if (!state && !has_active) {
+				// buried solid corners and empty corners away from the ground get no dot
+				if (state ? !has_inactive : !has_active) {
 					continue;
 				}
 
 				Vector3 world_pos(corner);
 
 				MeshInstance3D *mi = memnew(MeshInstance3D);
-				mi->set_mesh(_debug_box_mesh);
+				_style_debug_corner(mi, state, corner.y);
 				mi->set_position(world_pos);
 
 				if (!debug_corners_container) {
@@ -129,13 +112,7 @@ int MCGrid::_spawn_debug_corners(Chunk &p_chunk) {
 				p_chunk.debug_visuals[corner_idx] = mi;
 
 				if (state) {
-					mi->set_material_override(_debug_mat_red);
-
-					if (has_inactive) {
-						MCPhysics::create_static_box_collider(mi, toLayer(LAYER_CORNERS), Vector3(1.0, 1.0, 1.0));
-					}
-				} else {
-					mi->set_material_override(_debug_mat_blue);
+					MCPhysics::create_static_box_collider(mi, toLayer(LAYER_CORNERS), Vector3(1.0, 1.0, 1.0));
 				}
 
 				count++;
@@ -169,7 +146,7 @@ void MCGrid::_update_debug_corner(
 	bool has_active = _has_neighbor_with_state(Vector3i(gx, gy, gz), true);
 	bool has_inactive = _has_neighbor_with_state(Vector3i(gx, gy, gz), false);
 
-	if (!state && !has_active) {
+	if (state ? !has_inactive : !has_active) {
 		if (mi) {
 			mi->queue_free();
 			chunk.debug_visuals[corner_idx] = nullptr;
@@ -181,7 +158,6 @@ void MCGrid::_update_debug_corner(
 	if (!mi) {
 		// Spawn since it's now needed
 		mi = memnew(MeshInstance3D);
-		mi->set_mesh(_debug_box_mesh);
 		mi->set_position(Vector3(gx, gy, gz));
 
 		if (!debug_corners_container) {
@@ -203,13 +179,9 @@ void MCGrid::_update_debug_corner(
 		}
 	}
 
+	_style_debug_corner(mi, state, gy);
 	if (state) {
-		mi->set_material_override(_debug_mat_red);
-		if (has_inactive) {
-			MCPhysics::create_static_box_collider(mi, toLayer(LAYER_CORNERS), Vector3(1.0, 1.0, 1.0));
-		}
-	} else {
-		mi->set_material_override(_debug_mat_blue);
+		MCPhysics::create_static_box_collider(mi, toLayer(LAYER_CORNERS), Vector3(1.0, 1.0, 1.0));
 	}
 }
 

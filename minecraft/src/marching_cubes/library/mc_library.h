@@ -1,9 +1,10 @@
 // MCTileLibrary: the tile library. Loads the tile meshes from a .glb (each named by its 8-bit corner
 // pattern and tag, e.g. "00001111_ma1"; core/mc_variant.h) and fills the other hashes by turning
 // them about Y. Any tile set works (68 tiles, a heightmap set, a complete set): no mode setting is
-// needed. Tiles are kept per level (tag height, group a): M a is tiles[], L a and H a are the
-// ground / roof tables; MCGrid draws each cell from its level (core/mc_level_plan.h). Other groups
-// are not used yet.
+// needed. Tiles are kept per level (tag height) and group (tag group letter): M a is tiles[], L a
+// and H a are the ground / roof tables, every other group (b..z) has its own three levels
+// (MCTileGroup). MCGrid draws each cell from its level (core/mc_level_plan.h) and its region's
+// group (grid/mc_grid_groups.cpp); a group without a tile for a shape falls back to group a.
 //   mc_library.cpp           loading + lookup
 //   mc_library_fill.cpp      filling the gaps by Y turns, reporting what is still missing
 //   mc_library_showcase.cpp  build_showcase(): every tile laid out in a grid, for checking
@@ -68,6 +69,14 @@ struct MCShowcaseTile {
 struct MCTileLevel {
 	MCTile tiles[256];
 	std::vector<uint8_t> loaded_hashes; // fewest corners first, then hash
+	int last_variant[256] = {}; // while loading: the last variant number added per hash
+};
+
+// One group's levels (groups b..z; group a lives in MCTileLibrary's own members).
+struct MCTileGroup {
+	MCTileLevel ground; // L
+	MCTileLevel main; // M
+	MCTileLevel roof; // H
 };
 
 // The tile library: tiles[hash] for all 256 cell hashes, loaded from one tile-set .glb.
@@ -87,6 +96,13 @@ private:
 	HashMap<String, std::vector<Ref<Mesh>>> decor; // socket pieces by type ("decor_window_2")
 	MCTileLevel ground; // L a ("_la1"): bottom layer only
 	MCTileLevel roof; // H a ("_ha1"): roof cells (column tops)
+	MCTileGroup groups[26]; // [group - 'a'] for b..z ([0] unused: group a is above)
+	std::vector<char> group_letters; // groups with at least one tile, 'a' first if it has any
+	// One group's level table: 'l' ground, 'h' roof, else main (group a: the members above).
+	MCTileLevel *_level_table(
+			char p_group,
+			char p_height
+	);
 
 protected:
 	// Inspector property and the methods scripts call.
@@ -149,8 +165,20 @@ public:
 	Dictionary get_cell_tile(
 			const String &p_level,
 			int p_hash,
-			const Vector3i &p_cell
+			const Vector3i &p_cell,
+			const String &p_group = "a"
 	) const;
+	// The tile a cell of group p_group draws: its level's tile in that group, else the group's M
+	// tile, else group a's (get_tile_for_level). Group 'a' is get_tile_for_level.
+	const MCTile &get_group_tile(
+			char p_group,
+			char p_height,
+			uint8_t p_hash
+	) const;
+	// Groups with tiles ('a' first when it has any), e.g. {'a', 'b'}.
+	const std::vector<char> &get_group_letters() const { return group_letters; }
+	// The same as a String for scripts ("ab").
+	String get_groups() const;
 	// Does the set have any tile of this level ('l', 'm', 'h')?
 	bool has_level(char p_height) const;
 	// {modelled tile hash as "00001111": how many hashes it draws}, for the stats panel.

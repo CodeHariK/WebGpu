@@ -28,6 +28,7 @@ class Panel;
 class CUIModal;
 class Label;
 class Button;
+class HBoxContainer;
 class InputEvent;
 class MeshInstance3D;
 class Camera3D;
@@ -67,6 +68,9 @@ private:
 	int randomize_seed = 0; // the last Randomize seed (0 = not randomized yet)
 	Label *randomize_label = nullptr;
 	Button *heightmap_button = nullptr; // "Heightmap mode: on / off"
+	Button *tool_buttons[4] = {}; // the tool bar, by InteractionMode
+	Button *undo_button = nullptr;
+	Button *redo_button = nullptr;
 	String pinned_name; // "00001100_la1" of the pinned library tile ("" = none)
 
 	MCUI ui;
@@ -74,6 +78,8 @@ private:
 	PerfStats perf;
 	MeshInstance3D *hover_box_node = nullptr; // For AxBxC preview
 	Ref<StandardMaterial3D> hover_mat_yellow;
+	Ref<StandardMaterial3D> wire_mat_ok; // placement wire box: fits
+	Ref<StandardMaterial3D> wire_mat_blocked; // placement wire box: blocked
 	Ref<StandardMaterial3D> hover_mat_red;
 	Ref<StandardMaterial3D> hover_mat_cyan; // For multi-selection
 
@@ -81,6 +87,7 @@ private:
 		MODE_TERRAIN,
 		MODE_PLACE_OBJECT,
 		MODE_DRAG_OBJECT,
+		MODE_WATER, // heightmap mode: fill / drain water (mc_manager_tools.cpp)
 	};
 
 	struct SelectedObject {
@@ -181,6 +188,25 @@ public:
 	void _on_unpin();
 	// Heightmap mode on / off (MCGrid::set_heightmap_mode); the button shows the state.
 	void _on_toggle_heightmap();
+	// --- tool bar + undo / redo (mc_manager_tools.cpp) ---
+	// The tool buttons (one pressed at a time) and Undo / Redo, in the top bar.
+	void _setup_tool_bar(HBoxContainer *p_bar);
+	// Make tool p_mode (an InteractionMode) the active one.
+	void _on_select_tool(int p_mode);
+	// Press and mark ("● Name") the active tool's button.
+	void _mark_active_tool();
+	void _on_undo();
+	void _on_redo();
+	// Grey out Undo / Redo when there is nothing to undo / redo.
+	void _update_history_buttons();
+	// Cmd/Ctrl+Z undo, Cmd/Ctrl+Shift+Z or Cmd/Ctrl+Y redo; true when the key was used.
+	bool _history_shortcut(const Ref<InputEvent> &p_event);
+	// Water tool: left fills the clicked column's hole one tier deep, right drains it (one undo step).
+	void _water_click(
+			MCGrid *p_grid,
+			const ClickHit &p_hit,
+			MouseButton p_button
+	);
 	// Left click on a library tile (nearest hit): pin it, move the grid into a row behind the
 	// library with the pinned column lined up with the tile, Randomize. False when no tile was hit.
 	bool _try_pin_click(
@@ -203,6 +229,10 @@ public:
 	void _on_toggle_ui();
 	// Show / hide the grid's debug corner cubes.
 	void _on_toggle_visual_corners();
+	// Debug views: terrain wireframe, water overlay, replay the last pour.
+	void _on_toggle_wireframe();
+	void _on_toggle_water_debug();
+	void _on_replay_pour();
 	// _unhandled_input (not _input): clicks on UI buttons are consumed by the GUI first and never
 	// reach the terrain behind them.
 	void _unhandled_input(const Ref<InputEvent> &p_event) override;
@@ -210,8 +240,6 @@ public:
 	void _on_gui_input(const Ref<InputEvent> &p_event);
 	// Open the help dialog.
 	void _on_show_help();
-	// Cycle terrain -> place object -> drag object mode.
-	void _on_toggle_placement_mode();
 	// Put dragged objects back where they started.
 	void cancel_drag();
 	// Un-highlight and forget the selected objects.

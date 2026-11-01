@@ -50,6 +50,7 @@ void MCManager::_on_toggle_heightmap() {
 	if (heightmap_button) {
 		heightmap_button->set_text(grid_node->get_heightmap_mode() ? "Heightmap mode: on" : "Heightmap mode: off");
 	}
+	_update_history_buttons(); // switching clears the history
 }
 
 // Next seed, new corners for the whole grid (around the pin, if any); the summary label follows.
@@ -60,7 +61,10 @@ void MCManager::_on_randomize_grid() {
 	}
 	cancel_drag();
 	randomize_seed++;
+	grid_node->begin_edit(); // one undo step
 	String summary = grid_node->randomize_levels(randomize_seed);
+	grid_node->end_edit();
+	_update_history_buttons();
 	if (randomize_label) {
 		randomize_label->set_text((pinned_name.is_empty() ? String() : "Pinned " + pinned_name + "\n") + summary);
 	}

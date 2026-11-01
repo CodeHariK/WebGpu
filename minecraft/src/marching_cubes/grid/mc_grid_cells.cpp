@@ -75,8 +75,10 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 					tiles++;
 					continue;
 				}
-				// The tile of the cell's level (L / M / H; M when that level has none for the hash).
-				const MCTile *conf = &tile_library->get_tile_for_level(mc::LEVEL_LETTERS[_level_at(cell)], hash);
+				// The tile of the cell's group and level (L / M / H; M when that level has none for the
+				// hash; group a when the group has neither).
+				const MCTile *conf =
+						&tile_library->get_group_tile(_group_at(cell), mc::LEVEL_LETTERS[_level_at(cell)], hash);
 				if (conf->mesh.is_null()) {
 					continue;
 				}
@@ -105,6 +107,9 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 	mi->set_mesh(merged);
 	mi->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
 	add_child(mi);
+	if (debug_wireframe) {
+		_apply_wireframe(mi);
+	}
 
 	StaticBody3D *body = memnew(StaticBody3D);
 	body->set_collision_layer(toLayer(LAYER_TERRAIN));
@@ -153,6 +158,9 @@ void MCGrid::flush_dirty_chunks() {
 			_build_chunk_mesh(chunk);
 		}
 	}
+	if (water_dirty) {
+		_rebuild_water();
+	}
 }
 
 // Free chunk meshes and debug cubes (keeps the containers, hover quads and placed objects)
@@ -161,7 +169,8 @@ void MCGrid::_free_spawned_nodes() {
 	TypedArray<Node> children = get_children();
 	for (int i = 0; i < children.size(); i++) {
 		Node *child = Object::cast_to<Node>(children[i]);
-		if (child && child != debug_corners_container && child != hover_root && child != placed_objects_container) {
+		if (child && child != debug_corners_container && child != hover_root && child != placed_objects_container &&
+				child != water_node && child != water_debug_node && child != hover_corners_root) {
 			remove_child(child);
 			child->queue_free();
 		}

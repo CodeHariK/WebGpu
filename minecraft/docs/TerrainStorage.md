@@ -137,10 +137,21 @@ small id table.
 - **Waterfalls are computed, not stored:** wherever two neighbouring columns both have water and their
   water heights differ, the builder adds a waterfall strip down that edge (plus a splash effect at the
   bottom). Raise a cliff under a river and the waterfall appears by itself.
+- **Built** (`grid/mc_grid_water.cpp`): water is poured — a flood fill that moves left / right /
+  front / back onto ground that is not higher (same tier: spreads, lower: falls and carries on) and
+  stands one layer deep everywhere (level = ground + 1). A dug channel fills and runs down its steps
+  as waterfalls. All water re-settles after a load and after each terrain edit. Water flows toward
+  its falls (a flow field in the mesh's vertex colour moves the ripples), with foam at fall feet.
+  Water only stands one layer deep where banks hold it (a dug hole or channel, the sea); where it
+  runs out over open ground it is a thin stream just above the ground that pours over the edges.
 
 ---
 
-## 8. Save format version 2 (plan)
+## 8. Save format version 2 (built: `src/marching_cubes/grid/mc_grid_save_v2.cpp`)
+
+Built as below except: no palette / objects layers yet; blocks are chunk columns in heightmap mode
+(layers HEIGHTS, WATER: a byte per owned corner column) and chunks in corner mode (layer CORNERS:
+the RLE bits); a block-size table follows the header so one block can be read alone.
 
 - Header + **mode byte** (height / corner).
 - Per chunk, a **list of layers**: layer id, encoding, byte length, data.

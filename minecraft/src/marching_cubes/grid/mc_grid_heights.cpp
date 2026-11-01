@@ -75,6 +75,7 @@ void MCGrid::set_heightmap_mode(bool p_on) {
 		return;
 	}
 	heightmap_mode = p_on;
+	clear_history(); // the edits were recorded in the other mode
 	if (heightmap_mode && !chunks.empty()) {
 		_heights_from_corners();
 		refresh_grid();
@@ -143,6 +144,7 @@ void MCGrid::set_column_height(
 	if (new_height == old_height) {
 		return;
 	}
+	_record_height(index);
 	column_heights[static_cast<size_t>(index)] = static_cast<uint8_t>(new_height);
 	int low = std::min(old_height, new_height); // corners low .. high - 1 flipped
 	int high = std::max(old_height, new_height);
@@ -158,6 +160,7 @@ void MCGrid::set_column_height(
 		}
 	}
 	_queue_rebuild();
+	_queue_water(); // its water may now be over or under the ground
 	// The debug cubes of the changed corners and of their neighbours (which may now be exposed).
 	for (int y = low - 1; y <= high; y++) {
 		_update_debug_corner(p_column.x, y, p_column.y);
@@ -234,6 +237,7 @@ String MCGrid::load_heights(
 			_write_column(x, z, height);
 		}
 	}
+	clear_history(); // loaded data: the old edits don't apply
 	uint32_t seed = 2166136261u; // FNV-1a of the heights, as MCHeightmap seeds its M roofs
 	for (int i = 0; i < p_data.size(); i++) {
 		seed = (seed ^ data[i]) * 16777619u;
@@ -296,6 +300,7 @@ String MCGrid::randomize_heights(int p_seed) {
 				height = floor_height + static_cast<int>(std::floor(shaped * static_cast<float>(tiers) + 0.5f));
 				height = std::clamp(height, floor_height, _max_column_height());
 			}
+			_record_height(_column_index(x, z));
 			column_heights[static_cast<size_t>(_column_index(x, z))] = static_cast<uint8_t>(height);
 			_write_column(x, z, height);
 			counts[height]++;
@@ -304,6 +309,13 @@ String MCGrid::randomize_heights(int p_seed) {
 
 	_roll_roof_m(static_cast<uint32_t>(p_seed)); // seeded, so a seed always gives the same island
 	decor_seed = p_seed;
+	for (size_t i = 0; i < water_levels.size(); i++) { // the old water doesn't fit the new island
+		_record_water(static_cast<int>(i));
+		water_levels[i] = 0;
+	}
+	if (sea_level > 0) {
+		_flood_sea(Vector2i(0, 0), sea_level); // from the corner: everything below sea level round it
+	}
 	refresh_grid();
 
 	String summary = "island " + String::num_int64(p_seed) + ": heights";

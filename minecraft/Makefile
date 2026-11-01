@@ -61,6 +61,10 @@ clean:
 
 run_mc:
 	$(GODOT) --path project/ --scene scene/marching/cubes.tscn
+run_cliffs:
+	$(GODOT) --path project/ --scene scene/marching/cliffs.tscn
+run_cliffs_blocky:
+	$(GODOT) --path project/ --scene scene/marching/cliffs_blocky.tscn
 run_mp:
 	$(GODOT) --path project/ --scene scene/marching/prism.tscn
 run_tr:

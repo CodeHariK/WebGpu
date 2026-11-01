@@ -1,5 +1,6 @@
 // MCGrid: setup, properties, corner edits and corner/cell queries.
 #include "marching_cubes/grid/mc_grid.h"
+#include <godot_cpp/classes/camera3d.hpp>
 #include "marching_cubes/library/mc_library.h"
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>
@@ -59,10 +60,46 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_lock_rim"), &MCGrid::get_lock_rim);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "lock_rim"), "set_lock_rim", "get_lock_rim");
 	ClassDB::bind_method(D_METHOD("load_heights", "data", "size"), &MCGrid::load_heights);
+	ClassDB::bind_method(D_METHOD("begin_edit"), &MCGrid::begin_edit);
+	ClassDB::bind_method(D_METHOD("end_edit"), &MCGrid::end_edit);
+	ClassDB::bind_method(D_METHOD("undo"), &MCGrid::undo);
+	ClassDB::bind_method(D_METHOD("redo"), &MCGrid::redo);
+	ClassDB::bind_method(D_METHOD("can_undo"), &MCGrid::can_undo);
+	ClassDB::bind_method(D_METHOD("can_redo"), &MCGrid::can_redo);
+	ClassDB::bind_method(D_METHOD("clear_history"), &MCGrid::clear_history);
+	ClassDB::bind_method(D_METHOD("get_water_level", "column"), &MCGrid::get_water_level);
+	ClassDB::bind_method(D_METHOD("set_water_level", "column", "level"), &MCGrid::set_water_level);
+	ClassDB::bind_method(D_METHOD("fill_water", "column", "level"), &MCGrid::fill_water);
+	ClassDB::bind_method(D_METHOD("paint_water", "column"), &MCGrid::paint_water);
+	ClassDB::bind_method(D_METHOD("settle_water"), &MCGrid::settle_water);
+	ClassDB::bind_method(D_METHOD("set_debug_wireframe", "on"), &MCGrid::set_debug_wireframe);
+	ClassDB::bind_method(D_METHOD("is_debug_wireframe"), &MCGrid::is_debug_wireframe);
+	ClassDB::bind_method(D_METHOD("set_debug_water", "on"), &MCGrid::set_debug_water);
+	ClassDB::bind_method(D_METHOD("is_debug_water"), &MCGrid::is_debug_water);
+	ClassDB::bind_method(D_METHOD("replay_water_debug"), &MCGrid::replay_water_debug);
+	ClassDB::bind_method(D_METHOD("update_hover_preview", "corner_pos", "hit_normal", "camera"), &MCGrid::update_hover_preview);
+	ClassDB::bind_method(D_METHOD("hide_hover_preview"), &MCGrid::hide_hover_preview);
+	ClassDB::bind_method(D_METHOD("clear_water", "column"), &MCGrid::clear_water);
+	ClassDB::bind_method(D_METHOD("set_sea_level", "level"), &MCGrid::set_sea_level);
+	ClassDB::bind_method(D_METHOD("get_sea_level"), &MCGrid::get_sea_level);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "sea_level"), "set_sea_level", "get_sea_level");
+	ClassDB::bind_method(D_METHOD("set_water_material", "material"), &MCGrid::set_water_material);
+	ClassDB::bind_method(D_METHOD("get_water_material"), &MCGrid::get_water_material);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "water_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"),
+			"set_water_material", "get_water_material"
+	);
+	ClassDB::bind_method(D_METHOD("set_waterfall_material", "material"), &MCGrid::set_waterfall_material);
+	ClassDB::bind_method(D_METHOD("get_waterfall_material"), &MCGrid::get_waterfall_material);
+	ADD_PROPERTY(
+			PropertyInfo(Variant::OBJECT, "waterfall_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"),
+			"set_waterfall_material", "get_waterfall_material"
+	);
 
 	ClassDB::bind_method(D_METHOD("get_cell_hash", "pos"), &MCGrid::get_cell_hash);
 	ClassDB::bind_method(D_METHOD("is_corner_active", "pos"), &MCGrid::is_corner_active);
 	ClassDB::bind_method(D_METHOD("get_cell_level", "pos"), &MCGrid::get_cell_level);
+	ClassDB::bind_method(D_METHOD("get_cell_group", "pos"), &MCGrid::get_cell_group);
 	ClassDB::bind_method(D_METHOD("randomize_levels", "seed", "tries"), &MCGrid::randomize_levels, DEFVAL(300));
 	ClassDB::bind_method(D_METHOD("get_last_plan"), &MCGrid::get_last_plan);
 	ClassDB::bind_method(D_METHOD("set_pin", "hash", "level", "mesh"), &MCGrid::set_pin);
@@ -176,6 +213,9 @@ void MCGrid::initialize_grid(
 	if (heightmap_mode) {
 		_heights_from_corners(); // a flat floor: every column at the floor
 	}
+	water_levels.assign(static_cast<size_t>(_column_counts().x) * _column_counts().y, 0); // dry
+	water_dirty = true;
+	clear_history(); // a new grid: old edits don't apply
 
 	placed_list.clear();
 	_clear_placed_objects(); // their grid positions mean nothing in the new grid
@@ -213,6 +253,7 @@ void MCGrid::refresh_grid() {
 	if (debug_corners_container) {
 		debug_corners_container->set_visible(show_debug_corners);
 	}
+	_rebuild_water();
 	UtilityFunctions::print("MCGrid Refresh: ", spawn_count, " visual nodes spawned.");
 }
 
@@ -323,6 +364,7 @@ void MCGrid::_write_corner(
 		const Vector3i &p_grid_pos,
 		bool p_active
 ) {
+	_record_corner(p_grid_pos); // undo (corner mode; heightmap mode records the heights)
 	int gx = p_grid_pos.x;
 	int gy = p_grid_pos.y;
 	int gz = p_grid_pos.z;

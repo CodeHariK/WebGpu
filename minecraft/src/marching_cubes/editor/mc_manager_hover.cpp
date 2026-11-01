@@ -3,6 +3,7 @@
 #include "marching_cubes/grid/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include "marching_cubes/util/mc_physics.h"
+#include "marching_cubes/util/mc_wire.h"
 #include "utils/raycast/mc_raycast.h"
 
 #include <godot_cpp/classes/box_mesh.hpp>
@@ -30,8 +31,36 @@ void MCManager::_on_toggle_visual_corners() {
 	}
 }
 
-// Create the hover materials (yellow ok, red blocked, cyan selected) and the placement box.
+// Terrain wireframe overlay on / off.
+void MCManager::_on_toggle_wireframe() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_debug_wireframe(!grid_node->is_debug_wireframe());
+	}
+}
+
+// Water overlay on / off (held / stream / sea, flow arrows, framed / open falls, last pour).
+void MCManager::_on_toggle_water_debug() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_debug_water(!grid_node->is_debug_water());
+	}
+}
+
+// Replay the last pour's flood fill (turns the water overlay on).
+void MCManager::_on_replay_pour() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->replay_water_debug();
+	}
+}
+
+// Create the hover materials (yellow ok, red blocked: wire lines; cyan selected: an overlay tint) and
+// the placement box (a wire box, scaled to the placement size).
 void MCManager::_initialize_previews() {
+	wire_mat_ok = mc_wire_material(Color(1.0f, 0.86f, 0.25f, 1.0f));
+	wire_mat_blocked = mc_wire_material(Color(1.0f, 0.3f, 0.25f, 1.0f));
+
 	hover_mat_yellow.instantiate();
 	hover_mat_yellow->set_albedo(Color(1, 1, 0, 0.4));
 	hover_mat_yellow->set_transparency(BaseMaterial3D::TRANSPARENCY_ALPHA);
@@ -49,10 +78,7 @@ void MCManager::_initialize_previews() {
 
 	if (!hover_box_node) {
 		hover_box_node = memnew(MeshInstance3D);
-		Ref<BoxMesh> box;
-		box.instantiate();
-		box->set_size(Vector3(current_placement_size));
-		hover_box_node->set_mesh(box);
+		hover_box_node->set_mesh(mc_wire_box(Vector3(1, 1, 1)));
 		add_child(hover_box_node);
 		hover_box_node->hide();
 	}
@@ -66,19 +92,17 @@ void MCManager::_update_hover_box(
 	if (!hover_box_node)
 		return;
 
-	Ref<BoxMesh> box = hover_box_node->get_mesh();
-	if (box.is_valid()) {
-		box->set_size(Vector3(current_placement_size));
-	}
+	hover_box_node->set_scale(Vector3(current_placement_size)); // the wire box is 1 x 1 x 1
 	// The box is a child of MCManager but the position is in MCGrid space: place it globally.
 	Vector3 local_centre = Vector3(p_grid_pos) + (Vector3(current_placement_size) * 0.5f);
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
 	if (grid_node) {
 		hover_box_node->set_global_position(grid_node->to_global(local_centre));
+		hover_box_node->set_global_basis(grid_node->get_global_basis().scaled(Vector3(current_placement_size)));
 	} else {
 		hover_box_node->set_position(local_centre);
 	}
-	hover_box_node->set_material_override(p_is_blocked ? hover_mat_red : hover_mat_yellow);
+	hover_box_node->set_material_override(p_is_blocked ? wire_mat_blocked : wire_mat_ok);
 	hover_box_node->show();
 }
 

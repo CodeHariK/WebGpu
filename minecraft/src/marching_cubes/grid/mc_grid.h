@@ -3,10 +3,15 @@
 //   mc_grid_cells.cpp          the tiles of each chunk merged into one mesh + collider
 //   mc_grid_levels.cpp         each cell's level (L / M / H, core/mc_level_plan.h) and Randomize
 //   mc_grid_heights.cpp        heightmap mode: one height per corner column, no overhangs, islands
-//   mc_grid_debug_corners.cpp  debug cubes on the corners (+ their picking colliders)
+//   mc_grid_groups.cpp         each cell's tile group (a, b …): one rolled per connected solid region
+//   mc_grid_water.cpp          the water layer (heightmap mode): ponds, rivers, sea, waterfalls
+//   mc_grid_debug_corners.cpp  debug dots on the corners (+ their picking colliders)
+//   mc_grid_debug_view.cpp     debug views: corner dot look, terrain wireframe, water overlay + pour replay
 //   mc_grid_hover.cpp          hover preview quads
 //   mc_grid_objects.cpp        placed objects (with mc_spatial)
-//   mc_grid_io.cpp             save / load
+//   mc_grid_io.cpp             save / load (version 1 files load; JSON for Blender)
+//   mc_grid_undo.cpp           undo / redo: each edit records the old values it changes
+//   mc_grid_save_v2.cpp        save format version 2: per-block layers (corners, or heights + water), zstd
 #ifndef MC_GRID_H
 #define MC_GRID_H
 
@@ -21,16 +26,31 @@
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace godot {
 
+// One undoable edit: the old values it changed (index, value), and the decor seed and M roofs as
+// they were when it began (mc_grid_undo.cpp).
+struct MCEdit {
+	std::vector<std::pair<int, uint8_t>> heights; // corner column index -> old height
+	std::vector<std::pair<int, uint8_t>> water; // corner column index -> old water level
+	std::vector<std::pair<int, uint8_t>> corners; // global corner key (x fastest) -> old solid bit
+	int decor_seed = 0;
+	std::vector<uint8_t> roof_m;
+};
+
 class Camera3D;
 class BoxMesh;
 class MCTileLibrary;
+class FileAccess;
+class Material;
 class Mesh;
 class MeshInstance3D;
 class StandardMaterial3D;
+class ShaderMaterial;
 
 class MCGrid : public Node3D {
 	GDCLASS(MCGrid,
@@ -45,11 +65,25 @@ private:
 	int decor_seed = 0; // socket decor roll; Randomize sets it to its seed (saved with the scene)
 	std::vector<uint8_t> cell_levels; // per cell (mc::CellBlock order): which level's tile it draws
 	std::vector<uint8_t> roof_m; // per cell: roof regions Randomize made M (kept through edits)
+	std::vector<uint8_t> cell_groups; // per cell (mc::CellBlock order): its tile group letter
 	mc::LevelPlan last_plan; // the last Randomize
 	mc::LevelPin pin; // one library tile fixed in the grid (Randomize plans around it)
 	bool heightmap_mode = false; // one height per corner column (no overhangs): mc_grid_heights.cpp
 	std::vector<uint8_t> column_heights; // heightmap mode: per corner column (x + z * columns.x)
 	bool lock_rim = true; // heightmap mode: outer columns locked to the floor (off: open edge)
+	std::vector<uint8_t> water_levels; // per corner column, like column_heights (0 = dry)
+	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
+	bool water_dirty = false; // the water mesh is rebuilt at the end of the frame
+	MeshInstance3D *water_node = nullptr; // surface + waterfalls (two surfaces)
+	Ref<Material> water_material; // water_surface.gdshader unless set
+	Ref<Material> waterfall_material; // waterfall.gdshader unless set
+	std::vector<MCEdit> undo_stack; // oldest first
+	std::vector<MCEdit> redo_stack;
+	MCEdit recording; // the open edit (between begin_edit and end_edit)
+	int edit_depth = 0; // > 0 while an edit is open
+	std::unordered_set<int> recorded_heights; // what the open edit already recorded
+	std::unordered_set<int> recorded_water;
+	std::unordered_set<int> recorded_corners;
 	Ref<Mesh> pin_mesh; // the pinned tile's own mesh, drawn at its cell
 	std::vector<Chunk> chunks;
 	MCPlacedObjects placed_list; // boxes placed in object mode
@@ -59,13 +93,21 @@ private:
 	int total_cells = 0;
 	Node3D *debug_corners_container = nullptr;
 
-	Ref<BoxMesh> _debug_box_mesh;
-	Ref<StandardMaterial3D> _debug_mat_blue;
-	Ref<StandardMaterial3D> _debug_mat_red;
+	Ref<Mesh> _debug_dot_solid; // corner dots (mc_grid_debug_view.cpp)
+	Ref<Mesh> _debug_dot_empty;
+	Ref<StandardMaterial3D> _debug_dot_empty_material;
+	std::vector<Ref<StandardMaterial3D>> _debug_corner_materials; // solid dots, by corner y
+	bool debug_wireframe = false; // chunk meshes get a wireframe overlay
+	Ref<Material> _wireframe_material;
+	bool debug_water = false; // the water overlay is shown
+	MeshInstance3D *water_debug_node = nullptr;
+	Ref<ShaderMaterial> water_debug_material;
+	std::vector<int> last_pour; // the columns the last fill_water reached, in the order it reached them
 	Node3D *hover_root = nullptr;
-	MeshInstance3D *hover_quads[3] = { nullptr, nullptr, nullptr };
-	Ref<StandardMaterial3D> hover_mat_yellow;
-	Ref<StandardMaterial3D> hover_mat_white;
+	MeshInstance3D *hover_cube = nullptr; // wire cube round the hovered corner
+	MeshInstance3D *hover_face = nullptr; // the face the mouse is on: outline + faint fill
+	Node3D *hover_corners_root = nullptr; // Corners debug: cubes on the active corners round the hover
+	MeshInstance3D *hover_corner_cubes[27] = {}; // a pool: 3 x 3 x 3 at most
 
 	// Index into chunks[] of the chunk at chunk coordinates (x, y, z).
 	int _get_chunk_index(
@@ -92,6 +134,11 @@ private:
 	uint8_t _level_at(const Vector3i &p_cell) const;
 	// Recompute every cell's level from the corners; cells whose level changed are marked dirty.
 	void _update_levels();
+	// The group of a cell ('a' outside the grid or before the first update).
+	char _group_at(const Vector3i &p_cell) const;
+	// Regions of the solid corners, a group rolled per region, each cell's group; cells whose group
+	// changed are marked dirty (mc_grid_groups.cpp).
+	void _update_groups(const std::vector<uint8_t> &p_corners);
 	// The pin, while its cell still has the pinned hash (an edit there drops it); else nullptr.
 	const mc::LevelPin *_live_pin() const;
 	// Write one global corner into every chunk that stores it (no boundary check, no rebuild).
@@ -168,6 +215,93 @@ private:
 			int p_z,
 			int p_height
 	);
+	// --- undo (mc_grid_undo.cpp) ---
+	// Record the old value before it changes (only inside an edit, once per edit).
+	void _record_height(int p_index);
+	void _record_water(int p_index);
+	void _record_corner(const Vector3i &p_corner);
+	// Write an edit's old values back (recording the current ones into r_inverse), then rebuild.
+	void _apply_edit(
+			const MCEdit &p_edit,
+			MCEdit &r_inverse
+	);
+	// --- save format version 2 (mc_grid_save_v2.cpp) ---
+	// The corner columns chunk column (p_cx, p_cz) owns: [r_from, r_to) on x and z.
+	void _block_columns(
+			int p_cx,
+			int p_cz,
+			Vector2i &r_from,
+			Vector2i &r_to
+	) const;
+	// Write the whole grid as version 2 (header, block sizes, blocks of layers).
+	void _save_v2(const Ref<FileAccess> &p_file) const;
+	// Read a version 2 file (magic + version already read) into temporaries, then apply it to the
+	// grid (no rebuild); false (grid untouched) when anything is wrong.
+	bool _load_v2(
+			const Ref<FileAccess> &p_file,
+			const String &p_path
+	);
+	// --- water (mc_grid_water.cpp) ---
+	// Is column p_index wet (its water level above its ground)?
+	bool _is_wet(int p_index) const;
+	// Rebuild the water mesh at the end of the frame.
+	void _queue_water();
+	// The water mesh: a square per wet column, a waterfall sheet per step between wet neighbours.
+	void _rebuild_water();
+	// Is the waterfall from p_from (water at p_level) toward p_step cut into the land (banks at both
+	// ends of the falling run)?
+	bool _fall_framed(
+			const Vector2i &p_from,
+			const Vector2i &p_step,
+			int p_level
+	) const;
+	// Each column's water surface (dry: -1e6) and whether it is held one layer deep (else a stream).
+	void _water_surfaces(
+			std::vector<float> &r_surface,
+			std::vector<uint8_t> &r_held
+	) const;
+	// Which way each wet column flows: Color(dir x, dir z, 1 = flows, 1 = a fall lands here).
+	std::vector<Color> _water_flow(const std::vector<float> &p_surface) const;
+	// Where water poured at p_column flows (ground not higher, 4 neighbours), skipping r_seen.
+	std::vector<int> _flow_region(
+			const Vector2i &p_column,
+			std::vector<uint8_t> &r_seen
+	) const;
+	// --- debug views (mc_grid_debug_view.cpp) ---
+	// A corner's debug node: solid -> a dot coloured by height, empty -> a small faint dot.
+	void _style_debug_corner(
+			MeshInstance3D *p_node,
+			bool p_solid,
+			int p_y
+	);
+	// The thick white wire cube mesh + material for an active corner.
+	void _ensure_corner_cube_look();
+	// Corners debug: wire cubes on the active corners round the hover (3 x 3 x 3, or a cell's 8).
+	void _show_hover_corners(
+			const Vector3 &p_pos,
+			bool p_cell
+	);
+	// The wireframe overlay on a chunk mesh (on or off by debug_wireframe).
+	void _apply_wireframe(MeshInstance3D *p_node);
+	// Build the water overlay from the surfaces, held flags and flow _rebuild_water worked out.
+	void _rebuild_water_debug(
+			const std::vector<float> &p_surface,
+			const std::vector<uint8_t> &p_held,
+			const std::vector<Color> &p_flow
+	);
+	// The sea from p_column: every connected column whose ground is below p_level.
+	std::vector<int> _sea_region(
+			const Vector2i &p_column,
+			int p_level
+	) const;
+	void _set_water(
+			const std::vector<int> &p_region,
+			int p_level
+	);
+	void _flood_sea(
+			const Vector2i &p_column,
+			int p_level
+	);
 	// The M roofs for the current corners, MCHeightmap's rule, seeded.
 	void _roll_roof_m(uint32_t p_seed);
 	// set_corner in heightmap mode: fill -> column rises to just above it, empty -> drops below it.
@@ -229,6 +363,8 @@ public:
 
 	// The 8-bit corner hash of the cell at p_pos (0 outside the grid).
 	uint8_t get_cell_hash(const Vector3i &p_pos) const;
+	// The tile group of the cell at p_pos: "a", "b" … ("" outside the grid).
+	String get_cell_group(const Vector3i &p_pos) const;
 	// The level of the cell at p_pos: 'l', 'm' or 'h' (as a String for scripts; "" outside).
 	String get_cell_level(const Vector3i &p_pos) const;
 	// New random corners following the level rules (L bottom layer, H on column tops and beside H,
@@ -277,9 +413,53 @@ public:
 			const PackedByteArray &p_data,
 			const Vector2i &p_size
 	);
-	// Write the corner grid to a .mct file (format in mc_grid_io.cpp).
+	// Undo / redo: everything between begin_edit and end_edit is one step (the editor wraps each
+	// click, Randomize, water fill). Cleared on initialize / load / heightmap mode switch.
+	void begin_edit();
+	void end_edit();
+	bool undo();
+	bool redo();
+	bool can_undo() const;
+	bool can_redo() const;
+	void clear_history();
+	// Water (heightmap mode): level of a corner column (0 = dry; wet when above its ground).
+	int get_water_level(const Vector2i &p_column) const;
+	void set_water_level(
+			const Vector2i &p_column,
+			int p_level
+	);
+	// Waterscaping: the column becomes water (ground dug one tier, water at its old height). False if
+	// it is wet already, at the floor or locked.
+	bool paint_water(const Vector2i &p_column);
+	// Pour water at a column (p_level: its ground + 1 normally, at most one layer deep): a flood fill
+	// onto 4-neighbours whose ground is not higher (spreads, or falls and carries on), every reached
+	// column one layer deep. Returns how many columns.
+	int fill_water(
+			const Vector2i &p_column,
+			int p_level
+	);
+	// Debug views: terrain wireframe; water overlay (held / stream / sea, flow arrows, framed / open
+	// falls, the last pour's order); replay the last pour.
+	void set_debug_wireframe(bool p_on);
+	bool is_debug_wireframe() const { return debug_wireframe; }
+	void set_debug_water(bool p_on);
+	bool is_debug_water() const { return debug_water; }
+	void replay_water_debug();
+	// Let all standing water flow again (after a load or a terrain edit). Returns columns changed.
+	int settle_water();
+	// Dry the connected water (any level), leaving the sea. Returns how many columns.
+	int clear_water(const Vector2i &p_column);
+	// randomize_heights fills the sea from the grid's corner at this level (0: no sea).
+	void set_sea_level(int p_level);
+	int get_sea_level() const { return sea_level; }
+	void set_water_material(const Ref<Material> &p_material) { water_material = p_material; }
+	Ref<Material> get_water_material() const { return water_material; }
+	void set_waterfall_material(const Ref<Material> &p_material) { waterfall_material = p_material; }
+	Ref<Material> get_waterfall_material() const { return waterfall_material; }
+	// Write the grid to a .mct file, version 2 (mc_grid_save_v2.cpp): heightmap mode saves heights +
+	// water per chunk column, corner mode the corner bits per chunk; zstd per layer.
 	void save_grid(const String &p_path);
-	// Read a .mct file; the grid only changes once the whole file has been validated.
+	// Read a .mct file (version 1 or 2); the grid only changes once the whole file has been validated.
 	void load_grid(const String &p_path);
 	// Every non-empty cell as JSON text, for the Blender add-on's playground ("Paste from Godot").
 	String cells_to_json() const;

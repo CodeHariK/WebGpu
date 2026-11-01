@@ -7,11 +7,16 @@
 #include <godot_cpp/classes/collision_object3d.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/viewport.hpp>
 
 namespace godot {
 
 // Mouse buttons not taken by the UI: raycast once, then dispatch by mode.
 void MCManager::_unhandled_input(const Ref<InputEvent> &p_event) {
+	if (_history_shortcut(p_event)) {
+		get_viewport()->set_input_as_handled();
+		return;
+	}
 	Ref<InputEventMouseButton> mouse_event = p_event;
 	if (mouse_event.is_null()) {
 		return;
@@ -45,6 +50,9 @@ void MCManager::_unhandled_input(const Ref<InputEvent> &p_event) {
 	switch (interaction_mode) {
 		case MODE_TERRAIN:
 			_terrain_click(grid, hit, button);
+			break;
+		case MODE_WATER:
+			_water_click(grid, hit, button);
 			break;
 		case MODE_PLACE_OBJECT:
 			if (button == MOUSE_BUTTON_LEFT) {
@@ -125,6 +133,7 @@ void MCManager::_terrain_click(
 		const ClickHit &p_hit,
 		MouseButton p_button
 ) {
+	p_grid->begin_edit(); // one undo step
 	if (p_button == MOUSE_BUTTON_LEFT) {
 		// Add: fill the corner next to the clicked one, on the side that was clicked.
 		Vector3i side(Math::round(p_hit.normal.x), Math::round(p_hit.normal.y), Math::round(p_hit.normal.z));
@@ -133,6 +142,11 @@ void MCManager::_terrain_click(
 		// Remove: empty the clicked corner.
 		p_grid->set_corner(p_hit.corner, false);
 	}
+	if (p_grid->get_heightmap_mode()) {
+		p_grid->settle_water(); // dig beside water and it runs in (same undo step)
+	}
+	p_grid->end_edit();
+	_update_history_buttons();
 }
 
 } // namespace godot

@@ -100,6 +100,7 @@ void MCGrid::_update_levels() {
 		}
 	}
 	cell_levels = std::move(levels);
+	_update_groups(corners); // the same corners: each region's tile group
 }
 
 // Floor corners locked solid, or editable (Randomize makes them random).
