@@ -342,6 +342,7 @@ void MCGrid::_water_bodies(
 			body.ground[k] = ground[k];
 		}
 		body.top = top;
+		body.grow = water_expand;
 		body.square = water_square;
 		body.stream = stream;
 		// where its fall lands: the water below, or the dry ground below

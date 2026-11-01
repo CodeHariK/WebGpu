@@ -4,7 +4,7 @@
 //   mc_grid_levels.cpp         each cell's level (L / M / H, core/mc_level_plan.h) and Randomize
 //   mc_grid_heights.cpp        heightmap mode: one height per corner column, no overhangs, islands
 //   mc_grid_groups.cpp         each cell's tile group (a, b …): one rolled per connected solid region
-//   mc_grid_water_sampled.cpp  the water mesh from a sample grid + marching squares (water_sampled)
+//   mc_grid_water_tiles.cpp    the water mesh from baked water tiles (per corner classes), welded
 //   mc_grid_water_mesh.cpp     the water mesh: surface + falls per cell with the cliff tiles' shape
 //   mc_grid_water.cpp          the water layer (heightmap mode): ponds, rivers, sea, waterfalls
 //   mc_grid_debug_corners.cpp  debug dots on the corners (+ their picking colliders)
@@ -28,6 +28,7 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
+#include <godot_cpp/variant/packed_int32_array.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/variant/packed_color_array.hpp>
@@ -64,6 +65,8 @@ struct MCWaterArrays {
 	};
 	std::vector<FallPiece> fall_pieces;
 	std::vector<Vector3> samples; // water_sampled: the wet sample points (debug overlay)
+	PackedInt32Array indices; // welded surface (water tiles); empty: plain triangles
+	PackedInt32Array fall_indices; // welded falls (water tiles)
 };
 
 // One step of a pour's flood fill (for the step-by-step debug): the column taken off the front of the
@@ -122,9 +125,10 @@ private:
 	bool lock_rim = true; // heightmap mode: outer columns locked to the floor (off: open edge)
 	std::vector<uint8_t> water_levels; // per corner column, like column_heights (0 = dry)
 	String water_blocky_groups = "b"; // groups whose water edges use the blocky shape
-	bool water_sampled = true; // water mesh from a sample grid + marching squares (else per cell)
+	bool water_sampled = true; // water mesh from baked water tiles (mc_grid_water_tiles.cpp; else per cell)
 	int water_sample_rate = 8; // samples per cell side (water_sampled)
 	std::vector<Vector3> water_debug_samples; // the last build's wet sample points (debug overlay)
+	float water_expand = 0.0f; // m the water's edge grows on under the banks (UI slider)
 	float water_drop = 0.15f; // m held water's surface sits below the bank one tier up (UI slider)
 	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
@@ -332,8 +336,8 @@ private:
 	) const;
 	// Join the fall pieces into whole falls (one quad per straight run, UV along the whole fall).
 	void _merge_falls(MCWaterArrays &r_out) const;
-	// The water mesh from a fine sample grid + marching squares (mc_grid_water_sampled.cpp).
-	void _emit_water_sampled(
+	// The water mesh from baked water tiles, welded (mc_grid_water_tiles.cpp).
+	void _emit_water_tiles(
 			const std::vector<float> &p_surface,
 			const std::vector<uint8_t> &p_held,
 			const std::vector<Color> &p_flow,
@@ -539,11 +543,14 @@ public:
 	// falls, the last pour's order); replay the last pour.
 	void set_debug_wireframe(bool p_on);
 	bool is_debug_wireframe() const { return debug_wireframe; }
-	// Which water mesh builder: sampled (sample grid + marching squares) or per cell.
+	// Which water mesh builder: water tiles (sample grid + marching squares, baked per corner classes) or per cell.
 	void set_water_sampled(bool p_on);
 	bool get_water_sampled() const { return water_sampled; }
 	void set_water_sample_rate(int p_rate); // samples per cell side, 2 .. 32
 	int get_water_sample_rate() const { return water_sample_rate; }
+	// Grow the water's edge on under the banks (0 .. 0.3 m): covers corner cuts inside the rock.
+	void set_water_expand(float p_expand);
+	float get_water_expand() const { return water_expand; }
 	// How far held water's surface sits below the bank one tier up (0 .. 0.95 m, default 0.15).
 	void set_water_drop(float p_drop);
 	float get_water_drop() const { return water_drop; }

@@ -543,7 +543,7 @@ void MCGrid::_rebuild_water() {
 		_water_surfaces(surface, held);
 		std::vector<Color> flow = _water_flow(surface);
 		if (water_sampled) {
-			_emit_water_sampled(surface, held, flow, arrays_out);
+			_emit_water_tiles(surface, held, flow, arrays_out);
 		} else {
 			_emit_water_cells(surface, held, flow, arrays_out);
 			_merge_falls(arrays_out);
@@ -586,6 +586,9 @@ void MCGrid::_rebuild_water() {
 	arrays[Mesh::ARRAY_TEX_UV] = arrays_out.uvs;
 	arrays[Mesh::ARRAY_TEX_UV2] = arrays_out.uv2s;
 	arrays[Mesh::ARRAY_COLOR] = arrays_out.colors;
+	if (!arrays_out.indices.is_empty()) {
+		arrays[Mesh::ARRAY_INDEX] = arrays_out.indices;
+	}
 	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
 	mesh->surface_set_material(0, water_material);
 	if (!arrays_out.fall_vertices.is_empty()) {
@@ -595,6 +598,9 @@ void MCGrid::_rebuild_water() {
 		falls[Mesh::ARRAY_NORMAL] = arrays_out.fall_normals;
 		falls[Mesh::ARRAY_TEX_UV] = arrays_out.fall_uvs;
 		falls[Mesh::ARRAY_TEX_UV2] = arrays_out.fall_uv2s;
+		if (!arrays_out.fall_indices.is_empty()) {
+			falls[Mesh::ARRAY_INDEX] = arrays_out.fall_indices;
+		}
 		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, falls);
 		mesh->surface_set_material(1, waterfall_material);
 	}

@@ -125,6 +125,12 @@ void MCManager::setup_ui() {
 		ui.manager->add_hslider(ui.stats_vbox, 0.0f, 0.95f, 0.01f, drop, Callable(this, "_on_water_drop"), "WaterDrop");
 	}
 
+	ui.manager->add_label(ui.stats_vbox, "Water expand (m)");
+	{
+		MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+		float expand = grid_node ? grid_node->get_water_expand() : 0.0f;
+		ui.manager->add_hslider(ui.stats_vbox, 0.0f, 0.3f, 0.005f, expand, Callable(this, "_on_water_expand"), "WaterExpand");
+	}
 	ui.manager->add_label(ui.stats_vbox, "Water samples per cell");
 	{
 		MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));

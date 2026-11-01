@@ -221,15 +221,23 @@ everything built on top is an object. Terrain stays pure corners.
       **Square tiles** (`cliff_tiles.py --style square` → `Cliff_square.glb`, `cliffs_square.tscn`,
       `make run_cliffs_square`): blocky with no curves — sharp corners, flat rock faces; the grid's
       `water_square` gives the water the same sharp shape; its falls sit 1 cm off the rock.
-      **Sampled water mesh** (default, `water_sampled`, `grid/mc_grid_water_sampled.cpp`): a fine sample
-      grid (`water_sample_rate` per cell, 8) asks each cell's bodies for the height; marching squares
-      per height with bisected, cached edge crossings (neighbours share points exactly); falls built
-      from the same contour points where lower water / lower dry ground is just outside; whole cells
-      are one quad. Shape code shared in `grid/mc_water_shape.h`. Debug: wet samples as dots.
-      Still: 45° chamfers of up to one sample at sharp corners (square tiles).
+      **Water tiles** (default, `water_sampled`, `grid/mc_grid_water_tiles.cpp`): each body of a cell
+      classifies its 4 corners (bank / wet / lower / dry bed tier); per style, sample rate and class
+      combination a tile is baked once (fine sample grid + marching squares on the cliff tiles' shape,
+      bisected crossings, falls where lower water / dry ground is outside) and then only placed:
+      surface lifted to the body's height, falls stretched to where they land; vertices welded into
+      one indexed mesh. ~1.4 ms rebuild at 8 samples / cell (per-cell builder: ~20 ms). Shape code in
+      `grid/mc_water_shape.h`. Debug: wet samples as dots. Sharp corners kept (extended marching
+      squares: where the edge normals turn sharply inside a square, a vertex at the tangents' meeting
+      point, the fall bent round it) — no 45° chamfer showing the rock's corner as a post.
+      Water expand slider (`water_expand`, 0 .. 0.3 m): pushes the edge on under banks and, fading
+      out with distance from the bed's edge, over dry ground of the bed tier (covers the post a
+      diagonal-only dry corner leaves between two falls); never past the falls' line.
+      Still: whole-map rebuild (per-chunk water later).
       Tried and dropped: skirts (curved / vertical lips / overflow sheets at open water edges).
       Open: a dry corner of the bed tier reached only diagonally (terrain.mct (11, 22) by (12, 21))
-      is a real gap in the terrain — the water either leaks out there or ends at it (now: ends).
+      is a real gap in the terrain — the water either leaks out there or ends at it (now: ends;
+      water_expand hides the gap).
       **Debug tools** (Stats panel → Diagnostics; `grid/mc_grid_debug_view.cpp`): Inspect (click a cell: an orange wire cube marks it and a side panel — a
       SubViewport with its own world — shows its tile + wireframe, cube and 8 corner dots numbered by
       hash bit, orange active / black inactive, slowly turning, drag to orbit, scroll to zoom; text:

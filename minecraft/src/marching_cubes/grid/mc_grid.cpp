@@ -80,6 +80,9 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_water_sample_rate", "rate"), &MCGrid::set_water_sample_rate);
 	ClassDB::bind_method(D_METHOD("get_water_sample_rate"), &MCGrid::get_water_sample_rate);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "water_sample_rate", PROPERTY_HINT_RANGE, "2,32,1"), "set_water_sample_rate", "get_water_sample_rate");
+	ClassDB::bind_method(D_METHOD("set_water_expand", "expand"), &MCGrid::set_water_expand);
+	ClassDB::bind_method(D_METHOD("get_water_expand"), &MCGrid::get_water_expand);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "water_expand", PROPERTY_HINT_RANGE, "0,0.3,0.005"), "set_water_expand", "get_water_expand");
 	ClassDB::bind_method(D_METHOD("set_water_drop", "drop"), &MCGrid::set_water_drop);
 	ClassDB::bind_method(D_METHOD("get_water_drop"), &MCGrid::get_water_drop);
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "water_drop", PROPERTY_HINT_RANGE, "0,0.95,0.01"), "set_water_drop", "get_water_drop");

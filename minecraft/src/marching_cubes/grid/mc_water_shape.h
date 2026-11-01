@@ -1,5 +1,5 @@
 // The water's 2D shape inside one terrain cell, shared by the two water mesh builders
-// (mc_grid_water_mesh.cpp: per cell on the tiles' sub-grid; mc_grid_water_sampled.cpp: a fine
+// (mc_grid_water_mesh.cpp: per cell on the tiles' sub-grid; mc_grid_water_tiles.cpp: baked tiles from a fine
 // sample grid + marching squares). A port of blender/mc_tiles/scripts/cliff_tiles.py's shape
 // functions (rounded bilinear blend, blocky quarters), so the water's edges land on the cliffs.
 //
@@ -160,7 +160,7 @@ struct Body {
 	bool square = false; // square tiles: falls stay WALL_GAP off the rock
 	// how far the surface runs on into the rock / past the step: EDGE hides the rounded tiles'
 	// grooves; square tiles have flat rock, so the water stops exactly at it (nothing pokes out)
-	float tuck() const { return square ? 0.0f : EDGE; }
+	float tuck() const { return (square ? 0.0f : EDGE) + grow; }
 	// how far past the bed's edge the surface reaches: to the falls' line, so a fall's top edge sits
 	// exactly on the surface's edge (one continuous sheet, no gap or step between them)
 	float lip() const { return square ? WALL_GAP : EDGE; }
@@ -174,14 +174,29 @@ struct Body {
 		return lip() * Math::clamp(away / WALL_GAP - 1.0f, 0.0f, 1.0f);
 	}
 	Color flow[4];
+	// how far the water's edge is pushed on (MCGrid::water_expand), at two of its three edges:
+	//   banks       it grows into the rock, where it can't be seen, and covers the corner cuts there
+	//   dry ground  it grows over dry ground of the bed's tier near the bed's edge (fading out
+	//               further in), covering the rock post a lone dry corner (one the flood fill only
+	//               touches diagonally) leaves standing between two falls
+	// the bed's edge (the falls' line over lower ground) stays where it is, so a fall never hangs
+	// out in the air away from its cliff
+	float grow = 0.0f;
 
 	float height(const Vector2 &) const { return top; }
 	Vector3 normal(const Vector2 &) const { return Vector3(0, 1, 0); }
 
-	// Where the body's water is: not in a bank, on the bed, not over dry ground (>= 0 inside).
+	// Where the body's water is: not in a bank, on the bed, not over dry ground (>= 0 inside;
+	// grow widens the first and last).
 	float water_field(const Vector2 &p) const {
 		float f = std::min(tuck() - blend(above, p.x, p.y), blend(bed, p.x, p.y) + lip_at(p));
-		return wet.all() ? f : std::min(f, blend(wet, p.x, p.y));
+		if (wet.all()) {
+			return f;
+		}
+		// over dry ground grow fades out with the distance in from the bed's edge: it fills the gap
+		// beside the falls, but doesn't spread over the dry ground's top
+		float dry_grow = std::max(grow - std::max(blend(bed, p.x, p.y), 0.0f), 0.0f);
+		return std::min(f, blend(wet, p.x, p.y) + dry_grow);
 	}
 
 	// The sub-grid: the tiles' one, finer (odd) wherever the body is not a plain quad, the same in

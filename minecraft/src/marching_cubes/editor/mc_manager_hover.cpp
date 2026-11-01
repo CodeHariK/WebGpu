@@ -7,6 +7,7 @@
 #include "utils/raycast/mc_raycast.h"
 
 #include <godot_cpp/classes/box_mesh.hpp>
+#include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/collision_object3d.hpp>
 #include <godot_cpp/classes/input.hpp>
@@ -68,6 +69,14 @@ void MCManager::_on_water_samples(double p_value) {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
 	if (grid_node) {
 		grid_node->set_water_sample_rate(static_cast<int>(p_value));
+	}
+}
+
+// Water expand slider: how far the water's edge grows on under the banks.
+void MCManager::_on_water_expand(double p_value) {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_water_expand(static_cast<float>(p_value));
 	}
 }
 
