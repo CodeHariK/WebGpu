@@ -553,6 +553,7 @@ void MCGrid::_rebuild_water() {
 			_rebuild_water_debug(surface, held, flow);
 		}
 	}
+	_rebuild_water_particles(arrays_out);
 	if (arrays_out.vertices.is_empty()) {
 		if (water_node) {
 			water_node->set_mesh(Ref<Mesh>());
@@ -605,6 +606,7 @@ void MCGrid::_rebuild_water() {
 		mesh->surface_set_material(1, waterfall_material);
 	}
 	water_node->set_mesh(mesh);
+	_apply_water_view();
 }
 
 } // namespace godot

@@ -106,15 +106,23 @@ void MCManager::setup_ui() {
 	ui.manager->add_header(ui.stats_vbox, "Diagnostics");
 
 	// debug views: inspect mode (mc_manager_inspect.cpp), terrain wireframe, water overlay + pour replay
-	const char *debug_buttons[6][2] = { { "Inspect", "_on_toggle_inspect" },
+	const char *debug_buttons[7][2] = { { "Inspect", "_on_toggle_inspect" },
 		{ "Edge corners", "_on_toggle_edge_corners" },
 		{ "Wireframe", "_on_toggle_wireframe" },
 		{ "Water debug", "_on_toggle_water_debug" },
 		{ "Water: sampled / cells", "_on_toggle_water_sampled" },
+		{ "Water particles", "_on_toggle_water_particles" },
 		{ "Replay pour", "_on_replay_pour" } };
 	for (const auto &entry : debug_buttons) {
 		Button *button = ui.manager->add_button(ui.stats_vbox, entry[0], Callable(this, entry[1]));
 		button->set_custom_minimum_size(Vector2(0, 30));
+	}
+	{
+		MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+		int view = grid_node ? grid_node->get_water_view() : 0;
+		water_view_button = ui.manager->add_button(ui.stats_vbox, String("Water view: ") + MCGrid::water_view_name(view),
+				Callable(this, "_on_cycle_water_view"));
+		water_view_button->set_custom_minimum_size(Vector2(0, 30));
 	}
 
 	// water surface height: metres below the bank one tier up

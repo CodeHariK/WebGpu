@@ -238,6 +238,9 @@ public:
 	void _on_water_samples(double p_value); // the water samples per cell slider
 	void _on_toggle_edge_corners(); // inactive corners with an edge to an active one
 	void _on_toggle_water_debug();
+	void _on_toggle_water_particles(); // shore foam + fall splashes on / off
+	void _on_cycle_water_view(); // water mesh view: normal / wireframe / UV / UV + wireframe
+	Button *water_view_button = nullptr; // "Water view: <view>"
 	void _on_replay_pour();
 	// --- mc_manager_inspect.cpp: inspect mode (a clicked cell shown in a side view) ---
 	struct InspectView {

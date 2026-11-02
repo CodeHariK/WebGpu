@@ -94,6 +94,12 @@ void MCGrid::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "water_blocky_groups"), "set_water_blocky_groups", "get_water_blocky_groups");
 	ClassDB::bind_method(D_METHOD("set_debug_edge_corners", "on"), &MCGrid::set_debug_edge_corners);
 	ClassDB::bind_method(D_METHOD("is_debug_edge_corners"), &MCGrid::is_debug_edge_corners);
+	ClassDB::bind_method(D_METHOD("set_water_view", "view"), &MCGrid::set_water_view);
+	ClassDB::bind_method(D_METHOD("get_water_view"), &MCGrid::get_water_view);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "water_view", PROPERTY_HINT_ENUM, "Normal,Wireframe,UV,UV + wireframe"), "set_water_view", "get_water_view");
+	ClassDB::bind_method(D_METHOD("set_water_particles", "on"), &MCGrid::set_water_particles);
+	ClassDB::bind_method(D_METHOD("get_water_particles"), &MCGrid::get_water_particles);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "water_particles"), "set_water_particles", "get_water_particles");
 	ClassDB::bind_method(D_METHOD("set_debug_water", "on"), &MCGrid::set_debug_water);
 	ClassDB::bind_method(D_METHOD("is_debug_water"), &MCGrid::is_debug_water);
 	ClassDB::bind_method(D_METHOD("replay_water_debug"), &MCGrid::replay_water_debug);

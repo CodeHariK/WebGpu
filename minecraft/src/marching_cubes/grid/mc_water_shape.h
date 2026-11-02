@@ -174,13 +174,13 @@ struct Body {
 		return lip() * Math::clamp(away / WALL_GAP - 1.0f, 0.0f, 1.0f);
 	}
 	Color flow[4];
-	// how far the water's edge is pushed on (MCGrid::water_expand), at two of its three edges:
+	// how far the water's edge is pushed on (MCGrid::water_expand):
 	//   banks       it grows into the rock, where it can't be seen, and covers the corner cuts there
 	//   dry ground  it grows over dry ground of the bed's tier near the bed's edge (fading out
 	//               further in), covering the rock post a lone dry corner (one the flood fill only
 	//               touches diagonally) leaves standing between two falls
-	// the bed's edge (the falls' line over lower ground) stays where it is, so a fall never hangs
-	// out in the air away from its cliff
+	//   falls       the falls' line over lower ground stays put (a fall never hangs off its cliff);
+	//               instead a fall's free ends reach on along it (MCGrid::_extend_fall_ends)
 	float grow = 0.0f;
 
 	float height(const Vector2 &) const { return top; }

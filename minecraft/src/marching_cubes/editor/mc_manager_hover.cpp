@@ -80,6 +80,27 @@ void MCManager::_on_water_expand(double p_value) {
 	}
 }
 
+// Water particles on / off: shore foam and fall splashes.
+void MCManager::_on_toggle_water_particles() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_water_particles(!grid_node->get_water_particles());
+	}
+}
+
+// Water view button: cycles normal -> wireframe -> UV -> UV + wireframe (MCGrid::WaterView).
+void MCManager::_on_cycle_water_view() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (!grid_node) {
+		return;
+	}
+	int view = (grid_node->get_water_view() + 1) % MCGrid::WATER_VIEW_COUNT;
+	grid_node->set_water_view(view);
+	if (water_view_button) {
+		water_view_button->set_text(String("Water view: ") + MCGrid::water_view_name(view));
+	}
+}
+
 // Water overlay on / off (held / stream / sea, flow arrows, framed / open falls, last pour).
 void MCManager::_on_toggle_water_debug() {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));

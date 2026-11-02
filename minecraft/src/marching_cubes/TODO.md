@@ -232,7 +232,16 @@ everything built on top is an object. Terrain stays pure corners.
       point, the fall bent round it) — no 45° chamfer showing the rock's corner as a post.
       Water expand slider (`water_expand`, 0 .. 0.3 m): pushes the edge on under banks and, fading
       out with distance from the bed's edge, over dry ground of the bed tier (covers the post a
-      diagonal-only dry corner leaves between two falls); never past the falls' line.
+      diagonal-only dry corner leaves between two falls). At falls the line stays on the cliff and a
+      fall's free ends (against a bank / dry ground) reach on along it. Tried and dropped: growing
+      the falls' line over the step (fall hanging off the cliff, or leaning back to its foot).
+      Water particles (`grid/mc_grid_water_particles.cpp`, Diagnostics → Water particles):
+      shore foam along where the surface meets a bank (hides the seam) + splashes at the falls' feet;
+      one GPUParticles3D each, emitting from a points texture the tiles build samples every 0.2 m,
+      soft (proximity fade) so puffs don't cut into the rock.
+      Water view (`grid/mc_grid_water_view.cpp`, Diagnostics → "Water view" cycles): normal /
+      wireframe (white triangles over the water) / UV checker (surface UV = world x, z; falls: x
+      along the ground, y metres down) / UV + wireframe.
       Still: whole-map rebuild (per-chunk water later).
       Tried and dropped: skirts (curved / vertical lips / overflow sheets at open water edges).
       Open: a dry corner of the bed tier reached only diagonally (terrain.mct (11, 22) by (12, 21))

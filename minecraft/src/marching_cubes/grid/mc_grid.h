@@ -42,6 +42,8 @@ namespace godot {
 namespace mc_water {
 struct Body; // mc_water_shape.h
 }
+struct PlacedFall; // mc_grid_water_tiles.cpp
+class GPUParticles3D;
 
 // The water mesh being built (mc_grid_water_mesh.cpp): surface (with flow colour) and falls.
 struct MCWaterArrays {
@@ -67,6 +69,12 @@ struct MCWaterArrays {
 	std::vector<Vector3> samples; // water_sampled: the wet sample points (debug overlay)
 	PackedInt32Array indices; // welded surface (water tiles); empty: plain triangles
 	PackedInt32Array fall_indices; // welded falls (water tiles)
+	// particle emission points (water tiles; mc_grid_water_particles.cpp), one every PARTICLE_SPACING m
+	static constexpr float PARTICLE_SPACING = 0.2f;
+	std::vector<Vector3> shore_points; // where the surface meets a bank
+	std::vector<Vector3> shore_directions; // away from the bank, level
+	std::vector<Vector3> splash_points; // where a fall lands
+	std::vector<Vector3> splash_directions; // up and out from the fall
 };
 
 // One step of a pour's flood fill (for the step-by-step debug): the column taken off the front of the
@@ -128,12 +136,18 @@ private:
 	bool water_sampled = true; // water mesh from baked water tiles (mc_grid_water_tiles.cpp; else per cell)
 	int water_sample_rate = 8; // samples per cell side (water_sampled)
 	std::vector<Vector3> water_debug_samples; // the last build's wet sample points (debug overlay)
-	float water_expand = 0.0f; // m the water's edge grows on under the banks (UI slider)
+	float water_expand = 0.0f; // m the water's edge grows on (UI slider)
 	float water_drop = 0.15f; // m held water's surface sits below the bank one tier up (UI slider)
 	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
 	bool water_dirty = false; // the water mesh is rebuilt at the end of the frame
 	MeshInstance3D *water_node = nullptr; // surface + waterfalls (two surfaces)
+	bool water_particles = true; // shore foam + fall splashes (mc_grid_water_particles.cpp)
+	int water_view = 0; // WaterView: debug views of the water mesh (mc_grid_water_view.cpp)
+	Ref<Material> water_uv_material;
+	Ref<Material> water_wireframe_material;
+	GPUParticles3D *water_shore_node = nullptr;
+	GPUParticles3D *water_splash_node = nullptr;
 	Ref<Material> water_material; // water_surface.gdshader unless set
 	Ref<Material> waterfall_material; // waterfall.gdshader unless set
 	std::vector<MCEdit> undo_stack; // oldest first
@@ -384,6 +398,8 @@ private:
 	int _rebuild_edge_corners();
 	// The wireframe overlay on a chunk mesh (on or off by debug_wireframe).
 	void _apply_wireframe(MeshInstance3D *p_node);
+	// Shore foam + fall splash particles from the points the water build sampled.
+	void _rebuild_water_particles(const MCWaterArrays &p_arrays);
 	// Build the water overlay from the surfaces, held flags and flow _rebuild_water worked out.
 	void _rebuild_water_debug(
 			const std::vector<float> &p_surface,
@@ -548,9 +564,23 @@ public:
 	bool get_water_sampled() const { return water_sampled; }
 	void set_water_sample_rate(int p_rate); // samples per cell side, 2 .. 32
 	int get_water_sample_rate() const { return water_sample_rate; }
-	// Grow the water's edge on under the banks (0 .. 0.3 m): covers corner cuts inside the rock.
+	// Grow the water's edge on (0 .. 0.3 m): under banks, over dry ground near the bed's edge, and
+	// along the falls (their free ends reach on; the falls' line itself stays on the cliff).
 	void set_water_expand(float p_expand);
 	float get_water_expand() const { return water_expand; }
+	// Particle emission points along a segment (mc_grid_water_tiles.cpp).
+	static void _sample_line(
+			const Vector3 &p_a,
+			const Vector3 &p_b,
+			const Vector3 &p_direction,
+			std::vector<Vector3> &r_points,
+			std::vector<Vector3> &r_directions
+	);
+	// Free fall ends reach on by p_grow along their fall (mc_grid_water_tiles.cpp).
+	static void _extend_fall_ends(
+			std::vector<PlacedFall> &r_falls,
+			float p_grow
+	);
 	// How far held water's surface sits below the bank one tier up (0 .. 0.95 m, default 0.15).
 	void set_water_drop(float p_drop);
 	float get_water_drop() const { return water_drop; }
@@ -565,6 +595,21 @@ public:
 	// Edge corners: every inactive corner with an edge to an active corner (a dot + those edges).
 	void set_debug_edge_corners(bool p_on);
 	bool is_debug_edge_corners() const { return debug_edge_corners; }
+	// Debug views of the water mesh (mc_grid_water_view.cpp).
+	enum WaterView {
+		WATER_VIEW_NORMAL = 0,
+		WATER_VIEW_WIREFRAME = 1, // the triangles over the water
+		WATER_VIEW_UV = 2, // a UV checker on the surface and the falls
+		WATER_VIEW_UV_WIREFRAME = 3,
+		WATER_VIEW_COUNT = 4,
+	};
+	void set_water_view(int p_view);
+	int get_water_view() const { return water_view; }
+	static const char *water_view_name(int p_view);
+	void _apply_water_view();
+	// Shore foam and fall splash particles on / off (water tiles builder).
+	void set_water_particles(bool p_on);
+	bool get_water_particles() const { return water_particles; }
 	void set_debug_water(bool p_on);
 	bool is_debug_water() const { return debug_water; }
 	void replay_water_debug();

@@ -49,6 +49,12 @@ struct WaterTile {
 		bool to_dry = false; // lands on dry ground of the bed's tier (else: below the bed)
 	};
 	std::vector<Fall> falls;
+	struct Shore { // where the surface meets a bank
+		Vector2 a;
+		Vector2 b;
+		Vector2 out; // towards the bank
+	};
+	std::vector<Shore> shores;
 	std::vector<Vector2> wet_samples; // the debug overlay's dots
 };
 
@@ -187,7 +193,8 @@ WaterTile bake_tile(
 		Vector2 out = p_out;
 		Vector2 q = (mid + out * PROBE).clamp(Vector2(-0.5f, -0.5f), Vector2(0.5f, 0.5f));
 		if (blend(p_body.above, q.x, q.y) >= 0.0f) {
-			return; // a bank
+			tile.shores.push_back({ p_a, p_b, out }); // a bank: no fall, a shore (foam particles)
+			return;
 		}
 		WaterTile::Fall fall;
 		fall.a = p_a;
@@ -313,6 +320,75 @@ WaterTile bake_tile(
 	return tile;
 }
 
+Vector3i weld_key(const Vector3 &p_v);
+} // namespace
+
+// One fall placed in the world: its top and foot corners, facing, height.
+struct PlacedFall {
+	Vector3 ta;
+	Vector3 tb;
+	Vector3 ba;
+	Vector3 bb;
+	Vector3 out;
+	float drop = 0.0f;
+};
+
+// Points every MCWaterArrays::PARTICLE_SPACING along a -> b (at least one, the middle), each with
+// p_direction: particle emission points.
+void MCGrid::_sample_line(
+		const Vector3 &p_a,
+		const Vector3 &p_b,
+		const Vector3 &p_direction,
+		std::vector<Vector3> &r_points,
+		std::vector<Vector3> &r_directions
+) {
+	float length = p_a.distance_to(p_b);
+	int count = std::max(1, static_cast<int>(std::ceil(length / MCWaterArrays::PARTICLE_SPACING)));
+	for (int i = 0; i < count; i++) {
+		float t = (static_cast<float>(i) + 0.5f) / static_cast<float>(count);
+		r_points.push_back(p_a.lerp(p_b, t));
+		r_directions.push_back(p_direction);
+	}
+}
+
+// water_expand along the falls: a fall's free end (one no other fall continues from, where it meets a
+// bank or dry ground) reaches on by p_grow along the fall, top and foot together.
+void MCGrid::_extend_fall_ends(
+		std::vector<PlacedFall> &r_falls,
+		float p_grow
+) {
+	if (p_grow <= 0.0f) {
+		return;
+	}
+	HashMap<Vector3i, int> ends; // top end -> how many falls end there
+	for (const PlacedFall &f : r_falls) {
+		for (const Vector3 &v : { f.ta, f.tb }) {
+			int *n = ends.getptr(weld_key(v));
+			if (n) {
+				(*n)++;
+			} else {
+				ends.insert(weld_key(v), 1);
+			}
+		}
+	}
+	for (PlacedFall &f : r_falls) {
+		Vector3 along = f.tb - f.ta;
+		if (along.length_squared() < 1e-10f) {
+			continue;
+		}
+		along = along.normalized() * p_grow;
+		if (ends[weld_key(f.ta)] == 1) {
+			f.ta -= along;
+			f.ba -= along;
+		}
+		if (ends[weld_key(f.tb)] == 1) {
+			f.tb += along;
+			f.bb += along;
+		}
+	}
+}
+
+namespace {
 Vector3i weld_key(const Vector3 &p_v) {
 	return Vector3i(static_cast<int>(std::lround(p_v.x * WELD)), static_cast<int>(std::lround(p_v.y * WELD)),
 			static_cast<int>(std::lround(p_v.z * WELD)));
@@ -353,6 +429,7 @@ void MCGrid::_emit_water_tiles(
 	HashMap<Vector3i, std::vector<std::pair<Vector3, int>>> fall_index; // per position: (normal, index)
 	std::vector<Body> bodies;
 	std::vector<float> bottoms;
+	std::vector<PlacedFall> placed_falls; // emitted at the end, once every fall is known
 	for (int cz = 0; cz < cells.y; cz++) {
 		for (int cx = 0; cx < cells.x; cx++) {
 			_water_bodies(cx, cz, p_surface, p_held, p_flow, bodies, bottoms);
@@ -405,35 +482,20 @@ void MCGrid::_emit_water_tiles(
 					if (bottom < -1e5f || bottom > body.top - 0.02f) {
 						continue;
 					}
-					Vector3 out(fall.out.x, 0, -fall.out.y);
-					float drop = body.top - bottom;
-					auto fall_vertex = [&](const Vector3 &v, float p_down) {
-						Vector3i weld = weld_key(v);
-						std::vector<std::pair<Vector3, int>> &list = fall_index[weld];
-						for (const std::pair<Vector3, int> &e : list) {
-							if (e.first.dot(out) > 0.999f) {
-								r_out.fall_indices.push_back(e.second);
-								return;
-							}
-						}
-						int index = static_cast<int>(r_out.fall_vertices.size());
-						r_out.fall_vertices.push_back(v);
-						r_out.fall_normals.push_back(out);
-						r_out.fall_uvs.push_back(Vector2(v.x + v.z, p_down)); // x along the ground, y metres down
-						r_out.fall_uv2s.push_back(Vector2(drop - p_down, 0)); // metres above the landing
-						list.push_back({ out, index });
-						r_out.fall_indices.push_back(index);
-					};
-					Vector3 ta = world(fall.a, body.top);
-					Vector3 tb = world(fall.b, body.top);
-					Vector3 ba = world(fall.a, bottom);
-					Vector3 bb = world(fall.b, bottom);
-					fall_vertex(ba, drop);
-					fall_vertex(bb, drop);
-					fall_vertex(tb, 0.0f);
-					fall_vertex(ba, drop);
-					fall_vertex(tb, 0.0f);
-					fall_vertex(ta, 0.0f);
+					PlacedFall placed;
+					placed.ta = world(fall.a, body.top);
+					placed.tb = world(fall.b, body.top);
+					placed.ba = world(fall.a, bottom);
+					placed.bb = world(fall.b, bottom);
+					placed.out = Vector3(fall.out.x, 0, -fall.out.y);
+					placed.drop = body.top - bottom;
+					placed_falls.push_back(placed);
+				}
+				// shore foam: points along where the surface meets a bank, drifting away from it
+				for (const WaterTile::Shore &shore : tile.shores) {
+					Vector3 away(-shore.out.x, 0, shore.out.y);
+					_sample_line(world(shore.a, body.top + 0.02f), world(shore.b, body.top + 0.02f), away,
+							r_out.shore_points, r_out.shore_directions);
 				}
 				if (debug_water) {
 					for (const Vector2 &p : tile.wet_samples) {
@@ -442,6 +504,41 @@ void MCGrid::_emit_water_tiles(
 				}
 			}
 		}
+	}
+	_extend_fall_ends(placed_falls, water_expand);
+	// fall splashes: points along each fall's foot, thrown up and out
+	for (const PlacedFall &fall : placed_falls) {
+		if (fall.drop < 0.1f) {
+			continue;
+		}
+		Vector3 lift(0, 0.05f, 0);
+		_sample_line(fall.ba + lift, fall.bb + lift, (fall.out * 0.5f + Vector3(0, 1, 0)).normalized(),
+				r_out.splash_points, r_out.splash_directions);
+	}
+	for (const PlacedFall &fall : placed_falls) {
+		auto fall_vertex = [&](const Vector3 &v, float p_down) {
+			Vector3i weld = weld_key(v);
+			std::vector<std::pair<Vector3, int>> &list = fall_index[weld];
+			for (const std::pair<Vector3, int> &e : list) {
+				if (e.first.dot(fall.out) > 0.999f) {
+					r_out.fall_indices.push_back(e.second);
+					return;
+				}
+			}
+			int index = static_cast<int>(r_out.fall_vertices.size());
+			r_out.fall_vertices.push_back(v);
+			r_out.fall_normals.push_back(fall.out);
+			r_out.fall_uvs.push_back(Vector2(v.x + v.z, p_down)); // x along the ground, y metres down
+			r_out.fall_uv2s.push_back(Vector2(fall.drop - p_down, 0)); // metres above the landing
+			list.push_back({ fall.out, index });
+			r_out.fall_indices.push_back(index);
+		};
+		fall_vertex(fall.ba, fall.drop);
+		fall_vertex(fall.bb, fall.drop);
+		fall_vertex(fall.tb, 0.0f);
+		fall_vertex(fall.ba, fall.drop);
+		fall_vertex(fall.tb, 0.0f);
+		fall_vertex(fall.ta, 0.0f);
 	}
 }
 

@@ -59,6 +59,8 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_inspect_view_input", "event"), &MCManager::_on_inspect_view_input);
 	ClassDB::bind_method(D_METHOD("inspect_at_cell", "cell"), &MCManager::inspect_at_cell);
 	ClassDB::bind_method(D_METHOD("_on_toggle_water_debug"), &MCManager::_on_toggle_water_debug);
+	ClassDB::bind_method(D_METHOD("_on_toggle_water_particles"), &MCManager::_on_toggle_water_particles);
+	ClassDB::bind_method(D_METHOD("_on_cycle_water_view"), &MCManager::_on_cycle_water_view);
 	ClassDB::bind_method(D_METHOD("_on_replay_pour"), &MCManager::_on_replay_pour);
 	ClassDB::bind_method(D_METHOD("_on_gui_input", "p_event"), &MCManager::_on_gui_input);
 	ClassDB::bind_method(D_METHOD("_on_show_help"), &MCManager::_on_show_help);
