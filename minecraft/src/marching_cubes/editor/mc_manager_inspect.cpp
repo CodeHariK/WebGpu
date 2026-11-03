@@ -1,7 +1,7 @@
 // MCManager: inspect mode (the grid side is grid/mc_grid_inspect.cpp).
 //
-// With Inspect on (Stats panel → Diagnostics) and the Terrain tool, the hover picks cells (like the
-// Ctrl / Cmd cell hover) and the mouse no longer edits the terrain:
+// With Inspect on (Stats panel → Diagnostics) and the Terrain or Water tool, the hover picks cells
+// (like the Ctrl / Cmd / Shift cell hover) and the mouse no longer edits the terrain or the water:
 //   left click a cell     it is marked (orange wire cube) and shown in the inspect panel
 //   right click           clear
 // The inspect panel (bottom right) is a SubViewport with its own small world: the cell's tile with
@@ -58,9 +58,9 @@ void MCManager::inspect_at_cell(const Vector3i &p_cell) {
 	_show_inspect_cell(grid, p_cell);
 }
 
-// Is inspect mode taking the mouse (inspect on, Terrain tool)?
+// Is inspect mode taking the mouse (inspect on, Terrain or Water tool)?
 bool MCManager::_inspect_active(MCGrid *p_grid) const {
-	return p_grid && p_grid->is_inspect_mode() && interaction_mode == MODE_TERRAIN;
+	return p_grid && p_grid->is_inspect_mode() && (interaction_mode == MODE_TERRAIN || interaction_mode == MODE_WATER);
 }
 
 // Build the panel: a frame in the bottom-right corner with the 3D view and the text under it.

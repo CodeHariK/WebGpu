@@ -186,12 +186,15 @@ void MCManager::_update_hover_raycast() {
 
 	TypedArray<RID> exclude = _drag_group_exclusions();
 
-	// Ctrl / Cmd (or inspect mode) hovers cells instead of corners
-	bool ctrl_held = Input::get_singleton()->is_key_pressed(KEY_CTRL) ||
-			Input::get_singleton()->is_key_pressed(KEY_META) || _inspect_active(grid_node);
+	// Ctrl / Cmd / Shift (or inspect mode) hovers cells instead of corners, in the Terrain and the
+	// Water tool
+	Input *input = Input::get_singleton();
+	bool cell_tool = interaction_mode == MODE_TERRAIN || interaction_mode == MODE_WATER;
+	bool ctrl_held = cell_tool && (input->is_key_pressed(KEY_CTRL) || input->is_key_pressed(KEY_META) ||
+										   input->is_key_pressed(KEY_SHIFT) || _inspect_active(grid_node));
 
 	uint32_t mask = toLayer(LAYER_OBJECTS) | toLayer(LAYER_CORNERS);
-	if (ctrl_held && interaction_mode == MODE_TERRAIN) {
+	if (ctrl_held) {
 		mask |= toLayer(LAYER_TERRAIN);
 	}
 	if (_inspect_active(grid_node)) {
@@ -212,7 +215,7 @@ void MCManager::_update_hover_raycast() {
 							(grid_node->get_global_transform().basis.inverse().xform(hit.normal)).normalized();
 					Vector3i grid_pos = Vector3i((hit_pos + hit_normal * 0.5f).floor());
 
-					if (ctrl_held && interaction_mode == MODE_TERRAIN) {
+					if (ctrl_held) {
 						grid_pos = Vector3i((hit_pos - hit_normal * 0.05f).floor());
 						locked_grid_pos = grid_pos;
 						update_ui();
@@ -260,8 +263,8 @@ void MCManager::_update_hover_raycast() {
 							if (node)
 								node->set_material_overlay(hover_mat_cyan);
 						}
-					} else if (interaction_mode == MODE_TERRAIN) {
-						if (ctrl_held) {
+					} else if (interaction_mode == MODE_TERRAIN || (interaction_mode == MODE_WATER && ctrl_held)) {
+						if (ctrl_held) { // the cell (Water tool: only this, no corner hover)
 							grid_node->update_hover_preview(
 									Vector3(locked_grid_pos) + Vector3(0.5, 0.5, 0.5), hit_normal, camera
 							);
