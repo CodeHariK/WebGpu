@@ -101,6 +101,14 @@ void MCManager::_on_cycle_water_view() {
 	}
 }
 
+// Spill reach slider: columns a diagonal spill past a low corner wets (0: none).
+void MCManager::_on_water_spill(double p_value) {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_water_spill_reach(static_cast<int>(p_value));
+	}
+}
+
 // Water overlay on / off (held / stream / sea, flow arrows, framed / open falls, last pour).
 void MCManager::_on_toggle_water_debug() {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));

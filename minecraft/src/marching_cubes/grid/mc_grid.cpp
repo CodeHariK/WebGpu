@@ -94,6 +94,9 @@ void MCGrid::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "water_blocky_groups"), "set_water_blocky_groups", "get_water_blocky_groups");
 	ClassDB::bind_method(D_METHOD("set_debug_edge_corners", "on"), &MCGrid::set_debug_edge_corners);
 	ClassDB::bind_method(D_METHOD("is_debug_edge_corners"), &MCGrid::is_debug_edge_corners);
+	ClassDB::bind_method(D_METHOD("set_water_spill_reach", "reach"), &MCGrid::set_water_spill_reach);
+	ClassDB::bind_method(D_METHOD("get_water_spill_reach"), &MCGrid::get_water_spill_reach);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "water_spill_reach", PROPERTY_HINT_RANGE, "0,8,1"), "set_water_spill_reach", "get_water_spill_reach");
 	ClassDB::bind_method(D_METHOD("set_water_view", "view"), &MCGrid::set_water_view);
 	ClassDB::bind_method(D_METHOD("get_water_view"), &MCGrid::get_water_view);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "water_view", PROPERTY_HINT_ENUM, "Normal,Wireframe,UV,UV + wireframe"), "set_water_view", "get_water_view");

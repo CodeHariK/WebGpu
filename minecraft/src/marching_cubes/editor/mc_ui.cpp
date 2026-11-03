@@ -151,6 +151,10 @@ void MCManager::setup_ui() {
 	ui.manager->add_label(water_tab, "Water expand (m)");
 	ui.manager->add_hslider(water_tab, 0.0f, 0.3f, 0.005f, grid_node ? grid_node->get_water_expand() : 0.0f,
 			Callable(this, "_on_water_expand"), "WaterExpand");
+	ui.manager->add_label(water_tab, "Spill reach (columns past a low corner)");
+	ui.manager->add_hslider(water_tab, 0.0f, 8.0f, 1.0f,
+			grid_node ? static_cast<float>(grid_node->get_water_spill_reach()) : 1.0f, Callable(this, "_on_water_spill"),
+			"WaterSpill");
 	ui.manager->add_label(water_tab, "Water samples per cell");
 	ui.manager->add_hslider(water_tab, 2.0f, 32.0f, 1.0f,
 			grid_node ? static_cast<float>(grid_node->get_water_sample_rate()) : 8.0f, Callable(this, "_on_water_samples"),

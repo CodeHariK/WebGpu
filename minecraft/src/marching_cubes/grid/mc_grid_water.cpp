@@ -538,6 +538,9 @@ void MCGrid::_rebuild_water() {
 	water_dirty = false;
 	MCWaterArrays arrays_out;
 	if (heightmap_mode && water_levels.size() == column_heights.size()) {
+		// diagonal spills, for this build only (mc_grid_water_spill.cpp): swapped back below
+		std::vector<uint8_t> stored = _spilled_levels();
+		water_levels.swap(stored);
 		std::vector<float> surface;
 		std::vector<uint8_t> held;
 		_water_surfaces(surface, held);
@@ -552,6 +555,7 @@ void MCGrid::_rebuild_water() {
 		if (debug_water) {
 			_rebuild_water_debug(surface, held, flow);
 		}
+		water_levels.swap(stored); // the stored levels back
 	}
 	_rebuild_water_particles(arrays_out);
 	if (arrays_out.vertices.is_empty()) {

@@ -137,6 +137,7 @@ private:
 	int water_sample_rate = 8; // samples per cell side (water_sampled)
 	std::vector<Vector3> water_debug_samples; // the last build's wet sample points (debug overlay)
 	float water_expand = 0.0f; // m the water's edge grows on (UI slider)
+	int water_spill_reach = 1; // columns a diagonal spill wets (mc_grid_water_spill.cpp; 0: none)
 	float water_drop = 0.15f; // m held water's surface sits below the bank one tier up (UI slider)
 	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
@@ -568,6 +569,11 @@ public:
 	// along the falls (their free ends reach on; the falls' line itself stays on the cliff).
 	void set_water_expand(float p_expand);
 	float get_water_expand() const { return water_expand; }
+	// Diagonal spills (mc_grid_water_spill.cpp): how many columns a spill past a low corner wets
+	// (0 .. 8; 0: none), and the water levels with them added (mesh build only, never stored).
+	void set_water_spill_reach(int p_reach);
+	int get_water_spill_reach() const { return water_spill_reach; }
+	std::vector<uint8_t> _spilled_levels() const;
 	// Particle emission points along a segment (mc_grid_water_tiles.cpp).
 	static void _sample_line(
 			const Vector3 &p_a,

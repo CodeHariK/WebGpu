@@ -53,6 +53,7 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_toggle_water_sampled"), &MCManager::_on_toggle_water_sampled);
 	ClassDB::bind_method(D_METHOD("_on_water_drop", "value"), &MCManager::_on_water_drop);
 	ClassDB::bind_method(D_METHOD("_on_water_expand", "value"), &MCManager::_on_water_expand);
+	ClassDB::bind_method(D_METHOD("_on_water_spill", "value"), &MCManager::_on_water_spill);
 	ClassDB::bind_method(D_METHOD("_on_water_samples", "value"), &MCManager::_on_water_samples);
 	ClassDB::bind_method(D_METHOD("_on_toggle_inspect"), &MCManager::_on_toggle_inspect);
 	ClassDB::bind_method(D_METHOD("_on_toggle_edge_corners"), &MCManager::_on_toggle_edge_corners);
