@@ -240,6 +240,14 @@ public:
 	void _on_toggle_water_debug();
 	void _on_toggle_water_particles(); // shore foam + fall splashes on / off
 	void _on_cycle_water_view(); // water mesh view: normal / wireframe / UV / UV + wireframe
+	// recording an inspected spot (mc_manager_record.cpp): camera, cell, map, screenshot
+	void _on_record_view(); // Debug tab: record the camera + the hovered cell
+	void _record_inspect(
+			MCGrid *p_grid,
+			const Vector3i &p_cell,
+			const String &p_how
+	);
+	Label *record_label = nullptr; // Debug tab: what was recorded last
 	Button *water_view_button = nullptr; // "Water view: <view>"
 	void _on_replay_pour();
 	// --- mc_manager_inspect.cpp: inspect mode (a clicked cell shown in a side view) ---

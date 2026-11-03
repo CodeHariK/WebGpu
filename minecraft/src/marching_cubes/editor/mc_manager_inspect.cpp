@@ -225,6 +225,7 @@ bool MCManager::_inspect_input(
 	Vector3i cell = Vector3i((local - normal * 0.05f).floor());
 	p_grid->inspect_cell(cell);
 	_show_inspect_cell(p_grid, cell);
+	_record_inspect(p_grid, cell, "inspected"); // camera, cell, map, screenshot (mc_manager_record.cpp)
 	return true;
 }
 

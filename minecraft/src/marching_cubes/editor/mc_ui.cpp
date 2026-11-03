@@ -1,4 +1,4 @@
-// MCManager: side panel (stats, variant counts, hash inspector), help modal.
+// MCManager: side panel in tabs (Stats / Water / Debug / Map), help modal.
 #include "marching_cubes/core/mc_hash.h"
 #include "marching_cubes/editor/mc_manager.h"
 #include "marching_cubes/grid/mc_grid.h"
@@ -22,6 +22,7 @@
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/panel.hpp>
 #include <godot_cpp/classes/scroll_container.hpp>
+#include <godot_cpp/classes/tab_container.hpp>
 #include <godot_cpp/classes/v_box_container.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -82,90 +83,102 @@ void MCManager::setup_ui() {
 	ui.help_dialog->set_builder(ui.manager);
 	ui.manager->add_child(ui.help_dialog);
 
-	// 5. Create Scroll Container (inside SidePanel)
-	ScrollContainer *scroll = ui.manager->add_scroll(ui.side_panel, "ScrollList");
-	scroll->set_offset(Side::SIDE_TOP, 14);
-	scroll->set_offset(Side::SIDE_LEFT, 14);
-	scroll->set_offset(Side::SIDE_RIGHT, -14);
-	scroll->set_offset(Side::SIDE_BOTTOM, -14);
+	// 5. Tabs (inside SidePanel), each a scrolling list:
+	//   Stats   performance, terrain counts, the hovered cell's hash, mesh variants
+	//   Water   water look (view, particles, builder) and its sliders, the pour replay
+	//   Debug   inspect, terrain views, recording an inspected spot (mc_manager_record.cpp)
+	//   Map     save / load, Copy for Blender, randomize, heightmap mode
+	TabContainer *tabs = memnew(TabContainer);
+	tabs->set_name("Tabs");
+	tabs->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	tabs->set_offset(Side::SIDE_TOP, 10);
+	tabs->set_offset(Side::SIDE_LEFT, 10);
+	tabs->set_offset(Side::SIDE_RIGHT, -10);
+	tabs->set_offset(Side::SIDE_BOTTOM, -10);
+	ui.side_panel->add_child(tabs);
+	auto add_tab = [&](const char *p_name) {
+		ScrollContainer *scroll = ui.manager->add_scroll(tabs, p_name);
+		scroll->set_horizontal_scroll_mode(ScrollContainer::SCROLL_MODE_DISABLED);
+		VBoxContainer *list = ui.manager->add_vbox(scroll, String(p_name) + "List");
+		list->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+		list->add_theme_constant_override("separation", 7);
+		return list;
+	};
+	VBoxContainer *stats_tab = add_tab("Stats");
+	VBoxContainer *water_tab = add_tab("Water");
+	VBoxContainer *debug_tab = add_tab("Debug");
+	VBoxContainer *map_tab = add_tab("Map");
 
 	// Connect signals for input interception
 	ui.side_panel->connect("gui_input", Callable(this, "_on_gui_input"));
+	ui.stats_vbox = stats_tab;
 
-	// 6. Create List Container
-	ui.stats_vbox = ui.manager->add_vbox(scroll, "StatsList");
-	ui.stats_vbox->add_theme_constant_override("separation", 7);
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	auto add_buttons = [&](VBoxContainer *p_list, const std::vector<std::pair<const char *, const char *>> &p_buttons) {
+		for (const auto &entry : p_buttons) {
+			Button *button = ui.manager->add_button(p_list, entry.first, Callable(this, entry.second));
+			button->set_custom_minimum_size(Vector2(0, 30));
+		}
+	};
 
-	ui.manager->add_header(ui.stats_vbox, "Performance");
-	perf.fps_label = ui.manager->add_label(ui.stats_vbox, "FPS: 0");
-	perf.draw_calls_label = ui.manager->add_label(ui.stats_vbox, "Draw Calls: 0");
-	perf.meshes_label = ui.manager->add_label(ui.stats_vbox, "Engine Objects: 0");
-	perf.collision_label = ui.manager->add_label(ui.stats_vbox, "Collision Pairs: 0");
-	perf.memory_label = ui.manager->add_label(ui.stats_vbox, "Memory: 0 MB");
+	// --- Stats
+	ui.manager->add_header(stats_tab, "Performance");
+	perf.fps_label = ui.manager->add_label(stats_tab, "FPS: 0");
+	perf.draw_calls_label = ui.manager->add_label(stats_tab, "Draw Calls: 0");
+	perf.meshes_label = ui.manager->add_label(stats_tab, "Engine Objects: 0");
+	perf.collision_label = ui.manager->add_label(stats_tab, "Collision Pairs: 0");
+	perf.memory_label = ui.manager->add_label(stats_tab, "Memory: 0 MB");
+	ui.manager->add_header(stats_tab, "Terrain Stats");
+	grid_stats.stats_label = ui.manager->add_label(stats_tab, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
+	ui.manager->add_header(stats_tab, "Hash Inspection");
+	ui.hash_label = ui.manager->add_label(stats_tab, "Hash: N/A\nPos: (0, 0, 0)");
+	ui.manager->add_header(stats_tab, "Mesh Variants");
+	ui.variant_stats_vbox = ui.manager->add_vbox(stats_tab, "VariantStats");
 
-	ui.manager->add_header(ui.stats_vbox, "Diagnostics");
-
-	// debug views: inspect mode (mc_manager_inspect.cpp), terrain wireframe, water overlay + pour replay
-	const char *debug_buttons[7][2] = { { "Inspect", "_on_toggle_inspect" },
-		{ "Edge corners", "_on_toggle_edge_corners" },
-		{ "Wireframe", "_on_toggle_wireframe" },
-		{ "Water debug", "_on_toggle_water_debug" },
-		{ "Water: sampled / cells", "_on_toggle_water_sampled" },
-		{ "Water particles", "_on_toggle_water_particles" },
-		{ "Replay pour", "_on_replay_pour" } };
-	for (const auto &entry : debug_buttons) {
-		Button *button = ui.manager->add_button(ui.stats_vbox, entry[0], Callable(this, entry[1]));
-		button->set_custom_minimum_size(Vector2(0, 30));
-	}
-	{
-		MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-		int view = grid_node ? grid_node->get_water_view() : 0;
-		water_view_button = ui.manager->add_button(ui.stats_vbox, String("Water view: ") + MCGrid::water_view_name(view),
-				Callable(this, "_on_cycle_water_view"));
-		water_view_button->set_custom_minimum_size(Vector2(0, 30));
-	}
-
+	// --- Water
+	ui.manager->add_header(water_tab, "Look");
+	int view = grid_node ? grid_node->get_water_view() : 0;
+	water_view_button = ui.manager->add_button(water_tab, String("Water view: ") + MCGrid::water_view_name(view),
+			Callable(this, "_on_cycle_water_view"));
+	water_view_button->set_custom_minimum_size(Vector2(0, 30));
+	add_buttons(water_tab, { { "Water particles", "_on_toggle_water_particles" },
+								   { "Water: sampled / cells", "_on_toggle_water_sampled" } });
+	ui.manager->add_header(water_tab, "Shape");
 	// water surface height: metres below the bank one tier up
-	ui.manager->add_label(ui.stats_vbox, "Water drop (m below bank)");
-	{
-		MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-		float drop = grid_node ? grid_node->get_water_drop() : 0.15f;
-		ui.manager->add_hslider(ui.stats_vbox, 0.0f, 0.95f, 0.01f, drop, Callable(this, "_on_water_drop"), "WaterDrop");
+	ui.manager->add_label(water_tab, "Water drop (m below bank)");
+	ui.manager->add_hslider(water_tab, 0.0f, 0.95f, 0.01f, grid_node ? grid_node->get_water_drop() : 0.15f,
+			Callable(this, "_on_water_drop"), "WaterDrop");
+	ui.manager->add_label(water_tab, "Water expand (m)");
+	ui.manager->add_hslider(water_tab, 0.0f, 0.3f, 0.005f, grid_node ? grid_node->get_water_expand() : 0.0f,
+			Callable(this, "_on_water_expand"), "WaterExpand");
+	ui.manager->add_label(water_tab, "Water samples per cell");
+	ui.manager->add_hslider(water_tab, 2.0f, 32.0f, 1.0f,
+			grid_node ? static_cast<float>(grid_node->get_water_sample_rate()) : 8.0f, Callable(this, "_on_water_samples"),
+			"WaterSamples");
+	ui.manager->add_header(water_tab, "Flood fill");
+	add_buttons(water_tab, { { "Water debug", "_on_toggle_water_debug" }, { "Replay pour", "_on_replay_pour" } });
+
+	// --- Debug
+	ui.manager->add_header(debug_tab, "Inspect");
+	add_buttons(debug_tab, { { "Inspect", "_on_toggle_inspect" } });
+	Label *record_hint = ui.manager->add_label(debug_tab,
+			"Click a cell to inspect it: the camera, the cell, the map and a screenshot are recorded (user://inspect/last.*).");
+	add_buttons(debug_tab, { { "Record view", "_on_record_view" } });
+	record_label = ui.manager->add_label(debug_tab, "Nothing recorded yet");
+	for (Label *label : { record_hint, record_label }) {
+		label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
+		label->set_custom_minimum_size(Vector2(1, 0)); // wrap to the tab's width, never widen it
 	}
+	ui.manager->add_header(debug_tab, "Terrain views");
+	add_buttons(debug_tab, { { "Wireframe", "_on_toggle_wireframe" }, { "Edge corners", "_on_toggle_edge_corners" } });
 
-	ui.manager->add_label(ui.stats_vbox, "Water expand (m)");
-	{
-		MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-		float expand = grid_node ? grid_node->get_water_expand() : 0.0f;
-		ui.manager->add_hslider(ui.stats_vbox, 0.0f, 0.3f, 0.005f, expand, Callable(this, "_on_water_expand"), "WaterExpand");
-	}
-	ui.manager->add_label(ui.stats_vbox, "Water samples per cell");
-	{
-		MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-		float rate = grid_node ? static_cast<float>(grid_node->get_water_sample_rate()) : 8.0f;
-		ui.manager->add_hslider(ui.stats_vbox, 2.0f, 32.0f, 1.0f, rate, Callable(this, "_on_water_samples"), "WaterSamples");
-	}
-
-	ui.manager->add_header(ui.stats_vbox, "Terrain Stats");
-	grid_stats.stats_label = ui.manager->add_label(ui.stats_vbox, "MC Meshes: 0\nMC Cells: 0\nDebug Corners: 0");
-
-	ui.manager->add_header(ui.stats_vbox, "Hash Inspection");
-	ui.hash_label = ui.manager->add_label(ui.stats_vbox, "Hash: N/A\nPos: (0, 0, 0)");
-
-	Button *save_btn = ui.manager->add_button(ui.stats_vbox, "Save State", Callable(this, "_on_save_terrain"));
-	save_btn->set_custom_minimum_size(Vector2(0, 30));
-
-	Button *load_btn = ui.manager->add_button(ui.stats_vbox, "Load State", Callable(this, "_on_load_terrain"));
-	load_btn->set_custom_minimum_size(Vector2(0, 30));
-
-	Button *copy_btn =
-			ui.manager->add_button(ui.stats_vbox, "Copy for Blender", Callable(this, "_on_copy_for_blender"));
-	copy_btn->set_custom_minimum_size(Vector2(0, 30));
-
+	// --- Map
+	ui.manager->add_header(map_tab, "File");
+	add_buttons(map_tab, { { "Save State", "_on_save_terrain" }, { "Load State", "_on_load_terrain" },
+								 { "Copy for Blender", "_on_copy_for_blender" } });
+	ui.stats_vbox = map_tab; // _setup_randomize_ui adds to ui.stats_vbox
 	_setup_randomize_ui();
-
-	ui.manager->add_header(ui.stats_vbox, "Mesh Variants");
-	ui.variant_stats_vbox = ui.manager->add_vbox(ui.stats_vbox, "VariantStats");
+	ui.stats_vbox = stats_tab;
 
 	if (_args.has("--mcshot") && ui.help_dialog) {
 		call_deferred("_on_show_help");

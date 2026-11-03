@@ -8,6 +8,7 @@
 // end of the frame (flush_dirty_chunks), so a brush stroke rebuilds each chunk once.
 #include "marching_cubes/grid/mc_chunk_builder.h"
 #include "marching_cubes/grid/mc_grid.h"
+#include <godot_cpp/classes/gpu_particles3d.hpp>
 #include "marching_cubes/library/mc_library.h"
 #include "marching_cubes/util/mc_physics.h"
 #include <godot_cpp/classes/array_mesh.hpp>
@@ -176,7 +177,7 @@ void MCGrid::_free_spawned_nodes() {
 		Node *child = Object::cast_to<Node>(children[i]);
 		if (child && child != debug_corners_container && child != hover_root && child != placed_objects_container &&
 				child != water_node && child != water_debug_node && child != inspect_root &&
-				child != edge_corners_root) {
+				child != edge_corners_root && child != water_shore_node && child != water_splash_node) {
 			remove_child(child);
 			child->queue_free();
 		}

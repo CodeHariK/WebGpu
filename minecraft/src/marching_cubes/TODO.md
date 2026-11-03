@@ -247,7 +247,15 @@ everything built on top is an object. Terrain stays pure corners.
       Open: a dry corner of the bed tier reached only diagonally (terrain.mct (11, 22) by (12, 21))
       is a real gap in the terrain — the water either leaks out there or ends at it (now: ends;
       water_expand hides the gap).
-      **Debug tools** (Stats panel → Diagnostics; `grid/mc_grid_debug_view.cpp`): Inspect (click a cell: an orange wire cube marks it and a side panel — a
+      **Side panel tabs** (`editor/mc_ui.cpp`): Stats (performance, terrain counts, hash, variants) ·
+      Water (view, particles, builder, drop / expand / samples sliders, water debug, replay pour) ·
+      Debug (inspect, record view, wireframe, edge corners) · Map (save / load, Copy for Blender,
+      randomize, heightmap mode).
+      **Inspect records** (`editor/mc_manager_record.cpp`): every inspect click (and Debug → Record
+      view) writes user://inspect/<time>.json (camera, cell + info, mouse, scene, water settings,
+      4 x 4 columns around the cell) + .mct (the map) + .png (the screen), and the same as last.*;
+      a script can load a record and look from the same camera.
+      **Debug tools** (side panel → Debug / Water tabs; `grid/mc_grid_debug_view.cpp`): Inspect (click a cell: an orange wire cube marks it and a side panel — a
       SubViewport with its own world — shows its tile + wireframe, cube and 8 corner dots numbered by
       hash bit, orange active / black inactive, slowly turning, drag to orbit, scroll to zoom; text:
       cell, hash, modelled tile + turn, group, level, variant; the terrain never changes;
