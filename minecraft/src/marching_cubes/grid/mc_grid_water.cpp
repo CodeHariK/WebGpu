@@ -55,8 +55,7 @@ namespace godot {
 namespace {
 const float STREAM = 0.1f; // m a stream's surface sits above its ground
 const float SAME = 0.02f; // m: surfaces closer than this are the same water
-const char *SURFACE_SHADER = "res://material/shaders/terrain/water_surface.gdshader";
-const char *FALL_SHADER = "res://material/shaders/terrain/waterfall.gdshader";
+const char *WATER_SHADER = "res://material/shaders/terrain/water.gdshader"; // surfaces + falls
 
 // A material from a shader path (null if the shader isn't there).
 Ref<Material> shader_material(const char *p_path) {
@@ -531,7 +530,6 @@ std::vector<Color> MCGrid::_water_flow(const std::vector<float> &p_surface) cons
 	return flow;
 }
 
-// Rebuild the water mesh: a square per wet column at its surface (held or stream), a fall sheet
 // Rebuild the water mesh: surfaces and falls cell by cell with the cliff tiles' shape
 // (mc_grid_water_mesh.cpp), the flow in the vertex colour.
 void MCGrid::_rebuild_water() {
@@ -574,43 +572,81 @@ void MCGrid::_rebuild_water() {
 		add_child(water_node);
 	}
 	if (water_material.is_null()) {
-		water_material = shader_material(SURFACE_SHADER);
+		water_material = shader_material(WATER_SHADER);
 	}
-	if (waterfall_material.is_null()) {
-		waterfall_material = shader_material(FALL_SHADER);
-		if (waterfall_material.is_valid()) {
-			waterfall_material->set_render_priority(-1); // falls first, then the surfaces (see waterfall.gdshader)
+	water_node->set_mesh(_water_mesh(arrays_out));
+	_apply_water_view();
+}
+
+// The water mesh: ONE surface with one material (water.gdshader) for the surfaces and the falls, so
+// where a fall's strip leaves the surface the same shader runs on both sides (no seam). The falls'
+// triangles come first in the index list: they write depth, so a surface behind a fall is hidden
+// and one in front blends over it. UV2 per vertex: over the lip (0 on the surfaces), and metres
+// above the landing (falls) or -1 on a stream (see water.gdshader).
+Ref<ArrayMesh> MCGrid::_water_mesh(const MCWaterArrays &p_arrays) const {
+	int surface_count = static_cast<int>(p_arrays.vertices.size());
+	int fall_count = static_cast<int>(p_arrays.fall_vertices.size());
+	PackedVector3Array vertices = p_arrays.vertices;
+	vertices.append_array(p_arrays.fall_vertices);
+	PackedVector3Array normals = p_arrays.normals;
+	normals.append_array(p_arrays.fall_normals);
+	PackedVector2Array uvs = p_arrays.uvs;
+	uvs.append_array(p_arrays.fall_uvs);
+	PackedColorArray colors = p_arrays.colors;
+	PackedVector2Array uv2s;
+	if (p_arrays.final_uv2) {
+		uv2s = p_arrays.uv2s; // the water tiles builder (falls included in the surface arrays)
+	} else { // the per-cell builder: uv2 (stream, 0)
+		for (int i = 0; i < surface_count; i++) {
+			bool stream = i < p_arrays.uv2s.size() && p_arrays.uv2s[i].x > 0.5f;
+			uv2s.push_back(Vector2(0.0f, stream ? -1.0f : 0.0f));
 		}
 	}
-	Ref<ArrayMesh> mesh;
-	mesh.instantiate();
+	for (int j = 0; j < fall_count; j++) { // the per-cell builder's flat sheets: all falling water
+		colors.push_back(Color(0.5f, 0.5f, 1.0f, 0.0f));
+		uv2s.push_back(Vector2(1.0f, j < p_arrays.fall_uv2s.size() ? p_arrays.fall_uv2s[j].x : 0.0f));
+	}
+	PackedInt32Array indices;
+	auto add_indices = [&](const PackedInt32Array &p_list, int p_count, int p_offset) {
+		if (p_list.is_empty()) {
+			for (int i = 0; i < p_count; i++) {
+				indices.push_back(i + p_offset);
+			}
+			return;
+		}
+		for (int i = 0; i < p_list.size(); i++) {
+			indices.push_back(p_list[i] + p_offset);
+		}
+	};
+	add_indices(p_arrays.fall_indices, fall_count, surface_count); // the falls first
+	for (int i = 0; i < p_arrays.first_indices.size(); i++) { // (water tiles: the drops)
+		indices.push_back(p_arrays.first_indices[i]);
+	}
+	add_indices(p_arrays.indices, surface_count, 0);
+
 	Array arrays;
 	arrays.resize(Mesh::ARRAY_MAX);
-	arrays[Mesh::ARRAY_VERTEX] = arrays_out.vertices;
-	arrays[Mesh::ARRAY_NORMAL] = arrays_out.normals;
-	arrays[Mesh::ARRAY_TEX_UV] = arrays_out.uvs;
-	arrays[Mesh::ARRAY_TEX_UV2] = arrays_out.uv2s;
-	arrays[Mesh::ARRAY_COLOR] = arrays_out.colors;
-	if (!arrays_out.indices.is_empty()) {
-		arrays[Mesh::ARRAY_INDEX] = arrays_out.indices;
+	arrays[Mesh::ARRAY_VERTEX] = vertices;
+	arrays[Mesh::ARRAY_NORMAL] = normals;
+	arrays[Mesh::ARRAY_TEX_UV] = uvs;
+	arrays[Mesh::ARRAY_COLOR] = colors;
+	arrays[Mesh::ARRAY_TEX_UV2] = uv2s;
+	// CUSTOM0.x: metres along the joined falls (the streaks' across coordinate; 0 elsewhere)
+	PackedFloat32Array along_falls;
+	along_falls.resize(colors.size());
+	along_falls.fill(0.0f);
+	for (int i = 0; i < p_arrays.fall_u.size() && i < along_falls.size(); i++) {
+		along_falls.set(i, p_arrays.fall_u[i]);
 	}
-	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
+	arrays[Mesh::ARRAY_CUSTOM0] = along_falls;
+	arrays[Mesh::ARRAY_INDEX] = indices;
+	Ref<ArrayMesh> mesh;
+	mesh.instantiate();
+	uint64_t format = static_cast<uint64_t>(Mesh::ARRAY_CUSTOM_R_FLOAT) << Mesh::ARRAY_FORMAT_CUSTOM0_SHIFT;
+	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays, TypedArray<Array>(), Dictionary(),
+			BitField<Mesh::ArrayFormat>(format));
 	mesh->surface_set_material(0, water_material);
-	if (!arrays_out.fall_vertices.is_empty()) {
-		Array falls;
-		falls.resize(Mesh::ARRAY_MAX);
-		falls[Mesh::ARRAY_VERTEX] = arrays_out.fall_vertices;
-		falls[Mesh::ARRAY_NORMAL] = arrays_out.fall_normals;
-		falls[Mesh::ARRAY_TEX_UV] = arrays_out.fall_uvs;
-		falls[Mesh::ARRAY_TEX_UV2] = arrays_out.fall_uv2s;
-		if (!arrays_out.fall_indices.is_empty()) {
-			falls[Mesh::ARRAY_INDEX] = arrays_out.fall_indices;
-		}
-		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, falls);
-		mesh->surface_set_material(1, waterfall_material);
-	}
-	water_node->set_mesh(mesh);
-	_apply_water_view();
+	return mesh;
 }
 
 } // namespace godot

@@ -236,6 +236,7 @@ public:
 	void _on_water_drop(double p_value); // the water drop slider
 	void _on_water_expand(double p_value); // the water expand slider
 	void _on_water_spill(double p_value); // the spill reach slider
+	void _on_water_fall_lip(double p_value); // the waterfall lip radius slider
 	void _on_water_samples(double p_value); // the water samples per cell slider
 	void _on_toggle_edge_corners(); // inactive corners with an edge to an active one
 	void _on_toggle_water_debug();

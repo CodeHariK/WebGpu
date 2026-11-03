@@ -85,8 +85,7 @@ void MCGrid::_apply_water_view() {
 	}
 	if (mesh.is_valid()) {
 		for (int s = 0; s < mesh->get_surface_count(); s++) {
-			Ref<Material> normal = s == 0 ? water_material : waterfall_material;
-			mesh->surface_set_material(s, uv ? Ref<Material>(water_uv_material) : normal);
+			mesh->surface_set_material(s, uv ? Ref<Material>(water_uv_material) : water_material);
 		}
 	}
 	water_node->set_material_overlay(wire ? Ref<Material>(water_wireframe_material) : Ref<Material>());

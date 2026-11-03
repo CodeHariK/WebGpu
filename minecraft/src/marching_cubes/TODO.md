@@ -242,6 +242,18 @@ everything built on top is an object. Terrain stays pure corners.
       Water view (`grid/mc_grid_water_view.cpp`, Diagnostics → "Water view" cycles): normal /
       wireframe (white triangles over the water) / UV checker (surface UV = world x, z; falls: x
       along the ground, y metres down) / UV + wireframe.
+      Waterfalls are one continuous mesh with the surface (`grid/mc_grid_water_falls.cpp`, Water tab
+      "Waterfall lip radius"): the surface itself bends over each fall's edge (vertices within the
+      radius lowered onto a quarter ellipse), the drop hangs from the surface's own edge vertices
+      and flares at the foot. UV is one flow coordinate: world x, z on the flat water, pushed on by
+      the curve's extra length over the lip and unfolded down the drop (directions smoothed along
+      the fall), drop cut into rows of at most 0.25 m. One material
+      (`project/material/shaders/terrain/water.gdshader`): ripples run on UV; the streaks on the
+      falls' own frame (CUSTOM0.x metres along the joined falls, UV2.y metres above the landing):
+      projecting world-scale UV onto a per-vertex direction speckled where the fall curves. Noise
+      hash without sin() (precision on Metal). (water_surface / waterfall.gdshader: no longer used.)
+      Still open: blocky white flare at the foot, junctions where falls meet spill water, a small
+      uncovered triangle on square tiles.
       Still: whole-map rebuild (per-chunk water later).
       Tried and dropped: skirts (curved / vertical lips / overflow sheets at open water edges).
       Open: a dry corner of the bed tier reached only diagonally (terrain.mct (11, 22) by (12, 21))

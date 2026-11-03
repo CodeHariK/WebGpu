@@ -321,17 +321,8 @@ WaterTile bake_tile(
 }
 
 Vector3i weld_key(const Vector3 &p_v);
-} // namespace
 
-// One fall placed in the world: its top and foot corners, facing, height.
-struct PlacedFall {
-	Vector3 ta;
-	Vector3 tb;
-	Vector3 ba;
-	Vector3 bb;
-	Vector3 out;
-	float drop = 0.0f;
-};
+} // namespace
 
 // Points every MCWaterArrays::PARTICLE_SPACING along a -> b (at least one, the middle), each with
 // p_direction: particle emission points.
@@ -426,7 +417,6 @@ void MCGrid::_emit_water_tiles(
 	Vector2i columns = _column_counts();
 	Vector2i cells(columns.x - 1, columns.y - 1);
 	HashMap<Vector3i, int> surface_index;
-	HashMap<Vector3i, std::vector<std::pair<Vector3, int>>> fall_index; // per position: (normal, index)
 	std::vector<Body> bodies;
 	std::vector<float> bottoms;
 	std::vector<PlacedFall> placed_falls; // emitted at the end, once every fall is known
@@ -455,7 +445,7 @@ void MCGrid::_emit_water_tiles(
 					r_out.vertices.push_back(v);
 					r_out.normals.push_back(Vector3(0, 1, 0));
 					r_out.uvs.push_back(Vector2(v.x, v.z));
-					r_out.uv2s.push_back(Vector2(body.stream ? 1.0f : 0.0f, 0));
+					r_out.uv2s.push_back(Vector2(0.0f, body.stream ? -1.0f : 0.0f)); // water.gdshader's UV2
 					r_out.colors.push_back(flow_at(body.flow, p.x, p.y));
 					surface_index.insert(weld, index);
 					r_out.indices.push_back(index);
@@ -489,6 +479,9 @@ void MCGrid::_emit_water_tiles(
 					placed.bb = world(fall.b, bottom);
 					placed.out = Vector3(fall.out.x, 0, -fall.out.y);
 					placed.drop = body.top - bottom;
+					placed.flow_a = flow_at(body.flow, fall.a.x, fall.a.y);
+					placed.flow_b = flow_at(body.flow, fall.b.x, fall.b.y);
+					placed.stream = body.stream ? 1.0f : 0.0f;
 					placed_falls.push_back(placed);
 				}
 				// shore foam: points along where the surface meets a bank, drifting away from it
@@ -515,31 +508,9 @@ void MCGrid::_emit_water_tiles(
 		_sample_line(fall.ba + lift, fall.bb + lift, (fall.out * 0.5f + Vector3(0, 1, 0)).normalized(),
 				r_out.splash_points, r_out.splash_directions);
 	}
-	for (const PlacedFall &fall : placed_falls) {
-		auto fall_vertex = [&](const Vector3 &v, float p_down) {
-			Vector3i weld = weld_key(v);
-			std::vector<std::pair<Vector3, int>> &list = fall_index[weld];
-			for (const std::pair<Vector3, int> &e : list) {
-				if (e.first.dot(fall.out) > 0.999f) {
-					r_out.fall_indices.push_back(e.second);
-					return;
-				}
-			}
-			int index = static_cast<int>(r_out.fall_vertices.size());
-			r_out.fall_vertices.push_back(v);
-			r_out.fall_normals.push_back(fall.out);
-			r_out.fall_uvs.push_back(Vector2(v.x + v.z, p_down)); // x along the ground, y metres down
-			r_out.fall_uv2s.push_back(Vector2(fall.drop - p_down, 0)); // metres above the landing
-			list.push_back({ fall.out, index });
-			r_out.fall_indices.push_back(index);
-		};
-		fall_vertex(fall.ba, fall.drop);
-		fall_vertex(fall.bb, fall.drop);
-		fall_vertex(fall.tb, 0.0f);
-		fall_vertex(fall.ba, fall.drop);
-		fall_vertex(fall.tb, 0.0f);
-		fall_vertex(fall.ta, 0.0f);
-	}
+	r_out.final_uv2 = true;
+	// the surface bends over each fall's edge, and the falls hang from its edge vertices
+	_emit_fall_strips(placed_falls, surface_index, r_out); // (mc_grid_water_falls.cpp)
 }
 
 } // namespace godot

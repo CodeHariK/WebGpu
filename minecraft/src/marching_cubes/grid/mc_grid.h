@@ -32,6 +32,7 @@
 #include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/variant/packed_color_array.hpp>
+#include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
 #include <unordered_set>
 #include <utility>
@@ -42,7 +43,20 @@ namespace godot {
 namespace mc_water {
 struct Body; // mc_water_shape.h
 }
-struct PlacedFall; // mc_grid_water_tiles.cpp
+// One fall placed in the world (mc_grid_water_tiles.cpp), before it becomes a strip
+// (mc_grid_water_falls.cpp): its top edge (ta, tb) on the surface, the same at the landing height
+// (ba, bb), the way it faces, its height, the surface's flow at its ends.
+struct PlacedFall {
+	Vector3 ta;
+	Vector3 tb;
+	Vector3 ba;
+	Vector3 bb;
+	Vector3 out;
+	float drop = 0.0f;
+	Color flow_a; // the surface's flow COLOR at ta / tb
+	Color flow_b;
+	float stream = 0.0f; // 1: the fall of a stream
+};
 class GPUParticles3D;
 
 // The water mesh being built (mc_grid_water_mesh.cpp): surface (with flow colour) and falls.
@@ -69,6 +83,11 @@ struct MCWaterArrays {
 	std::vector<Vector3> samples; // water_sampled: the wet sample points (debug overlay)
 	PackedInt32Array indices; // welded surface (water tiles); empty: plain triangles
 	PackedInt32Array fall_indices; // welded falls (water tiles)
+	// water tiles: the falls are part of the surface arrays (mc_grid_water_falls.cpp): their
+	// triangles, drawn before the rest; uv2s already in water.gdshader's form (else (stream, 0))
+	PackedInt32Array first_indices;
+	PackedFloat32Array fall_u; // per vertex: metres along the joined falls (CUSTOM0.x; 0 elsewhere)
+	bool final_uv2 = false;
 	// particle emission points (water tiles; mc_grid_water_particles.cpp), one every PARTICLE_SPACING m
 	static constexpr float PARTICLE_SPACING = 0.2f;
 	std::vector<Vector3> shore_points; // where the surface meets a bank
@@ -138,6 +157,7 @@ private:
 	std::vector<Vector3> water_debug_samples; // the last build's wet sample points (debug overlay)
 	float water_expand = 0.0f; // m the water's edge grows on (UI slider)
 	int water_spill_reach = 1; // columns a diagonal spill wets (mc_grid_water_spill.cpp; 0: none)
+	float water_fall_lip = 0.2f; // m: radius of a fall's rounded lip (mc_grid_water_falls.cpp)
 	float water_drop = 0.15f; // m held water's surface sits below the bank one tier up (UI slider)
 	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
@@ -149,8 +169,7 @@ private:
 	Ref<Material> water_wireframe_material;
 	GPUParticles3D *water_shore_node = nullptr;
 	GPUParticles3D *water_splash_node = nullptr;
-	Ref<Material> water_material; // water_surface.gdshader unless set
-	Ref<Material> waterfall_material; // waterfall.gdshader unless set
+	Ref<Material> water_material; // water.gdshader unless set: surfaces and falls, one material
 	std::vector<MCEdit> undo_stack; // oldest first
 	std::vector<MCEdit> redo_stack;
 	MCEdit recording; // the open edit (between begin_edit and end_edit)
@@ -574,6 +593,23 @@ public:
 	void set_water_spill_reach(int p_reach);
 	int get_water_spill_reach() const { return water_spill_reach; }
 	std::vector<uint8_t> _spilled_levels() const;
+	// The water mesh: one surface, one material, falls first (mc_grid_water.cpp).
+	Ref<ArrayMesh> _water_mesh(const MCWaterArrays &p_arrays) const;
+	// Falls as strips with a rounded lip and a flared foot (mc_grid_water_falls.cpp): the lip radius
+	// (0 .. 0.4 m; the surface is trimmed back by it at falls), and building the strips.
+	void set_water_fall_lip(float p_lip);
+	float get_water_fall_lip() const { return water_fall_lip; }
+	void _emit_fall_strips(
+			const std::vector<PlacedFall> &p_falls,
+			const HashMap<Vector3i, int> &p_surface_index,
+			MCWaterArrays &r_out
+	) const;
+	void _bend_lips(
+			const std::vector<PlacedFall> &p_falls,
+			const HashMap<Vector3i, float> &p_chain,
+			MCWaterArrays &r_out
+	) const;
+	HashMap<Vector3i, float> _fall_chain(const std::vector<PlacedFall> &p_falls) const;
 	// Particle emission points along a segment (mc_grid_water_tiles.cpp).
 	static void _sample_line(
 			const Vector3 &p_a,
@@ -646,8 +682,6 @@ public:
 	int get_sea_level() const { return sea_level; }
 	void set_water_material(const Ref<Material> &p_material) { water_material = p_material; }
 	Ref<Material> get_water_material() const { return water_material; }
-	void set_waterfall_material(const Ref<Material> &p_material) { waterfall_material = p_material; }
-	Ref<Material> get_waterfall_material() const { return waterfall_material; }
 	// Write the grid to a .mct file, version 2 (mc_grid_save_v2.cpp): heightmap mode saves heights +
 	// water per chunk column, corner mode the corner bits per chunk; zstd per layer.
 	void save_grid(const String &p_path);

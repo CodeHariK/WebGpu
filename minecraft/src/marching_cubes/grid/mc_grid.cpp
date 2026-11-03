@@ -94,6 +94,9 @@ void MCGrid::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "water_blocky_groups"), "set_water_blocky_groups", "get_water_blocky_groups");
 	ClassDB::bind_method(D_METHOD("set_debug_edge_corners", "on"), &MCGrid::set_debug_edge_corners);
 	ClassDB::bind_method(D_METHOD("is_debug_edge_corners"), &MCGrid::is_debug_edge_corners);
+	ClassDB::bind_method(D_METHOD("set_water_fall_lip", "lip"), &MCGrid::set_water_fall_lip);
+	ClassDB::bind_method(D_METHOD("get_water_fall_lip"), &MCGrid::get_water_fall_lip);
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "water_fall_lip", PROPERTY_HINT_RANGE, "0,0.4,0.01"), "set_water_fall_lip", "get_water_fall_lip");
 	ClassDB::bind_method(D_METHOD("set_water_spill_reach", "reach"), &MCGrid::set_water_spill_reach);
 	ClassDB::bind_method(D_METHOD("get_water_spill_reach"), &MCGrid::get_water_spill_reach);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "water_spill_reach", PROPERTY_HINT_RANGE, "0,8,1"), "set_water_spill_reach", "get_water_spill_reach");
@@ -129,13 +132,6 @@ void MCGrid::_bind_methods() {
 			PropertyInfo(Variant::OBJECT, "water_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"),
 			"set_water_material", "get_water_material"
 	);
-	ClassDB::bind_method(D_METHOD("set_waterfall_material", "material"), &MCGrid::set_waterfall_material);
-	ClassDB::bind_method(D_METHOD("get_waterfall_material"), &MCGrid::get_waterfall_material);
-	ADD_PROPERTY(
-			PropertyInfo(Variant::OBJECT, "waterfall_material", PROPERTY_HINT_RESOURCE_TYPE, "Material"),
-			"set_waterfall_material", "get_waterfall_material"
-	);
-
 	ClassDB::bind_method(D_METHOD("get_cell_hash", "pos"), &MCGrid::get_cell_hash);
 	ClassDB::bind_method(D_METHOD("is_corner_active", "pos"), &MCGrid::is_corner_active);
 	ClassDB::bind_method(D_METHOD("get_cell_level", "pos"), &MCGrid::get_cell_level);

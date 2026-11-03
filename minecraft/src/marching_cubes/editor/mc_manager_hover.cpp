@@ -101,6 +101,14 @@ void MCManager::_on_cycle_water_view() {
 	}
 }
 
+// Waterfall lip radius slider: how round the top of a fall is (0: a sharp edge).
+void MCManager::_on_water_fall_lip(double p_value) {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_water_fall_lip(static_cast<float>(p_value));
+	}
+}
+
 // Spill reach slider: columns a diagonal spill past a low corner wets (0: none).
 void MCManager::_on_water_spill(double p_value) {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
