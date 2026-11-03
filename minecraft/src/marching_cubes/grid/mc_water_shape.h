@@ -186,10 +186,43 @@ struct Body {
 	float height(const Vector2 &) const { return top; }
 	Vector3 normal(const Vector2 &) const { return Vector3(0, 1, 0); }
 
+	// Is corner k one of the body's own wet corners (not a bank, on the bed, wet)?
+	bool own(int k) const { return wet.solid[k] && !above.solid[k] && bed.solid[k]; }
+
+	// Rounded banks on a diagonal pair of corners make a saddle: two quarters touching at the cell's
+	// centre, and the terrain tile closes that point with a thin rock neck. The water must not run
+	// through it, or it flows on under the neck to the far side (its falls end up inside the rock):
+	// with exactly one of the other two corners the body's own, the water keeps to that corner's side
+	// of the line between the banks. That line runs inside the banks everywhere but the centre, so the
+	// cut never shows. (>= 0 on the allowed side; a big value when there is no such saddle.)
+	float saddle_side(const Vector2 &p) const {
+		if (above.blocky) {
+			return 1.0f; // blocky banks keep a real gap at the centre
+		}
+		for (int a = 0; a < 2; a++) {
+			int b = a + 2; // the bank pair a, b; the other diagonal c, d
+			int c = a + 1;
+			int d = (a + 3) % 4;
+			bool pair = above.solid[a] && above.solid[b] && !above.solid[c] && !above.solid[d];
+			if (!pair || own(c) == own(d)) {
+				continue;
+			}
+			int keep = own(c) ? c : d;
+			Vector2 along(CORNER_X[b] - CORNER_X[a], CORNER_Y[b] - CORNER_Y[a]);
+			Vector2 normal = Vector2(-along.y, along.x).normalized();
+			if (normal.dot(Vector2(CORNER_X[keep], CORNER_Y[keep])) < 0.0f) {
+				normal = -normal;
+			}
+			return normal.dot(p); // the line passes through the centre
+		}
+		return 1.0f;
+	}
+
 	// Where the body's water is: not in a bank, on the bed, not over dry ground (>= 0 inside;
 	// grow widens the first and last).
 	float water_field(const Vector2 &p) const {
 		float f = std::min(tuck() - blend(above, p.x, p.y), blend(bed, p.x, p.y) + lip_at(p));
+		f = std::min(f, saddle_side(p));
 		if (wet.all()) {
 			return f;
 		}
