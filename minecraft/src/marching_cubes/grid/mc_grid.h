@@ -55,6 +55,8 @@ struct PlacedFall {
 	float drop = 0.0f;
 	Color flow_a; // the surface's flow COLOR at ta / tb
 	Color flow_b;
+	float depth_a = 0.0f; // the water's depth where the strip starts (the surface's own, baked)
+	float depth_b = 0.0f;
 	float stream = 0.0f; // 1: the fall of a stream
 };
 class GPUParticles3D;
@@ -83,11 +85,13 @@ struct MCWaterArrays {
 	std::vector<Vector3> samples; // water_sampled: the wet sample points (debug overlay)
 	PackedInt32Array indices; // welded surface (water tiles); empty: plain triangles
 	PackedInt32Array fall_indices; // welded falls (water tiles)
-	// water tiles: the falls are part of the surface arrays (mc_grid_water_falls.cpp): their
-	// triangles, drawn before the rest; uv2s already in water.gdshader's form (else (stream, 0))
+	// water tiles: the fall strips are in the surface arrays (mc_grid_water_falls.cpp): their
+	// triangles; uv2s already in water.gdshader's form (else (stream, 0))
 	PackedInt32Array first_indices;
-	PackedFloat32Array fall_u; // per vertex: metres along the joined falls (CUSTOM0.x; 0 elsewhere)
 	bool final_uv2 = false;
+	// per vertex: the water's depth in metres (surface to ground), baked (water.gdshader CUSTOM0.x);
+	// empty: the per-cell builder (shaded as deep water)
+	PackedFloat32Array depths;
 	// particle emission points (water tiles; mc_grid_water_particles.cpp), one every PARTICLE_SPACING m
 	static constexpr float PARTICLE_SPACING = 0.2f;
 	std::vector<Vector3> shore_points; // where the surface meets a bank
@@ -601,12 +605,6 @@ public:
 	float get_water_fall_lip() const { return water_fall_lip; }
 	void _emit_fall_strips(
 			const std::vector<PlacedFall> &p_falls,
-			const HashMap<Vector3i, int> &p_surface_index,
-			MCWaterArrays &r_out
-	) const;
-	void _bend_lips(
-			const std::vector<PlacedFall> &p_falls,
-			const HashMap<Vector3i, float> &p_chain,
 			MCWaterArrays &r_out
 	) const;
 	HashMap<Vector3i, float> _fall_chain(const std::vector<PlacedFall> &p_falls) const;

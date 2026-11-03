@@ -182,9 +182,32 @@ struct Body {
 	//   falls       the falls' line over lower ground stays put (a fall never hangs off its cliff);
 	//               instead a fall's free ends reach on along it (MCGrid::_extend_fall_ends)
 	float grow = 0.0f;
+	// the falls' bevel radius (MCGrid::water_fall_lip): the surface stops this far short of the fall
+	// line, and the fall strip's flat part and bevel cover from there (mc_grid_water_falls.cpp)
+	float fall_lip = 0.0f;
 
 	float height(const Vector2 &) const { return top; }
 	Vector3 normal(const Vector2 &) const { return Vector3(0, 1, 0); }
+
+	// How far inside the bed p is (>= 0 inside). Without a bevel, blend(bed) as it is. With one, the
+	// trim must be in metres: rounded blend() is a bilinear value (divided by its slope here); blocky
+	// blend() is a union of quarters, 0 along the middle lines inside too, so the distance to the
+	// empty corners' quarters is used instead (big when the bed covers the cell).
+	float bed_inside(const Vector2 &p) const {
+		if (fall_lip <= 0.0f) {
+			return blend(bed, p.x, p.y);
+		}
+		if (!bed.blocky) {
+			float value = blend(bed, p.x, p.y);
+			float slope = gradient(bed, p.x, p.y).length();
+			return slope > 0.05f ? value / slope : value / 0.05f;
+		}
+		Layer empty = bed;
+		for (int k = 0; k < 4; k++) {
+			empty.solid[k] = !bed.solid[k];
+		}
+		return empty.none() ? 1.0f : -blend(empty, p.x, p.y);
+	}
 
 	// Is corner k one of the body's own wet corners (not a bank, on the bed, wet)?
 	bool own(int k) const { return wet.solid[k] && !above.solid[k] && bed.solid[k]; }
@@ -221,7 +244,7 @@ struct Body {
 	// Where the body's water is: not in a bank, on the bed, not over dry ground (>= 0 inside;
 	// grow widens the first and last).
 	float water_field(const Vector2 &p) const {
-		float f = std::min(tuck() - blend(above, p.x, p.y), blend(bed, p.x, p.y) + lip_at(p));
+		float f = std::min(tuck() - blend(above, p.x, p.y), bed_inside(p) + lip_at(p) - fall_lip);
 		f = std::min(f, saddle_side(p));
 		if (wet.all()) {
 			return f;

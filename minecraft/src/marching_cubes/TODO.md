@@ -242,18 +242,19 @@ everything built on top is an object. Terrain stays pure corners.
       Water view (`grid/mc_grid_water_view.cpp`, Diagnostics → "Water view" cycles): normal /
       wireframe (white triangles over the water) / UV checker (surface UV = world x, z; falls: x
       along the ground, y metres down) / UV + wireframe.
-      Waterfalls are one continuous mesh with the surface (`grid/mc_grid_water_falls.cpp`, Water tab
-      "Waterfall lip radius"): the surface itself bends over each fall's edge (vertices within the
-      radius lowered onto a quarter ellipse), the drop hangs from the surface's own edge vertices
-      and flares at the foot. UV is one flow coordinate: world x, z on the flat water, pushed on by
-      the curve's extra length over the lip and unfolded down the drop (directions smoothed along
-      the fall), drop cut into rows of at most 0.25 m. One material
-      (`project/material/shaders/terrain/water.gdshader`): ripples run on UV; the streaks on the
-      falls' own frame (CUSTOM0.x metres along the joined falls, UV2.y metres above the landing):
-      projecting world-scale UV onto a per-vertex direction speckled where the fall curves. Noise
-      hash without sin() (precision on Metal). (water_surface / waterfall.gdshader: no longer used.)
-      Still open: blocky white flare at the foot, junctions where falls meet spill water, a small
-      uncovered triangle on square tiles.
+      Waterfalls are bevelled L strips (`grid/mc_grid_water_falls.cpp`, Water tab "Waterfall lip
+      radius"): a short flat run lying just above the surface (which is trimmed back by the bevel
+      radius), a quarter-circle bevel down to the fall line, the drop in rows of at most 0.25 m, a
+      flared foot. Own UV: x metres along the joined falls, y metres along the profile, so the
+      texture is smooth round curves and over the bevel. End columns shared between neighbours
+      (each top point offset by its smoothed direction; welded by position, normals averaged, so no
+      light seams). One opaque material
+      (`project/material/shaders/terrain/water.gdshader`; transparency off for now): the surface
+      look from the world position (same on a strip's flat part; depth colour only on the flat
+      water, so the bevel isn't dark), the falling look from the UV, mostly unlit (fall_glow).
+      Tried and dropped: bending the surface itself into the lip with the drop hanging from it
+      (one mesh, but world UV unfolded down curved falls fans out and folds).
+      Still open: a thin line where a chain of falls starts its UV, junctions with spill water.
       Still: whole-map rebuild (per-chunk water later).
       Tried and dropped: skirts (curved / vertical lips / overflow sheets at open water edges).
       Open: a dry corner of the bed tier reached only diagonally (terrain.mct (11, 22) by (12, 21))

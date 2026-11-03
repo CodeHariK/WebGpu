@@ -623,6 +623,21 @@ Ref<ArrayMesh> MCGrid::_water_mesh(const MCWaterArrays &p_arrays) const {
 		indices.push_back(p_arrays.first_indices[i]);
 	}
 	add_indices(p_arrays.indices, surface_count, 0);
+	// every triangle wound to face the way its vertex normals point: the builders put corners in
+	// whatever order their shape gave (a fall's ends a / b come either way round), and a triangle
+	// seen from its back gets its normal flipped by the renderer (cull_disabled), so it is lit as if
+	// it faced away — dark pieces among light ones
+	int32_t *ix = indices.ptrw();
+	for (int64_t t = 0; t + 2 < indices.size(); t += 3) {
+		const Vector3 &a = vertices[ix[t]];
+		const Vector3 &b = vertices[ix[t + 1]];
+		const Vector3 &c = vertices[ix[t + 2]];
+		Vector3 average = normals[ix[t]] + normals[ix[t + 1]] + normals[ix[t + 2]];
+		// Godot's front faces are clockwise: their (b - a) x (c - a) points away from the normal
+		if ((b - a).cross(c - a).dot(average) > 0.0f) {
+			std::swap(ix[t + 1], ix[t + 2]);
+		}
+	}
 
 	Array arrays;
 	arrays.resize(Mesh::ARRAY_MAX);
@@ -631,14 +646,14 @@ Ref<ArrayMesh> MCGrid::_water_mesh(const MCWaterArrays &p_arrays) const {
 	arrays[Mesh::ARRAY_TEX_UV] = uvs;
 	arrays[Mesh::ARRAY_COLOR] = colors;
 	arrays[Mesh::ARRAY_TEX_UV2] = uv2s;
-	// CUSTOM0.x: metres along the joined falls (the streaks' across coordinate; 0 elsewhere)
-	PackedFloat32Array along_falls;
-	along_falls.resize(colors.size());
-	along_falls.fill(0.0f);
-	for (int i = 0; i < p_arrays.fall_u.size() && i < along_falls.size(); i++) {
-		along_falls.set(i, p_arrays.fall_u[i]);
+	// CUSTOM0.x: the water's depth, baked (the per-cell builder has none: deep)
+	PackedFloat32Array depths;
+	depths.resize(vertices.size());
+	depths.fill(2.0f);
+	for (int i = 0; i < p_arrays.depths.size() && i < depths.size(); i++) {
+		depths.set(i, p_arrays.depths[i]);
 	}
-	arrays[Mesh::ARRAY_CUSTOM0] = along_falls;
+	arrays[Mesh::ARRAY_CUSTOM0] = depths;
 	arrays[Mesh::ARRAY_INDEX] = indices;
 	Ref<ArrayMesh> mesh;
 	mesh.instantiate();

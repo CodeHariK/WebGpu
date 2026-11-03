@@ -73,14 +73,15 @@ CornerClass corner_class(
 	return p_body.wet.solid[p_corner] ? WET : DRY;
 }
 
-// style (rounded / blocky / square), sample rate, grow and the 4 corner classes
+// style (rounded / blocky / square), sample rate, grow, fall lip and the 4 corner classes
 uint32_t tile_key(
 		const Body &p_body,
 		int p_rate
 ) {
 	uint32_t style = !p_body.above.blocky ? 0 : (p_body.above.rounding > 0.0f ? 1 : 2);
 	uint32_t grow = static_cast<uint32_t>(std::lround(p_body.grow * 200.0f)); // 0 .. 60
-	uint32_t key = (grow << 18) | (style << 16) | (static_cast<uint32_t>(p_rate) << 8);
+	uint32_t lip = static_cast<uint32_t>(std::lround(p_body.fall_lip * 100.0f)); // 0 .. 40
+	uint32_t key = (lip << 24) | (grow << 18) | (style << 16) | (static_cast<uint32_t>(p_rate) << 8);
 	for (int k = 0; k < 4; k++) {
 		key |= static_cast<uint32_t>(corner_class(p_body, k)) << (2 * k);
 	}
@@ -136,7 +137,7 @@ bool sharp_corner(
 // squares (crossings bisected on the exact shape), and find the falls: each contour segment looks
 // just outside itself — a bank: nothing; dry ground of the bed's tier: a fall onto it; below the
 // bed: a fall down to where the body's water lands.
-WaterTile bake_tile(
+WaterTile bake_contour(
 		const Body &p_body,
 		int p_rate
 ) {
@@ -322,6 +323,25 @@ WaterTile bake_tile(
 
 Vector3i weld_key(const Vector3 &p_v);
 
+// A tile: the falls (and shores) on the water's real edge, the fall line at the cliff; the surface
+// from the shape trimmed back by the bevel (Body::fall_lip): the fall strip's flat part and bevel
+// (mc_grid_water_falls.cpp) cover from there out to the fall line.
+WaterTile bake_tile(
+		const Body &p_body,
+		int p_rate
+) {
+	Body edge = p_body;
+	edge.fall_lip = 0.0f;
+	WaterTile tile = bake_contour(edge, p_rate);
+	if (p_body.fall_lip <= 0.0f) {
+		return tile;
+	}
+	WaterTile trimmed = bake_contour(p_body, p_rate);
+	trimmed.falls = tile.falls;
+	trimmed.shores = tile.shores;
+	return trimmed;
+}
+
 } // namespace
 
 // Points every MCWaterArrays::PARTICLE_SPACING along a -> b (at least one, the middle), each with
@@ -447,6 +467,7 @@ void MCGrid::_emit_water_tiles(
 					r_out.uvs.push_back(Vector2(v.x, v.z));
 					r_out.uv2s.push_back(Vector2(0.0f, body.stream ? -1.0f : 0.0f)); // water.gdshader's UV2
 					r_out.colors.push_back(flow_at(body.flow, p.x, p.y));
+					r_out.depths.push_back(std::max(body.top - body.ground_at(p), 0.0f));
 					surface_index.insert(weld, index);
 					r_out.indices.push_back(index);
 				};
@@ -479,9 +500,21 @@ void MCGrid::_emit_water_tiles(
 					placed.bb = world(fall.b, bottom);
 					placed.out = Vector3(fall.out.x, 0, -fall.out.y);
 					placed.drop = body.top - bottom;
-					placed.flow_a = flow_at(body.flow, fall.a.x, fall.a.y);
-					placed.flow_b = flow_at(body.flow, fall.b.x, fall.b.y);
+					// the surface's flow where the strip starts (back over the surface), so it matches
+					auto start_flow = [&](const Vector2 &p_top) {
+						Vector2 q = (p_top - fall.out * (water_fall_lip + 0.1f)).clamp(Vector2(-0.5f, -0.5f), Vector2(0.5f, 0.5f));
+						return flow_at(body.flow, q.x, q.y);
+					};
+					placed.flow_a = start_flow(fall.a);
+					placed.flow_b = start_flow(fall.b);
 					placed.stream = body.stream ? 1.0f : 0.0f;
+					// the surface's depth where the strip starts, so its flat part and bevel match it
+					auto start_depth = [&](const Vector2 &p_top) {
+						Vector2 q = (p_top - fall.out * (water_fall_lip + 0.1f)).clamp(Vector2(-0.5f, -0.5f), Vector2(0.5f, 0.5f));
+						return std::max(body.top - body.ground_at(q), 0.0f);
+					};
+					placed.depth_a = start_depth(fall.a);
+					placed.depth_b = start_depth(fall.b);
 					placed_falls.push_back(placed);
 				}
 				// shore foam: points along where the surface meets a bank, drifting away from it
@@ -509,8 +542,7 @@ void MCGrid::_emit_water_tiles(
 				r_out.splash_points, r_out.splash_directions);
 	}
 	r_out.final_uv2 = true;
-	// the surface bends over each fall's edge, and the falls hang from its edge vertices
-	_emit_fall_strips(placed_falls, surface_index, r_out); // (mc_grid_water_falls.cpp)
+	_emit_fall_strips(placed_falls, r_out); // bevelled L strips (mc_grid_water_falls.cpp)
 }
 
 } // namespace godot

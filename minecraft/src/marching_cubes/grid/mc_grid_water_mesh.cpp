@@ -343,6 +343,7 @@ void MCGrid::_water_bodies(
 		}
 		body.top = top;
 		body.grow = water_expand;
+		body.fall_lip = water_sampled ? water_fall_lip : 0.0f; // the strips are the water tiles builder's
 		body.square = water_square;
 		body.stream = stream;
 		// where its fall lands: the water below, or the dry ground below
