@@ -61,6 +61,28 @@ struct PlacedFall {
 };
 class GPUParticles3D;
 
+// One edge segment of a body of water (mc_grid_water_outline.cpp), oriented with the water on its
+// left seen from above, tagged by what lies beyond it.
+struct WaterEdge {
+	enum Kind : uint8_t {
+		BANK = 0, // higher ground
+		FALL = 1, // lower water / ground: a waterfall
+	};
+	Vector3 a;
+	Vector3 b;
+	Kind kind = BANK;
+};
+
+// A chain of water edges: a closed loop round a body of water (or an open run ending at the grid's
+// border); points[i] -> points[i + 1] is edge kinds[i] (closed: the last point joins the first).
+struct WaterOutline {
+	std::vector<Vector3> points;
+	std::vector<uint8_t> kinds;
+	bool closed = false;
+	float top = 0.0f; // the surface height
+	std::vector<Vector3> origins; // _inset_outline: each point before the inset (the fall line)
+};
+
 // The water mesh being built (mc_grid_water_mesh.cpp): surface (with flow colour) and falls.
 struct MCWaterArrays {
 	PackedVector3Array vertices;
@@ -88,6 +110,8 @@ struct MCWaterArrays {
 	// water tiles: the fall strips are in the surface arrays (mc_grid_water_falls.cpp): their
 	// triangles; uv2s already in water.gdshader's form (else (stream, 0))
 	PackedInt32Array first_indices;
+	std::vector<WaterEdge> edges; // water tiles: every edge segment of the water (outlines)
+	std::vector<PlacedFall> placed_falls; // water tiles: every fall placed (drops for the swept falls)
 	bool final_uv2 = false;
 	// per vertex: the water's depth in metres (surface to ground), baked (water.gdshader CUSTOM0.x);
 	// empty: the per-cell builder (shaded as deep water)
@@ -162,6 +186,7 @@ private:
 	float water_expand = 0.0f; // m the water's edge grows on (UI slider)
 	int water_spill_reach = 1; // columns a diagonal spill wets (mc_grid_water_spill.cpp; 0: none)
 	float water_fall_lip = 0.2f; // m: radius of a fall's rounded lip (mc_grid_water_falls.cpp)
+	bool water_outline_fill = false; // flat water from the outlines (mc_grid_water_fill.cpp), else the tiles
 	float water_drop = 0.15f; // m held water's surface sits below the bank one tier up (UI slider)
 	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
@@ -169,6 +194,8 @@ private:
 	MeshInstance3D *water_node = nullptr; // surface + waterfalls (two surfaces)
 	bool water_particles = true; // shore foam + fall splashes (mc_grid_water_particles.cpp)
 	int water_view = 0; // WaterView: debug views of the water mesh (mc_grid_water_view.cpp)
+	std::vector<WaterOutline> water_outlines; // the last build's outlines (mc_grid_water_outline.cpp)
+	MeshInstance3D *water_outline_node = nullptr; // the "outline" water view's lines
 	Ref<Material> water_uv_material;
 	Ref<Material> water_wireframe_material;
 	GPUParticles3D *water_shore_node = nullptr;
@@ -608,6 +635,29 @@ public:
 			MCWaterArrays &r_out
 	) const;
 	HashMap<Vector3i, float> _fall_chain(const std::vector<PlacedFall> &p_falls) const;
+	// The water's outlines (mc_grid_water_outline.cpp): edge segments chained into loops, smoothed.
+	std::vector<WaterOutline> _water_outlines(const std::vector<WaterEdge> &p_edges) const;
+	static void _relax_outline(WaterOutline &r_outline);
+	static void _bridge_outlines(std::vector<WaterOutline> &r_outlines);
+	String get_water_outline_summary() const; // debug: one line per outline
+	// The flat water from the outlines (mc_grid_water_fill.cpp): inset, then filled.
+	void set_water_outline_fill(bool p_on);
+	bool get_water_outline_fill() const { return water_outline_fill; }
+	static WaterOutline _inset_outline(
+			const WaterOutline &p_outline,
+			float p_inset
+	);
+	static void _cut_inset_loops(WaterOutline &r_outline);
+	void _fill_water_surface(
+			const std::vector<Color> &p_flow,
+			MCWaterArrays &r_out
+	) const;
+	// The falls swept along the inset outlines' FALL runs (mc_grid_water_sweep.cpp).
+	void _sweep_falls(
+			const std::vector<Color> &p_flow,
+			MCWaterArrays &r_out
+	) const;
+	void _draw_water_outlines(); // the "outline" water view (mc_grid_water_view.cpp)
 	// Particle emission points along a segment (mc_grid_water_tiles.cpp).
 	static void _sample_line(
 			const Vector3 &p_a,
@@ -641,7 +691,8 @@ public:
 		WATER_VIEW_WIREFRAME = 1, // the triangles over the water
 		WATER_VIEW_UV = 2, // a UV checker on the surface and the falls
 		WATER_VIEW_UV_WIREFRAME = 3,
-		WATER_VIEW_COUNT = 4,
+		WATER_VIEW_OUTLINE = 4, // the water's outlines: bank edges green, fall edges orange
+		WATER_VIEW_COUNT = 5,
 	};
 	void set_water_view(int p_view);
 	int get_water_view() const { return water_view; }

@@ -100,6 +100,10 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_water_spill_reach", "reach"), &MCGrid::set_water_spill_reach);
 	ClassDB::bind_method(D_METHOD("get_water_spill_reach"), &MCGrid::get_water_spill_reach);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "water_spill_reach", PROPERTY_HINT_RANGE, "0,8,1"), "set_water_spill_reach", "get_water_spill_reach");
+	ClassDB::bind_method(D_METHOD("get_water_outline_summary"), &MCGrid::get_water_outline_summary);
+	ClassDB::bind_method(D_METHOD("set_water_outline_fill", "on"), &MCGrid::set_water_outline_fill);
+	ClassDB::bind_method(D_METHOD("get_water_outline_fill"), &MCGrid::get_water_outline_fill);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "water_outline_fill"), "set_water_outline_fill", "get_water_outline_fill");
 	ClassDB::bind_method(D_METHOD("set_water_view", "view"), &MCGrid::set_water_view);
 	ClassDB::bind_method(D_METHOD("get_water_view"), &MCGrid::get_water_view);
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "water_view", PROPERTY_HINT_ENUM, "Normal,Wireframe,UV,UV + wireframe"), "set_water_view", "get_water_view");

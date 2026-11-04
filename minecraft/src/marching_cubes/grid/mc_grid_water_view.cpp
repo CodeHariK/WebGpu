@@ -13,6 +13,7 @@
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/shader.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
 #include <algorithm>
 
 namespace godot {
@@ -63,6 +64,8 @@ const char *MCGrid::water_view_name(int p_view) {
 			return "UV";
 		case WATER_VIEW_UV_WIREFRAME:
 			return "UV + wireframe";
+		case WATER_VIEW_OUTLINE:
+			return "outline";
 		default:
 			return "normal";
 	}
@@ -71,6 +74,7 @@ const char *MCGrid::water_view_name(int p_view) {
 // Put the view's materials on the water node: the UV checker on both surfaces (or the water /
 // waterfall materials back), the wireframe as an overlay (or none).
 void MCGrid::_apply_water_view() {
+	_draw_water_outlines();
 	if (!water_node) {
 		return;
 	}
@@ -89,6 +93,79 @@ void MCGrid::_apply_water_view() {
 		}
 	}
 	water_node->set_material_overlay(wire ? Ref<Material>(water_wireframe_material) : Ref<Material>());
+}
+
+// The "outline" view: each outline as lines a little above the water (bank edges green, fall
+// edges orange), a white tick where a run starts / ends or the edge kind changes.
+void MCGrid::_draw_water_outlines() {
+	if (water_view != WATER_VIEW_OUTLINE) {
+		if (water_outline_node) {
+			water_outline_node->hide();
+		}
+		return;
+	}
+	if (!water_outline_node) {
+		water_outline_node = memnew(MeshInstance3D);
+		water_outline_node->set_name("WaterOutlines");
+		water_outline_node->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
+		Ref<StandardMaterial3D> material;
+		material.instantiate();
+		material->set_shading_mode(BaseMaterial3D::SHADING_MODE_UNSHADED);
+		material->set_flag(BaseMaterial3D::FLAG_ALBEDO_FROM_VERTEX_COLOR, true);
+		water_outline_node->set_material_override(material);
+		add_child(water_outline_node);
+	}
+	PackedVector3Array lines;
+	PackedColorArray colors;
+	const Vector3 lift(0, 0.05f, 0);
+	const Color bank(0.2f, 1.0f, 0.3f);
+	const Color fall(1.0f, 0.55f, 0.1f);
+	const Color point(1.0f, 1.0f, 1.0f);
+	for (const WaterOutline &outline : water_outlines) {
+		int count = static_cast<int>(outline.points.size());
+		for (int i = 0; i < static_cast<int>(outline.kinds.size()); i++) {
+			Color c = outline.kinds[static_cast<size_t>(i)] == WaterEdge::FALL ? fall : bank;
+			lines.push_back(outline.points[static_cast<size_t>(i)] + lift);
+			lines.push_back(outline.points[static_cast<size_t>((i + 1) % count)] + lift);
+			colors.push_back(c);
+			colors.push_back(c);
+		}
+		// the inset outline (the flat water's edge in outline mode) in cyan
+		if (water_outline_fill && outline.closed) {
+			WaterOutline inset = _inset_outline(outline, water_fall_lip);
+			int n = static_cast<int>(inset.points.size());
+			for (int i = 0; i < n; i++) {
+				lines.push_back(inset.points[static_cast<size_t>(i)] + lift * 1.5f);
+				lines.push_back(inset.points[static_cast<size_t>((i + 1) % n)] + lift * 1.5f);
+				colors.push_back(Color(0.2f, 0.9f, 1.0f));
+				colors.push_back(Color(0.2f, 0.9f, 1.0f));
+			}
+		}
+		int edges = static_cast<int>(outline.kinds.size());
+		for (int i = 0; i < count; i++) {
+			bool end = !outline.closed && (i == 0 || i == count - 1);
+			bool change = edges > 0 && outline.kinds[static_cast<size_t>((i - 1 + edges) % edges)] != outline.kinds[static_cast<size_t>(i % edges)];
+			if (!end && !change) {
+				continue;
+			}
+			const Vector3 &p = outline.points[static_cast<size_t>(i)];
+			lines.push_back(p + lift);
+			lines.push_back(p + lift + Vector3(0, 0.25f, 0));
+			colors.push_back(point);
+			colors.push_back(point);
+		}
+	}
+	Ref<ArrayMesh> mesh;
+	mesh.instantiate();
+	if (!lines.is_empty()) {
+		Array arrays;
+		arrays.resize(Mesh::ARRAY_MAX);
+		arrays[Mesh::ARRAY_VERTEX] = lines;
+		arrays[Mesh::ARRAY_COLOR] = colors;
+		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINES, arrays);
+	}
+	water_outline_node->set_mesh(mesh);
+	water_outline_node->show();
 }
 
 } // namespace godot

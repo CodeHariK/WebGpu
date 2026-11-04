@@ -177,7 +177,8 @@ void MCGrid::_free_spawned_nodes() {
 		Node *child = Object::cast_to<Node>(children[i]);
 		if (child && child != debug_corners_container && child != hover_root && child != placed_objects_container &&
 				child != water_node && child != water_debug_node && child != inspect_root &&
-				child != edge_corners_root && child != water_shore_node && child != water_splash_node) {
+				child != edge_corners_root && child != water_shore_node && child != water_splash_node &&
+				child != water_outline_node) {
 			remove_child(child);
 			child->queue_free();
 		}

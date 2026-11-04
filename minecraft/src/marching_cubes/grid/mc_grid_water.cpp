@@ -550,6 +550,11 @@ void MCGrid::_rebuild_water() {
 			_merge_falls(arrays_out);
 		}
 		water_debug_samples = arrays_out.samples;
+		water_outlines = _water_outlines(arrays_out.edges);
+		if (water_sampled && water_outline_fill) {
+			_fill_water_surface(flow, arrays_out);
+			_sweep_falls(flow, arrays_out);
+		}
 		if (debug_water) {
 			_rebuild_water_debug(surface, held, flow);
 		}

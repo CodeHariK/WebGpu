@@ -303,6 +303,39 @@ everything built on top is an object. Terrain stays pure corners.
 - [ ] **Island generator**: coastline + beach, 2–3 cliff tiers, a river down to the sea, a pond; still
       editable one corner per click
 
+## Water (Nov 2026)
+
+State: water tiles builder (sample grid + marching squares, baked per corner class), bevelled L
+waterfall strips with their own UV, every triangle wound to its normals, depth baked per vertex,
+`water.gdshader` plain lit blue (full old look in 8bb3c71). Details in the heightmap water notes above.
+
+Mesh fixes
+- [ ] Fall / spill-water junctions: strips of falls at different heights leave flaps and messy joins
+- [ ] Square tiles: small uncovered triangle where a bevel meets a bank
+- [ ] Across UV restarts at 0 where one chain of falls meets another (keep counting across chains)
+- [ ] Softer / shorter foot flare (still boxy)
+
+Shader (rebuild one idea per step, checked against the inspect records)
+- [ ] Depth colour from the baked depth (CUSTOM0.x)
+- [ ] Flowing ripples (COLOR flow) on the flat water
+- [ ] Shore foam (shallow baked depth near banks)
+- [ ] Fall streaks on the strips' own UV, speeding up as they fall
+- [ ] Landing foam (COLOR.a)
+- [ ] Transparency last (mobile cost)
+
+Performance / structure
+- [ ] Per-chunk water rebuild (mesh, particle points, spill pass) instead of the whole map
+- [ ] Smoother outline: 2D surface nets + relaxation instead of marching squares (smooth fall edge)
+- [ ] Remove unused `water_surface.gdshader` / `waterfall.gdshader` and the per-cell builder's flat
+      fall sheets (the per-cell builder itself only if no longer wanted as a fallback)
+- [ ] Water tab tidy: settle defaults, move experimental sliders (drop, expand, spill reach, lip
+      radius, samples) under Debug
+
+Gameplay
+- [ ] Car / character entering water: splash particles, slowdown
+- [ ] Buoyancy for objects
+- [ ] Flow pushes things along (COLOR flow direction)
+
 ## Later
 
 - [ ] Prism kind in the add-on (read `src/terrain/marching_prism` for corner order + 120° turns)

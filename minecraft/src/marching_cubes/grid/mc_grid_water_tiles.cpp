@@ -471,7 +471,9 @@ void MCGrid::_emit_water_tiles(
 					surface_index.insert(weld, index);
 					r_out.indices.push_back(index);
 				};
-				if (tile.whole) {
+				if (water_outline_fill) {
+					// the flat water comes from the outlines instead (mc_grid_water_fill.cpp)
+				} else if (tile.whole) {
 					const Vector2 q[4] = { Vector2(-0.5f, -0.5f), Vector2(0.5f, -0.5f), Vector2(0.5f, 0.5f), Vector2(-0.5f, 0.5f) };
 					for (int m : { 0, 1, 2, 0, 2, 3 }) {
 						surface_vertex(q[m]);
@@ -517,6 +519,27 @@ void MCGrid::_emit_water_tiles(
 					placed.depth_b = start_depth(fall.b);
 					placed_falls.push_back(placed);
 				}
+				// the edges for the outlines, oriented with the water on the left seen from above
+				// (out points away from the water: a -> b turned left is the water side)
+				auto add_edge = [&](const Vector2 &p_a, const Vector2 &p_b, const Vector2 &p_out, WaterEdge::Kind p_kind) {
+					WaterEdge edge;
+					edge.a = world(p_a, body.top);
+					edge.b = world(p_b, body.top);
+					edge.kind = p_kind;
+					Vector3 along = edge.b - edge.a;
+					Vector3 out(p_out.x, 0, -p_out.y);
+					// right of a -> b seen from above (y up): (-along.z, 0, along.x) is left
+					if (Vector3(-along.z, 0, along.x).dot(out) > 0.0f) {
+						std::swap(edge.a, edge.b); // the water side must be the left
+					}
+					r_out.edges.push_back(edge);
+				};
+				for (const WaterTile::Shore &shore : tile.shores) {
+					add_edge(shore.a, shore.b, shore.out, WaterEdge::BANK);
+				}
+				for (const WaterTile::Fall &fall : tile.falls) {
+					add_edge(fall.a, fall.b, fall.out, WaterEdge::FALL);
+				}
 				// shore foam: points along where the surface meets a bank, drifting away from it
 				for (const WaterTile::Shore &shore : tile.shores) {
 					Vector3 away(-shore.out.x, 0, shore.out.y);
@@ -542,7 +565,10 @@ void MCGrid::_emit_water_tiles(
 				r_out.splash_points, r_out.splash_directions);
 	}
 	r_out.final_uv2 = true;
-	_emit_fall_strips(placed_falls, r_out); // bevelled L strips (mc_grid_water_falls.cpp)
+	r_out.placed_falls = placed_falls;
+	if (!water_outline_fill) { // (outline: swept along the outlines instead, mc_grid_water_sweep.cpp)
+		_emit_fall_strips(placed_falls, r_out); // bevelled L strips (mc_grid_water_falls.cpp)
+	}
 }
 
 } // namespace godot

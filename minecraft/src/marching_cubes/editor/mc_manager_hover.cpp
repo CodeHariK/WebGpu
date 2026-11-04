@@ -109,6 +109,14 @@ void MCManager::_on_water_fall_lip(double p_value) {
 	}
 }
 
+// Flat water from the tiles or from the outlines (mc_grid_water_fill.cpp).
+void MCManager::_on_toggle_water_outline_fill() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_water_outline_fill(!grid_node->get_water_outline_fill());
+	}
+}
+
 // Spill reach slider: columns a diagonal spill past a low corner wets (0: none).
 void MCManager::_on_water_spill(double p_value) {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));

@@ -141,7 +141,8 @@ void MCManager::setup_ui() {
 	water_view_button = ui.manager->add_button(water_tab, String("Water view: ") + MCGrid::water_view_name(view),
 			Callable(this, "_on_cycle_water_view"));
 	water_view_button->set_custom_minimum_size(Vector2(0, 30));
-	add_buttons(water_tab, { { "Water particles", "_on_toggle_water_particles" },
+	add_buttons(water_tab, { { "Surface: tiles / outline", "_on_toggle_water_outline_fill" },
+								   { "Water particles", "_on_toggle_water_particles" },
 								   { "Water: sampled / cells", "_on_toggle_water_sampled" } });
 	ui.manager->add_header(water_tab, "Shape");
 	// water surface height: metres below the bank one tier up
