@@ -16,7 +16,8 @@
 // Vertex data as the tile surface's: UV world x, z; COLOR the flow of the nearest column; depth
 // (CUSTOM0.x) the surface height above the nearest column's ground.
 #include "marching_cubes/grid/mc_grid.h"
-#include <godot_cpp/classes/geometry2d.hpp>
+#define CDT_DISABLE_EXCEPTIONS // godot-cpp builds without exceptions
+#include "utils/cdt/CDT.h"
 #include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
@@ -456,7 +457,29 @@ void MCGrid::_fill_water_surface(
 		}
 		uint64_t td = Time::get_singleton()->get_ticks_usec();
 		prof[1] += td - tp;
-		PackedInt32Array triangles = Geometry2D::get_singleton()->triangulate_delaunay(points);
+		// Delaunay with CDT (utils/cdt; Geometry2D's slows down with the square of the point count):
+		// duplicate points merged first (they would stop CDT), the triangulation's own points used below
+		std::vector<CDT::V2d<double>> cdt_points;
+		cdt_points.reserve(static_cast<size_t>(points.size()));
+		for (int i = 0; i < points.size(); i++) {
+			cdt_points.push_back(CDT::V2d<double>(points[i].x, points[i].y));
+		}
+		CDT::RemoveDuplicates(cdt_points);
+		CDT::Triangulation<double> cdt;
+		cdt.insertVertices(cdt_points);
+		cdt.eraseSuperTriangle();
+		points.clear();
+		for (const CDT::V2d<double> &v : cdt.vertices) {
+			points.push_back(Vector2(static_cast<float>(v.x), static_cast<float>(v.y)));
+		}
+		PackedInt32Array triangles;
+		triangles.resize(static_cast<int64_t>(cdt.triangles.size()) * 3);
+		int32_t *tw = triangles.ptrw();
+		for (size_t t = 0; t < cdt.triangles.size(); t++) {
+			for (int k = 0; k < 3; k++) {
+				tw[t * 3 + static_cast<size_t>(k)] = static_cast<int32_t>(cdt.triangles[t].vertices[static_cast<size_t>(k)]);
+			}
+		}
 		uint64_t tf = Time::get_singleton()->get_ticks_usec();
 		prof[2] += tf - td;
 		prof[4] += static_cast<uint64_t>(points.size());
