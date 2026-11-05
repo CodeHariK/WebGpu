@@ -54,6 +54,8 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_heightmap_mode"), &MCGrid::get_heightmap_mode);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "heightmap_mode"), "set_heightmap_mode", "get_heightmap_mode");
 	ClassDB::bind_method(D_METHOD("get_column_height", "column"), &MCGrid::get_column_height);
+	ClassDB::bind_method(D_METHOD("get_column_counts"), &MCGrid::get_column_counts);
+	ClassDB::bind_method(D_METHOD("get_max_column_height"), &MCGrid::get_max_column_height);
 	ClassDB::bind_method(D_METHOD("set_column_height", "column", "height"), &MCGrid::set_column_height);
 	ClassDB::bind_method(D_METHOD("randomize_heights", "seed"), &MCGrid::randomize_heights);
 	ClassDB::bind_method(D_METHOD("set_lock_rim", "lock"), &MCGrid::set_lock_rim);

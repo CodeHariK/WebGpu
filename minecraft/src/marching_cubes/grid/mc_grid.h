@@ -566,6 +566,9 @@ public:
 	bool get_heightmap_mode() const { return heightmap_mode; }
 	// Height of corner column (x, z) = its solid corners (y < height); -1 outside / not in the mode.
 	int get_column_height(const Vector2i &p_column) const;
+	// Corner columns along x and z, and the highest height a column can have (water from scratch).
+	Vector2i get_column_counts() const { return _column_counts(); }
+	int get_max_column_height() const { return _max_column_height(); }
 	// Set a column's height (clamped to floor .. top - 1; outer columns locked); queues a rebuild.
 	void set_column_height(
 			const Vector2i &p_column,
