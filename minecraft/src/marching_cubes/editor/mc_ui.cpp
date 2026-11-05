@@ -168,6 +168,15 @@ void MCManager::setup_ui() {
 			"WaterSamples");
 	ui.manager->add_header(water_tab, "Flood fill");
 	add_buttons(water_tab, { { "Water debug", "_on_toggle_water_debug" }, { "Replay pour", "_on_replay_pour" } });
+	// how the shape is built, one layer more per stage (mc_grid_debug_water_stages.cpp)
+	ui.manager->add_label(water_tab, "Debug stage (0 off .. 6)");
+	ui.manager->add_hslider(water_tab, 0.0f, 6.0f, 1.0f,
+			grid_node ? static_cast<float>(grid_node->get_water_debug_stage()) : 0.0f,
+			Callable(this, "_on_water_debug_stage"), "WaterDebugStage");
+	water_stage_label = ui.manager->add_label(water_tab,
+			MCGrid::water_debug_stage_text(grid_node ? grid_node->get_water_debug_stage() : 0));
+	water_stage_label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
+	water_stage_label->set_custom_minimum_size(Vector2(1, 0)); // wrap to the tab's width
 
 	// --- Debug
 	ui.manager->add_header(debug_tab, "Inspect");
@@ -181,7 +190,8 @@ void MCManager::setup_ui() {
 		label->set_custom_minimum_size(Vector2(1, 0)); // wrap to the tab's width, never widen it
 	}
 	ui.manager->add_header(debug_tab, "Terrain views");
-	add_buttons(debug_tab, { { "Wireframe", "_on_toggle_wireframe" }, { "Edge corners", "_on_toggle_edge_corners" } });
+	add_buttons(debug_tab, { { "Wireframe", "_on_toggle_wireframe" }, { "Edge corners", "_on_toggle_edge_corners" },
+								   { "Tile seams", "_on_toggle_tile_seams" } });
 
 	// --- Map
 	ui.manager->add_header(map_tab, "File");

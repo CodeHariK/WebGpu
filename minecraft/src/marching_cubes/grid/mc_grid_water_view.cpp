@@ -81,6 +81,10 @@ void MCGrid::_apply_water_view() {
 	Ref<ArrayMesh> mesh = water_node->get_mesh();
 	bool uv = water_view == WATER_VIEW_UV || water_view == WATER_VIEW_UV_WIREFRAME;
 	bool wire = water_view == WATER_VIEW_WIREFRAME || water_view == WATER_VIEW_UV_WIREFRAME;
+	// water debug stages: 1 .. 5 show how the shape is built without the mesh, 6 the mesh's triangles
+	bool staged = debug_water && water_debug_stage > 0;
+	water_node->set_visible(!staged || water_debug_stage >= 6);
+	wire = wire || (staged && water_debug_stage >= 6);
 	if (uv && water_uv_material.is_null()) {
 		water_uv_material = water_view_material(WATER_UV_SHADER);
 	}

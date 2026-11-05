@@ -133,6 +133,25 @@ void MCManager::_on_water_spill_radius(double p_value) {
 	}
 }
 
+// Water debug stage slider: how the water's shape is built, one layer more per stage (0: off).
+void MCManager::_on_water_debug_stage(double p_value) {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_water_debug_stage(static_cast<int>(p_value));
+	}
+	if (water_stage_label) {
+		water_stage_label->set_text(MCGrid::water_debug_stage_text(static_cast<int>(p_value)));
+	}
+}
+
+// Tile seams on / off: a line on the terrain wherever two tiles meet.
+void MCManager::_on_toggle_tile_seams() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_debug_seams(!grid_node->is_debug_seams());
+	}
+}
+
 // Water overlay on / off (held / stream / sea, flow arrows, framed / open falls, last pour).
 void MCManager::_on_toggle_water_debug() {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));

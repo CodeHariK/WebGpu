@@ -183,6 +183,15 @@ private:
 	bool water_sampled = true; // water mesh from baked water tiles (mc_grid_water_tiles.cpp; else per cell)
 	int water_sample_rate = 8; // samples per cell side (water_sampled)
 	std::vector<Vector3> water_debug_samples; // the last build's wet sample points (debug overlay)
+	// Water debug stages (mc_grid_debug_water_stages.cpp): 0 the normal overlay; 1 .. 6 show how the
+	// water's shape is built, one layer more each (see water_debug_stage_text).
+	int water_debug_stage = 0;
+	std::vector<uint8_t> water_spill_steps; // per column: the column spill's step (1: landing; 0: none)
+	std::vector<WaterEdge> water_debug_edges; // stage 3: every cell's edge pieces, as baked
+	std::vector<WaterOutline> water_debug_chained; // stage 4: the pieces chained, before relaxing
+	class Node3D *water_debug_labels = nullptr; // stage 1: the spill step numbers
+	bool debug_seams = false; // terrain: lines where the tiles meet (mc_grid_debug_seams.cpp)
+	Ref<class ShaderMaterial> seams_material;
 	float water_expand = 0.0f; // m the water's edge grows on (UI slider)
 	int water_spill_reach = 1; // columns a diagonal spill wets (mc_grid_water_spill.cpp; 0: none)
 	float water_spill_radius = 0.0f; // m the circle spill (mc_grid_water_spill.cpp; 0: off, else replaces the reach)
@@ -464,6 +473,14 @@ private:
 	int _rebuild_edge_corners();
 	// The wireframe overlay on a chunk mesh (on or off by debug_wireframe).
 	void _apply_wireframe(MeshInstance3D *p_node);
+	Ref<Material> _seams_overlay(); // the tile-seams overlay (its next pass: the wireframe when on)
+	// Water debug stages 1 .. 6 into the overlay (mc_grid_debug_water_stages.cpp).
+	void _add_water_stage_debug(
+			struct MCDebugMesh &r_debug,
+			const std::vector<float> &p_surface,
+			const std::vector<uint8_t> &p_held,
+			const std::vector<Color> &p_flow
+	);
 	// Shore foam + fall splash particles from the points the water build sampled.
 	void _rebuild_water_particles(const MCWaterArrays &p_arrays);
 	// Build the water overlay from the surfaces, held flags and flow _rebuild_water worked out.
@@ -628,6 +645,14 @@ public:
 	// falls, the last pour's order); replay the last pour.
 	void set_debug_wireframe(bool p_on);
 	bool is_debug_wireframe() const { return debug_wireframe; }
+	// Tile seams: a terrain overlay with a dark line wherever two tiles meet (the cell boundaries, every
+	// 1 m in x, y and z) and a faint tint per tile (mc_grid_debug_seams.cpp).
+	void set_debug_seams(bool p_on);
+	bool is_debug_seams() const { return debug_seams; }
+	// Water debug stage 0 .. 6 (turns the water debug overlay on when above 0).
+	void set_water_debug_stage(int p_stage);
+	int get_water_debug_stage() const { return water_debug_stage; }
+	static String water_debug_stage_text(int p_stage);
 	// Which water mesh builder: water tiles (sample grid + marching squares, baked per corner classes) or per cell.
 	void set_water_sampled(bool p_on);
 	bool get_water_sampled() const { return water_sampled; }
@@ -643,7 +668,9 @@ public:
 	int get_water_spill_reach() const { return water_spill_reach; }
 	void set_water_spill_radius(float p_radius);
 	float get_water_spill_radius() const { return water_spill_radius; }
-	std::vector<uint8_t> _spilled_levels() const;
+	// The water levels with the column spills added; r_steps (if given): per column the step it was
+	// spilled at (1: the landing past the low corner, 2, 3 ... as it spreads; 0: not spilled).
+	std::vector<uint8_t> _spilled_levels(std::vector<uint8_t> *r_steps = nullptr) const;
 	std::vector<SpillPoint> _spill_points() const; // the circle spill's points (stored water)
 	// The circle spill for this build: wet each spill point's dry column with its source's water
 	// (level, and the surface / held / flow already worked out), mark it, fill the per-cell levels.
@@ -670,7 +697,11 @@ public:
 	) const;
 	HashMap<Vector3i, float> _fall_chain(const std::vector<PlacedFall> &p_falls) const;
 	// The water's outlines (mc_grid_water_outline.cpp): edge segments chained into loops, smoothed.
-	std::vector<WaterOutline> _water_outlines(const std::vector<WaterEdge> &p_edges) const;
+	// r_chained (if given): the outlines chained and bridged, before relaxing (debug stage 4).
+	std::vector<WaterOutline> _water_outlines(
+			const std::vector<WaterEdge> &p_edges,
+			std::vector<WaterOutline> *r_chained = nullptr
+	) const;
 	static void _relax_outline(WaterOutline &r_outline);
 	static void _bridge_outlines(std::vector<WaterOutline> &r_outlines);
 	String get_water_outline_summary() const; // debug: one line per outline

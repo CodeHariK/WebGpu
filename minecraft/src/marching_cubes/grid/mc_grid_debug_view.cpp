@@ -20,6 +20,7 @@
 //                 (green queued, grey already queued, red + cross higher ground) and a label
 //                 explaining the step
 #include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/grid/mc_debug_mesh.h"
 #include "marching_cubes/util/mc_wire.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/geometry_instance3d.hpp>
@@ -92,52 +93,6 @@ Ref<ShaderMaterial> material_from_code(const char *p_code) {
 }
 
 } // namespace
-
-// The water overlay's geometry, built up piece by piece.
-struct MCDebugMesh {
-	PackedVector3Array tri_vertices, line_vertices;
-	PackedColorArray tri_colors, line_colors;
-	PackedVector2Array tri_uvs, line_uvs;
-
-	void square(const Vector3 &p_centre, float p_half, const Color &p_color, float p_order = -1.0f) {
-		const Vector3 c[4] = { p_centre + Vector3(-p_half, 0, -p_half), p_centre + Vector3(p_half, 0, -p_half),
-			p_centre + Vector3(p_half, 0, p_half), p_centre + Vector3(-p_half, 0, p_half) };
-		for (int i : { 0, 1, 2, 0, 2, 3 }) {
-			tri_vertices.push_back(c[i]);
-			tri_colors.push_back(p_color);
-			tri_uvs.push_back(Vector2(p_order, 0));
-		}
-	}
-
-	void line(const Vector3 &p_a, const Vector3 &p_b, const Color &p_color) {
-		line_vertices.push_back(p_a);
-		line_vertices.push_back(p_b);
-		line_colors.push_back(p_color);
-		line_colors.push_back(p_color);
-		line_uvs.push_back(Vector2(-1, 0));
-		line_uvs.push_back(Vector2(-1, 0));
-	}
-
-	Ref<ArrayMesh> commit() const {
-		Ref<ArrayMesh> mesh;
-		mesh.instantiate();
-		Array arrays;
-		arrays.resize(Mesh::ARRAY_MAX);
-		if (!tri_vertices.is_empty()) {
-			arrays[Mesh::ARRAY_VERTEX] = tri_vertices;
-			arrays[Mesh::ARRAY_COLOR] = tri_colors;
-			arrays[Mesh::ARRAY_TEX_UV] = tri_uvs;
-			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, arrays);
-		}
-		if (!line_vertices.is_empty()) {
-			arrays[Mesh::ARRAY_VERTEX] = line_vertices;
-			arrays[Mesh::ARRAY_COLOR] = line_colors;
-			arrays[Mesh::ARRAY_TEX_UV] = line_uvs;
-			mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINES, arrays);
-		}
-		return mesh;
-	}
-};
 
 // --- corners ---
 
@@ -262,10 +217,15 @@ void MCGrid::set_debug_wireframe(bool p_on) {
 	}
 }
 
-// Put the wireframe overlay on a chunk mesh, or take it off (debug_wireframe).
+// Put the wireframe overlay on a chunk mesh, or take it off (debug_wireframe); the tile seams
+// overlay instead while that is on.
 void MCGrid::_apply_wireframe(MeshInstance3D *p_node) {
 	if (_wireframe_material.is_null()) {
 		_wireframe_material = material_from_code(WIREFRAME_SHADER);
+	}
+	if (debug_seams) { // the tile seams (mc_grid_debug_seams.cpp), the wireframe as its next pass
+		p_node->set_material_overlay(_seams_overlay());
+		return;
 	}
 	p_node->set_material_overlay(debug_wireframe ? Ref<Material>(_wireframe_material) : Ref<Material>());
 }
@@ -362,8 +322,10 @@ void MCGrid::_rebuild_water_debug(
 					at + Vector3(std::cos(a1), 0, std::sin(a1)) * water_spill_radius, SPILL_POINT);
 		}
 	}
-	// the sample grid (water_sampled): a dot per wet sample, coloured by its height
-	if (!water_debug_samples.empty()) {
+	// the debug stages (how the shape is built; mc_grid_debug_water_stages.cpp)
+	_add_water_stage_debug(debug, p_surface, p_held, p_flow);
+	// the sample grid (water_sampled): a dot per wet sample, coloured by its height (stage 0 and 3)
+	if (!water_debug_samples.empty() && (water_debug_stage == 0 || water_debug_stage == 3)) {
 		float lo = 1e6f;
 		float hi = -1e6f;
 		for (const Vector3 &s : water_debug_samples) {

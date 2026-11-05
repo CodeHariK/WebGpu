@@ -237,6 +237,8 @@ public:
 	void _on_water_expand(double p_value); // the water expand slider
 	void _on_water_spill(double p_value); // the spill reach slider
 	void _on_water_spill_radius(double p_value); // the circle spill radius slider
+	void _on_water_debug_stage(double p_value); // the water debug stage slider
+	void _on_toggle_tile_seams(); // terrain: lines where the tiles meet
 	void _on_toggle_water_outline_fill(); // flat water from the tiles or from the outlines
 	void _on_water_fall_lip(double p_value); // the waterfall lip radius slider
 	void _on_water_samples(double p_value); // the water samples per cell slider
@@ -252,6 +254,7 @@ public:
 			const String &p_how
 	);
 	Label *record_label = nullptr; // Debug tab: what was recorded last
+	Label *water_stage_label = nullptr; // Water tab: what the debug stage shows
 	Button *water_view_button = nullptr; // "Water view: <view>"
 	void _on_replay_pour();
 	// --- mc_manager_inspect.cpp: inspect mode (a clicked cell shown in a side view) ---

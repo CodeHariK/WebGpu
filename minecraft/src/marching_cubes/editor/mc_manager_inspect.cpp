@@ -42,6 +42,7 @@ void MCManager::_on_toggle_inspect() {
 		return;
 	}
 	grid->set_inspect_mode(!grid->is_inspect_mode());
+	grid->set_debug_seams(grid->is_inspect_mode()); // the tile seams while inspecting
 	if (!grid->is_inspect_mode() && inspect.panel) {
 		inspect.panel->hide();
 	}

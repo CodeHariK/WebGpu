@@ -108,7 +108,7 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 	mi->set_mesh(merged);
 	mi->set_cast_shadows_setting(GeometryInstance3D::SHADOW_CASTING_SETTING_OFF);
 	add_child(mi);
-	if (debug_wireframe) {
+	if (debug_wireframe || debug_seams) {
 		_apply_wireframe(mi);
 	}
 

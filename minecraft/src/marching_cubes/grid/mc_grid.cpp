@@ -76,6 +76,10 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("settle_water"), &MCGrid::settle_water);
 	ClassDB::bind_method(D_METHOD("set_debug_wireframe", "on"), &MCGrid::set_debug_wireframe);
 	ClassDB::bind_method(D_METHOD("is_debug_wireframe"), &MCGrid::is_debug_wireframe);
+	ClassDB::bind_method(D_METHOD("set_debug_seams", "on"), &MCGrid::set_debug_seams);
+	ClassDB::bind_method(D_METHOD("is_debug_seams"), &MCGrid::is_debug_seams);
+	ClassDB::bind_method(D_METHOD("set_water_debug_stage", "stage"), &MCGrid::set_water_debug_stage);
+	ClassDB::bind_method(D_METHOD("get_water_debug_stage"), &MCGrid::get_water_debug_stage);
 	ClassDB::bind_method(D_METHOD("set_water_sampled", "on"), &MCGrid::set_water_sampled);
 	ClassDB::bind_method(D_METHOD("get_water_sampled"), &MCGrid::get_water_sampled);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "water_sampled"), "set_water_sampled", "get_water_sampled");

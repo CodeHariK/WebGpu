@@ -38,7 +38,10 @@ Vector3i weld(const Vector3 &p_v) {
 } // namespace
 
 // Chain p_edges into loops / runs (see the top of this file).
-std::vector<WaterOutline> MCGrid::_water_outlines(const std::vector<WaterEdge> &p_edges) const {
+std::vector<WaterOutline> MCGrid::_water_outlines(
+		const std::vector<WaterEdge> &p_edges,
+		std::vector<WaterOutline> *r_chained
+) const {
 	// every edge by its start point; edges are oriented with the water on the same side
 	HashMap<Vector3i, std::vector<int>> starts;
 	HashMap<Vector3i, int> ends; // how many edges end at a point (a run starts where none does)
@@ -98,6 +101,9 @@ std::vector<WaterOutline> MCGrid::_water_outlines(const std::vector<WaterEdge> &
 		}
 	}
 	_bridge_outlines(outlines);
+	if (r_chained) {
+		*r_chained = outlines; // debug stage 4: before relaxing
+	}
 	for (WaterOutline &outline : outlines) {
 		_relax_outline(outline);
 	}

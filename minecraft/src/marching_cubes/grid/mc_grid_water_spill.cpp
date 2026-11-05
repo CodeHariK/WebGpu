@@ -46,8 +46,11 @@ void MCGrid::set_water_spill_radius(float p_radius) {
 }
 
 // The water levels with the spills added (see the top of this file).
-std::vector<uint8_t> MCGrid::_spilled_levels() const {
+std::vector<uint8_t> MCGrid::_spilled_levels(std::vector<uint8_t> *r_steps) const {
 	std::vector<uint8_t> levels = water_levels;
+	if (r_steps) {
+		r_steps->assign(levels.size(), 0);
+	}
 	if (water_spill_reach <= 0 || water_spill_radius > 0.0f || levels.size() != column_heights.size()) {
 		return levels;
 	}
@@ -76,6 +79,9 @@ std::vector<uint8_t> MCGrid::_spilled_levels() const {
 				if (ground(Vector2i(x + d.x, z)) < g || ground(Vector2i(x, z + d.y)) < g) {
 					levels[static_cast<size_t>(_column_index(n.x, n.y))] = static_cast<uint8_t>(std::min(ground(n) + 1, top));
 					queue.push_back({ n, 1 });
+					if (r_steps) {
+						(*r_steps)[static_cast<size_t>(_column_index(n.x, n.y))] = 1;
+					}
 				}
 			}
 		}
@@ -93,6 +99,9 @@ std::vector<uint8_t> MCGrid::_spilled_levels() const {
 			}
 			levels[static_cast<size_t>(_column_index(n.x, n.y))] = static_cast<uint8_t>(std::min(ground(n) + 1, top));
 			queue.push_back({ n, steps + 1 });
+			if (r_steps) {
+				(*r_steps)[static_cast<size_t>(_column_index(n.x, n.y))] = static_cast<uint8_t>(std::min(steps + 1, 255));
+			}
 		}
 	}
 	return levels;

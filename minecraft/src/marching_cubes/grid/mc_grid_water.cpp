@@ -540,7 +540,7 @@ void MCGrid::_rebuild_water() {
 	if (heightmap_mode && water_levels.size() == column_heights.size()) {
 		// diagonal spills, for this build only (mc_grid_water_spill.cpp): swapped back below
 		water_spill_points = water_spill_radius > 0.0f ? _spill_points() : std::vector<SpillPoint>(); // on the stored water
-		std::vector<uint8_t> stored = _spilled_levels();
+		std::vector<uint8_t> stored = _spilled_levels(&water_spill_steps);
 		water_levels.swap(stored);
 		std::vector<float> surface;
 		std::vector<uint8_t> held;
@@ -555,7 +555,10 @@ void MCGrid::_rebuild_water() {
 		}
 		water_debug_samples = arrays_out.samples;
 		uint64_t t0 = Time::get_singleton()->get_ticks_usec();
-		water_outlines = _water_outlines(arrays_out.edges);
+		bool stages = debug_water && water_debug_stage > 0;
+		water_debug_edges = stages ? arrays_out.edges : std::vector<WaterEdge>();
+		water_debug_chained.clear();
+		water_outlines = _water_outlines(arrays_out.edges, stages ? &water_debug_chained : nullptr);
 		uint64_t t1 = Time::get_singleton()->get_ticks_usec();
 		uint64_t t2 = t1;
 		uint64_t t3 = t1;
