@@ -187,6 +187,10 @@ private:
 	int water_spill_reach = 1; // columns a diagonal spill wets (mc_grid_water_spill.cpp; 0: none)
 	float water_fall_lip = 0.2f; // m: radius of a fall's rounded lip (mc_grid_water_falls.cpp)
 	bool water_outline_fill = false; // flat water from the outlines (mc_grid_water_fill.cpp), else the tiles
+	bool water_sweep_debug = false; // debug: dump the swept runs' points (get_water_sweep_dump)
+	mutable String water_sweep_dump;
+	uint64_t water_rebuild_usec = 0; // debug: how long the last water rebuild took
+	uint64_t water_stage_usec[3] = { 0, 0, 0 }; // debug: outlines / fill / sweep
 	float water_drop = 0.15f; // m held water's surface sits below the bank one tier up (UI slider)
 	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
@@ -652,6 +656,16 @@ public:
 			const std::vector<Color> &p_flow,
 			MCWaterArrays &r_out
 	) const;
+	void set_water_sweep_debug(bool p_on) { water_sweep_debug = p_on; }
+	String get_water_sweep_dump() const;
+	int64_t get_water_rebuild_usec() const { return static_cast<int64_t>(water_rebuild_usec); }
+	PackedInt64Array get_water_stage_usec() const {
+		PackedInt64Array a;
+		for (uint64_t u : water_stage_usec) {
+			a.push_back(static_cast<int64_t>(u));
+		}
+		return a;
+	}
 	// The falls swept along the inset outlines' FALL runs (mc_grid_water_sweep.cpp).
 	void _sweep_falls(
 			const std::vector<Color> &p_flow,

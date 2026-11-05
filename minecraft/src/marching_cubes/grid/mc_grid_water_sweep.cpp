@@ -45,10 +45,14 @@ float segment_distance_squared(
 }
 } // namespace
 
+// Debug: the last build's runs (set_water_sweep_debug(true) first), one line per point.
+String MCGrid::get_water_sweep_dump() const { return water_sweep_dump; }
+
 void MCGrid::_sweep_falls(
 		const std::vector<Color> &p_flow,
 		MCWaterArrays &r_out
 ) const {
+	water_sweep_dump = String();
 	Vector2i columns = _column_counts();
 	auto column_at = [&](const Vector3 &p) {
 		int x = std::clamp(static_cast<int>(std::lround(p.x)), 0, columns.x - 1);
@@ -134,6 +138,15 @@ void MCGrid::_sweep_falls(
 				fall_line.push_back(inset.origins[static_cast<size_t>(k)]);
 			}
 			bool wraps = all_fall && inset.closed;
+			if (water_sweep_debug) { // debug dump: each point's inset (flat water edge) and fall line
+				String line = vformat("run top %.2f points %d\n", inset.top, static_cast<int>(points.size()));
+				for (size_t n = 0; n < points.size(); n++) {
+					float gap = Vector2(fall_line[n].x - inner[n].x, fall_line[n].z - inner[n].z).length();
+					line += vformat("  %d inset (%.3f, %.3f) fall (%.3f, %.3f) gap %.3f drop %.2f\n", points[n], inner[n].x,
+							inner[n].z, fall_line[n].x, fall_line[n].z, gap, drops[n]);
+				}
+				water_sweep_dump += line;
+			}
 			if (!wraps) {
 				auto push_end = [&](size_t p_end, size_t p_neighbour) {
 					Vector3 t = fall_line[p_end] - fall_line[p_neighbour];

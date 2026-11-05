@@ -17,6 +17,8 @@
 // (CUSTOM0.x) the surface height above the nearest column's ground.
 #include "marching_cubes/grid/mc_grid.h"
 #include <godot_cpp/classes/geometry2d.hpp>
+#include <godot_cpp/classes/time.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 #include <algorithm>
 #include <cmath>
@@ -47,24 +49,57 @@ Vector2 left_of(
 	return Vector2(-d.y, d.x);
 }
 
-// Even-odd: is p inside the loops?
-bool inside_loops(
-		const Vector2 &p,
-		const std::vector<std::vector<Vector2>> &p_loops
-) {
-	bool in = false;
-	for (const std::vector<Vector2> &loop : p_loops) {
-		size_t n = loop.size();
-		for (size_t i = 0, j = n - 1; i < n; j = i++) {
-			const Vector2 &a = loop[i];
-			const Vector2 &b = loop[j];
+// The loops' edges bucketed by rows of ROW metres in z, for a fast even-odd inside test: a ray
+// from p along +x only meets the edges spanning p's row.
+struct LoopRows {
+	static constexpr float ROW = 0.25f;
+	int first_row = 0;
+	std::vector<std::vector<std::pair<Vector2, Vector2>>> rows;
+
+	explicit LoopRows(const std::vector<std::vector<Vector2>> &p_loops) {
+		float lo = 1e30f;
+		float hi = -1e30f;
+		for (const std::vector<Vector2> &loop : p_loops) {
+			for (const Vector2 &p : loop) {
+				lo = std::min(lo, p.y);
+				hi = std::max(hi, p.y);
+			}
+		}
+		if (lo > hi) {
+			return;
+		}
+		first_row = static_cast<int>(std::floor(lo / ROW));
+		rows.resize(static_cast<size_t>(static_cast<int>(std::floor(hi / ROW)) - first_row + 1));
+		for (const std::vector<Vector2> &loop : p_loops) {
+			size_t n = loop.size();
+			for (size_t i = 0; i < n; i++) {
+				const Vector2 &a = loop[i];
+				const Vector2 &b = loop[(i + 1) % n];
+				int r0 = static_cast<int>(std::floor(std::min(a.y, b.y) / ROW)) - first_row;
+				int r1 = static_cast<int>(std::floor(std::max(a.y, b.y) / ROW)) - first_row;
+				for (int r = r0; r <= r1; r++) {
+					rows[static_cast<size_t>(r)].push_back({ a, b });
+				}
+			}
+		}
+	}
+
+	bool inside(const Vector2 &p) const {
+		int r = static_cast<int>(std::floor(p.y / ROW)) - first_row;
+		if (r < 0 || r >= static_cast<int>(rows.size())) {
+			return false;
+		}
+		bool in = false;
+		for (const std::pair<Vector2, Vector2> &e : rows[static_cast<size_t>(r)]) {
+			const Vector2 &a = e.first;
+			const Vector2 &b = e.second;
 			if ((a.y > p.y) != (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) {
 				in = !in;
 			}
 		}
+		return in;
 	}
-	return in;
-}
+};
 
 // Squared distance from p to segment a - b.
 float segment_distance_squared(
@@ -258,13 +293,16 @@ void MCGrid::_fill_water_surface(
 		const std::vector<Color> &p_flow,
 		MCWaterArrays &r_out
 ) const {
+	uint64_t prof[5] = { 0, 0, 0, 0, 0 }; // debug: inset, points, delaunay, triangles, point count
 	// the closed outlines, inset, grouped by height
 	std::vector<std::pair<float, std::vector<std::vector<Vector2>>>> groups;
 	for (const WaterOutline &outline : water_outlines) {
 		if (!outline.closed || outline.points.size() < 3) {
 			continue;
 		}
+		uint64_t ti = Time::get_singleton()->get_ticks_usec();
 		WaterOutline inset = _inset_outline(outline, water_fall_lip);
+		prof[0] += Time::get_singleton()->get_ticks_usec() - ti;
 		std::vector<Vector2> loop;
 		for (const Vector3 &p : inset.points) {
 			Vector2 q = xz(p);
@@ -344,6 +382,8 @@ void MCGrid::_fill_water_surface(
 		if (points.size() < 3) {
 			continue;
 		}
+		uint64_t tp = Time::get_singleton()->get_ticks_usec();
+		LoopRows rows(loops); // the inside test, bucketed
 		// the outline's segments by grid cell, for the inner points' clearance test
 		HashMap<Vector2i, std::vector<std::pair<Vector2, Vector2>>> segments;
 		for (const std::vector<Vector2> &loop : loops) {
@@ -401,7 +441,7 @@ void MCGrid::_fill_water_surface(
 						}
 					}
 				}
-				if (clear && inside_loops(q, loops)) {
+				if (clear && rows.inside(q)) {
 					points.push_back(q);
 				}
 			}
@@ -409,12 +449,17 @@ void MCGrid::_fill_water_surface(
 		for (float z = std::ceil(bounds.position.y / GRID) * GRID; z < bounds.get_end().y; z += GRID) {
 			for (float x = std::ceil(bounds.position.x / GRID) * GRID; x < bounds.get_end().x; x += GRID) {
 				Vector2 p(x, z);
-				if (inside_loops(p, loops) && clear_of_outline(p)) {
+				if (rows.inside(p) && clear_of_outline(p)) {
 					points.push_back(p);
 				}
 			}
 		}
+		uint64_t td = Time::get_singleton()->get_ticks_usec();
+		prof[1] += td - tp;
 		PackedInt32Array triangles = Geometry2D::get_singleton()->triangulate_delaunay(points);
+		uint64_t tf = Time::get_singleton()->get_ticks_usec();
+		prof[2] += tf - td;
+		prof[4] += static_cast<uint64_t>(points.size());
 		int base = static_cast<int>(r_out.vertices.size());
 		for (int i = 0; i < points.size(); i++) {
 			const Vector2 &p = points[i];
@@ -436,8 +481,7 @@ void MCGrid::_fill_water_surface(
 			// on the outline, where inside / outside is a coin toss)
 			Vector2 middle = (a + b + c) / 3.0f;
 			auto nudged = [&](const Vector2 &p_u, const Vector2 &p_v) { return ((p_u + p_v) * 0.5f).lerp(middle, 0.1f); };
-			bool in = inside_loops(middle, loops) && inside_loops(nudged(a, b), loops) && inside_loops(nudged(b, c), loops) &&
-					inside_loops(nudged(c, a), loops);
+			bool in = rows.inside(middle) && rows.inside(nudged(a, b)) && rows.inside(nudged(b, c)) && rows.inside(nudged(c, a));
 			if (!in) {
 				continue;
 			}
@@ -445,6 +489,9 @@ void MCGrid::_fill_water_surface(
 				r_out.indices.push_back(base + triangles[t + k]); // winding fixed in _water_mesh
 			}
 		}
+	}
+	if (water_sweep_debug) {
+		UtilityFunctions::print("fill: inset ", prof[0], " us, points ", prof[1], " us, delaunay ", prof[2], " us, ", prof[4], " points");
 	}
 }
 

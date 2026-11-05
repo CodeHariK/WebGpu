@@ -43,6 +43,7 @@
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/shader.hpp>
 #include <godot_cpp/classes/shader_material.hpp>
+#include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
 #include <godot_cpp/variant/packed_color_array.hpp>
@@ -533,6 +534,7 @@ std::vector<Color> MCGrid::_water_flow(const std::vector<float> &p_surface) cons
 // Rebuild the water mesh: surfaces and falls cell by cell with the cliff tiles' shape
 // (mc_grid_water_mesh.cpp), the flow in the vertex colour.
 void MCGrid::_rebuild_water() {
+	uint64_t started = Time::get_singleton()->get_ticks_usec();
 	water_dirty = false;
 	MCWaterArrays arrays_out;
 	if (heightmap_mode && water_levels.size() == column_heights.size()) {
@@ -550,17 +552,27 @@ void MCGrid::_rebuild_water() {
 			_merge_falls(arrays_out);
 		}
 		water_debug_samples = arrays_out.samples;
+		uint64_t t0 = Time::get_singleton()->get_ticks_usec();
 		water_outlines = _water_outlines(arrays_out.edges);
+		uint64_t t1 = Time::get_singleton()->get_ticks_usec();
+		uint64_t t2 = t1;
+		uint64_t t3 = t1;
 		if (water_sampled && water_outline_fill) {
 			_fill_water_surface(flow, arrays_out);
+			t2 = Time::get_singleton()->get_ticks_usec();
 			_sweep_falls(flow, arrays_out);
+			t3 = Time::get_singleton()->get_ticks_usec();
 		}
+		water_stage_usec[0] = t1 - t0; // outlines
+		water_stage_usec[1] = t2 - t1; // fill
+		water_stage_usec[2] = t3 - t2; // sweep
 		if (debug_water) {
 			_rebuild_water_debug(surface, held, flow);
 		}
 		water_levels.swap(stored); // the stored levels back
 	}
 	_rebuild_water_particles(arrays_out);
+	water_rebuild_usec = Time::get_singleton()->get_ticks_usec() - started; // (mesh upload below not included)
 	if (arrays_out.vertices.is_empty()) {
 		if (water_node) {
 			water_node->set_mesh(Ref<Mesh>());
