@@ -125,6 +125,14 @@ void MCManager::_on_water_spill(double p_value) {
 	}
 }
 
+// Spill radius slider: the circle spill's radius in metres (0: off, the column reach is used).
+void MCManager::_on_water_spill_radius(double p_value) {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (grid_node) {
+		grid_node->set_water_spill_radius(static_cast<float>(p_value));
+	}
+}
+
 // Water overlay on / off (held / stream / sea, flow arrows, framed / open falls, last pour).
 void MCManager::_on_toggle_water_debug() {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));

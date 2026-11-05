@@ -90,6 +90,8 @@ void MCManager::_record_inspect(
 	water["sample_rate"] = p_grid->get_water_sample_rate();
 	water["sampled"] = p_grid->get_water_sampled();
 	water["square"] = p_grid->get_water_square();
+	water["spill_reach"] = p_grid->get_water_spill_reach();
+	water["spill_radius"] = p_grid->get_water_spill_radius();
 	record["water"] = water;
 
 	// the columns around the cell: rows of "ground~level" (level only when wet)

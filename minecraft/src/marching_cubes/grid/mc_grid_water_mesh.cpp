@@ -337,12 +337,15 @@ void MCGrid::_water_bodies(
 		for (int k = 0; k < 4; k++) {
 			body.above.solid[k] = ground[k] >= body_level;
 			body.bed.solid[k] = ground[k] >= bed;
-			body.wet.solid[k] = body.above.solid[k] || (wet[k] && level[k] == body_level) || ground[k] < bed;
+			bool spilled = !water_spill_wetted.empty() && water_spill_wetted[index[k]]; // circle spill only
+			body.wet.solid[k] = body.above.solid[k] || (wet[k] && level[k] == body_level && !spilled) || ground[k] < bed;
 			body.flow[k] = wet[k] && level[k] == body_level ? p_flow[index[k]] : body_flow;
 			body.ground[k] = ground[k];
 		}
 		body.top = top;
 		body.grow = water_expand;
+		body.spill = water_spill_radius;
+		body.spill_mask = _spill_mask(p_cx, p_cz, body_level);
 		body.fall_lip = water_sampled ? water_fall_lip : 0.0f; // the strips are the water tiles builder's
 		body.square = water_square;
 		body.stream = stream;

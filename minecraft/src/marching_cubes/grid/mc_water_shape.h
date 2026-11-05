@@ -185,6 +185,11 @@ struct Body {
 	// the falls' bevel radius (MCGrid::water_fall_lip): the surface stops this far short of the fall
 	// line, and the fall strip's flat part and bevel cover from there (mc_grid_water_falls.cpp)
 	float fall_lip = 0.0f;
+	// the circle spill (MCGrid::water_spill_radius, 0: off): its radius, and which spill points can
+	// reach this cell: bit (dz + 1) * 3 + (dx + 1) for the spill point at the centre of the cell
+	// (dx, dz) cells away in the grid (each within one cell). See spill_circle.
+	float spill = 0.0f;
+	uint16_t spill_mask = 0;
 
 	float height(const Vector2 &) const { return top; }
 	Vector3 normal(const Vector2 &) const { return Vector3(0, 1, 0); }
@@ -207,6 +212,22 @@ struct Body {
 			empty.solid[k] = !bed.solid[k];
 		}
 		return empty.none() ? 1.0f : -blend(empty, p.x, p.y);
+	}
+
+	// The circle spill: >= 0 inside the circle of radius spill round any spill point that can reach
+	// this cell. A spill point is the centre of a cell where the water runs past a low corner onto
+	// dry ground (MCGrid::_spill_points); the dry column there is wet for the mesh but not one of the
+	// water's own corners, so its ground is wet only inside the circle. Every cell within one cell
+	// of the point cuts the same circle, so neighbouring cells meet on their shared sides.
+	float spill_circle(const Vector2 &p) const {
+		float best = -1e6f;
+		for (int bit = 0; bit < 9 && spill > 0.0f; bit++) {
+			if (spill_mask & (1u << bit)) {
+				Vector2 centre(static_cast<float>(bit % 3 - 1), -static_cast<float>(bit / 3 - 1)); // grid z is -y here
+				best = std::max(best, spill - p.distance_to(centre));
+			}
+		}
+		return best;
 	}
 
 	// Is corner k one of the body's own wet corners (not a bank, on the bed, wet)?
@@ -252,7 +273,12 @@ struct Body {
 		// over dry ground grow fades out with the distance in from the bed's edge: it fills the gap
 		// beside the falls, but doesn't spread over the dry ground's top
 		float dry_grow = std::max(grow - std::max(blend(bed, p.x, p.y), 0.0f), 0.0f);
-		return std::min(f, blend(wet, p.x, p.y) + dry_grow);
+		// a cell the circle spill alone brings water to (no own corner: only the spilled column) has
+		// nothing to tuck under its banks: only the circle is water there, not a sliver along them
+		bool any_own = own(0) || own(1) || own(2) || own(3);
+		float dry = any_own ? blend(wet, p.x, p.y) + dry_grow : -1e6f;
+		dry = std::max(dry, spill_circle(p)); // the circle spill
+		return std::min(f, dry);
 	}
 
 	// The sub-grid: the tiles' one, finer (odd) wherever the body is not a plain quad, the same in

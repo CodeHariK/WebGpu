@@ -58,7 +58,7 @@ struct WaterTile {
 	std::vector<Vector2> wet_samples; // the debug overlay's dots
 };
 
-std::unordered_map<uint32_t, WaterTile> tile_cache; // shared by every grid: tiles depend on the key only
+std::unordered_map<uint64_t, WaterTile> tile_cache; // shared by every grid: tiles depend on the key only
 
 CornerClass corner_class(
 		const Body &p_body,
@@ -73,17 +73,18 @@ CornerClass corner_class(
 	return p_body.wet.solid[p_corner] ? WET : DRY;
 }
 
-// style (rounded / blocky / square), sample rate, grow, fall lip and the 4 corner classes
-uint32_t tile_key(
+// style (rounded / blocky / square), sample rate, grow, fall lip, spill radius and the 4 corner classes
+uint64_t tile_key(
 		const Body &p_body,
 		int p_rate
 ) {
 	uint32_t style = !p_body.above.blocky ? 0 : (p_body.above.rounding > 0.0f ? 1 : 2);
 	uint32_t grow = static_cast<uint32_t>(std::lround(p_body.grow * 200.0f)); // 0 .. 60
 	uint32_t lip = static_cast<uint32_t>(std::lround(p_body.fall_lip * 100.0f)); // 0 .. 40
-	uint32_t key = (lip << 24) | (grow << 18) | (style << 16) | (static_cast<uint32_t>(p_rate) << 8);
+	uint64_t spill = p_body.spill_mask ? static_cast<uint64_t>(std::lround(p_body.spill * 100.0f)) : 0; // 0 .. 100
+	uint64_t key = (static_cast<uint64_t>(p_body.spill_mask) << 40) | (spill << 32) | (lip << 24) | (grow << 18) | (style << 16) | (static_cast<uint32_t>(p_rate) << 8);
 	for (int k = 0; k < 4; k++) {
-		key |= static_cast<uint32_t>(corner_class(p_body, k)) << (2 * k);
+		key |= static_cast<uint64_t>(corner_class(p_body, k)) << (2 * k);
 	}
 	return key;
 }
@@ -447,7 +448,7 @@ void MCGrid::_emit_water_tiles(
 			auto world = [&](const Vector2 &p, float y) { return Vector3(centre.x + p.x, y, centre.y - p.y); }; // z = -y
 			for (size_t k = 0; k < bodies.size(); k++) {
 				const Body &body = bodies[k];
-				uint32_t key = tile_key(body, water_sample_rate);
+				uint64_t key = tile_key(body, water_sample_rate);
 				auto found = tile_cache.find(key);
 				if (found == tile_cache.end()) {
 					found = tile_cache.emplace(key, bake_tile(body, water_sample_rate)).first;

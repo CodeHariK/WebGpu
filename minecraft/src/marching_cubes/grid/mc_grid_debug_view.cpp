@@ -53,6 +53,8 @@ const Color FRAMED(0.3f, 1.0f, 0.4f, 1.0f);
 const Color OPEN_EDGE(1.0f, 0.3f, 0.25f, 1.0f);
 const Color FIRST(1.0f, 0.9f, 0.2f, 1.0f);
 const Color LAST(1.0f, 0.2f, 0.85f, 1.0f);
+const Color SPILL_POINT(1.0f, 0.2f, 0.9f, 1.0f); // the circle spill: its point and circle
+const float TURN = 6.2831853f; // a full turn in radians
 const float LIFT = 0.04f; // m the water overlay floats above the surface
 const float REPLAY_SECONDS = 2.0f;
 
@@ -345,6 +347,19 @@ void MCGrid::_rebuild_water_debug(
 				bool framed = water_levels[j] < level && _fall_framed(Vector2i(x, z), step, level);
 				debug.line(mid - across * 0.45f, mid + across * 0.45f, framed ? FRAMED : OPEN_EDGE);
 			}
+		}
+	}
+	// the circle spill: a dot at each spill point and its circle, at the water's surface
+	for (const SpillPoint &spill : water_spill_points) {
+		float y = p_surface[static_cast<size_t>(spill.from)] + LIFT * 3.0f;
+		Vector3 at(spill.at.x, y, spill.at.y);
+		debug.square(at, 0.06f, SPILL_POINT);
+		const int SEGMENTS = 32;
+		for (int k = 0; k < SEGMENTS; k++) {
+			float a0 = TURN * static_cast<float>(k) / SEGMENTS;
+			float a1 = TURN * static_cast<float>(k + 1) / SEGMENTS;
+			debug.line(at + Vector3(std::cos(a0), 0, std::sin(a0)) * water_spill_radius,
+					at + Vector3(std::cos(a1), 0, std::sin(a1)) * water_spill_radius, SPILL_POINT);
 		}
 	}
 	// the sample grid (water_sampled): a dot per wet sample, coloured by its height

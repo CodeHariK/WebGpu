@@ -185,6 +185,17 @@ private:
 	std::vector<Vector3> water_debug_samples; // the last build's wet sample points (debug overlay)
 	float water_expand = 0.0f; // m the water's edge grows on (UI slider)
 	int water_spill_reach = 1; // columns a diagonal spill wets (mc_grid_water_spill.cpp; 0: none)
+	float water_spill_radius = 0.0f; // m the circle spill (mc_grid_water_spill.cpp; 0: off, else replaces the reach)
+	// The circle spill (mc_grid_water_spill.cpp), found each rebuild on the stored water.
+	struct SpillPoint {
+		Vector2 at; // grid xz: the spill cell's centre
+		int cell = 0; // that cell: cz * (columns.x - 1) + cx
+		int from = 0; // the wet column it spills from (level, surface, flow come from it)
+		int onto = 0; // the dry column diagonally across, wet for the mesh only
+	};
+	std::vector<SpillPoint> water_spill_points;
+	std::vector<uint8_t> water_spill_cell_level; // per cell: the level of the water spilling there (0: none)
+	std::vector<uint8_t> water_spill_wetted; // per column: 1 if wet only by the circle spill (this build)
 	float water_fall_lip = 0.2f; // m: radius of a fall's rounded lip (mc_grid_water_falls.cpp)
 	bool water_outline_fill = false; // flat water from the outlines (mc_grid_water_fill.cpp), else the tiles
 	bool water_sweep_debug = false; // debug: dump the swept runs' points (get_water_sweep_dump)
@@ -630,7 +641,23 @@ public:
 	// (0 .. 8; 0: none), and the water levels with them added (mesh build only, never stored).
 	void set_water_spill_reach(int p_reach);
 	int get_water_spill_reach() const { return water_spill_reach; }
+	void set_water_spill_radius(float p_radius);
+	float get_water_spill_radius() const { return water_spill_radius; }
 	std::vector<uint8_t> _spilled_levels() const;
+	std::vector<SpillPoint> _spill_points() const; // the circle spill's points (stored water)
+	// The circle spill for this build: wet each spill point's dry column with its source's water
+	// (level, and the surface / held / flow already worked out), mark it, fill the per-cell levels.
+	void _apply_circle_spill(
+			std::vector<float> &r_surface,
+			std::vector<uint8_t> &r_held,
+			std::vector<Color> &r_flow
+	);
+	// The spill points that can reach cell (p_cx, p_cz) for water at p_level (Body::spill_mask).
+	uint16_t _spill_mask(
+			int p_cx,
+			int p_cz,
+			int p_level
+	) const;
 	// The water mesh: one surface, one material, falls first (mc_grid_water.cpp).
 	Ref<ArrayMesh> _water_mesh(const MCWaterArrays &p_arrays) const;
 	// Falls as strips with a rounded lip and a flared foot (mc_grid_water_falls.cpp): the lip radius
