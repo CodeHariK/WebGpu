@@ -136,6 +136,34 @@ struct MCPourStep {
 	int column = -1; // corner column index
 	Result result[4] = { OUTSIDE, OUTSIDE, OUTSIDE, OUTSIDE };
 	int queue_size = 0; // queue length after this step (the queue holds every column found so far)
+	int head = 0; // this step's place in its pour's queue (0: the pour's first column)
+	int pour = 0; // which pour it belongs to (trace_settle: one pour per source; fill_water: 0)
+};
+
+// One step of a water debug trace (step 2: the spills, held / stream, the flow), recorded as the
+// builder's own functions run when asked (MCGrid::trace_water_step), shown with the same Back / Next
+// buttons as the pour (mc_grid_water_trace.cpp draws it).
+struct MCTraceStep {
+	enum Result : uint8_t {
+		NONE,
+		HELD, // the column's water is held (a full layer)
+		STREAM, // the column's water is a stream (a thin sheet)
+		SPILLED, // a column spill wets the column
+		SPILL_POINT, // a circle spill starts at the column's cell
+		FLOWS, // the column's water flows (dir)
+		STILL, // the column's water does not flow (not an outlet, not reached yet)
+	};
+	enum Mark : uint8_t {
+		YES, // green: this neighbour lets it (holds it in, takes the spill, is an outlet ...)
+		NO, // red: this neighbour stops it / makes it run out
+		SAME, // grey: looked at, no effect
+		LOOK, // cyan: the column this step comes from
+	};
+	int column = -1; // the column this step decides
+	Result result = NONE;
+	Vector2 dir; // FLOWS: the direction (x, z)
+	std::vector<std::pair<int, uint8_t>> marks; // neighbour column, Mark
+	String text; // the explanation (the Debug tab shows it)
 };
 
 // One undoable edit: the old values it changed (index, value), and the decor seed and M roofs as
@@ -256,6 +284,10 @@ private:
 	Ref<ShaderMaterial> water_debug_material;
 	std::vector<int> last_pour; // the columns the last fill_water reached, in the order it reached them
 	std::vector<MCPourStep> last_pour_trace; // the last fill_water, step by step
+	// The water debug trace the step buttons go through: 0 the pour (last_pour_trace: the last
+	// fill_water, or trace_settle), 2 the spills, 3 held / stream, 4 the flow (water_trace).
+	int water_trace_kind = 0;
+	std::vector<MCTraceStep> water_trace;
 	bool inspect_mode = false; // inspect mode: a clicked cell is shown in the editor's side view
 	Vector3i inspect_cell_pos; // the inspected cell
 	bool inspect_has_cell = false;
@@ -419,9 +451,11 @@ private:
 			int p_level
 	) const;
 	// Each column's water surface (dry: -1e6) and whether it is held one layer deep (else a stream).
+	// r_trace (if given): every decision, with its reason (the step 2b debug trace).
 	void _water_surfaces(
 			std::vector<float> &r_surface,
-			std::vector<uint8_t> &r_held
+			std::vector<uint8_t> &r_held,
+			std::vector<MCTraceStep> *r_trace = nullptr
 	) const;
 	// Join the fall pieces into whole falls (one quad per straight run, UV along the whole fall).
 	void _merge_falls(MCWaterArrays &r_out) const;
@@ -450,7 +484,17 @@ private:
 			MCWaterArrays &r_out
 	) const;
 	// Which way each wet column flows: Color(dir x, dir z, 1 = flows, 1 = a fall lands here).
-	std::vector<Color> _water_flow(const std::vector<float> &p_surface) const;
+	// r_trace (if given): every decision, with its reason (the step 2c debug trace).
+	std::vector<Color> _water_flow(
+			const std::vector<float> &p_surface,
+			std::vector<MCTraceStep> *r_trace = nullptr
+	) const;
+	String _column_name(int p_index) const; // "(x, z)" for debug text
+	// The active water trace's step (step 2) in the overlay (mc_grid_water_trace.cpp).
+	void _add_water_trace_debug(
+			struct MCDebugMesh &r_debug,
+			const std::vector<float> &p_surface
+	);
 	// Where water poured at p_column flows (ground not higher, 4 neighbours), skipping r_seen.
 	std::vector<int> _flow_region(
 			const Vector2i &p_column,
@@ -670,8 +714,12 @@ public:
 	float get_water_spill_radius() const { return water_spill_radius; }
 	// The water levels with the column spills added; r_steps (if given): per column the step it was
 	// spilled at (1: the landing past the low corner, 2, 3 ... as it spreads; 0: not spilled).
-	std::vector<uint8_t> _spilled_levels(std::vector<uint8_t> *r_steps = nullptr) const;
-	std::vector<SpillPoint> _spill_points() const; // the circle spill's points (stored water)
+	std::vector<uint8_t> _spilled_levels(
+			std::vector<uint8_t> *r_steps = nullptr,
+			std::vector<MCTraceStep> *r_trace = nullptr
+	) const;
+	// The circle spill's points (stored water); r_trace (if given) records each one found.
+	std::vector<SpillPoint> _spill_points(std::vector<MCTraceStep> *r_trace = nullptr) const;
 	// The circle spill for this build: wet each spill point's dry column with its source's water
 	// (level, and the surface / held / flow already worked out), mark it, fill the per-cell levels.
 	void _apply_circle_spill(
@@ -783,7 +831,13 @@ public:
 	// 0 .. count-1 one step. Keys in the editor: . next, , back (Shift: 10 at a time), / whole pour.
 	void set_pour_step(int p_step);
 	int get_pour_step() const { return pour_step; }
-	int get_pour_step_count() const { return static_cast<int>(last_pour_trace.size()); }
+	int get_pour_step_count() const {
+		return static_cast<int>(water_trace_kind == 0 ? last_pour_trace.size() : water_trace.size());
+	}
+	// Debug: record step 2 (2: the spills, 3: held / stream, 4: the flow) as the trace the step
+	// buttons go through, without changing anything. Returns the number of steps.
+	int trace_water_step(int p_kind);
+	int get_water_trace_kind() const { return water_trace_kind; }
 	// What the shown step did, in words ("" when showing the whole pour).
 	String get_pour_step_text() const;
 	// Inspect mode (mc_grid_inspect.cpp): mark a cell (orange wire cube) for the editor's side view;
@@ -799,6 +853,10 @@ public:
 	String get_cell_info(const Vector3i &p_cell) const;
 	// Let all standing water flow again (after a load or a terrain edit). Returns columns changed.
 	int settle_water();
+	// Debug: record step 1 for the whole map as the pour trace (the step-by-step buttons), without
+	// changing any water: every wet column is a source, highest ground first, and each pours into
+	// what no earlier pour reached (settle_water's order). Returns the number of steps.
+	int trace_settle();
 	// Dry the connected water (any level), leaving the sea. Returns how many columns.
 	int clear_water(const Vector2i &p_column);
 	// randomize_heights fills the sea from the grid's corner at this level (0: no sea).

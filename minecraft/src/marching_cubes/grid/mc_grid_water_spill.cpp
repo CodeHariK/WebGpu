@@ -46,7 +46,10 @@ void MCGrid::set_water_spill_radius(float p_radius) {
 }
 
 // The water levels with the spills added (see the top of this file).
-std::vector<uint8_t> MCGrid::_spilled_levels(std::vector<uint8_t> *r_steps) const {
+std::vector<uint8_t> MCGrid::_spilled_levels(
+		std::vector<uint8_t> *r_steps,
+		std::vector<MCTraceStep> *r_trace
+) const {
 	std::vector<uint8_t> levels = water_levels;
 	if (r_steps) {
 		r_steps->assign(levels.size(), 0);
@@ -61,6 +64,7 @@ std::vector<uint8_t> MCGrid::_spilled_levels(std::vector<uint8_t> *r_steps) cons
 		size_t i = static_cast<size_t>(_column_index(c.x, c.y));
 		return levels[i] > column_heights[i];
 	};
+	auto name = [&](const Vector2i &c) { return _column_name(_column_index(c.x, c.y)); };
 	int top = _max_column_height();
 	// the spill landings: dry diagonal neighbours of stored water, past a low corner
 	std::vector<std::pair<Vector2i, int>> queue; // column, steps taken (1 = the landing)
@@ -76,11 +80,24 @@ std::vector<uint8_t> MCGrid::_spilled_levels(std::vector<uint8_t> *r_steps) cons
 				if (!inside(n) || wet(n) || ground(n) > g) {
 					continue;
 				}
-				if (ground(Vector2i(x + d.x, z)) < g || ground(Vector2i(x, z + d.y)) < g) {
+				Vector2i side_x(x + d.x, z);
+				Vector2i side_z(x, z + d.y);
+				if (ground(side_x) < g || ground(side_z) < g) {
 					levels[static_cast<size_t>(_column_index(n.x, n.y))] = static_cast<uint8_t>(std::min(ground(n) + 1, top));
 					queue.push_back({ n, 1 });
 					if (r_steps) {
 						(*r_steps)[static_cast<size_t>(_column_index(n.x, n.y))] = 1;
+					}
+					if (r_trace) {
+						Vector2i low = ground(side_x) < g ? side_x : side_z;
+						MCTraceStep &step = r_trace->emplace_back();
+						step.column = _column_index(n.x, n.y);
+						step.result = MCTraceStep::SPILLED;
+						step.marks = { { _column_index(c.x, c.y), MCTraceStep::LOOK }, { _column_index(low.x, low.y), MCTraceStep::YES } };
+						step.text = vformat("Landing: %s (ground %d) is dry and diagonal to the water at %s (ground %d).\n"
+											"%s between them is lower (ground %d): the water runs past that low corner.\n"
+											"-> %s is spilled onto (step 1, level %d).",
+								name(n), ground(n), name(c), g, name(low), ground(low), name(n), ground(n) + 1);
 					}
 				}
 			}
@@ -89,18 +106,51 @@ std::vector<uint8_t> MCGrid::_spilled_levels(std::vector<uint8_t> *r_steps) cons
 	// spread on from the landings, up to water_spill_reach columns in all
 	for (size_t head = 0; head < queue.size(); head++) {
 		auto [c, steps] = queue[head];
+		MCTraceStep *step = nullptr;
+		if (r_trace) {
+			step = &r_trace->emplace_back();
+			step->column = _column_index(c.x, c.y);
+			step->result = MCTraceStep::SPILLED;
+			step->text = vformat("Spread from %s (spill step %d, ground %d), reach %d:", name(c), steps, ground(c), water_spill_reach);
+		}
 		if (steps >= water_spill_reach) {
+			if (step) {
+				step->text += "\nthe reach is used up: the spill stops here.";
+			}
 			continue;
 		}
-		for (const Vector2i &s : SPILL_STEPS) {
-			Vector2i n = c + s;
-			if (!inside(n) || wet(n) || ground(n) > ground(c)) {
+		const char *side_names[4] = { "+x", "-x", "+z", "-z" };
+		for (int k = 0; k < 4; k++) {
+			Vector2i n = c + SPILL_STEPS[k];
+			if (!inside(n)) {
+				if (step) {
+					step->text += vformat("\n%s: off the grid", side_names[k]);
+				}
 				continue;
 			}
-			levels[static_cast<size_t>(_column_index(n.x, n.y))] = static_cast<uint8_t>(std::min(ground(n) + 1, top));
+			int ni = _column_index(n.x, n.y);
+			if (wet(n)) {
+				if (step) {
+					step->text += vformat("\n%s %s: already wet", side_names[k], name(n));
+					step->marks.push_back({ ni, MCTraceStep::SAME });
+				}
+				continue;
+			}
+			if (ground(n) > ground(c)) {
+				if (step) {
+					step->text += vformat("\n%s %s ground %d: higher, the spill can't go there", side_names[k], name(n), ground(n));
+					step->marks.push_back({ ni, MCTraceStep::NO });
+				}
+				continue;
+			}
+			levels[static_cast<size_t>(ni)] = static_cast<uint8_t>(std::min(ground(n) + 1, top));
 			queue.push_back({ n, steps + 1 });
 			if (r_steps) {
-				(*r_steps)[static_cast<size_t>(_column_index(n.x, n.y))] = static_cast<uint8_t>(std::min(steps + 1, 255));
+				(*r_steps)[static_cast<size_t>(ni)] = static_cast<uint8_t>(std::min(steps + 1, 255));
+			}
+			if (step) {
+				step->text += vformat("\n%s %s ground %d: dry, not higher -> spilled (step %d)", side_names[k], name(n), ground(n), steps + 1);
+				step->marks.push_back({ ni, MCTraceStep::YES });
 			}
 		}
 	}
@@ -110,7 +160,7 @@ std::vector<uint8_t> MCGrid::_spilled_levels(std::vector<uint8_t> *r_steps) cons
 // The circle spill's points: the cells where the water of some level has a corner with a dry column
 // diagonally across (not a bank, dry, not below the water's bed: its lowest ground in the cell) and
 // a lower column beside them (below the bed). On the stored water.
-std::vector<MCGrid::SpillPoint> MCGrid::_spill_points() const {
+std::vector<MCGrid::SpillPoint> MCGrid::_spill_points(std::vector<MCTraceStep> *r_trace) const {
 	std::vector<SpillPoint> points;
 	if (water_levels.size() != column_heights.size()) {
 		return points;
@@ -139,7 +189,9 @@ std::vector<MCGrid::SpillPoint> MCGrid::_spill_points() const {
 				}
 				int across = (k + 2) % 4;
 				bool dry = ground[across] < level && !_is_wet(index[across]) && ground[across] >= bed;
-				bool lower = ground[(k + 1) % 4] < bed || ground[(k + 3) % 4] < bed;
+				int side_a = (k + 1) % 4;
+				int side_b = (k + 3) % 4;
+				bool lower = ground[side_a] < bed || ground[side_b] < bed;
 				if (ground[k] < level && dry && lower) {
 					SpillPoint point;
 					point.at = Vector2(static_cast<float>(cx) + 0.5f, static_cast<float>(cz) + 0.5f);
@@ -148,6 +200,21 @@ std::vector<MCGrid::SpillPoint> MCGrid::_spill_points() const {
 					point.onto = index[across];
 					points.push_back(point);
 					found = true;
+					if (r_trace) {
+						int low = ground[side_a] < bed ? side_a : side_b;
+						MCTraceStep &step = r_trace->emplace_back();
+						step.column = index[k];
+						step.result = MCTraceStep::SPILL_POINT;
+						step.marks = { { index[across], MCTraceStep::YES }, { index[low], MCTraceStep::YES } };
+						step.text = vformat("Cell (%d, %d): %s has water at level %d (bed: ground %d).\n"
+											"%s diagonally across is dry ground %d: not a bank, not below the bed.\n"
+											"%s beside them is lower (ground %d): the water runs past that low corner.\n"
+											"-> a spill point at the cell's centre (%.1f, %.1f); %s gets this water for the mesh,\n"
+											"its ground wet only inside the circle of %.2f m.",
+								cx, cz, _column_name(index[k]), level, bed, _column_name(index[across]), ground[across],
+								_column_name(index[low]), ground[low], point.at.x, point.at.y, _column_name(index[across]),
+								water_spill_radius);
+					}
 				}
 			}
 		}

@@ -174,6 +174,7 @@ int MCGrid::fill_water(
 	}
 	std::vector<uint8_t> seen(column_heights.size(), 0);
 	last_pour_trace.clear();
+	water_trace_kind = 0; // the step buttons go through this pour
 	std::vector<int> region = _flow_region(p_column, seen, &last_pour_trace);
 	last_pour = region; // for the debug overlay's replay and step-by-step view
 	pour_step = -1;
@@ -234,6 +235,7 @@ std::vector<int> MCGrid::_flow_region(
 		}
 		if (r_trace) {
 			trace.queue_size = static_cast<int>(queue.size());
+			trace.head = static_cast<int>(head);
 			r_trace->push_back(trace);
 		}
 	}
@@ -278,6 +280,44 @@ int MCGrid::settle_water() {
 		_queue_water();
 	}
 	return changed;
+}
+
+int MCGrid::trace_settle() {
+	water_trace_kind = 0;
+	last_pour.clear();
+	last_pour_trace.clear();
+	pour_step = -1;
+	if (!heightmap_mode || water_levels.size() != column_heights.size()) {
+		return 0;
+	}
+	// the sources, as settle_water picks them
+	std::vector<int> sources;
+	for (size_t i = 0; i < water_levels.size(); i++) {
+		bool sea = sea_level > 0 && water_levels[i] == sea_level;
+		if (_is_wet(static_cast<int>(i)) && !sea) {
+			sources.push_back(static_cast<int>(i));
+		}
+	}
+	std::stable_sort(sources.begin(), sources.end(), [&](int p_a, int p_b) {
+		return column_heights[static_cast<size_t>(p_a)] > column_heights[static_cast<size_t>(p_b)];
+	});
+	Vector2i columns = _column_counts();
+	std::vector<uint8_t> seen(column_heights.size(), 0);
+	int pour = 0;
+	for (int source : sources) {
+		std::vector<MCPourStep> trace;
+		std::vector<int> region = _flow_region(Vector2i(source % columns.x, source / columns.x), seen, &trace);
+		if (region.empty()) {
+			continue; // an earlier pour reached it already
+		}
+		for (MCPourStep &step : trace) {
+			step.pour = pour;
+		}
+		last_pour.insert(last_pour.end(), region.begin(), region.end());
+		last_pour_trace.insert(last_pour_trace.end(), trace.begin(), trace.end());
+		pour++;
+	}
+	return static_cast<int>(last_pour_trace.size());
 }
 
 // Every column in p_region gets water level p_level (recorded for undo).
@@ -410,7 +450,8 @@ bool MCGrid::_fall_framed(
 // and pours over edges. Same-level water next to a stream runs out through it, so it is a stream too.
 void MCGrid::_water_surfaces(
 		std::vector<float> &r_surface,
-		std::vector<uint8_t> &r_held
+		std::vector<uint8_t> &r_held,
+		std::vector<MCTraceStep> *r_trace
 ) const {
 	size_t count = water_levels.size();
 	r_surface.assign(count, -1e6f);
@@ -418,7 +459,9 @@ void MCGrid::_water_surfaces(
 	Vector2i columns = _column_counts();
 	auto inside = [&](const Vector2i &c) { return c.x >= 0 && c.y >= 0 && c.x < columns.x && c.y < columns.y; };
 	auto is_sea = [&](size_t i) { return sea_level > 0 && water_levels[i] == sea_level && column_heights[i] < sea_level; };
+	const char *side_names[4] = { "+x", "-x", "+z", "-z" };
 	std::vector<Vector2i> open;
+	// 1. held where every side holds the water in
 	for (int z = 0; z < columns.y; z++) {
 		for (int x = 0; x < columns.x; x++) {
 			size_t i = static_cast<size_t>(_column_index(x, z));
@@ -427,17 +470,41 @@ void MCGrid::_water_surfaces(
 			}
 			int level = water_levels[i];
 			bool held = true;
+			MCTraceStep *step = nullptr;
+			if (r_trace && !is_sea(i)) { // the sea is always held: not traced
+				step = &r_trace->emplace_back();
+				step->column = static_cast<int>(i);
+				step->text = vformat("Held or stream? %s: ground %d, water level %d. Each side must hold it in:",
+						_column_name(static_cast<int>(i)), column_heights[i], level);
+			}
 			if (!is_sea(i)) {
-				for (const Vector2i &step : STEPS) {
-					Vector2i n(x + step.x, z + step.y);
+				for (int k = 0; k < 4; k++) {
+					Vector2i n(x + STEPS[k].x, z + STEPS[k].y);
 					if (!inside(n)) {
+						if (step) {
+							step->text += vformat("\n%s: the grid's edge, holds", side_names[k]);
+						}
 						continue; // the grid's edge holds it
 					}
 					int other = _column_index(n.x, n.y);
+					size_t o = static_cast<size_t>(other);
+					bool holds = true;
+					String why;
 					if (!_is_wet(other)) {
-						held = held && !_spills_onto(column_heights[static_cast<size_t>(other)], level, water_drop);
-					} else if (water_levels[static_cast<size_t>(other)] < level) {
-						held = held && _fall_framed(Vector2i(x, z), step, level);
+						holds = !_spills_onto(column_heights[o], level, water_drop);
+						why = holds ? vformat("dry ground %d, not below the surface: a bank, holds", column_heights[o])
+									: vformat("dry ground %d, below the surface: the water runs out there", column_heights[o]);
+					} else if (water_levels[o] < level) {
+						holds = _fall_framed(Vector2i(x, z), STEPS[k], level);
+						why = holds ? String("lower water, the fall is framed by banks on both ends: holds")
+									: String("lower water, the fall is open (off a tier's edge): the water runs out there");
+					} else {
+						why = vformat("water at level %d (same or higher): holds", water_levels[o]);
+					}
+					held = held && holds;
+					if (step) {
+						step->text += vformat("\n%s %s: %s", side_names[k], _column_name(other), why);
+						step->marks.push_back({ other, holds ? MCTraceStep::YES : MCTraceStep::NO });
 					}
 				}
 			}
@@ -445,18 +512,24 @@ void MCGrid::_water_surfaces(
 			if (!held) {
 				open.push_back(Vector2i(x, z));
 			}
+			if (step) {
+				step->result = held ? MCTraceStep::HELD : MCTraceStep::STREAM;
+				step->text += held ? String("\n-> every side holds: HELD, a full layer (surface just below the next tier).")
+								   : String("\n-> a side lets it run out: STREAM, a thin sheet above its ground.");
+			}
 		}
 	}
-	// same-level water beside a stream runs out through it — diagonal neighbours too: they share a
+	// 2. same-level water beside a stream runs out through it — diagonal neighbours too: they share a
 	// terrain cell, and the cell's water (mc_grid_water_mesh.cpp) has one surface per level, so a held
 	// corner diagonal to a stream corner would lift the stream to the held height (floating water)
 	const Vector2i AROUND[8] = { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1),
 		Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1) };
 	for (size_t head = 0; head < open.size(); head++) {
 		Vector2i c = open[head];
-		uint8_t level = water_levels[static_cast<size_t>(_column_index(c.x, c.y))];
-		for (const Vector2i &step : AROUND) {
-			Vector2i n = c + step;
+		int ci = _column_index(c.x, c.y);
+		uint8_t level = water_levels[static_cast<size_t>(ci)];
+		for (const Vector2i &step_dir : AROUND) {
+			Vector2i n = c + step_dir;
 			if (!inside(n)) {
 				continue;
 			}
@@ -464,6 +537,16 @@ void MCGrid::_water_surfaces(
 			if (r_held[i] && !is_sea(i) && _is_wet(static_cast<int>(i)) && water_levels[i] == level) {
 				r_held[i] = 0;
 				open.push_back(n);
+				if (r_trace) {
+					MCTraceStep &step = r_trace->emplace_back();
+					step.column = static_cast<int>(i);
+					step.result = MCTraceStep::STREAM;
+					step.marks = { { ci, MCTraceStep::LOOK } };
+					step.text = vformat("Streams spread: %s was held, but it is water at the same level %d as the stream %s beside it%s.\n"
+										"It drains out through that stream -> STREAM too.",
+							_column_name(static_cast<int>(i)), level, _column_name(ci),
+							(step_dir.x != 0 && step_dir.y != 0) ? " (diagonally: they share a cell, which has one surface per level)" : "");
+				}
 			}
 		}
 	}
@@ -476,12 +559,17 @@ void MCGrid::_water_surfaces(
 
 // Per column: Color(direction x, direction z, 1 if it flows, 1 if a fall lands in it). Dry or still
 // columns are Color(0, 0, 0, 0). p_surface: from _water_surfaces.
-std::vector<Color> MCGrid::_water_flow(const std::vector<float> &p_surface) const {
+std::vector<Color> MCGrid::_water_flow(
+		const std::vector<float> &p_surface,
+		std::vector<MCTraceStep> *r_trace
+) const {
 	std::vector<Color> flow(water_levels.size(), Color(0, 0, 0, 0));
 	Vector2i columns = _column_counts();
 	auto inside = [&](const Vector2i &c) { return c.x >= 0 && c.y >= 0 && c.x < columns.x && c.y < columns.y; };
+	auto is_sea = [&](size_t i) { return sea_level > 0 && water_levels[i] == sea_level && column_heights[i] < sea_level; };
+	const char *side_names[4] = { "+x", "-x", "+z", "-z" };
 	std::vector<Vector2i> queue;
-	// outlets: wet columns beside lower water or a spill point at it; the lower water gets foam
+	// 1. outlets: wet columns beside lower water or a spill point at it; the lower water gets foam
 	for (int z = 0; z < columns.y; z++) {
 		for (int x = 0; x < columns.x; x++) {
 			int index = _column_index(x, z);
@@ -489,9 +577,17 @@ std::vector<Color> MCGrid::_water_flow(const std::vector<float> &p_surface) cons
 				continue;
 			}
 			float surface = p_surface[static_cast<size_t>(index)];
+			MCTraceStep *step = nullptr;
+			if (r_trace && !is_sea(static_cast<size_t>(index))) { // the sea: not traced
+				step = &r_trace->emplace_back();
+				step->column = index;
+				step->text = vformat("Outlet? %s: surface %.2f. Lower water or dry ground below the surface beside it?",
+						_column_name(index), surface);
+			}
 			Vector2 out;
-			for (const Vector2i &step : STEPS) {
-				Vector2i n(x + step.x, z + step.y);
+			for (int k = 0; k < 4; k++) {
+				const Vector2i &dir = STEPS[k];
+				Vector2i n(x + dir.x, z + dir.y);
 				if (!inside(n)) {
 					continue;
 				}
@@ -499,10 +595,17 @@ std::vector<Color> MCGrid::_water_flow(const std::vector<float> &p_surface) cons
 				bool lower_water = _is_wet(static_cast<int>(other)) && p_surface[other] < surface - SAME;
 				bool spill = !_is_wet(static_cast<int>(other)) && static_cast<float>(column_heights[other]) - 0.5f < surface - SAME;
 				if (lower_water || spill) {
-					out += Vector2(static_cast<float>(step.x), static_cast<float>(step.y));
+					out += Vector2(static_cast<float>(dir.x), static_cast<float>(dir.y));
 				}
 				if (lower_water) {
 					flow[other].a = 1.0f;
+				}
+				if (step) {
+					String why = lower_water ? vformat("lower water (surface %.2f): it falls there, an outlet (foam where it lands)", p_surface[other])
+							: spill		 ? vformat("dry ground %d below the surface: it spills there, an outlet", column_heights[other])
+										 : String("no way out there");
+					step->text += vformat("\n%s %s: %s", side_names[k], _column_name(static_cast<int>(other)), why);
+					step->marks.push_back({ static_cast<int>(other), (lower_water || spill) ? MCTraceStep::YES : MCTraceStep::SAME });
 				}
 			}
 			if (out.length_squared() > 0.0f) {
@@ -510,21 +613,38 @@ std::vector<Color> MCGrid::_water_flow(const std::vector<float> &p_surface) cons
 				flow[static_cast<size_t>(index)] = Color(out.x, out.y, 1.0f, flow[static_cast<size_t>(index)].a);
 				queue.push_back(Vector2i(x, z));
 			}
+			if (step) {
+				step->result = out.length_squared() > 0.0f ? MCTraceStep::FLOWS : MCTraceStep::STILL;
+				step->dir = out;
+				step->text += out.length_squared() > 0.0f ? vformat("\n-> an OUTLET: it flows that way (%.2f, %.2f).", out.x, out.y)
+														  : String("\n-> not an outlet (it may still be reached from one below).");
+			}
 		}
 	}
-	// breadth-first from the outlets through water at the same surface: point where we came from
+	// 2. breadth-first from the outlets through water at the same surface: point where we came from
 	for (size_t head = 0; head < queue.size(); head++) {
 		Vector2i c = queue[head];
-		float surface = p_surface[static_cast<size_t>(_column_index(c.x, c.y))];
-		for (const Vector2i &step : STEPS) {
-			Vector2i n = c + step;
+		int ci = _column_index(c.x, c.y);
+		float surface = p_surface[static_cast<size_t>(ci)];
+		for (const Vector2i &dir : STEPS) {
+			Vector2i n = c + dir;
 			if (!inside(n)) {
 				continue;
 			}
 			size_t i = static_cast<size_t>(_column_index(n.x, n.y));
 			if (_is_wet(static_cast<int>(i)) && std::abs(p_surface[i] - surface) < SAME && flow[i].b == 0.0f) {
-				flow[i] = Color(static_cast<float>(-step.x), static_cast<float>(-step.y), 1.0f, flow[i].a);
+				flow[i] = Color(static_cast<float>(-dir.x), static_cast<float>(-dir.y), 1.0f, flow[i].a);
 				queue.push_back(n);
+				if (r_trace && !is_sea(i)) {
+					MCTraceStep &step = r_trace->emplace_back();
+					step.column = static_cast<int>(i);
+					step.result = MCTraceStep::FLOWS;
+					step.dir = Vector2(static_cast<float>(-dir.x), static_cast<float>(-dir.y));
+					step.marks = { { ci, MCTraceStep::LOOK } };
+					step.text = vformat("Walk from the outlets: %s has the same surface as %s, which already flows.\n"
+										"-> it flows toward %s (the way back to the nearest outlet).",
+							_column_name(static_cast<int>(i)), _column_name(ci), _column_name(ci));
+				}
 			}
 		}
 	}

@@ -29,6 +29,24 @@ struct MCDebugMesh {
 		}
 	}
 
+	// A flat filled arrow at p_at pointing along p_dir (unit, horizontal), p_length long. Drawn with
+	// the squares (triangles, in order), so an arrow added after a square shows on top of it.
+	void arrow(const Vector3 &p_at, const Vector3 &p_dir, float p_length, const Color &p_color) {
+		Vector3 side(-p_dir.z, 0, p_dir.x);
+		Vector3 back = p_at - p_dir * (p_length * 0.5f);
+		Vector3 neck = p_at + p_dir * (p_length * 0.1f);
+		Vector3 tip = p_at + p_dir * (p_length * 0.5f);
+		float shaft = p_length * 0.08f;
+		float head = p_length * 0.25f;
+		const Vector3 points[9] = { back - side * shaft, neck - side * shaft, neck + side * shaft, // shaft
+			back - side * shaft, neck + side * shaft, back + side * shaft, neck - side * head, tip, neck + side * head }; // head
+		for (const Vector3 &p : points) {
+			tri_vertices.push_back(p);
+			tri_colors.push_back(p_color);
+			tri_uvs.push_back(Vector2(-1, 0));
+		}
+	}
+
 	void line(const Vector3 &p_a, const Vector3 &p_b, const Color &p_color) {
 		line_vertices.push_back(p_a);
 		line_vertices.push_back(p_b);

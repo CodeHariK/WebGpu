@@ -49,7 +49,7 @@ void MCManager::setup_ui() {
 	main_hbox->add_theme_constant_override("separation", 10);
 
 	// 2. Create Side Panel
-	ui.side_panel = ui.manager->add_panel(main_hbox, "SidePanel", Control::PRESET_TOP_LEFT, Vector2(320, 0));
+	ui.side_panel = ui.manager->add_panel(main_hbox, "SidePanel", Control::PRESET_TOP_LEFT, Vector2(520, 0));
 	ui.side_panel->set_v_size_flags(Control::SIZE_EXPAND_FILL);
 	// Sidebar background now comes from the shared theme (Panel style).
 	// Debug: `--mcshow` reveals the sidebar on boot (for screenshots).
@@ -189,6 +189,19 @@ void MCManager::setup_ui() {
 		label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
 		label->set_custom_minimum_size(Vector2(1, 0)); // wrap to the tab's width, never widen it
 	}
+	// the last pour, one flood-fill step at a time (the explanation floats over the column)
+	ui.manager->add_header(debug_tab, "Water step by step");
+	add_buttons(debug_tab, { { "Trace step 1: the water path (whole map)", "_on_trace_settle" },
+								   { "Trace step 2a: spills", "_on_trace_spills" },
+								   { "Trace step 2b: held / stream", "_on_trace_held" },
+								   { "Trace step 2c: flow", "_on_trace_flow" } });
+	add_buttons(debug_tab, { { "< Back", "_on_pour_back" }, { "Next >", "_on_pour_next" } });
+	add_buttons(debug_tab, { { "<< 10", "_on_pour_back_10" }, { "10 >>", "_on_pour_next_10" },
+								   { "Whole pour", "_on_pour_whole" } });
+	pour_step_ui_label = ui.manager->add_label(debug_tab, "");
+	pour_step_ui_label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
+	pour_step_ui_label->set_custom_minimum_size(Vector2(1, 0));
+	_step_pour(0);
 	ui.manager->add_header(debug_tab, "Terrain views");
 	add_buttons(debug_tab, { { "Wireframe", "_on_toggle_wireframe" }, { "Edge corners", "_on_toggle_edge_corners" },
 								   { "Tile seams", "_on_toggle_tile_seams" } });
@@ -196,7 +209,7 @@ void MCManager::setup_ui() {
 	// --- Map
 	ui.manager->add_header(map_tab, "File");
 	add_buttons(map_tab, { { "Save State", "_on_save_terrain" }, { "Load State", "_on_load_terrain" },
-								 { "Copy for Blender", "_on_copy_for_blender" } });
+								 { "Reset", "_on_reset_map" }, { "Copy for Blender", "_on_copy_for_blender" } });
 	ui.stats_vbox = map_tab; // _setup_randomize_ui adds to ui.stats_vbox
 	_setup_randomize_ui();
 	ui.stats_vbox = stats_tab;
@@ -248,6 +261,7 @@ void MCManager::update_ui() {
 	if (!ui.stats_vbox || !ui.manager || !is_inside_tree())
 		return;
 	_update_history_buttons(); // a load / mode switch may have cleared the history
+	_update_pour_label(); // a new pour, or a reset
 
 	Performance *perf_singleton = Performance::get_singleton();
 

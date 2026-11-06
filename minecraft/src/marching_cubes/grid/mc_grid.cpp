@@ -127,6 +127,8 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_debug_water"), &MCGrid::is_debug_water);
 	ClassDB::bind_method(D_METHOD("replay_water_debug"), &MCGrid::replay_water_debug);
 	ClassDB::bind_method(D_METHOD("set_pour_step", "step"), &MCGrid::set_pour_step);
+	ClassDB::bind_method(D_METHOD("trace_settle"), &MCGrid::trace_settle);
+	ClassDB::bind_method(D_METHOD("trace_water_step", "kind"), &MCGrid::trace_water_step);
 	ClassDB::bind_method(D_METHOD("get_pour_step"), &MCGrid::get_pour_step);
 	ClassDB::bind_method(D_METHOD("get_pour_step_count"), &MCGrid::get_pour_step_count);
 	ClassDB::bind_method(D_METHOD("get_pour_step_text"), &MCGrid::get_pour_step_text);
@@ -275,6 +277,11 @@ void MCGrid::initialize_grid(
 	roof_m.clear(); // no M roof choices in a new grid
 	pin = mc::LevelPin(); // nor a pin
 	pin_mesh.unref();
+	last_pour.clear(); // nor the last pour (its step-by-step debug), nor a step 2 trace
+	last_pour_trace.clear();
+	water_trace.clear();
+	water_trace_kind = 0;
+	pour_step = -1;
 
 	if (p_refresh) {
 		refresh_grid();

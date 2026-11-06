@@ -270,10 +270,11 @@ void MCGrid::_rebuild_water_debug(
 	Vector2i columns = _column_counts();
 	auto inside = [&](const Vector2i &c) { return c.x >= 0 && c.y >= 0 && c.x < columns.x && c.y < columns.y; };
 	MCDebugMesh debug;
+	bool tracing = water_trace_kind != 0 && pour_step >= 0; // step 2's trace draws the columns itself
 	for (int z = 0; z < columns.y; z++) {
 		for (int x = 0; x < columns.x; x++) {
 			size_t i = static_cast<size_t>(_column_index(x, z));
-			if (!_is_wet(static_cast<int>(i))) {
+			if (!_is_wet(static_cast<int>(i)) || tracing) {
 				continue;
 			}
 			float y = p_surface[i] + LIFT;
@@ -339,12 +340,14 @@ void MCGrid::_rebuild_water_debug(
 		}
 	}
 	// the last pour: one step of it (step-by-step debug), or a dot per column in the order it was reached
-	if (pour_step >= 0) {
+	if (pour_step >= 0 && water_trace_kind != 0) {
+		_add_water_trace_debug(debug, p_surface); // step 2 (mc_grid_water_trace.cpp)
+	} else if (pour_step >= 0) {
 		_add_pour_step_debug(debug, p_surface);
 	} else if (pour_step_label) {
 		pour_step_label->hide();
 	}
-	size_t count = pour_step >= 0 ? 0 : last_pour.size();
+	size_t count = pour_step >= 0 || water_trace_kind != 0 ? 0 : last_pour.size();
 	for (size_t k = 0; k < count; k++) {
 		size_t i = static_cast<size_t>(last_pour[k]);
 		if (i >= p_surface.size() || !_is_wet(static_cast<int>(i))) {
@@ -395,12 +398,20 @@ String MCGrid::get_pour_step_text() const {
 	if (pour_step < 0 || pour_step >= get_pour_step_count()) {
 		return String();
 	}
+	if (water_trace_kind != 0) { // step 2's traces (mc_grid_water_trace.cpp)
+		return vformat("step %d / %d\n%s", pour_step + 1, get_pour_step_count(), water_trace[static_cast<size_t>(pour_step)].text);
+	}
 	const MCPourStep &step = last_pour_trace[static_cast<size_t>(pour_step)];
 	Vector2i columns = _column_counts();
 	Vector2i c(step.column % columns.x, step.column / columns.x);
 	int ground = column_heights[static_cast<size_t>(step.column)];
 	String text = vformat("step %d / %d: take (%d, %d) off the queue, ground %d", pour_step + 1,
 			get_pour_step_count(), c.x, c.y, ground);
+	int pours = last_pour_trace.back().pour + 1;
+	if (pours > 1) { // trace_settle: which source this pour started from
+		int source = last_pour[static_cast<size_t>(pour_step - step.head)];
+		text += vformat("\npour %d / %d, from (%d, %d)", step.pour + 1, pours, source % columns.x, source / columns.x);
+	}
 	for (int k = 0; k < 4; k++) {
 		Vector2i n = c + SIDES[k];
 		if (step.result[k] == MCPourStep::OUTSIDE) {
@@ -410,7 +421,7 @@ String MCGrid::get_pour_step_text() const {
 		int other = column_heights[static_cast<size_t>(_column_index(n.x, n.y))];
 		text += vformat("\n%s (%d, %d) ground %d: %s", SIDE_TEXT[k], n.x, n.y, other, RESULT_TEXT[step.result[k]]);
 	}
-	int waiting = step.queue_size - pour_step - 1;
+	int waiting = step.queue_size - step.head - 1;
 	text += vformat("\nqueue: %d waiting", waiting);
 	return text;
 }
@@ -437,7 +448,8 @@ void MCGrid::_add_pour_step_debug(
 	for (int k = 0; k < pour_step; k++) {
 		r_debug.square(top_of(last_pour[static_cast<size_t>(k)]), 0.1f, DONE_DOT);
 	}
-	for (int k = pour_step + 1; k < step.queue_size && k < static_cast<int>(last_pour.size()); k++) {
+	int queue_end = pour_step - step.head + step.queue_size; // this pour's queue so far
+	for (int k = pour_step + 1; k < queue_end && k < static_cast<int>(last_pour.size()); k++) {
 		r_debug.square(top_of(last_pour[static_cast<size_t>(k)]), 0.16f, QUEUE_DOT);
 	}
 	// the column this step takes, outlined, and its four neighbours
@@ -463,21 +475,6 @@ void MCGrid::_add_pour_step_debug(
 			r_debug.square(to, 0.16f, color);
 		}
 	}
-	// the explanation, floating over the column
-	if (!pour_step_label) {
-		pour_step_label = memnew(Label3D);
-		pour_step_label->set_billboard_mode(BaseMaterial3D::BILLBOARD_ENABLED);
-		pour_step_label->set_draw_flag(Label3D::FLAG_DISABLE_DEPTH_TEST, true);
-		pour_step_label->set_pixel_size(0.006f);
-		pour_step_label->set_font_size(40);
-		pour_step_label->set_outline_size(12);
-		pour_step_label->set_horizontal_alignment(HORIZONTAL_ALIGNMENT_LEFT);
-		pour_step_label->set_vertical_alignment(VERTICAL_ALIGNMENT_BOTTOM);
-		water_debug_node->add_child(pour_step_label);
-	}
-	pour_step_label->set_text(get_pour_step_text());
-	pour_step_label->set_position(centre + Vector3(0.3f, 0.6f, 0));
-	pour_step_label->show();
 }
 
 } // namespace godot

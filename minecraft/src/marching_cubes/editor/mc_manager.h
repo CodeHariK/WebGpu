@@ -255,6 +255,9 @@ public:
 	);
 	Label *record_label = nullptr; // Debug tab: what was recorded last
 	Label *water_stage_label = nullptr; // Water tab: what the debug stage shows
+	Label *pour_step_ui_label = nullptr; // Debug tab: which pour step is shown
+	Vector3i start_grid_dims; // the grid's size as the scene sets it (Reset rebuilds it)
+	Vector3i start_chunk_dims;
 	Button *water_view_button = nullptr; // "Water view: <view>"
 	void _on_replay_pour();
 	// --- mc_manager_inspect.cpp: inspect mode (a clicked cell shown in a side view) ---
@@ -286,8 +289,6 @@ public:
 			MCGrid *p_grid,
 			const Ref<InputEvent> &p_event
 	);
-	// . , / step through the last pour's flood fill (water debug); true when the key was used.
-	bool _pour_step_shortcut(const Ref<InputEvent> &p_event);
 	// _unhandled_input (not _input): clicks on UI buttons are consumed by the GUI first and never
 	// reach the terrain behind them.
 	void _unhandled_input(const Ref<InputEvent> &p_event) override;
@@ -303,6 +304,21 @@ public:
 	void _on_save_terrain();
 	// Load button (user://terrain.mct).
 	void _on_load_terrain();
+	// Reset button: everything cleared, the grid as the scene starts it (flat, dry, its own size).
+	void _on_reset_map();
+	// The pour, step by step (Debug tab buttons): back / next one step or ten, or the whole pour.
+	void _on_pour_back();
+	void _on_pour_next();
+	void _on_pour_back_10();
+	void _on_pour_next_10();
+	void _on_pour_whole();
+	void _on_trace_settle(); // record step 1 for the whole map as the trace
+	void _on_trace_spills(); // record step 2a (the spills) as the trace
+	void _on_trace_held(); // record step 2b (held / stream) as the trace
+	void _on_trace_flow(); // record step 2c (the flow) as the trace
+	void _trace_water(int p_kind); // MCGrid::trace_water_step, then show its first step
+	void _step_pour(int p_stride); // > 0 forward, < 0 back, 0 the whole pour
+	void _update_pour_label(); // which step is shown (refreshed with the stats, so a new pour shows)
 	// Copy for Blender button: the cells as JSON on the clipboard, for the add-on's playground.
 	void _on_copy_for_blender(); // cells as JSON on the clipboard, for the Blender playground
 	// Save / load the grid's corners (MCGrid::save_grid / load_grid).

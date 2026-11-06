@@ -9,6 +9,7 @@
 #include <godot_cpp/classes/collision_object3d.hpp>
 #include <godot_cpp/classes/display_server.hpp>
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
@@ -27,6 +28,10 @@
 #include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot {
+
+namespace {
+const char *SAVE_PATH = "user://terrain.mct"; // Save / Load State, and loaded at start
+} // namespace
 
 // Inspector properties (node paths) and the methods the UI buttons call.
 void MCManager::_bind_methods() {
@@ -73,6 +78,16 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_show_help"), &MCManager::_on_show_help);
 	ClassDB::bind_method(D_METHOD("_on_save_terrain"), &MCManager::_on_save_terrain);
 	ClassDB::bind_method(D_METHOD("_on_load_terrain"), &MCManager::_on_load_terrain);
+	ClassDB::bind_method(D_METHOD("_on_reset_map"), &MCManager::_on_reset_map);
+	ClassDB::bind_method(D_METHOD("_on_pour_back"), &MCManager::_on_pour_back);
+	ClassDB::bind_method(D_METHOD("_on_pour_next"), &MCManager::_on_pour_next);
+	ClassDB::bind_method(D_METHOD("_on_pour_back_10"), &MCManager::_on_pour_back_10);
+	ClassDB::bind_method(D_METHOD("_on_pour_next_10"), &MCManager::_on_pour_next_10);
+	ClassDB::bind_method(D_METHOD("_on_pour_whole"), &MCManager::_on_pour_whole);
+	ClassDB::bind_method(D_METHOD("_on_trace_settle"), &MCManager::_on_trace_settle);
+	ClassDB::bind_method(D_METHOD("_on_trace_spills"), &MCManager::_on_trace_spills);
+	ClassDB::bind_method(D_METHOD("_on_trace_held"), &MCManager::_on_trace_held);
+	ClassDB::bind_method(D_METHOD("_on_trace_flow"), &MCManager::_on_trace_flow);
 	ClassDB::bind_method(D_METHOD("_on_copy_for_blender"), &MCManager::_on_copy_for_blender);
 }
 
@@ -143,10 +158,16 @@ void MCManager::initialize_all() {
 
 		// 2. Link nodes and trigger Terrain generation
 		grid_node->set_tile_library(tile_library);
+		start_grid_dims = grid_node->get_grid_dims(); // as the scene sets it: Reset rebuilds this
+		start_chunk_dims = grid_node->get_chunk_dims();
 		grid_node->initialize_grid(
-				grid_node->get_grid_dims().x, grid_node->get_grid_dims().y, grid_node->get_grid_dims().z,
-				grid_node->get_chunk_dims().x, grid_node->get_chunk_dims().y, grid_node->get_chunk_dims().z
+				start_grid_dims.x, start_grid_dims.y, start_grid_dims.z,
+				start_chunk_dims.x, start_chunk_dims.y, start_chunk_dims.z
 		);
+		// the saved map, when there is one (Map tab: Save State writes it, Reset clears it away)
+		if (FileAccess::file_exists(SAVE_PATH)) {
+			load_terrain(SAVE_PATH);
+		}
 
 		// 3. Setup UI
 		ui.manager = CUI::create_on_new_layer(this);
@@ -169,11 +190,30 @@ void MCManager::initialize_all() {
 	}
 }
 
-// Load button: user://terrain.mct.
-void MCManager::_on_load_terrain() { load_terrain("user://terrain.mct"); }
+// Load button: user://terrain.mct (also loaded at start when it exists).
+void MCManager::_on_load_terrain() { load_terrain(SAVE_PATH); }
 
 // Save button: user://terrain.mct.
-void MCManager::_on_save_terrain() { save_terrain("user://terrain.mct"); }
+void MCManager::_on_save_terrain() { save_terrain(SAVE_PATH); }
+
+// Reset button: clear everything. The grid is rebuilt as the scene starts it (its own size, flat
+// ground, no water); placed objects, roofs, the pin, undo history and the last pour go with it
+// (MCGrid::initialize_grid). The saved file is left alone (Load State brings it back).
+void MCManager::_on_reset_map() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (!grid_node || start_grid_dims == Vector3i()) {
+		return;
+	}
+	cancel_drag(); // drop every pointer to placed objects first
+	_clear_selection();
+	grid_node->initialize_grid(
+			start_grid_dims.x, start_grid_dims.y, start_grid_dims.z,
+			start_chunk_dims.x, start_chunk_dims.y, start_chunk_dims.z,
+			true
+	);
+	_step_pour(0); // the step label back to "whole pour"
+	update_ui();
+}
 
 // Copy for Blender button: the grid's cells as JSON on the clipboard.
 void MCManager::_on_copy_for_blender() {
