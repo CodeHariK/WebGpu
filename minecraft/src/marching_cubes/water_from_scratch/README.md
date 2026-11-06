@@ -10,7 +10,7 @@ The water mesh rebuilt one step at a time, each step in its own small file, time
 |---|------|--------------|------|-----------------|
 | 1 | Water path | flood fill: which columns hold water, at what level | `wfs_flood.*` | ~1 µs (33 x 33 columns) |
 | 2 | Spill, held / stream, flow | diagonal spills, thin streams vs held pools, flow direction | `wfs_spill.*`, `wfs_held.*`, `wfs_flow.*` | ~3 + 1 + 3 µs |
-| 3 | Cell classes | each cell's 4 corners: bank / wet / lower / dry | | |
+| 3 | Cell classes | each cell's 4 corners: bank / wet / lower / dry | `wfs_cells.*` (+ 2d `wfs_circle_spill.*`) | ~12 µs (+ 2d ~8 µs) |
 | 4 | Sampling the shape | the water's shape per cell on a fine grid, marching squares: triangles + edge pieces (bank / fall) | | |
 | 5 | Outline | edge pieces chained into closed loops, smoothed | | |
 | 6 | Inset | fall parts pulled in by the bevel radius | | |
@@ -47,5 +47,23 @@ Replaces 2a's column spill. A spill point is the centre of a cell with a wet cor
 column D diagonally across (not a bank, not below the water's bed) and a lower column beside them
 (the low corner the water runs past). After 2c, so held / stream and the flow don't change, D gets
 W's water for the mesh only (level, surface, held, flow) and is marked as spilled; the spill cell
-remembers the level spilling there. One scan over the cells (`wfs_circle_spill.*`, ~8 µs for the points).
-Step 2's runner now follows the grid: with a circle spill radius set, 2a's column spill is off.
+remembers the level spilling there. One scan over the cells.
+
+## Step 3: cell classes
+
+The mesh is built cell by cell (the square between 4 corner columns). Each water level at a cell's
+corners is one body; for each: its bed (lowest own ground), top (highest own surface), stream (any
+own corner a stream), bottom (where its fall lands) and each corner's class for it:
+
+| Class | Corner | The water there |
+|-------|--------|-----------------|
+| bank | ground at or above the body's level | ends under it (tucked in) |
+| lower | ground below the bed | falls down there |
+| wet | one of the body's own corners | covers it |
+| dry | dry ground of the bed's tier (or circle-spilled) | a gap (wet only inside a spill circle) |
+
+Plus the spill mask: which circle spill points (within one cell) reach the cell. These classes are
+all step 4 needs: the same 4 classes always give the same shape, so each shape is baked once as a
+tile. One pass over the cells. Checked body by body against the builder (`MCGrid.get_water_bodies_debug`):
+all match on the test map (593 bodies in 585 cells; with and without the circle spill).
+Debug stage 2 (Water tab) draws these classes as a dot in each corner.

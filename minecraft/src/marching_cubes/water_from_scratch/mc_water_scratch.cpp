@@ -1,6 +1,8 @@
 // MCWaterScratch (see mc_water_scratch.h).
 #include "marching_cubes/water_from_scratch/mc_water_scratch.h"
 #include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/water_from_scratch/wfs_cells.h"
+#include "marching_cubes/water_from_scratch/wfs_circle_spill.h"
 #include "marching_cubes/water_from_scratch/wfs_flood.h"
 #include "marching_cubes/water_from_scratch/wfs_flow.h"
 #include "marching_cubes/water_from_scratch/wfs_held.h"
@@ -19,6 +21,7 @@ void MCWaterScratch::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("load_grid", "grid"), &MCWaterScratch::load_grid);
 	ClassDB::bind_method(D_METHOD("run_flood", "grid", "runs"), &MCWaterScratch::run_flood, DEFVAL(20));
 	ClassDB::bind_method(D_METHOD("run_step2", "grid", "runs"), &MCWaterScratch::run_step2, DEFVAL(20));
+	ClassDB::bind_method(D_METHOD("run_step3", "grid", "runs"), &MCWaterScratch::run_step3, DEFVAL(20));
 }
 
 void MCWaterScratch::load_grid(Object *p_grid) {
@@ -164,6 +167,82 @@ Dictionary MCWaterScratch::run_step2(
 	out["held_differ"] = held_differ;
 	out["surface_differ"] = surface_differ;
 	out["flow_differ"] = flow_differ;
+	return out;
+}
+
+Dictionary MCWaterScratch::run_step3(
+		Object *p_grid,
+		int p_runs
+) {
+	Dictionary out;
+	// steps 1 - 2c (as run_step2, untimed)
+	WfsColumns settled = columns;
+	settled.levels = wfs_settle(columns).levels;
+	WfsColumns spilled = settled;
+	spilled.levels = wfs_spill(settled, spill_radius > 0.0f ? 0 : spill_reach);
+	WfsSurfaces surfaces = wfs_surfaces(spilled, drop);
+	std::vector<WfsFlow> flow = wfs_flow(spilled, surfaces.surface);
+	// 2d: the circle spill (its points on the stored levels: before anything is spilled)
+	std::vector<WfsSpillPoint> points;
+	if (spill_radius > 0.0f) {
+		out["spill_points_usec"] = best_usec(p_runs, [&]() { points = wfs_spill_points(settled); });
+	}
+	WfsCircleSpill circle;
+	if (spill_radius > 0.0f) {
+		out["circle_usec"] = best_usec(p_runs, [&]() {
+			WfsColumns c = spilled;
+			WfsSurfaces s = surfaces;
+			std::vector<WfsFlow> f = flow;
+			circle = wfs_apply_circle_spill(points, c, s, f);
+		});
+		circle = wfs_apply_circle_spill(points, spilled, surfaces, flow); // for real this time
+	}
+	// 3: the cells
+	std::vector<WfsBody> bodies;
+	out["cells_usec"] = best_usec(p_runs, [&]() { bodies = wfs_cells(spilled, surfaces, circle); });
+	int counts[4] = { 0, 0, 0, 0 };
+	int cells = 0;
+	int last_cell = -1;
+	for (const WfsBody &body : bodies) {
+		for (int k = 0; k < 4; k++) {
+			counts[body.corner[k]]++;
+		}
+		int cell = body.cz * (columns.width - 1) + body.cx;
+		cells += cell != last_cell ? 1 : 0;
+		last_cell = cell;
+	}
+	out["spill_points"] = static_cast<int64_t>(points.size());
+	out["bodies"] = static_cast<int64_t>(bodies.size());
+	out["cells_with_water"] = cells;
+	out["bank_wet_lower_dry"] = vformat("%d / %d / %d / %d corners", counts[0], counts[1], counts[2], counts[3]);
+	// against the grid's own step 3, body by body (same order: cell by cell, corner order)
+	MCGrid *grid = Object::cast_to<MCGrid>(p_grid);
+	if (!grid) {
+		return out;
+	}
+	Array reference = grid->get_water_bodies_debug();
+	int differ = std::abs(static_cast<int>(reference.size()) - static_cast<int>(bodies.size()));
+	String first;
+	for (int64_t b = 0; b < std::min<int64_t>(reference.size(), static_cast<int64_t>(bodies.size())); b++) {
+		Dictionary r = reference[b];
+		const WfsBody &mine = bodies[static_cast<size_t>(b)];
+		PackedByteArray corners = r["corners"];
+		bool same = int(r["cx"]) == mine.cx && int(r["cz"]) == mine.cz && bool(r["stream"]) == mine.stream &&
+				std::abs(float(r["top"]) - mine.top) < 1e-4f && std::abs(float(r["bottom"]) - mine.bottom) < 1e-3f &&
+				int(r["mask"]) == mine.spill_mask;
+		for (int k = 0; k < 4 && same; k++) {
+			same = corners[k] == mine.corner[k];
+		}
+		if (!same) {
+			differ++;
+			if (first.is_empty()) {
+				first = vformat("cell (%d, %d): mine corners %d%d%d%d top %.2f; grid %s", mine.cx, mine.cz, mine.corner[0],
+						mine.corner[1], mine.corner[2], mine.corner[3], mine.top, String(Variant(r)));
+			}
+		}
+	}
+	out["bodies_differ"] = differ;
+	out["first_difference"] = first;
 	return out;
 }
 

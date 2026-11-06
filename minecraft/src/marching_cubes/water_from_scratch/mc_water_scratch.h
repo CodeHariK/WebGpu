@@ -6,6 +6,7 @@
 //   scratch.load_grid(grid)            # copy the grid's heights and water levels
 //   print(scratch.run_flood(grid))     # step 1: {usec, sources, pours, reached, wet, matches, ...}
 //   print(scratch.run_step2(grid))     # step 2: spills, held / stream, flow, each timed
+//   print(scratch.run_step3(grid))     # step 2d (circle spill) and step 3 (cell classes)
 #ifndef MC_WATER_SCRATCH_H
 #define MC_WATER_SCRATCH_H
 
@@ -43,6 +44,14 @@ public:
 	// {spill_usec, held_usec, flow_usec, spilled, held, streams, flowing, landings,
 	//  levels_differ, held_differ, surface_differ, flow_differ}
 	Dictionary run_step2(
+			Object *p_grid,
+			int p_runs = 20
+	);
+	// Steps 2d and 3 (wfs_circle_spill.h, wfs_cells.h) after steps 1 - 2c, each timed (best of
+	// p_runs), and every body compared with the grid's (MCGrid.get_water_bodies_debug):
+	// {spill_points_usec, circle_usec, cells_usec, spill_points, bodies, cells_with_water, by class
+	//  (bank, wet, lower, dry corners), bodies_differ, first_difference}
+	Dictionary run_step3(
 			Object *p_grid,
 			int p_runs = 20
 	);

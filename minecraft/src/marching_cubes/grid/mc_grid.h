@@ -770,6 +770,10 @@ public:
 	// Debug (mc_grid_water_reference.cpp): what the builder's step 2 makes of the stored water, per
 	// column: {levels (with the spills), held, surface, flow}, for water_from_scratch to compare with.
 	Dictionary get_water_columns_debug();
+	// Debug (mc_grid_water_reference.cpp): the builder's step 3, every cell's water bodies as
+	// _rebuild_water makes them (spills included), cell by cell: [{cx, cz, corners (bank 0, wet 1,
+	// lower 2, dry 3), top, stream, bottom, mask}], for water_from_scratch to compare with.
+	Array get_water_bodies_debug();
 	int64_t get_water_rebuild_usec() const { return static_cast<int64_t>(water_rebuild_usec); }
 	PackedInt64Array get_water_stage_usec() const {
 		PackedInt64Array a;
