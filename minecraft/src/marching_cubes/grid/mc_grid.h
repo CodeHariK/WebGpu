@@ -767,6 +767,9 @@ public:
 	) const;
 	void set_water_sweep_debug(bool p_on) { water_sweep_debug = p_on; }
 	String get_water_sweep_dump() const;
+	// Debug (mc_grid_water_reference.cpp): what the builder's step 2 makes of the stored water, per
+	// column: {levels (with the spills), held, surface, flow}, for water_from_scratch to compare with.
+	Dictionary get_water_columns_debug();
 	int64_t get_water_rebuild_usec() const { return static_cast<int64_t>(water_rebuild_usec); }
 	PackedInt64Array get_water_stage_usec() const {
 		PackedInt64Array a;
