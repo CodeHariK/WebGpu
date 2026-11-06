@@ -40,3 +40,12 @@ Three passes, each a scan of the columns plus one breadth-first walk (linear):
 
 Checked column by column against the builder (`MCGrid.get_water_columns_debug`): levels, held,
 surface and flow all match on the test map (1089 columns: 1 spilled, 583 held, 6 stream, 7 flowing).
+
+## Step 2d: the circle spill (when its radius is above 0)
+
+Replaces 2a's column spill. A spill point is the centre of a cell with a wet corner W, the dry
+column D diagonally across (not a bank, not below the water's bed) and a lower column beside them
+(the low corner the water runs past). After 2c, so held / stream and the flow don't change, D gets
+W's water for the mesh only (level, surface, held, flow) and is marked as spilled; the spill cell
+remembers the level spilling there. One scan over the cells (`wfs_circle_spill.*`, ~8 µs for the points).
+Step 2's runner now follows the grid: with a circle spill radius set, 2a's column spill is off.

@@ -25,6 +25,7 @@ class MCWaterScratch : public RefCounted {
 	WfsColumns columns; // the copied input
 	float drop = 0.15f; // m held water sits below the next tier (the grid's water_drop)
 	int spill_reach = 1; // columns a diagonal spill wets (the grid's water_spill_reach)
+	float spill_radius = 0.0f; // m the circle spill (the grid's water_spill_radius; 0: off, else no column spill)
 
 protected:
 	static void _bind_methods();

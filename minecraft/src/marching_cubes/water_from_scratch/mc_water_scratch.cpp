@@ -33,6 +33,7 @@ void MCWaterScratch::load_grid(Object *p_grid) {
 	columns.sea_level = grid->get_sea_level();
 	drop = grid->get_water_drop();
 	spill_reach = grid->get_water_spill_reach();
+	spill_radius = grid->get_water_spill_radius();
 	columns.heights.assign(static_cast<size_t>(counts.x * counts.y), 0);
 	columns.levels.assign(static_cast<size_t>(counts.x * counts.y), 0);
 	for (int z = 0; z < counts.y; z++) {
@@ -108,7 +109,8 @@ Dictionary MCWaterScratch::run_step2(
 	settled.levels = wfs_settle(columns).levels;
 	// 2a spills, 2b held / stream, 2c flow; each one's output is the next one's input
 	std::vector<int> spilled_levels;
-	out["spill_usec"] = best_usec(p_runs, [&]() { spilled_levels = wfs_spill(settled, spill_reach); });
+	int reach = spill_radius > 0.0f ? 0 : spill_reach; // the circle spill replaces the column spill
+	out["spill_usec"] = best_usec(p_runs, [&]() { spilled_levels = wfs_spill(settled, reach); });
 	WfsColumns spilled = settled;
 	spilled.levels = spilled_levels;
 	WfsSurfaces surfaces;
