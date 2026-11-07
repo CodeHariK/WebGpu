@@ -112,6 +112,7 @@ MCManager::_unhandled_input (click)
 
 | File | Functions |
 |---|---|
+| `mc_edit.h` | `MCEdit`: one undoable edit (the old heights, water levels and corner bits it changed, the decor seed and M roofs) |
 | `mc_grid_undo.cpp` | undo / redo: `begin_edit` · `end_edit` · `undo` · `redo` · `can_undo` / `can_redo` · `clear_history` · `_record_height` / `_record_water` / `_record_corner` (old value once per edit) · `_apply_edit` (writes them back, records the inverse, refresh_grid) |
 | `mc_grid_objects.cpp` | `is_area_blocked_by_grid` · `is_area_blocked_by_objects` · `add_placed_object` · `remove_placed_object` · `detach_placed_object` · `get_placed_object` · `_clear_placed_objects` |
 | `mc_placed_objects.h/.cpp` | `MCPlacedObjects`: `add_object` · `remove_object_at` · `remove_object_by_node` · `is_area_blocked` · `get_object_by_node` · `clear` |
@@ -136,6 +137,8 @@ MCManager::_unhandled_input (click)
 ## water/
 
 The water layer, one folder per step (1 flood, 2 columns, 3 bodies, 4 tiles · build · debug): see `water/README.md`.
+`mc_water_types.h` holds the water types `MCGrid` uses (placed falls and their ends, the mesh being built, the edge
+pieces, the debug trace steps, the baked tile meshes); `mc_water_steps.h` the column grid's 4 neighbour steps.
 
 ## editor/ (all `MCManager`)
 

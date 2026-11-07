@@ -22,6 +22,8 @@ water/
   4_tiles/       step 4: the mesh - cached tiles, the fall strips, the cut under them
   build/         runs the steps in order, makes the mesh, the debug views
   debug/         overlays and the step-by-step walk
+  mc_water_types.h   the water types MCGrid uses (falls, the mesh being built, trace steps, baked tiles)
+  mc_water_steps.h   the column grid's 4 neighbour steps (+x, -x, +z, -z)
 ```
 
 ## The steps
