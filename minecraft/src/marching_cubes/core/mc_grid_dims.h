@@ -8,6 +8,38 @@
 
 namespace godot {
 
+// The biggest grid MCGrid holds: 16.7 million corners (2 MB of corner bits, 134 MB of debug cube
+// slots) and 65 536 chunks. Every corner / cell count and index then fits an int, and a corrupt
+// save file can't make the loader allocate gigabytes.
+constexpr int64_t MC_MAX_GRID_CORNERS = int64_t(1) << 24;
+constexpr int64_t MC_MAX_GRID_CHUNKS = int64_t(1) << 16;
+
+// Can MCGrid hold a grid of p_grid chunks of p_chunk cells: at least 1 on every axis, and no more
+// than MC_MAX_GRID_CORNERS corners and MC_MAX_GRID_CHUNKS chunks?
+inline bool mc_grid_size_ok(
+		const Vector3i &p_grid,
+		const Vector3i &p_chunk
+) {
+	int64_t corners = 1;
+	int64_t chunks = 1;
+	for (int axis = 0; axis < 3; axis++) {
+		if (p_grid[axis] < 1 || p_chunk[axis] < 1) {
+			return false;
+		}
+		// one axis alone is at most 2^31 * 2^31: fits; checked before the next multiply
+		int64_t axis_corners = static_cast<int64_t>(p_grid[axis]) * p_chunk[axis] + 1;
+		if (axis_corners > MC_MAX_GRID_CORNERS || p_grid[axis] > MC_MAX_GRID_CHUNKS) {
+			return false;
+		}
+		corners *= axis_corners;
+		chunks *= p_grid[axis];
+		if (corners > MC_MAX_GRID_CORNERS || chunks > MC_MAX_GRID_CHUNKS) {
+			return false;
+		}
+	}
+	return true;
+}
+
 struct MCGridDims {
 	Vector3i grid_dims; // chunks per axis
 	Vector3i chunk_dims; // cells per chunk per axis

@@ -75,8 +75,9 @@ Ref<Shape3D> MCGrid::_shared_tile_shape(
 		return found->second;
 	}
 	PackedVector3Array faces = p_mesh->get_faces();
+	Vector3 *w = faces.ptrw(); // set() / [] would be one engine call per vertex
 	for (int64_t i = 0; i < faces.size(); i++) {
-		faces.set(i, p_turn.xform(faces[i]));
+		w[i] = p_turn.xform(w[i]);
 	}
 	Ref<ConcavePolygonShape3D> shape;
 	shape.instantiate();

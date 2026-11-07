@@ -2,10 +2,11 @@
 // edit, clear).
 //
 // One MeshInstance3D per chunk instead of one per cell: far fewer nodes and render objects, and
-// one ConcavePolygonShape3D per chunk on LAYER_TERRAIN so players, enemies and projectiles can
-// stand on / hit the terrain. Tiles that share a material end up in the same surface, so a chunk
-// is one draw per material (MCChunkBuilder). Edits mark chunks dirty; they are rebuilt once at the
-// end of the frame (flush_dirty_chunks), so a brush stroke rebuilds each chunk once.
+// one StaticBody3D per chunk on LAYER_TERRAIN so players, enemies and projectiles can stand on /
+// hit the terrain (its shapes: mc_grid_collision.cpp). Tiles that share a material end up in the
+// same surface, so a chunk is one draw per material (MCChunkBuilder). Edits mark chunks dirty; they
+// are rebuilt once at the end of the frame (flush_dirty_chunks), so a brush stroke rebuilds each
+// chunk once.
 #include "marching_cubes/terrain/2_mesh/mc_chunk_builder.h"
 #include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
@@ -25,7 +26,12 @@ namespace godot {
 // Queue the chunk's mesh node (and collider) for freeing and reset its counters.
 void MCGrid::_free_chunk_mesh(Chunk &p_chunk) {
 	if (p_chunk.mesh_node) {
-		p_chunk.mesh_node->queue_free(); // its StaticBody3D child goes with it
+		// out of the tree now (its collider leaves the physics world, its name is free for the new
+		// node), freed at the end of the frame; its StaticBody3D child goes with it
+		if (p_chunk.mesh_node->get_parent() == this) {
+			remove_child(p_chunk.mesh_node);
+		}
+		p_chunk.mesh_node->queue_free();
 		p_chunk.mesh_node = nullptr;
 		total_chunk_meshes--;
 	}
@@ -48,6 +54,7 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 	std::vector<std::pair<Ref<Mesh>, Transform3D>> collide_tiles; // each tile placed (not decor): for the collider
 	int tiles = 0;
 	Vector3i origin(p_chunk.loc_x * p_chunk.size_x, p_chunk.loc_y * p_chunk.size_y, p_chunk.loc_z * p_chunk.size_z);
+	const Vector3i pinned_cell = _pinned_cell(); // once per chunk: it reads the pinned cell's hash
 	for (int ly = 0; ly < p_chunk.size_y; ly++) {
 		for (int lz = 0; lz < p_chunk.size_z; lz++) {
 			for (int lx = 0; lx < p_chunk.size_x; lx++) {
@@ -58,12 +65,11 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 				Vector3i cell = origin + Vector3i(lx, ly, lz);
 				Transform3D cell_t;
 				cell_t.origin = Vector3(cell) + Vector3(0.5f, 0.5f, 0.5f); // cell centre
-				const mc::LevelPin *live_pin = _live_pin();
-				if (live_pin && cell == Vector3i(live_pin->x, live_pin->y, live_pin->z) && pin_mesh.is_valid()) {
+				if (cell == pinned_cell) {
 					builder.add(pin_mesh, cell_t, surface_cache); // the pinned tile itself, as modelled
 					collide_tiles.push_back({ pin_mesh, cell_t });
 					// its sockets: those of the variant whose mesh it is
-					const MCTile &pinned = tile_library->get_level_tile(mc::LEVEL_LETTERS[live_pin->level], hash);
+					const MCTile &pinned = tile_library->get_level_tile(mc::LEVEL_LETTERS[pin.level], hash);
 					for (size_t v = 0; v < pinned.variant_meshes.size() && v < pinned.variant_sockets.size(); v++) {
 						if (pinned.variant_meshes[v] != pin_mesh) {
 							continue;
@@ -86,13 +92,15 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 				if (conf->mesh.is_null()) {
 					continue;
 				}
-				builder.add(conf->mesh_for_cell(cell), cell_t * conf->turn, surface_cache);
-				collide_tiles.push_back({ conf->mesh_for_cell(cell), cell_t * conf->turn });
+				const Ref<Mesh> mesh = conf->mesh_for_cell(cell);
+				const Transform3D tile_t = cell_t * conf->turn;
+				builder.add(mesh, tile_t, surface_cache);
+				collide_tiles.push_back({ mesh, tile_t });
 				const std::vector<MCSocket> &sockets = conf->sockets_for_cell(cell);
 				for (size_t i = 0; i < sockets.size(); i++) { // decor: drawn, not collided
 					Ref<Mesh> piece = tile_library->decor_for_socket(sockets[i], cell, static_cast<int>(i), static_cast<uint32_t>(decor_seed));
 					if (piece.is_valid()) {
-						builder.add(piece, cell_t * conf->turn * sockets[i].transform, surface_cache, false);
+						builder.add(piece, tile_t * sockets[i].transform, surface_cache, false);
 					}
 				}
 				tiles++;

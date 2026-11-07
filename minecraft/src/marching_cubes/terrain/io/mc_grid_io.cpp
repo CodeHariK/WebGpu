@@ -15,7 +15,6 @@ namespace godot {
 
 static const uint32_t MCT_MAGIC = 0x4D435452;
 static const uint32_t MCT_VERSION = 1;
-static const int32_t MCT_MAX_AXIS = 1024; // generous; stops a corrupt header allocating gigabytes
 
 // Header (magic, version, sizes) then every chunk's RLE corner bits.
 void MCGrid::save_grid(const String &p_path) {
@@ -43,9 +42,8 @@ void MCGrid::load_grid(const String &p_path) {
 		return;
 	}
 	uint32_t version = f->get_32();
-	clear_history(); // whatever is loaded, the old edits don't apply to it
 	if (version == 2) {
-		if (_load_v2(f, p_path)) {
+		if (_load_v2(f, p_path)) { // it resets the map state (undo history too) once the file is good
 			UtilityFunctions::print("MCGrid: Loaded state from ", p_path);
 			settle_water(); // older saves hold water that couldn't flow yet
 			refresh_grid();
@@ -57,24 +55,26 @@ void MCGrid::load_grid(const String &p_path) {
 		return;
 	}
 
-	// 2. Metadata: every axis 1..MCT_MAX_AXIS, and the chunk count must match
+	// 2. Metadata: sizes MCGrid can hold (mc_grid_size_ok), and the chunk count must match
 	Vector3i file_grid(
 			static_cast<int32_t>(f->get_32()), static_cast<int32_t>(f->get_32()), static_cast<int32_t>(f->get_32())
 	);
 	Vector3i file_chunk(
 			static_cast<int32_t>(f->get_32()), static_cast<int32_t>(f->get_32()), static_cast<int32_t>(f->get_32())
 	);
-	for (int axis = 0; axis < 3; axis++) {
-		if (file_grid[axis] < 1 || file_grid[axis] > MCT_MAX_AXIS || file_chunk[axis] < 1 ||
-			file_chunk[axis] > MCT_MAX_AXIS) {
-			UtilityFunctions::push_error("MCGrid: corrupt terrain file (bad sizes): ", p_path);
-			return;
-		}
+	if (!mc_grid_size_ok(file_grid, file_chunk)) {
+		UtilityFunctions::push_error("MCGrid: corrupt terrain file (bad sizes): ", p_path);
+		return;
 	}
 	uint64_t expected_chunks = static_cast<uint64_t>(file_grid.x) * file_grid.y * file_grid.z;
 	uint32_t num_chunks = f->get_32();
 	if (num_chunks != expected_chunks) {
 		UtilityFunctions::push_error("MCGrid: corrupt terrain file (chunk count mismatch): ", p_path);
+		return;
+	}
+	// every chunk has at least its 4-byte length: a short file is caught before anything is allocated
+	if (f->get_position() + static_cast<uint64_t>(num_chunks) * 4 > f->get_length()) {
+		UtilityFunctions::push_error("MCGrid: corrupt terrain file (truncated chunk data): ", p_path);
 		return;
 	}
 
@@ -89,10 +89,12 @@ void MCGrid::load_grid(const String &p_path) {
 		chunk_data[i] = f->get_buffer(data_size);
 	}
 
-	// 4. Apply: resize only if needed (that also clears placed objects), then decode
+	// 4. Apply: resize only if needed (that also clears placed objects), forget the old map's water,
+	// history, roofs and pin, then decode. A version 1 file has no mode: the grid keeps its own.
 	if (grid_dims != file_grid || chunk_dims != file_chunk) {
 		initialize_grid(file_grid.x, file_grid.y, file_grid.z, file_chunk.x, file_chunk.y, file_chunk.z, false);
 	}
+	_reset_map_state();
 	for (uint32_t i = 0; i < num_chunks; i++) {
 		chunks[i].deserialize_rle(chunk_data[i]);
 	}

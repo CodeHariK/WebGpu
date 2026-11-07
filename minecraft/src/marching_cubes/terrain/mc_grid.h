@@ -206,11 +206,14 @@ private:
 	void _update_levels();
 	// The group of a cell ('a' outside the grid or before the first update).
 	char _group_at(const Vector3i &p_cell) const;
-	// Regions of the solid corners, a group rolled per region, each cell's group; cells whose group
-	// changed are marked dirty (mc_grid_groups.cpp).
+	// Regions of the solid corners above the floor, a group rolled per region (and one for the
+	// floor), each cell's group; cells whose group changed are marked dirty (mc_grid_groups.cpp).
 	void _update_groups(const std::vector<uint8_t> &p_corners);
 	// The pin, while its cell still has the pinned hash (an edit there drops it); else nullptr.
 	const mc::LevelPin *_live_pin() const;
+	// The cell the chunk draws pin_mesh in (the live pin's, when there is a pin mesh); else
+	// (-1, -1, -1), which is never a cell.
+	Vector3i _pinned_cell() const;
 	// Write one global corner into every chunk that stores it (no boundary check, no rebuild).
 	void _write_corner(
 			const Vector3i &p_grid_pos,
@@ -242,6 +245,8 @@ private:
 	Ref<StandardMaterial3D> placed_object_material; // shared by every placed object
 	// Free every placed object and empty the list (the grid was re-initialised).
 	void _clear_placed_objects();
+	// Forget the previous map's water, undo history, M roofs, pin and pour debug (new grid, load).
+	void _reset_map_state();
 
 	// Free every chunk mesh and debug cube (placed objects and hover quads are kept).
 	void _free_spawned_nodes();
@@ -269,7 +274,8 @@ private:
 			int p_x,
 			int p_z
 	) const;
-	// The floor (1 with solid_floor, else 0) and the highest height (the top layer stays empty).
+	// The floor (1 with solid_floor, else 0) and the highest height (the top layer stays empty;
+	// at most 255: heights are stored in a byte).
 	int _min_column_height() const;
 	int _max_column_height() const;
 	// Outer columns (on the grid's edge) are locked to the floor.
@@ -279,7 +285,7 @@ private:
 	) const;
 	// Heights from the corners (the solid run up from the floor); overhangs above it are emptied.
 	void _heights_from_corners();
-	// Write one column's corners for a height (no checks, no rebuild).
+	// Write one column's corners for a height, up to the grid's top (no checks, no rebuild).
 	void _write_column(
 			int p_x,
 			int p_z,

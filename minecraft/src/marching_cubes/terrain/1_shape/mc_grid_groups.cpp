@@ -1,11 +1,15 @@
 // MCGrid: which tile group (a, b, c … : the tag group letter, MCTileLibrary::get_group_letters)
 // each cell draws.
 //
-// No painting: each connected solid region — solid corners joined across cube edges (6
-// neighbours) — rolls one group from its position and the grid's decor seed (Randomize sets it),
-// so a whole island, building or rock is one style and the same grid always gets the same groups.
-// A cell takes the group of the region its solid corners belong to (the first one, in corner
-// order). Joining two regions with an edit makes them one region with one group.
+// No painting: each connected solid region above the floor — solid corners with y >= 1 joined
+// across cube edges (6 neighbours) — rolls one group from its first corner (scan order) and the
+// grid's decor seed (Randomize sets it), so a whole island, building or rock is one style and the
+// same grid always gets the same groups. The floor (y = 0) joins nothing: it is one solid sheet
+// under everything, so through it the whole map would be one region. A cell takes the group of the
+// region of its first solid corner above the floor (in corner order); a cell with only floor
+// corners solid takes the floor's own group. Joining two regions with an edit makes them one
+// region with one group; growing a region past its first corner (toward lower z, y, x) rolls it
+// again.
 // A group that has no tile for a shape draws group a's (MCTileLibrary::get_group_tile).
 // Recomputed with the levels (_update_levels: after every edit and full rebuild); cells whose group
 // changed are marked dirty.
@@ -17,6 +21,10 @@
 namespace godot {
 
 namespace {
+// The floor's roll key: corner index 0 (corner (0, 0, 0), on the floor), which no region above the
+// floor can have as its first corner.
+const uint32_t FLOOR_KEY = 0;
+
 // Corner offsets of a cell, in hash bit order (core/mc_corners.h): 0..3 bottom, 4..7 top.
 const int CELL_CORNERS[8][3] = { { 0, 0, 1 }, { 1, 0, 1 }, { 1, 0, 0 }, { 0, 0, 0 },
 	{ 0, 1, 1 }, { 1, 1, 1 }, { 1, 1, 0 }, { 0, 1, 0 } };
@@ -55,7 +63,8 @@ String MCGrid::get_cell_group(const Vector3i &p_pos) const {
 	return String::chr(_group_at(p_pos));
 }
 
-// Regions of the solid corners (flood fill), one group rolled per region, then each cell's group.
+// Regions of the solid corners above the floor (flood fill), one group rolled per region (and one
+// for the floor), then each cell's group.
 void MCGrid::_update_groups(const std::vector<uint8_t> &p_corners) {
 	mc::CellBlock block = _cell_block();
 	std::vector<char> letters;
@@ -64,11 +73,12 @@ void MCGrid::_update_groups(const std::vector<uint8_t> &p_corners) {
 	}
 	std::vector<uint8_t> groups(static_cast<size_t>(block.cell_count()), 'a');
 	if (letters.size() > 1) {
-		// 1. Region of every solid corner: the index of its first corner (scan order), -1 = empty.
+		// 1. Region of every solid corner above the floor: the index of its first corner (scan order);
+		// -1 = empty or on the floor.
 		std::vector<int32_t> region(p_corners.size(), -1);
 		std::vector<int32_t> stack;
 		for (int z = 0; z <= block.z; z++) {
-			for (int y = 0; y <= block.y; y++) {
+			for (int y = 1; y <= block.y; y++) {
 				for (int x = 0; x <= block.x; x++) {
 					int32_t start = block.corner_index(x, y, z);
 					if (!p_corners[static_cast<size_t>(start)] || region[static_cast<size_t>(start)] >= 0) {
@@ -87,8 +97,8 @@ void MCGrid::_update_groups(const std::vector<uint8_t> &p_corners) {
 							int nx = cx + step[0];
 							int ny = cy + step[1];
 							int nz = cz + step[2];
-							if (nx < 0 || ny < 0 || nz < 0 || nx > block.x || ny > block.y || nz > block.z) {
-								continue;
+							if (nx < 0 || ny < 1 || nz < 0 || nx > block.x || ny > block.y || nz > block.z) {
+								continue; // outside the grid, or the floor
 							}
 							int32_t next = block.corner_index(nx, ny, nz);
 							if (p_corners[static_cast<size_t>(next)] && region[static_cast<size_t>(next)] < 0) {
@@ -100,21 +110,30 @@ void MCGrid::_update_groups(const std::vector<uint8_t> &p_corners) {
 				}
 			}
 		}
-		// 2. Each cell: the group of its first solid corner's region.
+		// 2. Each cell: the group of its first solid corner's region above the floor; else, when a
+		// floor corner of it is solid, the floor's group.
 		for (int z = 0; z < block.z; z++) {
 			for (int y = 0; y < block.y; y++) {
 				for (int x = 0; x < block.x; x++) {
+					int64_t key = -1;
+					bool floor_solid = false;
 					for (const auto &offset : CELL_CORNERS) {
 						int32_t corner = block.corner_index(x + offset[0], y + offset[1], z + offset[2]);
-						int32_t key = region[static_cast<size_t>(corner)];
-						if (key < 0) {
-							continue;
+						if (region[static_cast<size_t>(corner)] >= 0) {
+							key = region[static_cast<size_t>(corner)];
+							break;
 						}
-						uint32_t roll = region_roll(static_cast<uint32_t>(key), static_cast<uint32_t>(decor_seed));
-						groups[static_cast<size_t>(block.cell_index(x, y, z))] =
-								static_cast<uint8_t>(letters[roll % static_cast<uint32_t>(letters.size())]);
-						break;
+						floor_solid = floor_solid || (y + offset[1] == 0 && p_corners[static_cast<size_t>(corner)]);
 					}
+					if (key < 0 && floor_solid) {
+						key = FLOOR_KEY;
+					}
+					if (key < 0) {
+						continue; // no solid corner: no tile, group a
+					}
+					uint32_t roll = region_roll(static_cast<uint32_t>(key), static_cast<uint32_t>(decor_seed));
+					groups[static_cast<size_t>(block.cell_index(x, y, z))] =
+							static_cast<uint8_t>(letters[roll % static_cast<uint32_t>(letters.size())]);
 				}
 			}
 		}

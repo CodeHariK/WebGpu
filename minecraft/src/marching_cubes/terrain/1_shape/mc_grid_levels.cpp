@@ -73,6 +73,15 @@ const mc::LevelPin *MCGrid::_live_pin() const {
 	return &pin;
 }
 
+// Where the chunk draws pin_mesh instead of the library's tile; (-1, -1, -1) when nowhere.
+Vector3i MCGrid::_pinned_cell() const {
+	const mc::LevelPin *live = _live_pin();
+	if (!live || pin_mesh.is_null()) {
+		return Vector3i(-1, -1, -1);
+	}
+	return Vector3i(live->x, live->y, live->z);
+}
+
 // Recompute the levels from the corners; mark the cells whose level changed for a rebuild.
 void MCGrid::_update_levels() {
 	mc::CellBlock block = _cell_block();

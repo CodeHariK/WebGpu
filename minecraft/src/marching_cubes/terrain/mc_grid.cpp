@@ -189,6 +189,7 @@ void MCGrid::set_chunk_dims(const Vector3i &p_size) {
 void MCGrid::set_tile_library(MCTileLibrary *p_node) {
 	tile_library = p_node;
 	surface_cache.clear(); // other tile meshes
+	shared_tile_shapes.clear(); // their collision shapes (keyed by mesh: the old ones are never hit again)
 }
 
 // The tile library that supplies the tiles.
@@ -213,9 +214,13 @@ void MCGrid::initialize_grid(
 		int p_chunk_dims_z,
 		bool p_refresh
 ) {
-	if (p_chunks_x < 1 || p_chunks_y < 1 || p_chunks_z < 1 || p_chunk_dims_x < 1 || p_chunk_dims_y < 1 ||
-		p_chunk_dims_z < 1) {
-		UtilityFunctions::push_error("MCGrid: grid and chunk sizes must be at least 1 on every axis.");
+	if (!mc_grid_size_ok(
+				Vector3i(p_chunks_x, p_chunks_y, p_chunks_z), Vector3i(p_chunk_dims_x, p_chunk_dims_y, p_chunk_dims_z)
+		)) {
+		UtilityFunctions::push_error(
+				"MCGrid: grid and chunk sizes must be at least 1 on every axis, with at most ", MC_MAX_GRID_CORNERS,
+				" corners and ", MC_MAX_GRID_CHUNKS, " chunks."
+		);
 		return;
 	}
 	grid_dims = Vector3i(p_chunks_x, p_chunks_y, p_chunks_z);
@@ -256,24 +261,29 @@ void MCGrid::initialize_grid(
 	if (heightmap_mode) {
 		_heights_from_corners(); // a flat floor: every column at the floor
 	}
-	water_levels.assign(static_cast<size_t>(_column_counts().x) * _column_counts().y, 0); // dry
-	water_dirty = true;
-	clear_history(); // a new grid: old edits don't apply
-
+	_reset_map_state();
 	placed_list.clear();
 	_clear_placed_objects(); // their grid positions mean nothing in the new grid
-	roof_m.clear(); // no M roof choices in a new grid
-	pin = mc::LevelPin(); // nor a pin
-	pin_mesh.unref();
-	last_pour.clear(); // nor the last pour (its step-by-step debug), nor a step 2 trace
-	last_pour_trace.clear();
-	water_trace.clear();
-	water_trace_kind = 0;
-	pour_step = -1;
 
 	if (p_refresh) {
 		refresh_grid();
 	}
+}
+
+// Forget what belonged to the previous map: dry water, no undo history, no M roof choices, no pin,
+// no last pour (its step-by-step debug) or step 2 trace. A new grid and a load both start here.
+void MCGrid::_reset_map_state() {
+	water_levels.assign(static_cast<size_t>(_column_counts().x) * _column_counts().y, 0); // dry
+	water_dirty = true;
+	clear_history();
+	roof_m.clear();
+	pin = mc::LevelPin();
+	pin_mesh.unref();
+	last_pour.clear();
+	last_pour_trace.clear();
+	water_trace.clear();
+	water_trace_kind = 0;
+	pour_step = -1;
 }
 
 // Free everything spawned and rebuild every chunk mesh and debug cube.

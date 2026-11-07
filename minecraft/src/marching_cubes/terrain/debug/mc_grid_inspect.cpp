@@ -104,8 +104,11 @@ String MCGrid::get_cell_info(const Vector3i &p_cell) const {
 		return text + "\nempty: no tile";
 	}
 	char level = static_cast<char>(std::toupper(static_cast<unsigned char>(mc::LEVEL_LETTERS[_level_at(p_cell)])));
-	if (tile_library) {
-		const MCTile &tile = tile_library->get_group_tile(_group_at(p_cell), mc::LEVEL_LETTERS[_level_at(p_cell)], hash);
+	if (p_cell == _pinned_cell()) {
+		text += "\npinned: the library tile you clicked, as modelled (not turned)";
+	} else if (tile_library) {
+		const MCTile &tile =
+				tile_library->get_group_tile(_group_at(p_cell), mc::LEVEL_LETTERS[_level_at(p_cell)], hash);
 		if (tile.mesh.is_null()) {
 			text += "\nno tile in the library for this hash";
 		} else {
@@ -142,15 +145,24 @@ Node3D *MCGrid::make_cell_preview(const Vector3i &p_cell) {
 	Node3D *root = memnew(Node3D);
 	root->set_name(vformat("Cell_%d_%d_%d", p_cell.x, p_cell.y, p_cell.z));
 
-	// the tile, as the chunk draws it (relative to the cell centre), with the wireframe on top
+	// the tile, as the chunk draws it (relative to the cell centre; the pinned cell: pin_mesh, not
+	// turned), with the wireframe on top
 	if (tile_library && hash != 0) {
-		const MCTile &tile = tile_library->get_group_tile(_group_at(p_cell), mc::LEVEL_LETTERS[_level_at(p_cell)], hash);
-		Ref<Mesh> mesh = tile.mesh_for_cell(p_cell);
+		Ref<Mesh> mesh;
+		Transform3D turn;
+		if (p_cell == _pinned_cell()) {
+			mesh = pin_mesh;
+		} else {
+			const MCTile &tile =
+					tile_library->get_group_tile(_group_at(p_cell), mc::LEVEL_LETTERS[_level_at(p_cell)], hash);
+			mesh = tile.mesh_for_cell(p_cell);
+			turn = tile.turn;
+		}
 		if (mesh.is_valid()) {
 			MeshInstance3D *tile_node = memnew(MeshInstance3D);
 			tile_node->set_name("Tile");
 			tile_node->set_mesh(mesh);
-			tile_node->set_transform(tile.turn);
+			tile_node->set_transform(turn);
 			tile_node->set_material_overlay(_wireframe_material);
 			root->add_child(tile_node);
 		}

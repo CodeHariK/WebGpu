@@ -32,6 +32,7 @@ namespace {
 const float ISLAND_EDGE = 0.92f; // share of the half-width where the island has sunk to the floor
 const float NOISE_SHARE = 0.45f; // how much noise bends the tiers (0: a perfect cone of tiers)
 const float ROOF_M_CHANCE = 0.5f; // roof regions drawn with M tiles (as MCHeightmap did)
+const int MAX_STORED_HEIGHT = 255; // column_heights and water_levels are uint8_t
 } // namespace
 
 // Corner columns per side (one more than the cells).
@@ -52,10 +53,12 @@ int MCGrid::_column_index(
 	return p_x + (p_z * columns.x);
 }
 
-// The lowest a column may go (the floor), and the highest (the top layer stays empty).
+// The lowest a column may go (the floor), and the highest: the top layer stays empty, and never
+// above MAX_STORED_HEIGHT (heights and water levels are a byte each). On a taller grid the corners
+// above that stay empty in heightmap mode.
 int MCGrid::_min_column_height() const { return solid_floor ? 1 : 0; }
 
-int MCGrid::_max_column_height() const { return _dims().max_corner().y; }
+int MCGrid::_max_column_height() const { return std::min(_dims().max_corner().y, MAX_STORED_HEIGHT); }
 
 // Outer columns are locked to the floor (unless lock_rim is off).
 bool MCGrid::_is_edge_column(
@@ -104,13 +107,14 @@ void MCGrid::_heights_from_corners() {
 	}
 }
 
-// Write column (x, z)'s corners for height p_height (no checks, no rebuild).
+// Write column (x, z)'s corners for height p_height (no checks, no rebuild): every corner up to
+// the grid's top, so on a grid taller than the highest height the corners above it are emptied too.
 void MCGrid::_write_column(
 		int p_x,
 		int p_z,
 		int p_height
 ) {
-	int top = _max_column_height();
+	int top = _dims().max_corner().y;
 	for (int y = 0; y <= top; y++) {
 		_write_corner(Vector3i(p_x, y, p_z), y < p_height);
 	}
@@ -218,9 +222,10 @@ String MCGrid::load_heights(
 				String::num_int64(columns.x) + "x" + String::num_int64(columns.y) + " corner columns" +
 				(lock_rim ? " (rim locked: needs 2 more)" : "");
 	}
-	if (!heightmap_mode) {
-		heightmap_mode = true;
-	}
+	heightmap_mode = true;
+	// sized for this grid here: outside heightmap mode column_heights is empty (or another grid's)
+	column_heights.assign(static_cast<size_t>(columns.x) * columns.y, 0);
+	water_levels.assign(column_heights.size(), 0); // the old water doesn't fit the new ground
 	const uint8_t *data = p_data.ptr();
 	int clipped = 0;
 	for (int z = 0; z < columns.y; z++) {

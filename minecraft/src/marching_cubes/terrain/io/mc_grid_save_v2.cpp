@@ -24,7 +24,6 @@ namespace godot {
 namespace {
 const uint32_t MCT_MAGIC = 0x4D435452;
 const uint32_t VERSION_2 = 2;
-const int32_t MAX_AXIS = 1024; // a corrupt header can't allocate gigabytes
 const uint8_t MODE_CORNER = 0;
 const uint8_t MODE_HEIGHT = 1;
 const uint8_t LAYER_CORNERS = 1; // corner mode: the chunk's RLE corner bits
@@ -83,6 +82,47 @@ bool read_layers(
 	}
 	return true;
 }
+
+// The corner columns block (p_cx, p_cz) of a p_grid x p_chunk grid owns: [r_from, r_to) on x and z
+// (the last block of a row / column also owns the grid's far edge).
+void block_columns(
+		const Vector3i &p_grid,
+		const Vector3i &p_chunk,
+		int p_cx,
+		int p_cz,
+		Vector2i &r_from,
+		Vector2i &r_to
+) {
+	r_from = Vector2i(p_cx * p_chunk.x, p_cz * p_chunk.z);
+	r_to = Vector2i(
+			p_cx == p_grid.x - 1 ? p_grid.x * p_chunk.x + 1 : r_from.x + p_chunk.x,
+			p_cz == p_grid.z - 1 ? p_grid.z * p_chunk.z + 1 : r_from.y + p_chunk.z
+	);
+}
+
+// Heightmap mode: does every HEIGHTS / WATER layer of every block hold exactly one byte per corner
+// column the block owns? (Blocks run x fastest, as _save_v2 writes them.)
+bool height_layers_fit(
+		const std::vector<std::vector<std::pair<uint8_t, PackedByteArray>>> &p_blocks,
+		const Vector3i &p_grid,
+		const Vector3i &p_chunk
+) {
+	size_t i = 0;
+	for (int cz = 0; cz < p_grid.z; cz++) {
+		for (int cx = 0; cx < p_grid.x; cx++, i++) {
+			Vector2i from, to;
+			block_columns(p_grid, p_chunk, cx, cz, from, to);
+			int64_t owned = static_cast<int64_t>(to.x - from.x) * (to.y - from.y);
+			for (const auto &layer : p_blocks[i]) {
+				bool known = layer.first == LAYER_HEIGHTS || layer.first == LAYER_WATER;
+				if (known && layer.second.size() != owned) {
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
 } // namespace
 
 // The corner columns a chunk column (block) owns: [r_from, r_to) on x and z.
@@ -92,10 +132,7 @@ void MCGrid::_block_columns(
 		Vector2i &r_from,
 		Vector2i &r_to
 ) const {
-	Vector2i columns = _column_counts();
-	r_from = Vector2i(p_cx * chunk_dims.x, p_cz * chunk_dims.z);
-	r_to = Vector2i(p_cx == grid_dims.x - 1 ? columns.x : r_from.x + chunk_dims.x,
-			p_cz == grid_dims.z - 1 ? columns.y : r_from.y + chunk_dims.z);
+	block_columns(grid_dims, chunk_dims, p_cx, p_cz, r_from, r_to);
 }
 
 void MCGrid::_save_v2(const Ref<FileAccess> &p_file) const {
@@ -163,11 +200,9 @@ bool MCGrid::_load_v2(
 	for (int axis = 0; axis < 3; axis++) {
 		file_chunk[axis] = static_cast<int32_t>(p_file->get_32());
 	}
-	for (int axis = 0; axis < 3; axis++) {
-		if (file_grid[axis] < 1 || file_grid[axis] > MAX_AXIS || file_chunk[axis] < 1 || file_chunk[axis] > MAX_AXIS) {
-			UtilityFunctions::push_error("MCGrid: corrupt terrain file (bad sizes): ", p_path);
-			return false;
-		}
+	if (!mc_grid_size_ok(file_grid, file_chunk)) { // a grid MCGrid can hold (core/mc_grid_dims.h)
+		UtilityFunctions::push_error("MCGrid: corrupt terrain file (bad sizes): ", p_path);
+		return false;
 	}
 	if (mode != MODE_CORNER && mode != MODE_HEIGHT) {
 		UtilityFunctions::push_error("MCGrid: corrupt terrain file (unknown mode ", mode, "): ", p_path);
@@ -180,7 +215,12 @@ bool MCGrid::_load_v2(
 		UtilityFunctions::push_error("MCGrid: corrupt terrain file (block count mismatch): ", p_path);
 		return false;
 	}
-	// 2. Block sizes, then every block's layers into temporaries
+	// 2. Block sizes (4 bytes each: a short file is caught before anything is allocated), then every
+	// block's layers into temporaries, then the layers checked against the file's sizes
+	if (p_file->get_position() + static_cast<uint64_t>(count) * 4 > p_file->get_length()) {
+		UtilityFunctions::push_error("MCGrid: corrupt terrain file (truncated block sizes): ", p_path);
+		return false;
+	}
 	std::vector<uint32_t> sizes(count);
 	uint64_t total = 0;
 	for (uint32_t i = 0; i < count; i++) {
@@ -198,8 +238,13 @@ bool MCGrid::_load_v2(
 			return false;
 		}
 	}
+	if (mode == MODE_HEIGHT && !height_layers_fit(blocks, file_grid, file_chunk)) {
+		UtilityFunctions::push_error("MCGrid: corrupt terrain file (a block has the wrong column count): ", p_path);
+		return false;
+	}
 
-	// 3. Apply: same sizes as the file (that drops placed objects only when the size changes)
+	// 3. Apply: same sizes as the file (that drops placed objects only when the size changes), and
+	// none of the old map's water, history, roofs or pin
 	bool resize = grid_dims != file_grid || chunk_dims != file_chunk;
 	heightmap_mode = mode == MODE_HEIGHT;
 	lock_rim = file_lock_rim;
@@ -207,6 +252,7 @@ bool MCGrid::_load_v2(
 	if (resize) {
 		initialize_grid(file_grid.x, file_grid.y, file_grid.z, file_chunk.x, file_chunk.y, file_chunk.z, false);
 	}
+	_reset_map_state();
 	if (!heightmap_mode) {
 		for (uint32_t i = 0; i < count; i++) {
 			for (const auto &layer : blocks[i]) {
@@ -219,23 +265,17 @@ bool MCGrid::_load_v2(
 	}
 	Vector2i columns = _column_counts();
 	column_heights.assign(static_cast<size_t>(columns.x) * columns.y, 0);
-	water_levels.assign(column_heights.size(), 0);
 	uint32_t i = 0;
 	for (int cz = 0; cz < grid_dims.z; cz++) {
 		for (int cx = 0; cx < grid_dims.x; cx++, i++) {
 			Vector2i from, to;
 			_block_columns(cx, cz, from, to);
-			size_t owned = static_cast<size_t>(to.x - from.x) * (to.y - from.y);
-			for (const auto &layer : blocks[i]) {
+			for (const auto &layer : blocks[i]) { // sizes checked above (height_layers_fit)
 				std::vector<uint8_t> *target = layer.first == LAYER_HEIGHTS ? &column_heights
 						: layer.first == LAYER_WATER						 ? &water_levels
 																			 : nullptr;
 				if (!target) {
 					continue; // a layer this version doesn't know
-				}
-				if (static_cast<size_t>(layer.second.size()) != owned) {
-					UtilityFunctions::push_error("MCGrid: terrain file block ", i, " has the wrong column count: ", p_path);
-					continue;
 				}
 				size_t k = 0;
 				for (int z = from.y; z < to.y; z++) {

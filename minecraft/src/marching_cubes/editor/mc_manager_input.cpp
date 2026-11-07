@@ -124,9 +124,10 @@ bool MCManager::_raycast_click(
 		MCGrid *p_grid,
 		ClickHit &r_hit
 ) {
-	// Terrain mode edits corners only: hitting a placed object must not edit the corner under it.
-	uint32_t mask = interaction_mode == MODE_TERRAIN ? toLayer(LAYER_CORNERS)
-													 : (toLayer(LAYER_OBJECTS) | toLayer(LAYER_CORNERS));
+	// The Terrain and Water tools act on corners only: a placed object in the way must not stand for
+	// a corner (the hit would have no corner, and act on corner (0, 0, 0)).
+	bool corners_only = interaction_mode == MODE_TERRAIN || interaction_mode == MODE_WATER;
+	uint32_t mask = corners_only ? toLayer(LAYER_CORNERS) : (toLayer(LAYER_OBJECTS) | toLayer(LAYER_CORNERS));
 	MCRaycastHit hit = raycast_from_event(this, p_event, mask, 512, _drag_group_exclusions());
 	if (!hit.is_hit) {
 		return false;
