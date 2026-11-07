@@ -141,6 +141,10 @@ void MCManager::setup_ui() {
 	water_view_button = ui.manager->add_button(water_tab, String("Water view: ") + MCGrid::water_view_name(view),
 			Callable(this, "_on_cycle_water_view"));
 	water_view_button->set_custom_minimum_size(Vector2(0, 30));
+	int liquid = grid_node ? grid_node->get_liquid() : 0;
+	liquid_button = ui.manager->add_button(water_tab, String("Liquid: ") + MCGrid::liquid_name(liquid),
+			Callable(this, "_on_cycle_liquid"));
+	liquid_button->set_custom_minimum_size(Vector2(0, 30));
 	ui.manager->add_header(water_tab, "Shape");
 	// water surface height: metres below the bank one tier up
 	ui.manager->add_label(water_tab, "Water drop (m below bank)");

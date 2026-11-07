@@ -32,7 +32,7 @@
 // is an outlet (it points at the fall); a breadth-first walk from the outlets through same-level
 // water points every other column of the body at the one it was reached from. A body with no
 // outlet (a pond, the sea) is still. The column a fall lands in gets foam. The mesh carries this in
-// its vertex COLOR (blended from the cell's 4 corners, so it turns smoothly) for water.gdshader:
+// its vertex COLOR (blended from the cell's 4 corners, so it turns smoothly) for liquid.gdshader:
 // rg direction as 0..1, b flows, a landing foam.
 // The mesh is built from the cells' bodies (step 3, mc_water_bodies.cpp: the banks and fall lines
 // from the cliff tile meshes) as cached water tiles (step 4, mc_water_tiles.cpp), so its edges and

@@ -64,7 +64,21 @@ void MCManager::_on_water_samples(double p_value) {
 	}
 }
 
-// Water view button: cycles normal -> wireframe -> UV -> UV + wireframe (MCGrid::WaterView).
+// Liquid button: the map's liquid, water -> lava -> green poison (MCGrid::Liquid).
+void MCManager::_on_cycle_liquid() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (!grid_node) {
+		return;
+	}
+	int next = (grid_node->get_liquid() + 1) % MCGrid::LIQUID_COUNT;
+	grid_node->set_liquid(next);
+	if (liquid_button) {
+		liquid_button->set_text(String("Liquid: ") + MCGrid::liquid_name(next));
+	}
+}
+
+// Water view button: cycles normal -> wireframe -> UV -> UV + wireframe -> pieces -> flow
+// (MCGrid::WaterView).
 void MCManager::_on_cycle_water_view() {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
 	if (!grid_node) {

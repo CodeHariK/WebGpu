@@ -20,7 +20,7 @@
 namespace godot {
 
 namespace {
-const char *WATER_SHADER = "res://material/shaders/terrain/water.gdshader"; // surfaces + falls
+const char *WATER_SHADER = "res://material/shaders/terrain/liquid.gdshader"; // surfaces + falls
 
 // A material from a shader path (null if the shader isn't there).
 Ref<Material> shader_material(const char *p_path) {
@@ -102,6 +102,7 @@ void MCGrid::_rebuild_water() {
 	}
 	if (water_material.is_null()) {
 		water_material = shader_material(WATER_SHADER);
+		_apply_liquid(); // the map's liquid on the new material (mc_water_liquid.cpp)
 	}
 	uint64_t upload = Time::get_singleton()->get_ticks_usec();
 	water_node->set_mesh(water_view == WATER_VIEW_PIECES ? _water_pieces_mesh(arrays_out) : _water_mesh(arrays_out));
@@ -119,11 +120,11 @@ void MCGrid::_rebuild_water() {
 	water_stage_usec[6] = Time::get_singleton()->get_ticks_usec() - upload; // the mesh to the GPU
 }
 
-// The water mesh: ONE surface with one material (water.gdshader) for the surfaces and the falls, so
+// The water mesh: ONE surface with one material (liquid.gdshader) for the surfaces and the falls, so
 // where a fall's strip leaves the surface the same shader runs on both sides (no seam). The falls'
 // triangles come first in the index list: they write depth, so a surface behind a fall is hidden
 // and one in front blends over it. UV2 per vertex: over the lip (0 on the surfaces), and metres
-// above the landing (falls) or -1 on a stream (see water.gdshader).
+// above the landing (falls) or -1 on a stream (see liquid.gdshader).
 Ref<ArrayMesh> MCGrid::_water_mesh(const MCWaterArrays &p_arrays) const {
 	PackedVector3Array vertices = p_arrays.vertices; // surfaces and fall strips together
 	PackedVector3Array normals = p_arrays.normals;

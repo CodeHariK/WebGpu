@@ -4,7 +4,7 @@
 // points at the fall); a breadth-first walk from the outlets through same-level water points every
 // other column of the body at the one it was reached from. A body with no outlet (a pond, the sea)
 // is still. The column a fall lands in gets foam. The mesh carries this in its vertex COLOR for
-// water.gdshader: rg direction as 0..1, b flows, a landing foam.
+// liquid.gdshader: rg direction as 0..1, b flows, a landing foam.
 #include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/mc_water_steps.h"
 #include <cmath>

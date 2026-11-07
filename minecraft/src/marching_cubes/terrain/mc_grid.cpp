@@ -109,7 +109,10 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_water_view", "view"), &MCGrid::set_water_view);
 	ClassDB::bind_method(D_METHOD("get_water_view"), &MCGrid::get_water_view);
 	ClassDB::bind_method(D_METHOD("get_water_piece_counts"), &MCGrid::get_water_piece_counts);
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "water_view", PROPERTY_HINT_ENUM, "Normal,Wireframe,UV,UV + wireframe,Pieces"), "set_water_view", "get_water_view");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "water_view", PROPERTY_HINT_ENUM, "Normal,Wireframe,UV,UV + wireframe,Pieces,Flow"), "set_water_view", "get_water_view");
+	ClassDB::bind_method(D_METHOD("set_liquid", "liquid"), &MCGrid::set_liquid);
+	ClassDB::bind_method(D_METHOD("get_liquid"), &MCGrid::get_liquid);
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "liquid", PROPERTY_HINT_ENUM, "Water,Lava,Green poison"), "set_liquid", "get_liquid");
 	ClassDB::bind_method(D_METHOD("set_debug_water", "on"), &MCGrid::set_debug_water);
 	ClassDB::bind_method(D_METHOD("is_debug_water"), &MCGrid::is_debug_water);
 	ClassDB::bind_method(D_METHOD("replay_water_debug"), &MCGrid::replay_water_debug);

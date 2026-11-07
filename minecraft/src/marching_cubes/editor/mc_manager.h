@@ -240,7 +240,8 @@ public:
 	void _on_water_samples(double p_value); // the water samples per cell slider
 	void _on_toggle_edge_corners(); // inactive corners with an edge to an active one
 	void _on_toggle_water_debug();
-	void _on_cycle_water_view(); // water mesh view: normal / wireframe / UV / UV + wireframe
+	void _on_cycle_water_view(); // water mesh view: normal / wireframe / UV / UV + wireframe / pieces / flow
+	void _on_cycle_liquid(); // the map's liquid: water / lava / green poison
 	// recording an inspected spot (mc_manager_record.cpp): camera, cell, map, screenshot
 	void _on_record_view(); // Debug tab: record the camera + the hovered cell
 	void _record_inspect(
@@ -254,6 +255,7 @@ public:
 	Vector3i start_grid_dims; // the grid's size as the scene sets it (Reset rebuilds it)
 	Vector3i start_chunk_dims;
 	Button *water_view_button = nullptr; // "Water view: <view>"
+	Button *liquid_button = nullptr; // "Liquid: <liquid>"
 	void _on_replay_pour();
 	// --- mc_manager_inspect.cpp: inspect mode (a clicked cell shown in a side view) ---
 	struct InspectView {

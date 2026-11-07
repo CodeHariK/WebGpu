@@ -67,7 +67,7 @@ struct MCWaterArrays {
 	PackedVector3Array vertices;
 	PackedVector3Array normals;
 	PackedVector2Array uvs; // world x z
-	PackedVector2Array uv2s; // water.gdshader's form: x over the lip, y metres above the landing or -1 on a stream
+	PackedVector2Array uv2s; // liquid.gdshader's form: x over the lip, y metres above the landing or -1 on a stream
 	PackedColorArray colors; // flow: rg direction 0..1, b flows, a landing foam
 	std::vector<Vector3> samples; // the wet sample points (debug overlay)
 	PackedInt32Array indices; // welded surface triangles
@@ -80,7 +80,7 @@ struct MCWaterArrays {
 	void begin_piece() { pieces.push_back(indices.size()); }
 	void begin_first_piece() { first_pieces.push_back(first_indices.size()); }
 	std::vector<WaterEdge> edges; // water tiles: every edge segment of the water (debug stage 3 only)
-	// per vertex: the water's depth in metres (surface to ground), baked (water.gdshader CUSTOM0.x)
+	// per vertex: the water's depth in metres (surface to ground), baked (liquid.gdshader CUSTOM0.x)
 	PackedFloat32Array depths;
 };
 

@@ -69,7 +69,10 @@ under each strip's bevel (its footprint), so it never sticks out through it.
 
 - `mc_water_build.cpp`: `_rebuild_water` (the steps in order, each timed in `water_stage_usec`)
   and `_water_mesh` (one surface, falls first).
-- `mc_water_view.cpp`: the view modes (normal, wireframe, UV, UV + wireframe, pieces: every mesh piece in its own colour).
+- `mc_water_view.cpp`: the view modes (normal, wireframe, UV, UV + wireframe, pieces: every mesh
+  piece in its own colour, flow: the flow the shader gets).
+- `mc_water_liquid.cpp`: the map's one liquid (water, lava, green poison), handed to
+  `project/material/shaders/terrain/liquid.gdshader` (one material, one draw).
 
 ### debug
 

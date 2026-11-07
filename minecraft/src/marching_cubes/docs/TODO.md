@@ -249,7 +249,7 @@ everything built on top is an object. Terrain stays pure corners.
       texture is smooth round curves and over the bevel. End columns shared between neighbours
       (each top point offset by its smoothed direction; welded by position, normals averaged, so no
       light seams). One opaque material
-      (`project/material/shaders/terrain/water.gdshader`; transparency off for now): the surface
+      (`project/material/shaders/terrain/liquid.gdshader`; transparency off for now): the surface
       look from the world position (same on a strip's flat part; depth colour only on the flat
       water, so the bevel isn't dark), the falling look from the UV, mostly unlit (fall_glow).
       Tried and dropped: bending the surface itself into the lip with the drop hanging from it
@@ -307,7 +307,9 @@ everything built on top is an object. Terrain stays pure corners.
 
 State: water tiles builder (sample grid + marching squares, baked per corner class), bevelled L
 waterfall strips with their own UV, every triangle wound to its normals, depth baked per vertex,
-`water.gdshader` plain lit blue (full old look in 8bb3c71). Details in the heightmap water notes above.
+`liquid.gdshader` step 1: one liquid per map (MCGrid `liquid`: water / lava / green poison), a flat
+colour each, one draw (full old water look in 8bb3c71); "Water view: flow" shows the flow it reads.
+Details in the heightmap water notes above.
 
 Mesh fixes
 - [ ] Fall / spill-water junctions: strips of falls at different heights leave flaps and messy joins
@@ -315,12 +317,16 @@ Mesh fixes
 - [ ] Across UV restarts at 0 where one chain of falls meets another (keep counting across chains)
 - [ ] Softer / shorter foot flare (still boxy)
 
-Shader (rebuild one idea per step, checked against the inspect records)
+Shader (rebuild one idea per step, checked against the inspect records; `liquid.gdshader`)
+- [x] Step 1: one liquid per map (water / lava / green poison), a flat colour each; flow view
+- [ ] Save the map's liquid in the .mct (it is only MCGrid's property for now)
 - [ ] Depth colour from the baked depth (CUSTOM0.x)
 - [ ] Flowing ripples (COLOR flow) on the flat water
 - [ ] Shore foam (shallow baked depth near banks)
 - [ ] Fall streaks on the strips' own UV, speeding up as they fall
 - [ ] Landing foam (COLOR.a)
+- [ ] Lava: dark crust drifting slowly, glowing cracks, brighter where it moves / falls
+- [ ] Green poison: thick slow flow, popping bubbles, faint glow
 - [ ] Transparency last (mobile cost)
 
 Performance / structure

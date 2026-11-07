@@ -1,6 +1,6 @@
-// MCGrid: debug views of the water mesh (Stats → Diagnostics → "Water view" cycles them):
+// MCGrid: debug views of the water mesh (the Water tab's "Water view" button cycles them):
 //
-//   normal         the water and waterfall shaders
+//   normal         the liquid shader (liquid.gdshader), as in the game
 //   wireframe      the water mesh's triangles drawn over it in white (surface + falls)
 //   uv             both surfaces drawn with a UV checker instead: red / green = fract(UV), a dim
 //                  checker every 0.25, white lines on whole UV units (surface: UV = world x, z;
@@ -9,6 +9,15 @@
 //   pieces         every mesh piece in its own colour: each body's flat tile and each fall strip.
 //                  Drawn from an unwelded copy of the mesh (_water_pieces_mesh), so shared
 //                  vertices don't blend.
+//   flow           the flow map the liquid shader reads (vertex COLOR, water step 2c), drawn:
+//                  colour = the direction it flows (the wheel below), grey = still, white = foam
+//                  where a fall lands. Stripes slide the way it flows (bright edge first); on the
+//                  falls they slide down.
+//
+// The flow view's colour wheel, looking down (y up, north = -z):
+//                north (-z): violet
+//     west (-x): cyan    +    east (+x): red
+//                south (+z): yellow-green
 //
 // Applied to the water node after every rebuild (_rebuild_water) and whenever the view changes.
 #include "marching_cubes/terrain/mc_grid.h"
@@ -40,6 +49,43 @@ void fragment() {
 	vec2 to_line = abs(fract(UV - 0.5) - 0.5) / max(fwidth(UV), vec2(1e-4));
 	float line = 1.0 - min(min(to_line.x, to_line.y), 1.0);
 	ALBEDO = mix(colour, vec3(1.0), line);
+}
+)";
+
+// The flow view: what liquid.gdshader gets in COLOR (rg direction as 0..1, b flows, a foam).
+// UV2.x >= 1 is down a fall (see liquid.gdshader): there the stripes run down, by UV2.y.
+const char *WATER_FLOW_SHADER = R"(shader_type spatial;
+render_mode unshaded, cull_disabled;
+varying vec4 flow;
+varying vec3 world;
+varying vec2 form;
+void vertex() {
+	flow = COLOR;
+	form = UV2;
+	world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+// a fully saturated colour for a hue 0..1
+vec3 hue(float h) {
+	return clamp(abs(fract(h + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0, 0.0, 1.0);
+}
+void fragment() {
+	vec2 dir = flow.rg * 2.0 - 1.0; // back to -1..1
+	float strength = length(dir) * clamp(flow.b, 0.0, 1.0);
+	vec3 colour = vec3(0.35); // still
+	float along = 0.0;
+	if (strength > 0.05) {
+		colour = mix(vec3(0.35), hue(atan(dir.y, dir.x) / 6.2831853), clamp(strength * 1.5, 0.0, 1.0));
+		along = dot(world.xz, normalize(dir)); // metres along the flow
+	}
+	if (form.x >= 1.0) {
+		along = -form.y; // down a fall: metres fallen
+	}
+	if (strength > 0.05 || form.x >= 1.0) {
+		float saw = fract(along * 2.0 - TIME * 0.8); // two stripes a metre, sliding with the flow
+		colour *= mix(0.45, 1.0, saw); // dark trailing edge, bright leading edge
+	}
+	colour = mix(colour, vec3(1.0), clamp(flow.a, 0.0, 1.0) * 0.85); // foam where a fall lands
+	ALBEDO = colour;
 }
 )";
 
@@ -136,13 +182,15 @@ const char *MCGrid::water_view_name(int p_view) {
 			return "UV + wireframe";
 		case WATER_VIEW_PIECES:
 			return "pieces";
+		case WATER_VIEW_FLOW:
+			return "flow";
 		default:
 			return "normal";
 	}
 }
 
-// Put the view's materials on the water node: the UV checker on both surfaces (or the water /
-// waterfall materials back), the wireframe as an overlay (or none).
+// Put the view's material on the water node: the UV checker, the pieces or the flow (or the liquid
+// material back), and the wireframe as an overlay (or none).
 void MCGrid::_apply_water_view() {
 	if (!water_node) {
 		return;
@@ -178,9 +226,14 @@ void MCGrid::_apply_water_view() {
 		water_node->set_material_overlay(wire ? Ref<Material>(water_wireframe_material) : Ref<Material>());
 		return;
 	}
+	bool flow = water_view == WATER_VIEW_FLOW;
+	if (flow && water_flow_material.is_null()) {
+		water_flow_material = water_view_material(WATER_FLOW_SHADER);
+	}
+	Ref<Material> surface_material = flow ? water_flow_material : (uv ? water_uv_material : water_material);
 	if (mesh.is_valid()) {
 		for (int s = 0; s < mesh->get_surface_count(); s++) {
-			mesh->surface_set_material(s, uv ? Ref<Material>(water_uv_material) : water_material);
+			mesh->surface_set_material(s, surface_material);
 		}
 	}
 	water_node->set_material_overlay(wire ? Ref<Material>(water_wireframe_material) : Ref<Material>());
