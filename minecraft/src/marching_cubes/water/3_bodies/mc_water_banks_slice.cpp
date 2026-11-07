@@ -19,6 +19,7 @@
 // checked against its own heightmap.
 #include "marching_cubes/grid/mc_grid.h"
 #include "marching_cubes/water/3_bodies/mc_water_shape.h"
+#include "marching_cubes/water/4_tiles/mc_water_tile.h"
 #include <algorithm>
 #include <cmath>
 
@@ -127,16 +128,10 @@ const std::vector<float> &MCGrid::_slice_field(
 		return _slice_field(Vector3i(p_cell.x, 0, p_cell.z), -0.49f, r_key);
 	}
 	uint8_t hash = get_cell_hash(p_cell);
-	const MCBakedTile *tile = _baked_tile(p_cell);
+	uint64_t tile_key = 0; // the tile's mesh + turn key
+	const MCBakedTile *tile = _baked_tile(p_cell, &tile_key);
 	if (!tile) {
 		return hash == 255 ? constant(ROCK, FAR) : constant(AIR, -FAR);
-	}
-	uint64_t tile_key = 0;
-	for (const auto &entry : baked_tiles) { // the tile's mesh + turn key
-		if (&entry.second == tile) {
-			tile_key = entry.first;
-			break;
-		}
 	}
 	uint64_t key = (tile_key * 0x9E3779B97F4A7C15ULL) ^ static_cast<uint64_t>(std::lround((p_height + 2.0f) * 1024.0f)) ^ 0x5bd1e995ULL;
 	r_key = key;
@@ -202,15 +197,17 @@ const std::vector<float> &MCGrid::_slice_field(
 		}
 	}
 	// the winding: settled by the first tile that can be checked, then kept; fields baked before
-	// that assumed +1 and are flipped if it turns out -1
+	// that assumed +1 and are flipped if it turns out -1, and the water tiles baked from them
+	// (cached by the same keys) are dropped, to be baked again from the flipped fields
 	if (slice_winding == 0 && agree + disagree >= 8) {
 		slice_winding = agree >= disagree ? 1 : -1;
-		if (slice_winding < 0) {
+		if (slice_winding < 0 && !slice_undecided.empty()) {
 			for (uint64_t earlier : slice_undecided) {
 				for (float &v : slice_fields[earlier]) {
 					v = -v;
 				}
 			}
+			mc_water::clear_tile_cache();
 		}
 		slice_undecided.clear();
 	}

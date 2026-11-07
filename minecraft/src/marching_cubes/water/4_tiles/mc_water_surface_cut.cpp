@@ -3,7 +3,7 @@
 // A tile's flat water is trimmed back from the fall line by about the lip radius when the tile is
 // baked (Body::fall_lip), but that trim is measured on the cell's own shape. After placing, the fall
 // lines are joined and relaxed across cells (_join_fall_ends, _relax_fall_chains) and each strip
-// leaves along a direction smoothed over its neighbours (_fall_directions). Where the line bends
+// leaves along a direction smoothed over its neighbours (_fall_ends). Where the line bends
 // hard (a U or a V between falls) or a fall ends at a bank, the flat water can then reach out past
 // where the strip's bevel starts, and sticks out through the bevel (or covers it).
 //
@@ -12,7 +12,7 @@
 //   flat water ════════╗                 the flat water must end left of B
 //              strip  ═══════╗           strip's flat part: from lip + FLAT back, LIFT above
 //                        B    ╲          B: where the bevel starts, r back from the fall line
-//                              │         (r = the lip radius, less on a short fall)
+//                              │         (r = the end's bevel radius, FallEnd::radius)
 //
 // Each strip's footprint, from r + TUCK back from the fall line (under the strip's flat part, which
 // hides the cut) out to BEYOND past the fall line (flat water there hangs over the drop), between
@@ -178,7 +178,7 @@ bool subtract(
 
 void MCGrid::_cut_surface_under_falls(
 		const std::vector<PlacedFall> &p_falls,
-		const std::vector<std::pair<Vector3, Vector3>> &p_directions,
+		const std::vector<FallEnds> &p_ends,
 		MCWaterArrays &r_out
 ) const {
 	if (p_falls.empty()) {
@@ -228,13 +228,13 @@ void MCGrid::_cut_surface_under_falls(
 	};
 	for (size_t f = 0; f < p_falls.size(); f++) {
 		const PlacedFall &fall = p_falls[f];
-		float back = std::min(water_fall_lip, fall.drop * 0.5f) + TUCK; // the bevel's radius (profile())
+		const FallEnds &ends = p_ends[f];
 		Vector2 a(fall.ta.x, fall.ta.z);
 		Vector2 b(fall.tb.x, fall.tb.z);
-		Vector2 da(p_directions[f].first.x, p_directions[f].first.z);
-		Vector2 db(p_directions[f].second.x, p_directions[f].second.z);
-		Vector2 a_back = a - da * back;
-		Vector2 b_back = b - db * back;
+		Vector2 da(ends.end[0].direction.x, ends.end[0].direction.z);
+		Vector2 db(ends.end[1].direction.x, ends.end[1].direction.z);
+		Vector2 a_back = a - da * (ends.end[0].radius + TUCK); // where each end's bevel starts
+		Vector2 b_back = b - db * (ends.end[1].radius + TUCK);
 		Vector2 a_out = a + da * BEYOND;
 		Vector2 b_out = b + db * BEYOND;
 		const Vector2 quad[4] = { a_back, b_back, b_out, a_out };

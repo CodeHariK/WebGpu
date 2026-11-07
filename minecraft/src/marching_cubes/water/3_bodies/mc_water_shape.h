@@ -24,7 +24,6 @@ const float ROUNDING = 0.15f; // blocky: radius of a corner that sticks out (as 
 const float EPS = 1e-3f; // rounded: regions shrink this much (as the tiles)
 const float CORNER_X[4] = { -0.5f, 0.5f, 0.5f, -0.5f };
 const float CORNER_Y[4] = { -0.5f, -0.5f, 0.5f, 0.5f };
-const float SAME = 0.02f;
 const int BAKED_SIDE = 16; // baked fields: squares per cell side ((BAKED_SIDE + 1)^2 values, MCGrid::BAKE)
 
 // One layer of one cell: which corners are solid, and the shape style.
@@ -72,24 +71,6 @@ inline float blend(
 	return best;
 }
 
-// Points into the solid.
-inline Vector2 gradient(
-		const Layer &p_layer,
-		float p_x,
-		float p_y
-) {
-	if (p_layer.blocky) {
-		const float e = 1e-4f;
-		return Vector2((blend(p_layer, p_x + e, p_y) - blend(p_layer, p_x - e, p_y)) / (2 * e),
-				(blend(p_layer, p_x, p_y + e) - blend(p_layer, p_x, p_y - e)) / (2 * e));
-	}
-	const bool *c = p_layer.solid;
-	float u = p_x + 0.5f;
-	float v = p_y + 0.5f;
-	return Vector2((float(c[1]) - float(c[0])) * (1 - v) + (float(c[2]) - float(c[3])) * v,
-			(float(c[3]) - float(c[0])) * (1 - u) + (float(c[2]) - float(c[1])) * u);
-}
-
 // The flow colour at a point: the 4 corners' flow blended bilinearly, direction mapped to 0..1.
 inline Color flow_at(
 		const Color p_corner_flow[4],
@@ -103,11 +84,13 @@ inline Color flow_at(
 	return Color(c.r * 0.5f + 0.5f, c.g * 0.5f + 0.5f, c.b, c.a);
 }
 
-// One water body in one cell: its shape layers.
-//   above  the terrain at the water's level and up (banks: the water tucks EDGE under them)
-//   bed    the terrain at the bed's tier and up (the water stops EDGE past its edge, where the fall is)
+// One water body in one cell: its corner layers. The banks' and the bed's edges come from the baked
+// tile meshes (baked_above, baked_bed); the layers give the corner classes, the style, the saddle
+// and the dry gaps.
+//   above  the corners at the water's level and up (banks: the water tucks EDGE under them)
+//   bed    the corners at the bed's tier and up (the water stops EDGE past its edge, where the fall is)
 //   wet    the body's own corners, the banks and lower ground: everything but dry ground of the
-//          bed's tier, which the water must not stand over
+//          bed's tier, which the water must not stand over (its shape: the rounded / blocky blend)
 struct Body {
 	Layer above;
 	Layer bed;
@@ -135,10 +118,9 @@ struct Body {
 	// the falls' bevel radius (MCGrid::water_fall_lip): the surface stops this far short of the fall
 	// line, and the fall strip's flat part and bevel cover from there (mc_water_fall_strips.cpp)
 	float fall_lip = 0.0f;
-	// The terrain from the baked tile meshes (mc_water_banks_slice.cpp), in place of the formula's
-	// bank and bed layers: (BAKED_SIDE + 1)^2 signed distances in metres over
-	// the cell (>= 0 inside the rock; index j * (BAKED_SIDE + 1) + i at x = -0.5 + i / BAKED_SIDE,
-	// z = -0.5 + j / BAKED_SIDE, z = -y). Null (a body made outside the grid): the formula.
+	// The terrain from the baked tile meshes (mc_water_banks_slice.cpp): (BAKED_SIDE + 1)^2 signed
+	// distances in metres over the cell (>= 0 inside the rock; index j * (BAKED_SIDE + 1) + i at
+	// x = -0.5 + i / BAKED_SIDE, z = -0.5 + j / BAKED_SIDE, z = -y). Always set (MCGrid::_water_bodies).
 	const float *baked_above = nullptr; // the rock above the water surface (the banks)
 	const float *baked_bed = nullptr; // the rock of the bed's tier (the fall line is its edge)
 	uint64_t baked_key = 0; // per-mesh slices: which two (tiles sharing them share a water tile)
@@ -159,36 +141,10 @@ struct Body {
 		float b = p_field[(j + 1) * n + i] * (1 - u) + p_field[(j + 1) * n + i + 1] * u;
 		return a * (1 - v) + b * v;
 	}
-	// >= 0 inside a bank: the baked meshes, or the formula's above layer.
-	float above_at(const Vector2 &p) const { return baked_above ? baked_at(baked_above, p) : blend(above, p.x, p.y); }
-	// >= 0 on the bed's tier: the baked meshes, or the formula's bed layer.
-	float bed_at(const Vector2 &p) const { return baked_bed ? baked_at(baked_bed, p) : blend(bed, p.x, p.y); }
-
-	float height(const Vector2 &) const { return top; }
-	Vector3 normal(const Vector2 &) const { return Vector3(0, 1, 0); }
-
-	// How far inside the bed p is (>= 0 inside). Without a bevel, blend(bed) as it is. With one, the
-	// trim must be in metres: rounded blend() is a bilinear value (divided by its slope here); blocky
-	// blend() is a union of quarters, 0 along the middle lines inside too, so the distance to the
-	// empty corners' quarters is used instead (big when the bed covers the cell).
-	float bed_inside(const Vector2 &p) const {
-		if (baked_bed) {
-			return baked_at(baked_bed, p); // already metres
-		}
-		if (fall_lip <= 0.0f) {
-			return blend(bed, p.x, p.y);
-		}
-		if (!bed.blocky) {
-			float value = blend(bed, p.x, p.y);
-			float slope = gradient(bed, p.x, p.y).length();
-			return slope > 0.05f ? value / slope : value / 0.05f;
-		}
-		Layer empty = bed;
-		for (int k = 0; k < 4; k++) {
-			empty.solid[k] = !bed.solid[k];
-		}
-		return empty.none() ? 1.0f : -blend(empty, p.x, p.y);
-	}
+	// >= 0 inside a bank (metres from its edge).
+	float above_at(const Vector2 &p) const { return baked_at(baked_above, p); }
+	// >= 0 on the bed's tier (metres from its edge: the fall line).
+	float bed_at(const Vector2 &p) const { return baked_at(baked_bed, p); }
 
 	// Is corner k one of the body's own wet corners (not a bank, on the bed, wet)?
 	bool own(int k) const { return wet.solid[k] && !above.solid[k] && bed.solid[k]; }
@@ -224,7 +180,7 @@ struct Body {
 
 	// Where the body's water is: not in a bank, on the bed, not over dry ground (>= 0 inside).
 	float water_field(const Vector2 &p) const {
-		float f = std::min(tuck() - above_at(p), bed_inside(p) + lip_at(p) - fall_lip);
+		float f = std::min(tuck() - above_at(p), bed_at(p) + lip_at(p) - fall_lip);
 		f = std::min(f, saddle_side(p));
 		if (wet.all()) {
 			return f;

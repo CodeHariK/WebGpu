@@ -10,6 +10,7 @@
 // column (x, z + 1), 1 (x + 1, z + 1), 2 (x + 1, z), 3 (x, z).
 #include "marching_cubes/grid/mc_grid.h"
 #include "marching_cubes/water/3_bodies/mc_water_shape.h"
+#include "marching_cubes/water/4_tiles/mc_water_tile.h"
 #include <godot_cpp/templates/hash_map.hpp>
 #include <algorithm>
 #include <cmath>
@@ -25,6 +26,7 @@ const float BED_CUT = -0.05f; // per-mesh banks: the fall line's cut, metres und
 
 void MCGrid::set_water_square(bool p_on) {
 	water_square = p_on;
+	clear_tile_cache(); // tiles of the old style aren't used again
 	if (!chunks.empty() && water_levels.size() == column_heights.size()) {
 		_queue_water();
 	}
@@ -32,6 +34,7 @@ void MCGrid::set_water_square(bool p_on) {
 
 void MCGrid::set_water_blocky_groups(const String &p_groups) {
 	water_blocky_groups = p_groups;
+	clear_tile_cache(); // tiles of the old style aren't used again
 	if (!chunks.empty() && water_levels.size() == column_heights.size()) {
 		_queue_water(); // not while the scene is still loading (the grid isn't built yet)
 	}

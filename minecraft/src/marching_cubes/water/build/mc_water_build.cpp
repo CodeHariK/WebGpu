@@ -55,7 +55,15 @@ void MCGrid::_rebuild_water() {
 		std::vector<Color> flow = _water_flow(surface);
 		uint64_t s3 = time->get_ticks_usec();
 		water_bodies_nsec = 0;
+		int winding_before = slice_winding;
 		_emit_water_tiles(surface, held, flow, arrays_out);
+		if (winding_before == 0 && slice_winding < 0) {
+			// this build settled the bank slices' winding and flipped the ones made before: the cells
+			// already placed used tiles from the unflipped ones, so place everything again
+			arrays_out = MCWaterArrays();
+			water_bodies_nsec = 0;
+			_emit_water_tiles(surface, held, flow, arrays_out);
+		}
 		water_debug_samples = arrays_out.samples;
 		uint64_t t0 = Time::get_singleton()->get_ticks_usec();
 		uint64_t bodies_usec = water_bodies_nsec / 1000;

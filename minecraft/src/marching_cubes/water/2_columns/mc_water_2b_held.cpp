@@ -7,13 +7,16 @@
 // and pours over the edge. Same-level water joined to a stream drains through it, so it is a stream
 // too. Derived when the mesh is built; only the levels are stored.
 #include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/water/mc_water_steps.h"
 #include <vector>
 
 namespace godot {
 
+using mc_water::SIDE_NAMES;
+using mc_water::STEPS;
+
 namespace {
 const float STREAM = 0.1f; // m a stream's surface sits above its ground
-const Vector2i STEPS[4] = { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1) };
 } // namespace
 
 // Does water at p_level spill onto dry ground of height p_ground beside it (ground below the surface)?
@@ -81,7 +84,6 @@ void MCGrid::_water_surfaces(
 	Vector2i columns = _column_counts();
 	auto inside = [&](const Vector2i &c) { return c.x >= 0 && c.y >= 0 && c.x < columns.x && c.y < columns.y; };
 	auto is_sea = [&](size_t i) { return sea_level > 0 && water_levels[i] == sea_level && column_heights[i] < sea_level; };
-	const char *side_names[4] = { "+x", "-x", "+z", "-z" };
 	std::vector<Vector2i> open;
 	// 1. held where every side holds the water in
 	for (int z = 0; z < columns.y; z++) {
@@ -104,7 +106,7 @@ void MCGrid::_water_surfaces(
 					Vector2i n(x + STEPS[k].x, z + STEPS[k].y);
 					if (!inside(n)) {
 						if (step) {
-							step->text += vformat("\n%s: the grid's edge, holds", side_names[k]);
+							step->text += vformat("\n%s: the grid's edge, holds", SIDE_NAMES[k]);
 						}
 						continue; // the grid's edge holds it
 					}
@@ -125,7 +127,7 @@ void MCGrid::_water_surfaces(
 					}
 					held = held && holds;
 					if (step) {
-						step->text += vformat("\n%s %s: %s", side_names[k], _column_name(other), why);
+						step->text += vformat("\n%s %s: %s", SIDE_NAMES[k], _column_name(other), why);
 						step->marks.push_back({ other, holds ? MCTraceStep::YES : MCTraceStep::NO });
 					}
 				}

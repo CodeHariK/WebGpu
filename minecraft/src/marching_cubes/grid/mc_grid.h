@@ -63,6 +63,16 @@ struct PlacedFall {
 	float depth_b = 0.0f;
 	float stream = 0.0f; // 1: the fall of a stream
 };
+// One end of a fall's strip (_fall_ends, mc_water_fall_strips.cpp): the way it leaves the surface
+// (smoothed along the falls) and its bevel radius (the smallest of every fall ending at that point),
+// both the same for every strip ending there, so neighbouring strips share their end column.
+struct FallEnd {
+	Vector3 direction;
+	float radius = 0.0f;
+};
+struct FallEnds {
+	FallEnd end[2]; // at ta, at tb
+};
 
 // One edge segment of a body of water (water debug stage 3, mc_water_tiles.cpp), oriented with the
 // water on its left seen from above, tagged by what lies beyond it.
@@ -222,7 +232,7 @@ private:
 	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
 	bool water_dirty = false; // the water mesh is rebuilt at the end of the frame
-	MeshInstance3D *water_node = nullptr; // surface + waterfalls (two surfaces)
+	MeshInstance3D *water_node = nullptr; // the water mesh: surface and waterfalls in one surface (mc_water_build.cpp)
 	int water_view = 0; // WaterView: debug views of the water mesh (mc_water_view.cpp)
 	Ref<Material> water_uv_material;
 	Ref<Material> water_pieces_material; // the "pieces" view: vertex colour, cull disabled
@@ -499,7 +509,10 @@ private:
 	Ref<Material> _seams_overlay(); // the tile-seams overlay (its next pass: the wireframe when on)
 	// Cell p_cell's tile mesh baked for the water (mc_water_banks_bake.cpp): its turned triangles and
 	// top-down heightmap, once per mesh and turn (null: no tile).
-	const MCBakedTile *_baked_tile(const Vector3i &p_cell) const;
+	const MCBakedTile *_baked_tile(
+			const Vector3i &p_cell,
+			uint64_t *r_key = nullptr
+	) const;
 	// Water debug stages 1 .. 4 into the overlay (mc_water_debug_stages.cpp).
 	void _add_water_stage_debug(
 			struct MCDebugMesh &r_debug,
@@ -740,21 +753,23 @@ public:
 	// Smooth the joined fall lines across cells (mc_water_fall_strips.cpp).
 	static void _relax_fall_chains(std::vector<PlacedFall> &r_falls);
 	// Each fall's top points' directions (ta, tb), smoothed along the falls (mc_water_fall_strips.cpp).
-	static std::vector<std::pair<Vector3, Vector3>> _fall_directions(const std::vector<PlacedFall> &p_falls);
+	// Each fall's two ends: direction and bevel radius (mc_water_fall_strips.cpp).
+	std::vector<FallEnds> _fall_ends(const std::vector<PlacedFall> &p_falls) const;
 	// Cut the flat water away from under each strip's bevel, so it never pokes through
 	// (mc_water_surface_cut.cpp). Call before _emit_fall_strips (it rewrites r_out.indices).
 	void _cut_surface_under_falls(
 			const std::vector<PlacedFall> &p_falls,
-			const std::vector<std::pair<Vector3, Vector3>> &p_directions,
+			const std::vector<FallEnds> &p_ends,
 			MCWaterArrays &r_out
 	) const;
-	// The strips, along p_directions (_fall_directions) (mc_water_fall_strips.cpp).
+	// The strips, from p_ends (_fall_ends) (mc_water_fall_strips.cpp).
 	void _emit_fall_strips(
 			const std::vector<PlacedFall> &p_falls,
-			const std::vector<std::pair<Vector3, Vector3>> &p_directions,
+			const std::vector<FallEnds> &p_ends,
 			MCWaterArrays &r_out
 	) const;
-	HashMap<Vector3i, float> _fall_chain(const std::vector<PlacedFall> &p_falls) const;
+	// Metres along the joined falls at each fall's ends (ta, tb): the strips' UV.x.
+	std::vector<std::pair<float, float>> _fall_chain(const std::vector<PlacedFall> &p_falls) const;
 	// Is the water of cell (p_cx, p_cz) with its bed at p_bed drawn in the blocky style (the terrain
 	// group of the bed's cell is one of water_blocky_groups)? (mc_water_bodies.cpp)
 	bool is_water_blocky(

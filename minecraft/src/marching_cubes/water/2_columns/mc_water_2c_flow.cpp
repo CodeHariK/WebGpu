@@ -6,14 +6,17 @@
 // is still. The column a fall lands in gets foam. The mesh carries this in its vertex COLOR for
 // water.gdshader: rg direction as 0..1, b flows, a landing foam.
 #include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/water/mc_water_steps.h"
 #include <cmath>
 #include <vector>
 
 namespace godot {
 
+using mc_water::SIDE_NAMES;
+using mc_water::STEPS;
+
 namespace {
 const float SAME = 0.02f; // m: surfaces closer than this are the same water
-const Vector2i STEPS[4] = { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1) };
 } // namespace
 
 // Per column: Color(direction x, direction z, 1 if it flows, 1 if a fall lands in it). Dry or still
@@ -26,7 +29,6 @@ std::vector<Color> MCGrid::_water_flow(
 	Vector2i columns = _column_counts();
 	auto inside = [&](const Vector2i &c) { return c.x >= 0 && c.y >= 0 && c.x < columns.x && c.y < columns.y; };
 	auto is_sea = [&](size_t i) { return sea_level > 0 && water_levels[i] == sea_level && column_heights[i] < sea_level; };
-	const char *side_names[4] = { "+x", "-x", "+z", "-z" };
 	std::vector<Vector2i> queue;
 	// 1. outlets: wet columns beside lower water or a spill point at it; the lower water gets foam
 	for (int z = 0; z < columns.y; z++) {
@@ -63,7 +65,7 @@ std::vector<Color> MCGrid::_water_flow(
 					String why = lower_water ? vformat("lower water (surface %.2f): it falls there, an outlet (foam where it lands)", p_surface[other])
 							: spill		 ? vformat("dry ground %d below the surface: it spills there, an outlet", column_heights[other])
 										 : String("no way out there");
-					step->text += vformat("\n%s %s: %s", side_names[k], _column_name(static_cast<int>(other)), why);
+					step->text += vformat("\n%s %s: %s", SIDE_NAMES[k], _column_name(static_cast<int>(other)), why);
 					step->marks.push_back({ static_cast<int>(other), (lower_water || spill) ? MCTraceStep::YES : MCTraceStep::SAME });
 				}
 			}

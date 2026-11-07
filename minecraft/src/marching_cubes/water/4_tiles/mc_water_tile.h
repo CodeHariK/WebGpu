@@ -63,6 +63,9 @@ WaterTile bake_tile(
 );
 // The cached tile of key p_key, or null when it hasn't been baked yet.
 const WaterTile *cached_tile(uint64_t p_key);
+// Forget every baked tile: when what they were baked from changes (the bank slices flipped, the
+// sample rate, lip or style changed), so stale tiles aren't used and the cache doesn't keep growing.
+void clear_tile_cache();
 
 } // namespace mc_water
 } // namespace godot

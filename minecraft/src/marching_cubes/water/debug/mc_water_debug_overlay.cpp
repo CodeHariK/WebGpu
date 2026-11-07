@@ -14,6 +14,7 @@
 //                 (green queued, grey already queued, red + cross higher ground) and a label
 //                 explaining the step
 #include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/water/mc_water_steps.h"
 #include "marching_cubes/grid/mc_debug_mesh.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/geometry_instance3d.hpp>
@@ -26,6 +27,9 @@
 #include <cmath>
 
 namespace godot {
+
+using mc_water::SIDE_NAMES;
+using mc_water::STEPS;
 
 namespace {
 const Color HELD(0.25f, 0.55f, 1.0f, 0.55f);
@@ -71,8 +75,6 @@ const Color RESULT_COLOR[4] = {
 	Color(0.6f, 0.6f, 0.6f, 0.0f), // OUTSIDE (not drawn)
 };
 const char *RESULT_TEXT[4] = { "queued", "already queued", "higher ground, rejected", "off the grid" };
-const char *SIDE_TEXT[4] = { "+x", "-x", "+z", "-z" };
-const Vector2i SIDES[4] = { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1) };
 } // namespace
 
 void MCGrid::set_debug_water(bool p_on) {
@@ -136,7 +138,7 @@ void MCGrid::_rebuild_water_debug(
 			}
 			// the top edge of each fall from this column: framed (green) or open (red)
 			int level = water_levels[i];
-			for (const Vector2i &step : { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1) }) {
+			for (const Vector2i &step : STEPS) {
 				Vector2i n(x + step.x, z + step.y);
 				if (!inside(n)) {
 					continue;
@@ -228,13 +230,13 @@ String MCGrid::get_pour_step_text() const {
 		text += vformat("\npour %d / %d, from (%d, %d)", step.pour + 1, pours, source % columns.x, source / columns.x);
 	}
 	for (int k = 0; k < 4; k++) {
-		Vector2i n = c + SIDES[k];
+		Vector2i n = c + STEPS[k];
 		if (step.result[k] == MCPourStep::OUTSIDE) {
-			text += vformat("\n%s: off the grid", SIDE_TEXT[k]);
+			text += vformat("\n%s: off the grid", SIDE_NAMES[k]);
 			continue;
 		}
 		int other = column_heights[static_cast<size_t>(_column_index(n.x, n.y))];
-		text += vformat("\n%s (%d, %d) ground %d: %s", SIDE_TEXT[k], n.x, n.y, other, RESULT_TEXT[step.result[k]]);
+		text += vformat("\n%s (%d, %d) ground %d: %s", SIDE_NAMES[k], n.x, n.y, other, RESULT_TEXT[step.result[k]]);
 	}
 	int waiting = step.queue_size - step.head - 1;
 	text += vformat("\nqueue: %d waiting", waiting);
@@ -279,7 +281,7 @@ void MCGrid::_add_pour_step_debug(
 		if (step.result[k] == MCPourStep::OUTSIDE) {
 			continue;
 		}
-		Vector2i n = c + SIDES[k];
+		Vector2i n = c + STEPS[k];
 		Vector3 to = top_of(_column_index(n.x, n.y));
 		const Color &color = RESULT_COLOR[step.result[k]];
 		r_debug.line(centre, to, color);

@@ -44,7 +44,11 @@ float triangles_height(
 
 } // namespace
 
-const MCBakedTile *MCGrid::_baked_tile(const Vector3i &p_cell) const {
+// Cell p_cell's tile mesh baked (null: no tile); r_key (if given): its mesh + turn key.
+const MCBakedTile *MCGrid::_baked_tile(
+		const Vector3i &p_cell,
+		uint64_t *r_key
+) const {
 	if (!tile_library) {
 		return nullptr;
 	}
@@ -65,6 +69,9 @@ const MCBakedTile *MCGrid::_baked_tile(const Vector3i &p_cell) const {
 	int quarter = static_cast<int>(std::lround(std::atan2(x_axis.z, x_axis.x) / 1.5707963f)) & 3;
 	int mirrored = tile.turn.basis.determinant() < 0.0f ? 4 : 0;
 	uint64_t key = (static_cast<uint64_t>(mesh->get_rid().get_id()) << 3) | static_cast<uint64_t>(quarter | mirrored);
+	if (r_key) {
+		*r_key = key;
+	}
 	auto found = baked_tiles.find(key);
 	if (found != baked_tiles.end()) {
 		return &found->second;
@@ -88,16 +95,12 @@ const MCBakedTile *MCGrid::_baked_tile(const Vector3i &p_cell) const {
 
 Dictionary MCGrid::get_cell_tile_debug(const Vector3i &p_cell) const {
 	Dictionary out;
-	const MCBakedTile *tile = _baked_tile(p_cell);
+	uint64_t key = 0;
+	const MCBakedTile *tile = _baked_tile(p_cell, &key);
 	if (!tile) {
 		return out;
 	}
-	for (const auto &entry : baked_tiles) { // its key: the mesh and turn
-		if (&entry.second == tile) {
-			out["key"] = static_cast<int64_t>(entry.first);
-			break;
-		}
-	}
+	out["key"] = static_cast<int64_t>(key);
 	PackedVector3Array faces;
 	for (const Vector3 &v : tile->triangles) {
 		faces.push_back(v);

@@ -14,6 +14,7 @@
 #include "marching_cubes/grid/mc_debug_mesh.h"
 #include "marching_cubes/grid/mc_grid.h"
 #include "marching_cubes/water/3_bodies/mc_water_shape.h"
+#include "marching_cubes/water/4_tiles/mc_water_tile.h"
 #include <godot_cpp/classes/label3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
@@ -36,20 +37,6 @@ const Color CLASS_COLOR[4] = {
 const Color BANK_EDGE(0.2f, 1.0f, 0.3f);
 const Color FALL_EDGE(1.0f, 0.55f, 0.1f);
 const Vector2i CELL_AT[4] = { Vector2i(0, 1), Vector2i(1, 1), Vector2i(1, 0), Vector2i(0, 0) }; // Body corner order
-
-// A body corner's class (as mc_water_tiles.cpp's corner_class): 0 bank, 1 wet, 2 lower, 3 dry.
-int corner_class(
-		const Body &p_body,
-		int p_corner
-) {
-	if (p_body.above.solid[p_corner]) {
-		return 0;
-	}
-	if (!p_body.bed.solid[p_corner]) {
-		return 2;
-	}
-	return p_body.wet.solid[p_corner] ? 1 : 3;
-}
 
 } // namespace
 

@@ -32,22 +32,23 @@
 // is an outlet (it points at the fall); a breadth-first walk from the outlets through same-level
 // water points every other column of the body at the one it was reached from. A body with no
 // outlet (a pond, the sea) is still. The column a fall lands in gets foam. The mesh carries this in
-// its vertex COLOR (averaged with same-level neighbours at the square's corners, so it turns
-// smoothly) for water_surface.gdshader: rg direction as 0..1, b flows, a landing foam.
-// The mesh itself is built cell by cell with the cliff tiles' shape (mc_water_bodies.cpp), so its
-// edges and falls follow the cliffs exactly.
-// One water mesh for the whole grid (surface + falls, two surfaces), rebuilt at the end of a frame
-// in which water or ground changed (flush_dirty_chunks) and on refresh_grid. Saved by save v2.
+// its vertex COLOR (blended from the cell's 4 corners, so it turns smoothly) for water.gdshader:
+// rg direction as 0..1, b flows, a landing foam.
+// The mesh is built from the cells' bodies (step 3, mc_water_bodies.cpp: the banks and fall lines
+// from the cliff tile meshes) as cached water tiles (step 4, mc_water_tiles.cpp), so its edges and
+// falls follow the cliffs exactly. Steps 2 - 4 run in order in _rebuild_water (mc_water_build.cpp).
+// One water mesh for the whole grid (surface and falls in one surface, one material), rebuilt at
+// the end of a frame in which water or ground changed (flush_dirty_chunks) and on refresh_grid.
+// Only the levels are saved (save v2).
 #include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/water/mc_water_steps.h"
 #include <algorithm>
 #include <functional>
 #include <vector>
 
 namespace godot {
 
-namespace {
-const Vector2i STEPS[4] = { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1) };
-} // namespace
+using mc_water::STEPS;
 
 // The water surface height of level p_level (world y in grid space).
 float MCGrid::_surface_y(int p_level) const { return static_cast<float>(p_level) - 0.5f - water_drop; }

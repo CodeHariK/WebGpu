@@ -14,13 +14,16 @@
 // then puts the stored ones back, so pours, settle_water, saves and undo never see them (stored
 // spill water would become a source and flood its whole tier on the next settle).
 #include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/water/mc_water_steps.h"
 #include <algorithm>
 #include <vector>
 
 namespace godot {
 
+using mc_water::SIDE_NAMES;
+using mc_water::STEPS;
+
 namespace {
-const Vector2i SPILL_STEPS[4] = { Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1) };
 const Vector2i SPILL_DIAGONALS[4] = { Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1) };
 } // namespace
 
@@ -105,26 +108,25 @@ std::vector<uint8_t> MCGrid::_spilled_levels(
 			}
 			continue;
 		}
-		const char *side_names[4] = { "+x", "-x", "+z", "-z" };
 		for (int k = 0; k < 4; k++) {
-			Vector2i n = c + SPILL_STEPS[k];
+			Vector2i n = c + STEPS[k];
 			if (!inside(n)) {
 				if (step) {
-					step->text += vformat("\n%s: off the grid", side_names[k]);
+					step->text += vformat("\n%s: off the grid", SIDE_NAMES[k]);
 				}
 				continue;
 			}
 			int ni = _column_index(n.x, n.y);
 			if (wet(n)) {
 				if (step) {
-					step->text += vformat("\n%s %s: already wet", side_names[k], name(n));
+					step->text += vformat("\n%s %s: already wet", SIDE_NAMES[k], name(n));
 					step->marks.push_back({ ni, MCTraceStep::SAME });
 				}
 				continue;
 			}
 			if (ground(n) > ground(c)) {
 				if (step) {
-					step->text += vformat("\n%s %s ground %d: higher, the spill can't go there", side_names[k], name(n), ground(n));
+					step->text += vformat("\n%s %s ground %d: higher, the spill can't go there", SIDE_NAMES[k], name(n), ground(n));
 					step->marks.push_back({ ni, MCTraceStep::NO });
 				}
 				continue;
@@ -135,7 +137,7 @@ std::vector<uint8_t> MCGrid::_spilled_levels(
 				(*r_steps)[static_cast<size_t>(ni)] = static_cast<uint8_t>(std::min(steps + 1, 255));
 			}
 			if (step) {
-				step->text += vformat("\n%s %s ground %d: dry, not higher -> spilled (step %d)", side_names[k], name(n), ground(n), steps + 1);
+				step->text += vformat("\n%s %s ground %d: dry, not higher -> spilled (step %d)", SIDE_NAMES[k], name(n), ground(n), steps + 1);
 				step->marks.push_back({ ni, MCTraceStep::YES });
 			}
 		}

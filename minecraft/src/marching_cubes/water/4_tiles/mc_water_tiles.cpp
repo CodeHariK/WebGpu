@@ -408,6 +408,26 @@ void triangulate(
 		int nearest = static_cast<int>(std::lround(index));
 		return std::abs(index - static_cast<float>(nearest)) < 1e-4f ? nearest : -1;
 	};
+	// which sides the rim crosses: only those get the side points between the corners. A side the
+	// water covers whole keeps just its corners, as a whole tile's quad does (its neighbour across
+	// that side sees the same whole side), so the two meet vertex to vertex (no T-junction)
+	auto side_of = [](const Vector2 &p) { // 0 x = -0.5, 1 x = +0.5, 2 y = -0.5, 3 y = +0.5; -1: none
+		if (std::abs(std::abs(p.x) - 0.5f) < 1e-6f) {
+			return p.x < 0.0f ? 0 : 1;
+		}
+		if (std::abs(std::abs(p.y) - 0.5f) < 1e-6f) {
+			return p.y < 0.0f ? 2 : 3;
+		}
+		return -1;
+	};
+	bool crossed[4] = { false, false, false, false };
+	for (const Vector2 &p : r_tile.surface) {
+		bool side_x = std::abs(std::abs(p.x) - 0.5f) < 1e-6f;
+		bool side_y = std::abs(std::abs(p.y) - 0.5f) < 1e-6f;
+		if (side_x != side_y && on_grid(side_x ? p.y : p.x) < 0) { // on one side, not a sample point
+			crossed[side_of(p)] = true;
+		}
+	}
 	for (const Vector2 &p : r_tile.surface) {
 		bool side_x = std::abs(std::abs(p.x) - 0.5f) < 1e-6f; // on a side where x is fixed: along y
 		bool side_y = std::abs(std::abs(p.y) - 0.5f) < 1e-6f;
@@ -417,7 +437,7 @@ void triangulate(
 		int along = on_grid(side_x ? p.y : p.x);
 		bool corner = side_x && side_y;
 		bool crossing = along < 0; // not a sample point: where the rim meets the side
-		if (corner || crossing || along % stride == 0) {
+		if (corner || crossing || (along % stride == 0 && crossed[side_of(p)])) {
 			add_point(p);
 		}
 	}
@@ -512,6 +532,8 @@ const WaterTile *cached_tile(uint64_t p_key) {
 	return found == tile_cache.end() ? nullptr : &found->second;
 }
 
+void clear_tile_cache() { tile_cache.clear(); }
+
 } // namespace mc_water
 
 namespace {
@@ -524,6 +546,7 @@ Vector3i weld_key(const Vector3 &p_v) {
 
 void MCGrid::set_water_sample_rate(int p_rate) {
 	water_sample_rate = std::clamp(p_rate, 2, 32);
+	clear_tile_cache(); // tiles of the old rate aren't used again
 	if (!chunks.empty() && water_levels.size() == column_heights.size()) {
 		_queue_water();
 	}
@@ -660,10 +683,10 @@ void MCGrid::_emit_water_tiles(
 	}
 	_join_fall_ends(placed_falls); // neighbouring cells' ends that just miss each other (mc_water_fall_strips.cpp)
 	_relax_fall_chains(placed_falls); // the fall lines smoothed across cells (no V at every cell border)
-	// each fall's direction at its ends, smoothed (mc_water_fall_strips.cpp): the cut and the strips agree
-	std::vector<std::pair<Vector3, Vector3>> directions = _fall_directions(placed_falls);
-	_cut_surface_under_falls(placed_falls, directions, r_out); // no flat water under the bevels (mc_water_surface_cut.cpp)
-	_emit_fall_strips(placed_falls, directions, r_out); // bevelled L strips (mc_water_fall_strips.cpp)
+	// each fall's ends: direction and bevel radius (mc_water_fall_strips.cpp): the cut and the strips agree
+	std::vector<FallEnds> ends = _fall_ends(placed_falls);
+	_cut_surface_under_falls(placed_falls, ends, r_out); // no flat water under the bevels (mc_water_surface_cut.cpp)
+	_emit_fall_strips(placed_falls, ends, r_out); // bevelled L strips (mc_water_fall_strips.cpp)
 }
 
 } // namespace godot
