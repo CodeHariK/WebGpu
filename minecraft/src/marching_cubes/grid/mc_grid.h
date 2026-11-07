@@ -1,6 +1,7 @@
 // MCGrid: the editable corner grid, split into chunks, and everything spawned for it.
 //   mc_grid.cpp                setup, properties, corner edits, corner/cell queries
 //   mc_grid_cells.cpp          the tiles of each chunk merged into one mesh + collider
+//   mc_grid_collision.cpp      the chunks' colliders (shared tile shapes, or one trimesh per chunk)
 //   mc_grid_levels.cpp         each cell's level (L / M / H, core/mc_level_plan.h) and Randomize
 //   mc_grid_heights.cpp        heightmap mode: one height per corner column, no overhangs, islands
 //   mc_grid_groups.cpp         each cell's tile group (a, b …): one rolled per connected solid region
@@ -26,6 +27,7 @@
 #include <cstdint>
 #include <godot_cpp/classes/mesh.hpp>
 #include <godot_cpp/classes/node3d.hpp>
+#include <godot_cpp/classes/shape3d.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
@@ -34,6 +36,7 @@
 #include <godot_cpp/variant/packed_color_array.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -220,6 +223,12 @@ private:
 	class Node3D *water_debug_labels = nullptr; // stage 1: the spill step numbers
 	bool debug_seams = false; // terrain: lines where the tiles meet (mc_grid_debug_seams.cpp)
 	Ref<class ShaderMaterial> seams_material;
+	// Debug timing of chunk rebuilds (mc_grid_cells.cpp), summed until read: placing tiles, merging,
+	// node + collider (microseconds), chunks rebuilt.
+	uint64_t chunk_stage_usec[4] = { 0, 0, 0, 0 };
+	uint64_t chunk_part_usec[4] = { 0, 0, 0, 0 }; // node + collider split: mesh node, collider shape(s), adding it, triangles
+	int terrain_collision = 1; // TerrainCollision (mc_grid_collision.cpp), COLLISION_SHARED
+	std::unordered_map<uint64_t, Ref<Shape3D>> shared_tile_shapes; // per tile mesh and turn (COLLISION_SHARED)
 	float water_expand = 0.0f; // m the water's edge grows on (UI slider)
 	int water_spill_reach = 1; // columns a diagonal spill wets (mc_grid_water_spill.cpp; 0: none)
 	float water_spill_radius = 0.0f; // m the circle spill (mc_grid_water_spill.cpp; 0: off, else replaces the reach)
@@ -697,6 +706,37 @@ public:
 	void set_water_debug_stage(int p_stage);
 	int get_water_debug_stage() const { return water_debug_stage; }
 	static String water_debug_stage_text(int p_stage);
+	// How the terrain collides (mc_grid_collision.cpp has both ways and their costs).
+	enum TerrainCollision {
+		COLLISION_MESH = 0, // one trimesh per chunk from every tile triangle
+		COLLISION_SHARED = 1, // (default) one shape per tile mesh and turn, shared; chunks refer to them
+		COLLISION_COUNT = 2,
+	};
+	void set_terrain_collision(int p_mode); // rebuilds every chunk
+	int get_terrain_collision() const { return terrain_collision; }
+	static const char *collision_name(int p_mode);
+	Ref<Shape3D> _shared_tile_shape(
+			const Ref<Mesh> &p_mesh,
+			const Basis &p_turn
+	);
+	void _build_chunk_collider(
+			class MeshInstance3D *p_node,
+			const PackedVector3Array &p_faces,
+			const std::vector<std::pair<Ref<Mesh>, Transform3D>> &p_tiles
+	);
+	// The chunk rebuild timings since the last call: [placing, merging, node + collider, chunks], reset.
+	PackedInt64Array take_chunk_stage_usec() {
+		PackedInt64Array a;
+		for (uint64_t &u : chunk_stage_usec) {
+			a.push_back(static_cast<int64_t>(u));
+			u = 0;
+		}
+		for (uint64_t &u : chunk_part_usec) {
+			a.push_back(static_cast<int64_t>(u));
+			u = 0;
+		}
+		return a;
+	}
 	// Which water mesh builder: water tiles (sample grid + marching squares, baked per corner classes) or per cell.
 	void set_water_sampled(bool p_on);
 	bool get_water_sampled() const { return water_sampled; }

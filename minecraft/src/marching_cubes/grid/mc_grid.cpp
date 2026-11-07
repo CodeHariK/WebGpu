@@ -29,6 +29,9 @@ void MCGrid::_bind_methods() {
 	);
 	ClassDB::bind_method(D_METHOD("refresh_grid"), &MCGrid::refresh_grid);
 	ClassDB::bind_method(D_METHOD("flush_dirty_chunks"), &MCGrid::flush_dirty_chunks);
+	ClassDB::bind_method(D_METHOD("take_chunk_stage_usec"), &MCGrid::take_chunk_stage_usec);
+	ClassDB::bind_method(D_METHOD("set_terrain_collision", "mode"), &MCGrid::set_terrain_collision);
+	ClassDB::bind_method(D_METHOD("get_terrain_collision"), &MCGrid::get_terrain_collision);
 	ClassDB::bind_method(D_METHOD("set_corner", "p_grid_pos", "p_active"), &MCGrid::set_corner);
 
 	ClassDB::bind_method(D_METHOD("set_grid_dims", "size"), &MCGrid::set_grid_dims);

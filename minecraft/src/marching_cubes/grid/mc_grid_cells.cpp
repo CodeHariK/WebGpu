@@ -18,6 +18,7 @@
 #include <godot_cpp/classes/material.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/static_body3d.hpp>
+#include <godot_cpp/classes/time.hpp>
 #include <vector>
 
 namespace godot {
@@ -37,6 +38,7 @@ void MCGrid::_free_chunk_mesh(Chunk &p_chunk) {
 // Replace the chunk's mesh: every tile placed in grid space and merged per material, plus one
 // trimesh collider on LAYER_TERRAIN. Nothing is created for an empty chunk.
 void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
+	uint64_t t_start = Time::get_singleton()->get_ticks_usec();
 	_free_chunk_mesh(p_chunk);
 	if (!tile_library) {
 		return;
@@ -44,6 +46,7 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 
 	// 1. Every tile, already placed in grid space, appended by material.
 	MCChunkBuilder builder;
+	std::vector<std::pair<Ref<Mesh>, Transform3D>> collide_tiles; // each tile placed (not decor): for the collider
 	int tiles = 0;
 	Vector3i origin(p_chunk.loc_x * p_chunk.size_x, p_chunk.loc_y * p_chunk.size_y, p_chunk.loc_z * p_chunk.size_z);
 	for (int ly = 0; ly < p_chunk.size_y; ly++) {
@@ -59,6 +62,7 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 				const mc::LevelPin *live_pin = _live_pin();
 				if (live_pin && cell == Vector3i(live_pin->x, live_pin->y, live_pin->z) && pin_mesh.is_valid()) {
 					builder.add(pin_mesh, cell_t, surface_cache); // the pinned tile itself, as modelled
+					collide_tiles.push_back({ pin_mesh, cell_t });
 					// its sockets: those of the variant whose mesh it is
 					const MCTile &pinned = tile_library->get_level_tile(mc::LEVEL_LETTERS[live_pin->level], hash);
 					for (size_t v = 0; v < pinned.variant_meshes.size() && v < pinned.variant_sockets.size(); v++) {
@@ -84,6 +88,7 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 					continue;
 				}
 				builder.add(conf->mesh_for_cell(cell), cell_t * conf->turn, surface_cache);
+				collide_tiles.push_back({ conf->mesh_for_cell(cell), cell_t * conf->turn });
 				const std::vector<MCSocket> &sockets = conf->sockets_for_cell(cell);
 				for (size_t i = 0; i < sockets.size(); i++) { // decor: drawn, not collided
 					Ref<Mesh> piece = tile_library->decor_for_socket(sockets[i], cell, static_cast<int>(i), static_cast<uint32_t>(decor_seed));
@@ -100,9 +105,11 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 	}
 
 	// 2. One surface per material.
+	uint64_t t_placed = Time::get_singleton()->get_ticks_usec();
 	Ref<ArrayMesh> merged = builder.commit();
+	uint64_t t_merged = Time::get_singleton()->get_ticks_usec();
 
-	// 3. The chunk node (grid space, identity transform) and its trimesh collider.
+	// 3. The chunk node (grid space, identity transform) and its collider (mc_grid_collision.cpp).
 	MeshInstance3D *mi = memnew(MeshInstance3D);
 	mi->set_name(vformat("Chunk_%d_%d_%d", p_chunk.loc_x, p_chunk.loc_y, p_chunk.loc_z));
 	mi->set_mesh(merged);
@@ -111,19 +118,18 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 	if (debug_wireframe || debug_seams) {
 		_apply_wireframe(mi);
 	}
-
-	StaticBody3D *body = memnew(StaticBody3D);
-	body->set_collision_layer(toLayer(LAYER_TERRAIN));
-	body->set_collision_mask(0);
-	CollisionShape3D *shape = memnew(CollisionShape3D);
-	Ref<ConcavePolygonShape3D> trimesh;
-	trimesh.instantiate();
-	trimesh->set_faces(builder.get_faces()); // same triangles, no read-back from the mesh
-	shape->set_shape(trimesh);
-	body->add_child(shape);
-	mi->add_child(body);
+	uint64_t t_node = Time::get_singleton()->get_ticks_usec();
+	chunk_part_usec[0] += t_node - t_merged; // the mesh node into the scene
+	chunk_part_usec[3] += static_cast<uint64_t>(builder.get_faces().size() / 3); // triangles
+	// its collider, the way terrain_collision says (mc_grid_collision.cpp)
+	_build_chunk_collider(mi, builder.get_faces(), collide_tiles);
 
 	p_chunk.mesh_node = mi;
+	uint64_t t_done = Time::get_singleton()->get_ticks_usec();
+	chunk_stage_usec[0] += t_placed - t_start; // placing the tiles (and their decor) into the builder
+	chunk_stage_usec[1] += t_merged - t_placed; // merging them into one mesh
+	chunk_stage_usec[2] += t_done - t_merged; // the node and its collider
+	chunk_stage_usec[3]++; // chunks rebuilt
 	p_chunk.tile_count = tiles;
 	total_tiles_drawn += tiles;
 	total_chunk_meshes++;
