@@ -1,6 +1,5 @@
-// The water's 2D shape inside one terrain cell, shared by the two water mesh builders
-// (mc_grid_water_mesh.cpp: per cell on the tiles' sub-grid; mc_grid_water_tiles.cpp: baked tiles from a fine
-// sample grid + marching squares). A port of blender/mc_tiles/scripts/cliff_tiles.py's shape
+// The water's 2D shape inside one terrain cell: the bodies (mc_water_bodies.cpp) carry it, the
+// water tiles (mc_water_tiles.cpp) sample it on a fine grid + marching squares. A port of blender/mc_tiles/scripts/cliff_tiles.py's shape
 // functions (rounded bilinear blend, blocky quarters), so the water's edges land on the cliffs.
 //
 // Coordinates: cell-local (x, y) in -0.5 .. 0.5, corners 0 (-x, -y), 1 (+x, -y), 2 (+x, +y),
@@ -20,14 +19,13 @@ namespace godot {
 namespace mc_water {
 
 const float EDGE = 0.05f; // the water runs this far on into the rock (shape units ~ metres)
-const float BEHIND = 0.03f; // a fall checks for its water this far behind its top edge
-const float MIN_FALL_RUN = 0.08f; // m: shorter straight runs of a fall are corner stubs, left out
 const float WALL_GAP = 0.01f; // square tiles: falls stop this short of a wall (never in its plane)
 const float ROUNDING = 0.15f; // blocky: radius of a corner that sticks out (as the tiles)
 const float EPS = 1e-3f; // rounded: regions shrink this much (as the tiles)
 const float CORNER_X[4] = { -0.5f, 0.5f, 0.5f, -0.5f };
 const float CORNER_Y[4] = { -0.5f, -0.5f, 0.5f, 0.5f };
 const float SAME = 0.02f;
+const int BAKED_SIDE = 16; // baked fields: squares per cell side ((BAKED_SIDE + 1)^2 values, MCGrid::BAKE)
 
 // One layer of one cell: which corners are solid, and the shape style.
 struct Layer {
@@ -37,7 +35,6 @@ struct Layer {
 
 	bool all() const { return solid[0] && solid[1] && solid[2] && solid[3]; }
 	bool none() const { return !solid[0] && !solid[1] && !solid[2] && !solid[3]; }
-	int sub_grid() const { return blocky ? 11 : 9; } // the tiles' sub-grid per cell side
 };
 
 // >= 0 inside the layer's region (cliff_tiles.py: rounded / blocky).
@@ -93,45 +90,6 @@ inline Vector2 gradient(
 			(float(c[3]) - float(c[0])) * (1 - u) + (float(c[2]) - float(c[1])) * u);
 }
 
-// Clip a convex polygon to f >= 0 (f given at its points; new points sit on f = 0).
-inline void clip(
-		std::vector<Vector2> &r_points,
-		const std::vector<float> &p_values
-) {
-	std::vector<Vector2> points;
-	size_t count = r_points.size();
-	for (size_t i = 0; i < count; i++) {
-		size_t j = (i + 1) % count;
-		float va = p_values[i];
-		float vb = p_values[j];
-		if (va >= 0) {
-			points.push_back(r_points[i]);
-		}
-		if ((va >= 0) != (vb >= 0)) {
-			points.push_back(r_points[i].lerp(r_points[j], va / (va - vb)));
-		}
-	}
-	r_points = points;
-}
-
-// The sub-grid's triangles of a cell (the tiles' grid), as calls to p_each(triangle).
-template <typename F>
-inline void for_each_triangle(
-		int p_n,
-		F p_each
-) {
-	float step = 1.0f / static_cast<float>(p_n);
-	for (int j = 0; j < p_n; j++) {
-		for (int i = 0; i < p_n; i++) {
-			float x0 = -0.5f + static_cast<float>(i) * step;
-			float y0 = -0.5f + static_cast<float>(j) * step;
-			const Vector2 a(x0, y0), b(x0 + step, y0), c(x0 + step, y0 + step), d(x0, y0 + step);
-			p_each(a, b, c);
-			p_each(a, c, d);
-		}
-	}
-}
-
 // The flow colour at a point: the 4 corners' flow blended bilinearly, direction mapped to 0..1.
 inline Color flow_at(
 		const Color p_corner_flow[4],
@@ -160,7 +118,7 @@ struct Body {
 	bool square = false; // square tiles: falls stay WALL_GAP off the rock
 	// how far the surface runs on into the rock / past the step: EDGE hides the rounded tiles'
 	// grooves; square tiles have flat rock, so the water stops exactly at it (nothing pokes out)
-	float tuck() const { return (square ? 0.0f : EDGE) + grow; }
+	float tuck() const { return square ? 0.0f : EDGE; }
 	// how far past the bed's edge the surface reaches: to the falls' line, so a fall's top edge sits
 	// exactly on the surface's edge (one continuous sheet, no gap or step between them)
 	float lip() const { return square ? WALL_GAP : EDGE; }
@@ -174,22 +132,37 @@ struct Body {
 		return lip() * Math::clamp(away / WALL_GAP - 1.0f, 0.0f, 1.0f);
 	}
 	Color flow[4];
-	// how far the water's edge is pushed on (MCGrid::water_expand):
-	//   banks       it grows into the rock, where it can't be seen, and covers the corner cuts there
-	//   dry ground  it grows over dry ground of the bed's tier near the bed's edge (fading out
-	//               further in), covering the rock post a lone dry corner (one the flood fill only
-	//               touches diagonally) leaves standing between two falls
-	//   falls       the falls' line over lower ground stays put (a fall never hangs off its cliff);
-	//               instead a fall's free ends reach on along it (MCGrid::_extend_fall_ends)
-	float grow = 0.0f;
 	// the falls' bevel radius (MCGrid::water_fall_lip): the surface stops this far short of the fall
-	// line, and the fall strip's flat part and bevel cover from there (mc_grid_water_falls.cpp)
+	// line, and the fall strip's flat part and bevel cover from there (mc_water_fall_strips.cpp)
 	float fall_lip = 0.0f;
-	// the circle spill (MCGrid::water_spill_radius, 0: off): its radius, and which spill points can
-	// reach this cell: bit (dz + 1) * 3 + (dx + 1) for the spill point at the centre of the cell
-	// (dx, dz) cells away in the grid (each within one cell). See spill_circle.
-	float spill = 0.0f;
-	uint16_t spill_mask = 0;
+	// The terrain from the baked tile meshes (mc_water_banks_slice.cpp), in place of the formula's
+	// bank and bed layers: (BAKED_SIDE + 1)^2 signed distances in metres over
+	// the cell (>= 0 inside the rock; index j * (BAKED_SIDE + 1) + i at x = -0.5 + i / BAKED_SIDE,
+	// z = -0.5 + j / BAKED_SIDE, z = -y). Null (a body made outside the grid): the formula.
+	const float *baked_above = nullptr; // the rock above the water surface (the banks)
+	const float *baked_bed = nullptr; // the rock of the bed's tier (the fall line is its edge)
+	uint64_t baked_key = 0; // per-mesh slices: which two (tiles sharing them share a water tile)
+
+	// A baked field at p, bilinear between its grid values.
+	static float baked_at(
+			const float *p_field,
+			const Vector2 &p
+	) {
+		const int n = BAKED_SIDE + 1;
+		float fx = Math::clamp((p.x + 0.5f) * BAKED_SIDE, 0.0f, static_cast<float>(BAKED_SIDE));
+		float fz = Math::clamp((0.5f - p.y) * BAKED_SIDE, 0.0f, static_cast<float>(BAKED_SIDE));
+		int i = std::min(static_cast<int>(fx), BAKED_SIDE - 1);
+		int j = std::min(static_cast<int>(fz), BAKED_SIDE - 1);
+		float u = fx - static_cast<float>(i);
+		float v = fz - static_cast<float>(j);
+		float a = p_field[j * n + i] * (1 - u) + p_field[j * n + i + 1] * u;
+		float b = p_field[(j + 1) * n + i] * (1 - u) + p_field[(j + 1) * n + i + 1] * u;
+		return a * (1 - v) + b * v;
+	}
+	// >= 0 inside a bank: the baked meshes, or the formula's above layer.
+	float above_at(const Vector2 &p) const { return baked_above ? baked_at(baked_above, p) : blend(above, p.x, p.y); }
+	// >= 0 on the bed's tier: the baked meshes, or the formula's bed layer.
+	float bed_at(const Vector2 &p) const { return baked_bed ? baked_at(baked_bed, p) : blend(bed, p.x, p.y); }
 
 	float height(const Vector2 &) const { return top; }
 	Vector3 normal(const Vector2 &) const { return Vector3(0, 1, 0); }
@@ -199,6 +172,9 @@ struct Body {
 	// blend() is a union of quarters, 0 along the middle lines inside too, so the distance to the
 	// empty corners' quarters is used instead (big when the bed covers the cell).
 	float bed_inside(const Vector2 &p) const {
+		if (baked_bed) {
+			return baked_at(baked_bed, p); // already metres
+		}
 		if (fall_lip <= 0.0f) {
 			return blend(bed, p.x, p.y);
 		}
@@ -214,22 +190,6 @@ struct Body {
 		return empty.none() ? 1.0f : -blend(empty, p.x, p.y);
 	}
 
-	// The circle spill: >= 0 inside the circle of radius spill round any spill point that can reach
-	// this cell. A spill point is the centre of a cell where the water runs past a low corner onto
-	// dry ground (MCGrid::_spill_points); the dry column there is wet for the mesh but not one of the
-	// water's own corners, so its ground is wet only inside the circle. Every cell within one cell
-	// of the point cuts the same circle, so neighbouring cells meet on their shared sides.
-	float spill_circle(const Vector2 &p) const {
-		float best = -1e6f;
-		for (int bit = 0; bit < 9 && spill > 0.0f; bit++) {
-			if (spill_mask & (1u << bit)) {
-				Vector2 centre(static_cast<float>(bit % 3 - 1), -static_cast<float>(bit / 3 - 1)); // grid z is -y here
-				best = std::max(best, spill - p.distance_to(centre));
-			}
-		}
-		return best;
-	}
-
 	// Is corner k one of the body's own wet corners (not a bank, on the bed, wet)?
 	bool own(int k) const { return wet.solid[k] && !above.solid[k] && bed.solid[k]; }
 
@@ -240,7 +200,7 @@ struct Body {
 	// of the line between the banks. That line runs inside the banks everywhere but the centre, so the
 	// cut never shows. (>= 0 on the allowed side; a big value when there is no such saddle.)
 	float saddle_side(const Vector2 &p) const {
-		if (above.blocky) {
+		if (above.blocky) { // (baked banks too: the bake grid is too coarse to see the thin neck)
 			return 1.0f; // blocky banks keep a real gap at the centre
 		}
 		for (int a = 0; a < 2; a++) {
@@ -262,28 +222,17 @@ struct Body {
 		return 1.0f;
 	}
 
-	// Where the body's water is: not in a bank, on the bed, not over dry ground (>= 0 inside;
-	// grow widens the first and last).
+	// Where the body's water is: not in a bank, on the bed, not over dry ground (>= 0 inside).
 	float water_field(const Vector2 &p) const {
-		float f = std::min(tuck() - blend(above, p.x, p.y), bed_inside(p) + lip_at(p) - fall_lip);
+		float f = std::min(tuck() - above_at(p), bed_inside(p) + lip_at(p) - fall_lip);
 		f = std::min(f, saddle_side(p));
 		if (wet.all()) {
 			return f;
 		}
-		// over dry ground grow fades out with the distance in from the bed's edge: it fills the gap
-		// beside the falls, but doesn't spread over the dry ground's top
-		float dry_grow = std::max(grow - std::max(blend(bed, p.x, p.y), 0.0f), 0.0f);
-		// a cell the circle spill alone brings water to (no own corner: only the spilled column) has
-		// nothing to tuck under its banks: only the circle is water there, not a sliver along them
+		// a body with none of its own corners (all banks / lower ground) holds no water
 		bool any_own = own(0) || own(1) || own(2) || own(3);
-		float dry = any_own ? blend(wet, p.x, p.y) + dry_grow : -1e6f;
-		dry = std::max(dry, spill_circle(p)); // the circle spill
-		return std::min(f, dry);
+		return std::min(f, any_own ? blend(wet, p.x, p.y) : -1e6f);
 	}
-
-	// The sub-grid: the tiles' one, finer (odd) wherever the body is not a plain quad, the same in
-	// every such cell so neighbours share their side vertices.
-	int sub_grid() const { return above.sub_grid() * 2 + 1; }
 
 	// The terrain's ground surface height at p (the tiles' grass at tier t is at y t - 0.5): the
 	// highest tier whose layer covers p.

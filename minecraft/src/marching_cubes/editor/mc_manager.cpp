@@ -55,14 +55,10 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_toggle_ui"), &MCManager::_on_toggle_ui);
 	ClassDB::bind_method(D_METHOD("_on_toggle_visual_corners"), &MCManager::_on_toggle_visual_corners);
 	ClassDB::bind_method(D_METHOD("_on_toggle_wireframe"), &MCManager::_on_toggle_wireframe);
-	ClassDB::bind_method(D_METHOD("_on_toggle_water_sampled"), &MCManager::_on_toggle_water_sampled);
 	ClassDB::bind_method(D_METHOD("_on_water_drop", "value"), &MCManager::_on_water_drop);
-	ClassDB::bind_method(D_METHOD("_on_water_expand", "value"), &MCManager::_on_water_expand);
 	ClassDB::bind_method(D_METHOD("_on_water_spill", "value"), &MCManager::_on_water_spill);
-	ClassDB::bind_method(D_METHOD("_on_water_spill_radius", "value"), &MCManager::_on_water_spill_radius);
 	ClassDB::bind_method(D_METHOD("_on_water_debug_stage", "value"), &MCManager::_on_water_debug_stage);
 	ClassDB::bind_method(D_METHOD("_on_toggle_tile_seams"), &MCManager::_on_toggle_tile_seams);
-	ClassDB::bind_method(D_METHOD("_on_toggle_water_outline_fill"), &MCManager::_on_toggle_water_outline_fill);
 	ClassDB::bind_method(D_METHOD("_on_water_fall_lip", "value"), &MCManager::_on_water_fall_lip);
 	ClassDB::bind_method(D_METHOD("_on_water_samples", "value"), &MCManager::_on_water_samples);
 	ClassDB::bind_method(D_METHOD("_on_toggle_inspect"), &MCManager::_on_toggle_inspect);
@@ -70,24 +66,17 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("_on_inspect_view_input", "event"), &MCManager::_on_inspect_view_input);
 	ClassDB::bind_method(D_METHOD("inspect_at_cell", "cell"), &MCManager::inspect_at_cell);
 	ClassDB::bind_method(D_METHOD("_on_toggle_water_debug"), &MCManager::_on_toggle_water_debug);
-	ClassDB::bind_method(D_METHOD("_on_toggle_water_particles"), &MCManager::_on_toggle_water_particles);
 	ClassDB::bind_method(D_METHOD("_on_cycle_water_view"), &MCManager::_on_cycle_water_view);
 	ClassDB::bind_method(D_METHOD("_on_record_view"), &MCManager::_on_record_view);
 	ClassDB::bind_method(D_METHOD("_on_replay_pour"), &MCManager::_on_replay_pour);
+	ClassDB::bind_method(D_METHOD("_on_water_steps_toggle"), &MCManager::_on_water_steps_toggle);
+	ClassDB::bind_method(D_METHOD("_on_water_steps_next"), &MCManager::_on_water_steps_next);
+	ClassDB::bind_method(D_METHOD("_on_water_steps_prev"), &MCManager::_on_water_steps_prev);
 	ClassDB::bind_method(D_METHOD("_on_gui_input", "p_event"), &MCManager::_on_gui_input);
 	ClassDB::bind_method(D_METHOD("_on_show_help"), &MCManager::_on_show_help);
 	ClassDB::bind_method(D_METHOD("_on_save_terrain"), &MCManager::_on_save_terrain);
 	ClassDB::bind_method(D_METHOD("_on_load_terrain"), &MCManager::_on_load_terrain);
 	ClassDB::bind_method(D_METHOD("_on_reset_map"), &MCManager::_on_reset_map);
-	ClassDB::bind_method(D_METHOD("_on_pour_back"), &MCManager::_on_pour_back);
-	ClassDB::bind_method(D_METHOD("_on_pour_next"), &MCManager::_on_pour_next);
-	ClassDB::bind_method(D_METHOD("_on_pour_back_10"), &MCManager::_on_pour_back_10);
-	ClassDB::bind_method(D_METHOD("_on_pour_next_10"), &MCManager::_on_pour_next_10);
-	ClassDB::bind_method(D_METHOD("_on_pour_whole"), &MCManager::_on_pour_whole);
-	ClassDB::bind_method(D_METHOD("_on_trace_settle"), &MCManager::_on_trace_settle);
-	ClassDB::bind_method(D_METHOD("_on_trace_spills"), &MCManager::_on_trace_spills);
-	ClassDB::bind_method(D_METHOD("_on_trace_held"), &MCManager::_on_trace_held);
-	ClassDB::bind_method(D_METHOD("_on_trace_flow"), &MCManager::_on_trace_flow);
 	ClassDB::bind_method(D_METHOD("_on_copy_for_blender"), &MCManager::_on_copy_for_blender);
 }
 
@@ -211,7 +200,9 @@ void MCManager::_on_reset_map() {
 			start_chunk_dims.x, start_chunk_dims.y, start_chunk_dims.z,
 			true
 	);
-	_step_pour(0); // the step label back to "whole pour"
+	if (water_steps_on) {
+		_on_water_steps_toggle(); // the map is new: stop the water debug walk
+	}
 	update_ui();
 }
 

@@ -4,15 +4,14 @@
 // in, then held / stream, then the flow) and asks one of its functions to record every decision it
 // makes, with the reason, into water_trace. The functions are the builder's own, so the trace is
 // exactly what the mesh is built from. Nothing is changed.
-//   2  the spills: each landing past a low corner and each spread step (column spill), or each
-//      spill point (circle spill, when its radius is above 0)
+//   2  the spills: each landing past a low corner and each spread step (column spill)
 //   3  held / stream: each wet column's four sides (holds or lets it run out), then the streams
 //      spreading through same-level water
 //   4  the flow: each wet column checked for an outlet, then the walk from the outlets
 // The sea is left out of the traces (it is always held and never an outlet).
 //
 // The overlay at step i: every column decided so far (steps 0 .. i) as a square in its result's
-// colour (held blue, stream green, spilled orange, spill point magenta, flows cyan with an arrow,
+// colour (held blue, stream green, spilled orange, flows cyan with an arrow,
 // does not flow dark grey), the column step i decides outlined in white, a line to each neighbour it looked at
 // (green: lets it / holds it in, red: stops it / lets it run out, grey: no effect, cyan: where it
 // comes from). The explanation is in the Debug tab.
@@ -24,12 +23,11 @@ namespace godot {
 
 namespace {
 const float LIFT = 0.12f; // m above the water
-const Color RESULT_COLOR[7] = {
+const Color RESULT_COLOR[6] = {
 	Color(0.6f, 0.6f, 0.6f, 0.0f), // NONE
 	Color(0.25f, 0.55f, 1.0f, 0.85f), // HELD
 	Color(0.3f, 1.0f, 0.45f, 0.85f), // STREAM
 	Color(1.0f, 0.55f, 0.1f, 0.85f), // SPILLED
-	Color(1.0f, 0.2f, 0.9f, 0.85f), // SPILL_POINT
 	Color(0.35f, 0.9f, 1.0f, 0.85f), // FLOWS
 	Color(0.3f, 0.3f, 0.32f, 0.85f), // STILL
 };
@@ -55,10 +53,6 @@ int MCGrid::trace_water_step(int p_kind) {
 		return 0;
 	}
 	std::vector<MCTraceStep> *spills = water_trace_kind == 2 ? &water_trace : nullptr;
-	if (spills && water_spill_radius > 0.0f) {
-		_spill_points(spills); // the circle spill (on the stored water)
-		spills = nullptr;
-	}
 	std::vector<uint8_t> stored = _spilled_levels(nullptr, spills);
 	water_levels.swap(stored); // the column spill in, as _rebuild_water does
 	std::vector<float> surface;
@@ -76,6 +70,10 @@ void MCGrid::_add_water_trace_debug(
 		const std::vector<float> &p_surface
 ) {
 	if (water_trace_kind == 0 || pour_step < 0 || pour_step >= static_cast<int>(water_trace.size())) {
+		return;
+	}
+	if (water_trace[static_cast<size_t>(pour_step)].draw) { // steps 3 - 4 draw their own (mc_water_trace_cell.cpp)
+		r_debug.append(*water_trace[static_cast<size_t>(pour_step)].draw);
 		return;
 	}
 	Vector2i columns = _column_counts();
@@ -120,6 +118,38 @@ void MCGrid::_add_water_trace_debug(
 			r_debug.square(to, 0.12f, color);
 		}
 	}
+}
+
+void MCGrid::_reset_pour_trace() {
+	water_trace_kind = 0; // the step buttons go through the pour (step 1)
+	last_pour.clear();
+	last_pour_trace.clear();
+	pour_step = -1;
+}
+
+// Step 1 for the whole map as the pour trace, without changing any water (see mc_grid.h).
+int MCGrid::trace_settle() {
+	_reset_pour_trace();
+	if (!heightmap_mode || water_levels.size() != column_heights.size()) {
+		return 0;
+	}
+	Vector2i columns = _column_counts();
+	std::vector<uint8_t> seen(column_heights.size(), 0);
+	int pour = 0;
+	for (int source : _settle_sources()) { // settle_water's order
+		std::vector<MCPourStep> trace;
+		std::vector<int> region = _flow_region(Vector2i(source % columns.x, source / columns.x), seen, &trace);
+		if (region.empty()) {
+			continue; // an earlier pour reached it already
+		}
+		for (MCPourStep &step : trace) {
+			step.pour = pour;
+		}
+		last_pour.insert(last_pour.end(), region.begin(), region.end());
+		last_pour_trace.insert(last_pour_trace.end(), trace.begin(), trace.end());
+		pour++;
+	}
+	return static_cast<int>(last_pour_trace.size());
 }
 
 } // namespace godot

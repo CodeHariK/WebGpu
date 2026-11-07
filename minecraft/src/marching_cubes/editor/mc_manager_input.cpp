@@ -4,6 +4,7 @@
 #include "marching_cubes/grid/mc_grid.h"
 #include "marching_cubes/util/mc_physics.h"
 #include "utils/raycast/mc_raycast.h"
+#include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/collision_object3d.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
@@ -13,7 +14,7 @@ namespace godot {
 
 // Mouse buttons not taken by the UI: raycast once, then dispatch by mode.
 void MCManager::_unhandled_input(const Ref<InputEvent> &p_event) {
-	if (_history_shortcut(p_event)) {
+	if (_history_shortcut(p_event) || _water_steps_key(p_event)) {
 		get_viewport()->set_input_as_handled();
 		return;
 	}
@@ -46,6 +47,25 @@ void MCManager::_unhandled_input(const Ref<InputEvent> &p_event) {
 		return; // a library tile was clicked: pinned
 	}
 
+	if (picking_trace_cell && button == MOUSE_BUTTON_LEFT) { // the Debug tab's steps 3 - 4 pick
+		// the terrain itself (not the corner markers, which sit between 4 cells); under water: its bed
+		MCRaycastHit ground = raycast_from_event(this, p_event, toLayer(LAYER_TERRAIN), 512, TypedArray<RID>());
+		Camera3D *camera = get_viewport()->get_camera_3d();
+		if (ground.is_hit) {
+			_trace_cell(grid, grid->to_local(ground.position));
+		} else if (camera) { // no tile there (the bare floor under the sea): the ray meets the grid's floor
+			Vector2 mouse = mouse_event->get_position();
+			Vector3 from = grid->to_local(camera->project_ray_origin(mouse));
+			Vector3 to = grid->to_local(camera->project_ray_origin(mouse) + camera->project_ray_normal(mouse));
+			Vector3 dir = to - from;
+			const float floor_y = -0.5f; // ground 0's grass
+			if (std::abs(dir.y) > 1e-6f && (floor_y - from.y) / dir.y > 0.0f) {
+				_trace_cell(grid, from + dir * ((floor_y - from.y) / dir.y));
+			}
+		}
+		get_viewport()->set_input_as_handled();
+		return;
+	}
 	ClickHit hit;
 	if (!_raycast_click(p_event, grid, hit)) {
 		return;

@@ -232,19 +232,14 @@ public:
 	void _on_toggle_visual_corners();
 	// Debug views: terrain wireframe, water overlay, replay the last pour.
 	void _on_toggle_wireframe();
-	void _on_toggle_water_sampled(); // water mesh: sample grid or per cell
 	void _on_water_drop(double p_value); // the water drop slider
-	void _on_water_expand(double p_value); // the water expand slider
 	void _on_water_spill(double p_value); // the spill reach slider
-	void _on_water_spill_radius(double p_value); // the circle spill radius slider
 	void _on_water_debug_stage(double p_value); // the water debug stage slider
 	void _on_toggle_tile_seams(); // terrain: lines where the tiles meet
-	void _on_toggle_water_outline_fill(); // flat water from the tiles or from the outlines
 	void _on_water_fall_lip(double p_value); // the waterfall lip radius slider
 	void _on_water_samples(double p_value); // the water samples per cell slider
 	void _on_toggle_edge_corners(); // inactive corners with an edge to an active one
 	void _on_toggle_water_debug();
-	void _on_toggle_water_particles(); // shore foam + fall splashes on / off
 	void _on_cycle_water_view(); // water mesh view: normal / wireframe / UV / UV + wireframe
 	// recording an inspected spot (mc_manager_record.cpp): camera, cell, map, screenshot
 	void _on_record_view(); // Debug tab: record the camera + the hovered cell
@@ -255,7 +250,7 @@ public:
 	);
 	Label *record_label = nullptr; // Debug tab: what was recorded last
 	Label *water_stage_label = nullptr; // Water tab: what the debug stage shows
-	Label *pour_step_ui_label = nullptr; // Debug tab: which pour step is shown
+	Label *pour_step_ui_label = nullptr; // Debug tab: the shown water step's explanation
 	Vector3i start_grid_dims; // the grid's size as the scene sets it (Reset rebuilds it)
 	Vector3i start_chunk_dims;
 	Button *water_view_button = nullptr; // "Water view: <view>"
@@ -306,19 +301,31 @@ public:
 	void _on_load_terrain();
 	// Reset button: everything cleared, the grid as the scene starts it (flat, dry, its own size).
 	void _on_reset_map();
-	// The pour, step by step (Debug tab buttons): back / next one step or ten, or the whole pour.
-	void _on_pour_back();
-	void _on_pour_next();
-	void _on_pour_back_10();
-	void _on_pour_next_10();
-	void _on_pour_whole();
-	void _on_trace_settle(); // record step 1 for the whole map as the trace
-	void _on_trace_spills(); // record step 2a (the spills) as the trace
-	void _on_trace_held(); // record step 2b (held / stream) as the trace
-	void _on_trace_flow(); // record step 2c (the flow) as the trace
-	void _trace_water(int p_kind); // MCGrid::trace_water_step, then show its first step
-	void _step_pour(int p_stride); // > 0 forward, < 0 back, 0 the whole pour
-	void _update_pour_label(); // which step is shown (refreshed with the stats, so a new pour shows)
+	// --- mc_manager_water_steps.cpp: the water, step by step (Debug tab; Prev / Next, left / right keys)
+	void _on_water_steps_toggle(); // Start / Stop water debug
+	void _on_water_steps_next();
+	void _on_water_steps_prev();
+	bool water_steps_on = false;
+	int water_steps_stage = 0; // 0 step 1, 1 - 3 steps 2a - 2c, 4 steps 3 - 4 (one cell)
+	Vector2i water_steps_cell = Vector2i(-1, -1); // the cell steps 3 - 4 show
+	bool picking_trace_cell = false; // steps 3 - 4 wait for a left click on the map
+	Button *water_steps_button = nullptr; // "Start / Stop water debug"
+	Label *water_steps_where = nullptr; // which stage and step is shown
+	// Go to stage p_stage (recording its trace; p_record false: stage 0 keeps the Water tool's last
+	// pour), at its first step or (p_from_end) its last; empty stages are skipped.
+	void _water_steps_go(
+			int p_stage,
+			bool p_from_end,
+			bool p_record = true
+	);
+	// The picked cell (p_local: the click's terrain hit in grid space): steps 3 - 4 for it.
+	void _trace_cell(
+			MCGrid *p_grid,
+			const Vector3 &p_local
+	);
+	void _water_steps_after_pour(MCGrid *p_grid); // a pour with the Water tool: walk that pour
+	bool _water_steps_key(const Ref<InputEvent> &p_event); // left / right arrows while it's on
+	void _update_water_steps_labels(); // where the walk is, and the step's text (refreshed with the stats)
 	// Copy for Blender button: the cells as JSON on the clipboard, for the add-on's playground.
 	void _on_copy_for_blender(); // cells as JSON on the clipboard, for the Blender playground
 	// Save / load the grid's corners (MCGrid::save_grid / load_grid).

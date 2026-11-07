@@ -13,8 +13,11 @@
 // Vertices are welded by position while assembling (the water's edge on a cell side depends only on
 // that side's two corners, so neighbouring tiles put the same points there): one indexed mesh with
 // shared vertices, no seams.
+#include <chrono>
+#define CDT_DISABLE_EXCEPTIONS // godot-cpp builds without exceptions
+#include "utils/cdt/CDT.h"
 #include "marching_cubes/grid/mc_grid.h"
-#include "marching_cubes/grid/mc_water_shape.h"
+#include "marching_cubes/water/4_tiles/mc_water_tile.h"
 #include <godot_cpp/templates/hash_map.hpp>
 #include <cmath>
 #include <algorithm>
@@ -25,64 +28,22 @@ namespace godot {
 using namespace mc_water;
 
 namespace {
-const float INSIDE = 1e-4f; // the shape value a point needs to count as water
 const float PROBE = 0.03f; // a fall looks this far outside its contour to see what is there
 const int BISECT = 12; // steps when locating a contour crossing on a square's edge
 const float WELD = 4096.0f; // vertices closer than 1 / WELD metres are welded
 const float SHARP = 0.95f; // edge normals turning more than this (cos) inside a square: a sharp corner
 
-enum CornerClass : uint32_t {
-	BANK = 0,
-	WET = 1,
-	LOWER = 2,
-	DRY = 3,
-};
-
-// One baked tile: the surface triangles and the falls, in cell-local shape coordinates.
-struct WaterTile {
-	bool whole = false; // the body covers the cell: one quad
-	std::vector<Vector2> surface; // triangles, 3 points each
-	struct Fall {
-		Vector2 a;
-		Vector2 b;
-		Vector2 out; // faces down the step (shape coordinates)
-		bool to_dry = false; // lands on dry ground of the bed's tier (else: below the bed)
-	};
-	std::vector<Fall> falls;
-	struct Shore { // where the surface meets a bank
-		Vector2 a;
-		Vector2 b;
-		Vector2 out; // towards the bank
-	};
-	std::vector<Shore> shores;
-	std::vector<Vector2> wet_samples; // the debug overlay's dots
-};
-
 std::unordered_map<uint64_t, WaterTile> tile_cache; // shared by every grid: tiles depend on the key only
 
-CornerClass corner_class(
-		const Body &p_body,
-		int p_corner
-) {
-	if (p_body.above.solid[p_corner]) {
-		return BANK;
-	}
-	if (!p_body.bed.solid[p_corner]) {
-		return LOWER;
-	}
-	return p_body.wet.solid[p_corner] ? WET : DRY;
-}
 
-// style (rounded / blocky / square), sample rate, grow, fall lip, spill radius and the 4 corner classes
-uint64_t tile_key(
+// The tile's shape: style (rounded / blocky / square), sample rate, fall lip and the 4 corner classes
+uint64_t shape_key(
 		const Body &p_body,
 		int p_rate
 ) {
 	uint32_t style = !p_body.above.blocky ? 0 : (p_body.above.rounding > 0.0f ? 1 : 2);
-	uint32_t grow = static_cast<uint32_t>(std::lround(p_body.grow * 200.0f)); // 0 .. 60
 	uint32_t lip = static_cast<uint32_t>(std::lround(p_body.fall_lip * 100.0f)); // 0 .. 40
-	uint64_t spill = p_body.spill_mask ? static_cast<uint64_t>(std::lround(p_body.spill * 100.0f)) : 0; // 0 .. 100
-	uint64_t key = (static_cast<uint64_t>(p_body.spill_mask) << 40) | (spill << 32) | (lip << 24) | (grow << 18) | (style << 16) | (static_cast<uint32_t>(p_rate) << 8);
+	uint64_t key = (static_cast<uint64_t>(lip) << 24) | (style << 16) | (static_cast<uint32_t>(p_rate) << 8);
 	for (int k = 0; k < 4; k++) {
 		key |= static_cast<uint64_t>(corner_class(p_body, k)) << (2 * k);
 	}
@@ -150,7 +111,7 @@ WaterTile bake_contour(
 	bool all = true;
 	for (int j = 0; j < n; j++) {
 		for (int i = 0; i < n; i++) {
-			bool wet = p_body.water_field(point(i, j)) > INSIDE;
+			bool wet = p_body.water_field(point(i, j)) > TILE_INSIDE;
 			in[static_cast<size_t>(j * n + i)] = wet ? 1 : 0;
 			all = all && wet;
 			if (wet) {
@@ -167,7 +128,7 @@ WaterTile bake_contour(
 		float hi = 1.0f; // out
 		for (int s = 0; s < BISECT; s++) {
 			float t = (lo + hi) * 0.5f;
-			if (p_body.water_field(p_in.lerp(p_out, t)) > INSIDE) {
+			if (p_body.water_field(p_in.lerp(p_out, t)) > TILE_INSIDE) {
 				lo = t;
 			} else {
 				hi = t;
@@ -194,15 +155,15 @@ WaterTile bake_contour(
 		Vector2 mid = (p_a + p_b) * 0.5f;
 		Vector2 out = p_out;
 		Vector2 q = (mid + out * PROBE).clamp(Vector2(-0.5f, -0.5f), Vector2(0.5f, 0.5f));
-		if (blend(p_body.above, q.x, q.y) >= 0.0f) {
-			tile.shores.push_back({ p_a, p_b, out }); // a bank: no fall, a shore (foam particles)
+		if (p_body.above_at(q) >= 0.0f) {
+			tile.shores.push_back({ p_a, p_b, out }); // a bank: no fall, a shore
 			return;
 		}
 		WaterTile::Fall fall;
 		fall.a = p_a;
 		fall.b = p_b;
 		fall.out = out;
-		fall.to_dry = blend(p_body.bed, q.x, q.y) >= 0.0f;
+		fall.to_dry = p_body.bed_at(q) >= 0.0f;
 		tile.falls.push_back(fall);
 	};
 	// a fall along a -> b facing away from the square's corner(s) outside the water
@@ -248,6 +209,8 @@ WaterTile bake_contour(
 					tile.surface.push_back(corner(m));
 					tile.surface.push_back(e1);
 					tile.surface.push_back(e0);
+					tile.rim.push_back(e0);
+					tile.rim.push_back(e1);
 					add_fall(e0, e1, corner((m + 2) % 4));
 				}
 				continue;
@@ -309,6 +272,13 @@ WaterTile bake_contour(
 				tile.surface.push_back(polygon[t]);
 				tile.surface.push_back(polygon[t + 1]);
 			}
+			if (edge.size() == 2) { // the rim through this square (bent round a sharp corner)
+				if (is_sharp) {
+					tile.rim.insert(tile.rim.end(), { edge[0], sharp, sharp, edge[1] });
+				} else {
+					tile.rim.insert(tile.rim.end(), { edge[0], edge[1] });
+				}
+			}
 			if (edge.size() == 2 && outs > 0) {
 				if (is_sharp) {
 					add_fall_facing(edge[0], sharp, outward(p_body, edge[0]));
@@ -324,9 +294,201 @@ WaterTile bake_contour(
 
 Vector3i weld_key(const Vector3 &p_v);
 
+const float INNER = 0.25f; // m: the inner points' spacing, and the side points' (the sample grid only finds the edge)
+const float INNER_CLEAR = 0.06f; // m: inner points keep this far from the rim (no slivers)
+const float SIMPLIFY = 0.008f; // m: rim points closer than this to the line through their neighbours are dropped
+
+// The rim's segments joined into polylines (by their shared end points: neighbouring squares'
+// crossings are the very same points), each simplified: a point is dropped while the polyline
+// stays within SIMPLIFY of it (Douglas-Peucker); the ends (on the cell's sides) always stay.
+std::vector<std::vector<Vector2>> simplified_rim(const std::vector<Vector2> &p_rim) {
+	std::vector<std::vector<Vector2>> lines;
+	std::vector<uint8_t> used(p_rim.size() / 2, 0);
+	auto take_from = [&](const Vector2 &p_end, Vector2 &r_next) {
+		for (size_t k = 0; k < used.size(); k++) {
+			if (used[k]) {
+				continue;
+			}
+			if (p_rim[2 * k].distance_squared_to(p_end) < 1e-12f) {
+				used[k] = 1;
+				r_next = p_rim[2 * k + 1];
+				return true;
+			}
+			if (p_rim[2 * k + 1].distance_squared_to(p_end) < 1e-12f) {
+				used[k] = 1;
+				r_next = p_rim[2 * k];
+				return true;
+			}
+		}
+		return false;
+	};
+	for (size_t k = 0; k < used.size(); k++) {
+		if (used[k] || p_rim[2 * k].distance_squared_to(p_rim[2 * k + 1]) < 1e-12f) {
+			continue;
+		}
+		used[k] = 1;
+		std::vector<Vector2> line = { p_rim[2 * k], p_rim[2 * k + 1] };
+		Vector2 next;
+		while (take_from(line.back(), next)) {
+			line.push_back(next);
+		}
+		while (take_from(line.front(), next)) {
+			line.insert(line.begin(), next);
+		}
+		// Douglas-Peucker
+		std::vector<uint8_t> keep(line.size(), 0);
+		keep.front() = keep.back() = 1;
+		std::vector<std::pair<size_t, size_t>> spans = { { 0, line.size() - 1 } };
+		while (!spans.empty()) {
+			auto [a, b] = spans.back();
+			spans.pop_back();
+			float worst = 0.0f;
+			size_t at = a;
+			Vector2 ab = line[b] - line[a];
+			for (size_t i = a + 1; i < b; i++) {
+				float u = ab.length_squared() > 1e-12f ? Math::clamp((line[i] - line[a]).dot(ab) / ab.length_squared(), 0.0f, 1.0f) : 0.0f;
+				float d = line[i].distance_to(line[a] + ab * u);
+				if (d > worst) {
+					worst = d;
+					at = i;
+				}
+			}
+			if (worst > SIMPLIFY) {
+				keep[at] = 1;
+				spans.push_back({ a, at });
+				spans.push_back({ at, b });
+			}
+		}
+		std::vector<Vector2> kept;
+		for (size_t i = 0; i < line.size(); i++) {
+			if (keep[i]) {
+				kept.push_back(line[i]);
+			}
+		}
+		lines.push_back(kept);
+	}
+	return lines;
+}
+
+// The tile's surface again, as a constrained Delaunay triangulation (CDT) of: its rim (the edge
+// pieces joined and simplified, kept as constraint edges so the triangles follow it), the cell
+// corners and side points every INNER (the same in every tile, so neighbours still weld on their
+// shared sides), and a coarse grid INNER apart inside the water. A triangle is kept when its middle is water. Far
+// fewer, larger triangles than one or two per sample square; the edge is the same.
+void triangulate(
+		const Body &p_body,
+		int p_rate,
+		WaterTile &r_tile
+) {
+	if (r_tile.whole || r_tile.surface.empty()) {
+		return;
+	}
+	std::vector<CDT::V2d<double>> points;
+	std::vector<CDT::Edge> edges;
+	auto add_point = [&](const Vector2 &p) {
+		points.push_back(CDT::V2d<double>(p.x, p.y));
+		return static_cast<CDT::VertInd>(points.size() - 1);
+	};
+	// the rim, simplified, as constraint edges
+	std::vector<Vector2> rim; // the kept rim segments (the inner points keep clear of them)
+	for (const std::vector<Vector2> &line : simplified_rim(r_tile.rim)) {
+		for (size_t i = 0; i + 1 < line.size(); i++) {
+			CDT::VertInd a = add_point(line[i]);
+			CDT::VertInd b = add_point(line[i + 1]);
+			edges.push_back(CDT::Edge(a, b));
+			rim.insert(rim.end(), { line[i], line[i + 1] });
+		}
+	}
+	// the surface's points on the cell's sides: its corners, the rim's crossings and every
+	// INNER-th sample point there (neighbouring tiles keep the same ones, so the vertices weld)
+	int stride = std::max(1, static_cast<int>(std::lround(INNER * static_cast<float>(p_rate))));
+	float step = 1.0f / static_cast<float>(p_rate);
+	auto on_grid = [&](float p_coordinate) { // a sample point every stride along a side
+		float index = (p_coordinate + 0.5f) * static_cast<float>(p_rate);
+		int nearest = static_cast<int>(std::lround(index));
+		return std::abs(index - static_cast<float>(nearest)) < 1e-4f ? nearest : -1;
+	};
+	for (const Vector2 &p : r_tile.surface) {
+		bool side_x = std::abs(std::abs(p.x) - 0.5f) < 1e-6f; // on a side where x is fixed: along y
+		bool side_y = std::abs(std::abs(p.y) - 0.5f) < 1e-6f;
+		if (!side_x && !side_y) {
+			continue;
+		}
+		int along = on_grid(side_x ? p.y : p.x);
+		bool corner = side_x && side_y;
+		bool crossing = along < 0; // not a sample point: where the rim meets the side
+		if (corner || crossing || along % stride == 0) {
+			add_point(p);
+		}
+	}
+	// a coarse grid inside, clear of the rim
+	for (int j = stride; j < p_rate; j += stride) {
+		for (int i = stride; i < p_rate; i += stride) {
+			Vector2 p(-0.5f + static_cast<float>(i) * step, -0.5f + static_cast<float>(j) * step);
+			if (p_body.water_field(p) <= TILE_INSIDE) {
+				continue;
+			}
+			bool clear = true;
+			for (size_t k = 0; k + 1 < rim.size() && clear; k += 2) {
+				const Vector2 &a = rim[k];
+				Vector2 ab = rim[k + 1] - a;
+				float u = ab.length_squared() > 1e-12f ? Math::clamp((p - a).dot(ab) / ab.length_squared(), 0.0f, 1.0f) : 0.0f;
+				clear = p.distance_squared_to(a + ab * u) >= INNER_CLEAR * INNER_CLEAR;
+			}
+			if (clear) {
+				add_point(p);
+			}
+		}
+	}
+	CDT::RemoveDuplicatesAndRemapEdges(points, edges);
+	CDT::Triangulation<double> cdt(CDT::VertexInsertionOrder::Auto, CDT::IntersectingConstraintEdges::TryResolve, 1e-7);
+	cdt.insertVertices(points);
+	cdt.insertEdges(edges);
+	cdt.eraseSuperTriangle();
+	std::vector<Vector2> surface;
+	for (const CDT::Triangle &tri : cdt.triangles) {
+		Vector2 v[3];
+		for (int k = 0; k < 3; k++) {
+			const CDT::V2d<double> &q = cdt.vertices[tri.vertices[static_cast<size_t>(k)]];
+			v[k] = Vector2(static_cast<float>(q.x), static_cast<float>(q.y));
+		}
+		Vector2 middle = (v[0] + v[1] + v[2]) / 3.0f;
+		if (p_body.water_field(middle) > TILE_INSIDE) {
+			surface.insert(surface.end(), { v[0], v[1], v[2] });
+		}
+	}
+	if (!surface.empty()) {
+		r_tile.surface = surface;
+	}
+}
+
+} // namespace
+
+namespace mc_water {
+
+CornerClass corner_class(
+		const Body &p_body,
+		int p_corner
+) {
+	if (p_body.above.solid[p_corner]) {
+		return BANK;
+	}
+	if (!p_body.bed.solid[p_corner]) {
+		return LOWER;
+	}
+	return p_body.wet.solid[p_corner] ? WET : DRY;
+}
+
+uint64_t tile_key(
+		const Body &p_body,
+		int p_rate
+) {
+	return shape_key(p_body, p_rate) ^ (p_body.baked_key * 0xC2B2AE3D27D4EB4FULL); // + the baked banks
+}
+
 // A tile: the falls (and shores) on the water's real edge, the fall line at the cliff; the surface
 // from the shape trimmed back by the bevel (Body::fall_lip): the fall strip's flat part and bevel
-// (mc_grid_water_falls.cpp) cover from there out to the fall line.
+// (mc_water_fall_strips.cpp) cover from there out to the fall line.
 WaterTile bake_tile(
 		const Body &p_body,
 		int p_rate
@@ -335,70 +497,22 @@ WaterTile bake_tile(
 	edge.fall_lip = 0.0f;
 	WaterTile tile = bake_contour(edge, p_rate);
 	if (p_body.fall_lip <= 0.0f) {
+		triangulate(p_body, p_rate, tile);
 		return tile;
 	}
 	WaterTile trimmed = bake_contour(p_body, p_rate);
 	trimmed.falls = tile.falls;
 	trimmed.shores = tile.shores;
+	triangulate(p_body, p_rate, trimmed);
 	return trimmed;
 }
 
-} // namespace
-
-// Points every MCWaterArrays::PARTICLE_SPACING along a -> b (at least one, the middle), each with
-// p_direction: particle emission points.
-void MCGrid::_sample_line(
-		const Vector3 &p_a,
-		const Vector3 &p_b,
-		const Vector3 &p_direction,
-		std::vector<Vector3> &r_points,
-		std::vector<Vector3> &r_directions
-) {
-	float length = p_a.distance_to(p_b);
-	int count = std::max(1, static_cast<int>(std::ceil(length / MCWaterArrays::PARTICLE_SPACING)));
-	for (int i = 0; i < count; i++) {
-		float t = (static_cast<float>(i) + 0.5f) / static_cast<float>(count);
-		r_points.push_back(p_a.lerp(p_b, t));
-		r_directions.push_back(p_direction);
-	}
+const WaterTile *cached_tile(uint64_t p_key) {
+	auto found = tile_cache.find(p_key);
+	return found == tile_cache.end() ? nullptr : &found->second;
 }
 
-// water_expand along the falls: a fall's free end (one no other fall continues from, where it meets a
-// bank or dry ground) reaches on by p_grow along the fall, top and foot together.
-void MCGrid::_extend_fall_ends(
-		std::vector<PlacedFall> &r_falls,
-		float p_grow
-) {
-	if (p_grow <= 0.0f) {
-		return;
-	}
-	HashMap<Vector3i, int> ends; // top end -> how many falls end there
-	for (const PlacedFall &f : r_falls) {
-		for (const Vector3 &v : { f.ta, f.tb }) {
-			int *n = ends.getptr(weld_key(v));
-			if (n) {
-				(*n)++;
-			} else {
-				ends.insert(weld_key(v), 1);
-			}
-		}
-	}
-	for (PlacedFall &f : r_falls) {
-		Vector3 along = f.tb - f.ta;
-		if (along.length_squared() < 1e-10f) {
-			continue;
-		}
-		along = along.normalized() * p_grow;
-		if (ends[weld_key(f.ta)] == 1) {
-			f.ta -= along;
-			f.ba -= along;
-		}
-		if (ends[weld_key(f.tb)] == 1) {
-			f.tb += along;
-			f.bb += along;
-		}
-	}
-}
+} // namespace mc_water
 
 namespace {
 Vector3i weld_key(const Vector3 &p_v) {
@@ -407,19 +521,6 @@ Vector3i weld_key(const Vector3 &p_v) {
 }
 } // namespace
 
-void MCGrid::set_water_expand(float p_expand) {
-	water_expand = std::clamp(p_expand, 0.0f, 0.3f);
-	if (!chunks.empty() && water_levels.size() == column_heights.size()) {
-		_queue_water();
-	}
-}
-
-void MCGrid::set_water_sampled(bool p_on) {
-	water_sampled = p_on;
-	if (!chunks.empty() && water_levels.size() == column_heights.size()) {
-		_queue_water();
-	}
-}
 
 void MCGrid::set_water_sample_rate(int p_rate) {
 	water_sample_rate = std::clamp(p_rate, 2, 32);
@@ -441,13 +542,19 @@ void MCGrid::_emit_water_tiles(
 	std::vector<Body> bodies;
 	std::vector<float> bottoms;
 	std::vector<PlacedFall> placed_falls; // emitted at the end, once every fall is known
+	const bool stage_edges = debug_water && water_debug_stage == 3; // the edge pieces (debug stage 3)
+	water_bodies_nsec = 0;
 	for (int cz = 0; cz < cells.y; cz++) {
 		for (int cx = 0; cx < cells.x; cx++) {
+			auto bodies_started = std::chrono::steady_clock::now(); // debug timing (step 3 vs step 4)
 			_water_bodies(cx, cz, p_surface, p_held, p_flow, bodies, bottoms);
+			water_bodies_nsec += static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+					std::chrono::steady_clock::now() - bodies_started).count());
 			Vector2 centre(static_cast<float>(cx) + 0.5f, static_cast<float>(cz) + 0.5f);
 			auto world = [&](const Vector2 &p, float y) { return Vector3(centre.x + p.x, y, centre.y - p.y); }; // z = -y
 			for (size_t k = 0; k < bodies.size(); k++) {
 				const Body &body = bodies[k];
+				// the tile, from the cache (per-mesh banks: their slices' key is part of the key)
 				uint64_t key = tile_key(body, water_sample_rate);
 				auto found = tile_cache.find(key);
 				if (found == tile_cache.end()) {
@@ -472,14 +579,14 @@ void MCGrid::_emit_water_tiles(
 					surface_index.insert(weld, index);
 					r_out.indices.push_back(index);
 				};
-				if (water_outline_fill) {
-					// the flat water comes from the outlines instead (mc_grid_water_fill.cpp)
-				} else if (tile.whole) {
+				if (tile.whole) {
+					r_out.begin_piece(); // this body's flat tile: one piece ("pieces" view)
 					const Vector2 q[4] = { Vector2(-0.5f, -0.5f), Vector2(0.5f, -0.5f), Vector2(0.5f, 0.5f), Vector2(-0.5f, 0.5f) };
 					for (int m : { 0, 1, 2, 0, 2, 3 }) {
 						surface_vertex(q[m]);
 					}
 				} else {
+					r_out.begin_piece();
 					for (const Vector2 &p : tile.surface) {
 						surface_vertex(p);
 					}
@@ -520,8 +627,8 @@ void MCGrid::_emit_water_tiles(
 					placed.depth_b = start_depth(fall.b);
 					placed_falls.push_back(placed);
 				}
-				// the edges for the outlines, oriented with the water on the left seen from above
-				// (out points away from the water: a -> b turned left is the water side)
+				// the edge pieces, for water debug stage 3 only, oriented with the water on the left
+				// seen from above (out points away from the water: a -> b turned left is the water side)
 				auto add_edge = [&](const Vector2 &p_a, const Vector2 &p_b, const Vector2 &p_out, WaterEdge::Kind p_kind) {
 					WaterEdge edge;
 					edge.a = world(p_a, body.top);
@@ -535,17 +642,13 @@ void MCGrid::_emit_water_tiles(
 					}
 					r_out.edges.push_back(edge);
 				};
-				for (const WaterTile::Shore &shore : tile.shores) {
-					add_edge(shore.a, shore.b, shore.out, WaterEdge::BANK);
-				}
-				for (const WaterTile::Fall &fall : tile.falls) {
-					add_edge(fall.a, fall.b, fall.out, WaterEdge::FALL);
-				}
-				// shore foam: points along where the surface meets a bank, drifting away from it
-				for (const WaterTile::Shore &shore : tile.shores) {
-					Vector3 away(-shore.out.x, 0, shore.out.y);
-					_sample_line(world(shore.a, body.top + 0.02f), world(shore.b, body.top + 0.02f), away,
-							r_out.shore_points, r_out.shore_directions);
+				if (stage_edges) {
+					for (const WaterTile::Shore &shore : tile.shores) {
+						add_edge(shore.a, shore.b, shore.out, WaterEdge::BANK);
+					}
+					for (const WaterTile::Fall &fall : tile.falls) {
+						add_edge(fall.a, fall.b, fall.out, WaterEdge::FALL);
+					}
 				}
 				if (debug_water) {
 					for (const Vector2 &p : tile.wet_samples) {
@@ -555,21 +658,12 @@ void MCGrid::_emit_water_tiles(
 			}
 		}
 	}
-	_extend_fall_ends(placed_falls, water_expand);
-	// fall splashes: points along each fall's foot, thrown up and out
-	for (const PlacedFall &fall : placed_falls) {
-		if (fall.drop < 0.1f) {
-			continue;
-		}
-		Vector3 lift(0, 0.05f, 0);
-		_sample_line(fall.ba + lift, fall.bb + lift, (fall.out * 0.5f + Vector3(0, 1, 0)).normalized(),
-				r_out.splash_points, r_out.splash_directions);
-	}
-	r_out.final_uv2 = true;
-	r_out.placed_falls = placed_falls;
-	if (!water_outline_fill) { // (outline: swept along the outlines instead, mc_grid_water_sweep.cpp)
-		_emit_fall_strips(placed_falls, r_out); // bevelled L strips (mc_grid_water_falls.cpp)
-	}
+	_join_fall_ends(placed_falls); // neighbouring cells' ends that just miss each other (mc_water_fall_strips.cpp)
+	_relax_fall_chains(placed_falls); // the fall lines smoothed across cells (no V at every cell border)
+	// each fall's direction at its ends, smoothed (mc_water_fall_strips.cpp): the cut and the strips agree
+	std::vector<std::pair<Vector3, Vector3>> directions = _fall_directions(placed_falls);
+	_cut_surface_under_falls(placed_falls, directions, r_out); // no flat water under the bevels (mc_water_surface_cut.cpp)
+	_emit_fall_strips(placed_falls, directions, r_out); // bevelled L strips (mc_water_fall_strips.cpp)
 }
 
 } // namespace godot

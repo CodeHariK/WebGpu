@@ -85,7 +85,7 @@ void MCManager::setup_ui() {
 
 	// 5. Tabs (inside SidePanel), each a scrolling list:
 	//   Stats   performance, terrain counts, the hovered cell's hash, mesh variants
-	//   Water   water look (view, particles, builder) and its sliders, the pour replay
+	//   Water   water look (view, builder) and its sliders, the pour replay
 	//   Debug   inspect, terrain views, recording an inspected spot (mc_manager_record.cpp)
 	//   Map     save / load, Copy for Blender, randomize, heightmap mode
 	TabContainer *tabs = memnew(TabContainer);
@@ -141,17 +141,11 @@ void MCManager::setup_ui() {
 	water_view_button = ui.manager->add_button(water_tab, String("Water view: ") + MCGrid::water_view_name(view),
 			Callable(this, "_on_cycle_water_view"));
 	water_view_button->set_custom_minimum_size(Vector2(0, 30));
-	add_buttons(water_tab, { { "Surface: tiles / outline", "_on_toggle_water_outline_fill" },
-								   { "Water particles", "_on_toggle_water_particles" },
-								   { "Water: sampled / cells", "_on_toggle_water_sampled" } });
 	ui.manager->add_header(water_tab, "Shape");
 	// water surface height: metres below the bank one tier up
 	ui.manager->add_label(water_tab, "Water drop (m below bank)");
 	ui.manager->add_hslider(water_tab, 0.0f, 0.95f, 0.01f, grid_node ? grid_node->get_water_drop() : 0.15f,
 			Callable(this, "_on_water_drop"), "WaterDrop");
-	ui.manager->add_label(water_tab, "Water expand (m)");
-	ui.manager->add_hslider(water_tab, 0.0f, 0.3f, 0.005f, grid_node ? grid_node->get_water_expand() : 0.0f,
-			Callable(this, "_on_water_expand"), "WaterExpand");
 	ui.manager->add_label(water_tab, "Waterfall lip radius (m)");
 	ui.manager->add_hslider(water_tab, 0.0f, 0.4f, 0.01f, grid_node ? grid_node->get_water_fall_lip() : 0.2f,
 			Callable(this, "_on_water_fall_lip"), "WaterFallLip");
@@ -159,18 +153,15 @@ void MCManager::setup_ui() {
 	ui.manager->add_hslider(water_tab, 0.0f, 8.0f, 1.0f,
 			grid_node ? static_cast<float>(grid_node->get_water_spill_reach()) : 1.0f, Callable(this, "_on_water_spill"),
 			"WaterSpill");
-	ui.manager->add_label(water_tab, "Spill radius (m, circle; 0: column reach)");
-	ui.manager->add_hslider(water_tab, 0.0f, 1.0f, 0.01f, grid_node ? grid_node->get_water_spill_radius() : 0.0f,
-			Callable(this, "_on_water_spill_radius"), "WaterSpillRadius");
 	ui.manager->add_label(water_tab, "Water samples per cell");
 	ui.manager->add_hslider(water_tab, 2.0f, 32.0f, 1.0f,
 			grid_node ? static_cast<float>(grid_node->get_water_sample_rate()) : 8.0f, Callable(this, "_on_water_samples"),
 			"WaterSamples");
 	ui.manager->add_header(water_tab, "Flood fill");
 	add_buttons(water_tab, { { "Water debug", "_on_toggle_water_debug" }, { "Replay pour", "_on_replay_pour" } });
-	// how the shape is built, one layer more per stage (mc_grid_debug_water_stages.cpp)
-	ui.manager->add_label(water_tab, "Debug stage (0 off .. 6)");
-	ui.manager->add_hslider(water_tab, 0.0f, 6.0f, 1.0f,
+	// how the shape is built, one layer more per stage (mc_water_debug_stages.cpp)
+	ui.manager->add_label(water_tab, "Debug stage (0 off .. 4)");
+	ui.manager->add_hslider(water_tab, 0.0f, static_cast<float>(MCGrid::WATER_DEBUG_STAGES), 1.0f,
 			grid_node ? static_cast<float>(grid_node->get_water_debug_stage()) : 0.0f,
 			Callable(this, "_on_water_debug_stage"), "WaterDebugStage");
 	water_stage_label = ui.manager->add_label(water_tab,
@@ -189,19 +180,26 @@ void MCManager::setup_ui() {
 		label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
 		label->set_custom_minimum_size(Vector2(1, 0)); // wrap to the tab's width, never widen it
 	}
-	// the last pour, one flood-fill step at a time (the explanation floats over the column)
+	// the water, step by step (mc_manager_water_steps.cpp): Start, then Prev / Next or the arrow keys
 	ui.manager->add_header(debug_tab, "Water step by step");
-	add_buttons(debug_tab, { { "Trace step 1: the water path (whole map)", "_on_trace_settle" },
-								   { "Trace step 2a: spills", "_on_trace_spills" },
-								   { "Trace step 2b: held / stream", "_on_trace_held" },
-								   { "Trace step 2c: flow", "_on_trace_flow" } });
-	add_buttons(debug_tab, { { "< Back", "_on_pour_back" }, { "Next >", "_on_pour_next" } });
-	add_buttons(debug_tab, { { "<< 10", "_on_pour_back_10" }, { "10 >>", "_on_pour_next_10" },
-								   { "Whole pour", "_on_pour_whole" } });
-	pour_step_ui_label = ui.manager->add_label(debug_tab, "");
+	water_steps_button = ui.manager->add_button(debug_tab, "Start water debug", Callable(this, "_on_water_steps_toggle"));
+	water_steps_button->set_custom_minimum_size(Vector2(0, 26));
+	water_steps_button->add_theme_font_size_override("font_size", 13);
+	HBoxContainer *water_steps_nav = ui.manager->add_hbox(debug_tab, "WaterStepsNav", 6);
+	for (const std::pair<const char *, const char *> &entry : { std::pair<const char *, const char *>{ "< Prev", "_on_water_steps_prev" },
+				 std::pair<const char *, const char *>{ "Next >", "_on_water_steps_next" } }) {
+		Button *button = ui.manager->add_button(water_steps_nav, entry.first, Callable(this, entry.second));
+		button->set_custom_minimum_size(Vector2(0, 26));
+		button->set_h_size_flags(Control::SIZE_EXPAND_FILL);
+		button->add_theme_font_size_override("font_size", 13);
+	}
+	water_steps_where = ui.manager->add_label(debug_tab, "", "WaterStepsWhere", 13);
+	water_steps_where->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
+	water_steps_where->set_custom_minimum_size(Vector2(1, 0));
+	pour_step_ui_label = ui.manager->add_label(debug_tab, "", "WaterStepsText", 12);
 	pour_step_ui_label->set_autowrap_mode(TextServer::AUTOWRAP_WORD_SMART);
 	pour_step_ui_label->set_custom_minimum_size(Vector2(1, 0));
-	_step_pour(0);
+	_update_water_steps_labels();
 	ui.manager->add_header(debug_tab, "Terrain views");
 	add_buttons(debug_tab, { { "Wireframe", "_on_toggle_wireframe" }, { "Edge corners", "_on_toggle_edge_corners" },
 								   { "Tile seams", "_on_toggle_tile_seams" } });
@@ -261,7 +259,7 @@ void MCManager::update_ui() {
 	if (!ui.stats_vbox || !ui.manager || !is_inside_tree())
 		return;
 	_update_history_buttons(); // a load / mode switch may have cleared the history
-	_update_pour_label(); // a new pour, or a reset
+	_update_water_steps_labels(); // a new pour, or a reset
 
 	Performance *perf_singleton = Performance::get_singleton();
 

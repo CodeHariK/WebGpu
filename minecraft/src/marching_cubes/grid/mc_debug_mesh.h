@@ -1,5 +1,5 @@
 // MCDebugMesh: the water debug overlay's geometry (mc_grid_debug_view.cpp,
-// mc_grid_debug_water_stages.cpp), built up piece by piece: flat squares (triangles) and lines,
+// mc_water_debug_stages.cpp), built up piece by piece: flat squares (triangles) and lines,
 // each with a vertex colour. UV.x of a square is the order a pour reached it (0..1, the overlay
 // shader's replay hides later ones), -1 for always shown.
 #ifndef MC_DEBUG_MESH_H
@@ -45,6 +45,25 @@ struct MCDebugMesh {
 			tri_colors.push_back(p_color);
 			tri_uvs.push_back(Vector2(-1, 0));
 		}
+	}
+
+	// One filled triangle (drawn in order with the squares).
+	void triangle(const Vector3 &p_a, const Vector3 &p_b, const Vector3 &p_c, const Color &p_color) {
+		for (const Vector3 &p : { p_a, p_b, p_c }) {
+			tri_vertices.push_back(p);
+			tri_colors.push_back(p_color);
+			tri_uvs.push_back(Vector2(-1, 0));
+		}
+	}
+
+	// Everything of p_other, drawn after what is here.
+	void append(const MCDebugMesh &p_other) {
+		tri_vertices.append_array(p_other.tri_vertices);
+		tri_colors.append_array(p_other.tri_colors);
+		tri_uvs.append_array(p_other.tri_uvs);
+		line_vertices.append_array(p_other.line_vertices);
+		line_colors.append_array(p_other.line_colors);
+		line_uvs.append_array(p_other.line_uvs);
 	}
 
 	void line(const Vector3 &p_a, const Vector3 &p_b, const Color &p_color) {

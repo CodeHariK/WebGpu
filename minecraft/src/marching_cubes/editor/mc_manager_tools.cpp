@@ -124,75 +124,6 @@ bool MCManager::_history_shortcut(const Ref<InputEvent> &p_event) {
 	return false;
 }
 
-// The pour, step by step (Debug tab buttons): p_stride steps forward (> 0) or back (< 0) through
-// the last pour's trace, 0 for the whole pour again. From the whole pour, Next starts at step 1
-// and Back at the last step. With no trace yet (a loaded map), stepping first records step 1 for
-// the whole map (MCGrid::trace_settle). The label under the buttons says where it is.
-void MCManager::_step_pour(int p_stride) {
-	MCGrid *grid = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-	int count = grid ? grid->get_pour_step_count() : 0;
-	if (grid && count == 0 && p_stride != 0 && grid->get_water_trace_kind() == 0) {
-		count = grid->trace_settle(); // no pour yet: step 1 for the whole map
-	}
-	if (grid && count > 0) {
-		int step = grid->get_pour_step();
-		if (p_stride == 0) {
-			step = -1;
-		} else if (p_stride > 0) {
-			step = step < 0 ? 0 : std::min(step + p_stride, count - 1);
-		} else {
-			step = step < 0 ? count - 1 : std::max(step + p_stride, 0);
-		}
-		grid->set_pour_step(step);
-	}
-	_update_pour_label();
-}
-
-void MCManager::_update_pour_label() {
-	MCGrid *grid = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-	int count = grid ? grid->get_pour_step_count() : 0;
-	if (pour_step_ui_label) {
-		if (count == 0 && grid && grid->get_water_trace_kind() != 0) {
-			pour_step_ui_label->set_text("Nothing to step through here: this part of step 2 made no decisions on this map.");
-		} else if (count == 0) {
-			pour_step_ui_label->set_text("Next / Back step through step 1 for the whole map (or pour with the Water tool to step through that pour).");
-		} else if (grid->get_pour_step() < 0) {
-			const char *names[5] = { "step 1 (the pour)", "", "step 2a (spills)", "step 2b (held / stream)", "step 2c (flow)" };
-			int kind = std::clamp(grid->get_water_trace_kind(), 0, 4);
-			pour_step_ui_label->set_text(vformat("%s: %d steps. Next / Back step through it.", names[kind], count));
-		} else {
-			pour_step_ui_label->set_text(grid->get_pour_step_text()); // the same text floats over the column
-		}
-	}
-}
-
-void MCManager::_on_pour_back() { _step_pour(-1); }
-void MCManager::_on_pour_next() { _step_pour(1); }
-void MCManager::_on_pour_back_10() { _step_pour(-10); }
-void MCManager::_on_pour_next_10() { _step_pour(10); }
-void MCManager::_on_pour_whole() { _step_pour(0); }
-// Trace step 2a / 2b / 2c buttons: record that part of step 2 (MCGrid::trace_water_step) and show
-// its first step; Back / Next then go through it.
-void MCManager::_trace_water(int p_kind) {
-	MCGrid *grid = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-	if (grid) {
-		grid->trace_water_step(p_kind);
-	}
-	_step_pour(1);
-}
-
-void MCManager::_on_trace_spills() { _trace_water(2); }
-void MCManager::_on_trace_held() { _trace_water(3); }
-void MCManager::_on_trace_flow() { _trace_water(4); }
-
-// Trace step 1 button: record step 1 for the whole map again (replacing the last pour's trace).
-void MCManager::_on_trace_settle() {
-	MCGrid *grid = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-	if (grid) {
-		grid->trace_settle();
-	}
-	_step_pour(1); // show its first step
-}
 
 // Water tool (heightmap mode): left fills the clicked column's hole one tier deep, right drains the
 // body of water there. One undo step.
@@ -214,6 +145,7 @@ void MCManager::_water_click(
 		p_grid->clear_water(column);
 	}
 	p_grid->end_edit();
+	_water_steps_after_pour(p_grid); // water debug on: walk this pour
 	_update_history_buttons();
 }
 

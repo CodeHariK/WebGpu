@@ -1,16 +1,15 @@
 // MCGrid: the editable corner grid, split into chunks, and everything spawned for it.
 //   mc_grid.cpp                setup, properties, corner edits, corner/cell queries
 //   mc_grid_cells.cpp          the tiles of each chunk merged into one mesh + collider
-//   mc_grid_collision.cpp      the chunks' colliders (shared tile shapes, or one trimesh per chunk)
 //   mc_grid_levels.cpp         each cell's level (L / M / H, core/mc_level_plan.h) and Randomize
 //   mc_grid_heights.cpp        heightmap mode: one height per corner column, no overhangs, islands
 //   mc_grid_groups.cpp         each cell's tile group (a, b …): one rolled per connected solid region
-//   mc_grid_water_tiles.cpp    the water mesh from baked water tiles (per corner classes), welded
-//   mc_grid_water_mesh.cpp     the water mesh: surface + falls per cell with the cliff tiles' shape
-//   mc_grid_water.cpp          the water layer (heightmap mode): ponds, rivers, sea, waterfalls
+//   mc_grid_collision.cpp      the chunks' colliders (shared tile shapes, or one trimesh per chunk)
+//   ../water/                  the water layer (heightmap mode): ponds, rivers, sea, waterfalls, by
+//                              step; ../water/README.md has the order and what each folder holds
 //   mc_grid_debug_corners.cpp  debug dots on the corners (+ their picking colliders)
 //   mc_grid_inspect.cpp        inspect mode: mark a cell, build its preview (tile + numbered corners) + info
-//   mc_grid_debug_view.cpp     debug views: corner dot look, terrain wireframe, water overlay + pour replay
+//   mc_grid_debug_view.cpp     debug views: corner dot look, terrain wireframe (water: ../water/debug/)
 //   mc_grid_hover.cpp          hover preview quads
 //   mc_grid_objects.cpp        placed objects (with mc_spatial)
 //   mc_grid_io.cpp             save / load (version 1 files load; JSON for Blender)
@@ -25,6 +24,7 @@
 #include "marching_cubes/grid/mc_chunk_builder.h"
 #include "marching_cubes/grid/mc_placed_objects.h"
 #include <cstdint>
+#include <memory>
 #include <godot_cpp/classes/mesh.hpp>
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/shape3d.hpp>
@@ -36,9 +36,10 @@
 #include <godot_cpp/variant/packed_color_array.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/vector3i.hpp>
-#include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <functional>
+#include <unordered_map>
 #include <vector>
 
 namespace godot {
@@ -46,8 +47,8 @@ namespace godot {
 namespace mc_water {
 struct Body; // mc_water_shape.h
 }
-// One fall placed in the world (mc_grid_water_tiles.cpp), before it becomes a strip
-// (mc_grid_water_falls.cpp): its top edge (ta, tb) on the surface, the same at the landing height
+// One fall placed in the world (mc_water_tiles.cpp), before it becomes a strip
+// (mc_water_fall_strips.cpp): its top edge (ta, tb) on the surface, the same at the landing height
 // (ba, bb), the way it faces, its height, the surface's flow at its ends.
 struct PlacedFall {
 	Vector3 ta;
@@ -62,10 +63,9 @@ struct PlacedFall {
 	float depth_b = 0.0f;
 	float stream = 0.0f; // 1: the fall of a stream
 };
-class GPUParticles3D;
 
-// One edge segment of a body of water (mc_grid_water_outline.cpp), oriented with the water on its
-// left seen from above, tagged by what lies beyond it.
+// One edge segment of a body of water (water debug stage 3, mc_water_tiles.cpp), oriented with the
+// water on its left seen from above, tagged by what lies beyond it.
 struct WaterEdge {
 	enum Kind : uint8_t {
 		BANK = 0, // higher ground
@@ -76,55 +76,26 @@ struct WaterEdge {
 	Kind kind = BANK;
 };
 
-// A chain of water edges: a closed loop round a body of water (or an open run ending at the grid's
-// border); points[i] -> points[i + 1] is edge kinds[i] (closed: the last point joins the first).
-struct WaterOutline {
-	std::vector<Vector3> points;
-	std::vector<uint8_t> kinds;
-	bool closed = false;
-	float top = 0.0f; // the surface height
-	std::vector<Vector3> origins; // _inset_outline: each point before the inset (the fall line)
-};
-
-// The water mesh being built (mc_grid_water_mesh.cpp): surface (with flow colour) and falls.
+// The water mesh being built (mc_water_bodies.cpp): surface (with flow colour) and falls.
 struct MCWaterArrays {
 	PackedVector3Array vertices;
 	PackedVector3Array normals;
 	PackedVector2Array uvs; // world x z
-	PackedVector2Array uv2s; // x: 1 on a stream
+	PackedVector2Array uv2s; // water.gdshader's form: x over the lip, y metres above the landing or -1 on a stream
 	PackedColorArray colors; // flow: rg direction 0..1, b flows, a landing foam
-	PackedVector3Array fall_vertices;
-	PackedVector3Array fall_normals;
-	PackedVector2Array fall_uvs; // x along the ground, y metres down
-	PackedVector2Array fall_uv2s; // x metres above the landing
-	// the falls as small pieces along the step edges (one per sub-grid triangle), before
-	// _merge_falls joins them into one sheet per fall
-	struct FallPiece {
-		Vector3 a; // top edge ends (y unused)
-		Vector3 b;
-		float top = 0.0f;
-		float bottom = 0.0f;
-		Vector3 out; // faces down the step
-	};
-	std::vector<FallPiece> fall_pieces;
-	std::vector<Vector3> samples; // water_sampled: the wet sample points (debug overlay)
-	PackedInt32Array indices; // welded surface (water tiles); empty: plain triangles
-	PackedInt32Array fall_indices; // welded falls (water tiles)
-	// water tiles: the fall strips are in the surface arrays (mc_grid_water_falls.cpp): their
-	// triangles; uv2s already in water.gdshader's form (else (stream, 0))
+	std::vector<Vector3> samples; // the wet sample points (debug overlay)
+	PackedInt32Array indices; // welded surface triangles
+	// the fall strips (in the same vertex arrays, mc_water_fall_strips.cpp): their triangles, drawn first
 	PackedInt32Array first_indices;
-	std::vector<WaterEdge> edges; // water tiles: every edge segment of the water (outlines)
-	std::vector<PlacedFall> placed_falls; // water tiles: every fall placed (drops for the swept falls)
-	bool final_uv2 = false;
-	// per vertex: the water's depth in metres (surface to ground), baked (water.gdshader CUSTOM0.x);
-	// empty: the per-cell builder (shaded as deep water)
+	// the "pieces" water view (mc_water_view.cpp): where each mesh piece's triangles start in indices
+	// (a body's flat tile, a fill region, a swept run) and in first_indices (a fall strip)
+	std::vector<int64_t> pieces;
+	std::vector<int64_t> first_pieces;
+	void begin_piece() { pieces.push_back(indices.size()); }
+	void begin_first_piece() { first_pieces.push_back(first_indices.size()); }
+	std::vector<WaterEdge> edges; // water tiles: every edge segment of the water (debug stage 3 only)
+	// per vertex: the water's depth in metres (surface to ground), baked (water.gdshader CUSTOM0.x)
 	PackedFloat32Array depths;
-	// particle emission points (water tiles; mc_grid_water_particles.cpp), one every PARTICLE_SPACING m
-	static constexpr float PARTICLE_SPACING = 0.2f;
-	std::vector<Vector3> shore_points; // where the surface meets a bank
-	std::vector<Vector3> shore_directions; // away from the bank, level
-	std::vector<Vector3> splash_points; // where a fall lands
-	std::vector<Vector3> splash_directions; // up and out from the fall
 };
 
 // One step of a pour's flood fill (for the step-by-step debug): the column taken off the front of the
@@ -145,14 +116,13 @@ struct MCPourStep {
 
 // One step of a water debug trace (step 2: the spills, held / stream, the flow), recorded as the
 // builder's own functions run when asked (MCGrid::trace_water_step), shown with the same Back / Next
-// buttons as the pour (mc_grid_water_trace.cpp draws it).
+// buttons as the pour (mc_water_trace.cpp draws it).
 struct MCTraceStep {
 	enum Result : uint8_t {
 		NONE,
 		HELD, // the column's water is held (a full layer)
 		STREAM, // the column's water is a stream (a thin sheet)
 		SPILLED, // a column spill wets the column
-		SPILL_POINT, // a circle spill starts at the column's cell
 		FLOWS, // the column's water flows (dir)
 		STILL, // the column's water does not flow (not an outlet, not reached yet)
 	};
@@ -162,11 +132,20 @@ struct MCTraceStep {
 		SAME, // grey: looked at, no effect
 		LOOK, // cyan: the column this step comes from
 	};
-	int column = -1; // the column this step decides
+	int column = -1; // the column this step decides (-1: a step 3 - 4 trace step, see draw)
 	Result result = NONE;
 	Vector2 dir; // FLOWS: the direction (x, z)
 	std::vector<std::pair<int, uint8_t>> marks; // neighbour column, Mark
 	String text; // the explanation (the Debug tab shows it)
+	// steps 3 - 4 (trace_water_cell): what this step draws, instead of the columns
+	std::shared_ptr<struct MCDebugMesh> draw;
+};
+
+// One tile mesh, turned as a cell uses it, baked for the water (mc_water_banks_bake.cpp): its
+// triangles (cell-local) and a top-down heightmap of them ((MCGrid::BAKE + 1)^2, NO_HIT: nothing).
+struct MCBakedTile {
+	std::vector<Vector3> triangles;
+	std::vector<float> heights;
 };
 
 // One undoable edit: the old values it changed (index, value), and the decor seed and M roofs as
@@ -211,56 +190,44 @@ private:
 	bool lock_rim = true; // heightmap mode: outer columns locked to the floor (off: open edge)
 	std::vector<uint8_t> water_levels; // per corner column, like column_heights (0 = dry)
 	String water_blocky_groups = "b"; // groups whose water edges use the blocky shape
-	bool water_sampled = true; // water mesh from baked water tiles (mc_grid_water_tiles.cpp; else per cell)
-	int water_sample_rate = 8; // samples per cell side (water_sampled)
+	int water_sample_rate = 8; // samples per cell side (water tiles)
 	std::vector<Vector3> water_debug_samples; // the last build's wet sample points (debug overlay)
-	// Water debug stages (mc_grid_debug_water_stages.cpp): 0 the normal overlay; 1 .. 6 show how the
+	// Water debug stages (mc_water_debug_stages.cpp): 0 the normal overlay; 1 .. 4 show how the
 	// water's shape is built, one layer more each (see water_debug_stage_text).
 	int water_debug_stage = 0;
 	std::vector<uint8_t> water_spill_steps; // per column: the column spill's step (1: landing; 0: none)
 	std::vector<WaterEdge> water_debug_edges; // stage 3: every cell's edge pieces, as baked
-	std::vector<WaterOutline> water_debug_chained; // stage 4: the pieces chained, before relaxing
 	class Node3D *water_debug_labels = nullptr; // stage 1: the spill step numbers
 	bool debug_seams = false; // terrain: lines where the tiles meet (mc_grid_debug_seams.cpp)
-	Ref<class ShaderMaterial> seams_material;
 	// Debug timing of chunk rebuilds (mc_grid_cells.cpp), summed until read: placing tiles, merging,
 	// node + collider (microseconds), chunks rebuilt.
 	uint64_t chunk_stage_usec[4] = { 0, 0, 0, 0 };
 	uint64_t chunk_part_usec[4] = { 0, 0, 0, 0 }; // node + collider split: mesh node, collider shape(s), adding it, triangles
 	int terrain_collision = 1; // TerrainCollision (mc_grid_collision.cpp), COLLISION_SHARED
 	std::unordered_map<uint64_t, Ref<Shape3D>> shared_tile_shapes; // per tile mesh and turn (COLLISION_SHARED)
-	float water_expand = 0.0f; // m the water's edge grows on (UI slider)
-	int water_spill_reach = 1; // columns a diagonal spill wets (mc_grid_water_spill.cpp; 0: none)
-	float water_spill_radius = 0.0f; // m the circle spill (mc_grid_water_spill.cpp; 0: off, else replaces the reach)
-	// The circle spill (mc_grid_water_spill.cpp), found each rebuild on the stored water.
-	struct SpillPoint {
-		Vector2 at; // grid xz: the spill cell's centre
-		int cell = 0; // that cell: cz * (columns.x - 1) + cx
-		int from = 0; // the wet column it spills from (level, surface, flow come from it)
-		int onto = 0; // the dry column diagonally across, wet for the mesh only
-	};
-	std::vector<SpillPoint> water_spill_points;
-	std::vector<uint8_t> water_spill_cell_level; // per cell: the level of the water spilling there (0: none)
-	std::vector<uint8_t> water_spill_wetted; // per column: 1 if wet only by the circle spill (this build)
-	float water_fall_lip = 0.2f; // m: radius of a fall's rounded lip (mc_grid_water_falls.cpp)
-	bool water_outline_fill = false; // flat water from the outlines (mc_grid_water_fill.cpp), else the tiles
-	bool water_sweep_debug = false; // debug: dump the swept runs' points (get_water_sweep_dump)
-	mutable String water_sweep_dump;
+	mutable std::unordered_map<uint64_t, std::vector<float>> slice_fields; // per mesh + turn + height (kept)
+	mutable int slice_winding = 0; // which way the tile triangles face (+1 / -1; 0: not known yet)
+	mutable std::vector<uint64_t> slice_undecided; // slice fields baked before the winding was known
+	// The tile meshes baked for the water (mc_water_banks_bake.cpp): per mesh and turn, kept for good.
+	mutable std::unordered_map<uint64_t, MCBakedTile> baked_tiles;
+	Ref<class ShaderMaterial> seams_material;
+	int water_spill_reach = 1; // columns a diagonal spill wets (mc_water_2a_spill.cpp; 0: none)
+	float water_fall_lip = 0.2f; // m: radius of a fall's rounded lip (mc_water_fall_strips.cpp)
 	uint64_t water_rebuild_usec = 0; // debug: how long the last water rebuild took
-	uint64_t water_stage_usec[3] = { 0, 0, 0 }; // debug: outlines / fill / sweep
+	// debug: the last water rebuild by step (us): 2a spill, 2b held, 2c flow, 3 bodies, 4 tiles,
+	// debug overlay, mesh upload (mutable: _emit_water_tiles is const and times its bodies)
+	mutable uint64_t water_stage_usec[7] = {};
+	mutable uint64_t water_bodies_nsec = 0; // _emit_water_tiles: the bodies, summed cell by cell (ns)
 	float water_drop = 0.15f; // m held water's surface sits below the bank one tier up (UI slider)
 	bool water_square = false; // blocky water with sharp corners (square tiles: Cliff_square.glb)
 	int sea_level = 0; // randomize_heights fills the sea at this level (0: no sea)
 	bool water_dirty = false; // the water mesh is rebuilt at the end of the frame
 	MeshInstance3D *water_node = nullptr; // surface + waterfalls (two surfaces)
-	bool water_particles = true; // shore foam + fall splashes (mc_grid_water_particles.cpp)
-	int water_view = 0; // WaterView: debug views of the water mesh (mc_grid_water_view.cpp)
-	std::vector<WaterOutline> water_outlines; // the last build's outlines (mc_grid_water_outline.cpp)
-	MeshInstance3D *water_outline_node = nullptr; // the "outline" water view's lines
+	int water_view = 0; // WaterView: debug views of the water mesh (mc_water_view.cpp)
 	Ref<Material> water_uv_material;
+	Ref<Material> water_pieces_material; // the "pieces" view: vertex colour, cull disabled
+	Vector2i water_piece_counts; // the last build's pieces: x flat tiles, y fall strips
 	Ref<Material> water_wireframe_material;
-	GPUParticles3D *water_shore_node = nullptr;
-	GPUParticles3D *water_splash_node = nullptr;
 	Ref<Material> water_material; // water.gdshader unless set: surfaces and falls, one material
 	std::vector<MCEdit> undo_stack; // oldest first
 	std::vector<MCEdit> redo_stack;
@@ -297,6 +264,7 @@ private:
 	// fill_water, or trace_settle), 2 the spills, 3 held / stream, 4 the flow (water_trace).
 	int water_trace_kind = 0;
 	std::vector<MCTraceStep> water_trace;
+	Vector2i water_trace_cell = Vector2i(-1, -1); // trace_water_cell's cell
 	bool inspect_mode = false; // inspect mode: a clicked cell is shown in the editor's side view
 	Vector3i inspect_cell_pos; // the inspected cell
 	bool inspect_has_cell = false;
@@ -445,9 +413,11 @@ private:
 			const Ref<FileAccess> &p_file,
 			const String &p_path
 	);
-	// --- water (mc_grid_water.cpp) ---
+	// --- water (../water/, README.md there) ---
 	// Is column p_index wet (its water level above its ground)?
 	bool _is_wet(int p_index) const;
+	// Is column p_index the sea (wet, at sea_level; never when sea_level is 0)?
+	bool _is_sea(size_t p_index) const;
 	// Rebuild the water mesh at the end of the frame.
 	void _queue_water();
 	// The water mesh: a square per wet column, a waterfall sheet per step between wet neighbours.
@@ -466,9 +436,7 @@ private:
 			std::vector<uint8_t> &r_held,
 			std::vector<MCTraceStep> *r_trace = nullptr
 	) const;
-	// Join the fall pieces into whole falls (one quad per straight run, UV along the whole fall).
-	void _merge_falls(MCWaterArrays &r_out) const;
-	// The water mesh from baked water tiles, welded (mc_grid_water_tiles.cpp).
+	// The water mesh from baked water tiles, welded (mc_water_tiles.cpp).
 	void _emit_water_tiles(
 			const std::vector<float> &p_surface,
 			const std::vector<uint8_t> &p_held,
@@ -485,13 +453,6 @@ private:
 			std::vector<mc_water::Body> &r_bodies,
 			std::vector<float> &r_bottoms
 	) const;
-	// Every cell's water (surface + falls) with the cliff tiles' shape, into r_out.
-	void _emit_water_cells(
-			const std::vector<float> &p_surface,
-			const std::vector<uint8_t> &p_held,
-			const std::vector<Color> &p_flow,
-			MCWaterArrays &r_out
-	) const;
 	// Which way each wet column flows: Color(dir x, dir z, 1 = flows, 1 = a fall lands here).
 	// r_trace (if given): every decision, with its reason (the step 2c debug trace).
 	std::vector<Color> _water_flow(
@@ -499,11 +460,20 @@ private:
 			std::vector<MCTraceStep> *r_trace = nullptr
 	) const;
 	String _column_name(int p_index) const; // "(x, z)" for debug text
-	// The active water trace's step (step 2) in the overlay (mc_grid_water_trace.cpp).
+	// The active water trace's step (step 2) in the overlay (mc_water_trace.cpp).
 	void _add_water_trace_debug(
 			struct MCDebugMesh &r_debug,
 			const std::vector<float> &p_surface
 	);
+	// A breadth-first flood fill from p_column over the 4 neighbours: a neighbour is reached when
+	// p_enter(from, to) (column indices) says so; columns in r_seen are skipped, reached ones are
+	// added. Returns the columns in the order reached; r_trace (if given) records every step.
+	std::vector<int> _flood(
+			const Vector2i &p_column,
+			const std::function<bool(size_t, size_t)> &p_enter,
+			std::vector<uint8_t> &r_seen,
+			std::vector<MCPourStep> *r_trace = nullptr
+	) const;
 	// Where water poured at p_column flows (ground not higher, 4 neighbours), skipping r_seen.
 	std::vector<int> _flow_region(
 			const Vector2i &p_column,
@@ -527,26 +497,22 @@ private:
 	// The wireframe overlay on a chunk mesh (on or off by debug_wireframe).
 	void _apply_wireframe(MeshInstance3D *p_node);
 	Ref<Material> _seams_overlay(); // the tile-seams overlay (its next pass: the wireframe when on)
-	// Water debug stages 1 .. 6 into the overlay (mc_grid_debug_water_stages.cpp).
+	// Cell p_cell's tile mesh baked for the water (mc_water_banks_bake.cpp): its turned triangles and
+	// top-down heightmap, once per mesh and turn (null: no tile).
+	const MCBakedTile *_baked_tile(const Vector3i &p_cell) const;
+	// Water debug stages 1 .. 4 into the overlay (mc_water_debug_stages.cpp).
 	void _add_water_stage_debug(
 			struct MCDebugMesh &r_debug,
 			const std::vector<float> &p_surface,
 			const std::vector<uint8_t> &p_held,
 			const std::vector<Color> &p_flow
 	);
-	// Shore foam + fall splash particles from the points the water build sampled.
-	void _rebuild_water_particles(const MCWaterArrays &p_arrays);
 	// Build the water overlay from the surfaces, held flags and flow _rebuild_water worked out.
 	void _rebuild_water_debug(
 			const std::vector<float> &p_surface,
 			const std::vector<uint8_t> &p_held,
 			const std::vector<Color> &p_flow
 	);
-	// The sea from p_column: every connected column whose ground is below p_level.
-	std::vector<int> _sea_region(
-			const Vector2i &p_column,
-			int p_level
-	) const;
 	void _set_water(
 			const std::vector<int> &p_region,
 			int p_level
@@ -647,7 +613,7 @@ public:
 	bool get_heightmap_mode() const { return heightmap_mode; }
 	// Height of corner column (x, z) = its solid corners (y < height); -1 outside / not in the mode.
 	int get_column_height(const Vector2i &p_column) const;
-	// Corner columns along x and z, and the highest height a column can have (water from scratch).
+	// Corner columns along x and z, and the highest height a column can have.
 	Vector2i get_column_counts() const { return _column_counts(); }
 	int get_max_column_height() const { return _max_column_height(); }
 	// Set a column's height (clamped to floor .. top - 1; outer columns locked); queues a rebuild.
@@ -703,6 +669,7 @@ public:
 	void set_debug_seams(bool p_on);
 	bool is_debug_seams() const { return debug_seams; }
 	// Water debug stage 0 .. 6 (turns the water debug overlay on when above 0).
+	static constexpr int WATER_DEBUG_STAGES = 4; // the last stage (the mesh)
 	void set_water_debug_stage(int p_stage);
 	int get_water_debug_stage() const { return water_debug_stage; }
 	static String water_debug_stage_text(int p_stage);
@@ -737,83 +704,64 @@ public:
 		}
 		return a;
 	}
-	// Which water mesh builder: water tiles (sample grid + marching squares, baked per corner classes) or per cell.
-	void set_water_sampled(bool p_on);
-	bool get_water_sampled() const { return water_sampled; }
+	// The slice of cell p_cell's tile at cell-local height p_height as a signed distance field
+	// ((BAKE + 1)^2, m, >= 0 in the rock), and its key (mc_water_banks_slice.cpp).
+	const std::vector<float> &_slice_field(
+			const Vector3i &p_cell,
+			float p_height,
+			uint64_t &r_key
+	) const;
+	// Debug (mc_water_banks_bake.cpp): cell p_cell's tile as the water's bake sees it: {hash, key (one per
+	// mesh and turn), faces (its triangles, turned, cell-local)}; empty when the cell draws no tile.
+	Dictionary get_cell_tile_debug(const Vector3i &p_cell) const;
+	static const int BAKE = 16; // bake grid: squares per cell side
+	static constexpr float NO_HIT = -1e6f; // no mesh there
 	void set_water_sample_rate(int p_rate); // samples per cell side, 2 .. 32
 	int get_water_sample_rate() const { return water_sample_rate; }
-	// Grow the water's edge on (0 .. 0.3 m): under banks, over dry ground near the bed's edge, and
-	// along the falls (their free ends reach on; the falls' line itself stays on the cliff).
-	void set_water_expand(float p_expand);
-	float get_water_expand() const { return water_expand; }
-	// Diagonal spills (mc_grid_water_spill.cpp): how many columns a spill past a low corner wets
+	// Diagonal spills (mc_water_2a_spill.cpp): how many columns a spill past a low corner wets
 	// (0 .. 8; 0: none), and the water levels with them added (mesh build only, never stored).
 	void set_water_spill_reach(int p_reach);
 	int get_water_spill_reach() const { return water_spill_reach; }
-	void set_water_spill_radius(float p_radius);
-	float get_water_spill_radius() const { return water_spill_radius; }
 	// The water levels with the column spills added; r_steps (if given): per column the step it was
 	// spilled at (1: the landing past the low corner, 2, 3 ... as it spreads; 0: not spilled).
 	std::vector<uint8_t> _spilled_levels(
 			std::vector<uint8_t> *r_steps = nullptr,
 			std::vector<MCTraceStep> *r_trace = nullptr
 	) const;
-	// The circle spill's points (stored water); r_trace (if given) records each one found.
-	std::vector<SpillPoint> _spill_points(std::vector<MCTraceStep> *r_trace = nullptr) const;
-	// The circle spill for this build: wet each spill point's dry column with its source's water
-	// (level, and the surface / held / flow already worked out), mark it, fill the per-cell levels.
-	void _apply_circle_spill(
-			std::vector<float> &r_surface,
-			std::vector<uint8_t> &r_held,
-			std::vector<Color> &r_flow
-	);
-	// The spill points that can reach cell (p_cx, p_cz) for water at p_level (Body::spill_mask).
-	uint16_t _spill_mask(
-			int p_cx,
-			int p_cz,
-			int p_level
-	) const;
-	// The water mesh: one surface, one material, falls first (mc_grid_water.cpp).
+	// The water mesh: one surface, one material, falls first (mc_water_build.cpp).
 	Ref<ArrayMesh> _water_mesh(const MCWaterArrays &p_arrays) const;
-	// Falls as strips with a rounded lip and a flared foot (mc_grid_water_falls.cpp): the lip radius
+	Ref<ArrayMesh> _water_pieces_mesh(const MCWaterArrays &p_arrays) const; // the "pieces" view (mc_water_view.cpp)
+	// Falls as strips with a rounded lip and a flared foot (mc_water_fall_strips.cpp): the lip radius
 	// (0 .. 0.4 m; the surface is trimmed back by it at falls), and building the strips.
 	void set_water_fall_lip(float p_lip);
 	float get_water_fall_lip() const { return water_fall_lip; }
+	// Join falls' ends on a cell side that neighbouring cells put a little apart (mc_water_fall_strips.cpp).
+	static void _join_fall_ends(std::vector<PlacedFall> &r_falls);
+	// Smooth the joined fall lines across cells (mc_water_fall_strips.cpp).
+	static void _relax_fall_chains(std::vector<PlacedFall> &r_falls);
+	// Each fall's top points' directions (ta, tb), smoothed along the falls (mc_water_fall_strips.cpp).
+	static std::vector<std::pair<Vector3, Vector3>> _fall_directions(const std::vector<PlacedFall> &p_falls);
+	// Cut the flat water away from under each strip's bevel, so it never pokes through
+	// (mc_water_surface_cut.cpp). Call before _emit_fall_strips (it rewrites r_out.indices).
+	void _cut_surface_under_falls(
+			const std::vector<PlacedFall> &p_falls,
+			const std::vector<std::pair<Vector3, Vector3>> &p_directions,
+			MCWaterArrays &r_out
+	) const;
+	// The strips, along p_directions (_fall_directions) (mc_water_fall_strips.cpp).
 	void _emit_fall_strips(
 			const std::vector<PlacedFall> &p_falls,
+			const std::vector<std::pair<Vector3, Vector3>> &p_directions,
 			MCWaterArrays &r_out
 	) const;
 	HashMap<Vector3i, float> _fall_chain(const std::vector<PlacedFall> &p_falls) const;
-	// The water's outlines (mc_grid_water_outline.cpp): edge segments chained into loops, smoothed.
-	// r_chained (if given): the outlines chained and bridged, before relaxing (debug stage 4).
-	std::vector<WaterOutline> _water_outlines(
-			const std::vector<WaterEdge> &p_edges,
-			std::vector<WaterOutline> *r_chained = nullptr
+	// Is the water of cell (p_cx, p_cz) with its bed at p_bed drawn in the blocky style (the terrain
+	// group of the bed's cell is one of water_blocky_groups)? (mc_water_bodies.cpp)
+	bool is_water_blocky(
+			int p_cx,
+			int p_cz,
+			int p_bed
 	) const;
-	static void _relax_outline(WaterOutline &r_outline);
-	static void _bridge_outlines(std::vector<WaterOutline> &r_outlines);
-	String get_water_outline_summary() const; // debug: one line per outline
-	// The flat water from the outlines (mc_grid_water_fill.cpp): inset, then filled.
-	void set_water_outline_fill(bool p_on);
-	bool get_water_outline_fill() const { return water_outline_fill; }
-	static WaterOutline _inset_outline(
-			const WaterOutline &p_outline,
-			float p_inset
-	);
-	static void _cut_inset_loops(WaterOutline &r_outline);
-	void _fill_water_surface(
-			const std::vector<Color> &p_flow,
-			MCWaterArrays &r_out
-	) const;
-	void set_water_sweep_debug(bool p_on) { water_sweep_debug = p_on; }
-	String get_water_sweep_dump() const;
-	// Debug (mc_grid_water_reference.cpp): what the builder's step 2 makes of the stored water, per
-	// column: {levels (with the spills), held, surface, flow}, for water_from_scratch to compare with.
-	Dictionary get_water_columns_debug();
-	// Debug (mc_grid_water_reference.cpp): the builder's step 3, every cell's water bodies as
-	// _rebuild_water makes them (spills included), cell by cell: [{cx, cz, corners (bank 0, wet 1,
-	// lower 2, dry 3), top, stream, bottom, mask}], for water_from_scratch to compare with.
-	Array get_water_bodies_debug();
 	int64_t get_water_rebuild_usec() const { return static_cast<int64_t>(water_rebuild_usec); }
 	PackedInt64Array get_water_stage_usec() const {
 		PackedInt64Array a;
@@ -822,25 +770,6 @@ public:
 		}
 		return a;
 	}
-	// The falls swept along the inset outlines' FALL runs (mc_grid_water_sweep.cpp).
-	void _sweep_falls(
-			const std::vector<Color> &p_flow,
-			MCWaterArrays &r_out
-	) const;
-	void _draw_water_outlines(); // the "outline" water view (mc_grid_water_view.cpp)
-	// Particle emission points along a segment (mc_grid_water_tiles.cpp).
-	static void _sample_line(
-			const Vector3 &p_a,
-			const Vector3 &p_b,
-			const Vector3 &p_direction,
-			std::vector<Vector3> &r_points,
-			std::vector<Vector3> &r_directions
-	);
-	// Free fall ends reach on by p_grow along their fall (mc_grid_water_tiles.cpp).
-	static void _extend_fall_ends(
-			std::vector<PlacedFall> &r_falls,
-			float p_grow
-	);
 	// How far held water's surface sits below the bank one tier up (0 .. 0.95 m, default 0.15).
 	void set_water_drop(float p_drop);
 	float get_water_drop() const { return water_drop; }
@@ -855,22 +784,20 @@ public:
 	// Edge corners: every inactive corner with an edge to an active corner (a dot + those edges).
 	void set_debug_edge_corners(bool p_on);
 	bool is_debug_edge_corners() const { return debug_edge_corners; }
-	// Debug views of the water mesh (mc_grid_water_view.cpp).
+	// Debug views of the water mesh (mc_water_view.cpp).
 	enum WaterView {
 		WATER_VIEW_NORMAL = 0,
 		WATER_VIEW_WIREFRAME = 1, // the triangles over the water
 		WATER_VIEW_UV = 2, // a UV checker on the surface and the falls
 		WATER_VIEW_UV_WIREFRAME = 3,
-		WATER_VIEW_OUTLINE = 4, // the water's outlines: bank edges green, fall edges orange
+		WATER_VIEW_PIECES = 4, // every mesh piece (a body's flat tile, a fall strip) its own colour
 		WATER_VIEW_COUNT = 5,
 	};
 	void set_water_view(int p_view);
 	int get_water_view() const { return water_view; }
 	static const char *water_view_name(int p_view);
+	Vector2i get_water_piece_counts() const { return water_piece_counts; } // x flat tiles, y fall strips
 	void _apply_water_view();
-	// Shore foam and fall splash particles on / off (water tiles builder).
-	void set_water_particles(bool p_on);
-	bool get_water_particles() const { return water_particles; }
 	void set_debug_water(bool p_on);
 	bool is_debug_water() const { return debug_water; }
 	void replay_water_debug();
@@ -884,6 +811,10 @@ public:
 	// Debug: record step 2 (2: the spills, 3: held / stream, 4: the flow) as the trace the step
 	// buttons go through, without changing anything. Returns the number of steps.
 	int trace_water_step(int p_kind);
+	// Debug: steps 3 - 4 for one cell as the trace (kind 5; mc_water_trace_cell.cpp): its corners, each
+	// body's corner classes and shape (3), its tile's samples, edge pieces and triangles, the tiles
+	// placed round it (4). Returns the step count.
+	int trace_water_cell(const Vector2i &p_cell);
 	int get_water_trace_kind() const { return water_trace_kind; }
 	// What the shown step did, in words ("" when showing the whole pour).
 	String get_pour_step_text() const;
@@ -900,6 +831,10 @@ public:
 	String get_cell_info(const Vector3i &p_cell) const;
 	// Let all standing water flow again (after a load or a terrain edit). Returns columns changed.
 	int settle_water();
+	// The columns settle_water pours from: every wet column but the sea, highest ground first.
+	std::vector<int> _settle_sources() const;
+	// The step-by-step trace emptied, for a new pour or settle to fill (mc_water_trace.cpp).
+	void _reset_pour_trace();
 	// Debug: record step 1 for the whole map as the pour trace (the step-by-step buttons), without
 	// changing any water: every wet column is a source, highest ground first, and each pours into
 	// what no earlier pour reached (settle_water's order). Returns the number of steps.

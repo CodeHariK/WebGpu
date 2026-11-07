@@ -85,13 +85,10 @@ void MCManager::_record_inspect(
 	record["grid_origin"] = vec3(p_grid->get_global_position());
 
 	Dictionary water;
-	water["expand"] = p_grid->get_water_expand();
 	water["drop"] = p_grid->get_water_drop();
 	water["sample_rate"] = p_grid->get_water_sample_rate();
-	water["sampled"] = p_grid->get_water_sampled();
 	water["square"] = p_grid->get_water_square();
 	water["spill_reach"] = p_grid->get_water_spill_reach();
-	water["spill_radius"] = p_grid->get_water_spill_radius();
 	record["water"] = water;
 
 	// the columns around the cell: rows of "ground~level" (level only when wet)

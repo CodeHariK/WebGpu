@@ -37,6 +37,9 @@ const float HALF_PI = 1.5707963f;
 const float SAME_SURFACE = 1e-3f; // m: falls of the same surface are this close in height
 const float SMOOTH = 0.4f; // m: a fall's direction is averaged over its neighbours this far along
 const float WELD_SCALE = 4096.0f;
+const float JOIN = 0.03f; // m: two falls' ends on the same cell side this close are one point
+const int RELAX_PASSES = 3; // fall lines: smoothing passes across cells
+const float RELAX = 0.5f; // how far a point moves toward its two neighbours' middle per pass
 
 Vector3i weld(const Vector3 &p_v) {
 	return Vector3i(static_cast<int>(std::lround(p_v.x * WELD_SCALE)), static_cast<int>(std::lround(p_v.y * WELD_SCALE)),
@@ -85,8 +88,10 @@ std::vector<Row> profile(
 		}
 		rows.push_back(row);
 	};
-	// flat, just above the surface
-	push(-r - FLAT, -LIFT, Vector2(0, 1), 0.0f);
+	// flat, just above the surface, from FLAT behind where the tile's surface stops: the tile is
+	// trimmed by the full lip radius (p_radius), so on a short fall (a smaller bevel) the flat part
+	// still reaches back past that edge and no ground shows between them
+	push(-p_radius - FLAT, -LIFT, Vector2(0, 1), 0.0f);
 	// the bevel: a quarter circle centred (-r, r) below the top, from flat to straight down
 	for (int i = 0; i <= BEVEL_ROWS; i++) {
 		float a = static_cast<float>(i) / static_cast<float>(BEVEL_ROWS) * HALF_PI;
@@ -155,6 +160,132 @@ HashMap<Vector3i, float> MCGrid::_fall_chain(const std::vector<PlacedFall> &p_fa
 	return along;
 }
 
+// Each cell's tile places its falls from its own tile mesh's cut, so where a fall runs on into the
+// next cell the two cells can put the shared end a little apart on their common side (up to ~2 cm):
+// the strips then don't share their end column and the background shows through a crack. Ends on a
+// cell side with no partner at the same spot are joined to the nearest such end on the same side at
+// the same height (within JOIN): both move to their middle, top and foot together.
+void MCGrid::_join_fall_ends(std::vector<PlacedFall> &r_falls) {
+	struct End {
+		size_t fall;
+		bool b; // tb / bb (else ta / ba)
+		Vector3 at;
+	};
+	auto on_side = [](const Vector3 &p) {
+		return std::abs(p.x - std::round(p.x)) < 1e-3f || std::abs(p.z - std::round(p.z)) < 1e-3f;
+	};
+	HashMap<Vector3i, int> count; // how many falls end at each point
+	for (const PlacedFall &fall : r_falls) {
+		for (const Vector3 &v : { fall.ta, fall.tb }) {
+			int *n = count.getptr(weld(v));
+			if (n) {
+				(*n)++;
+			} else {
+				count.insert(weld(v), 1);
+			}
+		}
+	}
+	std::vector<End> lonely;
+	for (size_t f = 0; f < r_falls.size(); f++) {
+		for (bool b : { false, true }) {
+			const Vector3 &v = b ? r_falls[f].tb : r_falls[f].ta;
+			if (on_side(v) && count[weld(v)] == 1) {
+				lonely.push_back({ f, b, v });
+			}
+		}
+	}
+	std::vector<uint8_t> joined(lonely.size(), 0);
+	for (size_t i = 0; i < lonely.size(); i++) {
+		size_t best = lonely.size();
+		float best_distance = JOIN;
+		for (size_t k = 0; k < lonely.size(); k++) {
+			const Vector3 &a = lonely[i].at;
+			const Vector3 &c = lonely[k].at;
+			if (k == i || joined[k] || joined[i] || lonely[k].fall == lonely[i].fall || std::abs(a.y - c.y) > 1e-3f) {
+				continue;
+			}
+			bool same_side = (std::abs(a.x - std::round(a.x)) < 1e-3f && std::abs(c.x - a.x) < 1e-3f) ||
+					(std::abs(a.z - std::round(a.z)) < 1e-3f && std::abs(c.z - a.z) < 1e-3f);
+			float d = Vector2(c.x - a.x, c.z - a.z).length();
+			if (same_side && d < best_distance) {
+				best = k;
+				best_distance = d;
+			}
+		}
+		if (best == lonely.size()) {
+			continue;
+		}
+		Vector3 middle = (lonely[i].at + lonely[best].at) * 0.5f;
+		for (size_t e : { i, best }) {
+			PlacedFall &fall = r_falls[lonely[e].fall];
+			Vector3 &top = lonely[e].b ? fall.tb : fall.ta;
+			Vector3 &foot = lonely[e].b ? fall.bb : fall.ba;
+			Vector3 shift(middle.x - top.x, 0, middle.z - top.z);
+			top += shift;
+			foot += shift;
+			joined[e] = 1;
+		}
+	}
+}
+
+// Each cell's falls follow its own edge, which meets the next cell's at an angle on their shared
+// side: a fall line with a kink (a V) at every cell border. Here the joined falls are smoothed
+// across cells: every point where exactly two falls meet (same height) moves RELAX of the way
+// toward the middle of its two neighbours, RELAX_PASSES times; a chain's ends (a bank, dry ground)
+// stay put. Top and foot move together. The flat water is then cut back under the strips
+// (mc_water_surface_cut.cpp), so the moves this makes leave no overlap and no gap.
+void MCGrid::_relax_fall_chains(std::vector<PlacedFall> &r_falls) {
+	HashMap<Vector3i, int> index_of; // a top point -> its slot
+	std::vector<Vector3> point;
+	std::vector<std::vector<int>> next; // each point's neighbours (the far ends of its falls)
+	std::vector<int> end_a(r_falls.size());
+	std::vector<int> end_b(r_falls.size());
+	auto slot = [&](const Vector3 &p) {
+		Vector3i key = weld(p);
+		if (const int *hit = index_of.getptr(key)) {
+			return *hit;
+		}
+		index_of.insert(key, static_cast<int>(point.size()));
+		point.push_back(p);
+		next.push_back({});
+		return static_cast<int>(point.size() - 1);
+	};
+	for (size_t f = 0; f < r_falls.size(); f++) {
+		end_a[f] = slot(r_falls[f].ta);
+		end_b[f] = slot(r_falls[f].tb);
+		if (end_a[f] != end_b[f]) {
+			next[static_cast<size_t>(end_a[f])].push_back(end_b[f]);
+			next[static_cast<size_t>(end_b[f])].push_back(end_a[f]);
+		}
+	}
+	std::vector<Vector3> moved = point;
+	for (int pass = 0; pass < RELAX_PASSES; pass++) {
+		std::vector<Vector3> was = moved;
+		for (size_t i = 0; i < point.size(); i++) {
+			const std::vector<int> &n = next[i];
+			if (n.size() != 2) {
+				continue; // a chain's end, or where more than two falls meet
+			}
+			const Vector3 &a = was[static_cast<size_t>(n[0])];
+			const Vector3 &b = was[static_cast<size_t>(n[1])];
+			if (std::abs(a.y - was[i].y) > SAME_SURFACE || std::abs(b.y - was[i].y) > SAME_SURFACE) {
+				continue;
+			}
+			Vector3 middle = (a + b) * 0.5f;
+			moved[i] = was[i] + Vector3(middle.x - was[i].x, 0, middle.z - was[i].z) * RELAX;
+		}
+	}
+	for (size_t f = 0; f < r_falls.size(); f++) {
+		PlacedFall &fall = r_falls[f];
+		Vector3 da = moved[static_cast<size_t>(end_a[f])] - point[static_cast<size_t>(end_a[f])];
+		Vector3 db = moved[static_cast<size_t>(end_b[f])] - point[static_cast<size_t>(end_b[f])];
+		fall.ta += da;
+		fall.ba += da;
+		fall.tb += db;
+		fall.bb += db;
+	}
+}
+
 void MCGrid::set_water_fall_lip(float p_lip) {
 	water_fall_lip = std::clamp(p_lip, 0.0f, 0.4f);
 	if (!chunks.empty() && water_levels.size() == column_heights.size()) {
@@ -162,13 +293,11 @@ void MCGrid::set_water_fall_lip(float p_lip) {
 	}
 }
 
-void MCGrid::_emit_fall_strips(
-		const std::vector<PlacedFall> &p_falls,
-		MCWaterArrays &r_out
-) const {
-	HashMap<Vector3i, float> chain = _fall_chain(p_falls);
-
-	// each top point's direction, smoothed along the fall (the edge from the sample grid jitters)
+// Each fall's two top points' directions (ta, tb), smoothed along the fall: the edge from the sample
+// grid jitters. Every fall ending at a point gets the same direction there, so neighbouring strips
+// share their end column. The strips (_emit_fall_strips) and the surface cut
+// (_cut_surface_under_falls) both use these.
+std::vector<std::pair<Vector3, Vector3>> MCGrid::_fall_directions(const std::vector<PlacedFall> &p_falls) {
 	HashMap<Vector2i, std::vector<int>> by_cell;
 	for (int f = 0; f < static_cast<int>(p_falls.size()); f++) {
 		Vector3 mid = (p_falls[f].ta + p_falls[f].tb) * 0.5f;
@@ -202,6 +331,20 @@ void MCGrid::_emit_fall_strips(
 		}
 		return sum.length_squared() > 1e-10f ? sum.normalized() : p_fallback;
 	};
+	std::vector<std::pair<Vector3, Vector3>> directions;
+	directions.reserve(p_falls.size());
+	for (const PlacedFall &fall : p_falls) {
+		directions.emplace_back(smoothed(fall.ta, fall.out), smoothed(fall.tb, fall.out));
+	}
+	return directions;
+}
+
+void MCGrid::_emit_fall_strips(
+		const std::vector<PlacedFall> &p_falls,
+		const std::vector<std::pair<Vector3, Vector3>> &p_directions,
+		MCWaterArrays &r_out
+) const {
+	HashMap<Vector3i, float> chain = _fall_chain(p_falls);
 
 	// the strips' vertices, welded by position only: neighbouring strips share their end columns,
 	// and a shared vertex gets the average of their normals, so the light blends across the join
@@ -227,7 +370,9 @@ void MCGrid::_emit_fall_strips(
 		made.insert(key, index);
 		return index;
 	};
-	for (const PlacedFall &fall : p_falls) {
+	for (size_t f = 0; f < p_falls.size(); f++) {
+		const PlacedFall &fall = p_falls[f];
+		r_out.begin_first_piece(); // one strip: one piece
 		std::vector<Row> rows = profile(water_fall_lip, fall.drop);
 		const Vector3 *top[2] = { &fall.ta, &fall.tb };
 		const Color *top_flow[2] = { &fall.flow_a, &fall.flow_b };
@@ -235,7 +380,7 @@ void MCGrid::_emit_fall_strips(
 		Vector3 direction[2];
 		float u[2];
 		for (int e = 0; e < 2; e++) {
-			direction[e] = smoothed(*top[e], fall.out);
+			direction[e] = e == 0 ? p_directions[f].first : p_directions[f].second;
 			const float *along = chain.getptr(weld(*top[e]));
 			u[e] = along ? *along : 0.0f;
 		}
