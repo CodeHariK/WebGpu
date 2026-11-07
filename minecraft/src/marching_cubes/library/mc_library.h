@@ -4,7 +4,7 @@
 // needed. Tiles are kept per level (tag height) and group (tag group letter): M a is tiles[], L a
 // and H a are the ground / roof tables, every other group (b..z) has its own three levels
 // (MCTileGroup). MCGrid draws each cell from its level (core/mc_level_plan.h) and its region's
-// group (grid/mc_grid_groups.cpp); a group without a tile for a shape falls back to group a.
+// group (terrain/1_shape/mc_grid_groups.cpp); a group without a tile for a shape falls back to group a.
 //   mc_library.cpp           loading + lookup
 //   mc_library_fill.cpp      filling the gaps by Y turns, reporting what is still missing
 //   mc_library_showcase.cpp  build_showcase(): every tile laid out in a grid, for checking

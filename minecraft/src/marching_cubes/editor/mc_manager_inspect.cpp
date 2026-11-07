@@ -1,4 +1,4 @@
-// MCManager: inspect mode (the grid side is grid/mc_grid_inspect.cpp).
+// MCManager: inspect mode (the grid side is terrain/debug/mc_grid_inspect.cpp).
 //
 // With Inspect on (Stats panel → Diagnostics) and the Terrain or Water tool, the hover picks cells
 // (like the Ctrl / Cmd / Shift cell hover) and the mouse no longer edits the terrain or the water:
@@ -9,7 +9,7 @@
 // inactive), lit and slowly turning; drag in it to orbit, scroll to zoom. The text under it says
 // what the cell is (MCGrid::get_cell_info). The terrain itself never moves or changes.
 #include "marching_cubes/editor/mc_manager.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/util/mc_physics.h"
 #include "utils/raycast/mc_raycast.h"
 #include "cui/cui.h"

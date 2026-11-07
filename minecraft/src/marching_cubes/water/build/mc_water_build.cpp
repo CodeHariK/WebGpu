@@ -5,7 +5,7 @@
 //   build    the mesh (_water_mesh); debug overlays when on
 // One water mesh for the whole grid, rebuilt at the end of a frame in which water or ground changed
 // (flush_dirty_chunks) and on refresh_grid. water_stage_usec holds each step's time.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/geometry_instance3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>

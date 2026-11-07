@@ -1,28 +1,36 @@
-// MCGrid: the editable corner grid, split into chunks, and everything spawned for it.
-//   mc_grid.cpp                setup, properties, corner edits, corner/cell queries
-//   mc_grid_cells.cpp          the tiles of each chunk merged into one mesh + collider
-//   mc_grid_levels.cpp         each cell's level (L / M / H, core/mc_level_plan.h) and Randomize
-//   mc_grid_heights.cpp        heightmap mode: one height per corner column, no overhangs, islands
-//   mc_grid_groups.cpp         each cell's tile group (a, b …): one rolled per connected solid region
-//   mc_grid_collision.cpp      the chunks' colliders (shared tile shapes, or one trimesh per chunk)
-//   ../water/                  the water layer (heightmap mode): ponds, rivers, sea, waterfalls, by
-//                              step; ../water/README.md has the order and what each folder holds
-//   mc_grid_debug_corners.cpp  debug dots on the corners (+ their picking colliders)
-//   mc_grid_inspect.cpp        inspect mode: mark a cell, build its preview (tile + numbered corners) + info
-//   mc_grid_debug_view.cpp     debug views: corner dot look, terrain wireframe (water: ../water/debug/)
-//   mc_grid_hover.cpp          hover preview quads
-//   mc_grid_objects.cpp        placed objects (with mc_spatial)
-//   mc_grid_io.cpp             save / load (version 1 files load; JSON for Blender)
-//   mc_grid_undo.cpp           undo / redo: each edit records the old values it changes
-//   mc_grid_save_v2.cpp        save format version 2: per-block layers (corners, or heights + water), zstd
+// MCGrid: the editable corner grid, split into chunks, and everything spawned for it. One class;
+// its methods are grouped in folders by job (docs/MarchingCubes.md has every file):
+//   mc_grid.cpp                      setup, properties, corner edits, corner/cell queries
+//   1_shape/                         what each cell is
+//     mc_grid_levels.cpp             each cell's level (L / M / H, core/mc_level_plan.h) and Randomize
+//     mc_grid_heights.cpp            heightmap mode: one height per corner column, no overhangs, islands
+//     mc_grid_groups.cpp             each cell's tile group (a, b …): one rolled per connected solid region
+//   2_mesh/                          chunks into meshes
+//     mc_chunk_builder.h/.cpp        tiles merged into one mesh (one surface per material)
+//     mc_grid_cells.cpp              each chunk's tiles into its mesh + collider; dirty chunks rebuilt
+//     mc_grid_collision.cpp          the chunks' colliders (shared tile shapes, or one trimesh per chunk)
+//   edit/                            undo / redo, placed objects
+//     mc_grid_undo.cpp               each edit records the old values it changes
+//     mc_grid_objects.cpp            placed objects (with mc_placed_objects)
+//   io/                              save / load
+//     mc_grid_io.cpp                 version 1 files load; JSON for Blender
+//     mc_grid_save_v2.cpp            format version 2: per-block layers (corners, or heights + water), zstd
+//   debug/                           debug views
+//     mc_grid_debug_corners.cpp      debug dots on the corners (+ their picking colliders)
+//     mc_grid_debug_seams.cpp        lines where the tiles meet
+//     mc_grid_debug_view.cpp         corner dot look, terrain wireframe
+//     mc_grid_inspect.cpp            inspect mode: mark a cell, build its preview (tile + numbered corners) + info
+//     mc_grid_hover.cpp              hover preview quads
+//   ../water/                        the water layer (heightmap mode): ponds, rivers, sea, waterfalls, by
+//                                    step; ../water/README.md has the order and what each folder holds
 #ifndef MC_GRID_H
 #define MC_GRID_H
 
 #include "marching_cubes/core/mc_chunk.h"
 #include "marching_cubes/core/mc_grid_dims.h"
 #include "marching_cubes/core/mc_level_plan.h"
-#include "marching_cubes/grid/mc_chunk_builder.h"
-#include "marching_cubes/grid/mc_placed_objects.h"
+#include "marching_cubes/terrain/2_mesh/mc_chunk_builder.h"
+#include "marching_cubes/terrain/edit/mc_placed_objects.h"
 #include <cstdint>
 #include <memory>
 #include <godot_cpp/classes/mesh.hpp>

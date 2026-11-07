@@ -3,7 +3,7 @@
 // each the highest point of that mesh straight above / below it (a vertical ray against its
 // triangles; no physics), or NO_HIT. The per-mesh banks (mc_water_banks_slice.cpp) slice the
 // triangles; the heightmap settles which way the triangles face.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/3_bodies/mc_water_shape.h"
 #include "marching_cubes/library/mc_library.h"
 #include <godot_cpp/classes/mesh.hpp>

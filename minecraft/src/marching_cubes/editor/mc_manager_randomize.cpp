@@ -6,7 +6,7 @@
 #include "cui/cui.h"
 #include "game_manager/game_constants.h"
 #include "marching_cubes/editor/mc_manager.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include "utils/raycast/mc_raycast.h"
 #include <godot_cpp/classes/button.hpp>

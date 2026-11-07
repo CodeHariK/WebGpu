@@ -4,7 +4,7 @@
 // (flush_dirty_chunks) and every full rebuild (refresh_grid) the levels are recomputed and the
 // chunks of cells whose level changed are rebuilt. Each cell draws the tile of its level from
 // the library (MCTileLibrary::get_level_tile); a set with no L / H tiles is all M, as before.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include <algorithm>
 #include <godot_cpp/variant/packed_byte_array.hpp>

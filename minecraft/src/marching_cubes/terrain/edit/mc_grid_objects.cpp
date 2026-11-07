@@ -1,5 +1,5 @@
 // MCGrid: placed objects (boxes on the dual grid), their spatial index and blocking checks.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/util/mc_physics.h"
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>

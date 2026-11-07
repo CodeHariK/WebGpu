@@ -1,7 +1,7 @@
 // MCManager: mouse clicks. Raycast once into a ClickHit, then hand it to the current mode:
 // terrain edits live here, object placing / selecting / dragging in mc_object_mode.cpp.
 #include "marching_cubes/editor/mc_manager.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/util/mc_physics.h"
 #include "utils/raycast/mc_raycast.h"
 #include <godot_cpp/classes/camera3d.hpp>

@@ -9,7 +9,7 @@
 //   user://inspect/<time>.png    the screen as it was
 // and the same three again as user://inspect/last.* (the newest record).
 #include "marching_cubes/editor/mc_manager.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/dir_access.hpp>
 #include <godot_cpp/classes/file_access.hpp>

@@ -1,7 +1,7 @@
 #include "marching_cubes/editor/mc_manager.h"
 #include "cui/cui.h"
 #include "game_manager/game_manager.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include <godot_cpp/classes/accept_dialog.hpp>
 #include <godot_cpp/classes/box_mesh.hpp>

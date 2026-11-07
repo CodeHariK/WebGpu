@@ -6,8 +6,8 @@
 // stand on / hit the terrain. Tiles that share a material end up in the same surface, so a chunk
 // is one draw per material (MCChunkBuilder). Edits mark chunks dirty; they are rebuilt once at the
 // end of the frame (flush_dirty_chunks), so a brush stroke rebuilds each chunk once.
-#include "marching_cubes/grid/mc_chunk_builder.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/2_mesh/mc_chunk_builder.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include "marching_cubes/util/mc_physics.h"
 #include <godot_cpp/classes/array_mesh.hpp>

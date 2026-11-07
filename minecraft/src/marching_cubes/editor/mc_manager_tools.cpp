@@ -9,11 +9,11 @@
 //   Place    left places a box, right deletes one (mc_object_mode.cpp)
 //   Move     left drags boxes (shift: add to the selection), right deletes
 // Undo / Redo buttons and Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z (or Cmd/Ctrl+Y): MCGrid's history
-// (grid/mc_grid_undo.cpp). Every terrain / water click and every Randomize is one step.
+// (terrain/edit/mc_grid_undo.cpp). Every terrain / water click and every Randomize is one step.
 #include "cui/cui.h"
 #include "marching_cubes/editor/mc_manager.h"
 #include <algorithm>
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/button_group.hpp>
 #include <godot_cpp/classes/h_box_container.hpp>

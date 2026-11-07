@@ -10,7 +10,7 @@
 // Changes made outside an edit (scripts calling set_column_height directly) aren't recorded.
 // The history is cleared when the grid is re-initialised, loaded or switches heightmap mode, and
 // keeps the last MAX_HISTORY edits. Placed objects and pins are not part of it.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <algorithm>
 

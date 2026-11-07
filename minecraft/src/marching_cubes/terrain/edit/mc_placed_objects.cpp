@@ -1,5 +1,5 @@
 // MCPlacedObjects: list of placed boxes with overlap checks (see header).
-#include "marching_cubes/grid/mc_placed_objects.h"
+#include "marching_cubes/terrain/edit/mc_placed_objects.h"
 
 namespace godot {
 

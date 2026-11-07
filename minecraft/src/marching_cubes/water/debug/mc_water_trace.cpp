@@ -15,8 +15,8 @@
 // does not flow dark grey), the column step i decides outlined in white, a line to each neighbour it looked at
 // (green: lets it / holds it in, red: stops it / lets it run out, grey: no effect, cyan: where it
 // comes from). The explanation is in the Debug tab.
-#include "marching_cubes/grid/mc_debug_mesh.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/util/mc_debug_mesh.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <algorithm>
 
 namespace godot {

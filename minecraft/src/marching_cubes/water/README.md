@@ -4,7 +4,7 @@ The water layer of the grid's heightmap mode: ponds, rivers, the sea and waterfa
 thing is stored: a **water level** per corner column (0 = dry). Everything else is worked out again
 on every rebuild, in the steps below, and turned into one water mesh.
 
-The code is still made of `MCGrid` methods (declared in `grid/mc_grid.h`); the folders only group
+The code is still made of `MCGrid` methods (declared in `terrain/mc_grid.h`); the folders only group
 them by step. `build/mc_water_build.cpp` (`_rebuild_water`) is where to start reading: it calls the
 steps in this order.
 

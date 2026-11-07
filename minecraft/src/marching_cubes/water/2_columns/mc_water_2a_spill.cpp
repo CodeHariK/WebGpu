@@ -13,7 +13,7 @@
 // Spills are never stored: _rebuild_water swaps the spilled levels in while it builds the mesh and
 // then puts the stored ones back, so pours, settle_water, saves and undo never see them (stored
 // spill water would become a source and flood its whole tier on the next settle).
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/mc_water_steps.h"
 #include <algorithm>
 #include <vector>

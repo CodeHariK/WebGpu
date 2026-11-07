@@ -16,7 +16,7 @@
 #include <chrono>
 #define CDT_DISABLE_EXCEPTIONS // godot-cpp builds without exceptions
 #include "utils/cdt/CDT.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/4_tiles/mc_water_tile.h"
 #include <godot_cpp/templates/hash_map.hpp>
 #include <cmath>

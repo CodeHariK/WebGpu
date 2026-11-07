@@ -13,7 +13,7 @@
 // spills on this map, say) is skipped. Two labels: where the walk is (stage, step i / n) and the
 // step's explanation. The overlay is MCGrid's water debug (it draws the shown step).
 #include "marching_cubes/editor/mc_manager.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/label.hpp>

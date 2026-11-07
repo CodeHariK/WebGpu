@@ -17,8 +17,8 @@
 //   4 tile      the tile's triangles, and how many bodies on the map share it
 //   4 placed    the tiles round the cell, welded, with the fall strips (the last step)
 // A yellow post stands on the cell in every step, so it is easy to find.
-#include "marching_cubes/grid/mc_debug_mesh.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/util/mc_debug_mesh.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/4_tiles/mc_water_tile.h"
 #include <godot_cpp/classes/time.hpp>
 #include <algorithm>

@@ -2,7 +2,7 @@
 
 ![Marching Cubes Diagram](./mc.excalidraw.svg)
 
-Code map (every file, function and the call order from `_ready`): [src/marching_cubes/MarchingCubes.md](../src/marching_cubes/MarchingCubes.md)
+Code map (every file, function and the call order from `_ready`): [src/marching_cubes/docs/MarchingCubes.md](../src/marching_cubes/docs/MarchingCubes.md)
 
 ## Overview
 
@@ -119,7 +119,7 @@ between rebuilds or loads. The Blender add-on uses the same formula, so its play
 ### Chunk meshes
 
 `MCGrid` draws each chunk as one `MeshInstance3D`: every tile of the chunk is placed and appended into
-one `ArrayMesh` (one surface per material) by `MCChunkBuilder` (`grid/mc_chunk_builder.*`), with one
+one `ArrayMesh` (one surface per material) by `MCChunkBuilder` (`terrain/2_mesh/mc_chunk_builder.*`), with one
 `ConcavePolygonShape3D` collider on `LAYER_TERRAIN`. Tile mesh arrays are read once and cached
 (`MCSurfaceCache`). A corner edit marks the chunks of the 8 cells around it dirty; they are rebuilt
 once at the end of the frame (`flush_dirty_chunks()`), so many edits in one frame cost one rebuild

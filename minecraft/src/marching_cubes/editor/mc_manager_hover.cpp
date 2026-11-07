@@ -1,6 +1,6 @@
 // MCManager: per-frame hover raycast, placement preview box, corner hover quads.
 #include "marching_cubes/editor/mc_manager.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include "marching_cubes/util/mc_physics.h"
 #include "marching_cubes/util/mc_wire.h"

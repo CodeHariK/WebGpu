@@ -9,7 +9,7 @@
 // A group that has no tile for a shape draws group a's (MCTileLibrary::get_group_tile).
 // Recomputed with the levels (_update_levels: after every edit and full rebuild); cells whose group
 // changed are marked dirty.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include <cstdint>
 #include <vector>

@@ -8,7 +8,7 @@
 // Coordinates: the shape works in the tiles' Blender plane (x, y), cell-local -0.5 .. 0.5, corners
 // 0 (-x, -y), 1 (+x, -y), 2 (+x, +y), 3 (-x, +y) in hash bit order; Godot z = -y, so corner 0 is the
 // column (x, z + 1), 1 (x + 1, z + 1), 2 (x + 1, z), 3 (x, z).
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/3_bodies/mc_water_shape.h"
 #include "marching_cubes/water/4_tiles/mc_water_tile.h"
 #include <godot_cpp/templates/hash_map.hpp>

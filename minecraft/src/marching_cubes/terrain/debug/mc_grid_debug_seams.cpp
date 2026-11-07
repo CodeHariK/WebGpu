@@ -8,7 +8,7 @@
 // the surface), so neighbouring tiles tell apart. A surface lying IN such a plane (a flat wall on a
 // cell side) would be all line, so a plane only counts where the surface actually crosses it.
 // It replaces the wireframe overlay while on; with both on, the wireframe is its next pass.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/shader.hpp>
 #include <godot_cpp/classes/shader_material.hpp>

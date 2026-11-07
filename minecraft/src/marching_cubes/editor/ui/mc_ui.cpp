@@ -1,7 +1,7 @@
 // MCManager: side panel in tabs (Stats / Water / Debug / Map), help modal.
 #include "marching_cubes/core/mc_hash.h"
 #include "marching_cubes/editor/mc_manager.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/image.hpp>

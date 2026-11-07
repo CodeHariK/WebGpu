@@ -137,7 +137,7 @@ small id table.
 - **Waterfalls are computed, not stored:** wherever two neighbouring columns both have water and their
   water heights differ, the builder adds a waterfall strip down that edge (plus a splash effect at the
   bottom). Raise a cliff under a river and the waterfall appears by itself.
-- **Built** (`grid/mc_grid_water.cpp`): water is poured — a flood fill that moves left / right /
+- **Built** (`water/1_flood/mc_water_flood.cpp`): water is poured — a flood fill that moves left / right /
   front / back onto ground that is not higher (same tier: spreads, lower: falls and carries on) and
   stands one layer deep everywhere (level = ground + 1). A dug channel fills and runs down its steps
   as waterfalls. All water re-settles after a load and after each terrain edit. Water flows toward
@@ -147,7 +147,7 @@ small id table.
 
 ---
 
-## 8. Save format version 2 (built: `src/marching_cubes/grid/mc_grid_save_v2.cpp`)
+## 8. Save format version 2 (built: `src/marching_cubes/terrain/io/mc_grid_save_v2.cpp`)
 
 Built as below except: no palette / objects layers yet; blocks are chunk columns in heightmap mode
 (layers HEIGHTS, WATER: a byte per owned corner column) and chunks in corner mode (layer CORNERS:
@@ -191,4 +191,4 @@ Rough, extrapolated from the generated terrain above (real islands with lots of 
    water, objects. Corner mode only for special areas (caves, arches).
 2. **Save v2:** layer list per chunk, zstd per chunk, v1 still loads.
 3. First two layers to build: **height + surface material**; then water + derived waterfalls.
-4. ~~Fold `MCHeightmap` into this~~ done: MCGrid heightmap mode (`grid/mc_grid_heights.cpp`); MCHeightmap removed.
+4. ~~Fold `MCHeightmap` into this~~ done: MCGrid heightmap mode (`terrain/1_shape/mc_grid_heights.cpp`); MCHeightmap removed.

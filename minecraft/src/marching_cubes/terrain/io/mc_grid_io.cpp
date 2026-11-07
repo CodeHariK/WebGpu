@@ -5,7 +5,7 @@
 // first; the grid is only changed once the whole file is known to be good.
 #include "godot_cpp/classes/file_access.hpp"
 #include "godot_cpp/variant/packed_byte_array.hpp"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>

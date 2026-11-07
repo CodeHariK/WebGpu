@@ -17,7 +17,7 @@
 //      cleared by terrain edits (a placed tile's shape doesn't change)
 // Which way triangles face (their winding) is settled once, from the first tile whose slice can be
 // checked against its own heightmap.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/3_bodies/mc_water_shape.h"
 #include "marching_cubes/water/4_tiles/mc_water_tile.h"
 #include <algorithm>

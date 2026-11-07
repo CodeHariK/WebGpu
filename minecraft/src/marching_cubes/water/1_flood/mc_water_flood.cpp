@@ -40,7 +40,7 @@
 // One water mesh for the whole grid (surface and falls in one surface, one material), rebuilt at
 // the end of a frame in which water or ground changed (flush_dirty_chunks) and on refresh_grid.
 // Only the levels are saved (save v2).
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/mc_water_steps.h"
 #include <algorithm>
 #include <functional>

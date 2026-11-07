@@ -6,7 +6,7 @@
 // The hover code (mc_manager_hover.cpp) moves them each frame; releasing re-places them,
 // or puts them back where they started if the drop spot is blocked.
 #include "marching_cubes/editor/mc_manager.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <algorithm>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>

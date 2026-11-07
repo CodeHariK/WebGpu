@@ -19,7 +19,7 @@
 // radius (the smallest of the falls there) are the same for every strip ending at it (_fall_ends),
 // so neighbours meet exactly and a strip wraps a corner in one piece; vertices are welded by
 // position and UV.x with averaged normals, so the light has no seams either.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/4_tiles/mc_water_tile.h"
 #include <godot_cpp/templates/hash_map.hpp>
 #include <godot_cpp/variant/vector4i.hpp>

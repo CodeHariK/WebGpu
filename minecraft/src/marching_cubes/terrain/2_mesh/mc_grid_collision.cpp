@@ -10,7 +10,7 @@
 // Both give the same ground (downward rays over the whole map hit the same heights). Every collider
 // is a StaticBody3D child of the chunk's mesh node on LAYER_TERRAIN, so picking and physics see the
 // same objects in both modes.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/util/mc_physics.h"
 #include <godot_cpp/classes/collision_shape3d.hpp>
 #include <godot_cpp/classes/concave_polygon_shape3d.hpp>

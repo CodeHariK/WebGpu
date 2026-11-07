@@ -6,7 +6,7 @@
 //             the edges the surface crosses. One MultiMesh for the dots, one line mesh.
 //   wireframe the triangles of every chunk mesh drawn as dark lines over the shaded terrain
 //             (an overlay shader with render_mode wireframe), so tile seams and tile shapes show.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/util/mc_wire.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/geometry_instance3d.hpp>

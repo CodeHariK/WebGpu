@@ -69,7 +69,7 @@
 #include "game_manager/player_input.h"
 
 #include "marching_cubes/library/mc_library.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/editor/mc_manager.h"
 #include "surface_nets/sn_grid.h"
 #include "terrain/marching_prism/mp.h"

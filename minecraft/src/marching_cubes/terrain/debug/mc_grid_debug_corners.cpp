@@ -1,7 +1,7 @@
 // MCGrid: debug dots on surface corners (solid ones touching air, coloured by height; faint ones on
 // the empty corners beside them) and the solid ones' picking colliders. The look is in
 // mc_grid_debug_view.cpp (_style_debug_corner).
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/util/mc_physics.h"
 #include <godot_cpp/classes/box_mesh.hpp>
 #include <godot_cpp/classes/box_shape3d.hpp>

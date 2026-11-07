@@ -18,7 +18,7 @@
 // like MCHeightmap's.
 //   load_heights: MCHeightmap's data (one byte per column, solid up to and including that corner)
 //   → the grid, with MCHeightmap's M-roof roll, so its terrain rebuilds cell for cell.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include <algorithm>
 #include <array>

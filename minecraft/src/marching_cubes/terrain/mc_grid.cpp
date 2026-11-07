@@ -1,5 +1,5 @@
 // MCGrid: setup, properties, corner edits and corner/cell queries.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <godot_cpp/classes/camera3d.hpp>
 #include "marching_cubes/library/mc_library.h"
 #include <godot_cpp/classes/box_mesh.hpp>

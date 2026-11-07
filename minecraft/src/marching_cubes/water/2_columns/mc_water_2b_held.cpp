@@ -6,7 +6,7 @@
 // open edge is beside it) it is a stream: a thin sheet STREAM above the ground that keeps running
 // and pours over the edge. Same-level water joined to a stream drains through it, so it is a stream
 // too. Derived when the mesh is built; only the levels are stored.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/mc_water_steps.h"
 #include <vector>
 

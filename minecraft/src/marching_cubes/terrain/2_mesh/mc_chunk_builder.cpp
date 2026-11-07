@@ -1,5 +1,5 @@
 // MCChunkBuilder: merge placed tile meshes into one ArrayMesh + collider faces (see header).
-#include "marching_cubes/grid/mc_chunk_builder.h"
+#include "marching_cubes/terrain/2_mesh/mc_chunk_builder.h"
 
 namespace godot {
 

@@ -11,8 +11,8 @@
 //   3 edges      + every cell's edge pieces as the tiles baked them (bank green, fall orange) and
 //                the wet sample points: the curves of step 2, cell by cell
 //   4 mesh       the water mesh with its triangles drawn over it
-#include "marching_cubes/grid/mc_debug_mesh.h"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/util/mc_debug_mesh.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/3_bodies/mc_water_shape.h"
 #include "marching_cubes/water/4_tiles/mc_water_tile.h"
 #include <godot_cpp/classes/label3d.hpp>

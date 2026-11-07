@@ -23,7 +23,7 @@
 //
 // Cheap where nothing is cut: a flat triangle lies in one cell, so only the footprints over that
 // cell are tested, first by box, then by a separating edge; few triangles get to the cutting.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <godot_cpp/templates/hash_map.hpp>
 #include <algorithm>
 #include <cmath>

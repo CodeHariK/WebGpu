@@ -2,7 +2,7 @@
 // that corner owns) and the face the mouse is on outlined and lightly filled, like an editor gizmo.
 // (In inspect mode the editor hovers cells, Ctrl / Cmd style, to pick the tile to pull out.)
 // Lines stay faintly visible behind terrain (mc_wire_material), so the cube never disappears.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/util/mc_wire.h"
 #include <godot_cpp/classes/camera3d.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>

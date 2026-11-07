@@ -11,7 +11,7 @@
 //                  vertices don't blend.
 //
 // Applied to the water node after every rebuild (_rebuild_water) and whenever the view changes.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/classes/shader.hpp>

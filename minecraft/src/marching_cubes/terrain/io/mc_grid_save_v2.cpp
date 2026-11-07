@@ -14,7 +14,7 @@
 // whole file is good (as in version 1, mc_grid_io.cpp, which still loads).
 #include "godot_cpp/classes/file_access.hpp"
 #include "godot_cpp/variant/packed_byte_array.hpp"
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include <godot_cpp/variant/utility_functions.hpp>
 #include <algorithm>
 #include <vector>

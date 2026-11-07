@@ -11,7 +11,7 @@
 //     1 at x+1, z+1; 2 at x+1, z; 3 at x, z)
 // get_cell_info(cell) is the text beside it: cell, hash, the modelled tile it was turned from and
 // the turn, group, level, variant. Nothing here changes the terrain, saves or undoes.
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/library/mc_library.h"
 #include "marching_cubes/util/mc_wire.h"
 #include <godot_cpp/classes/geometry_instance3d.hpp>

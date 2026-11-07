@@ -13,9 +13,9 @@
 //                 the queue cyan, the column the step takes outlined white, a line to each neighbour
 //                 (green queued, grey already queued, red + cross higher ground) and a label
 //                 explaining the step
-#include "marching_cubes/grid/mc_grid.h"
+#include "marching_cubes/terrain/mc_grid.h"
 #include "marching_cubes/water/mc_water_steps.h"
-#include "marching_cubes/grid/mc_debug_mesh.h"
+#include "marching_cubes/util/mc_debug_mesh.h"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/geometry_instance3d.hpp>
 #include <godot_cpp/classes/label3d.hpp>
