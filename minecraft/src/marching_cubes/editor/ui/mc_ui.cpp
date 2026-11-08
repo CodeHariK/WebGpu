@@ -87,7 +87,7 @@ void MCManager::setup_ui() {
 	//   Stats   performance, terrain counts, the hovered cell's hash, mesh variants
 	//   Water   water look (view, builder) and its sliders, the pour replay
 	//   Debug   inspect, terrain views, recording an inspected spot (mc_manager_record.cpp)
-	//   Map     save / load, Copy for Blender, randomize, heightmap mode
+	//   Map     save / load, Copy for Blender, randomize, terrain mode (corners / heightmap / squares)
 	TabContainer *tabs = memnew(TabContainer);
 	tabs->set_name("Tabs");
 	tabs->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);

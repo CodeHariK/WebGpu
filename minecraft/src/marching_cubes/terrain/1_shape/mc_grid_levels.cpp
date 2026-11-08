@@ -134,6 +134,9 @@ String MCGrid::randomize_levels(
 	if (heightmap_mode) {
 		return randomize_heights(p_seed); // the level planner makes overhangs: an island instead
 	}
+	if (squares_mode) {
+		return randomize_squares(p_seed); // the planner wants every 8-corner shape: an island of sheets
+	}
 	mc::LevelPlanInput input;
 	input.block = _cell_block();
 	input.seed = static_cast<uint32_t>(p_seed);

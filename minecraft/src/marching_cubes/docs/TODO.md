@@ -13,6 +13,15 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
       by Y turns, logs missing hashes (Cube.glb output identical to before) — uncommitted
 - [x] Blender add-on: tile sets on collections (kind / mode 68 · 256 · heightmap 22 / export path),
       searchable tile list, Check (missing, rotated copies, overhangs) — uncommitted
+- [x] **Marching squares mode** (`terrain/1_shape/mc_grid_squares.cpp`): each layer of corners its own
+      sheet; a cell draws its bottom 4 corners as a straight piece with its top cap (always drawn),
+      half a cell down (centred on its corner layer: the cap at y + 0.5, like heightmap ground).
+      5 stand-in tiles (`Squares.glb`, `blender/mc_tiles/scripts/squares_tiles.py`), `squares.tscn`
+      (`make run_squares`), Randomize = the island as stacked sheets, saved as mode 2, the Mode button
+      cycles corners / heightmap / squares — uncommitted
+- [ ] Squares next: a SQUARES kind in the Blender add-on (5 tiles, its playground); L / H levels for
+      squares tiles (levels are still worked out from the 8-corner shapes); a cap-free variant if the
+      hidden caps cost too much
 
 ## Next (in order)
 

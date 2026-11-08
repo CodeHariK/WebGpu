@@ -78,6 +78,9 @@ void MCGrid::set_heightmap_mode(bool p_on) {
 		return;
 	}
 	heightmap_mode = p_on;
+	if (heightmap_mode) {
+		squares_mode = false; // one or the other (mc_grid_squares.cpp); the rebuild below redraws it
+	}
 	clear_history(); // the edits were recorded in the other mode
 	if (heightmap_mode && !chunks.empty()) {
 		_heights_from_corners();
@@ -274,15 +277,12 @@ void MCGrid::_roll_roof_m(uint32_t p_seed) {
 	);
 }
 
-// An island from noise for p_seed: tiers rising toward the middle (bent by noise), the rim at the
-// floor; then the M roofs are rolled and the whole grid rebuilt. Returns a summary.
-String MCGrid::randomize_heights(int p_seed) {
-	if (!tile_library || chunks.empty()) {
-		return "no tile library / grid";
-	}
-	if (!heightmap_mode) {
-		set_heightmap_mode(true);
-	}
+// A height per corner column from noise for p_seed: tiers rising toward the middle (bent by
+// noise); with p_lock_rim the outer columns stay at the floor.
+std::vector<int> MCGrid::_island_heights(
+		int p_seed,
+		bool p_lock_rim
+) const {
 	Ref<FastNoiseLite> noise;
 	noise.instantiate();
 	noise->set_seed(p_seed);
@@ -293,11 +293,12 @@ String MCGrid::randomize_heights(int p_seed) {
 	int floor_height = _min_column_height();
 	int tiers = _max_column_height() - floor_height; // heights above the floor we can use
 	Vector2 middle(static_cast<float>(columns.x - 1) * 0.5f, static_cast<float>(columns.y - 1) * 0.5f);
-	int counts[256] = {};
+	std::vector<int> heights(static_cast<size_t>(columns.x) * columns.y, floor_height);
 	for (int z = 0; z < columns.y; z++) {
 		for (int x = 0; x < columns.x; x++) {
 			int height = floor_height;
-			if (!_is_edge_column(x, z)) {
+			bool edge = x == 0 || z == 0 || x == columns.x - 1 || z == columns.y - 1;
+			if (!(p_lock_rim && edge)) {
 				Vector2 offset = (Vector2(static_cast<float>(x), static_cast<float>(z)) - middle) / middle;
 				float rise = std::clamp(1.0f - offset.length() / ISLAND_EDGE, 0.0f, 1.0f); // 1 middle .. 0 rim
 				float bend = noise->get_noise_2d(static_cast<float>(x), static_cast<float>(z)) * NOISE_SHARE;
@@ -305,6 +306,27 @@ String MCGrid::randomize_heights(int p_seed) {
 				height = floor_height + static_cast<int>(std::floor(shaped * static_cast<float>(tiers) + 0.5f));
 				height = std::clamp(height, floor_height, _max_column_height());
 			}
+			heights[static_cast<size_t>(_column_index(x, z))] = height;
+		}
+	}
+	return heights;
+}
+
+// An island from noise for p_seed (_island_heights), the rim at the floor (unless lock_rim is
+// off); then the M roofs are rolled and the whole grid rebuilt. Returns a summary.
+String MCGrid::randomize_heights(int p_seed) {
+	if (!tile_library || chunks.empty()) {
+		return "no tile library / grid";
+	}
+	if (!heightmap_mode) {
+		set_heightmap_mode(true);
+	}
+	std::vector<int> heights = _island_heights(p_seed, lock_rim);
+	Vector2i columns = _column_counts();
+	int counts[256] = {};
+	for (int z = 0; z < columns.y; z++) {
+		for (int x = 0; x < columns.x; x++) {
+			int height = heights[static_cast<size_t>(_column_index(x, z))];
 			_record_height(_column_index(x, z));
 			column_heights[static_cast<size_t>(_column_index(x, z))] = static_cast<uint8_t>(height);
 			_write_column(x, z, height);

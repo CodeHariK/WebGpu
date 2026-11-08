@@ -1,8 +1,9 @@
 // MCManager: the Randomize section of the side panel (grid corners by the L / M / H rules,
 // MCGrid::randomize_levels, core/mc_level_plan.h; in heightmap mode an island, MCGrid::
-// randomize_heights — the "Heightmap mode" button switches it) and pinning: a left click on a library tile
-// pins it, moves the grid into a row behind the library (pinned column lined up with the tile)
-// and randomizes around it, like the Blender add-on's playground.
+// randomize_heights; in squares mode an island of sheets, MCGrid::randomize_squares — the "Mode"
+// button cycles corners / heightmap / squares) and pinning: a left click on a library tile pins it,
+// moves the grid into a row behind the library (pinned column lined up with the tile) and
+// randomizes around it, like the Blender add-on's playground.
 #include "cui/cui.h"
 #include "game_manager/game_constants.h"
 #include "marching_cubes/editor/mc_manager.h"
@@ -32,23 +33,24 @@ void MCManager::_setup_randomize_ui() {
 	unpin_btn->set_custom_minimum_size(Vector2(0, 30));
 	randomize_label = ui.manager->add_label(ui.stats_vbox, "Click a library tile to pin it");
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-	bool on = grid_node && grid_node->get_heightmap_mode();
-	heightmap_button = ui.manager->add_button(
-			ui.stats_vbox, on ? "Heightmap mode: on" : "Heightmap mode: off", Callable(this, "_on_toggle_heightmap")
+	int mode = grid_node ? grid_node->get_terrain_mode() : MCGrid::TERRAIN_CORNERS;
+	terrain_mode_button = ui.manager->add_button(
+			ui.stats_vbox, String("Mode: ") + MCGrid::terrain_mode_name(mode), Callable(this, "_on_cycle_terrain_mode")
 	);
-	heightmap_button->set_custom_minimum_size(Vector2(0, 30));
+	terrain_mode_button->set_custom_minimum_size(Vector2(0, 30));
 }
 
-// Heightmap mode on / off: on, clicks move whole columns and Randomize makes an island.
-void MCManager::_on_toggle_heightmap() {
+// The next terrain mode: corners -> heightmap (clicks move whole columns, Randomize makes an
+// island) -> squares (each layer a marching squares sheet, Randomize makes an island of sheets).
+void MCManager::_on_cycle_terrain_mode() {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
 	if (!grid_node) {
 		return;
 	}
 	cancel_drag();
-	grid_node->set_heightmap_mode(!grid_node->get_heightmap_mode());
-	if (heightmap_button) {
-		heightmap_button->set_text(grid_node->get_heightmap_mode() ? "Heightmap mode: on" : "Heightmap mode: off");
+	grid_node->set_terrain_mode((grid_node->get_terrain_mode() + 1) % MCGrid::TERRAIN_MODE_COUNT);
+	if (terrain_mode_button) {
+		terrain_mode_button->set_text(String("Mode: ") + MCGrid::terrain_mode_name(grid_node->get_terrain_mode()));
 	}
 	_update_history_buttons(); // switching clears the history
 }

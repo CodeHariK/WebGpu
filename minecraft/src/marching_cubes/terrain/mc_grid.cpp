@@ -56,6 +56,15 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_heightmap_mode", "on"), &MCGrid::set_heightmap_mode);
 	ClassDB::bind_method(D_METHOD("get_heightmap_mode"), &MCGrid::get_heightmap_mode);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "heightmap_mode"), "set_heightmap_mode", "get_heightmap_mode");
+	ClassDB::bind_method(D_METHOD("set_squares_mode", "on"), &MCGrid::set_squares_mode);
+	ClassDB::bind_method(D_METHOD("get_squares_mode"), &MCGrid::get_squares_mode);
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "squares_mode"), "set_squares_mode", "get_squares_mode");
+	ClassDB::bind_method(D_METHOD("set_terrain_mode", "mode"), &MCGrid::set_terrain_mode);
+	ClassDB::bind_method(D_METHOD("get_terrain_mode"), &MCGrid::get_terrain_mode);
+	ClassDB::bind_method(D_METHOD("randomize_squares", "seed"), &MCGrid::randomize_squares);
+	BIND_CONSTANT(TERRAIN_CORNERS);
+	BIND_CONSTANT(TERRAIN_HEIGHTMAP);
+	BIND_CONSTANT(TERRAIN_SQUARES);
 	ClassDB::bind_method(D_METHOD("get_column_height", "column"), &MCGrid::get_column_height);
 	ClassDB::bind_method(D_METHOD("get_column_counts"), &MCGrid::get_column_counts);
 	ClassDB::bind_method(D_METHOD("get_max_column_height"), &MCGrid::get_max_column_height);
@@ -450,14 +459,14 @@ void MCGrid::_write_corner(
 	}
 }
 
-// Hash of the cell at p_pos (grid coordinates), 0 outside the grid.
+// Hash the cell at p_pos draws (grid coordinates; squares mode: squares_hash), 0 outside the grid.
 uint8_t MCGrid::get_cell_hash(const Vector3i &p_pos) const {
 	int chunk_index = 0;
 	Vector3i local;
 	if (!_dims().cell_to_local(p_pos, chunk_index, local)) {
 		return 0;
 	}
-	return chunks[static_cast<size_t>(chunk_index)].get_cell_hash(local.x, local.y, local.z);
+	return _drawn_hash(chunks[static_cast<size_t>(chunk_index)].get_cell_hash(local.x, local.y, local.z));
 }
 
 // Is the global corner solid? Outside the grid counts as empty.

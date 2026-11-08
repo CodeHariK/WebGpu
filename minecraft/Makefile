@@ -67,6 +67,8 @@ run_cliffs_blocky:
 	$(GODOT) --path project/ --scene scene/marching/cliffs_blocky.tscn
 run_cliffs_square:
 	$(GODOT) --path project/ --scene scene/marching/cliffs_square.tscn
+run_squares:
+	$(GODOT) --path project/ --scene scene/marching/squares.tscn
 run_mp:
 	$(GODOT) --path project/ --scene scene/marching/prism.tscn
 run_tr:

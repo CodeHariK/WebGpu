@@ -151,9 +151,10 @@ small id table.
 
 Built as below except: no palette / objects layers yet; blocks are chunk columns in heightmap mode
 (layers HEIGHTS, WATER: a byte per owned corner column) and chunks in corner mode (layer CORNERS:
-the RLE bits); a block-size table follows the header so one block can be read alone.
+the RLE bits; squares mode too: mode byte 2); a block-size table follows the header so one block
+can be read alone.
 
-- Header + **mode byte** (height / corner).
+- Header + **mode byte** (corner 0 / height 1 / squares 2).
 - Per chunk, a **list of layers**: layer id, encoding, byte length, data.
   - Height grids: heights as bytes; corner grids: today's RLE bits.
   - Material / overlay: palette + bit-packed indices.

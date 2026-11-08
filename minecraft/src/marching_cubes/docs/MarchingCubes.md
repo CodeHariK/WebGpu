@@ -97,7 +97,8 @@ MCManager::_unhandled_input (click)
 | File | Functions |
 |---|---|
 | `mc_grid_levels.cpp` | `_cell_block` · `_level_at` · `get_cell_level` · `_update_levels` (after every edit / refresh) · `set_solid_floor` · `set_pin` / `clear_pin` / `get_pin_cell` · `_live_pin` · `randomize_levels` · `get_last_plan` |
-| `mc_grid_heights.cpp` | heightmap mode: `set/get_heightmap_mode` · `get/set_column_height` · `randomize_heights` (island from FastNoiseLite: tiers to the middle, rim at the floor, M roofs rolled) · `set/get_lock_rim` · `load_heights` (MCHeightmap's data, its M-roof seed) · `_roll_roof_m` · `_heights_from_corners` (flattens overhangs) · `_write_column` · `_set_corner_as_height` (set_corner in the mode: fill → column up to just above, empty → down to just below) · `_column_counts` · `_column_index` · `_is_edge_column` |
+| `mc_grid_heights.cpp` | heightmap mode: `set/get_heightmap_mode` · `get/set_column_height` · `randomize_heights` (`_island_heights`: island from FastNoiseLite, tiers to the middle, rim at the floor; M roofs rolled) · `set/get_lock_rim` · `load_heights` (MCHeightmap's data, its M-roof seed) · `_roll_roof_m` · `_heights_from_corners` (flattens overhangs) · `_write_column` · `_set_corner_as_height` (set_corner in the mode: fill → column up to just above, empty → down to just below) · `_column_counts` · `_column_index` · `_is_edge_column` |
+| `mc_grid_squares.cpp` | marching squares mode: `set/get_squares_mode` · `squares_hash` / `_drawn_hash` (a cell draws its bottom 4 corners repeated on top: a straight piece one layer high, its cap always drawn; `_tile_offset` puts it half a cell down, centred on its corner layer; 5 tiles, `Squares.glb` from `blender/mc_tiles/scripts/squares_tiles.py`) · `randomize_squares` (the heightmap island as stacked sheets) · `set/get_terrain_mode` · `terrain_mode_name` (corners / heightmap / squares; the editor's Mode button) |
 | `mc_grid_groups.cpp` | `_update_groups` (regions of solid corners by flood fill, one group rolled per region from its first corner + decor_seed; called from `_update_levels`) · `_group_at` · `get_cell_group` |
 
 ### terrain/2_mesh — chunks into meshes
@@ -122,7 +123,7 @@ MCManager::_unhandled_input (click)
 | File | Functions |
 |---|---|
 | `mc_grid_io.cpp` | `save_grid` · `load_grid` (validates first) · `cells_to_json` (Copy for Blender) |
-| `mc_grid_save_v2.cpp` | save format version 2: `_save_v2` (header with mode, lock_rim, decor_seed, sizes; block-size table; blocks of layers, zstd when smaller) · `_load_v2` (validate into temporaries, skip unknown layers, apply) · `_block_columns` (corner columns a chunk column owns) |
+| `mc_grid_save_v2.cpp` | save format version 2: `_save_v2` (header with mode: 0 corners, 1 heightmap, 2 squares; lock_rim, decor_seed, sizes; block-size table; blocks of layers, zstd when smaller) · `_load_v2` (validate into temporaries, skip unknown layers, apply) · `_block_columns` (corner columns a chunk column owns) |
 
 ### terrain/debug — debug views
 

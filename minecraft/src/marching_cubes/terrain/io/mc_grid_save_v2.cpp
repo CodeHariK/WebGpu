@@ -1,17 +1,17 @@
 // MCGrid: save format version 2 (.mct), plan in docs/TerrainStorage.md §8.
 //
-//   header   magic 'MCTR', version 2, mode (0 corner, 1 heightmap), lock_rim, decor_seed,
+//   header   magic 'MCTR', version 2, mode (0 corner, 1 heightmap, 2 squares), lock_rim, decor_seed,
 //            grid_dims xyz, chunk_dims xyz
 //   blocks   count, then each block's byte size (so a reader can seek to any block), then the blocks
 //   block    layer count, then per layer: id, encoding, raw size, stored size, bytes
 //
-// Blocks: corner mode = one per chunk (layer CORNERS: the chunk's RLE corner bits); heightmap mode =
-// one per chunk column (x, z): the corner columns it owns (x in [cx * sx, cx * sx + sx), the last
-// block of a row / column also the grid's far edge), with layers HEIGHTS and WATER (a byte per
-// column each). Every layer is zstd-compressed when that makes it smaller (encoding 1, else 0 raw).
-// A reader skips layer ids it doesn't know, so new layers (ground material, objects) don't break
-// old readers. Everything is read and checked into temporaries first; the grid only changes once the
-// whole file is good (as in version 1, mc_grid_io.cpp, which still loads).
+// Blocks: corner and squares mode = one per chunk (layer CORNERS: the chunk's RLE corner bits);
+// heightmap mode = one per chunk column (x, z): the corner columns it owns (x in
+// [cx * sx, cx * sx + sx), the last block of a row / column also the grid's far edge), with layers
+// HEIGHTS and WATER (a byte per column each). Every layer is zstd-compressed when that makes it
+// smaller (encoding 1, else 0 raw). A reader skips layer ids it doesn't know, so new layers (ground
+// material, objects) don't break old readers. Everything is read and checked into temporaries
+// first; the grid only changes once the whole file is good (as in version 1, mc_grid_io.cpp, which still loads).
 #include "godot_cpp/classes/file_access.hpp"
 #include "godot_cpp/variant/packed_byte_array.hpp"
 #include "marching_cubes/terrain/mc_grid.h"
@@ -26,6 +26,7 @@ const uint32_t MCT_MAGIC = 0x4D435452;
 const uint32_t VERSION_2 = 2;
 const uint8_t MODE_CORNER = 0;
 const uint8_t MODE_HEIGHT = 1;
+const uint8_t MODE_SQUARES = 2; // marching squares: stored as corners, like MODE_CORNER
 const uint8_t LAYER_CORNERS = 1; // corner mode: the chunk's RLE corner bits
 const uint8_t LAYER_HEIGHTS = 2; // heightmap mode: a byte per owned corner column
 const uint8_t LAYER_WATER = 3; // heightmap mode: water level per owned corner column
@@ -167,7 +168,7 @@ void MCGrid::_save_v2(const Ref<FileAccess> &p_file) const {
 	}
 	p_file->store_32(MCT_MAGIC);
 	p_file->store_32(VERSION_2);
-	p_file->store_8(heightmap_mode ? MODE_HEIGHT : MODE_CORNER);
+	p_file->store_8(heightmap_mode ? MODE_HEIGHT : (squares_mode ? MODE_SQUARES : MODE_CORNER));
 	p_file->store_8(lock_rim ? 1 : 0);
 	p_file->store_32(static_cast<uint32_t>(decor_seed));
 	for (int axis = 0; axis < 3; axis++) {
@@ -204,7 +205,7 @@ bool MCGrid::_load_v2(
 		UtilityFunctions::push_error("MCGrid: corrupt terrain file (bad sizes): ", p_path);
 		return false;
 	}
-	if (mode != MODE_CORNER && mode != MODE_HEIGHT) {
+	if (mode != MODE_CORNER && mode != MODE_HEIGHT && mode != MODE_SQUARES) {
 		UtilityFunctions::push_error("MCGrid: corrupt terrain file (unknown mode ", mode, "): ", p_path);
 		return false;
 	}
@@ -247,6 +248,7 @@ bool MCGrid::_load_v2(
 	// none of the old map's water, history, roofs or pin
 	bool resize = grid_dims != file_grid || chunk_dims != file_chunk;
 	heightmap_mode = mode == MODE_HEIGHT;
+	squares_mode = mode == MODE_SQUARES;
 	lock_rim = file_lock_rim;
 	decor_seed = file_seed;
 	if (resize) {

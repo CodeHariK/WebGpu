@@ -58,13 +58,13 @@ void MCGrid::_build_chunk_mesh(Chunk &p_chunk) {
 	for (int ly = 0; ly < p_chunk.size_y; ly++) {
 		for (int lz = 0; lz < p_chunk.size_z; lz++) {
 			for (int lx = 0; lx < p_chunk.size_x; lx++) {
-				uint8_t hash = p_chunk.get_cell_hash(lx, ly, lz);
+				uint8_t hash = _drawn_hash(p_chunk.get_cell_hash(lx, ly, lz)); // squares mode: a straight piece
 				if (hash == 0) {
 					continue;
 				}
 				Vector3i cell = origin + Vector3i(lx, ly, lz);
 				Transform3D cell_t;
-				cell_t.origin = Vector3(cell) + Vector3(0.5f, 0.5f, 0.5f); // cell centre
+				cell_t.origin = Vector3(cell) + _tile_offset(); // cell centre (squares mode: half a cell down)
 				if (cell == pinned_cell) {
 					builder.add(pin_mesh, cell_t, surface_cache); // the pinned tile itself, as modelled
 					collide_tiles.push_back({ pin_mesh, cell_t });

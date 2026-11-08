@@ -83,7 +83,7 @@ bool MCGrid::inspect_cell(const Vector3i &p_cell) {
 	}
 	inspect_cell_pos = p_cell;
 	inspect_has_cell = true;
-	inspect_highlight->set_position(Vector3(p_cell) + Vector3(0.5f, 0.5f, 0.5f));
+	inspect_highlight->set_position(Vector3(p_cell) + _tile_offset()); // round the tile it draws
 	inspect_root->show();
 	return get_cell_hash(p_cell) != 0;
 }
