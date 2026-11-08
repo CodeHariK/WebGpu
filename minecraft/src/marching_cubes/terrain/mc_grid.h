@@ -127,8 +127,10 @@ private:
 	Vector2i water_piece_counts; // the last build's pieces: x flat tiles, y fall strips
 	Ref<Material> water_wireframe_material;
 	Ref<Material> water_flow_material; // the "flow" view: the vertex colour's flow, drawn
-	Ref<Material> water_material; // liquid.gdshader unless set: surfaces and falls, one material
-	int liquid = 0; // Liquid: what the whole map's water is (liquid.gdshader's `liquid`)
+	Ref<Material> water_material; // in use: surfaces and falls, one material (_apply_liquid picks it)
+	Ref<Material> water_material_override; // set_water_material: used instead of the liquid's own
+	int liquid = 0; // Liquid: what the whole map's water is (mc_water_liquid.cpp)
+	Ref<Material> liquid_materials[3]; // one per liquid, each made the first time it is used
 	std::vector<MCEdit> undo_stack; // oldest first
 	std::vector<MCEdit> redo_stack;
 	MCEdit recording; // the open edit (between begin_edit and end_edit)
@@ -756,13 +758,15 @@ public:
 	// randomize_heights fills the sea from the grid's corner at this level (0: no sea).
 	void set_sea_level(int p_level);
 	int get_sea_level() const { return sea_level; }
+	// A material of your own for the water mesh, instead of the liquid's (null: the liquid's again).
 	void set_water_material(const Ref<Material> &p_material) {
-		water_material = p_material;
+		water_material_override = p_material;
 		_apply_liquid();
 	}
-	Ref<Material> get_water_material() const { return water_material; }
-	// The map's one liquid (mc_water_liquid.cpp): the whole water mesh is drawn as it, one draw.
-	// Not saved in the .mct yet: it is the grid's property (scene / Water tab).
+	Ref<Material> get_water_material() const { return water_material_override; }
+	// The map's one liquid (mc_water_liquid.cpp): the whole water mesh is drawn with that liquid's
+	// shader (project/material/shaders/terrain/liquid/), one draw. Not saved in the .mct yet: it is
+	// the grid's property (scene / Water tab).
 	enum Liquid {
 		LIQUID_WATER = 0,
 		LIQUID_LAVA = 1,
@@ -772,7 +776,7 @@ public:
 	void set_liquid(int p_liquid);
 	int get_liquid() const { return liquid; }
 	static const char *liquid_name(int p_liquid);
-	// Hand the liquid to the water material (liquid.gdshader's `liquid`), if it is a shader material.
+	// Pick the water mesh's material (the override, or the liquid's shader) and put it on the mesh.
 	void _apply_liquid();
 	// Write the grid to a .mct file, version 2 (mc_grid_save_v2.cpp): heightmap mode saves heights +
 	// water per chunk column, corner mode the corner bits per chunk; zstd per layer.

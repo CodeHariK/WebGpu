@@ -12,7 +12,7 @@
 //   UV.x  metres along the joined falls (a walk along each chain of falls)
 //   UV.y  metres along the profile from the strip's start
 // The water is opaque, so the strip simply covers the surface where it lies on it; its flat part is
-// shaded from the world position like the surface (liquid.gdshader), so where it starts doesn't show.
+// shaded from the world position like the surface (the liquid shaders), so where it starts doesn't show.
 // UV2: x how far over the bevel (0 flat .. 1 straight down), y metres above the landing. COLOR:
 // the surface's flow where the strip starts (flat and bevel), falling (drop). Where falls meet, the
 // strips share their end columns: each top point's direction (smoothed along the fall) and bevel

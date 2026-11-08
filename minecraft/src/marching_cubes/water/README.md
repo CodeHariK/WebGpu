@@ -71,8 +71,11 @@ under each strip's bevel (its footprint), so it never sticks out through it.
   and `_water_mesh` (one surface, falls first).
 - `mc_water_view.cpp`: the view modes (normal, wireframe, UV, UV + wireframe, pieces: every mesh
   piece in its own colour, flow: the flow the shader gets).
-- `mc_water_liquid.cpp`: the map's one liquid (water, lava, green poison), handed to
-  `project/material/shaders/terrain/liquid.gdshader` (one material, one draw).
+- `mc_water_liquid.cpp`: the map's one liquid (water, lava, green poison) picks one shader in
+  `project/material/shaders/terrain/liquid/` (one material, one draw, no branching): `water` /
+  `lava` / `poison.gdshader`, shared steps in `liquid_common.gdshaderinc`. The simple look; their
+  working copies and a desktop look of each (refraction, caustics, glow) are in the Water Shader
+  Steps project (`blender/sand_island/water_tutorial/`: `*_mobile/`, `*_desktop/`).
 
 ### debug
 

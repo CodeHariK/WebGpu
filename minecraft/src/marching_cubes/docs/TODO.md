@@ -307,9 +307,10 @@ everything built on top is an object. Terrain stays pure corners.
 
 State: water tiles builder (sample grid + marching squares, baked per corner class), bevelled L
 waterfall strips with their own UV, every triangle wound to its normals, depth baked per vertex,
-`liquid.gdshader` step 1: one liquid per map (MCGrid `liquid`: water / lava / green poison), a flat
-colour each, one draw (full old water look in 8bb3c71); "Water view: flow" shows the flow it reads.
-Details in the heightmap water notes above.
+one liquid per map (MCGrid `liquid`: water / lava / green poison), one simple shader each in
+`project/material/shaders/terrain/liquid/` (no branching, one draw); "Water view: flow" shows the
+flow they read. Working copies and a desktop look: the Water Shader Steps project
+(`blender/sand_island/water_tutorial/`). Details in the heightmap water notes above.
 
 Mesh fixes
 - [ ] Fall / spill-water junctions: strips of falls at different heights leave flaps and messy joins
@@ -317,17 +318,33 @@ Mesh fixes
 - [ ] Across UV restarts at 0 where one chain of falls meets another (keep counting across chains)
 - [ ] Softer / shorter foot flare (still boxy)
 
-Shader (rebuild one idea per step, checked against the inspect records; `liquid.gdshader`)
+Shader, mobile (one idea per step, checked against the inspect records; `liquid/water`, `lava`,
+`poison.gdshader`, steps 2 - 5 shared in `liquid/liquid_common.gdshaderinc`)
 - [x] Step 1: one liquid per map (water / lava / green poison), a flat colour each; flow view
 - [ ] Save the map's liquid in the .mct (it is only MCGrid's property for now)
-- [ ] Depth colour from the baked depth (CUSTOM0.x)
-- [ ] Flowing ripples (COLOR flow) on the flat water
-- [ ] Shore foam (shallow baked depth near banks)
-- [ ] Fall streaks on the strips' own UV, speeding up as they fall
-- [ ] Landing foam (COLOR.a)
-- [ ] Lava: dark crust drifting slowly, glowing cracks, brighter where it moves / falls
-- [ ] Green poison: thick slow flow, popping bubbles, faint glow
+- [x] Step 2: depth colour from the baked depth (CUSTOM0.x): a shallow and a deep colour per liquid
+- [x] Step 3: flowing ripples (COLOR flow, flow-map trick) on the flat liquid; speed per liquid
+- [x] Step 4: fall streaks on the strips' own UV, speeding up as they fall (slid in sqrt(metres))
+- [x] Step 5: foam: shore (shallow baked depth, not on streams), landing (COLOR.a, churning), fall foot
+- [x] Step 6: lava: dark crust plates (Voronoi) drifting with the flow, popping in / melting one by
+      one instead of cross-fading; everything but the crust glows (EMISSION)
+- [x] Step 7: green poison: bubbles (one per square, some empty) that grow and pop, drifting with
+      the flow (each lives inside its copy's cycle), faint glow; thick slow flow from step 3's speed
 - [ ] Transparency last (mobile cost)
+
+Shader, desktop (no budget; in the Water Shader Steps project, `*_desktop/`; liked parts get
+simplified into the game's simple set)
+- [x] Water: flowing wave normals (glossy, sky reflection, glints), refraction + Beer-Lambert
+      absorption through the real depth (depth texture), scattering glow, caustics on the floor,
+      foam bands rolling to the shore, river foam lines, see-through grooved falls
+- [x] Lava: domain-warped heat field, blackbody colour, HDR glow (bloom), raised bevelled crust
+      plates, glowing plate edges and fissures, heat pulses, molten falls with crust bits
+- [x] Poison: murky refraction, domain-warped swirl, oily thin-film rainbow, lit dome bubbles with
+      rainbow skins and pop rings, gooey falls with drips, froth, pulsing glow
+- [ ] Step tracks for each of the six in the Water Shader Steps project; measure each step's GPU
+      cost there (perf HUD), pick what to bring back to the game
+- [ ] The MC water mesh's data (flow, fall UVs, depth) in that project: a sample water mesh, so the
+      liquids show there as in the game
 
 Performance / structure
 - [ ] Per-chunk water rebuild (mesh, particle points, spill pass) instead of the whole map

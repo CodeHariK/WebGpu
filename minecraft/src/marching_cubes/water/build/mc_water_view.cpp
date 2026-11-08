@@ -1,6 +1,6 @@
 // MCGrid: debug views of the water mesh (the Water tab's "Water view" button cycles them):
 //
-//   normal         the liquid shader (liquid.gdshader), as in the game
+//   normal         the liquid's shader (MCGrid liquid + liquid look), as in the game
 //   wireframe      the water mesh's triangles drawn over it in white (surface + falls)
 //   uv             both surfaces drawn with a UV checker instead: red / green = fract(UV), a dim
 //                  checker every 0.25, white lines on whole UV units (surface: UV = world x, z;
@@ -52,8 +52,8 @@ void fragment() {
 }
 )";
 
-// The flow view: what liquid.gdshader gets in COLOR (rg direction as 0..1, b flows, a foam).
-// UV2.x >= 1 is down a fall (see liquid.gdshader): there the stripes run down, by UV2.y.
+// The flow view: what the liquid shaders get in COLOR (rg direction as 0..1, b flows, a foam).
+// UV2.x >= 1 is down a fall (see liquid/liquid_common.gdshaderinc): there the stripes run down, by UV2.y.
 const char *WATER_FLOW_SHADER = R"(shader_type spatial;
 render_mode unshaded, cull_disabled;
 varying vec4 flow;

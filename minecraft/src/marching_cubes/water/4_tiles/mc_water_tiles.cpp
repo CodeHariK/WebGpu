@@ -596,7 +596,7 @@ void MCGrid::_emit_water_tiles(
 					r_out.vertices.push_back(v);
 					r_out.normals.push_back(Vector3(0, 1, 0));
 					r_out.uvs.push_back(Vector2(v.x, v.z));
-					r_out.uv2s.push_back(Vector2(0.0f, body.stream ? -1.0f : 0.0f)); // liquid.gdshader's UV2
+					r_out.uv2s.push_back(Vector2(0.0f, body.stream ? -1.0f : 0.0f)); // the liquid shaders' UV2
 					r_out.colors.push_back(flow_at(body.flow, p.x, p.y));
 					r_out.depths.push_back(std::max(body.top - body.ground_at(p), 0.0f));
 					surface_index.insert(weld, index);
