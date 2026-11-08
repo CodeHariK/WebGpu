@@ -1,9 +1,11 @@
 # Sand Island: the Water Shader Steps project (water_tutorial/: the island's water, sand, snow and
 # rock shaders, step by step), the Liquid Shaders project (liquid/: the minecraft game's water, lava
-# and poison on its MC water mesh), the small godot_demo/ project and the Blender preview script.
+# and poison on its MC water mesh, and the slime), the small godot_demo/ project and the Blender
+# preview script.
 # `make` lists the targets.
 
 GODOT    := /Applications/Godot.app/Contents/MacOS/Godot
+BLENDER  := /Applications/Blender.app/Contents/MacOS/Blender
 TUTORIAL := water_tutorial
 RUN      := $(GODOT) --path $(TUTORIAL)
 LIQUID   := liquid
@@ -23,11 +25,14 @@ help:
 	@echo "  make bench-rock  perf bench of the rock steps"
 	@echo "  make shots       regenerate every screenshot in $(TUTORIAL)/shots/"
 	@echo "Liquid Shaders ($(LIQUID)/)"
-	@echo "  make liquids     the 6 liquid shaders (water / lava / poison, mobile + desktop) on the"
-	@echo "                   game's MC water sample (keys 1 - 6, left / right; N day / night)"
+	@echo "  make liquids     the 7 liquid shaders (water / lava / poison, mobile + desktop; slime) on"
+	@echo "                   the game's MC water sample or the slime river (keys 1 - 7, left /"
+	@echo "                   right; M sample; N day / night)"
 	@echo "  make liquid-e    open it in the Godot editor     make liquid-reimport   import headless"
 	@echo "  make liquid-shots   $(LIQUID)/shots/liquid_<shader>.png, by day and by night"
 	@echo "  make liquid-sample  export the sample again from the game (its 'last' inspect map)"
+	@echo "  make slime-bake     bake the slime's textures in Blender (liquid/slime/, slime_bake.blend)"
+	@echo "  make slime-river    build the slime river sample in Blender (liquid/sample/slime_river.*)"
 	@echo "Other"
 	@echo "  make demo        run godot_demo/ (the first island + shaders)"
 	@echo "  make preview     render sand_island.glb in Godot -> godot_preview.png"
@@ -97,6 +102,16 @@ liquid-sample:
 	$(GODOT) --headless --path $(GAME) -s res://_liquid_sample_export.gd -- $(CURDIR)/$(LIQUID)/sample; \
 		status=$$?; rm -f $(GAME)/_liquid_sample_export.gd $(GAME)/_liquid_sample_export.gd.uid; exit $$status
 
+# The slime's two textures (and slime_bake.blend, its node materials), then imported.
+slime-bake:
+	$(BLENDER) -b -P $(LIQUID)/tools/bake_slime.py -- $(CURDIR)/$(LIQUID)
+	$(GODOT) --headless --editor --quit --path $(LIQUID)
+
+# The slime river sample (slime_river.blend + .glb), then imported.
+slime-river:
+	$(BLENDER) -b -P $(LIQUID)/tools/build_slime_river.py -- $(CURDIR)/$(LIQUID)
+	$(GODOT) --headless --editor --quit --path $(LIQUID)
+
 # --- Other ---
 demo:
 	$(GODOT) --path godot_demo
@@ -105,4 +120,4 @@ preview:
 	python3 preview_in_godot.py
 
 .PHONY: help e reimport water sand snow snow-demo rock lab bench bench-rock shots liquids liquid-e \
-	liquid-reimport liquid-shots liquid-sample demo preview
+	liquid-reimport liquid-shots liquid-sample slime-bake slime-river demo preview
