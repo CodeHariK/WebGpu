@@ -1,0 +1,3 @@
+.godot/
+# captures (regenerate with: make liquid-shots, in the folder above)
+shots/

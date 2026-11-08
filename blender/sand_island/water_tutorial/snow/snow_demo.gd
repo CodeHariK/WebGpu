@@ -45,7 +45,7 @@ func _make_materials() -> void:
 	cap_material.shader = snow_material.shader
 	cap_material.set_shader_parameter("noise_tex", noise_texture)
 	cap_material.set_shader_parameter("snow_everywhere", 1.0)
-	water_material.shader = load("res://steps/step11_noise_texture.gdshader")
+	water_material.shader = load("res://water_steps/step11_noise_texture.gdshader")
 	water_material.set_shader_parameter("noise_tex", noise_texture)
 	water_material.set_shader_parameter("shore_colour", Color(0.78, 0.93, 0.96))
 	water_material.set_shader_parameter("shallow_colour", Color(0.42, 0.7, 0.86))

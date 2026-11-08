@@ -1,4 +1,4 @@
-## Shader tutorials, step by step: the water (steps/), the sand (sand_steps/) and the snow
+## Shader tutorials, step by step: the water (water_steps/), the sand (sand_steps/) and the snow
 ## (snow_steps/). Each file adds one idea to the one before it. Tab cycles which shader you are
 ## stepping through; the others stay finished. The snow track also puts a snow cap on the island.
 ## Keys: 1–9, 0 and − pick step 1–11 · ← → previous / next · left-drag orbit · Shift-drag or right-drag
@@ -234,7 +234,7 @@ func _show_step(index: int) -> void:
 
 
 func _step_path(which: int, index: int) -> String:
-	return "res://%s/%s.gdshader" % [["steps", "sand_steps", "snow_steps"][which], _names(which)[index]]
+	return "res://%s/%s.gdshader" % [["water_steps", "sand_steps", "snow_steps"][which], _names(which)[index]]
 
 
 ## Put step `index` of shader `which` (0 water, 1 sand, 2 snow) on every island's water or terrain.
