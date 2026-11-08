@@ -3,8 +3,8 @@
 // Each liquid is its own shader in project/material/shaders/terrain/liquid/ (water.gdshader,
 // lava.gdshader, poison.gdshader; their shared steps in liquid_common.gdshaderinc), so a shader
 // holds only its liquid's code: no branching on the liquid. They are the simple (mobile) look; their
-// working copies, and a desktop look of each, are in the Water Shader Steps project
-// (blender/sand_island/water_tutorial/: water_mobile/, water_desktop/, ...). The whole water mesh is
+// working copies, and a desktop look of each, are in the Liquid Shaders project
+// (blender/sand_island/liquid/: water_mobile/, water_desktop/, ...). The whole water mesh is
 // one surface with that one material, so the map is one draw whatever the liquid. Changing the
 // liquid only swaps the material; the mesh (shape, flow, depth) is the same for all of them.
 // A material set with set_water_material is used instead. Not saved in the .mct yet: the liquid is

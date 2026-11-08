@@ -1,6 +1,6 @@
 // Water, mobile: steps 1 - 5 (liquid_common.gdshaderinc), matte, opaque, no extra step.
 // MCGrid picks this shader when the map's liquid is water. Its working copy, and a desktop
-// look, are in the Water Shader Steps project (blender/sand_island/water_tutorial/).
+// look, are in the Liquid Shaders project (blender/sand_island/liquid/).
 shader_type spatial;
 render_mode cull_disabled; // falls are seen from both sides
 

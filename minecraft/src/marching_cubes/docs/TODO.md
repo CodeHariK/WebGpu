@@ -309,8 +309,8 @@ State: water tiles builder (sample grid + marching squares, baked per corner cla
 waterfall strips with their own UV, every triangle wound to its normals, depth baked per vertex,
 one liquid per map (MCGrid `liquid`: water / lava / green poison), one simple shader each in
 `project/material/shaders/terrain/liquid/` (no branching, one draw); "Water view: flow" shows the
-flow they read. Working copies and a desktop look: the Water Shader Steps project
-(`blender/sand_island/water_tutorial/`). Details in the heightmap water notes above.
+flow they read. Working copies and a desktop look: the Liquid Shaders project
+(`blender/sand_island/liquid/`). Details in the heightmap water notes above.
 
 Mesh fixes
 - [ ] Fall / spill-water junctions: strips of falls at different heights leave flaps and messy joins
@@ -332,7 +332,7 @@ Shader, mobile (one idea per step, checked against the inspect records; `liquid/
       the flow (each lives inside its copy's cycle), faint glow; thick slow flow from step 3's speed
 - [ ] Transparency last (mobile cost)
 
-Shader, desktop (no budget; in the Water Shader Steps project, `*_desktop/`; liked parts get
+Shader, desktop (no budget; in the Liquid Shaders project, `*_desktop/`; liked parts get
 simplified into the game's simple set)
 - [x] Water: flowing wave normals (glossy, sky reflection, glints), refraction + Beer-Lambert
       absorption through the real depth (depth texture), scattering glow, caustics on the floor,
@@ -341,10 +341,10 @@ simplified into the game's simple set)
       plates, glowing plate edges and fissures, heat pulses, molten falls with crust bits
 - [x] Poison: murky refraction, domain-warped swirl, oily thin-film rainbow, lit dome bubbles with
       rainbow skins and pop rings, gooey falls with drips, froth, pulsing glow
-- [ ] Step tracks for each of the six in the Water Shader Steps project; measure each step's GPU
+- [ ] Step tracks for each of the six in the Liquid Shaders project; measure each step's GPU
       cost there (perf HUD), pick what to bring back to the game
-- [ ] The MC water mesh's data (flow, fall UVs, depth) in that project: a sample water mesh, so the
-      liquids show there as in the game
+- [x] The MC water mesh's data (flow, fall UVs, depth) in that project: `liquid/sample/` (water +
+      terrain from the "last" inspect map; `make liquids`, `make liquid-sample` in blender/sand_island)
 
 Performance / structure
 - [ ] Per-chunk water rebuild (mesh, particle points, spill pass) instead of the whole map

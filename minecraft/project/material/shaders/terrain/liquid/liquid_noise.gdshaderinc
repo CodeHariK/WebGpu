@@ -1,6 +1,6 @@
 // Noise for the liquid shaders (water, lava, poison). Pure maths, no textures. Their working
-// copies, and a desktop look of each, are in the Water Shader Steps project
-// (blender/sand_island/water_tutorial/).
+// copies, and a desktop look of each, are in the Liquid Shaders project
+// (blender/sand_island/liquid/).
 //
 // hash / hash2: a random number (two for hash2) for a whole point of the plane. No sin(): sin of a
 // big number loses precision on some GPUs (Metal), and with coordinates of tens of metres that

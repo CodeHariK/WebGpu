@@ -1,7 +1,7 @@
 // Green poison, mobile: steps 1 - 5 (liquid_common.gdshaderinc) and its own step 7: bubbles that
 // grow and pop, drifting with the flow, and a faint toxic glow. Matte, opaque.
 // MCGrid picks this shader when the map's liquid is green poison. Its working copy, and a desktop
-// look, are in the Water Shader Steps project (blender/sand_island/water_tutorial/).
+// look, are in the Liquid Shaders project (blender/sand_island/liquid/).
 shader_type spatial;
 render_mode cull_disabled; // falls are seen from both sides
 
