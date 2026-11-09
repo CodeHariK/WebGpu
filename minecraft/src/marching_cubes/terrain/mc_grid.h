@@ -87,8 +87,9 @@ private:
 	bool heightmap_mode = false; // one height per corner column (no overhangs): mc_grid_heights.cpp
 	std::vector<uint8_t> column_heights; // heightmap mode: per corner column (x + z * columns.x)
 	bool lock_rim = true; // heightmap mode: outer columns locked to the floor (off: open edge)
-	// Marching squares mode (mc_grid_squares.cpp): a cell draws its bottom four corners as a
-	// straight-sided sheet one layer high. Never on together with heightmap_mode.
+	// Marching squares (mc_grid_squares.cpp): a cell draws its bottom four corners as a
+	// straight-sided sheet one layer high. How the corners are drawn; heightmap_mode is how they
+	// are edited, so the two combine (heightmap + squares: terraced cliffs with straight walls).
 	bool squares_mode = false;
 	std::vector<uint8_t> water_levels; // per corner column, like column_heights (0 = dry)
 	String water_blocky_groups = "b"; // groups whose water edges use the blocky shape
@@ -539,14 +540,16 @@ public:
 	// 0 L, 1 M, 2 H), size, gaps, column_breaks, bottom_solved.
 	Dictionary get_last_plan() const;
 	// Heightmap mode: every corner column has one height, so no overhangs; edits (set_corner,
-	// clicks) move whole columns. Turning it on flattens a live grid's overhangs.
+	// clicks) move whole columns, and water and the island work. How the corners are edited, drawn
+	// either way (squares_mode off: the full tile set; on: the squares set). Turning it on flattens
+	// a live grid's overhangs.
 	void set_heightmap_mode(bool p_on);
 	bool get_heightmap_mode() const { return heightmap_mode; }
-	// Marching squares mode (mc_grid_squares.cpp): each layer of corners is its own sheet, drawn with
+	// Marching squares (mc_grid_squares.cpp): each layer of corners is its own sheet, drawn with
 	// marching squares: a cell draws only its bottom four corners, as a straight-sided piece one layer
 	// high with its top cap, centred on that corner layer (5 tile shapes, Y turns fill the rest).
-	// Edits stay one corner each and layers stand on their own (overhangs are fine). Turning it on
-	// turns heightmap mode off.
+	// Only the drawing changes: with heightmap mode off, edits stay one corner each and layers stand
+	// on their own (overhangs are fine); with it on, columns as in heightmap mode. Rebuilds a live grid.
 	void set_squares_mode(bool p_on);
 	bool get_squares_mode() const { return squares_mode; }
 	// Corner hash -> the hash squares mode draws: corners 0 - 3 kept, 4 - 7 set to the same (each
@@ -556,18 +559,9 @@ public:
 		return static_cast<uint8_t>(bottom | (bottom << 4));
 	}
 	// An island of stacked sheets for p_seed (turns squares mode on): the heightmap island's tiers,
-	// as corners; rebuilds the grid. Returns "squares island 3: heights 1x40 2x30 …".
+	// as corners; rebuilds the grid. With heightmap mode on: randomize_heights (drawn as squares).
+	// Returns "squares island 3: heights 1x40 2x30 …".
 	String randomize_squares(int p_seed);
-	// The three terrain modes as one value (the editor's mode button cycles them).
-	enum TerrainMode {
-		TERRAIN_CORNERS = 0, // marching cubes on the corners (any shape)
-		TERRAIN_HEIGHTMAP = 1, // one height per corner column (heightmap_mode)
-		TERRAIN_SQUARES = 2, // marching squares per layer (squares_mode)
-		TERRAIN_MODE_COUNT = 3,
-	};
-	void set_terrain_mode(int p_mode);
-	int get_terrain_mode() const;
-	static const char *terrain_mode_name(int p_mode);
 	// Height of corner column (x, z) = its solid corners (y < height); -1 outside / not in the mode.
 	int get_column_height(const Vector2i &p_column) const;
 	// Corner columns along x and z, and the highest height a column can have.

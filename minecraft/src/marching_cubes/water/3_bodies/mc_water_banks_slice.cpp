@@ -127,6 +127,11 @@ const std::vector<float> &MCGrid::_slice_field(
 		// above the floor's grass but below every tile: the lowest tiles' walls go on straight down
 		return _slice_field(Vector3i(p_cell.x, 0, p_cell.z), -0.49f, r_key);
 	}
+	if (squares_mode && p_height > 0.0f) {
+		// squares: a cell's tile fills its lower half (and the cell below's upper half); its upper half
+		// is the lower half of the tile of the cell above
+		return _slice_field(p_cell + Vector3i(0, 1, 0), p_height - 1.0f, r_key);
+	}
 	uint8_t hash = get_cell_hash(p_cell);
 	uint64_t tile_key = 0; // the tile's mesh + turn key
 	const MCBakedTile *tile = _baked_tile(p_cell, &tile_key);

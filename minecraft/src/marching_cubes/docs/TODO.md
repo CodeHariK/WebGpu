@@ -19,6 +19,11 @@ modelled in Blender. Docs: `docs/MarchingCubes.md`.
       5 stand-in tiles (`Squares.glb`, `blender/mc_tiles/scripts/squares_tiles.py`), `squares.tscn`
       (`make run_squares`), Randomize = the island as stacked sheets, saved as mode 2, the Mode button
       cycles corners / heightmap / squares — uncommitted
+- [x] **Heightmap and squares combine**: heightmap (how the corners are edited) and squares (how
+      they are drawn) are two flags, not modes; heightmap + squares = terraced cliffs with straight
+      walls, water included (the banks' tile bakes put squares tiles half a cell down, and a slice
+      in a cell's upper half reads the tile above). Panel: "Heightmap: on / off", "Draw: cubes /
+      squares"; save mode byte = flags (old files read the same) — uncommitted
 - [ ] Squares next: a SQUARES kind in the Blender add-on (5 tiles, its playground); L / H levels for
       squares tiles (levels are still worked out from the 8-corner shapes); a cap-free variant if the
       hidden caps cost too much

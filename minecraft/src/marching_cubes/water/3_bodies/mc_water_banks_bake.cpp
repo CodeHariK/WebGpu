@@ -1,5 +1,6 @@
 // MCGrid: each tile mesh baked once for the water (per mesh and turn, kept for good): its triangles,
-// turned as the cell uses it (cell-local), and a top-down heightmap of them, (BAKE + 1)^2 points,
+// turned and placed as the cell uses it (cell-local: squares tiles half a cell down, _tile_offset),
+// and a top-down heightmap of them, (BAKE + 1)^2 points,
 // each the highest point of that mesh straight above / below it (a vertical ray against its
 // triangles; no physics), or NO_HIT. The per-mesh banks (mc_water_banks_slice.cpp) slice the
 // triangles; the heightmap settles which way the triangles face.
@@ -78,8 +79,11 @@ const MCBakedTile *MCGrid::_baked_tile(
 	}
 	MCBakedTile baked;
 	PackedVector3Array faces = mesh->get_faces();
+	// where the tile sits in its cell (squares: half a cell down; the caches are emptied when that
+	// changes, set_squares_mode)
+	const Vector3 placed(0.0f, _tile_offset().y - 0.5f, 0.0f);
 	for (int64_t i = 0; i < faces.size(); i++) {
-		baked.triangles.push_back(tile.turn.xform(faces[i]));
+		baked.triangles.push_back(tile.turn.xform(faces[i]) + placed);
 	}
 	const int n = BAKE + 1;
 	baked.heights.assign(static_cast<size_t>(n * n), NO_HIT);

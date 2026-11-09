@@ -48,7 +48,8 @@ void MCManager::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("initialize_all"), &MCManager::initialize_all);
 	ClassDB::bind_method(D_METHOD("_on_randomize_grid"), &MCManager::_on_randomize_grid);
 	ClassDB::bind_method(D_METHOD("_on_unpin"), &MCManager::_on_unpin);
-	ClassDB::bind_method(D_METHOD("_on_cycle_terrain_mode"), &MCManager::_on_cycle_terrain_mode);
+	ClassDB::bind_method(D_METHOD("_on_toggle_heightmap"), &MCManager::_on_toggle_heightmap);
+	ClassDB::bind_method(D_METHOD("_on_toggle_squares"), &MCManager::_on_toggle_squares);
 	ClassDB::bind_method(D_METHOD("_on_select_tool", "mode"), &MCManager::_on_select_tool);
 	ClassDB::bind_method(D_METHOD("_on_undo"), &MCManager::_on_undo);
 	ClassDB::bind_method(D_METHOD("_on_redo"), &MCManager::_on_redo);
@@ -235,6 +236,7 @@ void MCManager::load_terrain(const String &p_path) {
 		cancel_drag();
 		_clear_selection();
 		grid_node->load_grid(p_path);
+		_update_terrain_buttons(grid_node); // the file brings its own heightmap / squares
 	}
 }
 

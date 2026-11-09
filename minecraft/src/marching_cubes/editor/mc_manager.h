@@ -68,7 +68,8 @@ private:
 	NodePath tile_library_path;
 	int randomize_seed = 0; // the last Randomize seed (0 = not randomized yet)
 	Label *randomize_label = nullptr;
-	Button *terrain_mode_button = nullptr; // "Mode: corners / heightmap / squares"
+	Button *heightmap_button = nullptr; // "Heightmap: on / off" (how the corners are edited)
+	Button *draw_button = nullptr; // "Draw: cubes / squares" (how they are drawn)
 	Button *tool_buttons[4] = {}; // the tool bar, by InteractionMode
 	Button *undo_button = nullptr;
 	Button *redo_button = nullptr;
@@ -188,7 +189,10 @@ public:
 	// Unpin button: Randomize no longer keeps a library tile.
 	void _on_unpin();
 	// Heightmap mode on / off (MCGrid::set_heightmap_mode); the button shows the state.
-	void _on_cycle_terrain_mode();
+	void _on_toggle_heightmap();
+	void _on_toggle_squares();
+	// The Heightmap / Draw buttons' text from the grid (after a toggle, a load).
+	void _update_terrain_buttons(class MCGrid *p_grid);
 	// --- tool bar + undo / redo (mc_manager_tools.cpp) ---
 	// The tool buttons (one pressed at a time) and Undo / Redo, in the top bar.
 	void _setup_tool_bar(HBoxContainer *p_bar);

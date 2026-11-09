@@ -77,10 +77,7 @@ void MCGrid::set_heightmap_mode(bool p_on) {
 	if (heightmap_mode == p_on) {
 		return;
 	}
-	heightmap_mode = p_on;
-	if (heightmap_mode) {
-		squares_mode = false; // one or the other (mc_grid_squares.cpp); the rebuild below redraws it
-	}
+	heightmap_mode = p_on; // drawn with the full set or squares either way (squares_mode)
 	clear_history(); // the edits were recorded in the other mode
 	if (heightmap_mode && !chunks.empty()) {
 		_heights_from_corners();

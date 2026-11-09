@@ -59,12 +59,7 @@ void MCGrid::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_squares_mode", "on"), &MCGrid::set_squares_mode);
 	ClassDB::bind_method(D_METHOD("get_squares_mode"), &MCGrid::get_squares_mode);
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "squares_mode"), "set_squares_mode", "get_squares_mode");
-	ClassDB::bind_method(D_METHOD("set_terrain_mode", "mode"), &MCGrid::set_terrain_mode);
-	ClassDB::bind_method(D_METHOD("get_terrain_mode"), &MCGrid::get_terrain_mode);
 	ClassDB::bind_method(D_METHOD("randomize_squares", "seed"), &MCGrid::randomize_squares);
-	BIND_CONSTANT(TERRAIN_CORNERS);
-	BIND_CONSTANT(TERRAIN_HEIGHTMAP);
-	BIND_CONSTANT(TERRAIN_SQUARES);
 	ClassDB::bind_method(D_METHOD("get_column_height", "column"), &MCGrid::get_column_height);
 	ClassDB::bind_method(D_METHOD("get_column_counts"), &MCGrid::get_column_counts);
 	ClassDB::bind_method(D_METHOD("get_max_column_height"), &MCGrid::get_max_column_height);

@@ -1,7 +1,7 @@
 // MCManager: the Randomize section of the side panel (grid corners by the L / M / H rules,
 // MCGrid::randomize_levels, core/mc_level_plan.h; in heightmap mode an island, MCGrid::
-// randomize_heights; in squares mode an island of sheets, MCGrid::randomize_squares — the "Mode"
-// button cycles corners / heightmap / squares) and pinning: a left click on a library tile pins it,
+// randomize_heights; with squares only an island of sheets, MCGrid::randomize_squares — the
+// "Heightmap" and "Draw" buttons switch them) and pinning: a left click on a library tile pins it,
 // moves the grid into a row behind the library (pinned column lined up with the tile) and
 // randomizes around it, like the Blender add-on's playground.
 #include "cui/cui.h"
@@ -33,26 +33,46 @@ void MCManager::_setup_randomize_ui() {
 	unpin_btn->set_custom_minimum_size(Vector2(0, 30));
 	randomize_label = ui.manager->add_label(ui.stats_vbox, "Click a library tile to pin it");
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
-	int mode = grid_node ? grid_node->get_terrain_mode() : MCGrid::TERRAIN_CORNERS;
-	terrain_mode_button = ui.manager->add_button(
-			ui.stats_vbox, String("Mode: ") + MCGrid::terrain_mode_name(mode), Callable(this, "_on_cycle_terrain_mode")
-	);
-	terrain_mode_button->set_custom_minimum_size(Vector2(0, 30));
+	heightmap_button = ui.manager->add_button(ui.stats_vbox, "", Callable(this, "_on_toggle_heightmap"));
+	heightmap_button->set_custom_minimum_size(Vector2(0, 30));
+	draw_button = ui.manager->add_button(ui.stats_vbox, "", Callable(this, "_on_toggle_squares"));
+	draw_button->set_custom_minimum_size(Vector2(0, 30));
+	_update_terrain_buttons(grid_node);
 }
 
-// The next terrain mode: corners -> heightmap (clicks move whole columns, Randomize makes an
-// island) -> squares (each layer a marching squares sheet, Randomize makes an island of sheets).
-void MCManager::_on_cycle_terrain_mode() {
+// The two terrain buttons' text: how the corners are edited, and how they are drawn.
+void MCManager::_update_terrain_buttons(MCGrid *p_grid) {
+	bool heightmap = p_grid && p_grid->get_heightmap_mode();
+	bool squares = p_grid && p_grid->get_squares_mode();
+	if (heightmap_button) {
+		heightmap_button->set_text(heightmap ? "Heightmap: on" : "Heightmap: off");
+	}
+	if (draw_button) {
+		draw_button->set_text(squares ? "Draw: squares" : "Draw: cubes");
+	}
+}
+
+// Heightmap on / off: how the corners are edited (on: clicks move whole columns, water works,
+// Randomize makes an island; switching clears the undo history).
+void MCManager::_on_toggle_heightmap() {
 	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
 	if (!grid_node) {
 		return;
 	}
 	cancel_drag();
-	grid_node->set_terrain_mode((grid_node->get_terrain_mode() + 1) % MCGrid::TERRAIN_MODE_COUNT);
-	if (terrain_mode_button) {
-		terrain_mode_button->set_text(String("Mode: ") + MCGrid::terrain_mode_name(grid_node->get_terrain_mode()));
-	}
+	grid_node->set_heightmap_mode(!grid_node->get_heightmap_mode());
+	_update_terrain_buttons(grid_node);
 	_update_history_buttons(); // switching clears the history
+}
+
+// Draw: cubes (the full tile set) or squares (each layer a marching squares sheet).
+void MCManager::_on_toggle_squares() {
+	MCGrid *grid_node = Object::cast_to<MCGrid>(get_node_or_null(grid_stats.path));
+	if (!grid_node) {
+		return;
+	}
+	grid_node->set_squares_mode(!grid_node->get_squares_mode());
+	_update_terrain_buttons(grid_node);
 }
 
 // Next seed, new corners for the whole grid (around the pin, if any); the summary label follows.
