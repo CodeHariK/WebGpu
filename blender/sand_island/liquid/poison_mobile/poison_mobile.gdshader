@@ -1,5 +1,6 @@
 // Green poison, mobile: steps 1 - 5 (liquid_common.gdshaderinc) and its own step 7: bubbles that
-// grow and pop, drifting with the flow, and a faint toxic glow. Matte, opaque.
+// grow and pop, drifting with the flow, and a faint toxic glow. Matte, opaque. Built one idea at a
+// time in steps/ (12 whole shaders, step 12 is this one): `make liquid-steps`.
 // From the minecraft game's MC water: the game uses a copy (minecraft/project/material/shaders/
 // terrain/liquid/), MCGrid picks it when the map's liquid is green poison. It reads the MC water mesh's data
 // (COLOR flow, UV, UV2, depth: shader_lib/liquid_common.gdshaderinc); on another mesh it compiles

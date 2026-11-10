@@ -28,6 +28,8 @@ help:
 	@echo "  make liquids     the 7 liquid shaders (water / lava / poison, mobile + desktop; slime) on"
 	@echo "                   the game's MC water sample or the slime river (keys 1 - 7, left /"
 	@echo "                   right; M sample; N day / night)"
+	@echo "  make liquid-steps   the poison (mobile) built step by step (left / right; liquid/steps.tscn)"
+	@echo "  make liquid-steps-shots   $(LIQUID)/shots/poison_mobile_step<NN>.png, one per step"
 	@echo "  make liquid-e    open it in the Godot editor     make liquid-reimport   import headless"
 	@echo "  make liquid-shots   $(LIQUID)/shots/liquid_<shader>.png, by day and by night"
 	@echo "  make liquid-sample  export the sample again from the game (its 'last' inspect map)"
@@ -86,6 +88,12 @@ shots:
 liquids:
 	$(GODOT) --path $(LIQUID)
 
+liquid-steps:
+	$(GODOT) --path $(LIQUID) res://steps.tscn
+
+liquid-steps-shots:
+	$(GODOT) --path $(LIQUID) res://steps.tscn -- --capture-steps
+
 liquid-e:
 	$(GODOT) -e --path $(LIQUID)
 
@@ -120,4 +128,4 @@ preview:
 	python3 preview_in_godot.py
 
 .PHONY: help e reimport water sand snow snow-demo rock lab bench bench-rock shots liquids liquid-e \
-	liquid-reimport liquid-shots liquid-sample slime-bake slime-river demo preview
+	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-shots slime-bake slime-river demo preview

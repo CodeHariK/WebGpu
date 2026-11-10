@@ -12,6 +12,8 @@ shaders run on the game's MC water mesh, not on the sand island's water.
 ```
 make liquids          # the viewer (from the folder above: blender/sand_island/)
 make liquid-shots     # shots/liquid_<shader>.png, by day and by night
+make liquid-steps     # the poison (mobile) built step by step (steps.tscn)
+make liquid-steps-shots  # shots/poison_mobile_step<NN>.png, one per step
 make liquid-sample    # export the sample meshes again from the game
 make slime-bake       # bake the slime's textures in Blender (and import them)
 make slime-river      # build the slime river sample in Blender (and import it)
@@ -24,11 +26,30 @@ make slime-river      # build the slime river sample in Blender (and import it)
 | `water_mobile/`, `lava_mobile/`, `poison_mobile/` | the mobile look: steps 1 – 5 shared, lava's crust (6), poison's bubbles (7) |
 | `water_desktop/`, `lava_desktop/`, `poison_desktop/` | the desktop look: refraction, absorption, caustics, glow, … (each file's header lists its parts) |
 | `slime/` | `slime.gdshader` + `slime.tres` (the material with its textures); `slime_pattern.png`, `slime_slopes.png` (baked); `slime_bake.blend` (the node materials that make them); `slime_channels.png` (the four channels side by side) |
+| `poison_mobile/steps/` | the poison's step track (above); `steps.tscn` / `steps.gd` show it |
 | `shader_lib/` | `liquid_noise` (hash, noise), `liquid_common` (the mobile set's steps 2 – 5), `liquid_desktop` (the desktop set's tools) |
 | `sample/` | `water.res` + `terrain.res`: the game's water and the ground round it (its "last" inspect map); `slime_river.blend` + `.glb`: the slime river (Blender) |
 | `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`) |
 
-No step-by-step tracks yet: each folder will get a `steps/` folder, as the sand island's shaders have.
+Step-by-step tracks, as the sand island's shaders have: `poison_mobile/steps/` (12 steps, the last
+one is `poison_mobile.gdshader`). Each step file is a whole shader; the lines a step adds end in
+`// NEW`, and the comment at its top (shown in the viewer's panel) says what the step adds. The
+other liquids get a `steps/` folder each the same way.
+
+| Poison step | Adds |
+|---|---|
+| 1 colour | one matte green |
+| 2 depth | debug: the mesh's depth (`CUSTOM0.x`) as grey |
+| 3 shallows | pale at the edges, green where deep |
+| 4 flow | debug: the flow (`COLOR`): **C** cycles all / r / g / b / a / dots moving with it |
+| 5 ripples | two sizes of noise blobs, still |
+| 6 slide | ripples slid along the flow (and why that stretches at bends) |
+| 7 flow map | the two-copy trick: running, never stretching |
+| 8 falls | threads sliding down the falls (`UV2`), faster as they fall |
+| 9 foam | shore, landing and fall-foot froth |
+| 10 bubbles | grow and pop, one per square of the plane |
+| 11 drift | the bubbles ride the flow (the same trick) |
+| 12 glow | a faint toxic `EMISSION`: the finished poison |
 
 ## The mesh data the shaders read
 
