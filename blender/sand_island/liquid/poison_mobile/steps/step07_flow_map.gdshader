@@ -17,6 +17,7 @@ uniform float flow_speed = 0.35;  // metres a second: thick
 uniform float ripple_scale = 1.3;  // about this many ripples a metre
 uniform float ripple_strength : hint_range(0.0, 0.5) = 0.12;  // how much they lighten / darken
 uniform float flow_cycle = 1.6;  // NEW: seconds one copy slides before it restarts
+uniform int show_channel : hint_enum("colour", "ripples only: grey") = 0;  // C in the viewer: the ripples alone, easier to watch
 
 varying float depth;
 
@@ -47,7 +48,7 @@ void fragment() {
 	vec2 velocity = mix(vec2(0.08, 0.05), direction * flow_speed, flows);
 	float r = flowing_ripples(UV * ripple_scale, velocity * ripple_scale, TIME);  // NEW: the trick
 	colour *= 1.0 + (r - 0.5) * 2.0 * ripple_strength;
-	ALBEDO = colour;
+	ALBEDO = show_channel == 1 ? vec3(r) : colour;  // the ripples alone (C), full strength
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }

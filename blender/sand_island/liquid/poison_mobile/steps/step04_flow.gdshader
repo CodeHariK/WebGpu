@@ -6,6 +6,10 @@
 //   b  1 where it flows (a stream), 0 where it stands (a pond)
 //   a  1 where a fall lands (step 9 puts churning foam there)
 // The direction is stored as 0..1 because a colour can't be negative: * 2 - 1 gets back -1..1.
+// A colour has room for a flat direction only, so down a fall rg is the way the water left the lip
+// (out of the cliff), turning across a rounded fall; "down" is in UV2 instead (two more views):
+//   UV2.x  0 on the flat, 0..1 over a fall's lip, 1 and more down the fall (steps 8, 9 use it)
+//   UV2.y  on a fall, metres above where it lands (step 9's foam at its foot); -1 on a stream
 // show_channel picks the view (debug, unshaded): "all" shows r as red and g as green, so a stream
 // changes colour where it bends and a pond (b = 0) is dark; one channel alone is grey (0 black,
 // 0.5 mid grey, 1 white); "dots" sets dots moving the way it runs (tinted as "all"; still in a
@@ -14,7 +18,7 @@
 shader_type spatial;
 render_mode cull_disabled, unshaded;
 
-uniform int show_channel : hint_enum("all", "r: along x", "g: along z", "b: flows", "a: a fall lands", "dots: which way") = 0;  // NEW
+uniform int show_channel : hint_enum("all", "r: along x", "g: along z", "b: flows", "a: a fall lands", "dots: which way", "UV2.x: down a fall", "UV2.y: above the landing") = 0;  // NEW
 
 varying vec2 world_xz;  // NEW: for the dots: metres on the ground plane
 
@@ -46,6 +50,12 @@ void fragment() {
 		float dot0 = 1.0 - smoothstep(0.12, 0.18, length(p0));
 		float dot1 = 1.0 - smoothstep(0.12, 0.18, length(p1));
 		view = mix(view, vec3(1.0, 1.0, 0.85), mix(dot1, dot0, weight0));
+	} else if (show_channel == 6) {
+		view = vec3(clamp(UV2.x, 0.0, 1.0));  // NEW: black on the flat, grey over the lip, white down a fall
+	} else if (show_channel == 7) {
+		// NEW: metres above the landing as bands, one a metre (fract: 0 -> 1 every metre), so the
+		// height reads down the fall; a stream (-1) is red, the flat (0) black
+		view = UV2.y < -0.5 ? vec3(0.6, 0.1, 0.1) : vec3(fract(max(UV2.y, 0.0)));
 	}
 	ALBEDO = view;
 }

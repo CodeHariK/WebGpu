@@ -41,7 +41,7 @@ other liquids get a `steps/` folder each the same way.
 | 1 colour | one matte green |
 | 2 depth | debug: the mesh's depth (`CUSTOM0.x`) as grey |
 | 3 shallows | pale at the edges, green where deep |
-| 4 flow | debug: the flow (`COLOR`): **C** cycles all / r / g / b / a / dots moving with it |
+| 4 flow | debug: the flow (`COLOR`): **C** cycles all / r / g / b / a / dots moving with it / `UV2.x` (down a fall) / `UV2.y` (above the landing) |
 | 5 ripples | two sizes of noise blobs, still |
 | 6 slide | ripples slid along the flow (and why that stretches at bends) |
 | 7 flow map | the two-copy trick: running, never stretching |

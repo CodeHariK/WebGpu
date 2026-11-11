@@ -15,7 +15,7 @@ var step_files: PackedStringArray = []
 var step := 0
 var title := Label.new()
 var notes := Label.new()
-var channel := 0 # the step's show_channel (when it has one), kept between steps
+var channel := 0 # the step's show_channel (when it has one), kept while the next step has the same views
 var channel_names: PackedStringArray = [] # its hint_enum names, empty when the step has none
 var channel_button := Button.new()
 
@@ -75,8 +75,10 @@ func _show_step(p_index: int) -> void:
 	var path := TRACK + step_files[step]
 	var material := ShaderMaterial.new()
 	material.shader = load(path)
-	channel_names = _channel_names(material.shader)
-	channel = clampi(channel, 0, max(channel_names.size() - 1, 0))
+	var names := _channel_names(material.shader)
+	if names != channel_names:
+		channel = 0 # another step's views: start on its first (its normal look)
+	channel_names = names
 	if not channel_names.is_empty():
 		material.set_shader_parameter("show_channel", channel)
 	for liquid in liquids:

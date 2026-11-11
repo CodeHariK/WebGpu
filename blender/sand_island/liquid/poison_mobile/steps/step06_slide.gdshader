@@ -3,6 +3,10 @@
 // (mix by COLOR.b). Sliding the pattern by velocity * TIME moves it downstream. Watch a bend for a
 // while: each pixel slides its own way, so where the direction changes the ripples are pulled
 // apart further and further, into long streaks. Step 7 fixes that.
+// It is slow and faint on purpose (the poison is thick: 0.35 m a second in a stream, a drift of
+// under 0.1 m a second in the pond, the colour only 12 % lighter or darker), so press C for the
+// ripples alone in grey: the stream's pattern runs, the pond's creeps, and after a minute or so
+// the bends turn to streaks.
 shader_type spatial;
 render_mode cull_disabled;
 
@@ -14,6 +18,7 @@ uniform float depth_range : hint_range(0.1, 4.0) = 1.2;  // metres from shore to
 uniform float flow_speed = 0.35;  // NEW: metres a second: thick
 uniform float ripple_scale = 1.3;  // about this many ripples a metre
 uniform float ripple_strength : hint_range(0.0, 0.5) = 0.12;  // how much they lighten / darken
+uniform int show_channel : hint_enum("colour", "ripples only: grey") = 0;  // C in the viewer: the ripples alone, easier to watch
 
 varying float depth;
 
@@ -34,7 +39,7 @@ void fragment() {
 	vec2 velocity = mix(vec2(0.08, 0.05), direction * flow_speed, flows);  // NEW: a pond just drifts
 	float r = ripples((UV - velocity * TIME) * ripple_scale);  // NEW: slid downstream
 	colour *= 1.0 + (r - 0.5) * 2.0 * ripple_strength;
-	ALBEDO = colour;
+	ALBEDO = show_channel == 1 ? vec3(r) : colour;  // the ripples alone (C), full strength
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }
