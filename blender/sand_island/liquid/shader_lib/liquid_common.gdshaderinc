@@ -1,4 +1,4 @@
-// The mobile liquid shaders' shared steps (water_mobile/, lava_mobile/, poison_mobile/): one
+// The mobile liquid shaders' shared steps (lava_mobile/, poison_mobile/; the water has its own): one
 // liquid per map, one material, one draw (MCGrid's `liquid` picks the shader; no branching).
 // Built one idea per step; each step adds one thing on top of the last:
 //   step 1  a colour per liquid (each shader's own uniforms)

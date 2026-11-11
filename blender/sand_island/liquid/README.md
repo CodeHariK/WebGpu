@@ -12,8 +12,9 @@ shaders run on the game's MC water mesh, not on the sand island's water.
 ```
 make liquids          # the viewer (from the folder above: blender/sand_island/)
 make liquid-shots     # shots/liquid_<shader>.png, by day and by night
-make liquid-steps     # the poison (mobile) built step by step (steps.tscn)
-make liquid-steps-shots  # shots/poison_mobile_step<NN>.png, one per step
+make liquid-steps     # the poison (mobile) built step by step (steps.tscn; T: the water)
+make liquid-steps-water  # the same viewer, starting on the water (mobile)
+make liquid-steps-shots  # shots/<poison|water>_mobile_step<NN>.png, one per step
 make liquid-sample    # export the sample meshes again from the game
 make slime-bake       # bake the slime's textures in Blender (and import them)
 make slime-river      # build the slime river sample in Blender (and import it)
@@ -23,18 +24,20 @@ make slime-river      # build the slime river sample in Blender (and import it)
 
 | Folder | What it holds |
 |---|---|
-| `water_mobile/`, `lava_mobile/`, `poison_mobile/` | the mobile look: steps 1 – 5 shared, lava's crust (6), poison's bubbles (7) |
+| `water_mobile/` | the mobile water: a cartoon look from the world normal and position (triplanar, toon bands, depth-texture edge foam), no UV |
+| `lava_mobile/`, `poison_mobile/` | the mobile look: steps 1 – 5 shared (`liquid_common`), lava's crust (6), poison's bubbles (7) |
 | `water_desktop/`, `lava_desktop/`, `poison_desktop/` | the desktop look: refraction, absorption, caustics, glow, … (each file's header lists its parts) |
 | `slime/` | `slime.gdshader` + `slime.tres` (the material with its textures); `slime_pattern.png`, `slime_slopes.png` (baked); `slime_bake.blend` (the node materials that make them); `slime_channels.png` (the four channels side by side) |
-| `poison_mobile/steps/` | the poison's step track (above); `steps.tscn` / `steps.gd` show it |
-| `shader_lib/` | `liquid_noise` (hash, noise), `liquid_common` (the mobile set's steps 2 – 5), `liquid_desktop` (the desktop set's tools) |
+| `poison_mobile/steps/`, `water_mobile/steps/` | the step tracks (below); `steps.tscn` / `steps.gd` show them (T switches) |
+| `shader_lib/` | `liquid_noise` (hash, noise), `liquid_common` (the mobile lava's and poison's steps 2 – 5), `liquid_desktop` (the desktop set's tools) |
 | `sample/` | `water.res` + `terrain.res`: the game's water and the ground round it (its "last" inspect map); `slime_river.blend` + `.glb`: the slime river (Blender) |
 | `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`) |
 
 Step-by-step tracks, as the sand island's shaders have: `poison_mobile/steps/` (12 steps, the last
-one is `poison_mobile.gdshader`). Each step file is a whole shader; the lines a step adds end in
+one is `poison_mobile.gdshader`) and `water_mobile/steps/` (10 steps, the last one is
+`water_mobile.gdshader`). Each step file is a whole shader; the lines a step adds end in
 `// NEW`, and the comment at its top (shown in the viewer's panel) says what the step adds. The
-other liquids get a `steps/` folder each the same way.
+lava gets a `steps/` folder the same way.
 
 | Poison step | Adds |
 |---|---|
@@ -50,6 +53,32 @@ other liquids get a `steps/` folder each the same way.
 | 10 bubbles | grow and pop, one per square of the plane |
 | 11 drift | the bubbles ride the flow (the same trick) |
 | 12 glow | a faint toxic `EMISSION`: the finished poison |
+
+| Water step | Adds |
+|---|---|
+| 1 normal | debug: the world normal as colour; **C**: up only (grey) |
+| 2 fall | flat or falling from `normal.y`: two blues |
+| 3 toon light | a `light()` with a crisp lit / shade step, never dark |
+| 4 triplanar | debug: patterns laid on from three sides (world position), weighted by the normal; **C**: the weights / a noise |
+| 5 streaks | threads falling down the side views, two toon bands |
+| 6 lip | a white band where it bends over a fall's edge |
+| 7 lines | thin wavy lines on the top view (contour of noise, `fwidth`: pixels wide); **C**: the noise |
+| 8 run | the lines run along the flow (`COLOR`; two copies, cross-faded) |
+| 9 edge foam | the depth texture: white where shallow, round anything in the water; **C**: metres over the ground |
+| 10 landing | churning white blobs where a fall lands (`COLOR.a`): the finished water |
+
+### The mobile water, the poison and the sand island's water
+
+| | `water_mobile` (cartoon) | `poison_mobile` | the sand island's water (`../water_tutorial/`, step 13) |
+|---|---|---|---|
+| Mesh | the MC water mesh | the MC water mesh | the island's water plane |
+| Patterns laid by | world position + world normal (triplanar) | `UV` (metres) and `UV2` (falls) | world position |
+| Falls | found by the normal; streaks on the side views | `UV2`: threads down the fall's own frame | none |
+| Flat water | wavy toon lines running with the flow (`COLOR`) | soft ripples (light / dark), flow-map slid | baked `water_macro` texture (4 noises in one read), drifting |
+| Depth / shore | the depth texture: foam round the shore and anything in the water | `CUSTOM0.x`: shallow colour, shore foam | `COLOR.r`: colours, shore wash wave, contour lines |
+| Look | toon: few flat colours, crisp edges, white lip / streaks / rims | soft, matte, bubbles and a glow | soft, sparkles, vertex swell, fake sea bed |
+| Light | own `light()`: lit or shade (60 %) | lit, matte, a little `EMISSION` | `unshaded` |
+| Cost a pixel | 6 value noises on the flat (lines 4, wobble, churn), 4 on a fall, 1 depth read | 8 noises + bubbles (hashes) | 1 texture read + a few hash texel reads |
 
 ## The mesh data the shaders read
 

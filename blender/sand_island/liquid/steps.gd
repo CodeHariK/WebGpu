@@ -1,34 +1,39 @@
 extends "res://liquids.gd"
 ## The liquid shaders built step by step, one idea a step, on the same samples and light as the
-## liquids viewer (liquids.gd). The track: the mobile green poison, poison_mobile/steps/ (step 12 is
-## poison_mobile.gdshader). Each step file is a whole shader; the lines a step adds end in "// NEW".
-## The panel shows the comment at the top of the step's file: what that step adds.
+## liquids viewer (liquids.gd). Two tracks (TRACKS): the mobile green poison, poison_mobile/steps/
+## (step 12 is poison_mobile.gdshader), and the mobile water, water_mobile/steps/ (step 10 is
+## water_mobile.gdshader: a cartoon look from the world normal and position, no UV).
+## Each step file is a whole shader; the lines a step adds end in "// NEW". The panel shows the
+## comment at the top of the step's file: what that step adds.
 ##
-## Keys: left / right (or the panel's Prev / Next) previous / next step, C the view of a step that
-## has one (its show_channel uniform: step 4's flow channels), M the sample, N day / night, drag to
-## orbit, wheel to zoom, R the start view, F the whole map. `-- --capture-steps` saves
-## shots/poison_mobile_step<NN>.png (day) for each step and quits.
+## Keys: left / right (or the panel's Prev / Next) previous / next step, T the other track, C the
+## view of a step that has one (its show_channel uniform: step 4's flow channels), M the sample,
+## N day / night, drag to orbit, wheel to zoom, R the start view, F the whole map.
+## `-- --track=water` starts on the water. `-- --capture-steps` saves shots/<track>_step<NN>.png
+## (day) for each step of each track and quits.
 
-const TRACK := "res://poison_mobile/steps/"
+# [the panel's name, the folder of step files, the shots' prefix]
+const TRACKS := [
+	["POISON, MOBILE", "res://poison_mobile/steps/", "poison_mobile"],
+	["WATER, MOBILE", "res://water_mobile/steps/", "water_mobile"],
+]
 
-var step_files: PackedStringArray = []
+var track := 0 # which of TRACKS
+var step_files: PackedStringArray = [] # the track's step files, in order
 var step := 0
 var title := Label.new()
 var notes := Label.new()
 var channel := 0 # the step's show_channel (when it has one), kept while the next step has the same views
 var channel_names: PackedStringArray = [] # its hint_enum names, empty when the step has none
 var channel_button := Button.new()
+var track_button := Button.new()
 
 
 func _ready() -> void:
-	for file in DirAccess.get_files_at(TRACK):
-		if file.ends_with(".gdshader"):
-			step_files.append(file)
-	step_files.sort()
 	super._ready() # the world, the samples, the camera
 	label.visible = false # the shader list's label: the panel below instead
 	_add_panel()
-	_show_step(0)
+	_show_track(1 if "--track=water" in OS.get_cmdline_user_args() else 0)
 	if "--capture-steps" in OS.get_cmdline_user_args():
 		_capture_steps()
 
@@ -50,11 +55,14 @@ func _add_panel() -> void:
 		b.focus_mode = Control.FOCUS_NONE # keep the arrow keys for the steps
 		b.pressed.connect(func() -> void: _show_step(step + (1 if i == 1 else -1)))
 		buttons.add_child(b)
+	track_button.focus_mode = Control.FOCUS_NONE
+	track_button.pressed.connect(func() -> void: _show_track((track + 1) % TRACKS.size()))
+	buttons.add_child(track_button)
 	channel_button.focus_mode = Control.FOCUS_NONE
 	channel_button.pressed.connect(_next_channel)
 	buttons.add_child(channel_button)
 	var keys := Label.new()
-	keys.text = "left / right: step   C: view   M: sample   N: day / night   drag: orbit   wheel: zoom   R: start view   F: whole map"
+	keys.text = "left / right: step   T: track   C: view   M: sample   N: day / night   drag: orbit   wheel: zoom   R: start view   F: whole map"
 	keys.add_theme_font_size_override("font_size", 12)
 	keys.modulate = Color(1, 1, 1, 0.6)
 	box.add_child(title)
@@ -67,12 +75,24 @@ func _add_panel() -> void:
 	add_child(layer)
 
 
+# Load track p_index's step files and show its first step.
+func _show_track(p_index: int) -> void:
+	track = p_index
+	step_files.clear()
+	for file in DirAccess.get_files_at(TRACKS[track][1]):
+		if file.ends_with(".gdshader"):
+			step_files.append(file)
+	step_files.sort()
+	track_button.text = "Track (T): " + String(TRACKS[track][0]).to_lower()
+	_show_step(0)
+
+
 # Put step p_index on the liquid of every sample and show what it adds.
 func _show_step(p_index: int) -> void:
 	if step_files.is_empty():
 		return
 	step = clampi(p_index, 0, step_files.size() - 1)
-	var path := TRACK + step_files[step]
+	var path: String = TRACKS[track][1] + step_files[step]
 	var material := ShaderMaterial.new()
 	material.shader = load(path)
 	var names := _channel_names(material.shader)
@@ -85,7 +105,7 @@ func _show_step(p_index: int) -> void:
 		liquid.material_override = material
 	_update_channel_button()
 	var header := _header_comment(FileAccess.get_file_as_string(path))
-	title.text = "POISON, MOBILE · %d / %d · %s" % [step + 1, step_files.size(), header[0]]
+	title.text = "%s · %d / %d · %s" % [TRACKS[track][0], step + 1, step_files.size(), header[0]]
 	notes.text = header[1]
 
 
@@ -152,6 +172,10 @@ func _unhandled_input(p_event: InputEvent) -> void:
 			_show_step(step + (1 if p_event.keycode == KEY_RIGHT else -1))
 			get_viewport().set_input_as_handled()
 			return
+		if p_event.keycode == KEY_T:
+			_show_track((track + 1) % TRACKS.size())
+			get_viewport().set_input_as_handled()
+			return
 		if p_event.keycode == KEY_C:
 			_next_channel()
 			get_viewport().set_input_as_handled()
@@ -159,19 +183,21 @@ func _unhandled_input(p_event: InputEvent) -> void:
 	super._unhandled_input(p_event)
 
 
-# One shot of each step from the MC sample's start view, by day, then quit.
+# One shot of each step of each track from the MC sample's start view, by day, then quit.
 func _capture_steps() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
 	var ignore := FileAccess.open("res://shots/.gdignore", FileAccess.WRITE) # Godot: don't import the shots
 	ignore.close()
 	_show_sample(0)
 	_set_night(false)
-	for i in step_files.size():
-		_show_step(i)
-		for f in 20:
-			await get_tree().process_frame
-		await RenderingServer.frame_post_draw
-		var file := "poison_mobile_%s.png" % step_files[i].get_basename()
-		get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/" + file))
-		print("saved shots/" + file)
+	for t in TRACKS.size():
+		_show_track(t)
+		for i in step_files.size():
+			_show_step(i)
+			for f in 20:
+				await get_tree().process_frame
+			await RenderingServer.frame_post_draw
+			var file := "%s_%s.png" % [TRACKS[t][2], step_files[i].get_basename()]
+			get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/" + file))
+			print("saved shots/" + file)
 	get_tree().quit()
