@@ -18,6 +18,8 @@ make liquid-steps-shots  # shots/<poison|water>_mobile_step<NN>.png, one per ste
 make liquid-sample    # export the sample meshes again from the game
 make slime-bake       # bake the slime's textures in Blender (and import them)
 make slime-river      # build the slime river sample in Blender (and import it)
+make waterfall-simple # one waterfall sheet, a hand-written shader (waterfall_simple/)
+make waterfall-sheet  # export that sheet from the .blend again
 ```
 
 ## Folders
@@ -31,7 +33,8 @@ make slime-river      # build the slime river sample in Blender (and import it)
 | `poison_mobile/steps/`, `water_mobile/steps/` | the step tracks (below); `steps.tscn` / `steps.gd` show them (T switches) |
 | `shader_lib/` | `liquid_noise` (hash, noise), `liquid_common` (the mobile lava's and poison's steps 2 – 5), `liquid_desktop` (the desktop set's tools) |
 | `sample/` | `water.res` + `terrain.res`: the game's water and the ground round it (its "last" inspect map); `slime_river.blend` + `.glb`: the slime river (Blender) |
-| `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`) |
+| `waterfall_simple/` | one sheet of the waterfall (`waterfall_sheet.glb`) and a hand-written shader with its base colour layers (below); `waterfall_simple.tscn` |
+| `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`); `export_waterfall_sheet.py`: the simple waterfall's sheet |
 
 Step-by-step tracks, as the sand island's shaders have: `poison_mobile/steps/` (12 steps, the last
 one is `poison_mobile.gdshader`) and `water_mobile/steps/` (10 steps, the last one is
@@ -122,6 +125,32 @@ running 0.12 m into the banks so its ragged edge hides in them. It carries the M
 (along the channel; in the pool spreading out from the inlet and fading) and `UV` (world x, z in
 metres); no `UV2` or depth, so the shaders read it as flat liquid. Godot's Blender import is off in
 `project.godot` (the `.blend` files are the sources; the `.glb` is what Godot loads).
+
+## The simple waterfall (`waterfall_simple/`)
+
+The stylized waterfall taken apart, starting from one sheet: `waterfall_sheet.glb` is its
+"Plane.004" (`tools/export_waterfall_sheet.py`: subdivided, no thickness, no ripples, centred,
+bottom at 0) and `waterfall_simple.gdshader` is the base of its "waterfall" material, by hand:
+colour laid on by height, the edges between the colours bent by voronoi cells.
+
+| Layer | What |
+|---|---|
+| 1 deep | a height line bent 24 % toward a voronoi's distance, cut once: two deep blues |
+| 2 light | another bent height line: light teal over the top part |
+| 3 aqua | voronoi middles (closer than 0.487 to a point) as aqua circles, in a soft patch near the top |
+| streaks | thin bright vertical lines: the crests of noise-bent stripes (Wave Texture), shown only where a sideways wave sliding down meets a slow noise; 2.4 x brighter |
+| dark lines | a few thin dark vertical lines down the whole sheet: the troughs of nearly straight stripes (4 or 5 across), half as bright |
+| lip glow | a near-white patch over the top, its edge boiling with noise; under it a band of 12 stepped bright rings (up to 2.5 x), broken into islands by noise |
+| tiers | four brightness tiers by height (a noise-bent height line cut into 4 steps): 0.43 x at the bottom to 1.45 x at the top |
+| grade | hue + 0.06, saturation x 1.7, value x 1.9 over all of it |
+
+The cells fall: Blender slides each voronoi's Mapping up through its 3D texture over time. Built
+step by step in `steps/` (step 1: the three colour layers, step 2: the streaks, step 3: the dark
+lines, step 4: the lip glow, step 5: the
+height tiers; the last step is
+`waterfall_simple.gdshader`); the scene's panel steps through them (left / right). Still to add,
+one step each, from the same material: the lace foam at the lip (voronoi F1 minus smooth F1),
+the white drips.
 
 ## The viewer (`liquids.tscn`)
 

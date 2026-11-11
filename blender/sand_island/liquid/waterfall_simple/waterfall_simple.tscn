@@ -1,0 +1,33 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://waterfall_simple/waterfall_sheet.glb" id="1_sheet"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_simple.gdshader" id="2_shader"]
+[ext_resource type="Script" path="res://waterfall_simple/waterfall_simple.gd" id="3_script"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sheet"]
+shader = ExtResource("2_shader")
+
+[sub_resource type="Environment" id="Environment_grey"]
+background_mode = 1
+background_color = Color(0.25, 0.25, 0.25, 1)
+tonemap_mode = 4
+
+[sub_resource type="CameraAttributesPractical" id="CameraAttributes_none"]
+
+[node name="WaterfallSimple" type="Node3D"]
+script = ExtResource("3_script")
+
+[node name="Sheet" parent="." instance=ExtResource("1_sheet")]
+
+[node name="WaterfallSheet" parent="Sheet" index="0"]
+material_override = SubResource("ShaderMaterial_sheet")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.996, 0.087, 0, -0.087, 0.996, 0, 8.5, 22)
+fov = 40.0
+attributes = SubResource("CameraAttributes_none")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_grey")
+
+[editable path="Sheet"]

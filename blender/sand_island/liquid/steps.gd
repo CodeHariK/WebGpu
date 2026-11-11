@@ -1,4 +1,6 @@
 extends "res://liquids.gd"
+
+const StepHeader := preload("res://step_header.gd")
 ## The liquid shaders built step by step, one idea a step, on the same samples and light as the
 ## liquids viewer (liquids.gd). Two tracks (TRACKS): the mobile green poison, poison_mobile/steps/
 ## (step 12 is poison_mobile.gdshader), and the mobile water, water_mobile/steps/ (step 10 is
@@ -138,32 +140,9 @@ func _show(_p_index: int) -> void:
 	_show_step(step)
 
 
-# The leading // comment of a shader file: [its first line without "STEP n — ", the rest]. The rest
-# is joined into one paragraph, except indented lines ("//   r  how much ..."): a list, each on
-# its own line, and the text after it on a new line.
+# The leading // comment of a shader file: [its title, what it adds] (step_header.gd).
 func _header_comment(p_code: String) -> Array:
-	var lines: PackedStringArray = []
-	for line in p_code.split("\n"):
-		if not line.begins_with("//"):
-			break
-		lines.append(line.trim_prefix("//"))
-	if lines.is_empty():
-		return ["", ""]
-	var first := lines[0].strip_edges()
-	var dash := first.find("— ")
-	if first.begins_with("STEP") and dash >= 0:
-		first = first.substr(dash + 2)
-	var rest := ""
-	var in_list := false
-	for line in lines.slice(1):
-		var indented := line.begins_with("   ")
-		if rest.is_empty():
-			rest = line.strip_edges()
-		else:
-			# a list item, or the first line after a list: a new line; else the same paragraph
-			rest += ("\n" if indented or in_list else " ") + line.strip_edges()
-		in_list = indented
-	return [first, rest]
+	return StepHeader.parse(p_code)
 
 
 func _unhandled_input(p_event: InputEvent) -> void:

@@ -36,6 +36,9 @@ help:
 	@echo "  make liquid-sample  export the sample again from the game (its 'last' inspect map)"
 	@echo "  make slime-bake     bake the slime's textures in Blender (liquid/slime/, slime_bake.blend)"
 	@echo "  make slime-river    build the slime river sample in Blender (liquid/sample/slime_river.*)"
+	@echo "  make waterfall-simple    one waterfall sheet with a hand-written shader (liquid/waterfall_simple/)"
+	@echo "  make waterfall-sheet     export that sheet from the .blend again (waterfall_sheet.glb)"
+	@echo "  make waterfall-simple-shot   shots/waterfall_simple.png"
 	@echo "Other"
 	@echo "  make demo        run godot_demo/ (the first island + shaders)"
 	@echo "  make preview     render sand_island.glb in Godot -> godot_preview.png"
@@ -124,6 +127,20 @@ slime-river:
 	$(BLENDER) -b -P $(LIQUID)/tools/build_slime_river.py -- $(CURDIR)/$(LIQUID)
 	$(GODOT) --headless --editor --quit --path $(LIQUID)
 
+# The stylized waterfall's Blender file (liquid/stylized_waterfall/source/).
+WATERFALL_BLEND := $(LIQUID)/stylized_waterfall/source/stylizedwaterfall.blend
+
+# One sheet of it, simplified (liquid/waterfall_simple/).
+waterfall-simple:
+	$(GODOT) --path $(LIQUID) res://waterfall_simple/waterfall_simple.tscn
+
+waterfall-sheet:
+	$(BLENDER) -b $(WATERFALL_BLEND) --python $(LIQUID)/tools/export_waterfall_sheet.py
+	$(GODOT) --headless --editor --quit --path $(LIQUID)
+
+waterfall-simple-shot:
+	$(GODOT) --path $(LIQUID) -s tools/shoot_stylized_waterfall.gd -- --live --scene=res://waterfall_simple/waterfall_simple.tscn --out=waterfall_simple.png
+
 # --- Other ---
 demo:
 	$(GODOT) --path godot_demo
@@ -132,4 +149,4 @@ preview:
 	python3 preview_in_godot.py
 
 .PHONY: help e reimport water sand snow snow-demo rock lab bench bench-rock shots liquids liquid-e \
-	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-water liquid-steps-shots slime-bake slime-river demo preview
+	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-water liquid-steps-shots slime-bake slime-river waterfall-simple waterfall-sheet waterfall-simple-shot demo preview
