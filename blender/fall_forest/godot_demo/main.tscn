@@ -1,0 +1,72 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://main.gd" id="1_main"]
+[ext_resource type="Script" path="res://terrain/terrain.gd" id="2_terrain"]
+[ext_resource type="Material" path="res://assets/terrain_material.tres" id="3_terrain_material"]
+[ext_resource type="Script" path="res://props/prop_scatter.gd" id="4_props"]
+[ext_resource type="PackedScene" path="res://assets/fall_assets.glb" id="5_meshes"]
+[ext_resource type="Material" path="res://assets/fall_material.tres" id="6_material"]
+[ext_resource type="Material" path="res://assets/fall_leaf_material.tres" id="7_leaf_material"]
+[ext_resource type="Script" path="res://camera/fly_camera.gd" id="8_camera"]
+[ext_resource type="Script" path="res://debug/debug_panel.gd" id="9_panel"]
+[ext_resource type="Script" path="res://grass/grass_field.gd" id="10_grass"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_fall"]
+sky_top_color = Color(0.42, 0.56, 0.75, 1)
+sky_horizon_color = Color(0.86, 0.78, 0.68, 1)
+ground_horizon_color = Color(0.86, 0.78, 0.68, 1)
+ground_bottom_color = Color(0.86, 0.78, 0.68, 1)
+
+[sub_resource type="Sky" id="Sky"]
+sky_material = SubResource("Sky_fall")
+
+[sub_resource type="Environment" id="Environment_fall"]
+background_mode = 2
+sky = SubResource("Sky")
+ambient_light_source = 3
+ambient_light_energy = 0.7
+fog_enabled = true
+fog_mode = 1
+fog_light_color = Color(0.86, 0.78, 0.68, 1)
+fog_density = 1.0
+fog_sky_affect = 0.0
+fog_depth_begin = 150.0
+fog_depth_end = 420.0
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 50, 0)
+light_color = Color(1, 0.94, 0.85, 1)
+light_energy = 1.2
+shadow_enabled = true
+directional_shadow_mode = 1
+directional_shadow_max_distance = 80.0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_fall")
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_terrain")
+material = ExtResource("3_terrain_material")
+
+[node name="Props" type="Node3D" parent="."]
+script = ExtResource("4_props")
+meshes_scene = ExtResource("5_meshes")
+material = ExtResource("6_material")
+leaf_material = ExtResource("7_leaf_material")
+
+[node name="Grass" type="Node3D" parent="."]
+script = ExtResource("10_grass")
+
+[node name="Camera" type="Camera3D" parent="."]
+far = 600.0
+script = ExtResource("8_camera")
+
+[node name="DebugPanel" type="CanvasLayer" parent="." node_paths=PackedStringArray("terrain", "props", "sun", "grass")]
+script = ExtResource("9_panel")
+terrain = NodePath("../Terrain")
+props = NodePath("../Props")
+sun = NodePath("../Sun")
+grass = NodePath("../Grass")
