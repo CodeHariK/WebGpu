@@ -18,9 +18,11 @@ config/features=PackedStringArray("4.7", "Mobile")
 
 window/size/viewport_width=1600
 window/size/viewport_height=900
+window/handheld/orientation=0
 
 [rendering]
 
 renderer/rendering_method="mobile"
 occlusion_culling/use_occlusion_culling=true
 lights_and_shadows/directional_shadow/size=2048
+textures/vram_compression/import_etc2_astc=true

@@ -10,10 +10,11 @@ extends RefCounted
 ##   scale     smallest .. largest random size
 ##   where     "forest" (deep in a wood), "edge" (a wood's edge), "clearing", "anywhere"
 ##   leaf      double-sided material (the leaves are flat, one-sided cards)
+##   billboard_from   metres from which the kind is drawn as flat stand-ins (TreeBillboards)
 
 const KINDS := [
 	{"name": "trees", "meshes": ["Tree1", "Tree2", "Tree3", "Tree4"], "count": 1500,
-		"range": 400.0, "shadow": true, "lie": false, "scale": [0.8, 1.25], "where": "forest"},
+		"range": 400.0, "shadow": true, "lie": false, "scale": [0.8, 1.25], "where": "forest", "billboard_from": 60.0},
 	{"name": "bushes", "meshes": ["Bush1", "Bush2", "Bush3"], "count": 1500,
 		"range": 160.0, "shadow": true, "lie": false, "scale": [0.8, 1.3], "where": "edge"},
 	{"name": "pumpkins", "meshes": ["Pumpkin_Large", "Pumpkin_Medium", "Pumpkin_Small", "Gourd1", "Gourd2"], "count": 800,

@@ -20,9 +20,9 @@ make edit      # the Godot editor
 | `source/` | the pack: `AllFallAssets.fbx` (all 45 meshes), `FallTex.png`; `FallAssetsNature.blend` (every mesh textured, in metres, laid out in rows, marked as assets) and the two Blender scripts that make it and export it |
 | `godot_demo/assets/` | `fall_assets.glb` (the meshes, each at its base pivot, no materials), `FallTex.png`, the materials |
 | `godot_demo/terrain/` | `terrain_height.gd` (the ground's shape and the woods, from noise), `terrain_chunk.gd` (one chunk: near and far mesh, skirts, occluder), `terrain.gd` (the grid of chunks) |
-| `godot_demo/props/` | `prop_kinds.gd` (what grows where, how many, how far it is drawn), `prop_scatter.gd` (placing them, the batches) |
+| `godot_demo/props/` | `prop_kinds.gd` (what grows where, how many, how far it is drawn), `prop_scatter.gd` (placing them, the batches), `tree_billboards.gd` + `tree_billboard.gdshader` (the far trees' flat stand-ins) |
 | `godot_demo/grass/` | the grass (below): `grass_field.gd` (the two rings, the pusher), `grass_sliders.gd` (its sliders in the debug panel), `grass_layer.gd` (one ring of tiles following the camera), `grass_meshes.gd` (blade, tuft), `grass_maps.gd` (the terrain as textures), `grass_near.gdshader`, `grass_far.gdshader` |
-| `godot_demo/camera/`, `debug/` | the fly camera; the debug panel (stats and switches) |
+| `godot_demo/camera/`, `debug/` | the fly camera (mouse and keys, or touch: left half moves, right half looks); the debug panel (stats and switches), `capture.gd` (the timed runs) |
 
 ## The pack: is it cheap enough?
 
@@ -216,4 +216,44 @@ The props cost more than the grass (about 1.8 ms against 1.2 at eye height): abo
 draw calls, since each mesh variant in each chunk is a batch, and the trees' shadows. The grass
 adds about 70 draw calls (a tile each) and its cost is mostly vertices. All the speed-ups still matter with both on; the
 visibility ranges most.
+
+## On a phone (OnePlus 5)
+
+`export_presets.cfg` has three Android presets, all on the release template (real speed), signed
+with Godot's debug key (for testing, not the store): "Android" (play it), "Android capture"
+(the capture table) and "Android diagnose" (what the props cost: each kind off, their shading,
+the 3D resolution). The capture ones run by themselves and print the table to the log:
+
+```
+godot --headless --path godot_demo --export-release "Android diagnose" export/fall_forest_diagnose.apk
+adb install -r godot_demo/export/fall_forest_diagnose.apk
+adb shell am start -n com.hari.fallforest.diagnose/com.godot.game.GodotAppLauncher
+adb logcat -s godot:V        # the table, a row a line, after about 2 minutes
+```
+
+(The phone has to be unlocked and stay awake while it runs.) Every view and case is drawn a few
+times first: the first time a material is drawn its shader is compiled, and meanwhile Godot draws
+with a slower general one, which made the first numbers of the first run nonsense.
+
+OnePlus 5 (2017: Snapdragon 835, Adreno 540, Android 10), Vulkan mobile renderer, 1920 x 1080:
+
+| Case | Ground, hill ahead | Overview |
+|---|---|---|
+| all on, 3D trees to 400 m (before) | 67 ms | 83 ms |
+| all on, flat trees from 60 m | 42 ms | 27 ms |
+| no props | 32 | 21 |
+| no shadows | 40 | 24 |
+| 3D at 0.75 x the screen | 34 | 20 |
+| 3D at 0.5 x the screen | 27 | 17 |
+
+The trees were the problem: about 1 000 of them in view, each hundreds to thousands of triangles
+even after Godot's LOD, cost this GPU 30 - 60 ms. Their cost hardly changed with the resolution
+or the lighting, so it was their geometry, not their pixels. Far trees are now flat stand-ins
+(`TreeBillboards`): four puffy blobs (circles with a sine-wave edge and a lighter rim) and a
+rectangle trunk, about 200 triangles, opaque (no alpha: the outline is the triangles'), vertex
+coloured, unlit, turned to the camera (and leaning back toward it when seen from above). Each
+tree batch has a stand-in batch with the same copies; the 3D batch has it as its visibility
+parent, so from 60 m a chunk switches from 3D trees to stand-ins. That made the trees about
+5 ms instead of 30 - 60. What is left is mostly the ground and the grass at full resolution:
+rendering the 3D at 0.75 x the screen is the next easy win on this phone.
 

@@ -11,6 +11,10 @@ extends Node3D
 ##   ranges     each kind stops being drawn past its range (PropKinds): leaves at 35 m, trees
 ##              at 400 m
 ##   shadows    only the big kinds cast shadows
+##   billboards a kind with billboard_from (the trees) gets a second batch next to each of its
+##              batches: the same copies drawn as flat stand-ins (TreeBillboards), from that
+##              distance on. The 3D batch has the stand-in batch as its visibility parent
+##              (Godot's HLOD), so a chunk draws one or the other, never both
 
 const CHUNK_SIZE := 64.0
 const SEED := 21
@@ -22,12 +26,20 @@ const LEAF_LIFT := 0.03 ## metres: leaves float this much over the ground (no fl
 @export var leaf_material: Material
 
 var batches: Array[MultiMeshInstance3D] = []
+var far_batches: Array[MultiMeshInstance3D] = [] # the stand-ins (billboards)
 var placed := 0
+var _ranges_on := true
+var _billboards_on := true
+var _kind_shown := {} # kind name -> false when hidden
+var _billboard_meshes := {} # tree mesh name -> its stand-in
+var _billboard_material := ShaderMaterial.new()
+var _variants := {} # the materials set_shading made, by base material and mode
 
 
 func _ready() -> void:
 	if not enabled:
 		return
+	_billboard_material.shader = load("res://props/tree_billboard.gdshader")
 	var meshes := _meshes_by_name()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
@@ -37,10 +49,60 @@ func _ready() -> void:
 		_make_batches(kind, meshes, by_batch)
 
 
-## Every kind's range on, or none (everything drawn at any distance).
+## Every kind's range on, or none (everything drawn at any distance, in 3D).
 func set_ranges(p_on: bool) -> void:
+	_ranges_on = p_on
+	_refresh()
+
+
+## The far trees as stand-ins (on), or as 3D trees all the way to their range (off).
+func set_billboards(p_on: bool) -> void:
+	_billboards_on = p_on
+	_refresh()
+
+
+## One kind (PropKinds' name: trees, bushes, ...) shown or hidden.
+func set_kind_visible(p_kind: String, p_on: bool) -> void:
+	_kind_shown[p_kind] = p_on
+	_refresh()
+
+
+## Every batch's visibility and ranges from the switches above.
+func _refresh() -> void:
+	var standing_in := _ranges_on and _billboards_on
 	for batch in batches:
-		batch.visibility_range_end = batch.get_meta("range") if p_on else 0.0
+		var shown: bool = _kind_shown.get(batch.get_meta("kind"), true)
+		batch.visible = shown
+		var far: MultiMeshInstance3D = batch.get_meta("far", null)
+		if far:
+			far.visible = shown and standing_in
+		if far and standing_in:
+			batch.visibility_parent = batch.get_path_to(far)
+			batch.visibility_range_end = 0.0
+		else:
+			batch.visibility_parent = NodePath()
+			batch.visibility_range_end = batch.get_meta("range") if _ranges_on else 0.0
+
+
+## How the props are shaded, to find what they cost: "lit" (as made), "no shadows received"
+## (lit, the shadow map not read), "unshaded" (the texture's colour only, no lighting at all).
+func set_shading(p_mode: String) -> void:
+	for batch in batches:
+		var base: Material = leaf_material if batch.get_meta("leaf") else material
+		batch.material_override = base if p_mode == "lit" else _variant(base, p_mode)
+
+
+
+func _variant(p_base: StandardMaterial3D, p_mode: String) -> StandardMaterial3D:
+	var key := "%d %s" % [p_base.get_instance_id(), p_mode]
+	if not _variants.has(key):
+		var variant := p_base.duplicate() as StandardMaterial3D
+		if p_mode == "unshaded":
+			variant.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		else:
+			variant.disable_receive_shadows = true
+		_variants[key] = variant
+	return _variants[key]
 
 
 ## Random spots, kept as often as the kind likes the place (PropKinds.chance).
@@ -95,9 +157,39 @@ func _make_batches(p_kind: Dictionary, p_meshes: Dictionary, p_by_batch: Diction
 		batch.visibility_range_end = range_end
 		batch.visibility_range_end_margin = range_end * 0.05
 		batch.set_meta("range", range_end)
+		batch.set_meta("kind", p_kind["name"])
+		batch.set_meta("leaf", p_kind.get("leaf", false))
 		batch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if p_kind["shadow"] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(batch)
 		batches.append(batch)
+		if p_kind.has("billboard_from"):
+			_add_stand_ins(batch, p_kind, names[key.z], p_meshes)
+	_refresh()
+
+
+## The same copies as batch, drawn as stand-ins from the kind's billboard_from to its range.
+func _add_stand_ins(p_batch: MultiMeshInstance3D, p_kind: Dictionary, p_mesh_name: String, p_meshes: Dictionary) -> void:
+	if not _billboard_meshes.has(p_mesh_name):
+		_billboard_meshes[p_mesh_name] = TreeBillboards.build(p_meshes[p_mesh_name], hash(p_mesh_name))
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = _billboard_meshes[p_mesh_name]
+	multimesh.instance_count = p_batch.multimesh.instance_count
+	multimesh.buffer = p_batch.multimesh.buffer
+	var far := MultiMeshInstance3D.new()
+	far.name = p_batch.name + "_far"
+	far.multimesh = multimesh
+	far.position = p_batch.position
+	far.material_override = _billboard_material
+	far.visibility_range_begin = p_kind["billboard_from"]
+	far.visibility_range_begin_margin = 4.0
+	far.visibility_range_end = p_kind["range"]
+	far.visibility_range_end_margin = p_kind["range"] * 0.05
+	far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	far.set_meta("kind", p_kind["name"])
+	add_child(far)
+	far_batches.append(far)
+	p_batch.set_meta("far", far)
 
 
 func _chunk_corner(p_cx: int, p_cz: int) -> Vector3:
