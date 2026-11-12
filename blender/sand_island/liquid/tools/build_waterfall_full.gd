@@ -1,7 +1,7 @@
 extends SceneTree
 ## Builds waterfall_simple/waterfall_full.tscn (make waterfall-full-build): the simple waterfall's
 ## pieces laid out like the whole Blender scene, from waterfall_simple/full_layout.json
-## (tools/export_waterfall_sheet.py, in the sheet's frame):
+## (exported once from the Blender scene, in the sheet's frame):
 ##   8 sheets (two tiers of four: the one sheet mesh, each its own place, size and pattern_offset)
 ##   the pool below and the pool above, a froth tube along the foot of each tier and one along the
 ##   lip of the lower falls, stones scattered up the sides of both tiers, puffs and spray at both

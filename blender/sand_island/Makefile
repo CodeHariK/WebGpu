@@ -37,10 +37,9 @@ help:
 	@echo "  make slime-bake     bake the slime's textures in Blender (liquid/slime/, slime_bake.blend)"
 	@echo "  make slime-river    build the slime river sample in Blender (liquid/sample/slime_river.*)"
 	@echo "  make waterfall-simple    one waterfall sheet and its pool, hand-written shaders (liquid/waterfall_simple/)"
-	@echo "  make waterfall-sheet     export that sheet and the pool from the .blend again (*.glb)"
 	@echo "  make waterfall-simple-shot   shots/waterfall_simple.png"
 	@echo "  make waterfall-full      the simple pieces laid out like the whole Blender scene"
-	@echo "  make waterfall-full-build    build waterfall_full.tscn again (after make waterfall-sheet)"
+	@echo "  make waterfall-full-build    build waterfall_full.tscn again (from full_layout.json)"
 	@echo "  make waterfall-bench         time the simple waterfall shaders vs the island water and snow"
 	@echo "  make waterfall-bake      bake the sheet's still layers (mobile/), check the mobile sheet"
 	@echo "Other"
@@ -131,19 +130,12 @@ slime-river:
 	$(BLENDER) -b -P $(LIQUID)/tools/build_slime_river.py -- $(CURDIR)/$(LIQUID)
 	$(GODOT) --headless --editor --quit --path $(LIQUID)
 
-# The stylized waterfall's Blender file (liquid/stylized_waterfall/source/).
-WATERFALL_BLEND := $(LIQUID)/stylized_waterfall/source/stylizedwaterfall.blend
-
-# One sheet of it and its pool, simplified (liquid/waterfall_simple/).
+# A stylized waterfall taken apart, simplified, by hand (liquid/waterfall_simple/).
 waterfall-simple:
 	$(GODOT) --path $(LIQUID) res://waterfall_simple/waterfall_simple.tscn
 
-waterfall-sheet:
-	$(BLENDER) -b $(WATERFALL_BLEND) --python $(LIQUID)/tools/export_waterfall_sheet.py
-	$(GODOT) --headless --editor --quit --path $(LIQUID)
-
 waterfall-simple-shot:
-	$(GODOT) --path $(LIQUID) -s tools/shoot_stylized_waterfall.gd -- --live --scene=res://waterfall_simple/waterfall_simple.tscn --out=waterfall_simple.png
+	$(GODOT) --path $(LIQUID) -s tools/shoot_waterfall.gd -- --scene=res://waterfall_simple/waterfall_simple.tscn --out=waterfall_simple.png
 
 waterfall-full:
 	$(GODOT) --path $(LIQUID) res://waterfall_simple/waterfall_full.tscn
@@ -160,7 +152,7 @@ waterfall-bench:
 waterfall-full-build:
 	$(GODOT) --headless --editor --quit --path $(LIQUID)
 	$(GODOT) --headless --path $(LIQUID) -s tools/build_waterfall_full.gd
-	$(GODOT) --path $(LIQUID) -s tools/shoot_stylized_waterfall.gd -- --live --scene=res://waterfall_simple/waterfall_full.tscn --out=waterfall_full.png
+	$(GODOT) --path $(LIQUID) -s tools/shoot_waterfall.gd -- --scene=res://waterfall_simple/waterfall_full.tscn --out=waterfall_full.png
 
 # --- Other ---
 demo:
@@ -170,4 +162,4 @@ preview:
 	python3 preview_in_godot.py
 
 .PHONY: help e reimport water sand snow snow-demo rock lab bench bench-rock shots liquids liquid-e \
-	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-water liquid-steps-shots slime-bake slime-river waterfall-simple waterfall-sheet waterfall-simple-shot waterfall-full waterfall-full-build waterfall-bake waterfall-bench demo preview
+	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-water liquid-steps-shots slime-bake slime-river waterfall-simple waterfall-simple-shot waterfall-full waterfall-full-build waterfall-bake waterfall-bench demo preview

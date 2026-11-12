@@ -19,10 +19,9 @@ make liquid-sample    # export the sample meshes again from the game
 make slime-bake       # bake the slime's textures in Blender (and import them)
 make slime-river      # build the slime river sample in Blender (and import it)
 make waterfall-simple # one waterfall sheet, a hand-written shader (waterfall_simple/)
-make waterfall-sheet  # export that sheet, the pools and the full layout from the .blend again
 make waterfall-simple-shot  # shots/waterfall_simple.png
 make waterfall-full   # the whole waterfall rebuilt from the simple parts (waterfall_full.tscn)
-make waterfall-full-build  # build that scene again (export, build, shots/waterfall_full.png)
+make waterfall-full-build  # build that scene again (from full_layout.json), shots/waterfall_full.png
 make waterfall-bake   # bake the sheet's still layers (mobile), shots/waterfall_mobile_check.png
 ```
 
@@ -39,7 +38,7 @@ make waterfall-bake   # bake the sheet's still layers (mobile), shots/waterfall_
 | `sample/` | `water.res` + `terrain.res`: the game's water and the ground round it (its "last" inspect map); `slime_river.blend` + `.glb`: the slime river (Blender) |
 | `water_stylized/` | the simple waterfall's look on the MC water mesh: falls, flat water, froth, shore lace in one shader (below) |
 | `waterfall_simple/` | one sheet of the waterfall, the pool under it (`waterfall_sheet.glb`, `waterfall_pool.glb`), the froth tube and scattered stones (made by script), puffs, spray and bubbles, hand-written shaders built in steps (below); `waterfall_simple.tscn`; `waterfall_full.tscn` (the whole waterfall from these parts, `full_layout.json`, `meshes/`); `mobile/` (the sheet with its still layers baked) |
-| `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`); `export_waterfall_sheet.py`, `shoot_stylized_waterfall.gd`, `build_waterfall_full.gd`, `bake_waterfall_sheet.gd`, `check_waterfall_mobile.gd`, `bench_waterfall.gd`: the simple waterfall's |
+| `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`); `shoot_waterfall.gd`, `build_waterfall_full.gd`, `bake_waterfall_sheet.gd`, `check_waterfall_mobile.gd`, `bench_waterfall.gd`: the simple waterfall's |
 
 Step-by-step tracks, as the sand island's shaders have: `poison_mobile/steps/` (12 steps, the last
 one is `poison_mobile.gdshader`) and `water_mobile/steps/` (10 steps, the last one is
@@ -133,8 +132,8 @@ metres); no `UV2` or depth, so the shaders read it as flat liquid. Godot's Blend
 
 ## The simple waterfall (`waterfall_simple/`)
 
-A stylized waterfall (a Blender scene: `stylized_waterfall/source/`) taken apart, starting from one sheet: `waterfall_sheet.glb` is its
-"Plane.004" (`tools/export_waterfall_sheet.py`: subdivided, no thickness, no ripples, centred,
+A stylized waterfall (a third-party Blender scene, not kept in this repo) taken apart, starting
+from one sheet: `waterfall_sheet.glb` is its "Plane.004" (exported once from it: subdivided, no thickness, no ripples, centred,
 bottom at 0) and `waterfall_simple.gdshader` is its "waterfall" material, by hand:
 colour laid on by height, the edges between the colours bent by voronoi cells.
 
@@ -230,7 +229,7 @@ The bubbles are three subdivided quads by the fall, Blender's bubble material in
 
 ### The whole waterfall (`waterfall_full.tscn`)
 
-`tools/export_waterfall_sheet.py` also writes `full_layout.json` from the Blender file: the 8
+`full_layout.json` was exported from the same Blender file (with the meshes): the 8
 sheets' transforms (in the sheet's frame, converted to Godot's axes), the foam boxes and the camera
 (transform, field of view, focus distance). `tools/build_waterfall_full.gd` builds the scene from
 the simple parts: 8 sheets on one mesh (`meshes/sheet.res`, each its own `pattern_offset`), the

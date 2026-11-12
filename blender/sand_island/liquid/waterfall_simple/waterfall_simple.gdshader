@@ -1,5 +1,5 @@
-// Waterfall sheet, simple: the stylized waterfall's "waterfall" material
-// (stylized_waterfall/source/stylizedwaterfall.blend), written by hand. Blender's material is
+// Waterfall sheet, simple: a stylized waterfall Blender scene's "waterfall" material
+// (the .blend is not kept in this repo), written by hand. Blender's material is
 // colour laid on by height, the edges between the colours bent by voronoi cells:
 //   layer 1  two deep blues: a height line (low on the sheet) bent by cells, split in two tones
 //   layer 2  a light teal over the top part: another height line, bent by other cells
@@ -18,7 +18,7 @@
 // That is the whole material. Built step by step in steps/ (the last step is this file).
 //
 // Coordinates, like Blender's "Generated": the sheet's own position scaled to 0..1 over its box
-// (box_min, box_size: tools/export_waterfall_sheet.py prints them), kept in Blender's order:
+// (box_min, box_size: measured from the Blender mesh when it was exported), kept in Blender's order:
 // b.x across, b.y depth, b.z height (0 at the bottom, 1 at the top).
 shader_type spatial;
 render_mode unshaded, cull_disabled;
