@@ -2,7 +2,8 @@
 extends MeshInstance3D
 ## The froth's mesh: a tube lying across the foot of the waterfall, its ends rounded off, built
 ## here (like Blender's bottom foam: a curve turned into a tube). Dense enough for the vertex
-## shader to push lumps and ridges into it: `rings` along it, `segments` round it. UV: x along
+## shader to push lumps and ridges into it: `rings` along it, `segments` round it. Made when the
+## scene starts (and in the editor), not saved with it. UV: x along
 ## (0..1), y round (0..1). The froth shaders read tube_length / tube_radius (keep them the same).
 
 @export var length := 10.0:
@@ -28,6 +29,8 @@ func _ready() -> void:
 
 
 func _build() -> void:
+	if not is_inside_tree(): # built when the scene starts (and in the editor), not saved with it
+		return
 	var positions := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()

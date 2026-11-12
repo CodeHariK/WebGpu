@@ -135,7 +135,7 @@ func _update_channel_button() -> void:
 		channel_button.text = "View (C): " + channel_names[channel]
 
 
-# The liquids viewer's shader keys (1 - 7) would put a finished shader on: keep the step's.
+# The liquids viewer's shader keys (1 - 8) would put a finished shader on: keep the step's.
 func _show(_p_index: int) -> void:
 	_show_step(step)
 

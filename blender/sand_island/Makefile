@@ -39,6 +39,10 @@ help:
 	@echo "  make waterfall-simple    one waterfall sheet and its pool, hand-written shaders (liquid/waterfall_simple/)"
 	@echo "  make waterfall-sheet     export that sheet and the pool from the .blend again (*.glb)"
 	@echo "  make waterfall-simple-shot   shots/waterfall_simple.png"
+	@echo "  make waterfall-full      the simple pieces laid out like the whole Blender scene"
+	@echo "  make waterfall-full-build    build waterfall_full.tscn again (after make waterfall-sheet)"
+	@echo "  make waterfall-bench         time the simple waterfall shaders vs the island water and snow"
+	@echo "  make waterfall-bake      bake the sheet's still layers (mobile/), check the mobile sheet"
 	@echo "Other"
 	@echo "  make demo        run godot_demo/ (the first island + shaders)"
 	@echo "  make preview     render sand_island.glb in Godot -> godot_preview.png"
@@ -141,6 +145,23 @@ waterfall-sheet:
 waterfall-simple-shot:
 	$(GODOT) --path $(LIQUID) -s tools/shoot_stylized_waterfall.gd -- --live --scene=res://waterfall_simple/waterfall_simple.tscn --out=waterfall_simple.png
 
+waterfall-full:
+	$(GODOT) --path $(LIQUID) res://waterfall_simple/waterfall_full.tscn
+
+waterfall-bake:
+	$(GODOT) --path $(LIQUID) -s tools/bake_waterfall_sheet.gd
+	$(GODOT) --headless --editor --quit --path $(LIQUID)
+	$(GODOT) --path $(LIQUID) -s tools/check_waterfall_mobile.gd
+
+waterfall-bench:
+	$(GODOT) --rendering-method mobile --path $(LIQUID) -s tools/bench_waterfall.gd
+	$(GODOT) --rendering-method mobile --path water_tutorial -s $(abspath $(LIQUID))/tools/bench_waterfall.gd
+
+waterfall-full-build:
+	$(GODOT) --headless --editor --quit --path $(LIQUID)
+	$(GODOT) --headless --path $(LIQUID) -s tools/build_waterfall_full.gd
+	$(GODOT) --path $(LIQUID) -s tools/shoot_stylized_waterfall.gd -- --live --scene=res://waterfall_simple/waterfall_full.tscn --out=waterfall_full.png
+
 # --- Other ---
 demo:
 	$(GODOT) --path godot_demo
@@ -149,4 +170,4 @@ preview:
 	python3 preview_in_godot.py
 
 .PHONY: help e reimport water sand snow snow-demo rock lab bench bench-rock shots liquids liquid-e \
-	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-water liquid-steps-shots slime-bake slime-river waterfall-simple waterfall-sheet waterfall-simple-shot demo preview
+	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-water liquid-steps-shots slime-bake slime-river waterfall-simple waterfall-sheet waterfall-simple-shot waterfall-full waterfall-full-build waterfall-bake waterfall-bench demo preview

@@ -1,23 +1,28 @@
 extends Node3D
-## The simple waterfall built step by step, four tracks (T, or the panel's Track button, switches):
+## The simple waterfall built step by step, six tracks (T, or the panel's Track button, switches):
 ##   sheet  steps/*.gdshader on the waterfall sheet (the last step is waterfall_simple.gdshader)
 ##   pool   pool_steps/*.gdshader on the pool under it (the last is waterfall_pool.gdshader)
 ##   froth  froth_steps/*.gdshader on the tube at its foot (froth_tube.gd; the last is
 ##          waterfall_froth.gdshader)
 ##   stones stone_steps/*.gdshader on the stones scattered round it (stone_scatter.gd; the last
 ##          is waterfall_stone.gdshader)
+##   puffs  puff_steps/*.gdshader on the puffs rising off the froth (Particles/Puffs; the last is
+##          waterfall_puff.gdshader); the spray droplets beside them keep a plain white material
+##   bubbles bubble_steps/*.gdshader on the squares of Bubbles (the last is waterfall_bubble.gdshader)
 ## Each step file is a whole shader; the lines a step adds end in "// NEW". The panel shows the
 ## comment at the top of the step's file. Left / right (or Prev / Next): the step. Both start on
 ## their last step; the track not shown keeps the step it was on.
 
 const StepHeader := preload("res://step_header.gd")
 # [the panel's name, the folder of step files, the mesh they go on (or a node with a `material`
-# that puts it on its meshes: the stones)]
+# that puts it on its meshes: the stones; or a group: on each mesh in it)]
 const TRACKS := [
 	["WATERFALL SHEET", "res://waterfall_simple/steps/", "Sheet/WaterfallSheet"],
 	["POOL", "res://waterfall_simple/pool_steps/", "Pool/WaterfallPool"],
 	["FROTH", "res://waterfall_simple/froth_steps/", "Froth"],
 	["STONES", "res://waterfall_simple/stone_steps/", "Stones"],
+	["PUFFS", "res://waterfall_simple/puff_steps/", "Particles/Puffs"],
+	["BUBBLES", "res://waterfall_simple/bubble_steps/", "Bubbles"],
 ]
 
 var track := 0
@@ -93,8 +98,11 @@ func _show_step(p_index: int) -> void:
 	var target := get_node(TRACKS[track][2])
 	if target is GeometryInstance3D:
 		target.material_override = material
-	else:
+	elif "material" in target: # the stones: it puts it on the meshes it makes
 		target.set("material", material)
+	else: # a group: on every mesh in it
+		for mesh in target.find_children("*", "GeometryInstance3D", true, false):
+			(mesh as GeometryInstance3D).material_override = material
 	var header := StepHeader.parse(FileAccess.get_file_as_string(path))
 	title.text = "%s · %d / %d · %s" % [TRACKS[track][0], steps[track] + 1, files.size(), header[0]]
 	notes.text = header[1]

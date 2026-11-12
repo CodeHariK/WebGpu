@@ -1,0 +1,443 @@
+[gd_scene format=3]
+
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_simple.gdshader" id="1_cmvfj"]
+[ext_resource type="ArrayMesh" path="res://waterfall_simple/meshes/sheet.res" id="2_x8u0a"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_pool.gdshader" id="3_e14l7"]
+[ext_resource type="ArrayMesh" path="res://waterfall_simple/meshes/pool.res" id="4_qre3a"]
+[ext_resource type="ArrayMesh" path="res://waterfall_simple/meshes/upper_pool.res" id="5_g25x4"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_froth.gdshader" id="6_okfqq"]
+[ext_resource type="Script" path="res://waterfall_simple/froth_tube.gd" id="7_8ltxp"]
+[ext_resource type="Script" path="res://waterfall_simple/stone_scatter.gd" id="8_6jdbj"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_stone.gdshader" id="9_r4o7s"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_puff.gdshader" id="10_tm6t5"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_bubble.gdshader" id="11_q2st2"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1ixa8"]
+render_priority = 0
+shader = ExtResource("1_cmvfj")
+shader_parameter/deep_color = null
+shader_parameter/deep_color_2 = null
+shader_parameter/deep_value = null
+shader_parameter/light_color = null
+shader_parameter/aqua_color = null
+shader_parameter/streak_brightness = null
+shader_parameter/line_darkness = null
+shader_parameter/glow_color = null
+shader_parameter/ring_brightness = null
+shader_parameter/bottom_brightness = null
+shader_parameter/top_brightness = null
+shader_parameter/lace_edge = null
+shader_parameter/drip_side = null
+shader_parameter/ripple_strength = null
+shader_parameter/ripple_size = null
+shader_parameter/ripple_fall = null
+shader_parameter/grade = null
+shader_parameter/box_min = null
+shader_parameter/box_size = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_um20k"]
+render_priority = 0
+shader = ExtResource("3_e14l7")
+shader_parameter/teal_color = null
+shader_parameter/back_color = null
+shader_parameter/glint_color = null
+shader_parameter/web_shade = null
+shader_parameter/web_white = null
+shader_parameter/web_bright = null
+shader_parameter/back_brightness = null
+shader_parameter/front_brightness = null
+shader_parameter/sun_light = null
+shader_parameter/grade = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_airur"]
+render_priority = 0
+shader = ExtResource("6_okfqq")
+shader_parameter/foam_color = null
+shader_parameter/under_color = null
+shader_parameter/tube_length = 28.098852
+shader_parameter/tube_radius = 1.6
+shader_parameter/lump_strength = null
+shader_parameter/lump_size = null
+shader_parameter/lump_fall = null
+shader_parameter/ridge_strength = null
+shader_parameter/sun_direction = null
+shader_parameter/shade = null
+shader_parameter/rim_height = null
+shader_parameter/rim_color = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ni4vx"]
+render_priority = 0
+shader = ExtResource("6_okfqq")
+shader_parameter/foam_color = null
+shader_parameter/under_color = null
+shader_parameter/tube_length = 28.098852
+shader_parameter/tube_radius = 1.6
+shader_parameter/lump_strength = null
+shader_parameter/lump_size = null
+shader_parameter/lump_fall = null
+shader_parameter/ridge_strength = null
+shader_parameter/sun_direction = null
+shader_parameter/shade = null
+shader_parameter/rim_height = null
+shader_parameter/rim_color = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_nce1t"]
+render_priority = 0
+shader = ExtResource("6_okfqq")
+shader_parameter/foam_color = null
+shader_parameter/under_color = null
+shader_parameter/tube_length = 27.098852
+shader_parameter/tube_radius = 1.2
+shader_parameter/lump_strength = null
+shader_parameter/lump_size = null
+shader_parameter/lump_fall = null
+shader_parameter/ridge_strength = null
+shader_parameter/sun_direction = null
+shader_parameter/shade = null
+shader_parameter/rim_height = null
+shader_parameter/rim_color = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_07rnl"]
+render_priority = 0
+shader = ExtResource("9_r4o7s")
+shader_parameter/lit_color = null
+shader_parameter/shade_color = null
+shader_parameter/value = null
+shader_parameter/sun_direction = null
+shader_parameter/lit_cut = null
+shader_parameter/crack_color = null
+shader_parameter/cells = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_q5bqp"]
+render_priority = 0
+shader = ExtResource("9_r4o7s")
+shader_parameter/lit_color = null
+shader_parameter/shade_color = null
+shader_parameter/value = null
+shader_parameter/sun_direction = null
+shader_parameter/lit_cut = null
+shader_parameter/crack_color = null
+shader_parameter/cells = null
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_dq3ni"]
+render_priority = 0
+shader = ExtResource("10_tm6t5")
+shader_parameter/puff_color = null
+shader_parameter/lumps = null
+shader_parameter/sun_direction = null
+shader_parameter/shade = null
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_nf2cg"]
+emission_shape_offset = Vector3(0, 0.9, 0)
+emission_shape = 3
+emission_box_extents = Vector3(13.549426, 0.2, 0.5)
+direction = Vector3(0, 1, 0.25)
+spread = 20.0
+initial_velocity_min = 1.5
+initial_velocity_max = 3.0
+gravity = Vector3(0, -0.8, 0)
+damping_min = 0.5
+damping_max = 0.8
+scale_min = 1.2
+scale_max = 2.2
+
+[sub_resource type="QuadMesh" id="QuadMesh_e4l5l"]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_xiad0"]
+emission_shape_offset = Vector3(0, 1, 0.3)
+emission_shape = 3
+emission_box_extents = Vector3(13.549426, 0.2, 0.6)
+direction = Vector3(0, 1, 0.35)
+spread = 25.0
+initial_velocity_min = 5.0
+initial_velocity_max = 8.0
+gravity = Vector3(0, -9.81, 0)
+scale_min = 0.6
+scale_max = 1.2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_k4emd"]
+shading_mode = 0
+
+[sub_resource type="SphereMesh" id="SphereMesh_nqbm6"]
+material = SubResource("StandardMaterial3D_k4emd")
+radius = 0.07
+height = 0.14
+radial_segments = 8
+rings = 4
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_yixa1"]
+render_priority = 0
+shader = ExtResource("10_tm6t5")
+shader_parameter/puff_color = null
+shader_parameter/lumps = null
+shader_parameter/sun_direction = null
+shader_parameter/shade = null
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_uu3si"]
+emission_shape_offset = Vector3(0, 0.9, 0)
+emission_shape = 3
+emission_box_extents = Vector3(13.549426, 0.2, 0.5)
+direction = Vector3(0, 1, 0.25)
+spread = 20.0
+initial_velocity_min = 1.5
+initial_velocity_max = 3.0
+gravity = Vector3(0, -0.8, 0)
+damping_min = 0.5
+damping_max = 0.8
+scale_min = 1.2
+scale_max = 2.2
+
+[sub_resource type="QuadMesh" id="QuadMesh_vlm5c"]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_i64j1"]
+emission_shape_offset = Vector3(0, 1, 0.3)
+emission_shape = 3
+emission_box_extents = Vector3(13.549426, 0.2, 0.6)
+direction = Vector3(0, 1, 0.35)
+spread = 25.0
+initial_velocity_min = 5.0
+initial_velocity_max = 8.0
+gravity = Vector3(0, -9.81, 0)
+scale_min = 0.6
+scale_max = 1.2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_2hjtp"]
+shading_mode = 0
+
+[sub_resource type="SphereMesh" id="SphereMesh_hhlsf"]
+material = SubResource("StandardMaterial3D_2hjtp")
+radius = 0.07
+height = 0.14
+radial_segments = 8
+rings = 4
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_2muk4"]
+render_priority = 0
+shader = ExtResource("11_q2st2")
+shader_parameter/bubble_color = null
+shader_parameter/wobble_strength = null
+shader_parameter/wobble_size = null
+shader_parameter/wobble_fall = null
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_6pjvw"]
+subdivide_width = 12
+subdivide_depth = 12
+orientation = 2
+
+[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_kh4c5"]
+dof_blur_far_enabled = true
+dof_blur_far_distance = 77.852585
+dof_blur_far_transition = 20.0
+dof_blur_near_enabled = true
+dof_blur_near_distance = 65.852585
+dof_blur_near_transition = 15.0
+dof_blur_amount = 0.25
+
+[sub_resource type="Environment" id="Environment_4xtc4"]
+background_mode = 1
+background_color = Color(0.25, 0.25, 0.25, 1)
+tonemap_mode = 4
+
+[node name="WaterfallFull" type="Node3D" unique_id=216453122]
+
+[node name="Plane_007" type="MeshInstance3D" parent="." unique_id=337481326]
+transform = Transform3D(1.004916, 0, -0.08014272, 0, 1, 0, 0.08100706, 0, 0.9941935, -13.157121, 0, -0.5568319)
+material_override = SubResource("ShaderMaterial_1ixa8")
+extra_cull_margin = 1.0
+instance_shader_parameters/pattern_offset = Vector2(0, 0)
+mesh = ExtResource("2_x8u0a")
+
+[node name="Plane" type="MeshInstance3D" parent="." unique_id=1548308137]
+transform = Transform3D(1.0490026, 0, -0.08014272, 0, 1, 0, 0.08456093, 0, 0.9941935, -6.6284075, 0, -0.030547023)
+material_override = SubResource("ShaderMaterial_1ixa8")
+extra_cull_margin = 1.0
+instance_shader_parameters/pattern_offset = Vector2(3.17, 1.71)
+mesh = ExtResource("2_x8u0a")
+
+[node name="Plane_004" type="MeshInstance3D" parent="." unique_id=577558882]
+transform = Transform3D(1, 0, -7.450581e-09, 0, 1, 0, 7.450581e-09, 0, 1, 0, 0, -5.7434505e-08)
+material_override = SubResource("ShaderMaterial_1ixa8")
+extra_cull_margin = 1.0
+instance_shader_parameters/pattern_offset = Vector2(6.34, 3.42)
+mesh = ExtResource("2_x8u0a")
+
+[node name="Plane_002" type="MeshInstance3D" parent="." unique_id=1023103389]
+transform = Transform3D(0.99203485, 0, -7.4501925e-09, 0, 1, 0, 7.3912356e-09, 0, 0.9999479, 5.9417315, 0, 0.4842912)
+material_override = SubResource("ShaderMaterial_1ixa8")
+extra_cull_margin = 1.0
+instance_shader_parameters/pattern_offset = Vector2(9.51, 5.13)
+mesh = ExtResource("2_x8u0a")
+
+[node name="Plane_021" type="MeshInstance3D" parent="." unique_id=1389508272]
+transform = Transform3D(1.004916, 0, -0.08014272, 0, 1, 0, 0.08100706, 0, 0.9941935, -11.0783415, 13.199898, -26.344687)
+material_override = SubResource("ShaderMaterial_1ixa8")
+extra_cull_margin = 1.0
+instance_shader_parameters/pattern_offset = Vector2(12.68, 6.84)
+mesh = ExtResource("2_x8u0a")
+
+[node name="Plane_019" type="MeshInstance3D" parent="." unique_id=1058909364]
+transform = Transform3D(1.0490026, 0, -0.08014272, 0, 1, 0, 0.08456093, 0, 0.9941935, -4.5496273, 13.199898, -25.818401)
+material_override = SubResource("ShaderMaterial_1ixa8")
+extra_cull_margin = 1.0
+instance_shader_parameters/pattern_offset = Vector2(15.85, 8.55)
+mesh = ExtResource("2_x8u0a")
+
+[node name="Plane_020" type="MeshInstance3D" parent="." unique_id=684731055]
+transform = Transform3D(1, 0, -7.450581e-09, 0, 1, 0, 7.450581e-09, 0, 1, 2.0787792, 13.199898, -25.787855)
+material_override = SubResource("ShaderMaterial_1ixa8")
+extra_cull_margin = 1.0
+instance_shader_parameters/pattern_offset = Vector2(19.02, 10.26)
+mesh = ExtResource("2_x8u0a")
+
+[node name="Plane_022" type="MeshInstance3D" parent="." unique_id=1041920758]
+transform = Transform3D(0.99203485, 0, -7.4501925e-09, 0, 1, 0, 7.3912356e-09, 0, 0.9999479, 8.020511, 13.199898, -25.303564)
+material_override = SubResource("ShaderMaterial_1ixa8")
+extra_cull_margin = 1.0
+instance_shader_parameters/pattern_offset = Vector2(22.19, 11.97)
+mesh = ExtResource("2_x8u0a")
+
+[node name="LowerPool" type="MeshInstance3D" parent="." unique_id=1408596141]
+material_override = SubResource("ShaderMaterial_um20k")
+mesh = ExtResource("4_qre3a")
+
+[node name="UpperPool" type="MeshInstance3D" parent="." unique_id=686707077]
+material_override = SubResource("ShaderMaterial_um20k")
+mesh = ExtResource("5_g25x4")
+
+[node name="LowerFroth" type="MeshInstance3D" parent="." unique_id=1988951383]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6076946, 0.80464077, 1.574228)
+material_override = SubResource("ShaderMaterial_airur")
+extra_cull_margin = 2.0
+script = ExtResource("7_8ltxp")
+length = 28.098852
+
+[node name="UpperFroth" type="MeshInstance3D" parent="." unique_id=1309495584]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5289154, 13.61628, -24.213627)
+material_override = SubResource("ShaderMaterial_ni4vx")
+extra_cull_margin = 2.0
+script = ExtResource("7_8ltxp")
+length = 28.098852
+
+[node name="LipFroth" type="MeshInstance3D" parent="." unique_id=2014605549]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6076946, 13.3, -3.5257719)
+material_override = SubResource("ShaderMaterial_nce1t")
+extra_cull_margin = 2.0
+script = ExtResource("7_8ltxp")
+length = 27.098852
+radius = 1.2
+
+[node name="LowerStones" type="Node3D" parent="." unique_id=1242757090]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6076946, 0, -0.025771946)
+script = ExtResource("8_6jdbj")
+seed = 11
+along_pool = 10
+half_width = 13.549426
+material = SubResource("ShaderMaterial_07rnl")
+
+[node name="UpperStones" type="Node3D" parent="." unique_id=1486344420]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5289154, 13.199898, -25.813627)
+script = ExtResource("8_6jdbj")
+seed = 23
+along_pool = 10
+half_width = 13.549426
+material = SubResource("ShaderMaterial_q5bqp")
+
+[node name="LowerParticles" type="Node3D" parent="." unique_id=1376476028]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6076946, 0.80464077, 1.574228)
+
+[node name="Puffs" type="GPUParticles3D" parent="LowerParticles" unique_id=2110901200]
+material_override = SubResource("ShaderMaterial_dq3ni")
+amount = 108
+lifetime = 1.8
+preprocess = 2.0
+visibility_aabb = AABB(-17.549427, -4, -6, 35.098854, 16, 16)
+process_material = SubResource("ParticleProcessMaterial_nf2cg")
+draw_pass_1 = SubResource("QuadMesh_e4l5l")
+
+[node name="Spray" type="GPUParticles3D" parent="LowerParticles" unique_id=1033001542]
+amount = 361
+lifetime = 1.4
+preprocess = 2.0
+visibility_aabb = AABB(-17.549427, -4, -6, 35.098854, 16, 16)
+process_material = SubResource("ParticleProcessMaterial_xiad0")
+draw_pass_1 = SubResource("SphereMesh_nqbm6")
+
+[node name="UpperParticles" type="Node3D" parent="." unique_id=1014249106]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5289154, 13.61628, -24.213627)
+
+[node name="Puffs" type="GPUParticles3D" parent="UpperParticles" unique_id=1682864558]
+material_override = SubResource("ShaderMaterial_yixa1")
+amount = 108
+lifetime = 1.8
+preprocess = 2.0
+visibility_aabb = AABB(-17.549427, -4, -6, 35.098854, 16, 16)
+process_material = SubResource("ParticleProcessMaterial_uu3si")
+draw_pass_1 = SubResource("QuadMesh_vlm5c")
+
+[node name="Spray" type="GPUParticles3D" parent="UpperParticles" unique_id=469228696]
+amount = 361
+lifetime = 1.4
+preprocess = 2.0
+visibility_aabb = AABB(-17.549427, -4, -6, 35.098854, 16, 16)
+process_material = SubResource("ParticleProcessMaterial_i64j1")
+draw_pass_1 = SubResource("SphereMesh_hhlsf")
+
+[node name="Bubbles" type="Node3D" parent="." unique_id=855688999]
+
+[node name="Bubble0" type="MeshInstance3D" parent="Bubbles" unique_id=1638278127]
+transform = Transform3D(1.5364656, 0, 0, 0, 1.5364656, 0, 0, 0, 1.5364656, 5.4718294, 2.647916, 4.935635)
+material_override = SubResource("ShaderMaterial_2muk4")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_6pjvw")
+
+[node name="Bubble1" type="MeshInstance3D" parent="Bubbles" unique_id=135615982]
+transform = Transform3D(1.7120116, 0, 0, 0, 1.7120116, 0, 0, 0, 1.7120116, 2.4193125, 4.2381206, 3.114502)
+material_override = SubResource("ShaderMaterial_2muk4")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_6pjvw")
+
+[node name="Bubble2" type="MeshInstance3D" parent="Bubbles" unique_id=466706212]
+transform = Transform3D(1.5456612, 0, 0, 0, 1.5456612, 0, 0, 0, 1.5456612, -1.0811625, 4.762364, 3.3564873)
+material_override = SubResource("ShaderMaterial_2muk4")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_6pjvw")
+
+[node name="Bubble3" type="MeshInstance3D" parent="Bubbles" unique_id=102144509]
+transform = Transform3D(1.3057495, 0, 0, 0, 1.3057495, 0, 0, 0, 1.3057495, 0.50303936, 4.725782, 3.4405031)
+material_override = SubResource("ShaderMaterial_2muk4")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_6pjvw")
+
+[node name="Bubble4" type="MeshInstance3D" parent="Bubbles" unique_id=437215241]
+transform = Transform3D(1.4016153, 0, 0, 0, 1.4016153, 0, 0, 0, 1.4016153, 3.945777, 4.192073, 4.623967)
+material_override = SubResource("ShaderMaterial_2muk4")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_6pjvw")
+
+[node name="Bubble5" type="MeshInstance3D" parent="Bubbles" unique_id=1355979010]
+transform = Transform3D(1.5583127, 0, 0, 0, 1.5583127, 0, 0, 0, 1.5583127, 3.2329779, 4.803401, 4.6123605)
+material_override = SubResource("ShaderMaterial_2muk4")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_6pjvw")
+
+[node name="Bubble6" type="MeshInstance3D" parent="Bubbles" unique_id=1734036797]
+transform = Transform3D(1.2764679, 0, 0, 0, 1.2764679, 0, 0, 0, 1.2764679, -5.724803, 2.2902098, 4.8954563)
+material_override = SubResource("ShaderMaterial_2muk4")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_6pjvw")
+
+[node name="Bubble7" type="MeshInstance3D" parent="Bubbles" unique_id=2003619900]
+transform = Transform3D(1.5181568, 0, 0, 0, 1.5181568, 0, 0, 0, 1.5181568, -14.880561, 2.9124594, 3.8701477)
+material_override = SubResource("ShaderMaterial_2muk4")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_6pjvw")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1758878681]
+transform = Transform3D(0.93751454, 0.19388163, -0.28892305, -0.0016526857, 0.8328388, 0.5535132, 0.34794235, -0.5184492, 0.78111887, -25.674953, 44.155025, 61.18365)
+keep_aspect = 0
+attributes = SubResource("CameraAttributesPractical_kh4c5")
+fov = 39.59775
+far = 500.0
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=914199166]
+environment = SubResource("Environment_4xtc4")

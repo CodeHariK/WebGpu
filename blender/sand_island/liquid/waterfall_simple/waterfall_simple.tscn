@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="PackedScene" path="res://waterfall_simple/waterfall_sheet.glb" id="1_sheet"]
 [ext_resource type="Shader" path="res://waterfall_simple/waterfall_simple.gdshader" id="2_shader"]
@@ -9,6 +9,8 @@
 [ext_resource type="Shader" path="res://waterfall_simple/waterfall_froth.gdshader" id="7_froth_shader"]
 [ext_resource type="Script" path="res://waterfall_simple/stone_scatter.gd" id="8_stone_scatter"]
 [ext_resource type="Shader" path="res://waterfall_simple/waterfall_stone.gdshader" id="9_stone_shader"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_puff.gdshader" id="10_puff_shader"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_bubble.gdshader" id="11_bubble_shader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sheet"]
 shader = ExtResource("2_shader")
@@ -21,6 +23,57 @@ shader = ExtResource("7_froth_shader")
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_stone"]
 shader = ExtResource("9_stone_shader")
+
+[sub_resource type="ParticleProcessMaterial" id="Process_puffs"]
+emission_shape = 3
+emission_box_extents = Vector3(4.5, 0.2, 0.5)
+emission_shape_offset = Vector3(0, 0.9, 0)
+direction = Vector3(0, 1, 0.25)
+spread = 20.0
+initial_velocity_min = 1.5
+initial_velocity_max = 3.0
+gravity = Vector3(0, -0.8, 0)
+damping_min = 0.5
+damping_max = 0.8
+scale_min = 1.2
+scale_max = 2.2
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_puff"]
+shader = ExtResource("10_puff_shader")
+
+[sub_resource type="QuadMesh" id="QuadMesh_puff"]
+
+[sub_resource type="ParticleProcessMaterial" id="Process_spray"]
+emission_shape = 3
+emission_box_extents = Vector3(4.5, 0.2, 0.6)
+emission_shape_offset = Vector3(0, 1.0, 0.3)
+direction = Vector3(0, 1, 0.35)
+spread = 25.0
+initial_velocity_min = 5.0
+initial_velocity_max = 8.0
+gravity = Vector3(0, -9.81, 0)
+scale_min = 0.6
+scale_max = 1.2
+
+[sub_resource type="StandardMaterial3D" id="Material_droplet"]
+shading_mode = 0
+albedo_color = Color(1, 1, 1, 1)
+
+[sub_resource type="SphereMesh" id="SphereMesh_droplet"]
+material = SubResource("Material_droplet")
+radius = 0.07
+height = 0.14
+radial_segments = 8
+rings = 4
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bubble"]
+shader = ExtResource("11_bubble_shader")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_bubble"]
+size = Vector2(2, 2)
+subdivide_width = 12
+subdivide_depth = 12
+orientation = 2
 
 [sub_resource type="Environment" id="Environment_grey"]
 background_mode = 1
@@ -51,6 +104,46 @@ script = ExtResource("6_froth_tube")
 [node name="Stones" type="Node3D" parent="."]
 script = ExtResource("8_stone_scatter")
 material = SubResource("ShaderMaterial_stone")
+
+[node name="Particles" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06, 0.8, 1.6)
+
+[node name="Puffs" type="GPUParticles3D" parent="Particles"]
+material_override = SubResource("ShaderMaterial_puff")
+amount = 36
+lifetime = 1.8
+preprocess = 2.0
+visibility_aabb = AABB(-12, -4, -6, 24, 16, 16)
+process_material = SubResource("Process_puffs")
+draw_pass_1 = SubResource("QuadMesh_puff")
+
+[node name="Spray" type="GPUParticles3D" parent="Particles"]
+amount = 120
+lifetime = 1.4
+preprocess = 2.0
+visibility_aabb = AABB(-12, -4, -6, 24, 16, 16)
+process_material = SubResource("Process_spray")
+draw_pass_1 = SubResource("SphereMesh_droplet")
+
+[node name="Bubbles" type="Node3D" parent="."]
+
+[node name="Left" type="MeshInstance3D" parent="Bubbles"]
+transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, -2.2, 2.4, 3.2)
+material_override = SubResource("ShaderMaterial_bubble")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_bubble")
+
+[node name="Middle" type="MeshInstance3D" parent="Bubbles"]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.4, 3.8, 2.6)
+material_override = SubResource("ShaderMaterial_bubble")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_bubble")
+
+[node name="Right" type="MeshInstance3D" parent="Bubbles"]
+transform = Transform3D(1.6, 0, 0, 0, 1.6, 0, 0, 0, 1.6, 2.7, 1.8, 3.6)
+material_override = SubResource("ShaderMaterial_bubble")
+extra_cull_margin = 1.0
+mesh = SubResource("PlaneMesh_bubble")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.951, 0.309, 0, -0.309, 0.951, 0, 12, 28)

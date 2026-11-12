@@ -11,7 +11,7 @@ extends Node3D
 ## night: a dim blue moon instead of the sun and a dark sky, so only what the shaders light
 ## themselves (EMISSION: lava, the poison's glow) stays bright.
 ##
-## Keys: 1 - 7 or left / right pick the shader, M the sample, N day / night, drag to orbit, wheel to
+## Keys: 1 - 8 or left / right pick the shader, M the sample, N day / night, drag to orbit, wheel to
 ## zoom, R the start view, F the whole map. `-- --capture-liquids` saves shots/liquid_<shader>.png,
 ## liquid_<shader>_night.png (MC sample) and liquid_<shader>_river(_night).png for each and quits
 ## (`--only=<shader file name>`: just that one).
@@ -24,6 +24,7 @@ const SHADERS := [
 	["lava, desktop", "res://lava_desktop/lava_desktop.gdshader"],
 	["green poison, desktop", "res://poison_desktop/poison_desktop.gdshader"],
 	["slime", "res://slime/slime.tres"], # a material: the shader and its baked textures
+	["water, stylized", "res://water_stylized/water_stylized.gdshader"], # waterfall_simple/'s look
 ]
 # Each sample: its name, the start view (looking at, distance, yaw, pitch in degrees) and the
 # whole-map view (F).
@@ -174,7 +175,7 @@ func _reset_view() -> void:
 
 
 func _update_label() -> void:
-	label.text = "%d / %d  %s  (%s, %s)\n%s\n1 - 7 or left / right: shader   M: sample   N: day / night   drag: orbit   wheel: zoom   R: start view   F: whole map" % [
+	label.text = "%d / %d  %s  (%s, %s)\n%s\n1 - 8 or left / right: shader   M: sample   N: day / night   drag: orbit   wheel: zoom   R: start view   F: whole map" % [
 			current + 1, SHADERS.size(), SHADERS[current][0], SAMPLES[sample]["name"], "night" if night else "day",
 			SHADERS[current][1]]
 

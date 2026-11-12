@@ -11,6 +11,8 @@
 //   drips    a white web (voronoi F1 minus Smooth F1: the cells' borders), shown only in a
 //            couple of wandering columns
 //   grade    a last hue / saturation / value push over all of it (Blender's "finalHSL" group)
+//   ripples  the vertex shader wobbles the surface with a noise sliding down (Blender's Displace)
+//   variety  pattern_offset (per instance) moves every pattern, so many sheets don't repeat
 // The cells slide down over time: Blender moves each voronoi's Mapping up through its 3D
 // texture, so the pattern falls (the material's keyframes, per second at its 21 fps).
 // That is the whole material. Built step by step in steps/ (the last step is this file).
@@ -37,16 +39,18 @@ uniform float bottom_brightness = 0.43;  // step 5: the lowest tier, x the colou
 uniform float top_brightness = 1.45;  // step 5: the highest tier
 uniform float lace_edge = 0.179;  // step 6: F1 - Smooth F1 above this: lace
 uniform float drip_side = 0.088;  // step 7: how white the lace is on a column's side
+uniform float ripple_strength = 0.7;  // step 8: metres the surface moves per noise unit
+uniform float ripple_size = 1.41;  // step 8: metres a ripple (Blender's Clouds size)
+uniform float ripple_fall = 4.6;  // step 8: metres a second the ripples slide down
 uniform vec3 grade = vec3(0.06, 1.7, 1.9); // hue shift, saturation x, value x
 uniform vec3 box_min = vec3(-3.92, 0.0, -7.79); // the sheet's box, Godot's axes
 uniform vec3 box_size = vec3(7.96, 13.49, 9.19);
 
 varying vec3 b; // Generated, Blender's order: across, depth, height
+// step 9: moves every pattern on this one sheet (an instance uniform: set per MeshInstance3D,
+// not per material), so sheets side by side don't repeat each other
+instance uniform vec2 pattern_offset = vec2(0.0);
 
-void vertex() {
-	vec3 p = (VERTEX - box_min) / box_size; // Godot's axes: x across, y up, z toward the front
-	b = vec3(p.x, 1.0 - p.z, p.y);
-}
 
 // A random point in each cell of a 3D grid (Dave Hoskins' hash, no sin).
 vec3 hash33(vec3 p) {
@@ -151,6 +155,16 @@ vec3 rgb_to_hsv(vec3 c) {
 vec3 hsv_to_rgb(vec3 c) {
 	vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
 	return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
+}
+
+void vertex() {
+	vec3 p = (VERTEX - box_min) / box_size; // Godot's axes: x across, y up, z toward the front
+	b = vec3(p.x, 1.0 - p.z, p.y);
+	b.xy += pattern_offset;  // across and depth only: the height bands stay where they are
+	// ripples: the sheet pushed along its normal by a noise sliding down (b is taken first,
+	// so the colours stay put on the sheet while its surface moves)
+	float ripple = fbm((VERTEX.xy + pattern_offset * 7.0) / ripple_size + vec2(0.0, ripple_fall * TIME / ripple_size));  // each sheet its own ripples
+	VERTEX += NORMAL * (ripple - 0.5) * ripple_strength;
 }
 
 void fragment() {

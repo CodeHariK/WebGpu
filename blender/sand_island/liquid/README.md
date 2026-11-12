@@ -19,7 +19,11 @@ make liquid-sample    # export the sample meshes again from the game
 make slime-bake       # bake the slime's textures in Blender (and import them)
 make slime-river      # build the slime river sample in Blender (and import it)
 make waterfall-simple # one waterfall sheet, a hand-written shader (waterfall_simple/)
-make waterfall-sheet  # export that sheet and the pool from the .blend again
+make waterfall-sheet  # export that sheet, the pools and the full layout from the .blend again
+make waterfall-simple-shot  # shots/waterfall_simple.png
+make waterfall-full   # the whole waterfall rebuilt from the simple parts (waterfall_full.tscn)
+make waterfall-full-build  # build that scene again (export, build, shots/waterfall_full.png)
+make waterfall-bake   # bake the sheet's still layers (mobile), shots/waterfall_mobile_check.png
 ```
 
 ## Folders
@@ -33,8 +37,9 @@ make waterfall-sheet  # export that sheet and the pool from the .blend again
 | `poison_mobile/steps/`, `water_mobile/steps/` | the step tracks (below); `steps.tscn` / `steps.gd` show them (T switches) |
 | `shader_lib/` | `liquid_noise` (hash, noise), `liquid_common` (the mobile lava's and poison's steps 2 – 5), `liquid_desktop` (the desktop set's tools) |
 | `sample/` | `water.res` + `terrain.res`: the game's water and the ground round it (its "last" inspect map); `slime_river.blend` + `.glb`: the slime river (Blender) |
-| `waterfall_simple/` | one sheet of the waterfall, the pool under it (`waterfall_sheet.glb`, `waterfall_pool.glb`), the froth tube and scattered stones (made by script), hand-written shaders built in steps (below); `waterfall_simple.tscn` |
-| `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`); `export_waterfall_sheet.py`: the simple waterfall's sheet and pool |
+| `water_stylized/` | the simple waterfall's look on the MC water mesh: falls, flat water, froth, shore lace in one shader (below) |
+| `waterfall_simple/` | one sheet of the waterfall, the pool under it (`waterfall_sheet.glb`, `waterfall_pool.glb`), the froth tube and scattered stones (made by script), puffs, spray and bubbles, hand-written shaders built in steps (below); `waterfall_simple.tscn`; `waterfall_full.tscn` (the whole waterfall from these parts, `full_layout.json`, `meshes/`); `mobile/` (the sheet with its still layers baked) |
+| `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`); `export_waterfall_sheet.py`, `shoot_stylized_waterfall.gd`, `build_waterfall_full.gd`, `bake_waterfall_sheet.gd`, `check_waterfall_mobile.gd`, `bench_waterfall.gd`: the simple waterfall's |
 
 Step-by-step tracks, as the sand island's shaders have: `poison_mobile/steps/` (12 steps, the last
 one is `poison_mobile.gdshader`) and `water_mobile/steps/` (10 steps, the last one is
@@ -150,9 +155,14 @@ The cells fall: Blender slides each voronoi's Mapping up through its 3D texture 
 step by step in `steps/` (step 1: the three colour layers, step 2: the streaks, step 3: the dark
 lines, step 4: the lip glow, step 5: the
 height tiers, step 6: the lace,
-step 7: the drips; the last step is
-`waterfall_simple.gdshader`); the scene's panel steps through them (left / right). That is the
-whole material.
+step 7: the drips, step 8: the ripples, step 9: variety; the last step is
+`waterfall_simple.gdshader`); the scene's panel steps through them (left / right). Steps 1 – 7
+are the whole Blender material; 8 and 9 add:
+
+| Sheet step | Adds |
+|---|---|
+| 8 ripples | the vertex shader pushes the sheet out and in by a noise sliding down it (0.7 m): the flat sheet bulges like falling water (the ripples the export leaves out) |
+| 9 variety | `instance uniform vec2 pattern_offset`: each sheet in a scene shifts its patterns (and ripples) so copies of one mesh don't repeat |
 
 The pool under it (`waterfall_pool.glb`: "Plane.005", one quad, placed where it is in the Blender
 file relative to the sheet) gets its material ("Material") the same way, in `pool_steps/` (the
@@ -195,11 +205,95 @@ last step is `waterfall_stone.gdshader`):
 | 2 two tones | lit or shaded, one cut on how much the stone faces the sun: two dark teal-greys, x 1.3 |
 | 3 cracks | a voronoi's distance to the nearest cell border (about 4 cells a stone), broken up by noise, cut thin: lighter blue-grey lines |
 
-Still to add: the sheet's ripples, the spray and puffs (particles), the bubbles.
+With `multimesh` on (the default) the scatter makes one `MultiMeshInstance3D` a mesh variant: 6
+draw calls for all the stones instead of one each.
+
+The spray and puffs are `GPUParticles3D` under `Particles`, where the fall lands: **Spray**, 120
+small white unshaded spheres thrown up 5 – 8 m/s and falling back; **Puffs**, 36 quads facing the
+camera, rising slowly, with their material in `puff_steps/` (the last step is
+`waterfall_puff.gdshader`):
+
+| Puff step | Adds |
+|---|---|
+| 1 round | a white disc on the quad, turned to the camera (`INV_VIEW_MATRIX`), cut sharp (alpha scissor) |
+| 2 lumpy | its edge pushed out and in by noise, each puff its own (`INSTANCE_ID`) |
+| 3 grow & break | by its age (`INSTANCE_CUSTOM.y`) it grows, then blotches of noise eat it away |
+| 4 light | lit as a ball (a sphere's normal from the quad): lit / 45 %, toon |
+
+The bubbles are three subdivided quads by the fall, Blender's bubble material in `bubble_steps/`
+(the last step is `waterfall_bubble.gdshader`):
+
+| Bubble step | Adds |
+|---|---|
+| 1 dots | voronoi cells' middles (closer than 0.2) as white dots, rising, in a round patch; the rest cut away |
+| 2 wobble | the vertex shader bends the quad by a noise sinking down: the dots wander |
+
+### The whole waterfall (`waterfall_full.tscn`)
+
+`tools/export_waterfall_sheet.py` also writes `full_layout.json` from the Blender file: the 8
+sheets' transforms (in the sheet's frame, converted to Godot's axes), the foam boxes and the camera
+(transform, field of view, focus distance). `tools/build_waterfall_full.gd` builds the scene from
+the simple parts: 8 sheets on one mesh (`meshes/sheet.res`, each its own `pattern_offset`), the
+lower and upper pools, three froth tubes (the lower and upper landings and the top lip), two stone
+scatters, two sets of particles, 8 bubbles, and Blender's camera with its depth of field.
+`make waterfall-full-build` builds it and shoots `shots/waterfall_full.png` (from Blender's camera).
+
+### Mobile (`mobile/`)
+
+Most of the sheet does not move: the bands, dark lines, tiers, rings and lace are laid on the UV,
+only the cells' fall and the streaks' patches move. `mobile/sheet_bake.gdshader` is the finished
+sheet shader drawn in UV space (`POSITION` from `UV`) into a SubViewport, two passes, so
+`tools/bake_waterfall_sheet.gd` (`make waterfall-bake`) saves the still layers as two textures:
+`sheet_still_a.png` (patch mask, dark lines, darkening) and `sheet_still_b.png` (rings, tier,
+lace x drips). `waterfall_sheet_mobile.gdshader` reads them instead of working them out; the moving
+layers stay live. `tools/check_waterfall_mobile.gd` draws both side by side
+(`shots/waterfall_mobile_check.png`): 0.2 % of the pixels differ. The baked layers ignore
+`pattern_offset` (they are one texture for every sheet); only the live layers shift.
+
+Cost, measured (`make waterfall-bench`, `tools/bench_waterfall.gd`): one shader fills the screen
+at 4800 x 2700 (13 million pixels), mobile renderer, Apple M2, 240 frames, the way the island's
+bench times its shaders (`water_tutorial/perf.md`; its water comes out at the same 0.36 ms here).
+Cost = minus a flat colour (0.25 ms).
+
+| Shader | Cost (ms) | x the island water |
+|---|---|---|
+| island water (step 13, opaque) | 0.36 | 1 |
+| snow, baked (step 9) | 1.08 | 3 |
+| snow (`snow.gdshader`) | 1.78 | 5 |
+| simple: froth | 2.92 | 8 |
+| `water_mobile` (flat) | 3.37 | 9 |
+| simple: bubbles | 3.46 | 10 |
+| simple: stones | 11.58 | 32 |
+| simple: sheet, mobile (baked) | 13.29 | 37 |
+| simple: sheet | 25.25 | 70 |
+| simple: pool | 35.67 | 99 |
+
+The whole one-sheet scene (`waterfall_simple.tscn`, from its camera) takes 11.9 ms a frame. The
+converted Blender waterfall is not in the table: its sheet at this size was too slow to finish a
+run. What makes them slow is the voronoi: every cell lookup checks 27 neighbours, and the sheet
+does 5 of them (the pool 4, plus a two-pass edge distance), where the island's water and snow read
+textures. The baked mobile sheet halves the sheet, but the falling cells are still live voronoi.
+Next for mobile: bake the cell layers too (a tiling texture that scrolls), and the pool the same
+way (only its glints move).
+
+## The stylized water on the game's mesh (`water_stylized/`)
+
+`water_stylized.gdshader` (shader 8 in the viewer) puts the simple waterfall's look on the MC
+water mesh, one shader for all of it, like the mobile water:
+
+| Part | From the mesh |
+|---|---|
+| falls | the sheet's layers: across = `UV.x` (metres along the edge), height = `UV2.y` / (`UV2.y` + `UV.y`): 1 at every lip, 0 where it lands, so the lip glow and the tiers fit any height; the cells sized in metres (one sheet: 7.96 x 13.49 m) |
+| flat water | the pool's bands, glints and tiers by depth (`CUSTOM0.x`) instead of distance from the falls: deep dark, shallow light; glints drift with the flow (`COLOR.rg`) in streams |
+| froth | the froth's churn where a fall lands (`COLOR.a`) and over the last 0.8 m of each fall |
+| shore | the lace web where it is shallow (depth under 0.15 m), not on streams |
+| light | flat: the sun times its shadow (60 % in shade), no sky light, so a day shot keeps the Blender colours and the night is dark |
+
+The slime river sample has no depth, so its pool is all shore (lace everywhere).
 
 ## The viewer (`liquids.tscn`)
 
-Lit like the game (sky, filmic tonemap, glow). Keys: **1 – 7** or **← →** pick the shader, **M** the
+Lit like the game (sky, filmic tonemap, glow). Keys: **1 – 8** or **← →** pick the shader, **M** the
 sample (MC sample / slime river), **N** day / night, drag to orbit, wheel to zoom, **R** the start
 view, **F** the whole map. At night only what a shader lights itself (`EMISSION`: the lava, the
 poison's and the slime's glow) stays bright. `make liquid-shots` saves every shader on both samples;
