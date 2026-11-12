@@ -19,7 +19,7 @@ make liquid-sample    # export the sample meshes again from the game
 make slime-bake       # bake the slime's textures in Blender (and import them)
 make slime-river      # build the slime river sample in Blender (and import it)
 make waterfall-simple # one waterfall sheet, a hand-written shader (waterfall_simple/)
-make waterfall-sheet  # export that sheet from the .blend again
+make waterfall-sheet  # export that sheet and the pool from the .blend again
 ```
 
 ## Folders
@@ -33,8 +33,8 @@ make waterfall-sheet  # export that sheet from the .blend again
 | `poison_mobile/steps/`, `water_mobile/steps/` | the step tracks (below); `steps.tscn` / `steps.gd` show them (T switches) |
 | `shader_lib/` | `liquid_noise` (hash, noise), `liquid_common` (the mobile lava's and poison's steps 2 – 5), `liquid_desktop` (the desktop set's tools) |
 | `sample/` | `water.res` + `terrain.res`: the game's water and the ground round it (its "last" inspect map); `slime_river.blend` + `.glb`: the slime river (Blender) |
-| `waterfall_simple/` | one sheet of the waterfall (`waterfall_sheet.glb`) and a hand-written shader with its base colour layers (below); `waterfall_simple.tscn` |
-| `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`); `export_waterfall_sheet.py`: the simple waterfall's sheet |
+| `waterfall_simple/` | one sheet of the waterfall, the pool under it (`waterfall_sheet.glb`, `waterfall_pool.glb`), the froth tube and scattered stones (made by script), hand-written shaders built in steps (below); `waterfall_simple.tscn` |
+| `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`); `export_waterfall_sheet.py`: the simple waterfall's sheet and pool |
 
 Step-by-step tracks, as the sand island's shaders have: `poison_mobile/steps/` (12 steps, the last
 one is `poison_mobile.gdshader`) and `water_mobile/steps/` (10 steps, the last one is
@@ -128,9 +128,9 @@ metres); no `UV2` or depth, so the shaders read it as flat liquid. Godot's Blend
 
 ## The simple waterfall (`waterfall_simple/`)
 
-The stylized waterfall taken apart, starting from one sheet: `waterfall_sheet.glb` is its
+A stylized waterfall (a Blender scene: `stylized_waterfall/source/`) taken apart, starting from one sheet: `waterfall_sheet.glb` is its
 "Plane.004" (`tools/export_waterfall_sheet.py`: subdivided, no thickness, no ripples, centred,
-bottom at 0) and `waterfall_simple.gdshader` is the base of its "waterfall" material, by hand:
+bottom at 0) and `waterfall_simple.gdshader` is its "waterfall" material, by hand:
 colour laid on by height, the edges between the colours bent by voronoi cells.
 
 | Layer | What |
@@ -142,15 +142,60 @@ colour laid on by height, the edges between the colours bent by voronoi cells.
 | dark lines | a few thin dark vertical lines down the whole sheet: the troughs of nearly straight stripes (4 or 5 across), half as bright |
 | lip glow | a near-white patch over the top, its edge boiling with noise; under it a band of 12 stepped bright rings (up to 2.5 x), broken into islands by noise |
 | tiers | four brightness tiers by height (a noise-bent height line cut into 4 steps): 0.43 x at the bottom to 1.45 x at the top |
+| lace | a white web over the sheet: voronoi F1 minus Smooth F1 (the cells' borders), on the UV, nudged by noise |
+| drips | the lace only in a couple of wandering columns (a slow wave, its coordinates pulled toward noise): full white on the crests, faint on the sides |
 | grade | hue + 0.06, saturation x 1.7, value x 1.9 over all of it |
 
 The cells fall: Blender slides each voronoi's Mapping up through its 3D texture over time. Built
 step by step in `steps/` (step 1: the three colour layers, step 2: the streaks, step 3: the dark
 lines, step 4: the lip glow, step 5: the
-height tiers; the last step is
-`waterfall_simple.gdshader`); the scene's panel steps through them (left / right). Still to add,
-one step each, from the same material: the lace foam at the lip (voronoi F1 minus smooth F1),
-the white drips.
+height tiers, step 6: the lace,
+step 7: the drips; the last step is
+`waterfall_simple.gdshader`); the scene's panel steps through them (left / right). That is the
+whole material.
+
+The pool under it (`waterfall_pool.glb`: "Plane.005", one quad, placed where it is in the Blender
+file relative to the sheet) gets its material ("Material") the same way, in `pool_steps/` (the
+last step is `waterfall_pool.gdshader`; T switches the panel between the sheet and the pool):
+
+| Pool step | Adds |
+|---|---|
+| 1 bands | dark at the back under the falls, teal in the middle, half as bright at the front: lines across the pool bent by voronoi cells; Blender's sun (about 2/3); the pool's grade (hue + 0.07, saturation x 1.5, value x 2) |
+| 2 glints | aqua dashes: gradient (Perlin) noise stretched sideways, kept where it is high, in a soft round patch; two layers drifting opposite ways |
+| 3 webs | three cell-border webs near the falls (the sheet's lace): one darkens the water 28 %, one is white, one brighter still |
+| 4 tiers | six brightness levels, 1.7 x at the back to 0.35 x at the front: the finished pool |
+
+The pool's noise is gradient (Perlin) noise, like Blender's: its values stay near the middle, so
+Blender's cuts ("keep it above 0.59") leave as few glints as in Blender; a noise of random heights
+spreads wider and fills the pool with them.
+
+The froth where the fall lands is a tube (`froth_tube.gd` builds it: 10 m long, 1.6 m thick, ends
+rounded, 160 x 48 vertices), its material Blender's bottom foam, in `froth_steps/` (the last step
+is `waterfall_froth.gdshader`):
+
+| Froth step | Adds |
+|---|---|
+| 1 white over blue | past-white over a clear blue, split by a line round the tube by height (Blender's foam uses no light) |
+| 2 churn | the line pulled 31 % toward a noise changing in place: white and blue boil into each other |
+| 3 boil | the vertex shader pushes the tube out and in along its normals by a big noise sinking 2.7 m a second: rolling lumps |
+| 4 ridges | small creases: bands bent hard by a fine noise (Blender's Wood texture), rounded instead of its saw tooth |
+| 5 light, rim | not in Blender: toon light (lit / 45 %) from the lumpy surface's real slope (`dFdx` / `dFdy`, without the ridges), a dark rim at the water line |
+
+
+The stones round it are made in Godot, Blender's way but each its own: `stone_mesh.gd` splits an
+icosphere 3 times (1280 triangles), pushes every vertex along its normal by a Perlin fBM (seeded),
+squashes the bottom and rebuilds the normals (smooth, or flat for facets); `stone_scatter.gd`
+places them by a seed (a stack up each side of the sheet, a few along the pool), each its own
+mesh variant, size, stretch and turn. Their material is Blender's "rocks", in `stone_steps/` (the
+last step is `waterfall_stone.gdshader`):
+
+| Stone step | Adds |
+|---|---|
+| 1 shape | debug: the world normal as colour (`MODEL_NORMAL_MATRIX`: right for stretched stones) |
+| 2 two tones | lit or shaded, one cut on how much the stone faces the sun: two dark teal-greys, x 1.3 |
+| 3 cracks | a voronoi's distance to the nearest cell border (about 4 cells a stone), broken up by noise, cut thin: lighter blue-grey lines |
+
+Still to add: the sheet's ripples, the spray and puffs (particles), the bubbles.
 
 ## The viewer (`liquids.tscn`)
 

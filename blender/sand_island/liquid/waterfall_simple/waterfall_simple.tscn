@@ -1,11 +1,26 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="PackedScene" path="res://waterfall_simple/waterfall_sheet.glb" id="1_sheet"]
 [ext_resource type="Shader" path="res://waterfall_simple/waterfall_simple.gdshader" id="2_shader"]
 [ext_resource type="Script" path="res://waterfall_simple/waterfall_simple.gd" id="3_script"]
+[ext_resource type="PackedScene" path="res://waterfall_simple/waterfall_pool.glb" id="4_pool"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_pool.gdshader" id="5_pool_shader"]
+[ext_resource type="Script" path="res://waterfall_simple/froth_tube.gd" id="6_froth_tube"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_froth.gdshader" id="7_froth_shader"]
+[ext_resource type="Script" path="res://waterfall_simple/stone_scatter.gd" id="8_stone_scatter"]
+[ext_resource type="Shader" path="res://waterfall_simple/waterfall_stone.gdshader" id="9_stone_shader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sheet"]
 shader = ExtResource("2_shader")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_pool"]
+shader = ExtResource("5_pool_shader")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_froth"]
+shader = ExtResource("7_froth_shader")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_stone"]
+shader = ExtResource("9_stone_shader")
 
 [sub_resource type="Environment" id="Environment_grey"]
 background_mode = 1
@@ -22,12 +37,28 @@ script = ExtResource("3_script")
 [node name="WaterfallSheet" parent="Sheet" index="0"]
 material_override = SubResource("ShaderMaterial_sheet")
 
+[node name="Pool" parent="." instance=ExtResource("4_pool")]
+
+[node name="WaterfallPool" parent="Pool" index="0"]
+material_override = SubResource("ShaderMaterial_pool")
+
+[node name="Froth" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.06, 0.8, 1.6)
+material_override = SubResource("ShaderMaterial_froth")
+extra_cull_margin = 2.0
+script = ExtResource("6_froth_tube")
+
+[node name="Stones" type="Node3D" parent="."]
+script = ExtResource("8_stone_scatter")
+material = SubResource("ShaderMaterial_stone")
+
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.996, 0.087, 0, -0.087, 0.996, 0, 8.5, 22)
-fov = 40.0
+transform = Transform3D(1, 0, 0, 0, 0.951, 0.309, 0, -0.309, 0.951, 0, 12, 28)
+fov = 45.0
 attributes = SubResource("CameraAttributes_none")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_grey")
 
 [editable path="Sheet"]
+[editable path="Pool"]

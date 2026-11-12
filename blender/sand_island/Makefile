@@ -36,8 +36,8 @@ help:
 	@echo "  make liquid-sample  export the sample again from the game (its 'last' inspect map)"
 	@echo "  make slime-bake     bake the slime's textures in Blender (liquid/slime/, slime_bake.blend)"
 	@echo "  make slime-river    build the slime river sample in Blender (liquid/sample/slime_river.*)"
-	@echo "  make waterfall-simple    one waterfall sheet with a hand-written shader (liquid/waterfall_simple/)"
-	@echo "  make waterfall-sheet     export that sheet from the .blend again (waterfall_sheet.glb)"
+	@echo "  make waterfall-simple    one waterfall sheet and its pool, hand-written shaders (liquid/waterfall_simple/)"
+	@echo "  make waterfall-sheet     export that sheet and the pool from the .blend again (*.glb)"
 	@echo "  make waterfall-simple-shot   shots/waterfall_simple.png"
 	@echo "Other"
 	@echo "  make demo        run godot_demo/ (the first island + shaders)"
@@ -130,7 +130,7 @@ slime-river:
 # The stylized waterfall's Blender file (liquid/stylized_waterfall/source/).
 WATERFALL_BLEND := $(LIQUID)/stylized_waterfall/source/stylizedwaterfall.blend
 
-# One sheet of it, simplified (liquid/waterfall_simple/).
+# One sheet of it and its pool, simplified (liquid/waterfall_simple/).
 waterfall-simple:
 	$(GODOT) --path $(LIQUID) res://waterfall_simple/waterfall_simple.tscn
 

@@ -1,4 +1,4 @@
-// Waterfall sheet, simple: the base colours of the stylized waterfall's "waterfall" material
+// Waterfall sheet, simple: the stylized waterfall's "waterfall" material
 // (stylized_waterfall/source/stylizedwaterfall.blend), written by hand. Blender's material is
 // colour laid on by height, the edges between the colours bent by voronoi cells:
 //   layer 1  two deep blues: a height line (low on the sheet) bent by cells, split in two tones
@@ -8,11 +8,12 @@
 //   dark     a few thin dark vertical lines (straighter stripes' troughs) down the whole sheet
 //   lip      a near-white patch over the top (its edge boiling) and stepped bright rings under it
 //   tiers    four brightness tiers by height, 0.43 x at the bottom to 1.45 x at the top
+//   drips    a white web (voronoi F1 minus Smooth F1: the cells' borders), shown only in a
+//            couple of wandering columns
 //   grade    a last hue / saturation / value push over all of it (Blender's "finalHSL" group)
 // The cells slide down over time: Blender moves each voronoi's Mapping up through its 3D
 // texture, so the pattern falls (the material's keyframes, per second at its 21 fps).
-// The rest of that material (lace foam at the lip, white drips) is still to come. Built step by
-// step in steps/ (the last step is this file).
+// That is the whole material. Built step by step in steps/ (the last step is this file).
 //
 // Coordinates, like Blender's "Generated": the sheet's own position scaled to 0..1 over its box
 // (box_min, box_size: tools/export_waterfall_sheet.py prints them), kept in Blender's order:
@@ -34,6 +35,8 @@ uniform vec3 glow_color = vec3(1.2, 1.175, 1.14);  // step 4: the patch at the l
 uniform float ring_brightness = 2.5;  // step 4: the rings' middle, x the colour
 uniform float bottom_brightness = 0.43;  // step 5: the lowest tier, x the colour
 uniform float top_brightness = 1.45;  // step 5: the highest tier
+uniform float lace_edge = 0.179;  // step 6: F1 - Smooth F1 above this: lace
+uniform float drip_side = 0.088;  // step 7: how white the lace is on a column's side
 uniform vec3 grade = vec3(0.06, 1.7, 1.9); // hue shift, saturation x, value x
 uniform vec3 box_min = vec3(-3.92, 0.0, -7.79); // the sheet's box, Godot's axes
 uniform vec3 box_size = vec3(7.96, 13.49, 9.19);
@@ -115,6 +118,28 @@ float wave(vec2 p, float distortion) {
 	return 0.5 + 0.5 * sin(n - PI * 0.5);
 }
 
+// voronoi F1 minus Smooth F1 (smoothness 1, Blender's 0.5 inside): 0 inside the cells, rising
+// along their borders.
+float cell_edges(vec3 p) {
+	vec3 cell = floor(p);
+	vec3 local_p = p - cell;
+	float nearest = 8.0;
+	float smooth_nearest = 8.0;
+	for (int k = -1; k <= 1; k++) {
+		for (int j = -1; j <= 1; j++) {
+			for (int i = -1; i <= 1; i++) {
+				vec3 offset = vec3(float(i), float(j), float(k));
+				float d = length(offset + hash33(cell + offset) - local_p);
+				nearest = min(nearest, d);
+				// blend toward each near point instead of jumping to the nearest
+				float h = smoothstep(0.0, 1.0, 0.5 + (smooth_nearest - d));
+				smooth_nearest = mix(smooth_nearest, d, h) - 0.5 * h * (1.0 - h);
+			}
+		}
+	}
+	return nearest - smooth_nearest;
+}
+
 vec3 rgb_to_hsv(vec3 c) {
 	vec4 k = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
 	vec4 p = mix(vec4(c.bg, k.wz), vec4(c.gb, k.xy), step(c.b, c.g));
@@ -188,6 +213,19 @@ void fragment() {
 	float tier_line = mix(b.z - 0.27, fbm3(b * 5.0, 0.5), 0.442);
 	float tier = clamp(floor(clamp(tier_line, 0.0, 1.0) * 3.68) / 2.68, 0.0, 1.0);  // 0, 0.37, 0.75, 1
 	colour *= mix(bottom_brightness, top_brightness, tier);  // dark bottom .. light top
+
+	// lace: the cells' borders on the UV (1.83 x 5: 9 cells across), nudged toward a noise
+	vec3 lace_p = vec3(uv * 1.83 + vec2(0.0, 1.735), 0.0);
+	lace_p = mix(lace_p, vec3(fbm3(b * 5.0, 0.5)), 0.15);
+	float lace = step(lace_edge, cell_edges(lace_p * 5.0));
+
+	// drips: slow bands across the sheet, pulled toward a still noise so they wander, cut
+	// into three levels; only there does the lace show
+	float column_x = mix(b.x + 0.33, fbm3(vec3(b.x, b.y, b.z + 3.135) * 5.0, 0.5), 0.375) * 0.87;
+	float column = 0.5 + 0.5 * sin(column_x * 20.0 - PI * 0.5);  // a Wave Texture, not bent
+	column = clamp((column - 0.14) / 0.86, 0.0, 1.0);
+	float drip = column >= 0.782 ? 1.0 : (column >= 0.527 ? drip_side : 0.0);  // three levels
+	colour = mix(colour, vec3(1.0), lace * drip);  // white where lace and column meet
 
 	// grade: hue + 0.06, saturation x 1.7, value x 1.9
 	vec3 hsv = rgb_to_hsv(colour);

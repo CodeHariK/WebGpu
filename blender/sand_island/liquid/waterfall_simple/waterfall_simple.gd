@@ -1,27 +1,46 @@
 extends Node3D
-## The simple waterfall sheet built step by step: steps/*.gdshader, each a whole shader (the lines a
-## step adds end in "// NEW"); the last one is waterfall_simple.gdshader. The panel shows the
-## comment at the top of the step's file. Left / right (or Prev / Next): the step. It starts on the
-## last step.
+## The simple waterfall built step by step, four tracks (T, or the panel's Track button, switches):
+##   sheet  steps/*.gdshader on the waterfall sheet (the last step is waterfall_simple.gdshader)
+##   pool   pool_steps/*.gdshader on the pool under it (the last is waterfall_pool.gdshader)
+##   froth  froth_steps/*.gdshader on the tube at its foot (froth_tube.gd; the last is
+##          waterfall_froth.gdshader)
+##   stones stone_steps/*.gdshader on the stones scattered round it (stone_scatter.gd; the last
+##          is waterfall_stone.gdshader)
+## Each step file is a whole shader; the lines a step adds end in "// NEW". The panel shows the
+## comment at the top of the step's file. Left / right (or Prev / Next): the step. Both start on
+## their last step; the track not shown keeps the step it was on.
 
 const StepHeader := preload("res://step_header.gd")
-const STEPS := "res://waterfall_simple/steps/"
+# [the panel's name, the folder of step files, the mesh they go on (or a node with a `material`
+# that puts it on its meshes: the stones)]
+const TRACKS := [
+	["WATERFALL SHEET", "res://waterfall_simple/steps/", "Sheet/WaterfallSheet"],
+	["POOL", "res://waterfall_simple/pool_steps/", "Pool/WaterfallPool"],
+	["FROTH", "res://waterfall_simple/froth_steps/", "Froth"],
+	["STONES", "res://waterfall_simple/stone_steps/", "Stones"],
+]
 
-@onready var sheet: MeshInstance3D = $Sheet/WaterfallSheet
-
-var step_files: PackedStringArray = []
-var step := 0
+var track := 0
+var step_files := [] # per track: its step files, in order
+var steps := [] # per track: the step it is on
 var title := Label.new()
 var notes := Label.new()
+var track_button := Button.new()
 
 
 func _ready() -> void:
-	for file in DirAccess.get_files_at(STEPS):
-		if file.ends_with(".gdshader"):
-			step_files.append(file)
-	step_files.sort()
+	for t in TRACKS.size():
+		var files: PackedStringArray = []
+		for file in DirAccess.get_files_at(TRACKS[t][1]):
+			if file.ends_with(".gdshader"):
+				files.append(file)
+		files.sort()
+		step_files.append(files)
+		steps.append(files.size() - 1)
 	_add_panel()
-	_show_step(step_files.size() - 1)
+	for t in range(TRACKS.size() - 1, -1, -1): # each mesh on its last step, the sheet shown
+		track = t
+		_show_step(steps[t])
 
 
 func _add_panel() -> void:
@@ -38,10 +57,13 @@ func _add_panel() -> void:
 		var button := Button.new()
 		button.text = ["Prev", "Next"][i]
 		button.focus_mode = Control.FOCUS_NONE # keep the arrow keys for the steps
-		button.pressed.connect(func() -> void: _show_step(step + (1 if i == 1 else -1)))
+		button.pressed.connect(func() -> void: _show_step(steps[track] + (1 if i == 1 else -1)))
 		buttons.add_child(button)
+	track_button.focus_mode = Control.FOCUS_NONE
+	track_button.pressed.connect(_next_track)
+	buttons.add_child(track_button)
 	var keys := Label.new()
-	keys.text = "left / right: step"
+	keys.text = "left / right: step   T: track"
 	keys.add_theme_font_size_override("font_size", 12)
 	keys.modulate = Color(1, 1, 1, 0.6)
 	box.add_child(title)
@@ -54,21 +76,36 @@ func _add_panel() -> void:
 	add_child(layer)
 
 
+func _next_track() -> void:
+	track = (track + 1) % TRACKS.size()
+	_show_step(steps[track])
+
+
+# Put step p_index of the current track on its mesh and show what it adds.
 func _show_step(p_index: int) -> void:
-	if step_files.is_empty():
+	var files: PackedStringArray = step_files[track]
+	if files.is_empty():
 		return
-	step = clampi(p_index, 0, step_files.size() - 1)
-	var path := STEPS + step_files[step]
+	steps[track] = clampi(p_index, 0, files.size() - 1)
+	var path: String = TRACKS[track][1] + files[steps[track]]
 	var material := ShaderMaterial.new()
 	material.shader = load(path)
-	sheet.material_override = material
+	var target := get_node(TRACKS[track][2])
+	if target is GeometryInstance3D:
+		target.material_override = material
+	else:
+		target.set("material", material)
 	var header := StepHeader.parse(FileAccess.get_file_as_string(path))
-	title.text = "WATERFALL SHEET · %d / %d · %s" % [step + 1, step_files.size(), header[0]]
+	title.text = "%s · %d / %d · %s" % [TRACKS[track][0], steps[track] + 1, files.size(), header[0]]
 	notes.text = header[1]
+	track_button.text = "Track (T): " + String(TRACKS[(track + 1) % TRACKS.size()][0]).to_lower()
 
 
 func _unhandled_input(p_event: InputEvent) -> void:
 	if p_event is InputEventKey and p_event.pressed and not p_event.echo:
 		if p_event.keycode == KEY_RIGHT or p_event.keycode == KEY_LEFT:
-			_show_step(step + (1 if p_event.keycode == KEY_RIGHT else -1))
+			_show_step(steps[track] + (1 if p_event.keycode == KEY_RIGHT else -1))
+			get_viewport().set_input_as_handled()
+		elif p_event.keycode == KEY_T:
+			_next_track()
 			get_viewport().set_input_as_handled()
