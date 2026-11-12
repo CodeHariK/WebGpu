@@ -56,7 +56,7 @@ clean:
 	$(SCONS) -c
 	rm -f compile_commands.json
 
-.PHONY: all build inspect clean reimport brr
+.PHONY: all build inspect clean reimport brr android run_octo_android log_android
 
 
 run_mc:
@@ -89,6 +89,27 @@ run_octo:
 #   R = refill slow-mo meter             K = camera shake (trauma)
 run_octo_fx:
 	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn -- --fxtest
+
+# Android (arm64), on the phone plugged in over USB:
+#   make android            build the GDExtension for Android (release, with the NDK)
+#   make run_octo_android   that, then export octocar.tscn ("Android octo" preset: the scene, its
+#                           dependencies and the folders loaded by path), install it and start it
+#   make log_android        the game's log from the phone (print, errors)
+ANDROID_SDK := /Users/Shared/Android/sdk
+NDK_VERSION := 28.2.13676358
+ADB         := $(ANDROID_SDK)/platform-tools/adb
+
+android:
+	ANDROID_HOME=$(ANDROID_SDK) time $(SCONS) -j8 platform=android arch=arm64 target=template_release ndk_version=$(NDK_VERSION)
+
+run_octo_android: android
+	mkdir -p build/android
+	$(GODOT) --headless --path project --export-release "Android octo" ../build/android/octo.apk
+	$(ADB) install -r build/android/octo.apk
+	$(ADB) shell am start -n com.hari.minecraft.octo/com.godot.game.GodotAppLauncher
+
+log_android:
+	$(ADB) logcat -s godot:V
 run_road:
 	$(GODOT) --path project/ --scene scene/road/road.tscn
 run_gizmo:

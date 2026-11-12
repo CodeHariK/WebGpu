@@ -72,3 +72,6 @@ godot-cpp
 
 **/docs/**/*.png
 _to_delete/**
+
+# release libraries before stripping (SConstruct)
+*.unstripped

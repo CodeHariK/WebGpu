@@ -16,6 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="godot cpp template"
 run/main_scene="uid://cbjbi6l0rjljo"
+run/main_scene.octo="res://scene/octocar/octocar.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/main_scene=""
 config/size/initial_position=Vector2i(1200, 600)

@@ -64,6 +64,14 @@ suffix = env['suffix'].replace(".dev", "").replace(".universal", "")
 # Construct the target library name
 lib_filename = "{}{}{}{}".format(env.subst('$SHLIBPREFIX'), libname, suffix, env.subst('$SHLIBSUFFIX'))
 
+# The strip command: the host's for its own binaries; for Android (ELF) the NDK's llvm-strip,
+# since macOS's strip can't read ELF files.
+strip_command = "strip -x $SOURCE -o $TARGET"
+if env["platform"] == "android":
+    ndk_strip = glob.glob(os.path.join(env["ANDROID_HOME"], "ndk", env["ndk_version"], "toolchains/llvm/prebuilt/*/bin/llvm-strip"))
+    if ndk_strip:
+        strip_command = ndk_strip[0] + " --strip-unneeded $SOURCE -o $TARGET"
+
 # Build the library
 if env["target"] == "template_release":
     # Build unstripped version first
@@ -75,7 +83,7 @@ if env["target"] == "template_release":
     library = env.Command(
         "bin/{}/{}".format(env['platform'], lib_filename),
         unstripped_library,
-        "strip -x $SOURCE -o $TARGET"
+        strip_command
     )
 else:
     # Standard build for debug/editor
