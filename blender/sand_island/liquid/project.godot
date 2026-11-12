@@ -26,3 +26,14 @@ anti_aliasing/quality/msaa_3d=2
 [filesystem]
 
 import/blender/enabled=false
+
+[shader_globals]
+
+waterfall_noise_a={
+"type": "sampler3D",
+"value": "res://waterfall_simple/noise/noise_a.png"
+}
+waterfall_noise_b={
+"type": "sampler3D",
+"value": "res://waterfall_simple/noise/noise_b.png"
+}

@@ -1,6 +1,5 @@
-## How long each simple-waterfall shader takes to fill the screen, next to the island's water and
-## snow. (The converted Blender waterfall is left out: one frame of its sheet at this size took
-## too long to finish a run.)
+## How long each simple-waterfall shader takes to fill the screen, live (its noises worked out per
+## pixel) and baked (read from noise/), next to the island's water and snow.
 ## Timed the way the island's bench does it (water_tutorial/perf.md, PerfHud.measure_gpu), so the
 ## numbers can sit side by side:
 ##   - one shader on a flat plane seen straight down fills the whole screen
@@ -24,18 +23,21 @@ const BASELINE := "shader_type spatial;\nrender_mode unshaded;\nvoid fragment() 
 
 # [label, shader, parameters]; a parameter given as "res://..." is loaded
 const LIQUID_SHADERS := [
-	["simple: sheet", "res://waterfall_simple/waterfall_simple.gdshader", {}],
-	["simple: sheet, mobile (baked)", "res://waterfall_simple/mobile/waterfall_sheet_mobile.gdshader",
-		{"still_a": "res://waterfall_simple/mobile/sheet_still_a.png",
-		"still_b": "res://waterfall_simple/mobile/sheet_still_b.png"}],
-	["simple: pool", "res://waterfall_simple/waterfall_pool.gdshader", {}],
-	["simple: froth", "res://waterfall_simple/waterfall_froth.gdshader", {}],
-	["simple: stones", "res://waterfall_simple/waterfall_stone.gdshader", {}],
-	["simple: bubbles", "res://waterfall_simple/waterfall_bubble.gdshader", {}],
+	["sheet: live (step 9)", "res://waterfall_simple/steps/step09_variety.gdshader", {}],
+	["sheet: baked noise (step 10)", "res://waterfall_simple/waterfall_simple.gdshader", {}],
+	["pool: live (step 4)", "res://waterfall_simple/pool_steps/step04_tiers.gdshader", {}],
+	["pool: baked noise (step 5)", "res://waterfall_simple/waterfall_pool.gdshader", {}],
+	["froth: live (step 5)", "res://waterfall_simple/froth_steps/step05_light_rim.gdshader", {}],
+	["froth: baked noise (step 6)", "res://waterfall_simple/waterfall_froth.gdshader", {}],
+	["stones: live (step 3)", "res://waterfall_simple/stone_steps/step03_cracks.gdshader", {}],
+	["stones: baked noise (step 4)", "res://waterfall_simple/waterfall_stone.gdshader", {}],
+	["bubbles: live (step 2)", "res://waterfall_simple/bubble_steps/step02_wobble.gdshader", {}],
+	["bubbles: baked noise (step 3)", "res://waterfall_simple/waterfall_bubble.gdshader", {}],
 	["water_mobile (flat)", "res://water_mobile/water_mobile.gdshader", {}],
 ]
 const LIQUID_SCENES := [
 	["scene: one sheet (waterfall_simple.tscn)", "res://waterfall_simple/waterfall_simple.tscn"],
+	["scene: full (waterfall_full.tscn)", "res://waterfall_simple/waterfall_full.tscn"],
 ]
 const ISLAND_SHADERS := [
 	["island water (step 13, opaque)", "res://water_steps/step13_opaque.gdshader",

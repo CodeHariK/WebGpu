@@ -11,8 +11,16 @@
 //
 // Coordinates: b is Blender's Generated, here the pool's UV (b.x across, b.y front 0 .. back 1,
 // b.z 0.5: a flat plane's height).
+// The noises are baked: each is one read of a 3D texture (noise/, tools/bake_waterfall_noise.py).
 shader_type spatial;
 render_mode unshaded, cull_disabled;
+
+// the noises, baked by tools/bake_waterfall_noise.py into two 3D textures (noise/) that
+// tile every NOISE_PERIOD noise units; set once for the project (Project Settings > Shader
+// Globals), so no material needs them
+global uniform sampler3D waterfall_noise_a : filter_linear, repeat_enable;  // F1, borders, value fBMs
+global uniform sampler3D waterfall_noise_b : filter_linear, repeat_enable;  // Perlin fBMs, border distance
+const float NOISE_PERIOD = 6.0;  // noise units the textures cover before they repeat
 
 // Colours are linear (Blender's numbers), not picked: the grade pushes them past 1.
 uniform vec3 teal_color = vec3(0.114, 0.319, 0.305);  // the middle of the pool
@@ -26,60 +34,17 @@ uniform float front_brightness = 0.35;  // step 4: the front
 uniform float sun_light = 0.66;  // Blender's sun on a flat pool (3.17 x cos 53 deg / pi + world 0.05)
 uniform vec3 grade = vec3(0.07, 1.5, 2.0);  // hue shift, saturation x, value x
 
-// A random point in each cell of a 3D grid (Dave Hoskins' hash, no sin).
-vec3 hash33(vec3 p) {
-	p = fract(p * vec3(0.1031, 0.1030, 0.0973));
-	p += dot(p, p.yxz + 33.33);
-	return fract((p.xxy + p.yxx) * p.zyx);
-}
-
-// Voronoi F1: the distance to the nearest of those points, 0 at a point, about 1 at most.
+// Voronoi F1, baked: noise_a's red (it was the nearest of 27 cells' points, worked out per pixel).
 float cells(vec3 p) {
-	vec3 cell = floor(p);
-	vec3 local_p = p - cell;
-	float nearest = 8.0;
-	for (int k = -1; k <= 1; k++) {
-		for (int j = -1; j <= 1; j++) {
-			for (int i = -1; i <= 1; i++) {
-				vec3 offset = vec3(float(i), float(j), float(k));
-				nearest = min(nearest, length(offset + hash33(cell + offset) - local_p));
-			}
-		}
-	}
-	return nearest;
+	return texture(waterfall_noise_a, p / NOISE_PERIOD).r;
 }
 
-// gradient (Perlin) noise in 3D, about -1..1, like Blender's: every whole point gets a random
-// slope, and between them the slopes are blended. Most of it stays near 0 (unlike a noise of
-// random heights), so Blender's cuts (keep it above 0.59, ...) keep as little as they do there.
-float gnoise3(vec3 p) {
-	vec3 i = floor(p);
-	vec3 f = p - i;
-	vec3 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
-	float n000 = dot(hash33(i) * 2.0 - 1.0, f);
-	float n100 = dot(hash33(i + vec3(1.0, 0.0, 0.0)) * 2.0 - 1.0, f - vec3(1.0, 0.0, 0.0));
-	float n010 = dot(hash33(i + vec3(0.0, 1.0, 0.0)) * 2.0 - 1.0, f - vec3(0.0, 1.0, 0.0));
-	float n110 = dot(hash33(i + vec3(1.0, 1.0, 0.0)) * 2.0 - 1.0, f - vec3(1.0, 1.0, 0.0));
-	float n001 = dot(hash33(i + vec3(0.0, 0.0, 1.0)) * 2.0 - 1.0, f - vec3(0.0, 0.0, 1.0));
-	float n101 = dot(hash33(i + vec3(1.0, 0.0, 1.0)) * 2.0 - 1.0, f - vec3(1.0, 0.0, 1.0));
-	float n011 = dot(hash33(i + vec3(0.0, 1.0, 1.0)) * 2.0 - 1.0, f - vec3(0.0, 1.0, 1.0));
-	float n111 = dot(hash33(i + vec3(1.0, 1.0, 1.0)) * 2.0 - 1.0, f - vec3(1.0, 1.0, 1.0));
-	return mix(mix(mix(n000, n100, u.x), mix(n010, n110, u.x), u.y), mix(mix(n001, n101, u.x), mix(n011, n111, u.x), u.y), u.z);
-}
-
-// gnoise3 in 3 sizes (Blender's fBM, its "Detail 2"), back to 0..1 around 0.5; roughness:
-// how much each smaller size counts.
+// gradient (Perlin) noise in 3 sizes (fBM), 0..1 around 0.5, baked: roughness 0.5 is noise_b's
+// red, 0.375 its green; both stored 2 x as far from 0.5 (they stay between 0.25 and 0.75).
 float fbm3(vec3 p, float roughness) {
-	float amp = 1.0;
-	float sum = 0.0;
-	float total = 0.0;
-	for (int i = 0; i < 3; i++) {
-		sum += gnoise3(p) * amp;
-		total += amp;
-		amp *= roughness;
-		p *= 2.0;
-	}
-	return 0.5 + 0.5 * sum / total;
+	vec4 n = texture(waterfall_noise_b, p / NOISE_PERIOD);
+	float stored = roughness > 0.45 ? n.r : n.g;
+	return 0.5 + (stored - 0.5) * 0.5;
 }
 
 // Blender's Quadratic Sphere gradient: 1 at the centre, 0 one unit away, squared.
@@ -88,25 +53,9 @@ float sphere(vec3 p) {
 	return r * r;
 }
 
-// voronoi F1 minus Smooth F1 (the sheet's step 6): 0 inside the cells, rising along their
-// borders. Both from one loop over the 27 nearby cells.
+// F1 minus Smooth F1 (the cells' borders), baked: noise_a's green, stored x 2.
 float cell_edges(vec3 p) {
-	vec3 cell = floor(p);
-	vec3 local_p = p - cell;
-	float nearest = 8.0;
-	float smooth_nearest = 8.0;
-	for (int k = -1; k <= 1; k++) {
-		for (int j = -1; j <= 1; j++) {
-			for (int i = -1; i <= 1; i++) {
-				vec3 offset = vec3(float(i), float(j), float(k));
-				float d = length(offset + hash33(cell + offset) - local_p);
-				nearest = min(nearest, d);
-				float h = smoothstep(0.0, 1.0, 0.5 + (smooth_nearest - d));
-				smooth_nearest = mix(smooth_nearest, d, h) - 0.5 * h * (1.0 - h);
-			}
-		}
-	}
-	return nearest - smooth_nearest;
+	return texture(waterfall_noise_a, p / NOISE_PERIOD).g * 0.5;
 }
 
 // one web: the cells' borders where they are over `low`, times a round patch near the falls,

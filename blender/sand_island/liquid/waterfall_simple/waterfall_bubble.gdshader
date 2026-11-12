@@ -4,8 +4,15 @@
 //            slide through the square; the rest cut away (alpha scissor)
 //   wobble   the vertex shader crumples each square with a sinking noise
 // Built step by step in bubble_steps/ (the last step is this file).
+// The noises are baked: each is one read of a 3D texture (noise/, tools/bake_waterfall_noise.py).
 shader_type spatial;
 render_mode unshaded, cull_disabled;
+
+// the noises, baked by tools/bake_waterfall_noise.py into two 3D textures (noise/) that
+// tile every NOISE_PERIOD noise units; set once for the project (Project Settings > Shader
+// Globals), so no material needs them
+global uniform sampler3D waterfall_noise_a : filter_linear, repeat_enable;  // F1, borders, value fBMs
+const float NOISE_PERIOD = 6.0;  // noise units the textures cover before they repeat
 
 uniform vec3 bubble_color = vec3(1.3);  // linear, a little past white
 uniform float wobble_strength = 0.5;  // step 2: metres per noise unit
@@ -19,20 +26,9 @@ vec3 hash33(vec3 p) {
 	return fract((p.xxy + p.yxx) * p.zyx);
 }
 
-// voronoi F1: the distance to the nearest point.
+// Voronoi F1, baked: noise_a's red (it was the nearest of 27 cells' points, worked out per pixel).
 float cells(vec3 p) {
-	vec3 cell = floor(p);
-	vec3 local_p = p - cell;
-	float nearest = 8.0;
-	for (int k = -1; k <= 1; k++) {
-		for (int j = -1; j <= 1; j++) {
-			for (int i = -1; i <= 1; i++) {
-				vec3 offset = vec3(float(i), float(j), float(k));
-				nearest = min(nearest, length(offset + hash33(cell + offset) - local_p));
-			}
-		}
-	}
-	return nearest;
+	return texture(waterfall_noise_a, p / NOISE_PERIOD).r;
 }
 
 varying vec3 object_p;  // the square's own position (Blender's Object coordinates)

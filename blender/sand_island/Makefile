@@ -41,7 +41,7 @@ help:
 	@echo "  make waterfall-full      the simple pieces laid out like the whole Blender scene"
 	@echo "  make waterfall-full-build    build waterfall_full.tscn again (from full_layout.json)"
 	@echo "  make waterfall-bench         time the simple waterfall shaders vs the island water and snow"
-	@echo "  make waterfall-bake      bake the sheet's still layers (mobile/), check the mobile sheet"
+	@echo "  make waterfall-noise     bake the waterfall's noises into 3D textures (liquid/waterfall_simple/noise/)"
 	@echo "Other"
 	@echo "  make demo        run godot_demo/ (the first island + shaders)"
 	@echo "  make preview     render sand_island.glb in Godot -> godot_preview.png"
@@ -140,10 +140,9 @@ waterfall-simple-shot:
 waterfall-full:
 	$(GODOT) --path $(LIQUID) res://waterfall_simple/waterfall_full.tscn
 
-waterfall-bake:
-	$(GODOT) --path $(LIQUID) -s tools/bake_waterfall_sheet.gd
+waterfall-noise:
+	python3 $(LIQUID)/tools/bake_waterfall_noise.py
 	$(GODOT) --headless --editor --quit --path $(LIQUID)
-	$(GODOT) --path $(LIQUID) -s tools/check_waterfall_mobile.gd
 
 waterfall-bench:
 	$(GODOT) --rendering-method mobile --path $(LIQUID) -s tools/bench_waterfall.gd
@@ -162,4 +161,4 @@ preview:
 	python3 preview_in_godot.py
 
 .PHONY: help e reimport water sand snow snow-demo rock lab bench bench-rock shots liquids liquid-e \
-	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-water liquid-steps-shots slime-bake slime-river waterfall-simple waterfall-simple-shot waterfall-full waterfall-full-build waterfall-bake waterfall-bench demo preview
+	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-water liquid-steps-shots slime-bake slime-river waterfall-simple waterfall-simple-shot waterfall-full waterfall-full-build waterfall-noise waterfall-bench demo preview

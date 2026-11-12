@@ -20,10 +20,17 @@
 // Coordinates, like Blender's "Generated": the sheet's own position scaled to 0..1 over its box
 // (box_min, box_size: measured from the Blender mesh when it was exported), kept in Blender's order:
 // b.x across, b.y depth, b.z height (0 at the bottom, 1 at the top).
+// The noises are baked: each is one read of a 3D texture (noise/, tools/bake_waterfall_noise.py).
 shader_type spatial;
 render_mode unshaded, cull_disabled;
 
 #include "res://shader_lib/liquid_noise.gdshaderinc"
+
+// the noises, baked by tools/bake_waterfall_noise.py into two 3D textures (noise/) that
+// tile every NOISE_PERIOD noise units; set once for the project (Project Settings > Shader
+// Globals), so no material needs them
+global uniform sampler3D waterfall_noise_a : filter_linear, repeat_enable;  // F1, borders, value fBMs
+const float NOISE_PERIOD = 6.0;  // noise units the textures cover before they repeat
 
 // Colours are linear (Blender's numbers), not picked: the grade pushes them past 1.
 uniform vec3 deep_color = vec3(0.007, 0.060, 0.072); // layer 1, upper tone
@@ -52,62 +59,25 @@ varying vec3 b; // Generated, Blender's order: across, depth, height
 instance uniform vec2 pattern_offset = vec2(0.0);
 
 
-// A random point in each cell of a 3D grid (Dave Hoskins' hash, no sin).
-vec3 hash33(vec3 p) {
-	p = fract(p * vec3(0.1031, 0.1030, 0.0973));
-	p += dot(p, p.yxz + 33.33);
-	return fract((p.xxy + p.yxx) * p.zyx);
-}
-
-// Voronoi F1: the distance to the nearest of those points, 0 at a point, about 1 at most.
+// Voronoi F1, baked: noise_a's red (it was the nearest of 27 cells' points, worked out per pixel).
 float cells(vec3 p) {
-	vec3 cell = floor(p);
-	vec3 local_p = p - cell;
-	float nearest = 8.0;
-	for (int k = -1; k <= 1; k++) {
-		for (int j = -1; j <= 1; j++) {
-			for (int i = -1; i <= 1; i++) {
-				vec3 offset = vec3(float(i), float(j), float(k));
-				nearest = min(nearest, length(offset + hash33(cell + offset) - local_p));
-			}
-		}
-	}
-	return nearest;
+	return texture(waterfall_noise_a, p / NOISE_PERIOD).r;
 }
 
-// noise of 3 sizes added (fBM), 0..1: soft blobs with a little detail.
+// noise of 3 sizes added (fBM), 0..1, baked: a slice through noise_a's blue (the same 3 sizes).
 float fbm(vec2 p) {
-	return noise(p) * 0.57 + noise(p * 2.0 + 3.1) * 0.29 + noise(p * 4.0 + 7.7) * 0.14;
+	return texture(waterfall_noise_a, vec3(p, 0.5) / NOISE_PERIOD).b;
 }
 
-// value noise in 3D, 0..1, so a pattern can change over time (a slice moving through it).
+// value noise in 3D, baked: noise_a's alpha (3 sizes, the smaller two faint: nearly one size).
 float noise3(vec3 p) {
-	vec3 i = floor(p);
-	vec3 f = p - i;
-	vec3 u = f * f * (3.0 - 2.0 * f);
-	float n000 = hash33(i).x;
-	float n100 = hash33(i + vec3(1.0, 0.0, 0.0)).x;
-	float n010 = hash33(i + vec3(0.0, 1.0, 0.0)).x;
-	float n110 = hash33(i + vec3(1.0, 1.0, 0.0)).x;
-	float n001 = hash33(i + vec3(0.0, 0.0, 1.0)).x;
-	float n101 = hash33(i + vec3(1.0, 0.0, 1.0)).x;
-	float n011 = hash33(i + vec3(0.0, 1.0, 1.0)).x;
-	float n111 = hash33(i + vec3(1.0, 1.0, 1.0)).x;
-	return mix(mix(mix(n000, n100, u.x), mix(n010, n110, u.x), u.y), mix(mix(n001, n101, u.x), mix(n011, n111, u.x), u.y), u.z);
+	return texture(waterfall_noise_a, p / NOISE_PERIOD).a;
 }
 
-// noise3 in 3 sizes (fBM), 0..1; roughness: how much each smaller size counts.
+// noise3 in 3 sizes (fBM), baked: roughness 0.5 is noise_a's blue, 0.2 its alpha (the two used).
 float fbm3(vec3 p, float roughness) {
-	float amp = 1.0;
-	float sum = 0.0;
-	float total = 0.0;
-	for (int i = 0; i < 3; i++) {
-		sum += noise3(p) * amp;
-		total += amp;
-		amp *= roughness;
-		p *= 2.0;
-	}
-	return sum / total;
+	vec4 n = texture(waterfall_noise_a, p / NOISE_PERIOD);
+	return roughness > 0.35 ? n.b : n.a;
 }
 
 // Blender's Quadratic Sphere gradient: 1 at the centre, 0 one unit away, squared.
@@ -122,26 +92,9 @@ float wave(vec2 p, float distortion) {
 	return 0.5 + 0.5 * sin(n - PI * 0.5);
 }
 
-// voronoi F1 minus Smooth F1 (smoothness 1, Blender's 0.5 inside): 0 inside the cells, rising
-// along their borders.
+// F1 minus Smooth F1 (the cells' borders), baked: noise_a's green, stored x 2.
 float cell_edges(vec3 p) {
-	vec3 cell = floor(p);
-	vec3 local_p = p - cell;
-	float nearest = 8.0;
-	float smooth_nearest = 8.0;
-	for (int k = -1; k <= 1; k++) {
-		for (int j = -1; j <= 1; j++) {
-			for (int i = -1; i <= 1; i++) {
-				vec3 offset = vec3(float(i), float(j), float(k));
-				float d = length(offset + hash33(cell + offset) - local_p);
-				nearest = min(nearest, d);
-				// blend toward each near point instead of jumping to the nearest
-				float h = smoothstep(0.0, 1.0, 0.5 + (smooth_nearest - d));
-				smooth_nearest = mix(smooth_nearest, d, h) - 0.5 * h * (1.0 - h);
-			}
-		}
-	}
-	return nearest - smooth_nearest;
+	return texture(waterfall_noise_a, p / NOISE_PERIOD).g * 0.5;
 }
 
 vec3 rgb_to_hsv(vec3 c) {
