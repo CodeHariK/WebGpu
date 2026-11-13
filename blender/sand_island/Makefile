@@ -42,6 +42,8 @@ help:
 	@echo "  make waterfall-full-build    build waterfall_full.tscn again (from full_layout.json)"
 	@echo "  make waterfall-bench         time the simple waterfall shaders vs the island water and snow"
 	@echo "  make waterfall-noise     bake the waterfall's noises into 3D textures (liquid/waterfall_simple/noise/)"
+	@echo "  make whirlpool       a whirlpool on one flat sheet, step by step (liquid/whirlpool/)"
+	@echo "  make whirlpool-shots $(LIQUID)/shots/whirlpool_step<NN>_<name>.png, one per step"
 	@echo "Other"
 	@echo "  make demo        run godot_demo/ (the first island + shaders)"
 	@echo "  make preview     render sand_island.glb in Godot -> godot_preview.png"
@@ -161,4 +163,11 @@ preview:
 	python3 preview_in_godot.py
 
 .PHONY: help e reimport water sand snow snow-demo rock lab bench bench-rock shots liquids liquid-e \
-	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-water liquid-steps-shots slime-bake slime-river waterfall-simple waterfall-simple-shot waterfall-full waterfall-full-build waterfall-noise waterfall-bench demo preview
+	liquid-reimport liquid-shots liquid-sample liquid-steps liquid-steps-water liquid-steps-shots slime-bake slime-river waterfall-simple waterfall-simple-shot waterfall-full waterfall-full-build waterfall-noise waterfall-bench whirlpool whirlpool-shots demo preview
+
+# A whirlpool on one flat sheet, from the world position alone (liquid/whirlpool/).
+whirlpool:
+	$(GODOT) --path $(LIQUID) res://whirlpool/whirlpool.tscn
+
+whirlpool-shots:
+	$(GODOT) --path $(LIQUID) res://whirlpool/whirlpool.tscn -- --capture-steps

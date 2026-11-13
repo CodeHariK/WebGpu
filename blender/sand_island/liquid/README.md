@@ -23,6 +23,8 @@ make waterfall-simple-shot  # shots/waterfall_simple.png
 make waterfall-full   # the whole waterfall rebuilt from the simple parts (waterfall_full.tscn)
 make waterfall-full-build  # build that scene again (from full_layout.json), shots/waterfall_full.png
 make waterfall-noise  # bake the waterfall's noises into noise/noise_a.png, noise_b.png (3D textures)
+make whirlpool        # a whirlpool on one flat sheet, built step by step (whirlpool/)
+make whirlpool-shots  # shots/whirlpool_step<NN>_<name>.png, one per step
 ```
 
 ## Folders
@@ -38,6 +40,7 @@ make waterfall-noise  # bake the waterfall's noises into noise/noise_a.png, nois
 | `sample/` | `water.res` + `terrain.res`: the game's water and the ground round it (its "last" inspect map); `slime_river.blend` + `.glb`: the slime river (Blender) |
 | `water_stylized/` | the simple waterfall's look on the MC water mesh: falls, flat water, froth, shore lace in one shader (below) |
 | `waterfall_simple/` | one sheet of the waterfall, the pool under it (`waterfall_sheet.glb`, `waterfall_pool.glb`), the froth tube and scattered stones (made by script), puffs, spray and bubbles, hand-written shaders built in steps (below); `waterfall_simple.tscn`; `waterfall_full.tscn` (the whole waterfall from these parts, `full_layout.json`, `meshes/`); `noise/` (its noises baked into two 3D textures) |
+| `whirlpool/` | a whirlpool on one flat sheet from the world position alone (no flow map, no UV): `steps/` (9 steps, the last one is `whirlpool.gdshader`), `whirlpool.tscn` / `whirlpool.gd` (the sheet and the step viewer) |
 | `tools/` | `export_liquid_sample.gd`: makes the MC sample (it runs inside the game project); `bake_slime.py`, `build_slime_river.py`: the Blender scripts (`make slime-bake`, `make slime-river`); `shoot_waterfall.gd`, `build_waterfall_full.gd`, `bench_waterfall.gd`, `bake_waterfall_noise.py`: the simple waterfall's |
 
 Step-by-step tracks, as the sand island's shaders have: `poison_mobile/steps/` (12 steps, the last
@@ -282,6 +285,28 @@ Next to the island's shaders: its water (step 13) 0.36, snow 1.78 (baked: 1.08),
 `water_mobile` 3.37. The baked sheet is now about as costly as the snow, the rest under the island
 water. Whole scenes from their cameras (at 13 million pixels): `waterfall_simple.tscn` 0.67 ms a
 frame (11.9 before), `waterfall_full.tscn` 1.06.
+
+## The whirlpool (`whirlpool/`)
+
+A whirlpool flows the same way all round its middle, so it needs no flow map: the shader works
+the flow out from where the pixel is. It runs on one flat sheet (`whirlpool.gd`: a `PlaneMesh`
+24 m square in 0.12 m squares, dense enough for the funnel), in world space
+(`world_vertex_coords`), measured from the sheet's origin: move the sheet and the whirlpool goes
+with it, scale it and the pattern keeps its size. Its noise is the waterfall's baked
+`waterfall_noise_a` (a global uniform): 4 texture reads a pixel. Built in `steps/` (the last step
+is `whirlpool.gdshader`); `make whirlpool` steps through them (left / right).
+
+| Step | Adds |
+|---|---|
+| 1 colour | metres from the middle (the world position minus `MODEL_MATRIX[3]`): deep in the middle, shallow out at `radius` |
+| 2 blobs | still noise blobs laid on in metres: a 2D slice through the baked 3D noise |
+| 3 turntable | the pattern read where the liquid was (`rotate(offset, -turn * TIME)`): it turns like a plate |
+| 4 faster inside | each ring its own rate (`spin_speed(r)`): liquid-like, but it winds up into thinner and thinner spirals |
+| 5 two copies | the flow-map trick, turned round: each copy turns for one `cycle` and restarts, half a cycle apart, cross-faded, the contrast kept (÷ √(w0² + w1²)) |
+| 6 pull in | the liquid also sinks inward (× e^(pull × s)): a spiral, slow at the rim, fast near the eye |
+| 7 streaks | long lines going round: noise read on a circle ((cos, sin) of the angle) and in rings (distance): no seam; this is why the noise is 3D |
+| 8 funnel | the vertex shader sinks the middle (a bell, `depth`, `funnel`) and tips the normal by its slope; a dark eye |
+| 9 foam | white where the streaks are high, crisp, in a ring round the eye: the finished whirlpool |
 
 ## The stylized water on the game's mesh (`water_stylized/`)
 
