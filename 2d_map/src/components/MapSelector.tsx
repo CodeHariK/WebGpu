@@ -44,6 +44,8 @@ import Map22 from '../maps/Map22';
 import Map22Explanation from '../maps/Map22Explanation';
 import Map23 from '../maps/Map23';
 import Map23Explanation from '../maps/Map23Explanation';
+import Map24 from '../maps/Map24';
+import Map24Explanation from '../maps/Map24Explanation';
 
 import './MapSelector.css';
 
@@ -78,10 +80,11 @@ const MAPS: MapEntry[] = [
     { value: 'map21', label: 'Combat Sandbox', Comp: Map21, Expl: Map21Explanation },
     { value: 'map22', label: 'Wick', Comp: Map22, Expl: Map22Explanation },
     { value: 'map23', label: 'Lockpick', Comp: Map23, Expl: Map23Explanation },
+    { value: 'map24', label: 'Street Map', Comp: Map24, Expl: Map24Explanation },
 ];
 
 export default function MapSelector() {
-    const [value, setValue] = useState<string>('map23');
+    const [value, setValue] = useState<string>('map24');
 
     return (
         <div className="selector-container">
