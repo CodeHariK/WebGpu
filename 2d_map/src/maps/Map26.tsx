@@ -145,6 +145,10 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
                 </Section>
                 <Section title="DISTRICTS">
                     {num('districtSize', 'district size', 6, 40, 1)}
+                    {num('streetBlock', 'street block', 4, 24, 1)}
+                    {num('streetGaps', 'street gaps', 0, 0.6, 0.01)}
+                    {num('houseSize', 'house size', 1.5, 5, 0.1)}
+                    {num('houseFill', 'house fill', 0, 1, 0.01)}
                 </Section>
                 <Section title="ROADS">
                     {num('straighten', 'straighten', 0, 5, 0.1)}

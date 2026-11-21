@@ -3,6 +3,8 @@
 // highways along the borders, and the districts (each a shade of its block) with their main roads.
 import type { Borders, Highway } from './Map26Borders';
 import type { Districts } from './Map26Districts';
+import type { Houses } from './Map26Houses';
+import type { Streets } from './Map26Streets';
 import type { QueueView } from './Map26Queue';
 import type { Spread } from './Map26Spread';
 
@@ -203,5 +205,45 @@ export function drawMainRoads(p_ctx: CanvasRenderingContext2D, p_roads: Borders,
             path(p_ctx, h, cell);
             p_ctx.stroke();
         }
+    }
+}
+
+// The streets: thin grey lines (under the main roads and highways, which cover their ends).
+export function drawStreets(p_ctx: CanvasRenderingContext2D, p_s: Streets, p_n: number, p_size: number): void {
+    const cell = p_size / p_n;
+    p_ctx.strokeStyle = '#a2978a';
+    p_ctx.lineWidth = 1.3;
+    p_ctx.lineCap = 'butt';
+    p_ctx.beginPath();
+    for (const s of p_s.streets) {
+        p_ctx.moveTo(s.ax * cell, s.ay * cell);
+        p_ctx.lineTo(s.bx * cell, s.by * cell);
+    }
+    p_ctx.stroke();
+}
+
+const ROOF_COLOURS = ['#d9785f', '#c4655a', '#8e9bb5', '#e2b46c', '#b5836b', '#9db39d'];
+
+// The houses: a soft shadow, the roof in its colour with a darker edge, and a ridge along it.
+export function drawHouses(p_ctx: CanvasRenderingContext2D, p_h: Houses, p_n: number, p_size: number): void {
+    const cell = p_size / p_n;
+    for (const h of p_h.houses) {
+        const w = h.width * cell;
+        const d = h.depth * cell;
+        p_ctx.save();
+        p_ctx.translate(h.x * cell, h.y * cell);
+        p_ctx.rotate(h.angle);
+        p_ctx.fillStyle = 'rgba(60, 45, 30, 0.22)';
+        p_ctx.fillRect(-w / 2 + 1, -d / 2 + 1.2, w, d);
+        p_ctx.fillStyle = ROOF_COLOURS[h.roof % ROOF_COLOURS.length];
+        p_ctx.fillRect(-w / 2, -d / 2, w, d);
+        p_ctx.strokeStyle = 'rgba(60, 40, 30, 0.55)';
+        p_ctx.lineWidth = 0.8;
+        p_ctx.strokeRect(-w / 2, -d / 2, w, d);
+        p_ctx.beginPath(); // the ridge, along the house's width
+        p_ctx.moveTo(-w / 2 + 0.8, 0);
+        p_ctx.lineTo(w / 2 - 0.8, 0);
+        p_ctx.stroke();
+        p_ctx.restore();
     }
 }
