@@ -10,6 +10,7 @@ export type Settings = {
     roughness: number; // how much the noise slows the spread in places (0: even diamonds)
     noiseSize: number; // size of the noise's patches, in cells
     speedVariety: number; // how much faster some colours spread than others (0: all the same)
+    districtSize: number; // about how wide a district is (block cells): bigger blocks get more of them
     straighten: number; // how far (cells) a highway may be pulled straight before it is rounded
     smoothing: number; // corner-cutting passes on the highways
 };
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
     roughness: 3,
     noiseSize: 14,
     speedVariety: 0.5,
+    districtSize: 16,
     straighten: 1.5,
     smoothing: 3,
 };
@@ -44,5 +46,9 @@ export const STEPS: { title: string; text: string }[] = [
     {
         title: 'Highways',
         text: 'The borders, followed from junction to junction (where three blocks meet) or to the map\'s edge, become lines. Each is pulled straight first (any point less than `straighten` cells off the line between its neighbours is dropped: Ramer–Douglas–Peucker), then rounded by corner cutting. The junctions stay put, so the highways meet there.',
+    },
+    {
+        title: 'Districts',
+        text: 'Each block is split the same way it was made, one level down: on a grid 3 times finer, the highways are drawn in as walls, so each block is a region of its own. A few new seeds go into each (one for every district size² of area, 1 to 6) and spread exactly as the blocks did, but never through a wall: a district can\'t cross a highway. Tidied the same way. Where two districts meet runs a main road (white), ending where it meets a highway.',
     },
 ];

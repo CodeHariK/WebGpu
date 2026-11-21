@@ -143,7 +143,10 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
                     {num('noiseSize', 'noise size', 3, 40, 1)}
                     {num('speedVariety', 'speed variety', 0, 1, 0.01)}
                 </Section>
-                <Section title="HIGHWAYS">
+                <Section title="DISTRICTS">
+                    {num('districtSize', 'district size', 6, 40, 1)}
+                </Section>
+                <Section title="ROADS">
                     {num('straighten', 'straighten', 0, 5, 0.1)}
                     {num('smoothing', 'rounding passes', 0, 5, 1)}
                 </Section>

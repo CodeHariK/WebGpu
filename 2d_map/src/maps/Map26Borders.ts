@@ -1,6 +1,7 @@
 // Colour Blocks — the borders between blocks, as lines (the highways).
 //
-// A border is made of grid edges: the side between two cells of different colours. Their corner
+// A border is made of grid edges: the side between two cells of different colours (walls, −1,
+// make no border: they are a road already). Their corner
 // points (the grid's lattice) are joined by those edges into a network. A corner with 1, 3 or 4
 // border edges is an end: the map's edge, or a junction where blocks meet; except a corner with 4
 // edges but only 2 colours round it (a checkerboard pinch), which is two borders passing (the
@@ -16,22 +17,27 @@ export type Borders = { highways: Highway[]; junctions: Point[] };
 
 export function findBorders(p_n: number, p_owner: Int32Array, p_straighten: number, p_smoothing: number): Borders {
     const w = p_n + 1; // corners along each side
-    const links: number[][] = Array.from({ length: w * w }, () => []);
+    // each corner's border edges: up to 4 corners it is joined to (slots), and how many (degree)
+    const slots = new Int32Array(w * w * 4);
+    const degree = new Uint8Array(w * w);
     const join = (a: number, b: number) => {
-        links[a].push(b);
-        links[b].push(a);
+        slots[a * 4 + degree[a]++] = b;
+        slots[b * 4 + degree[b]++] = a;
     };
     for (let j = 0; j < p_n; j++) {
         for (let i = 0; i < p_n; i++) {
             const k = p_owner[j * p_n + i];
-            if (i + 1 < p_n && p_owner[j * p_n + i + 1] !== k) join(j * w + i + 1, (j + 1) * w + i + 1); // the side to the right
-            if (j + 1 < p_n && p_owner[(j + 1) * p_n + i] !== k) join((j + 1) * w + i, (j + 1) * w + i + 1); // the side below
+            if (k < 0) continue; // a wall (a road already): no border along it
+            const right = i + 1 < p_n ? p_owner[j * p_n + i + 1] : -1;
+            const below = j + 1 < p_n ? p_owner[(j + 1) * p_n + i] : -1;
+            if (right >= 0 && right !== k) join(j * w + i + 1, (j + 1) * w + i + 1); // the side to the right
+            if (below >= 0 && below !== k) join((j + 1) * w + i, (j + 1) * w + i + 1); // the side below
         }
     }
     // a pinch: 4 edges, 2 colours round the corner (cells up-left, up-right, down-left, down-right)
     const pinch = new Uint8Array(w * w);
     for (let v = 0; v < w * w; v++) {
-        if (links[v].length !== 4) continue;
+        if (degree[v] !== 4) continue;
         const x = v % w;
         const y = (v - x) / w;
         const ul = p_owner[(y - 1) * p_n + x - 1];
@@ -51,7 +57,7 @@ export function findBorders(p_n: number, p_owner: Int32Array, p_straighten: numb
     const used = new Set<number>();
     const edgeKey = (a: number, b: number) => (a < b ? a * w * w + b : b * w * w + a);
     const corner = (v: number): Point => ({ x: v % w, y: Math.floor(v / w) });
-    const passes = (v: number) => links[v].length === 2 || pinch[v] === 1;
+    const passes = (v: number) => degree[v] === 2 || pinch[v] === 1;
     const walk = (p_start: number, p_next: number): number[] => {
         const path = [p_start];
         let prev = p_start;
@@ -59,7 +65,7 @@ export function findBorders(p_n: number, p_owner: Int32Array, p_straighten: numb
         used.add(edgeKey(prev, cur));
         while (passes(cur) && cur !== p_start) {
             path.push(cur);
-            const next = pinch[cur] ? through(cur, prev) : links[cur][0] === prev ? links[cur][1] : links[cur][0];
+            const next = pinch[cur] ? through(cur, prev) : slots[cur * 4] === prev ? slots[cur * 4 + 1] : slots[cur * 4];
             prev = cur;
             cur = next;
             used.add(edgeKey(prev, cur));
@@ -70,16 +76,17 @@ export function findBorders(p_n: number, p_owner: Int32Array, p_straighten: numb
     const highways: Highway[] = [];
     const junctions: Point[] = [];
     for (let v = 0; v < w * w; v++) {
-        const degree = links[v].length;
-        if (degree === 0 || passes(v)) continue;
-        if (degree >= 3) junctions.push(corner(v));
-        for (const u of links[v]) {
+        if (degree[v] === 0 || passes(v)) continue;
+        if (degree[v] >= 3) junctions.push(corner(v));
+        for (let m = 0; m < degree[v]; m++) {
+            const u = slots[v * 4 + m];
             if (used.has(edgeKey(v, u))) continue;
             highways.push({ points: walk(v, u).map(corner), closed: false });
         }
     }
     for (let v = 0; v < w * w; v++) { // loops: no ends to start from
-        for (const u of links[v]) {
+        for (let m = 0; m < degree[v]; m++) {
+            const u = slots[v * 4 + m];
             if (used.has(edgeKey(v, u))) continue;
             highways.push({ points: walk(v, u).map(corner), closed: true });
         }

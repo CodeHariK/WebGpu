@@ -1,7 +1,8 @@
 // Colour Blocks — drawing: the cells (coloured once the spread has reached them; the ground's cost
-// shaded in under the empty ones), the queue, the grid, the seeds (with their speeds), and the
-// highways along the borders.
+// shaded in under the empty ones), the queue, the grid, the seeds (with their speeds), the
+// highways along the borders, and the districts (each a shade of its block) with their main roads.
 import type { Borders, Highway } from './Map26Borders';
+import type { Districts } from './Map26Districts';
 import type { QueueView } from './Map26Queue';
 import type { Spread } from './Map26Spread';
 
@@ -127,5 +128,80 @@ export function drawHighways(p_ctx: CanvasRenderingContext2D, p_b: Borders, p_n:
         p_ctx.beginPath();
         p_ctx.arc(j.x * cell, j.y * cell, 3, 0, Math.PI * 2);
         p_ctx.fill();
+    }
+}
+
+// A different number 0..1 for each whole number (each district its own shade).
+function shadeOf(p_k: number): number {
+    let h = Math.imul(p_k + 1, 2654435761);
+    h ^= h >>> 15;
+    return ((h >>> 0) % 1000) / 1000;
+}
+
+function rgbOf(p_hex: string): [number, number, number] {
+    const v = parseInt(p_hex.slice(1), 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+}
+
+// A district next to wall cell p_c (within 2 cells), or −1: the wall cells under a highway take a
+// neighbour's colour, so no other block's colour shows past the highway's edges.
+function nearestDistrict(p_d: Districts, p_c: number): number {
+    const n = p_d.n;
+    const i = p_c % n;
+    const j = (p_c - i) / n;
+    for (let r = 1; r <= 2; r++) {
+        for (let dj = -r; dj <= r; dj++) {
+            for (let di = -r; di <= r; di++) {
+                const ni = i + di;
+                const nj = j + dj;
+                if (ni < 0 || nj < 0 || ni >= n || nj >= n) continue;
+                const k = p_d.owner[nj * n + ni];
+                if (k >= 0) return k;
+            }
+        }
+    }
+    return -1;
+}
+
+// The districts: each its block's colour, a little lighter or darker; a cell to a fine cell, scaled
+// up sharp. The wall cells under a highway take a neighbouring district's colour.
+export function drawDistrictCells(p_ctx: CanvasRenderingContext2D, p_d: Districts, p_size: number): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = p_d.n;
+    canvas.height = p_d.n;
+    const small = canvas.getContext('2d')!;
+    const image = small.createImageData(p_d.n, p_d.n);
+    const shades = p_d.block.map((b, k) => {
+        const f = 0.86 + 0.22 * shadeOf(k);
+        return rgbOf(COLOURS[b % COLOURS.length]).map((v) => Math.min(255, Math.round(v * f)));
+    });
+    for (let c = 0; c < p_d.n * p_d.n; c++) {
+        const k = p_d.owner[c] >= 0 ? p_d.owner[c] : nearestDistrict(p_d, c);
+        if (k < 0) continue;
+        const rgb = shades[k];
+        image.data[c * 4] = rgb[0];
+        image.data[c * 4 + 1] = rgb[1];
+        image.data[c * 4 + 2] = rgb[2];
+        image.data[c * 4 + 3] = 255;
+    }
+    small.putImageData(image, 0, 0);
+    p_ctx.save();
+    p_ctx.imageSmoothingEnabled = false;
+    p_ctx.drawImage(canvas, 0, 0, p_size, p_size);
+    p_ctx.restore();
+}
+
+// The main roads: thinner than the highways, white with a grey edge.
+export function drawMainRoads(p_ctx: CanvasRenderingContext2D, p_roads: Borders, p_n: number, p_size: number): void {
+    const cell = p_size / p_n;
+    p_ctx.lineCap = 'round';
+    p_ctx.lineJoin = 'round';
+    for (const [colour, width] of [['#8f8578', 4.4], ['#fffdf6', 2.6]] as const) {
+        p_ctx.strokeStyle = colour;
+        p_ctx.lineWidth = width;
+        for (const h of p_roads.highways) {
+            path(p_ctx, h, cell);
+            p_ctx.stroke();
+        }
     }
 }

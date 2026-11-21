@@ -4,7 +4,8 @@
 // earliest of the catch times its burnt neighbours offer (their time + step x its cost ÷ their
 // colour's speed), in that neighbour's colour: exactly what the search's queue holds then (its out-
 // of-date entries aside). The one with the earliest catch time is the next to burn.
-import { NEIGHBOURS, type Spread } from './Map26Spread';
+import { NEIGHBOURS } from './Map26Grow';
+import type { Spread } from './Map26Spread';
 
 export type Waiting = { cell: number; colour: number; at: number };
 export type QueueView = { waiting: Waiting[]; next: Waiting | null };
