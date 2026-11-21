@@ -19,15 +19,15 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
     const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
     const [tick, setTick] = useState(0);
     const [playing, setPlaying] = useState(true);
-    const [show, setShow] = useState<Show>({ queue: true, ground: true });
+    const [show, setShow] = useState<Show>({ queue: true, ground: true, island: 'map', rings: true });
     const queueRef = useRef<HTMLSpanElement>(null);
 
     // a new map whenever the settings change
     useEffect(() => {
         const start = performance.now();
-        blocksRef.current = makeBlocks(settings);
+        blocksRef.current = makeBlocks(settings, width);
         if (timeRef.current) timeRef.current.textContent = `made in ${(performance.now() - start).toFixed(0)} ms`;
-    }, [settings]);
+    }, [settings, width]);
 
     // draw: step 2 at the clock's tick, the others whole
     useEffect(() => {
@@ -150,6 +150,25 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
                     {num('houseSize', 'house size', 1.5, 5, 0.1)}
                     {num('houseFill', 'house fill', 0, 1, 0.01)}
                 </Section>
+                {settings.step >= 8 && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', fontSize: '0.75rem' }}>
+                        {(['map', 'falloff', 'noise', 'height'] as const).map((v) => (
+                            <button key={v} style={btn(show.island === v)} onClick={() => setShow((s) => ({ ...s, island: v }))}>{v}</button>
+                        ))}
+                        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <input type="checkbox" checked={show.rings} onChange={(e) => setShow((s) => ({ ...s, rings: e.target.checked }))} /> falloff rings
+                        </label>
+                        <span style={{ color: '#a8a29e' }}>grey views: black 0 · white 1 · red line: sea level (0.5) · green tint: land</span>
+                    </div>
+                )}
+                {settings.step >= 8 && (
+                    <Section title="ISLAND">
+                        {num('islandRadius', 'island radius', 0.2, 0.7, 0.01)}
+                        {num('islandNoise', 'island noise', 0, 1, 0.01)}
+                        {num('islandNoiseSize', 'noise size', 40, 400, 5)}
+                        {num('cityMargin', 'city margin (px from the coast)', 4, 45, 1)}
+                    </Section>
+                )}
                 <Section title="ROADS">
                     {num('straighten', 'straighten', 0, 5, 0.1)}
                     {num('smoothing', 'rounding passes', 0, 5, 1)}

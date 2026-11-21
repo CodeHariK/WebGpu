@@ -178,6 +178,7 @@ export function drawDistrictCells(p_ctx: CanvasRenderingContext2D, p_d: District
         return rgbOf(COLOURS[b % COLOURS.length]).map((v) => Math.min(255, Math.round(v * f)));
     });
     for (let c = 0; c < p_d.n * p_d.n; c++) {
+        if (p_d.outside?.[c]) continue; // outside the city: the island shows through
         const k = p_d.owner[c] >= 0 ? p_d.owner[c] : nearestDistrict(p_d, c);
         if (k < 0) continue;
         const rgb = shades[k];

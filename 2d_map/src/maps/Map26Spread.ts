@@ -4,7 +4,8 @@
 // spread at once (Map26Grow): every cell goes to the colour that reaches it first. A colour's speed
 // divides its step costs, so faster colours win more cells. The arrival times also give the
 // animation: a cell shows its colour once the clock passes its time. Afterwards the blocks are
-// tidied (Map26Tidy).
+// tidied (Map26Tidy). On the island (step 9) the cells outside the city are walls: no seed goes
+// there and the spread never enters them (owner −1).
 import type { NoiseFunction2D } from 'simplex-noise';
 import type { Settings } from './Map26Settings';
 
@@ -33,7 +34,7 @@ export type Spread = {
 // seeds (0 .. seedsPerColour - 1 more) in a chain: each about chainStep cells on from the one
 // before, in roughly the same direction, and clear of every other seed (far apart enough to
 // shape the block: long and bent, not round).
-function placeSeeds(p_n: number, p_settings: Settings, p_cost: Float32Array, p_easy: number, p_random: () => number): Seed[] {
+function placeSeeds(p_n: number, p_settings: Settings, p_cost: Float32Array, p_easy: number, p_outside: Uint8Array | null, p_random: () => number): Seed[] {
     const seeds: Seed[] = [];
     const margin = Math.floor(p_n * 0.06); // not right at the map's edge
     const inside = (v: number) => Math.min(p_n - 1 - margin, Math.max(margin, v));
@@ -42,6 +43,7 @@ function placeSeeds(p_n: number, p_settings: Settings, p_cost: Float32Array, p_e
         let bestGap = -1;
         for (let tries = 0; tries < 40; tries++) {
             const p: Seed = { i: margin + Math.floor(p_random() * (p_n - 2 * margin)), j: margin + Math.floor(p_random() * (p_n - 2 * margin)), colour: k };
+            if (p_outside?.[p.j * p_n + p.i]) continue; // never outside the city
             if (p_cost[p.j * p_n + p.i] > p_easy && tries < 30) continue; // the last tries take any ground
             const gap = Math.min(Infinity, ...seeds.map((s) => Math.hypot(s.i - p.i, s.j - p.j)));
             if (gap > bestGap) {
@@ -49,7 +51,7 @@ function placeSeeds(p_n: number, p_settings: Settings, p_cost: Float32Array, p_e
                 best = p;
             }
         }
-        seeds.push(best);
+        if (bestGap >= 0) seeds.push(best); // none inside the city in 40 tries: this colour sits out
     }
     const firsts = [...seeds];
     for (const first of firsts) {
@@ -62,7 +64,7 @@ function placeSeeds(p_n: number, p_settings: Settings, p_cost: Float32Array, p_e
                 const distance = p_settings.chainStep * (0.8 + 0.4 * p_random());
                 const p: Seed = { i: inside(Math.round(from.i + Math.cos(angle) * distance)), j: inside(Math.round(from.j + Math.sin(angle) * distance)), colour: first.colour };
                 const clear = seeds.every((s) => Math.hypot(s.i - p.i, s.j - p.j) >= (s.colour === p.colour ? p_settings.chainStep * 0.6 : p_settings.chainStep * 0.55));
-                if (!clear) {
+                if (!clear || p_outside?.[p.j * p_n + p.i]) {
                     heading = p_random() * Math.PI * 2; // blocked: try another way
                     continue;
                 }
@@ -77,7 +79,8 @@ function placeSeeds(p_n: number, p_settings: Settings, p_cost: Float32Array, p_e
     return seeds;
 }
 
-export function spread(p_settings: Settings, p_random: () => number, p_noise: NoiseFunction2D): Spread {
+// p_outside: per cell, 1 where the spread may not go (outside the city), or null for everywhere.
+export function spread(p_settings: Settings, p_random: () => number, p_noise: NoiseFunction2D, p_outside: Uint8Array | null): Spread {
     const n = p_settings.cells;
     const cost = new Float32Array(n * n);
     for (let j = 0; j < n; j++) {
@@ -86,9 +89,9 @@ export function spread(p_settings: Settings, p_random: () => number, p_noise: No
             cost[j * n + i] = 1 + p_settings.roughness * v * v;
         }
     }
-    const seeds = placeSeeds(n, p_settings, cost, 1 + p_settings.roughness * 0.2, p_random);
+    const seeds = placeSeeds(n, p_settings, cost, 1 + p_settings.roughness * 0.2, p_outside, p_random);
     const speed = Array.from({ length: p_settings.seeds }, () => 1 + (p_random() * 2 - 1) * p_settings.speedVariety * 0.35);
-    const { owner, time, lastTime } = grow(n, cost, seeds, speed, null);
+    const { owner, time, lastTime } = grow(n, cost, seeds, speed, p_outside);
     const reached = Int32Array.from(owner);
     tidy(n, owner, seeds, MIN_BLOCK, TRIM);
     return { n, owner, reached, time, lastTime, seeds, cost, speed };

@@ -5,7 +5,9 @@
 // region gets a few seeds (one for every districtSize² of area, 1 to 6), and they spread exactly as
 // the blocks did (Map26Grow), but never into a wall: a district can't cross a highway. Tidied the
 // same way (Map26Tidy). Where two districts meet runs a main road (Map26Borders); it ends where
-// it meets a highway.
+// it meets a highway. On the island (step 9) the outside of the city is a wall as well (every fine
+// cell of a block cell outside it), and the slivers cut off between the ring road and the block
+// cells' steps (regions under MIN_DISTRICT) go outside too: the city ends at the ring road.
 import type { NoiseFunction2D } from 'simplex-noise';
 import { findBorders, type Borders, type Highway } from './Map26Borders';
 import { grow, NEIGHBOURS, type Seed } from './Map26Grow';
@@ -21,7 +23,8 @@ const SIDES = NEIGHBOURS.slice(0, 4);
 
 export type Districts = {
     n: number; // fine cells along each side
-    owner: Int32Array; // per fine cell: its district (−1: under a highway)
+    owner: Int32Array; // per fine cell: its district (−1: under a highway, or outside the city)
+    outside: Uint8Array | null; // per fine cell: 1 outside the city (step 9), else null
     block: number[]; // per district: its block's colour
     seeds: Seed[];
     roads: Borders; // the main roads, in fine cells
@@ -46,6 +49,15 @@ function wallsFrom(p_highways: Highway[], p_n: number): Uint8Array {
         }
     }
     return walls;
+}
+
+// The fine cells under a block cell outside the city.
+function outsideFrom(p_spread: Spread, p_n: number): Uint8Array {
+    const outside = new Uint8Array(p_n * p_n);
+    for (let j = 0; j < p_n; j++) {
+        for (let i = 0; i < p_n; i++) outside[j * p_n + i] = p_spread.owner[Math.floor(j / DETAIL) * p_spread.n + Math.floor(i / DETAIL)] < 0 ? 1 : 0;
+    }
+    return outside;
 }
 
 // The regions between the walls (side-to-side flood fills): the cells of each.
@@ -98,7 +110,8 @@ function seedRegion(p_cells: number[], p_n: number, p_count: number, p_firstColo
     return seeds;
 }
 
-export function makeDistricts(p_spread: Spread, p_highways: Highway[], p_settings: Settings, p_random: () => number, p_noise: NoiseFunction2D): Districts {
+// p_city: on the island (step 9): the outside of the city is a wall too.
+export function makeDistricts(p_spread: Spread, p_highways: Highway[], p_settings: Settings, p_random: () => number, p_noise: NoiseFunction2D, p_city: boolean): Districts {
     const n = p_spread.n * DETAIL;
     const cost = new Float32Array(n * n);
     for (let j = 0; j < n; j++) {
@@ -108,9 +121,15 @@ export function makeDistricts(p_spread: Spread, p_highways: Highway[], p_setting
         }
     }
     const walls = wallsFrom(p_highways, n);
+    const outside = p_city ? outsideFrom(p_spread, n) : null;
+    if (outside) for (let c = 0; c < n * n; c++) walls[c] |= outside[c];
     const area = (p_settings.districtSize * DETAIL) ** 2;
     const seeds: Seed[] = [];
     for (const cells of regionsOf(walls, n)) {
+        if (outside && cells.length < MIN_DISTRICT) { // a sliver past the ring road: outside
+            for (const c of cells) walls[c] = outside[c] = 1;
+            continue;
+        }
         const count = Math.max(1, Math.min(MAX_SEEDS, Math.round(cells.length / area)));
         seeds.push(...seedRegion(cells, n, count, seeds.length, cost, 1 + p_settings.roughness * 0.2, p_random));
     }
@@ -120,5 +139,5 @@ export function makeDistricts(p_spread: Spread, p_highways: Highway[], p_setting
     tidy(n, owner, seeds, MIN_DISTRICT, TRIM);
     const block = seeds.map((s) => p_spread.owner[Math.floor(s.j / DETAIL) * p_spread.n + Math.floor(s.i / DETAIL)]);
     const roads = findBorders(n, owner, p_settings.straighten * DETAIL, p_settings.smoothing);
-    return { n, owner, block, seeds, roads };
+    return { n, owner, outside, block, seeds, roads };
 }

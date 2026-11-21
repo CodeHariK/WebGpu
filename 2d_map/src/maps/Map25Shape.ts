@@ -71,7 +71,7 @@ function boxOf(p_parts: Parts): Box {
 // rough distance (a height difference, not pixels). So the real distance to the coast is measured on the grid: start at the grid points right by the coast
 // (their own value, under a cell), then sweep the grid twice (down-right, then up-left), each point
 // taking the nearest of its neighbours' distances plus the step to them (a chamfer distance).
-function measureDistance(p_field: Float32Array, p_w: number, p_h: number): Float32Array {
+export function measureDistance(p_field: Float32Array, p_w: number, p_h: number): Float32Array {
     const dist = new Float32Array(p_field.length).fill(FAR);
     for (let j = 0; j < p_h; j++) {
         for (let i = 0; i < p_w; i++) {
