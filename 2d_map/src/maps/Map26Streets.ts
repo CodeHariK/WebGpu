@@ -12,7 +12,7 @@ import { DETAIL, type Districts } from './Map26Districts';
 import type { Settings } from './Map26Settings';
 
 export type Street = { ax: number; ay: number; bx: number; by: number }; // fine cells
-export type Streets = { streets: Street[] };
+export type Streets = { streets: Street[]; lines?: { x: number; y: number }[][] }; // lines: whole streets (step 12 on)
 
 const STEP = 0.5; // fine cells between the points a grid line is checked at
 const MIN_LENGTH = 1.5; // fine cells: shorter street pieces are dropped

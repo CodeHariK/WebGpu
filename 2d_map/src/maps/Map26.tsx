@@ -152,6 +152,8 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
                     {num('districtSize', 'district size', 6, 40, 1)}
                     {num('streetBlock', 'street block', 4, 24, 1)}
                     {settings.step >= 12 && num('blockLength', 'block length (fine cells)', 8, 50, 1)}
+                    {settings.step >= 13 && num('plotWidth', 'plot width (fine cells)', 1.5, 8, 0.1)}
+                    {settings.step >= 13 && num('plotDepth', 'plot depth (fine cells)', 2, 12, 0.5)}
                     {settings.step >= 12 && num('fieldReach', 'field reach (block cells)', 1, 12, 0.5)}
                     {settings.step < 12 && num('streetGaps', 'street gaps', 0, 0.6, 0.01)}
                     {num('houseSize', 'house size', 1.5, 5, 0.1)}

@@ -134,9 +134,11 @@ export function makeFieldStreets(p_d: Districts, p_highways: Highway[], p_field:
     traceFamily(p_d, p_field, { across: false, spacing: p_settings.streetBlock, near: new Near(p_settings.streetBlock) }, roads, lines);
     traceFamily(p_d, p_field, { across: true, spacing: p_settings.blockLength, near: new Near(p_settings.blockLength) }, roads, lines);
     const streets: Street[] = [];
+    const kept: Point[][] = [];
     for (const line of lines) {
         const pts = straighten({ points: line, closed: false }, 0.3).points;
+        kept.push(pts);
         for (let k = 0; k < pts.length - 1; k++) streets.push({ ax: pts[k].x, ay: pts[k].y, bx: pts[k + 1].x, by: pts[k + 1].y });
     }
-    return { streets };
+    return { streets, lines: kept };
 }

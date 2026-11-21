@@ -14,6 +14,8 @@ export type Settings = {
     streetBlock: number; // a street block's usual size (fine cells)
     blockLength: number; // step 12: how far apart the streets across the field are (fine cells): a block's length
     fieldReach: number; // step 12: how far (block cells) a road's direction reaches into the field
+    plotWidth: number; // step 13: a plot's frontage along its road (fine cells)
+    plotDepth: number; // step 13: how far back from its road a plot reaches (fine cells)
     streetGaps: number; // share of street pieces left out (bigger, irregular blocks)
     houseSize: number; // a house's usual width and depth (fine cells)
     houseFill: number; // share of lots that get a house
@@ -43,6 +45,8 @@ export const DEFAULT_SETTINGS: Settings = {
     streetBlock: 9,
     blockLength: 20,
     fieldReach: 6,
+    plotWidth: 3.4,
+    plotDepth: 5,
     streetGaps: 0.15,
     houseSize: 2.6,
     houseFill: 0.85,
@@ -106,5 +110,9 @@ export const STEPS: { title: string; text: string }[] = [
     {
         title: 'Street field',
         text: 'Streets follow the roads instead of one straight grid per district. First a street field: a direction at every point, taken from the roads (highways, the ring road, main roads), each road sampled every fine cell, each sample counting less fast with distance (1 / (1 + (distance / field reach)⁴)): next to a road its own direction wins, between roads it turns smoothly from one to the other (the dark ticks; a direction has no front or back, so they are added with the angle doubled, a tensor). Then streets are traced along it, two families: along the field (parallel to the nearest road) and across it (at right angles). A street is followed from a seed both ways, half a fine cell a step, until it reaches a road, comes closer than half its spacing to another street of its family, or turns too sharply. Seeds are tried a spacing either side of every street already traced, only where no street of the family is that close (evenly spaced streamlines). The first are by the roads: streets along start one street block (a block\'s depth: two rows of houses back to back) in from a road, streets across start at the road itself, block length apart, so they meet it in T-junctions. The houses line up along them as before, each facing its street, and now along the highways and the ring road too (a little further back), so the band between a road and its first street is built up on both sides.',
+    },
+    {
+        title: 'Plots',
+        text: 'Every block between the roads is cut into plots, as a real street is: a strip of ground running back from one road, the house at its front facing the road, gardens meeting back to back. On a grid twice as fine as the districts\' the roads are drawn in, each road cell remembering which road it is, how far along it, and the road\'s direction there. A block is a piece of ground between road cells. Its cells beside a road are its frontage, each keyed by that road, which side of it, and which stretch of plot width along it. Then every block cell takes the key of the frontage nearest it (searched out from all the frontage at once), up to plot depth back: cells sharing a key are one plot. Corners split themselves (a corner cell goes to the nearer road); deeper than plot depth is the block\'s middle (green: a courtyard). Each plot gets one house at its front, turned to its road, as wide as the plot allows, all of it on the plot (else tried smaller, else the plot stays empty; some stay empty anyway: house fill).',
     },
 ];

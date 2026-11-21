@@ -6,6 +6,7 @@ import type { Districts } from './Map26Districts';
 import { angleAt, type Field } from './Map26Field';
 import { DETAIL } from './Map26Districts';
 import type { Houses } from './Map26Houses';
+import { ROAD, type Plots } from './Map26Plots';
 import type { Streets } from './Map26Streets';
 import type { QueueView } from './Map26Queue';
 import type { Spread } from './Map26Spread';
@@ -229,6 +230,35 @@ export function drawField(p_ctx: CanvasRenderingContext2D, p_f: Field, p_s: Spre
         }
     }
     p_ctx.stroke();
+    p_ctx.restore();
+}
+
+// The plots, over the districts' colours: their edges a thin soft line, the blocks' middles (no
+// plot: courtyards) a green tint.
+export function drawPlots(p_ctx: CanvasRenderingContext2D, p_p: Plots, p_size: number): void {
+    const n = p_p.n;
+    const canvas = document.createElement('canvas');
+    canvas.width = n;
+    canvas.height = n;
+    const small = canvas.getContext('2d')!;
+    const image = small.createImageData(n, n);
+    for (let c = 0; c < n * n; c++) {
+        const k = p_p.id[c];
+        if (k === ROAD) continue;
+        const i = c % n;
+        const other = (m: number) => m !== k && m !== ROAD;
+        const edge = (i + 1 < n && other(p_p.id[c + 1])) || (c + n < n * n && other(p_p.id[c + n]));
+        if (!edge && k >= 0) continue;
+        const [r, g, b, a] = edge ? [95, 80, 65, 70] : [120, 175, 95, 110];
+        image.data[c * 4] = r;
+        image.data[c * 4 + 1] = g;
+        image.data[c * 4 + 2] = b;
+        image.data[c * 4 + 3] = a;
+    }
+    small.putImageData(image, 0, 0);
+    p_ctx.save();
+    p_ctx.imageSmoothingEnabled = false;
+    p_ctx.drawImage(canvas, 0, 0, p_size, p_size);
     p_ctx.restore();
 }
 
