@@ -166,12 +166,16 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
                         {num('islandRadius', 'island radius', 0.2, 0.7, 0.01)}
                         {num('islandNoise', 'island noise', 0, 1, 0.01)}
                         {num('islandNoiseSize', 'noise size', 40, 400, 5)}
+                        {settings.step >= 11 && num('twinRadius', 'twin radius', 0.15, 0.4, 0.01)}
+                        {settings.step >= 11 && num('twinSpacing', 'twin spacing', 0.1, 0.35, 0.01)}
                         {num('cityMargin', 'city margin (px from the coast)', 4, 45, 1)}
                     </Section>
                 )}
                 <Section title="ROADS">
                     {num('straighten', 'straighten', 0, 5, 0.1)}
                     {num('smoothing', 'rounding passes', 0, 5, 1)}
+                    {settings.step >= 10 && num('arterialBend', 'arterial bend (degrees)', 0, 80, 1)}
+                    {settings.step >= 10 && num('arterialLength', 'arterial length (cells)', 10, 150, 1)}
                 </Section>
             </div>
         </div>

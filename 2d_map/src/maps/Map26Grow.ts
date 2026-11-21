@@ -19,7 +19,7 @@ export const NEIGHBOURS: number[][] = [ // [di, dj, step length]: the 4 sides, t
 ];
 
 // A min-heap of (time, cell): always hands back the earliest.
-class Queue {
+export class Queue {
     private times: number[] = [];
     private cells: number[] = [];
     get size() {

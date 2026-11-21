@@ -8,6 +8,8 @@
 // colours come from the real distance to the coast, measured and painted as in Map 25. Its parts can
 // be looked at on their own (falloff, noise, height, in grey; the sea level in red), and the
 // falloff's rings drawn over any view. The city (step 9) reads the coast distance (coastDistance).
+// From step 11 there are two islands: two hills (smaller, apart along a random direction), the
+// falloff at a point the higher of the two.
 import type { NoiseFunction2D } from 'simplex-noise';
 import { paintIslands } from './Map25Paint';
 import { GRID, measureDistance, type Shape } from './Map25Shape';
@@ -17,9 +19,26 @@ const SEA_LEVEL = 0.5;
 
 export type IslandView = 'map' | 'falloff' | 'noise' | 'height';
 
+export type Point = { x: number; y: number };
+
+// Where the hills are (pixels) and how far each falloff reaches.
+export type Layout = { centres: Point[]; radius: number };
+
 // shape: the coast distance (for the map; negative on land); falloff, noise, height: each part on
-// the same grid (for the other views); land: the share of the map that is land
-export type Island = { shape: Shape; falloff: Float32Array; noise: Float32Array; height: Float32Array; radius: number; land: number };
+// the same grid (for the other views); centres, radius: the hills; land: the share of the map
+// that is land
+export type Island = { shape: Shape; falloff: Float32Array; noise: Float32Array; height: Float32Array; centres: Point[]; radius: number; land: number };
+
+// One hill in the middle (islandRadius), or (p_twin) two of twinRadius, each twinSpacing of the
+// map's width from the middle, opposite ways along a random direction.
+export function islandLayout(p_size: number, p_settings: Settings, p_twin: boolean, p_random: () => number): Layout {
+    const middle = p_size / 2;
+    if (!p_twin) return { centres: [{ x: middle, y: middle }], radius: p_settings.islandRadius * p_size };
+    const angle = p_random() * Math.PI;
+    const dx = Math.cos(angle) * p_settings.twinSpacing * p_size;
+    const dy = Math.sin(angle) * p_settings.twinSpacing * p_size;
+    return { centres: [{ x: middle - dx, y: middle - dy }, { x: middle + dx, y: middle + dy }], radius: p_settings.twinRadius * p_size };
+}
 
 // 4 sizes of noise added, −1..1.
 function fbm(p_noise: NoiseFunction2D, p_x: number, p_y: number): number {
@@ -34,16 +53,19 @@ function fbm(p_noise: NoiseFunction2D, p_x: number, p_y: number): number {
     return sum / 0.9375;
 }
 
-// The two parts of the height at (x, y) pixels: the falloff (1 in the middle, 0 at the radius,
-// negative beyond) and the noise (0..1).
-function parts(p_x: number, p_y: number, p_size: number, p_settings: Settings, p_noise: NoiseFunction2D): [number, number] {
-    const radius = p_settings.islandRadius * p_size;
-    const r = Math.hypot(p_x - p_size / 2, p_y - p_size / 2) / radius;
+// The two parts of the height at (x, y) pixels: the falloff (1 in a hill's middle, 0 at the radius,
+// negative beyond; the highest hill's) and the noise (0..1).
+function parts(p_x: number, p_y: number, p_layout: Layout, p_settings: Settings, p_noise: NoiseFunction2D): [number, number] {
+    let falloff = -Infinity;
+    for (const c of p_layout.centres) {
+        const r = Math.hypot(p_x - c.x, p_y - c.y) / p_layout.radius;
+        falloff = Math.max(falloff, 1 - r * r);
+    }
     const noise = 0.5 + 0.5 * fbm(p_noise, p_x / p_settings.islandNoiseSize + 71.3, p_y / p_settings.islandNoiseSize - 23.9);
-    return [1 - r * r, noise];
+    return [falloff, noise];
 }
 
-export function makeIsland(p_size: number, p_settings: Settings, p_noise: NoiseFunction2D): Island {
+export function makeIsland(p_size: number, p_layout: Layout, p_settings: Settings, p_noise: NoiseFunction2D): Island {
     const cols = Math.ceil(p_size / GRID);
     const rows = cols;
     const count = (cols + 1) * (rows + 1);
@@ -51,18 +73,18 @@ export function makeIsland(p_size: number, p_settings: Settings, p_noise: NoiseF
     const falloff = new Float32Array(count);
     const noise = new Float32Array(count);
     const height = new Float32Array(count);
-    const radius = p_settings.islandRadius * p_size;
+    const radius = p_layout.radius;
     let land = 0;
     for (let j = 0; j <= rows; j++) {
         for (let i = 0; i <= cols; i++) {
             const c = j * (cols + 1) + i;
-            [falloff[c], noise[c]] = parts(i * GRID, j * GRID, p_size, p_settings, p_noise);
+            [falloff[c], noise[c]] = parts(i * GRID, j * GRID, p_layout, p_settings, p_noise);
             height[c] = falloff[c] * (1 - p_settings.islandNoise) + noise[c] * p_settings.islandNoise;
             field[c] = (SEA_LEVEL - height[c]) * radius; // only its sign matters: measured next
             if (height[c] > SEA_LEVEL) land++;
         }
     }
-    return { shape: { cols, rows, field: measureDistance(field, cols + 1, rows + 1) }, falloff, noise, height, radius, land: land / count };
+    return { shape: { cols, rows, field: measureDistance(field, cols + 1, rows + 1) }, falloff, noise, height, centres: p_layout.centres, radius, land: land / count };
 }
 
 // How far (pixels) the point (x, y) is from the coast: negative on land (the nearest grid point).
@@ -108,7 +130,6 @@ function drawPart(p_ctx: CanvasRenderingContext2D, p_values: Float32Array, p_isl
 // The falloff's rings: where it reaches 0 (dashed: the radius), and where it is 0.5 (dotted: the
 // coast if the noise were everywhere average).
 export function drawRings(p_ctx: CanvasRenderingContext2D, p_island: Island): void {
-    const size = p_ctx.canvas.width;
     const rings: [number, number[], string][] = [
         [p_island.radius, [8, 6], 'falloff 0 (radius)'],
         [p_island.radius * Math.SQRT1_2, [2, 5], 'falloff 0.5'],
@@ -119,17 +140,19 @@ export function drawRings(p_ctx: CanvasRenderingContext2D, p_island: Island): vo
     p_ctx.lineWidth = 1.5;
     p_ctx.font = '600 12px Inter, sans-serif';
     p_ctx.textAlign = 'center';
-    for (const [r, dash, label] of rings) {
-        p_ctx.setLineDash(dash);
-        p_ctx.beginPath();
-        p_ctx.arc(size / 2, size / 2, r, 0, Math.PI * 2);
-        p_ctx.stroke();
-        p_ctx.fillText(label, size / 2, size / 2 - r - 5);
+    for (const c of p_island.centres) {
+        for (const [r, dash, label] of rings) {
+            p_ctx.setLineDash(dash);
+            p_ctx.beginPath();
+            p_ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+            p_ctx.stroke();
+            p_ctx.fillText(label, c.x, c.y - r - 5);
+        }
+        p_ctx.setLineDash([]);
+        p_ctx.beginPath(); // the middle
+        p_ctx.arc(c.x, c.y, 3, 0, Math.PI * 2);
+        p_ctx.fill();
     }
-    p_ctx.setLineDash([]);
-    p_ctx.beginPath(); // the middle
-    p_ctx.arc(size / 2, size / 2, 3, 0, Math.PI * 2);
-    p_ctx.fill();
     p_ctx.restore();
 }
 

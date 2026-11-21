@@ -6,7 +6,7 @@
 // it is inside one district and clear of every road and every house placed before; checked on an
 // occupancy grid twice as fine as the district grid, where the roads were drawn in first. Some lots
 // are left empty (houseFill). Houses are kept as data.
-import type { Highway } from './Map26Borders';
+import type { Highway, Point } from './Map26Borders';
 import { DETAIL, type Districts } from './Map26Districts';
 import type { Settings } from './Map26Settings';
 import type { Streets } from './Map26Streets';
@@ -119,10 +119,13 @@ function lineUp(p_ax: number, p_ay: number, p_bx: number, p_by: number, p_setbac
     }
 }
 
-export function placeHouses(p_d: Districts, p_streets: Streets, p_highways: Highway[], p_settings: Settings, p_random: () => number): Houses {
+// p_wide: roads drawn wider than a highway (arterials, the motorway), each with its half width
+// (fine cells), in block cells like the highways.
+export function placeHouses(p_d: Districts, p_streets: Streets, p_highways: Highway[], p_wide: { points: Point[]; halfWidth: number }[], p_settings: Settings, p_random: () => number): Houses {
     const g: Grid = { n: p_d.n * OCC, occupied: new Uint8Array(p_d.n * OCC * p_d.n * OCC) };
     const highways = p_highways.map((h) => h.points.map((p) => ({ x: p.x * DETAIL, y: p.y * DETAIL })));
     for (const h of highways) markRoad(g, h, 1.6); // the roads as drawn, a little wider
+    for (const w of p_wide) markRoad(g, w.points.map((p) => ({ x: p.x * DETAIL, y: p.y * DETAIL })), w.halfWidth);
     for (const r of p_d.roads.highways) markRoad(g, r.points, 1.0);
     for (const s of p_streets.streets) markRoad(g, [{ x: s.ax, y: s.ay }, { x: s.bx, y: s.by }], 0.55);
     const houses: House[] = [];

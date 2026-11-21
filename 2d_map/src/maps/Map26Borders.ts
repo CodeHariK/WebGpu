@@ -96,7 +96,7 @@ export function findBorders(p_n: number, p_owner: Int32Array, p_straighten: numb
 
 // Chaikin corner cutting, p_passes times: every corner replaced by two points a quarter of the way
 // along its two sides. An open line keeps its first and last points.
-function smooth(p_h: Highway, p_passes: number): Highway {
+export function smooth(p_h: Highway, p_passes: number): Highway {
     let pts = p_h.points;
     for (let pass = 0; pass < p_passes && pts.length > 2; pass++) {
         const out: Point[] = p_h.closed ? [] : [pts[0]];
@@ -116,7 +116,7 @@ function smooth(p_h: Highway, p_passes: number): Highway {
 
 // Ramer–Douglas–Peucker: keep the point farthest from the line between the ends if it is more than
 // p_tolerance off it (and do the same for both halves), else drop everything between the ends.
-function straighten(p_h: Highway, p_tolerance: number): Highway {
+export function straighten(p_h: Highway, p_tolerance: number): Highway {
     const pts = p_h.points;
     if (pts.length < 3 || p_tolerance <= 0) return p_h;
     const keep = new Uint8Array(pts.length);

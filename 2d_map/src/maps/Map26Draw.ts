@@ -1,7 +1,7 @@
 // Colour Blocks — drawing: the cells (coloured once the spread has reached them; the ground's cost
 // shaded in under the empty ones), the queue, the grid, the seeds (with their speeds), the
 // highways along the borders, and the districts (each a shade of its block) with their main roads.
-import type { Borders, Highway } from './Map26Borders';
+import type { Borders, Highway, Point } from './Map26Borders';
 import type { Districts } from './Map26Districts';
 import type { Houses } from './Map26Houses';
 import type { Streets } from './Map26Streets';
@@ -113,15 +113,17 @@ function path(p_ctx: CanvasRenderingContext2D, p_h: Highway, p_cell: number): vo
 }
 
 // Casing first for all, then the yellow middle for all, so crossings join cleanly; junction dots.
-export function drawHighways(p_ctx: CanvasRenderingContext2D, p_b: Borders, p_n: number, p_size: number): void {
+// p_skip: per highway, 1 to leave it out (drawn as part of an arterial instead), or null.
+export function drawHighways(p_ctx: CanvasRenderingContext2D, p_b: Borders, p_n: number, p_size: number, p_skip: Uint8Array | null = null): void {
     const cell = p_size / p_n;
     p_ctx.lineCap = 'round';
     p_ctx.lineJoin = 'round';
     for (const [colour, width] of [['#5d5349', 7], ['#ffe39a', 4]] as const) {
         p_ctx.strokeStyle = colour;
         p_ctx.lineWidth = width;
-        for (const h of p_b.highways) {
-            path(p_ctx, h, cell);
+        for (let k = 0; k < p_b.highways.length; k++) {
+            if (p_skip?.[k]) continue;
+            path(p_ctx, p_b.highways[k], cell);
             p_ctx.stroke();
         }
     }
@@ -131,6 +133,77 @@ export function drawHighways(p_ctx: CanvasRenderingContext2D, p_b: Borders, p_n:
         p_ctx.arc(j.x * cell, j.y * cell, 3, 0, Math.PI * 2);
         p_ctx.fill();
     }
+}
+
+// The arterials: wider than the highways, a deeper orange, with a thin light line down the middle.
+export function drawArterials(p_ctx: CanvasRenderingContext2D, p_lines: Point[][], p_n: number, p_size: number): void {
+    const cell = p_size / p_n;
+    p_ctx.lineCap = 'round';
+    p_ctx.lineJoin = 'round';
+    for (const [colour, width] of [['#5d5349', 10], ['#f7c46c', 6.6], ['#fff1c9', 1]] as const) {
+        p_ctx.strokeStyle = colour;
+        p_ctx.lineWidth = width;
+        for (const points of p_lines) {
+            path(p_ctx, { points, closed: false }, cell);
+            p_ctx.stroke();
+        }
+    }
+}
+
+// The motorway: grey, wider than all, a dark casing, a white dashed line down the middle. Drawn
+// over everything: it has no junctions (it crosses on bridges). Over water a bridge under it: its
+// shadow on the water, piers (dark ticks across it every 2.5 cells, their ends showing past the
+// deck), and a pale deck with a dark edge, wider than the road.
+export function drawMotorway(p_ctx: CanvasRenderingContext2D, p_m: Highway, p_bridges: Point[][], p_n: number, p_size: number): void {
+    const cell = p_size / p_n;
+    p_ctx.save();
+    p_ctx.lineCap = 'butt';
+    p_ctx.lineJoin = 'round';
+    const trace = (b: Point[], shift: number) => {
+        p_ctx.beginPath();
+        b.forEach((p, i) => (i ? p_ctx.lineTo(p.x * cell + shift, p.y * cell + shift) : p_ctx.moveTo(p.x * cell + shift, p.y * cell + shift)));
+    };
+    p_ctx.strokeStyle = 'rgba(15, 35, 60, 0.3)'; // the shadow
+    p_ctx.lineWidth = 20;
+    for (const b of p_bridges) {
+        trace(b, 5);
+        p_ctx.stroke();
+    }
+    p_ctx.strokeStyle = '#3f3833'; // the piers
+    p_ctx.lineWidth = 3;
+    for (const b of p_bridges) {
+        for (let k = 4; k < b.length - 4; k += 10) { // b is a point every quarter cell
+            const dx = b[k + 1].x - b[k - 1].x;
+            const dy = b[k + 1].y - b[k - 1].y;
+            const length = Math.hypot(dx, dy) || 1;
+            const nx = (-dy / length) * 13;
+            const ny = (dx / length) * 13;
+            p_ctx.beginPath();
+            p_ctx.moveTo(b[k].x * cell - nx, b[k].y * cell - ny);
+            p_ctx.lineTo(b[k].x * cell + nx, b[k].y * cell + ny);
+            p_ctx.stroke();
+        }
+    }
+    for (const [colour, width] of [['#3f3833', 21], ['#efe9de', 18]] as const) { // the deck
+        p_ctx.strokeStyle = colour;
+        p_ctx.lineWidth = width;
+        for (const b of p_bridges) {
+            trace(b, 0);
+            p_ctx.stroke();
+        }
+    }
+    for (const [colour, width] of [['#3f3833', 13], ['#b9b2a7', 9.5]] as const) {
+        p_ctx.strokeStyle = colour;
+        p_ctx.lineWidth = width;
+        path(p_ctx, p_m, cell);
+        p_ctx.stroke();
+    }
+    p_ctx.strokeStyle = '#ffffff';
+    p_ctx.lineWidth = 1.2;
+    p_ctx.setLineDash([7, 6]);
+    path(p_ctx, p_m, cell);
+    p_ctx.stroke();
+    p_ctx.restore();
 }
 
 // A different number 0..1 for each whole number (each district its own shade).

@@ -18,7 +18,11 @@ export type Settings = {
     islandRadius: number; // step 8: the island's falloff reaches this share of the map's width
     islandNoise: number; // step 8: how much the noise counts against the falloff (0: a circle)
     islandNoiseSize: number; // step 8: size of the noise's biggest features (pixels)
+    twinRadius: number; // step 11: each island's falloff reaches this share of the map's width
+    twinSpacing: number; // step 11: how far each island's middle is from the map's (share of its width)
     cityMargin: number; // step 9: how far (pixels) the city stays in from the coast (up to 50: the coast distance is measured that far)
+    arterialBend: number; // step 10: the most (degrees) an arterial may bend at a junction
+    arterialLength: number; // step 10: the shortest arterial (cells)
     straighten: number; // how far (cells) a highway may be pulled straight before it is rounded
     smoothing: number; // corner-cutting passes on the highways
 };
@@ -41,7 +45,11 @@ export const DEFAULT_SETTINGS: Settings = {
     islandRadius: 0.45,
     islandNoise: 0.55,
     islandNoiseSize: 170,
+    twinRadius: 0.24,
+    twinSpacing: 0.26,
     cityMargin: 28,
+    arterialBend: 55,
+    arterialLength: 20,
     straighten: 1.5,
     smoothing: 3,
 };
@@ -82,5 +90,13 @@ export const STEPS: { title: string; text: string }[] = [
     {
         title: 'City on the island',
         text: 'The city switched back on, on the island, kept off the beach: a cell is city only if its middle is on land and at least city margin pixels from the coast (the coast distance the island\'s colours are painted from). Only the biggest piece of city cells is kept (narrow headlands and islets stay countryside). Every other cell is a wall: no seed goes there and the spread never enters it, so the blocks, districts, streets and houses all stop at the city\'s edge, everything else exactly as in steps 1 to 7. The edge gets a highway too, the ring road: while finding the borders the outside counts as one more colour, so the side between a block and the outside is a border like any other, straightened and rounded the same, and the highways between blocks meet it at junctions. The slivers the rounding cuts off past it go outside.',
+    },
+    {
+        title: 'Arterials',
+        text: 'Every highway runs from one junction to the next, so the roads read as cells (stained glass); a real city has a few long roads that cross it. At every junction the highway ends meeting there are paired: the straightest pair first (their directions leaving the junction most nearly opposite), then the straightest of those left, as long as a pair bends less than arterial bend degrees. Paired highways are one road: followed from piece to piece they make chains, and a chain of two or more pieces at least arterial length cells long is an arterial, drawn wider and deeper orange. The ring road is left out (it stays a highway): the arterials cross the city and end at it. Where three blocks meet, the roads are about 120 degrees apart, so going straight on bends about 60: arterial bend decides how many of those count.',
+    },
+    {
+        title: 'Two islands',
+        text: 'Two islands, joined by the motorway. Two hills instead of one, smaller (twin radius), each twin spacing of the map\'s width from the middle, opposite ways along a random direction; the falloff at a point is the higher of the two, and the same noise roughens both coasts, so a strait opens between them. The city grows on each (the two biggest pieces of city cells, each with its own ring road). The motorway is now only the bridge between them: the cheapest path from just outside one city to just outside the other, never through a city (so it crosses no other road) and never round an island. A step on land costs 1, over water 8, so it walks out to where the strait is narrowest and crosses there. Each end is carried on to the nearest point of the ring road, where it joins. Over water it is a bridge (a pale deck, piers, its shadow on the sea).',
     },
 ];
