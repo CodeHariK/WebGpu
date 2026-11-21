@@ -19,6 +19,7 @@ const ROOFS = 6; // roof colours (Map26Draw has them)
 const INSET = 0.2; // fine cells: a house's edges are tested this far inside
 const STREET_SETBACK = 0.95; // fine cells from a street's line to the houses' fronts
 const MAIN_SETBACK = 1.45; // ... from a main road's
+const HIGHWAY_SETBACK = 2.0; // ... from a highway's (step 12: houses face the highways too)
 
 type Grid = { n: number; occupied: Uint8Array };
 
@@ -120,8 +121,9 @@ function lineUp(p_ax: number, p_ay: number, p_bx: number, p_by: number, p_setbac
 }
 
 // p_wide: roads drawn wider than a highway (arterials, the motorway), each with its half width
-// (fine cells), in block cells like the highways.
-export function placeHouses(p_d: Districts, p_streets: Streets, p_highways: Highway[], p_wide: { points: Point[]; halfWidth: number }[], p_settings: Settings, p_random: () => number): Houses {
+// (fine cells), in block cells like the highways. p_alongHighways: houses face the highways too
+// (step 12), after the streets and main roads.
+export function placeHouses(p_d: Districts, p_streets: Streets, p_highways: Highway[], p_wide: { points: Point[]; halfWidth: number }[], p_alongHighways: boolean, p_settings: Settings, p_random: () => number): Houses {
     const g: Grid = { n: p_d.n * OCC, occupied: new Uint8Array(p_d.n * OCC * p_d.n * OCC) };
     const highways = p_highways.map((h) => h.points.map((p) => ({ x: p.x * DETAIL, y: p.y * DETAIL })));
     for (const h of highways) markRoad(g, h, 1.6); // the roads as drawn, a little wider
@@ -132,6 +134,9 @@ export function placeHouses(p_d: Districts, p_streets: Streets, p_highways: High
     for (const s of p_streets.streets) lineUp(s.ax, s.ay, s.bx, s.by, STREET_SETBACK, p_d, g, p_settings, p_random, houses);
     for (const r of p_d.roads.highways) {
         for (let k = 0; k < r.points.length - 1; k++) lineUp(r.points[k].x, r.points[k].y, r.points[k + 1].x, r.points[k + 1].y, MAIN_SETBACK, p_d, g, p_settings, p_random, houses);
+    }
+    if (p_alongHighways) {
+        for (const h of highways) for (let k = 0; k < h.length - 1; k++) lineUp(h[k].x, h[k].y, h[k + 1].x, h[k + 1].y, HIGHWAY_SETBACK, p_d, g, p_settings, p_random, houses);
     }
     return { houses };
 }

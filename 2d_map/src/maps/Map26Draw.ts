@@ -3,6 +3,8 @@
 // highways along the borders, and the districts (each a shade of its block) with their main roads.
 import type { Borders, Highway, Point } from './Map26Borders';
 import type { Districts } from './Map26Districts';
+import { angleAt, type Field } from './Map26Field';
+import { DETAIL } from './Map26Districts';
 import type { Houses } from './Map26Houses';
 import type { Streets } from './Map26Streets';
 import type { QueueView } from './Map26Queue';
@@ -202,6 +204,30 @@ export function drawMotorway(p_ctx: CanvasRenderingContext2D, p_m: Highway, p_br
     p_ctx.lineWidth = 1.2;
     p_ctx.setLineDash([7, 6]);
     path(p_ctx, p_m, cell);
+    p_ctx.stroke();
+    p_ctx.restore();
+}
+
+// The street field: a short dark tick along its direction in every other block cell of the city.
+export function drawField(p_ctx: CanvasRenderingContext2D, p_f: Field, p_s: Spread, p_size: number): void {
+    const cell = p_size / p_s.n;
+    p_ctx.save();
+    p_ctx.strokeStyle = 'rgba(30, 40, 90, 0.75)';
+    p_ctx.lineWidth = 1.6;
+    p_ctx.lineCap = 'round';
+    p_ctx.beginPath();
+    for (let j = 0; j < p_s.n; j += 2) {
+        for (let i = 0; i < p_s.n; i += 2) {
+            if (p_s.owner[j * p_s.n + i] < 0) continue;
+            const a = angleAt(p_f, (i + 0.5) * DETAIL, (j + 0.5) * DETAIL);
+            const x = (i + 0.5) * cell;
+            const y = (j + 0.5) * cell;
+            const dx = Math.cos(a) * cell * 0.8;
+            const dy = Math.sin(a) * cell * 0.8;
+            p_ctx.moveTo(x - dx, y - dy);
+            p_ctx.lineTo(x + dx, y + dy);
+        }
+    }
     p_ctx.stroke();
     p_ctx.restore();
 }

@@ -12,6 +12,8 @@ export type Settings = {
     speedVariety: number; // how much faster some colours spread than others (0: all the same)
     districtSize: number; // about how wide a district is (block cells): bigger blocks get more of them
     streetBlock: number; // a street block's usual size (fine cells)
+    blockLength: number; // step 12: how far apart the streets across the field are (fine cells): a block's length
+    fieldReach: number; // step 12: how far (block cells) a road's direction reaches into the field
     streetGaps: number; // share of street pieces left out (bigger, irregular blocks)
     houseSize: number; // a house's usual width and depth (fine cells)
     houseFill: number; // share of lots that get a house
@@ -39,6 +41,8 @@ export const DEFAULT_SETTINGS: Settings = {
     speedVariety: 0.5,
     districtSize: 16,
     streetBlock: 9,
+    blockLength: 20,
+    fieldReach: 6,
     streetGaps: 0.15,
     houseSize: 2.6,
     houseFill: 0.85,
@@ -98,5 +102,9 @@ export const STEPS: { title: string; text: string }[] = [
     {
         title: 'Two islands',
         text: 'Two islands, joined by the motorway. Two hills instead of one, smaller (twin radius), each twin spacing of the map\'s width from the middle, opposite ways along a random direction; the falloff at a point is the higher of the two, and the same noise roughens both coasts, so a strait opens between them. The city grows on each (the two biggest pieces of city cells, each with its own ring road). The motorway is now only the bridge between them: the cheapest path from just outside one city to just outside the other, never through a city (so it crosses no other road) and never round an island. A step on land costs 1, over water 8, so it walks out to where the strait is narrowest and crosses there. Each end is carried on to the nearest point of the ring road, where it joins. Over water it is a bridge (a pale deck, piers, its shadow on the sea).',
+    },
+    {
+        title: 'Street field',
+        text: 'Streets follow the roads instead of one straight grid per district. First a street field: a direction at every point, taken from the roads (highways, the ring road, main roads), each road sampled every fine cell, each sample counting less fast with distance (1 / (1 + (distance / field reach)⁴)): next to a road its own direction wins, between roads it turns smoothly from one to the other (the dark ticks; a direction has no front or back, so they are added with the angle doubled, a tensor). Then streets are traced along it, two families: along the field (parallel to the nearest road) and across it (at right angles). A street is followed from a seed both ways, half a fine cell a step, until it reaches a road, comes closer than half its spacing to another street of its family, or turns too sharply. Seeds are tried a spacing either side of every street already traced, only where no street of the family is that close (evenly spaced streamlines). The first are by the roads: streets along start one street block (a block\'s depth: two rows of houses back to back) in from a road, streets across start at the road itself, block length apart, so they meet it in T-junctions. The houses line up along them as before, each facing its street, and now along the highways and the ring road too (a little further back), so the band between a road and its first street is built up on both sides.',
     },
 ];

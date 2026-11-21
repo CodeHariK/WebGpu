@@ -1,16 +1,18 @@
 // Colour Blocks — makes the spread, the borders and (from step 5) the districts and (step 6) the
 // streets and (step 7) the houses from the settings, or (step 8) the island on its own, or (step 9)
 // the city on the island, kept cityMargin off the coast, a ring road round it, with (step 10)
-// arterials, or (step 11) all that on two islands, a motorway bridge between their ring roads; and
-// draws a step (at a point in the spread's animation: p_progress 0..1).
+// arterials, or (step 11) all that on two islands, a motorway bridge between their ring roads, with
+// (step 12) the streets along a street field; and draws a step (at a point in the spread's animation: p_progress 0..1).
 import { findArterials, type Arterials } from './Map26Arterials';
 import { findBorders, type Borders } from './Map26Borders';
 import { makeDistricts, type Districts } from './Map26Districts';
-import { drawArterials, drawCells, drawDistrictCells, drawGrid, drawHighways, drawHouses, drawMainRoads, drawMotorway, drawQueue, drawSeeds, drawStreets } from './Map26Draw';
+import { drawArterials, drawCells, drawField, drawDistrictCells, drawGrid, drawHighways, drawHouses, drawMainRoads, drawMotorway, drawQueue, drawSeeds, drawStreets } from './Map26Draw';
 import { placeHouses, type Houses } from './Map26Houses';
 import { cityOutside, withEdge } from './Map26City';
 import { drawIsland, drawRings, islandLayout, makeIsland, type Island, type IslandView } from './Map26Island';
 import { makeBridge, type Motorway } from './Map26Bridge';
+import { makeField, type Field } from './Map26Field';
+import { makeFieldStreets } from './Map26FieldStreets';
 import { makeStreets, type Streets } from './Map26Streets';
 import { queueAt, type QueueView } from './Map26Queue';
 import { makeNoise, makeRandom } from './Map24Random';
@@ -27,8 +29,9 @@ export type Blocks = {
     island: Island | null;
     arterials: Arterials | null; // step 10 on
     motorway: Motorway | null; // step 11 on: the bridge between the islands
+    field: Field | null; // step 12 on: the street field
 };
-export type Show = { queue: boolean; ground: boolean; island: IslandView; rings: boolean }; // steps 1 - 2 and 8 extras
+export type Show = { queue: boolean; ground: boolean; island: IslandView; rings: boolean; field: boolean }; // steps 1 - 2, 8 and 12 extras
 
 const DISTRICTS_FROM = 5; // the step the districts appear
 const STREETS_FROM = 6;
@@ -37,6 +40,7 @@ const ISLAND_FROM = 8; // the island, on its own
 const CITY_ON_ISLAND = 9; // the city again, on the island, kept off the coast, a ring road round it
 const ARTERIALS_FROM = 10;
 const TWO_ISLANDS_FROM = 11;
+const FIELD_FROM = 12; // streets along the street field
 const ARTERIAL_HALF = 2.1; // fine cells either side of an arterial's line kept clear of houses
 const MOTORWAY_HALF = 2.8;
 
@@ -49,7 +53,7 @@ export function makeBlocks(p_settings: Settings, p_size: number): Blocks {
     const s = spread(p_settings, random, noise, outside);
     const borders = findBorders(s.n, outside ? withEdge(s.owner) : s.owner, p_settings.straighten, p_settings.smoothing); // on the island: with the ring road
     if (island && !outside) {
-        return { settings: p_settings, spread: s, borders, districts: null, streets: null, houses: null, island, arterials: null, motorway: null };
+        return { settings: p_settings, spread: s, borders, districts: null, streets: null, houses: null, island, arterials: null, motorway: null, field: null };
     }
     const arterials = outside && p_settings.step >= ARTERIALS_FROM ? findArterials(borders, s, p_settings) : null;
     const motorway = island && outside && p_settings.step >= TWO_ISLANDS_FROM ? makeBridge(s, borders, island, p_size, p_settings) : null;
@@ -57,9 +61,23 @@ export function makeBlocks(p_settings: Settings, p_size: number): Blocks {
     const wide = [...(arterials?.lines ?? []).map((points) => ({ points, halfWidth: ARTERIAL_HALF })), ...(motorway ? [{ points: motorway.road.points, halfWidth: MOTORWAY_HALF }] : [])];
     // the districts only when shown (they take longer), from their own random numbers
     const districts = p_settings.step >= DISTRICTS_FROM ? makeDistricts(s, roads, p_settings, makeRandom(p_settings.seed * 7919 + 1), noise, outside !== null) : null;
-    const streets = districts && p_settings.step >= STREETS_FROM ? makeStreets(districts, roads, p_settings) : null;
-    const houses = districts && streets && p_settings.step >= HOUSES_FROM ? placeHouses(districts, streets, roads, wide, p_settings, makeRandom(p_settings.seed * 104729 + 7)) : null;
-    return { settings: p_settings, spread: s, borders, districts, streets, houses, island, arterials, motorway };
+    const field = districts && p_settings.step >= FIELD_FROM ? makeField(s.n, roads, districts.roads.highways, near(s), p_settings.fieldReach) : null;
+    const streets = !districts || p_settings.step < STREETS_FROM ? null : field ? makeFieldStreets(districts, roads, field, p_settings) : makeStreets(districts, roads, p_settings);
+    const houses = districts && streets && p_settings.step >= HOUSES_FROM ? placeHouses(districts, streets, roads, wide, field !== null, p_settings, makeRandom(p_settings.seed * 104729 + 7)) : null;
+    return { settings: p_settings, spread: s, borders, districts, streets, houses, island, arterials, motorway, field };
+}
+
+// Per block cell: 1 in the city or next to it (where the street field is needed).
+function near(p_s: Spread): Uint8Array {
+    const n = p_s.n;
+    const out = new Uint8Array(n * n);
+    for (let j = 0; j < n; j++) {
+        for (let i = 0; i < n; i++) {
+            if (p_s.owner[j * n + i] < 0) continue;
+            for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) if (i + di >= 0 && j + dj >= 0 && i + di < n && j + dj < n) out[(j + dj) * n + i + di] = 1;
+        }
+    }
+    return out;
 }
 
 // Draws the step; on steps 1 - 2 returns the queue it showed (else null).
@@ -73,6 +91,7 @@ export function drawBlocks(p_ctx: CanvasRenderingContext2D, p_b: Blocks, p_progr
     if (p_b.island) { // the city on the island: the map under it, the rings over it
         drawIsland(p_ctx, p_b.island, 'map', false);
         drawCity(p_ctx, p_b, size);
+        if (p_b.field && p_show.field) drawField(p_ctx, p_b.field, p_b.spread, size);
         if (p_show.rings) drawRings(p_ctx, p_b.island);
         return null;
     }
