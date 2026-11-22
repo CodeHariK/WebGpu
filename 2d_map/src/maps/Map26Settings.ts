@@ -19,6 +19,7 @@ export type Settings = {
     downtownShare: number; // step 14: share of each city's area that is downtown
     industryShare: number; // step 14: ... industry (on the shore)
     parkShare: number; // step 14: ... parks
+    dockLength: number; // step 17: how long each island's docks are along the ring road (fine cells)
     streetGaps: number; // share of street pieces left out (bigger, irregular blocks)
     houseSize: number; // a house's usual width and depth (fine cells)
     houseFill: number; // share of lots that get a house
@@ -53,6 +54,7 @@ export const DEFAULT_SETTINGS: Settings = {
     downtownShare: 0.15,
     industryShare: 0.1,
     parkShare: 0.1,
+    dockLength: 36,
     streetGaps: 0.15,
     houseSize: 2.6,
     houseFill: 0.85,
@@ -132,5 +134,9 @@ export const STEPS: { title: string; text: string }[] = [
     {
         title: 'Buildings',
         text: 'A placeholder building on every lot, each with a height in floors for the 3D map later (its shadow to the bottom right is as long as it is tall). A rectangle is the biggest of its shape that fits on the lot, turned to the lot\'s road and standing a setback back from it (tried full size, then smaller until all of it is on the lot). Houses: as before, 1 to 2 floors. Downtown: a block filling most of its lot, 3 floors at the city\'s edge up to about 20 in its middle; the most central downtown lot of each island gets a round tower, the biggest circle on the lot (the lot cell farthest from its edge). Industry: a long low shed with ridges, 1 to 2 floors. Mall: a big low block at the back of its lot, a car park between it and the road. Park: no building, a pond (the biggest circle, smaller) in a big park, and trees: small circles tried at random, kept if on the lot, off the pond and apart from each other.',
+    },
+    {
+        title: 'Docks',
+        text: 'Docks on one stretch of each island\'s coast, in the strip between the ring road and the sea (the city stops city margin short of the coast). The site: the ring road is walked a fine cell at a time, every stretch dock length long is scored by how near the sea it runs (the average coast distance of its points), stretches near the bridge left out; the nearest wins. Along it the yard (grey concrete) reaches from the road\'s edge, square to the road and away from the city, to the coast. On it: warehouses along the road in 3 lengths, as deep as the yard allows. From the coast: piers straight out into the water every 7 fine cells, each kept only if all of it is over water, and beside some of them a ship (on water too).',
     },
 ];

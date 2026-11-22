@@ -52,7 +52,7 @@ function pointAlong(p_points: Point[], p_t: number): Point {
 // Is the highway a piece of the ring road? Most of 9 points along its inside (not its ends: they
 // can be junctions on the ring) have a cell outside the city (owner −1) among the 4 cells round
 // them (the ring runs along the cells' edges, rounded a little).
-function onRing(p_points: Point[], p_spread: Spread): boolean {
+export function onRing(p_points: Point[], p_spread: Spread): boolean {
     const n = p_spread.n;
     const outsideAt = (i: number, j: number) => i < 0 || j < 0 || i >= n || j >= n || p_spread.owner[j * n + i] < 0;
     let near = 0;
