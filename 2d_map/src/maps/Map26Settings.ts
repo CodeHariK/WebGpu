@@ -16,6 +16,9 @@ export type Settings = {
     fieldReach: number; // step 12: how far (block cells) a road's direction reaches into the field
     plotWidth: number; // step 13: a plot's frontage along its road (fine cells)
     plotDepth: number; // step 13: how far back from its road a plot reaches (fine cells)
+    downtownShare: number; // step 14: share of each city's area that is downtown
+    industryShare: number; // step 14: ... industry (on the shore)
+    parkShare: number; // step 14: ... parks
     streetGaps: number; // share of street pieces left out (bigger, irregular blocks)
     houseSize: number; // a house's usual width and depth (fine cells)
     houseFill: number; // share of lots that get a house
@@ -47,6 +50,9 @@ export const DEFAULT_SETTINGS: Settings = {
     fieldReach: 6,
     plotWidth: 3.4,
     plotDepth: 5,
+    downtownShare: 0.15,
+    industryShare: 0.1,
+    parkShare: 0.1,
     streetGaps: 0.15,
     houseSize: 2.6,
     houseFill: 0.85,
@@ -114,5 +120,9 @@ export const STEPS: { title: string; text: string }[] = [
     {
         title: 'Plots',
         text: 'Every block between the roads is cut into plots, as a real street is: a strip of ground running back from one road, the house at its front facing the road, gardens meeting back to back. On a grid twice as fine as the districts\' the roads are drawn in, each road cell remembering which road it is, how far along it, and the road\'s direction there. A block is a piece of ground between road cells. Its cells beside a road are its frontage, each keyed by that road, which side of it, and which stretch of plot width along it. Then every block cell takes the key of the frontage nearest it (searched out from all the frontage at once), up to plot depth back: cells sharing a key are one plot. Corners split themselves (a corner cell goes to the nearer road); deeper than plot depth is the block\'s middle (green: a courtyard). Each plot gets one house at its front, turned to its road, as wide as the plot allows, all of it on the plot (else tried smaller, else the plot stays empty; some stay empty anyway: house fill).',
+    },
+    {
+        title: 'Zoning',
+        text: 'Each block (the ground between the streets) is given a use. For every block: its area, its middle, its island, how central it is (1 at the middle of its island\'s city, 0 at the farthest block), which kinds of road it touches (street, main road, highway, arterial), how near it comes to the coast, and how near it is to an end of the bridge. Then the uses are handed out in turn, each taking the best blocks still free. Mall (red): one per island, the biggest block that touches an arterial or is by the bridge. Downtown (purple): the most central blocks, touching an arterial counts extra, up to downtown share of the city\'s area. Industry (grey): the blocks nearest the coast, touching a highway counts extra, up to industry share. Park (green): mid-sized blocks at random, up to park share. Houses (cream): the rest, and only they keep their houses for now; the other uses get their buildings in the next steps.',
     },
 ];

@@ -4,6 +4,7 @@
 // Map26Spread grows the colours, Map26Borders traces the highways, Map26Draw draws.
 import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_SETTINGS, STEPS, type Settings } from './Map26Settings';
+import { ZONE_COLOURS } from './Map26Draw';
 import { drawBlocks, makeBlocks, type Blocks, type Show } from './Map26Render';
 
 import { Section, Slider } from './Map19Ui';
@@ -147,6 +148,20 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
                     <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: '0.75rem' }}>
                         <input type="checkbox" checked={show.field} onChange={(e) => setShow((v) => ({ ...v, field: e.target.checked }))} /> show the street field (dark ticks: its direction)
                     </label>
+                )}
+                {settings.step >= 14 && (
+                    <Section title="ZONING">
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: '0.7rem' }}>
+                            {(['houses', 'mall', 'downtown', 'industry', 'park'] as const).map((z) => (
+                                <span key={z} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                    <span style={{ width: 10, height: 10, background: ZONE_COLOURS[z], display: 'inline-block' }} /> {z}
+                                </span>
+                            ))}
+                        </div>
+                        {num('downtownShare', 'downtown share', 0, 0.5, 0.01)}
+                        {num('industryShare', 'industry share', 0, 0.4, 0.01)}
+                        {num('parkShare', 'park share', 0, 0.4, 0.01)}
+                    </Section>
                 )}
                 <Section title="DISTRICTS">
                     {num('districtSize', 'district size', 6, 40, 1)}

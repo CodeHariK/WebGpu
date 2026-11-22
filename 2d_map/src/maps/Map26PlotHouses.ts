@@ -51,14 +51,15 @@ function houseOn(p_plot: Plot, p_width: number, p_depth: number, p_roof: number)
     };
 }
 
-export function housesOnPlots(p_plots: Plots, p_settings: Settings, p_random: () => number): Houses {
+// p_keep: per plot, whether it may have a house (step 14: only plots in house zones), or null for all.
+export function housesOnPlots(p_plots: Plots, p_keep: Uint8Array | null, p_settings: Settings, p_random: () => number): Houses {
     const houses: House[] = [];
     const size = p_settings.houseSize;
     p_plots.plots.forEach((plot, k) => {
         const width = Math.min(plot.frontage - GAP, size * (0.85 + 0.35 * p_random()));
         const depth = Math.min(plot.area / Math.max(1, plot.frontage) - SETBACK - GARDEN, size * (0.85 + 0.4 * p_random()));
         const roof = Math.floor(p_random() * ROOFS);
-        if (p_random() >= p_settings.houseFill || width < size * 0.5 || depth < size * 0.5) return;
+        if (p_random() >= p_settings.houseFill || width < size * 0.5 || depth < size * 0.5 || (p_keep && !p_keep[k])) return;
         for (const shrink of [1, 0.85, 0.7, 0.55]) {
             const h = houseOn(plot, width * shrink, depth * shrink, roof);
             if (onPlot(h, p_plots, k)) {

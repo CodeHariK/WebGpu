@@ -18,11 +18,14 @@ import type { Districts } from './Map26Districts';
 
 export const PLOT = 2; // plot cells to a fine cell, each way
 
-export type Road = { points: Point[]; halfWidth: number }; // fine cells
+export type RoadKind = 'street' | 'main' | 'highway' | 'arterial';
+export type Road = { points: Point[]; halfWidth: number; kind: RoadKind }; // fine cells
 // fine cells: the middle of its frontage, the road's direction, the way back from it, its frontage
 // length and its area
 export type Plot = { front: Point; along: Point; inward: Point; frontage: number; area: number };
-export type Plots = { n: number; id: Int32Array; plots: Plot[] }; // id per plot cell: its plot, ROAD or MIDDLE
+// id per plot cell: its plot, ROAD or MIDDLE; road per plot cell: the road it is under (an index
+// into roads), or −1
+export type Plots = { n: number; id: Int32Array; plots: Plot[]; road: Int32Array; roads: Road[] };
 
 export const ROAD = -1; // a road (or outside the city)
 export const MIDDLE = -2; // a block's middle: further from the roads than plotDepth
@@ -226,5 +229,5 @@ export function makePlots(p_d: Districts, p_roads: Road[], p_width: number, p_de
         const il = Math.hypot(s.ix, s.iy) || 1;
         return { front: { x: s.x / s.count / PLOT, y: s.y / s.count / PLOT }, along: { x: s.ax / al, y: s.ay / al }, inward: { x: s.ix / il, y: s.iy / il }, frontage: s.count / PLOT, area: area[k] };
     });
-    return { n, id, plots };
+    return { n, id, plots, road: r.road, roads: p_roads };
 }

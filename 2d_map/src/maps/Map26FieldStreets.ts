@@ -10,8 +10,10 @@
 // are tried at that distance either side of every street already traced, nearest first, and only
 // where no street of the family is that close. The first seeds are next to the roads: the streets
 // along start one spacing (streetBlock: a block's depth) in from each road, the streets across
-// start at the roads themselves (T-junctions), blockLength apart. Each street is pulled straight a
-// little and cut into pieces for the houses.
+// start at the roads themselves (T-junctions), blockLength apart. Then every dead end is carried on
+// straight (up to a street block) to the road or street ahead of it, if there is one that near, so
+// the streets close into blocks (zoning works on those). Each street is pulled straight a little and
+// cut into pieces for the houses.
 import { straighten, type Highway, type Point } from './Map26Borders';
 import { DETAIL, type Districts } from './Map26Districts';
 import { angleAt, type Field } from './Map26Field';
@@ -22,6 +24,7 @@ const STEP = 0.5; // fine cells a tracing step
 const MAX_STEPS = 600;
 const MAX_TURN = Math.cos(Math.PI / 4); // a step turning more than 45 degrees ends the street
 const MIN_LENGTH = 6; // fine cells: shorter streets (stubs) are dropped
+const TOUCH = 0.7; // fine cells: a dead end carried on this near a street has reached it
 
 // Points (fine cells) bucketed by area: which are near a point?
 class Near {
@@ -128,11 +131,40 @@ function traceFamily(p_d: Districts, p_field: Field, p_f: Family, p_roads: Point
     }
 }
 
+// Carries each end of each street on straight, up to p_reach, to the first road (its district ends)
+// or street (TOUCH near) ahead; an end with nothing that near stays a dead end.
+function closeEnds(p_d: Districts, r_lines: Point[][], p_reach: number): void {
+    const all = new Near(2);
+    for (const line of r_lines) for (const p of line) all.add(p);
+    for (const line of r_lines) {
+        const k = districtAt(p_d, line[Math.floor(line.length / 2)]);
+        for (const atStart of [true, false]) {
+            const end = atStart ? line[0] : line[line.length - 1];
+            const back = atStart ? line[Math.min(2, line.length - 1)] : line[Math.max(0, line.length - 3)];
+            const length = Math.hypot(end.x - back.x, end.y - back.y) || 1;
+            const dx = (end.x - back.x) / length;
+            const dy = (end.y - back.y) / length;
+            let reached: Point | null = null;
+            for (let t = STEP; t <= p_reach; t += STEP) {
+                const q = { x: end.x + dx * t, y: end.y + dy * t };
+                if (districtAt(p_d, q) !== k || (t > 1 && all.any(q, TOUCH))) {
+                    reached = q;
+                    break;
+                }
+            }
+            if (!reached) continue;
+            if (atStart) line.unshift(reached);
+            else line.push(reached);
+        }
+    }
+}
+
 export function makeFieldStreets(p_d: Districts, p_highways: Highway[], p_field: Field, p_settings: Settings): Streets {
     const roads = [...p_d.roads.highways.map((h) => h.points), ...p_highways.map((h) => h.points.map((p) => ({ x: p.x * DETAIL, y: p.y * DETAIL })))];
     const lines: Point[][] = [];
     traceFamily(p_d, p_field, { across: false, spacing: p_settings.streetBlock, near: new Near(p_settings.streetBlock) }, roads, lines);
     traceFamily(p_d, p_field, { across: true, spacing: p_settings.blockLength, near: new Near(p_settings.blockLength) }, roads, lines);
+    closeEnds(p_d, lines, p_settings.streetBlock * 1.2);
     const streets: Street[] = [];
     const kept: Point[][] = [];
     for (const line of lines) {

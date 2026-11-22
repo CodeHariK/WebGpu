@@ -7,6 +7,7 @@ import { angleAt, type Field } from './Map26Field';
 import { DETAIL } from './Map26Districts';
 import type { Houses } from './Map26Houses';
 import { ROAD, type Plots } from './Map26Plots';
+import type { Zone, Zoning } from './Map26Zoning';
 import type { Streets } from './Map26Streets';
 import type { QueueView } from './Map26Queue';
 import type { Spread } from './Map26Spread';
@@ -254,6 +255,33 @@ export function drawPlots(p_ctx: CanvasRenderingContext2D, p_p: Plots, p_size: n
         image.data[c * 4 + 1] = g;
         image.data[c * 4 + 2] = b;
         image.data[c * 4 + 3] = a;
+    }
+    small.putImageData(image, 0, 0);
+    p_ctx.save();
+    p_ctx.imageSmoothingEnabled = false;
+    p_ctx.drawImage(canvas, 0, 0, p_size, p_size);
+    p_ctx.restore();
+}
+
+export const ZONE_COLOURS: Record<Zone, string> = { houses: '#f1e7cc', downtown: '#7d63c9', mall: '#d9534f', park: '#4f9a3c', industry: '#7a8088' };
+
+// The zones: every block tinted its zone's colour (houses a pale cream, so the districts' own
+// colours fade and the other uses stand out).
+export function drawZones(p_ctx: CanvasRenderingContext2D, p_z: Zoning, p_n: number, p_size: number): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = p_n;
+    canvas.height = p_n;
+    const small = canvas.getContext('2d')!;
+    const image = small.createImageData(p_n, p_n);
+    const rgb = p_z.blocks.map((b) => rgbOf(ZONE_COLOURS[b.zone]));
+    for (let c = 0; c < p_n * p_n; c++) {
+        const k = p_z.blockOf[c];
+        const colour = k >= 0 ? rgb[k] : null;
+        if (!colour) continue;
+        image.data[c * 4] = colour[0];
+        image.data[c * 4 + 1] = colour[1];
+        image.data[c * 4 + 2] = colour[2];
+        image.data[c * 4 + 3] = p_z.blocks[k].zone === 'houses' ? 170 : 200;
     }
     small.putImageData(image, 0, 0);
     p_ctx.save();
