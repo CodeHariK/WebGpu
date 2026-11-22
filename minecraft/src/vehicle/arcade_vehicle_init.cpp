@@ -109,8 +109,8 @@ void ArcadeVehicle::_ready() {
 
 void ArcadeVehicle::_exit_tree() {
 	GameManager *gm = GameManager::get_singleton();
-	if (gm && gm->get_vehicle() == this) {
-		gm->register_vehicle(nullptr);
+	if (gm) {
+		gm->unregister_vehicle(this);
 	}
 }
 
@@ -146,7 +146,7 @@ void ArcadeVehicle::_setup_vehicle() {
 		chassis_mesh->queue_free();
 		chassis_mesh = nullptr;
 	}
-	for (CSGSphere3D *visual : wheel_visuals) {
+	for (Node3D *visual : wheel_visuals) {
 		visual->queue_free();
 	}
 	wheel_visuals.clear();
@@ -165,26 +165,20 @@ void ArcadeVehicle::_setup_vehicle() {
 	sphere->set_height(config->get_chassis_size().x * 2);
 	chassis_mesh->set_mesh(sphere);
 	add_child(chassis_mesh);
-	chassis_mesh->set_visible(debug_visuals_enabled); // debug-only; hide so the real car mesh shows
+	chassis_mesh->set_visible(false); // never drawn solid: DriveDebugHud draws the collision shapes as wireframes
 
-	// 5. Create wheel debug visuals
+	// 5. Wheel collider markers: an empty node per wheel, moved each frame to where the wheel's
+	// spherecast puts it, with the wheel's radius as metadata. Nothing is drawn here: DriveDebugHud
+	// draws each as a wireframe sphere when its "Collision shapes" box is ticked.
 	TypedArray<WheelConfig> wconfigs = config->get_wheel_configs();
 	for (int i = 0; i < wconfigs.size(); i++) {
 		Ref<WheelConfig> wc = wconfigs[i];
 		if (wc.is_null())
 			continue;
 
-		CSGSphere3D *visual = memnew(CSGSphere3D);
-		visual->set_radius(wc->get_radius());
-		visual->set_radial_segments(12);
-		visual->set_rings(6);
-		// Color it so it's a visible tire
-		visual->set_use_collision(false);
-
-		if (!debug_visuals_enabled) {
-			visual->hide();
-		}
-
+		Node3D *visual = memnew(Node3D);
+		visual->set_name(String("WheelCollider") + String::num_int64(i));
+		visual->set_meta("radius", wc->get_radius());
 		add_child(visual);
 		wheel_visuals.push_back(visual);
 	}
@@ -201,12 +195,6 @@ Ref<VehicleConfig> ArcadeVehicle::get_config() const { return config; }
 
 void ArcadeVehicle::set_debug_visuals_enabled(bool p_enabled) {
 	debug_visuals_enabled = p_enabled;
-	for (CSGSphere3D *visual : wheel_visuals) {
-		visual->set_visible(debug_visuals_enabled);
-	}
-	if (chassis_mesh) {
-		chassis_mesh->set_visible(debug_visuals_enabled);
-	}
 }
 
 bool ArcadeVehicle::get_debug_visuals_enabled() const { return debug_visuals_enabled; }

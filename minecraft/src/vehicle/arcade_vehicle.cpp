@@ -144,7 +144,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		MCRaycastHit hit =
 				spherecast_3d(this, cast_start, local_down, max_dist, wc->get_radius() * 0.4f, 0xFFFFFFFF, exclude);
 
-		CSGSphere3D *visual =
+		Node3D *visual =
 				(active_wheel_count < (int)wheel_visuals.size()) ? wheel_visuals[active_wheel_count] : nullptr;
 
 		if (hit.is_hit) {
@@ -169,7 +169,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 			float raw_disp = (target_pos - hardpoint_world).dot(local_down);
 			wheel_displacements[active_wheel_count] =
 					CLAMP(raw_disp, -0.4f, wc->get_suspension_rest_length());
-			if (debug_visuals_enabled && visual) {
+			if (visual) {
 				float clamped = CLAMP(raw_disp, 0.0f, wc->get_suspension_rest_length());
 				visual->set_global_position(hardpoint_world + local_down * clamped);
 			}
@@ -178,7 +178,7 @@ void ArcadeVehicle::_physics_process(double p_delta) {
 		} else {
 			// Wheel is fully extended (in the air).
 			wheel_displacements[active_wheel_count] = wc->get_suspension_rest_length();
-			if (debug_visuals_enabled && visual) {
+			if (visual) {
 				visual->set_global_position(hardpoint_world + local_down * wc->get_suspension_rest_length());
 			}
 		}

@@ -91,6 +91,9 @@ run_octo:
 run_city:
 	$(GODOT) --path project/ --scene scene/city/city.tscn
 
+run_speedway:
+	$(GODOT) --path project/ --scene scene/speedway/speedway.tscn
+
 run_octo_fx:
 	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn -- --fxtest
 

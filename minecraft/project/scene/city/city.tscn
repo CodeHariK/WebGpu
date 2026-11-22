@@ -18,6 +18,10 @@
 
 [ext_resource type="ProjectileProfile" path="res://assets/projectiles/corkscrew_missile.tres" id="corkscrew_profile"]
 
+[ext_resource type="PackedScene" path="res://assets/vehicles/silverado/scene.gltf" id="silverado_model"]
+
+[ext_resource type="PackedScene" path="res://assets/vehicles/camaro/scene.gltf" id="camaro_model"]
+
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_8x1io"]
 sky_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
 ground_horizon_color = Color(0.662243, 0.671743, 0.686743, 1)
@@ -146,25 +150,6 @@ size = Vector3(2, 3, 0.1)
 [sub_resource type="BoxShape3D" id="BoxShape3D_moving_platform"]
 size = Vector3(3, 0.2, 3)
 
-[sub_resource type="WheelConfig" id="WheelConfig_1dqdu"]
-hardpoint_offset = Vector3(1, 0, 1.5)
-
-[sub_resource type="WheelConfig" id="WheelConfig_4kplg"]
-hardpoint_offset = Vector3(-1, 0, 1.5)
-
-[sub_resource type="WheelConfig" id="WheelConfig_nxv8y"]
-hardpoint_offset = Vector3(1, 0, -1.5)
-
-[sub_resource type="WheelConfig" id="WheelConfig_ogdk4"]
-hardpoint_offset = Vector3(-1, 0, -1.5)
-
-[sub_resource type="VehicleConfig" id="VehicleConfig_3f0it"]
-max_speed = 36.0
-max_accel_force = 24000.0
-max_steer_angle_deg = 75.0
-show_debug_velocity = true
-wheel_configs = Array[WheelConfig]([SubResource("WheelConfig_1dqdu"), SubResource("WheelConfig_4kplg"), SubResource("WheelConfig_nxv8y"), SubResource("WheelConfig_ogdk4")])
-
 [sub_resource type="PhysicsMaterial" id="PhysicsMaterial_rafu7"]
 friction = 0.3
 
@@ -196,35 +181,6 @@ max_steer_angle_deg = 75.0
 show_debug_velocity = true
 wheel_configs = Array[WheelConfig]([SubResource("WheelConfig_3f0it"), SubResource("WheelConfig_gcalk"), SubResource("WheelConfig_17i2c"), SubResource("WheelConfig_736h2")])
 
-[sub_resource type="WheelConfig" id="WheelConfig_wkk6t"]
-hardpoint_offset = Vector3(1, 0, 1.5)
-radius = 1.0
-suspension_rest_length = 2.0
-
-[sub_resource type="WheelConfig" id="WheelConfig_fytpk"]
-hardpoint_offset = Vector3(-1, 0, 1.5)
-radius = 1.0
-suspension_rest_length = 2.0
-
-[sub_resource type="WheelConfig" id="WheelConfig_qleqm"]
-hardpoint_offset = Vector3(1, 0, -1.5)
-radius = 1.0
-suspension_rest_length = 2.0
-
-[sub_resource type="WheelConfig" id="WheelConfig_1dw46"]
-hardpoint_offset = Vector3(-1, 0, -1.5)
-radius = 1.0
-suspension_rest_length = 2.0
-
-[sub_resource type="VehicleConfig" id="VehicleConfig_sgska"]
-center_of_mass_offset = Vector3(0, -1, 0)
-max_speed = 24.0
-max_accel_force = 18000.0
-brake_decel = 8000.0
-max_steer_angle_deg = 75.0
-show_debug_velocity = true
-wheel_configs = Array[WheelConfig]([SubResource("WheelConfig_wkk6t"), SubResource("WheelConfig_fytpk"), SubResource("WheelConfig_qleqm"), SubResource("WheelConfig_1dw46")])
-
 [node name="City" type="Node3D" unique_id=42757262]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=277216433]
@@ -243,7 +199,6 @@ follow_target_path = NodePath("../CelesteController")
 pos_smoothing_enabled = false
 orbit_sensitivity = 0.003
 follow_offset = Vector3(0, 3, 10)
-speed_lines_path = NodePath("../SpeedLines")
 transform = Transform3D(1, 0, 0, 0, 0.8347999, 0.55055356, 0, -0.55055356, 0.8347999, -20, 9, 14)
 
 [node name="GameManager" type="GameManager" parent="." unique_id=542871028]
@@ -274,19 +229,6 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, -1.1, 0)
 
 [node name="Car" type="Node" parent="." unique_id=1805874112]
 
-[node name="SUVController" type="ArcadeVehicle" parent="Car" unique_id=451100269]
-config = SubResource("VehicleConfig_3f0it")
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
-physics_material_override = SubResource("PhysicsMaterial_rafu7")
-
-[node name="suv2" parent="Car/SUVController" unique_id=1444790978 instance=ExtResource("1_1dqdu")]
-visible = false
-
-[node name="Visual" type="Node3D" parent="Car/SUVController" unique_id=331594848]
-script = ExtResource("veh_vis")
-
-[node name="VehicleAudio" type="FolioVehicleAudio" parent="Car/SUVController" unique_id=1388305980]
-
 [node name="TruckController" type="ArcadeVehicle" parent="Car" unique_id=735206424]
 config = SubResource("VehicleConfig_wkk6t")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 3, 0)
@@ -300,23 +242,30 @@ script = ExtResource("veh_vis")
 
 [node name="VehicleAudio" type="FolioVehicleAudio" parent="Car/TruckController" unique_id=1938627143]
 
-[node name="TruckController2" type="ArcadeVehicle" parent="Car" unique_id=1872821116]
-config = SubResource("VehicleConfig_sgska")
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28, 3, 0)
+[node name="Silverado" type="ArcadeVehicle" parent="Car"]
+preset = "silverado"
+debug_visuals_enabled = false
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, 2, 0)
 physics_material_override = SubResource("PhysicsMaterial_rafu7")
 
-[node name="suv2" parent="Car/TruckController2" unique_id=365126827 instance=ExtResource("1_1dqdu")]
-visible = false
+[node name="Visual" type="ModelVehicleVisual" parent="Car/Silverado"]
+model = ExtResource("silverado_model")
+wheel_parts = PackedStringArray("wheel_")
 
-[node name="Visual" type="Node3D" parent="Car/TruckController2" unique_id=1336732435]
-script = ExtResource("veh_vis")
+[node name="VehicleAudio" type="FolioVehicleAudio" parent="Car/Silverado"]
 
-[node name="VehicleAudio" type="FolioVehicleAudio" parent="Car/TruckController2" unique_id=1651602976]
+[node name="Camaro" type="ArcadeVehicle" parent="Car"]
+preset = "camaro"
+debug_visuals_enabled = false
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56, 2, 0)
+physics_material_override = SubResource("PhysicsMaterial_rafu7")
 
-[node name="SpeedLines" type="SpeedLines" parent="." unique_id=1751533934]
-speed_min = 6.0
-speed_max = 28.0
-layer = 95
+[node name="Visual" type="ModelVehicleVisual" parent="Car/Camaro"]
+model = ExtResource("camaro_model")
+model_scale = 100.0
+wheel_parts = PackedStringArray("tyre", "rim_main", "rimbadge", "rotor")
+
+[node name="VehicleAudio" type="FolioVehicleAudio" parent="Car/Camaro"]
 
 [node name="TimeWarp" type="TimeWarp" parent="." unique_id=538279039]
 layer = 96
@@ -363,3 +312,6 @@ layer = 20
 
 [node name="CityMinimap" type="CityMinimap" parent="MapLayer"]
 city_map_path = NodePath("../../CityMap")
+
+[node name="DriveDebugHud" type="DriveDebugHud" parent="."]
+layer = 30

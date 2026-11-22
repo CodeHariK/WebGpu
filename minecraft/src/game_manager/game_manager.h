@@ -6,6 +6,7 @@
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/variant/string.hpp>
+#include <vector>
 
 namespace godot {
 class CUI;
@@ -49,7 +50,8 @@ private:
 	OvercookedManager *overcooked_manager = nullptr;
 	TennisManager *tennis_manager = nullptr;
 
-	ArcadeVehicle *vehicle = nullptr;
+	ArcadeVehicle *vehicle = nullptr; // the last vehicle registered or switched to
+	std::vector<ArcadeVehicle *> vehicles; // every vehicle in the scene, in the order they joined (TAB cycles them)
 	CelesteController *celeste_character = nullptr;
 	SpringCharacter *spring_character = nullptr;
 	Node *active_target = nullptr;
@@ -76,6 +78,7 @@ public:
 	TennisManager *get_tennis_manager() const;
 
 	void register_vehicle(ArcadeVehicle *p_vehicle);
+	void unregister_vehicle(ArcadeVehicle *p_vehicle);
 	ArcadeVehicle *get_vehicle() const;
 
 	void register_celeste_controller(Node *p_character);

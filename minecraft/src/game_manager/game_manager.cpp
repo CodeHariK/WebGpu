@@ -10,6 +10,7 @@
 #include "../player/celeste_controller.h"
 #include "../terrain/marching_prism/mp_manager.h"
 #include "../vehicle/arcade_vehicle.h"
+#include <algorithm>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/input.hpp>
 #include <godot_cpp/classes/input_event.hpp>
@@ -138,6 +139,9 @@ TennisManager *GameManager::get_tennis_manager() const { return tennis_manager; 
 
 void GameManager::register_vehicle(ArcadeVehicle *p_vehicle) {
 	vehicle = p_vehicle;
+	if (vehicle && std::find(vehicles.begin(), vehicles.end(), vehicle) == vehicles.end()) {
+		vehicles.push_back(vehicle);
+	}
 	if (vehicle) {
 		vehicle->set_game_manager(this);
 		if (player_input) {
@@ -148,6 +152,17 @@ void GameManager::register_vehicle(ArcadeVehicle *p_vehicle) {
 		}
 	}
 	UtilityFunctions::print("GameManager: Registered ArcadeVehicle.");
+}
+
+// p_vehicle leaving the scene: out of the TAB list (and no longer the current vehicle).
+void GameManager::unregister_vehicle(ArcadeVehicle *p_vehicle) {
+	vehicles.erase(std::remove(vehicles.begin(), vehicles.end(), p_vehicle), vehicles.end());
+	if (vehicle == p_vehicle) {
+		vehicle = vehicles.empty() ? nullptr : vehicles.back();
+	}
+	if (active_target == p_vehicle) {
+		active_target = nullptr;
+	}
 }
 
 ArcadeVehicle *GameManager::get_vehicle() const { return vehicle; }
@@ -260,9 +275,7 @@ void GameManager::_physics_process(double delta) {
 		const ActionState &state = player_input->get_state();
 		if (state.system.swap_target_just_pressed) {
 			// Create a list of available targets to cycle through
-			std::vector<Node *> valid_targets;
-			if (vehicle)
-				valid_targets.push_back(vehicle);
+			std::vector<Node *> valid_targets(vehicles.begin(), vehicles.end()); // every vehicle, then the characters
 			if (celeste_character)
 				valid_targets.push_back(celeste_character);
 			if (spring_character)
@@ -282,6 +295,9 @@ void GameManager::_physics_process(double delta) {
 
 			// Cycle to next
 			int next_index = (current_index + 1) % valid_targets.size();
+			if (ArcadeVehicle *next = Object::cast_to<ArcadeVehicle>(valid_targets[next_index])) {
+				vehicle = next;
+			}
 			set_active_target(valid_targets[next_index]);
 		}
 

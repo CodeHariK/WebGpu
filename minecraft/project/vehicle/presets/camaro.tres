@@ -1,0 +1,45 @@
+[gd_resource type="VehicleConfig" load_steps=5 format=3]
+
+; 1967 Chevrolet Camaro SS 350 (assets/vehicles/camaro): a light, quick coupe, wheels where the
+; model has them (front at -z), real size. Drawn by ModelVehicleVisual.
+
+[sub_resource type="WheelConfig" id="fl"]
+hardpoint_offset = Vector3(0.78, 0.2, -1.417)
+radius = 0.328
+suspension_stiffness = 73000.0
+compression_damping = 7000.0
+rebound_damping = 4500.0
+suspension_rest_length = 0.4
+
+[sub_resource type="WheelConfig" id="fr"]
+hardpoint_offset = Vector3(-0.78, 0.2, -1.417)
+radius = 0.328
+suspension_stiffness = 73000.0
+compression_damping = 7000.0
+rebound_damping = 4500.0
+suspension_rest_length = 0.4
+
+[sub_resource type="WheelConfig" id="rl"]
+hardpoint_offset = Vector3(0.78, 0.2, 1.346)
+radius = 0.328
+suspension_stiffness = 73000.0
+compression_damping = 7000.0
+rebound_damping = 4500.0
+suspension_rest_length = 0.4
+
+[sub_resource type="WheelConfig" id="rr"]
+hardpoint_offset = Vector3(-0.78, 0.2, 1.346)
+radius = 0.328
+suspension_stiffness = 73000.0
+compression_damping = 7000.0
+rebound_damping = 4500.0
+suspension_rest_length = 0.4
+
+[resource]
+mass = 1400.0
+chassis_size = Vector3(0.35, 1.0, 4.0)
+center_of_mass_offset = Vector3(0, -0.4, 0)
+max_speed = 36.0
+max_accel_force = 24000.0
+max_steer_angle_deg = 75.0
+wheel_configs = Array[WheelConfig]([SubResource("fl"), SubResource("fr"), SubResource("rl"), SubResource("rr")])

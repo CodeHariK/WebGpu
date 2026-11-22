@@ -8,7 +8,7 @@
 #include "godot_cpp/classes/mesh_instance3d.hpp"
 #include "godot_cpp/classes/sphere_shape3d.hpp"
 #include <godot_cpp/classes/collision_shape3d.hpp>
-#include <godot_cpp/classes/csg_sphere3d.hpp>
+#include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/physics_direct_body_state3d.hpp>
 #include <godot_cpp/classes/rigid_body3d.hpp>
 #include <vector>
@@ -49,7 +49,7 @@ private:
 	MeshInstance3D *chassis_mesh = nullptr;
 
 	// Debug visualizers
-	std::vector<CSGSphere3D *> wheel_visuals;
+	std::vector<Node3D *> wheel_visuals; // "WheelCollider" markers at the wheels (DriveDebugHud draws them)
 
 	// Per-wheel suspension travel (distance the wheel centre hangs below its
 	// hardpoint along local-down), computed every physics frame. Exposed so the

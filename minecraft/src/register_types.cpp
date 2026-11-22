@@ -122,6 +122,9 @@
 #include "city/city_map.h"
 #include "city/city_minimap.h"
 #include "city/city_traffic.h"
+#include "debug_draw/drive_debug_hud.h"
+#include "track/track_model.h"
+#include "vehicle/visual/model_vehicle_visual.h"
 #include "road/road_generator.h"
 #include "road/transform_gizmo.h"
 
@@ -278,6 +281,9 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(CityMap);
 	GDREGISTER_CLASS(CityMinimap);
 	GDREGISTER_CLASS(CityTraffic);
+	GDREGISTER_CLASS(ModelVehicleVisual);
+	GDREGISTER_CLASS(TrackModel);
+	GDREGISTER_CLASS(DriveDebugHud);
 	GDREGISTER_CLASS(ProceduralLofter);
 
 	GDREGISTER_CLASS(TerrainHeightmap);
