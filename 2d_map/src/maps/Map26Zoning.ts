@@ -6,7 +6,8 @@
 // (1 at its island city's middle, 0 at the city's farthest block), which kinds of road it touches,
 // how close it comes to the coast, and how near it is to an end of the bridge. Then the uses are
 // handed out in turn, each taking the best blocks left for it:
-//   mall: one per island, the biggest block touching an arterial or near the bridge
+//   mall: one per island, the biggest block touching an arterial or near the bridge (else the
+//     biggest touching a highway)
 //   downtown: the most central blocks (touching an arterial counts extra), downtownShare of the area
 //   industry: blocks nearest the coast (touching a highway counts extra), industryShare of the area
 //   park: mid-sized blocks, at random, parkShare of the area
@@ -149,7 +150,8 @@ export function makeZoning(p_p: Plots, p_island: Island, p_size: number, p_bridg
         return b.area / (mine.reduce((a, o) => a + o.area, 0) / mine.length);
     };
     const shore = p_settings.cityMargin + 14; // pixels: a block coming this near the coast is on the shore
-    handOut(blocks, islands, 'mall', (b) => (big(b) < MIN_MALL * 4 || !(b.touches.has('arterial') || b.bridge < NEAR_BRIDGE) ? -1 : b.area), 1, 1);
+    const mallRoad = (b: Block) => b.touches.has('arterial') || b.touches.has('highway') || b.bridge < NEAR_BRIDGE;
+    handOut(blocks, islands, 'mall', (b) => (big(b) < MIN_MALL * 4 || !mallRoad(b) ? -1 : b.area + (b.touches.has('arterial') || b.bridge < NEAR_BRIDGE ? 1e6 : 0)), 1, 1);
     handOut(blocks, islands, 'downtown', (b) => b.central + (b.touches.has('arterial') ? 0.25 : 0) + 0.1 * hash(b.cells[0]), p_settings.downtownShare);
     handOut(blocks, islands, 'industry', (b) => (b.coast > shore ? -1 : 1 - b.coast / shore + (b.touches.has('highway') ? 0.3 : 0) + 0.1 * hash(b.cells[1] ?? 0)), p_settings.industryShare);
     handOut(blocks, islands, 'park', (b) => (big(b) < 0.4 || big(b) > 2.5 ? -1 : hash(b.cells[0] * 31)), p_settings.parkShare);

@@ -12,12 +12,9 @@ import { DETAIL } from './Map26Districts';
 import { ROOF_COLOURS } from './Map26Draw';
 import type { Rect } from './Map26Fit';
 import { coastDistance } from './Map26Island';
+import { deckHeights, densify, FLOOR, houseFloors, MOTORWAY_HALF } from './Map26Dimensions';
 import { drawBlocks, type Blocks } from './Map26Render';
 
-export const FLOOR = 2.2; // units (pixels) a floor
-const BRIDGE_HEIGHT = 4.5; // units: the bridge's deck above the water
-const DECK_WIDTH = 12;
-const RAMP = 6; // points (each a quarter block cell) the motorway takes to climb onto its bridge
 
 type Piece = { x: number; z: number; width: number; depth: number; height: number; angle: number; base?: number; colour: string };
 
@@ -65,33 +62,23 @@ function hash(p_k: number): number {
     return ((h >>> 0) % 1000) / 1000;
 }
 
-// The motorway as pieces: a strip from point to point, just above the ground, BRIDGE_HEIGHT up
-// over the water (climbing over RAMP points either side); a pier under every 4th bridge point.
+// The motorway as pieces: a strip from point to point, just above the ground, up on its bridge over
+// the water (Map26Dimensions.deckHeights); a pier under every 4th bridge point.
 function motorwayPieces(p_b: Blocks, p_size: number, r_deck: Piece[], r_piers: Piece[]): void {
     if (!p_b.motorway || !p_b.island) return;
     const cell = p_size / p_b.spread.n;
-    const pts: { x: number; z: number }[] = [];
-    const road = p_b.motorway.road.points;
-    for (let k = 0; k < road.length - 1; k++) {
-        const a = road[k];
-        const b = road[k + 1];
-        const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) * 4));
-        for (let s = 0; s < steps; s++) pts.push({ x: (a.x + ((b.x - a.x) * s) / steps) * cell, z: (a.y + ((b.y - a.y) * s) / steps) * cell });
-    }
-    const water = pts.map((p) => coastDistance(p_b.island!, p.x, p.z) > 0);
-    const height = pts.map((_, k) => { // up over water and within RAMP points of it, eased
-        let near = RAMP + 1;
-        for (let d = 0; d <= RAMP && near > RAMP; d++) if (water[k - d] || water[k + d]) near = d;
-        const t = Math.max(0, 1 - near / (RAMP + 1));
-        return 0.3 + (BRIDGE_HEIGHT - 0.3) * t * t * (3 - 2 * t);
-    });
+    const deckWidth = MOTORWAY_HALF * 2 * (cell / DETAIL) + 1; // as wide as the road, a little over
+    const pts = densify(p_b.motorway.road.points.map((p) => ({ x: p.x * cell, y: p.y * cell })), cell / 4);
+    const water = pts.map((p) => coastDistance(p_b.island!, p.x, p.y) > 0);
+    const height = deckHeights(pts, p_b.island);
     for (let k = 0; k < pts.length - 1; k++) {
         const a = pts[k];
         const b = pts[k + 1];
-        const length = Math.hypot(b.x - a.x, b.z - a.z);
+        const length = Math.hypot(b.x - a.x, b.y - a.y);
+        if (length === 0) continue;
         const top = (height[k] + height[k + 1]) / 2;
-        r_deck.push({ x: (a.x + b.x) / 2, z: (a.z + b.z) / 2, width: length + 0.6, depth: DECK_WIDTH, height: 1, base: top - 1, angle: Math.atan2(b.z - a.z, b.x - a.x), colour: water[k] ? '#d9d3c7' : '#8f8a84' });
-        if (water[k] && k % 4 === 0) r_piers.push({ x: a.x, z: a.z, width: 1.6, depth: DECK_WIDTH * 0.7, height: top - 1 + 2, base: -2, angle: Math.atan2(b.z - a.z, b.x - a.x), colour: '#6d655d' });
+        r_deck.push({ x: (a.x + b.x) / 2, z: (a.y + b.y) / 2, width: length + 0.6, depth: deckWidth, height: 1, base: top - 1, angle: Math.atan2(b.y - a.y, b.x - a.x), colour: water[k] ? '#d9d3c7' : '#8f8a84' });
+        if (water[k] && k % 4 === 0) r_piers.push({ x: a.x, z: a.y, width: 1.6, depth: deckWidth * 0.7, height: top - 1 + 2, base: -2, angle: Math.atan2(b.y - a.y, b.x - a.x), colour: '#6d655d' });
     }
 }
 
@@ -106,7 +93,7 @@ function pieces(p_b: Blocks, p_size: number) {
     const deck: Piece[] = [];
     const piers: Piece[] = [];
     p_b.houses?.houses.forEach((h, k) => {
-        const floors = 1 + (hash(k) < 0.35 ? 1 : 0);
+        const floors = houseFloors(k);
         const r: Rect = { x: h.x, y: h.y, angle: h.angle, width: h.width, depth: h.depth };
         walls.push(rectPiece(r, fine, floors * FLOOR, '#f3ead8'));
         roofs.push(rectPiece(r, fine, Math.min(h.width, h.depth) * fine * 0.45, ROOF_COLOURS[h.roof % ROOF_COLOURS.length], floors * FLOOR));

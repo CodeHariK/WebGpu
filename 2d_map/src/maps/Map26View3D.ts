@@ -8,10 +8,11 @@ import { buildCity } from './Map26Scene';
 
 export type View3D = { show: (p_b: Blocks) => void; dispose: () => void };
 
-export function createView(p_parent: HTMLElement, p_size: number): View3D {
+// p_screen: pixels on screen; p_size: the map's size (pixels: the scene's units).
+export function createView(p_parent: HTMLElement, p_screen: number, p_size: number): View3D {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(p_size, p_size);
+    renderer.setSize(p_screen, p_screen);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     p_parent.appendChild(renderer.domElement);

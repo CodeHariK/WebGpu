@@ -17,6 +17,14 @@ export type Circle = { x: number; y: number; radius: number }; // fine cells
 
 const INSET = 0.2; // fine cells: a rectangle's edges are tested this far inside
 
+// p_angle turned (by half a turn if need be) so that its rectangle's road side is its −depth side:
+// p_inward (the way from the road into the lot) is then (−sin, cos) of the angle, and the side
+// facing the road (sin, −cos). In Godot (rotation.y = −angle) that side is the local −z, forward.
+export function faceRoad(p_angle: number, p_inward: Point): number {
+    if (-Math.sin(p_angle) * p_inward.x + Math.cos(p_angle) * p_inward.y >= 0) return p_angle;
+    return p_angle > 0 ? p_angle - Math.PI : p_angle + Math.PI;
+}
+
 // All of rectangle p_r on lot p_k?
 export function rectOnLot(p_r: Rect, p_lotOf: Int32Array, p_n: number, p_k: number): boolean {
     const ux = Math.cos(p_r.angle);

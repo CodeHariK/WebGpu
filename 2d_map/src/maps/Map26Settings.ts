@@ -3,8 +3,9 @@
 export type Settings = {
     seed: number;
     step: number; // 1 .. STEPS.length
-    cells: number; // grid cells along each side
-    seeds: number; // how many colours start
+    mapScale: number; // the map is 800 x mapScale pixels across (grid cells and colours scale with it: same detail, a bigger map)
+    cells: number; // grid cells along each side (of an 800 pixel map)
+    seeds: number; // how many colours start (on an 800 pixel map: times mapScale² on a bigger one)
     seedsPerColour: number; // each colour gets 1 .. this many seeds, near each other
     chainStep: number; // how far (cells) each extra seed is from the one before it
     roughness: number; // how much the noise slows the spread in places (0: even diamonds)
@@ -22,12 +23,14 @@ export type Settings = {
     dockLength: number; // step 17: how long each island's docks are along the ring road (fine cells)
     mallBlocks: number; // step 18: how many street blocks a mall takes in (with the streets between)
     parkBlocks: number; // step 18: ... a park
+    metresPerPixel: number; // the JSON export: metres a map pixel
     streetGaps: number; // share of street pieces left out (bigger, irregular blocks)
     houseSize: number; // a house's usual width and depth (fine cells)
     houseFill: number; // share of lots that get a house
     islandRadius: number; // step 8: the island's falloff reaches this share of the map's width
     islandNoise: number; // step 8: how much the noise counts against the falloff (0: a circle)
     islandNoiseSize: number; // step 8: size of the noise's biggest features (pixels)
+    islands: number; // step 11 on: 1 (one big island, no bridge) or 2 (two islands joined by the motorway bridge)
     twinRadius: number; // step 11: each island's falloff reaches this share of the map's width
     twinSpacing: number; // step 11: how far each island's middle is from the map's (share of its width)
     cityMargin: number; // step 9: how far (pixels) the city stays in from the coast (up to 50: the coast distance is measured that far)
@@ -40,6 +43,7 @@ export type Settings = {
 export const DEFAULT_SETTINGS: Settings = {
     seed: 5,
     step: 4,
+    mapScale: 2,
     cells: 100,
     seeds: 9,
     seedsPerColour: 3,
@@ -48,8 +52,8 @@ export const DEFAULT_SETTINGS: Settings = {
     noiseSize: 14,
     speedVariety: 0.5,
     districtSize: 16,
-    streetBlock: 9,
-    blockLength: 20,
+    streetBlock: 11,
+    blockLength: 24,
     fieldReach: 6,
     plotWidth: 3.4,
     plotDepth: 5,
@@ -59,15 +63,17 @@ export const DEFAULT_SETTINGS: Settings = {
     dockLength: 36,
     mallBlocks: 4,
     parkBlocks: 2,
+    metresPerPixel: 4,
     streetGaps: 0.15,
     houseSize: 2.6,
     houseFill: 0.85,
     islandRadius: 0.45,
     islandNoise: 0.55,
     islandNoiseSize: 170,
+    islands: 1,
     twinRadius: 0.24,
     twinSpacing: 0.26,
-    cityMargin: 28,
+    cityMargin: 24,
     arterialBend: 55,
     arterialLength: 20,
     straighten: 1.5,
@@ -116,8 +122,8 @@ export const STEPS: { title: string; text: string }[] = [
         text: 'Every highway runs from one junction to the next, so the roads read as cells (stained glass); a real city has a few long roads that cross it. At every junction the highway ends meeting there are paired: the straightest pair first (their directions leaving the junction most nearly opposite), then the straightest of those left, as long as a pair bends less than arterial bend degrees. Paired highways are one road: followed from piece to piece they make chains, and a chain of two or more pieces at least arterial length cells long is an arterial, drawn wider and deeper orange. The ring road is left out (it stays a highway): the arterials cross the city and end at it. Where three blocks meet, the roads are about 120 degrees apart, so going straight on bends about 60: arterial bend decides how many of those count.',
     },
     {
-        title: 'Two islands',
-        text: 'Two islands, joined by the motorway. Two hills instead of one, smaller (twin radius), each twin spacing of the map\'s width from the middle, opposite ways along a random direction; the falloff at a point is the higher of the two, and the same noise roughens both coasts, so a strait opens between them. The city grows on each (the two biggest pieces of city cells, each with its own ring road). The motorway is now only the bridge between them: the cheapest path from just outside one city to just outside the other, never through a city (so it crosses no other road) and never round an island. A step on land costs 1, over water 8, so it walks out to where the strait is narrowest and crosses there. Each end is carried on to the nearest point of the ring road, where it joins. Over water it is a bridge (a pale deck, piers, its shadow on the sea).',
+        title: 'Islands and the bridge',
+        text: 'One island or two (islands). One: the big island of the steps before, about 2 km across at the export\'s 4 m a pixel, no bridge. Two: two hills instead of one, smaller (twin radius), each twin spacing of the map\'s width from the middle, opposite ways along a random direction; the falloff at a point is the higher of the two, and the same noise roughens both coasts, so a strait opens between them. The city grows on each (the two biggest pieces of city cells, each with its own ring road). The motorway is only the bridge between them: the cheapest path from just outside one city to just outside the other, never through a city (so it crosses no other road) and never round an island. A step on land costs 1, over water 8, so it walks out to where the strait is narrowest and crosses there. Each end is carried on to the nearest point of the ring road, where it joins. Over water it is a bridge (a pale deck, piers, its shadow on the sea).',
     },
     {
         title: 'Street field',
@@ -129,7 +135,7 @@ export const STEPS: { title: string; text: string }[] = [
     },
     {
         title: 'Zoning',
-        text: 'Each block (the ground between the streets) is given a use. For every block: its area, its middle, its island, how central it is (1 at the middle of its island\'s city, 0 at the farthest block), which kinds of road it touches (street, main road, highway, arterial), how near it comes to the coast, and how near it is to an end of the bridge. Then the uses are handed out in turn, each taking the best blocks still free. Mall (red): one per island, the biggest block that touches an arterial or is by the bridge. Downtown (purple): the most central blocks, touching an arterial counts extra, up to downtown share of the city\'s area. Industry (grey): the blocks nearest the coast, touching a highway counts extra, up to industry share. Park (green): mid-sized blocks at random, up to park share. Houses (cream): the rest, and only they keep their houses for now; the other uses get their buildings in the next steps.',
+        text: 'Each block (the ground between the streets) is given a use. For every block: its area, its middle, its island, how central it is (1 at the middle of its island\'s city, 0 at the farthest block), which kinds of road it touches (street, main road, highway, arterial), how near it comes to the coast, and how near it is to an end of the bridge. Then the uses are handed out in turn, each taking the best blocks still free. Mall (red): one per island, the biggest block that touches an arterial or is by the bridge (else the biggest touching a highway). Downtown (purple): the most central blocks, touching an arterial counts extra, up to downtown share of the city\'s area. Industry (grey): the blocks nearest the coast, touching a highway counts extra, up to industry share. Park (green): mid-sized blocks at random, up to park share. Houses (cream): the rest, and only they keep their houses for now; the other uses get their buildings in the next steps.',
     },
     {
         title: 'Lots',

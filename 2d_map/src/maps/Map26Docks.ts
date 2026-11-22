@@ -11,6 +11,7 @@
 import type { Borders, Point } from './Map26Borders';
 import { onRing } from './Map26Arterials';
 import { DETAIL } from './Map26Districts';
+import { HIGHWAY_HALF } from './Map26Dimensions';
 import type { Rect } from './Map26Fit';
 import { coastDistance, type Island } from './Map26Island';
 import type { Settings } from './Map26Settings';
@@ -18,7 +19,7 @@ import type { Spread } from './Map26Spread';
 
 export type Docks = { yards: Point[][]; warehouses: Rect[]; piers: Rect[]; ships: Rect[] }; // fine cells
 
-const ROAD_EDGE = 1.8; // fine cells from the ring road's line to the yard
+const ROAD_EDGE = HIGHWAY_HALF + 0.2; // fine cells from the ring road's line to the yard
 const NEAR_BRIDGE = 30; // fine cells: no docks this near an end of the bridge
 const PIER_GAP = 7; // fine cells between piers
 const PIER_LENGTH = 7;

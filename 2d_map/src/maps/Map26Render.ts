@@ -23,6 +23,7 @@ import { drawDocks } from './Map26DrawDocks';
 import { cityOutside, withEdge } from './Map26City';
 import { drawIsland, drawRings, islandLayout, makeIsland, type Island, type IslandView } from './Map26Island';
 import { makeBridge, type Motorway } from './Map26Bridge';
+import { ARTERIAL_HALF, HIGHWAY_HALF, MAIN_HALF, MOTORWAY_HALF, STREET_HALF } from './Map26Dimensions';
 import { makeField, type Field } from './Map26Field';
 import { makeFieldStreets } from './Map26FieldStreets';
 import { makeStreets, type Streets } from './Map26Streets';
@@ -59,7 +60,7 @@ const HOUSES_FROM = 7;
 const ISLAND_FROM = 8; // the island, on its own
 const CITY_ON_ISLAND = 9; // the city again, on the island, kept off the coast, a ring road round it
 const ARTERIALS_FROM = 10;
-const TWO_ISLANDS_FROM = 11;
+const TWO_ISLANDS_FROM = 11; // with islands = 2: two islands and the bridge
 const FIELD_FROM = 12; // streets along the street field
 const PLOTS_FROM = 13; // the blocks cut into plots, one house each
 const ZONING_FROM = 14; // each block given a use
@@ -67,22 +68,33 @@ const LOTS_FROM = 15; // the plots joined into lots by use
 const BUILDINGS_FROM = 16; // a placeholder building on every lot
 const DOCKS_FROM = 17; // docks on each island's coast
 const SUPERBLOCKS_FROM = 18; // malls and parks take in the blocks round them
-const STREET_HALF = 0.55; // fine cells either side of a road's line, as the houses keep clear of them
-const MAIN_HALF = 1.0;
-const HIGHWAY_HALF = 1.6;
-const ARTERIAL_HALF = 2.1; // fine cells either side of an arterial's line kept clear of houses
-const MOTORWAY_HALF = 2.8;
+
+export const BASE_SIZE = 800; // pixels: the map at mapScale 1
+
+// The map's size in pixels for the settings.
+export function mapPixels(p_settings: Settings): number {
+    return BASE_SIZE * p_settings.mapScale;
+}
+
+// The settings as the steps read them on a map p_size pixels across: the grid, the number of
+// colours and the island noise's size grow with it (the same detail, more of it); everything else
+// is in cells or pixels already.
+function scaled(p_settings: Settings, p_size: number): Settings {
+    const k = p_size / BASE_SIZE;
+    return { ...p_settings, cells: Math.round(p_settings.cells * k), seeds: Math.round(p_settings.seeds * k * k), islandNoiseSize: p_settings.islandNoiseSize * k };
+}
 
 export function makeBlocks(p_settings: Settings, p_size: number): Blocks {
     const start = performance.now();
-    const b = build(p_settings, p_size);
+    const b = build(scaled(p_settings, p_size), p_size);
     return { ...b, ms: performance.now() - start };
 }
 
 function build(p_settings: Settings, p_size: number): Omit<Blocks, 'ms'> {
     const random = makeRandom(p_settings.seed);
     const noise = makeNoise(random);
-    const layout = islandLayout(p_size, p_settings, p_settings.step >= TWO_ISLANDS_FROM, makeRandom(p_settings.seed * 3301 + 9));
+    const twin = p_settings.step >= TWO_ISLANDS_FROM && p_settings.islands === 2;
+    const layout = islandLayout(p_size, p_settings, twin, makeRandom(p_settings.seed * 3301 + 9));
     const island = p_settings.step >= ISLAND_FROM ? makeIsland(p_size, layout, p_settings, noise) : null;
     const outside = island && p_settings.step >= CITY_ON_ISLAND ? cityOutside(p_settings.cells, p_size, island, p_settings.cityMargin) : null;
     const s = spread(p_settings, random, noise, outside);
@@ -91,7 +103,7 @@ function build(p_settings: Settings, p_size: number): Omit<Blocks, 'ms'> {
         return { settings: p_settings, spread: s, borders, districts: null, streets: null, houses: null, island, arterials: null, motorway: null, field: null, plots: null, zoning: null, lots: null, buildings: null, docks: null };
     }
     const arterials = outside && p_settings.step >= ARTERIALS_FROM ? findArterials(borders, s, p_settings) : null;
-    const motorway = island && outside && p_settings.step >= TWO_ISLANDS_FROM ? makeBridge(s, borders, island, p_size, p_settings) : null;
+    const motorway = island && outside && twin ? makeBridge(s, borders, island, p_size, p_settings) : null;
     const roads = borders.highways; // the walls between districts (the bridge stays outside the cities)
     const wide = [...(arterials?.lines ?? []).map((points) => ({ points, halfWidth: ARTERIAL_HALF })), ...(motorway ? [{ points: motorway.road.points, halfWidth: MOTORWAY_HALF }] : [])];
     // the districts only when shown (they take longer), from their own random numbers

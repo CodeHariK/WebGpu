@@ -5,6 +5,7 @@
 // gap) and no deeper (its area over its frontage, less the setback and a back garden). It has to
 // be off the roads and nearly all on its own plot (onPlot); if not, it is tried smaller, three
 // times, and else the plot stays empty. Some plots are left empty anyway (houseFill).
+import { faceRoad } from './Map26Fit';
 import type { House, Houses } from './Map26Houses';
 import { PLOT, ROAD, type Plot, type Plots } from './Map26Plots';
 import type { Settings } from './Map26Settings';
@@ -44,7 +45,7 @@ function houseOn(p_plot: Plot, p_width: number, p_depth: number, p_roof: number)
     return {
         x: p_plot.front.x + p_plot.inward.x * back,
         y: p_plot.front.y + p_plot.inward.y * back,
-        angle: Math.atan2(p_plot.along.y, p_plot.along.x),
+        angle: faceRoad(Math.atan2(p_plot.along.y, p_plot.along.x), p_plot.inward),
         width: p_width,
         depth: p_depth,
         roof: p_roof,

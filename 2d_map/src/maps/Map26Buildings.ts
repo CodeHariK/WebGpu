@@ -7,10 +7,10 @@
 //   industry: a long low shed (warehouse) filling most of its lot, 1 to 2 floors
 //   mall: a big low block at the back of its lot, a car park in front of it, on the road
 //   park: no building: trees (small circles, apart) and, in a big park, a pond (a circle)
-// A rectangle is the biggest of its shape that fits on the lot, turned to the lot's road, its front
-// a setback from the lot's frontage; if none fits there (a lot round a bend), centred on the lot's
-// widest point instead (Map26Fit).
-import { biggestCircle, fitRect, fitRectAround, rectOnLot, type Circle, type Rect } from './Map26Fit';
+// A rectangle is the biggest of its shape that fits on the lot, turned to the lot's road (its −depth
+// side towards it: faceRoad), its front a setback from the lot's frontage; if none fits there (a lot
+// round a bend), centred on the lot's widest point instead (Map26Fit).
+import { biggestCircle, faceRoad, fitRect, fitRectAround, rectOnLot, type Circle, type Rect } from './Map26Fit';
 import type { Lots } from './Map26Lots';
 import { PLOT } from './Map26Plots';
 import type { Zoning } from './Map26Zoning';
@@ -53,11 +53,12 @@ function plantTrees(p_cells: number[], p_k: number, p_l: Lots, p_n: number, p_po
 // its widest point.
 function fitOnLot(p_l: Lots, p_k: number, p_cells: number[], p_n: number, p_width: number, p_depth: number, p_setback: number): Rect | null {
     const lot = p_l.lots[p_k];
+    const facing = (p_r: Rect | null) => (p_r ? { ...p_r, angle: faceRoad(p_r.angle, lot.inward) } : null);
     const r = fitRect(lot, p_k, p_l.lotOf, p_n, p_width, p_depth, p_setback);
-    if (r && r.width >= p_width * 0.5) return r;
+    if (r && r.width >= p_width * 0.5) return facing(r);
     const c = biggestCircle(p_cells, p_l.lotOf, p_n, p_k);
     const around = fitRectAround(lot, p_k, p_l.lotOf, p_n, p_width, p_depth, c);
-    return around && (!r || around.width > r.width) ? around : r;
+    return facing(around && (!r || around.width > r.width) ? around : r);
 }
 
 // The mall's car park: in front of its building (towards the road), as deep as fits, up to p_depth.

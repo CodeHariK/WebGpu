@@ -8,6 +8,7 @@
 // are left empty (houseFill). Houses are kept as data.
 import type { Highway, Point } from './Map26Borders';
 import { DETAIL, type Districts } from './Map26Districts';
+import { HIGHWAY_HALF, MAIN_HALF, STREET_HALF } from './Map26Dimensions';
 import type { Settings } from './Map26Settings';
 import type { Streets } from './Map26Streets';
 
@@ -17,9 +18,9 @@ export type Houses = { houses: House[] };
 const OCC = 2; // occupancy cells to a fine cell, each way
 const ROOFS = 6; // roof colours (Map26Draw has them)
 const INSET = 0.2; // fine cells: a house's edges are tested this far inside
-const STREET_SETBACK = 0.95; // fine cells from a street's line to the houses' fronts
-const MAIN_SETBACK = 1.45; // ... from a main road's
-const HIGHWAY_SETBACK = 2.0; // ... from a highway's (step 12: houses face the highways too)
+const STREET_SETBACK = STREET_HALF + 0.4; // fine cells from a street's line to the houses' fronts
+const MAIN_SETBACK = MAIN_HALF + 0.45; // ... from a main road's
+const HIGHWAY_SETBACK = HIGHWAY_HALF + 0.4; // ... from a highway's (step 12: houses face the highways too)
 
 type Grid = { n: number; occupied: Uint8Array };
 
@@ -126,10 +127,10 @@ function lineUp(p_ax: number, p_ay: number, p_bx: number, p_by: number, p_setbac
 export function placeHouses(p_d: Districts, p_streets: Streets, p_highways: Highway[], p_wide: { points: Point[]; halfWidth: number }[], p_alongHighways: boolean, p_settings: Settings, p_random: () => number): Houses {
     const g: Grid = { n: p_d.n * OCC, occupied: new Uint8Array(p_d.n * OCC * p_d.n * OCC) };
     const highways = p_highways.map((h) => h.points.map((p) => ({ x: p.x * DETAIL, y: p.y * DETAIL })));
-    for (const h of highways) markRoad(g, h, 1.6); // the roads as drawn, a little wider
+    for (const h of highways) markRoad(g, h, HIGHWAY_HALF); // the roads as wide as they are drawn
     for (const w of p_wide) markRoad(g, w.points.map((p) => ({ x: p.x * DETAIL, y: p.y * DETAIL })), w.halfWidth);
-    for (const r of p_d.roads.highways) markRoad(g, r.points, 1.0);
-    for (const s of p_streets.streets) markRoad(g, [{ x: s.ax, y: s.ay }, { x: s.bx, y: s.by }], 0.55);
+    for (const r of p_d.roads.highways) markRoad(g, r.points, MAIN_HALF);
+    for (const s of p_streets.streets) markRoad(g, [{ x: s.ax, y: s.ay }, { x: s.bx, y: s.by }], STREET_HALF);
     const houses: House[] = [];
     for (const s of p_streets.streets) lineUp(s.ax, s.ay, s.bx, s.by, STREET_SETBACK, p_d, g, p_settings, p_random, houses);
     for (const r of p_d.roads.highways) {

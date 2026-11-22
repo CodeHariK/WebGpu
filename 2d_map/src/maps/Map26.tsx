@@ -5,8 +5,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_SETTINGS, STEPS, type Settings } from './Map26Settings';
 import { ZONE_COLOURS } from './Map26Draw';
-import { drawBlocks, makeBlocks, type Show } from './Map26Render';
+import { BASE_SIZE, drawBlocks, makeBlocks, mapPixels, type Show } from './Map26Render';
 import Map26Three from './Map26Three';
+import { downloadJson, exportMap } from './Map26Export';
+import { STREET_HALF } from './Map26Dimensions';
 
 import { Section, Slider } from './Map19Ui';
 import { btn } from './Map19UiStyle';
@@ -25,7 +27,8 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
 
     const [threeD, setThreeD] = useState(false); // the 3D preview instead of the 2D map (step 9 on)
     // a new map whenever the settings change
-    const blocks = useMemo(() => makeBlocks(settings, width), [settings, width]);
+    const mapPx = mapPixels(settings); // the map's own size (drawn at width on screen)
+    const blocks = useMemo(() => makeBlocks(settings, mapPx), [settings, mapPx]);
     const showThreeD = threeD && settings.step >= 9;
     useEffect(() => {
         if (timeRef.current) timeRef.current.textContent = `made in ${blocks.ms.toFixed(0)} ms`;
@@ -102,7 +105,7 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
 
     return (
         <div style={{ width: '100%', color: '#e2e8f0', fontFamily: 'Inter, sans-serif', background: '#050407' }}>
-            {showThreeD ? <Map26Three blocks={blocks} size={width} /> : <canvas ref={canvasRef} width={width} height={width} style={{ display: 'block', width: '100%', maxWidth: width, aspectRatio: '1' }} />}
+            {showThreeD ? <Map26Three blocks={blocks} size={width} mapSize={mapPx} /> : <canvas ref={canvasRef} width={mapPx} height={mapPx} style={{ display: 'block', width: '100%', maxWidth: width, aspectRatio: '1' }} />}
             <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                     <button style={btn(false)} onClick={() => goStep(-1)}>Prev</button>
@@ -111,6 +114,11 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
                     {settings.step >= 9 && (
                         <button style={btn(threeD)} onClick={() => setThreeD((v) => !v)} title="drag: orbit · right drag: pan · wheel: zoom">
                             {threeD ? '2D' : '3D'}
+                        </button>
+                    )}
+                    {settings.step >= 9 && (
+                        <button style={btn(false)} onClick={() => downloadJson(exportMap(blocks, mapPx, settings.metresPerPixel), `map26_seed${settings.seed}_step${settings.step}.json`)} title="the map in metres, for Godot">
+                            Export JSON
                         </button>
                     )}
                     <span ref={timeRef} style={{ fontSize: '0.7rem', color: '#78716c', marginLeft: 'auto' }} />
@@ -142,7 +150,8 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
                     <button style={btn(false)} onClick={() => setSettings(DEFAULT_SETTINGS)}>Default settings</button>
                 </div>
                 <Section title="SPREAD">
-                    {num('cells', 'cells', 30, 200, 1)}
+                    {num('mapScale', 'map size (x 800 pixels)', 1, 3, 1)}
+                    {num('cells', 'cells (per 800 pixels)', 30, 200, 1)}
                     {num('seeds', 'colours', 2, 20, 1)}
                     {num('seedsPerColour', 'seeds per colour, up to', 1, 3, 1)}
                     {num('chainStep', 'chain step', 8, 50, 1)}
@@ -199,9 +208,19 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
                         {num('islandRadius', 'island radius', 0.2, 0.7, 0.01)}
                         {num('islandNoise', 'island noise', 0, 1, 0.01)}
                         {num('islandNoiseSize', 'noise size', 40, 400, 5)}
-                        {settings.step >= 11 && num('twinRadius', 'twin radius', 0.15, 0.4, 0.01)}
-                        {settings.step >= 11 && num('twinSpacing', 'twin spacing', 0.1, 0.35, 0.01)}
+                        {settings.step >= 11 && num('islands', 'islands', 1, 2, 1)}
+                        {settings.step >= 11 && settings.islands === 2 && num('twinRadius', 'twin radius', 0.15, 0.4, 0.01)}
+                        {settings.step >= 11 && settings.islands === 2 && num('twinSpacing', 'twin spacing', 0.1, 0.35, 0.01)}
                         {num('cityMargin', 'city margin (px from the coast)', 4, 45, 1)}
+                    </Section>
+                )}
+                {settings.step >= 9 && (
+                    <Section title="EXPORT">
+                        {num('metresPerPixel', 'metres a map pixel', 0.5, 5, 0.1)}
+                        <span style={{ fontSize: '0.7rem', color: '#a8a29e' }}>
+                            map {(mapPx * settings.metresPerPixel).toFixed(0)} m across · a house about {(7 * settings.metresPerPixel).toFixed(0)} m wide · a street about {(STREET_HALF * 2 * (BASE_SIZE / settings.cells / 3) * settings.metresPerPixel).toFixed(1)} m (cars are 2 m wide)
+                            {blocks.island && ` · land ${((blocks.island.land * (mapPx * settings.metresPerPixel) ** 2) / 1e6).toFixed(2)} km², an island about ${(2 * Math.sqrt((blocks.island.land * (mapPx * settings.metresPerPixel) ** 2) / blocks.island.centres.length / Math.PI)).toFixed(0)} m across`}
+                        </span>
                     </Section>
                 )}
                 <Section title="ROADS">

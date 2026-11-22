@@ -5,6 +5,7 @@ import type { Borders, Highway, Point } from './Map26Borders';
 import type { Districts } from './Map26Districts';
 import { angleAt, type Field } from './Map26Field';
 import { DETAIL } from './Map26Districts';
+import { ARTERIAL_HALF, HIGHWAY_HALF, MAIN_HALF, MOTORWAY_HALF, STREET_HALF } from './Map26Dimensions';
 import type { Houses } from './Map26Houses';
 import { ROAD, type Plots } from './Map26Plots';
 import type { Zone, Zoning } from './Map26Zoning';
@@ -123,7 +124,8 @@ export function drawHighways(p_ctx: CanvasRenderingContext2D, p_b: Borders, p_n:
     const cell = p_size / p_n;
     p_ctx.lineCap = 'round';
     p_ctx.lineJoin = 'round';
-    for (const [colour, width] of [['#5d5349', 7], ['#ffe39a', 4]] as const) {
+    const road = HIGHWAY_HALF * 2 * (cell / DETAIL); // pixels: as wide as the highway is
+    for (const [colour, width] of [['#5d5349', road + 1], ['#ffe39a', road - 2]] as const) {
         p_ctx.strokeStyle = colour;
         p_ctx.lineWidth = width;
         for (let k = 0; k < p_b.highways.length; k++) {
@@ -145,7 +147,8 @@ export function drawArterials(p_ctx: CanvasRenderingContext2D, p_lines: Point[][
     const cell = p_size / p_n;
     p_ctx.lineCap = 'round';
     p_ctx.lineJoin = 'round';
-    for (const [colour, width] of [['#5d5349', 10], ['#f7c46c', 6.6], ['#fff1c9', 1]] as const) {
+    const road = ARTERIAL_HALF * 2 * (cell / DETAIL); // pixels: as wide as an arterial is
+    for (const [colour, width] of [['#5d5349', road + 1], ['#f7c46c', road - 2.4], ['#fff1c9', 1]] as const) {
         p_ctx.strokeStyle = colour;
         p_ctx.lineWidth = width;
         for (const points of p_lines) {
@@ -161,6 +164,7 @@ export function drawArterials(p_ctx: CanvasRenderingContext2D, p_lines: Point[][
 // deck), and a pale deck with a dark edge, wider than the road.
 export function drawMotorway(p_ctx: CanvasRenderingContext2D, p_m: Highway, p_bridges: Point[][], p_n: number, p_size: number): void {
     const cell = p_size / p_n;
+    const road = MOTORWAY_HALF * 2 * (cell / DETAIL); // pixels: as wide as the motorway is
     p_ctx.save();
     p_ctx.lineCap = 'butt';
     p_ctx.lineJoin = 'round';
@@ -169,7 +173,7 @@ export function drawMotorway(p_ctx: CanvasRenderingContext2D, p_m: Highway, p_br
         b.forEach((p, i) => (i ? p_ctx.lineTo(p.x * cell + shift, p.y * cell + shift) : p_ctx.moveTo(p.x * cell + shift, p.y * cell + shift)));
     };
     p_ctx.strokeStyle = 'rgba(15, 35, 60, 0.3)'; // the shadow
-    p_ctx.lineWidth = 20;
+    p_ctx.lineWidth = road + 6;
     for (const b of p_bridges) {
         trace(b, 5);
         p_ctx.stroke();
@@ -181,15 +185,15 @@ export function drawMotorway(p_ctx: CanvasRenderingContext2D, p_m: Highway, p_br
             const dx = b[k + 1].x - b[k - 1].x;
             const dy = b[k + 1].y - b[k - 1].y;
             const length = Math.hypot(dx, dy) || 1;
-            const nx = (-dy / length) * 13;
-            const ny = (dx / length) * 13;
+            const nx = (-dy / length) * (road / 2 + 6);
+            const ny = (dx / length) * (road / 2 + 6);
             p_ctx.beginPath();
             p_ctx.moveTo(b[k].x * cell - nx, b[k].y * cell - ny);
             p_ctx.lineTo(b[k].x * cell + nx, b[k].y * cell + ny);
             p_ctx.stroke();
         }
     }
-    for (const [colour, width] of [['#3f3833', 21], ['#efe9de', 18]] as const) { // the deck
+    for (const [colour, width] of [['#3f3833', road + 7], ['#efe9de', road + 4]] as const) { // the deck
         p_ctx.strokeStyle = colour;
         p_ctx.lineWidth = width;
         for (const b of p_bridges) {
@@ -197,7 +201,7 @@ export function drawMotorway(p_ctx: CanvasRenderingContext2D, p_m: Highway, p_br
             p_ctx.stroke();
         }
     }
-    for (const [colour, width] of [['#3f3833', 13], ['#b9b2a7', 9.5]] as const) {
+    for (const [colour, width] of [['#3f3833', road + 1], ['#b9b2a7', road - 2.5]] as const) {
         p_ctx.strokeStyle = colour;
         p_ctx.lineWidth = width;
         path(p_ctx, p_m, cell);
@@ -403,7 +407,8 @@ export function drawMainRoads(p_ctx: CanvasRenderingContext2D, p_roads: Borders,
     const cell = p_size / p_n;
     p_ctx.lineCap = 'round';
     p_ctx.lineJoin = 'round';
-    for (const [colour, width] of [['#8f8578', 4.4], ['#fffdf6', 2.6]] as const) {
+    const road = MAIN_HALF * 2 * cell; // pixels: as wide as a main road is
+    for (const [colour, width] of [['#8f8578', road + 0.8], ['#fffdf6', road - 1]] as const) {
         p_ctx.strokeStyle = colour;
         p_ctx.lineWidth = width;
         for (const h of p_roads.highways) {
@@ -417,7 +422,7 @@ export function drawMainRoads(p_ctx: CanvasRenderingContext2D, p_roads: Borders,
 export function drawStreets(p_ctx: CanvasRenderingContext2D, p_s: Streets, p_n: number, p_size: number): void {
     const cell = p_size / p_n;
     p_ctx.strokeStyle = '#a2978a';
-    p_ctx.lineWidth = 1.3;
+    p_ctx.lineWidth = STREET_HALF * 2 * cell; // as wide as a street is
     p_ctx.lineCap = 'butt';
     p_ctx.beginPath();
     for (const s of p_s.streets) {

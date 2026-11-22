@@ -9,13 +9,14 @@
 // it with its cells and the street cells between them; those streets are closed (cut out of the
 // street lines, so they are no longer drawn, and no lot faces them).
 import type { Point } from './Map26Borders';
+import { STREET_HALF } from './Map26Dimensions';
 import { DI, DJ } from './Map26Grow';
 import { PLOT, type Plots } from './Map26Plots';
 import type { Settings } from './Map26Settings';
 import type { Streets, Street } from './Map26Streets';
 import type { Zoning } from './Map26Zoning';
 
-const ACROSS = 4; // plot cells: the widest street crossed between neighbours
+const ACROSS = Math.ceil(STREET_HALF * 2 * PLOT) + 2; // plot cells: the widest street crossed between neighbours
 
 export type Superblocks = { closed: Uint8Array; closedRoads: Set<number> }; // closed: per plot cell, 1 on a closed street
 
