@@ -8,6 +8,7 @@ import { DETAIL } from './Map26Districts';
 import type { Houses } from './Map26Houses';
 import { ROAD, type Plots } from './Map26Plots';
 import type { Zone, Zoning } from './Map26Zoning';
+import type { Lots } from './Map26Lots';
 import type { Streets } from './Map26Streets';
 import type { QueueView } from './Map26Queue';
 import type { Spread } from './Map26Spread';
@@ -287,6 +288,52 @@ export function drawZones(p_ctx: CanvasRenderingContext2D, p_z: Zoning, p_n: num
     p_ctx.save();
     p_ctx.imageSmoothingEnabled = false;
     p_ctx.drawImage(canvas, 0, 0, p_size, p_size);
+    p_ctx.restore();
+}
+
+// The lots that are not single houses: their edges a dark line, and a short arrow from the middle of
+// each one's frontage into it (which road it faces).
+export function drawLots(p_ctx: CanvasRenderingContext2D, p_l: Lots, p_n: number, p_size: number): void {
+    const canvas = document.createElement('canvas');
+    canvas.width = p_n;
+    canvas.height = p_n;
+    const small = canvas.getContext('2d')!;
+    const image = small.createImageData(p_n, p_n);
+    const big = (k: number) => k >= 0 && p_l.lots[k].zone !== 'houses';
+    for (let c = 0; c < p_n * p_n; c++) {
+        const k = p_l.lotOf[c];
+        const i = c % p_n;
+        const right = i + 1 < p_n ? p_l.lotOf[c + 1] : k;
+        const below = c + p_n < p_n * p_n ? p_l.lotOf[c + p_n] : k;
+        const edge = (k >= 0 && right >= 0 && right !== k && (big(k) || big(right))) || (k >= 0 && below >= 0 && below !== k && (big(k) || big(below)));
+        if (!edge) continue;
+        image.data[c * 4] = 40;
+        image.data[c * 4 + 1] = 30;
+        image.data[c * 4 + 2] = 25;
+        image.data[c * 4 + 3] = 170;
+    }
+    small.putImageData(image, 0, 0);
+    p_ctx.save();
+    p_ctx.imageSmoothingEnabled = false;
+    p_ctx.drawImage(canvas, 0, 0, p_size, p_size);
+    const fine = p_size / (p_n / 2); // pixels a fine cell (2 plot cells to one)
+    p_ctx.strokeStyle = 'rgba(40, 30, 25, 0.9)';
+    p_ctx.fillStyle = 'rgba(40, 30, 25, 0.9)';
+    p_ctx.lineWidth = 1.2;
+    for (const lot of p_l.lots) {
+        if (lot.zone === 'houses') continue;
+        const x = lot.front.x * fine;
+        const y = lot.front.y * fine;
+        const tx = x + lot.inward.x * fine * 2.2;
+        const ty = y + lot.inward.y * fine * 2.2;
+        p_ctx.beginPath();
+        p_ctx.moveTo(x, y);
+        p_ctx.lineTo(tx, ty);
+        p_ctx.stroke();
+        p_ctx.beginPath();
+        p_ctx.arc(x, y, 1.6, 0, Math.PI * 2);
+        p_ctx.fill();
+    }
     p_ctx.restore();
 }
 

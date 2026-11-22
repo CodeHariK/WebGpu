@@ -21,8 +21,9 @@ export const PLOT = 2; // plot cells to a fine cell, each way
 export type RoadKind = 'street' | 'main' | 'highway' | 'arterial';
 export type Road = { points: Point[]; halfWidth: number; kind: RoadKind }; // fine cells
 // fine cells: the middle of its frontage, the road's direction, the way back from it, its frontage
-// length and its area
-export type Plot = { front: Point; along: Point; inward: Point; frontage: number; area: number };
+// length and its area; the road it fronts (an index into the roads), which side of it (0, 1), and
+// which stretch along it
+export type Plot = { front: Point; along: Point; inward: Point; frontage: number; area: number; road: number; side: number; stretch: number };
 // id per plot cell: its plot, ROAD or MIDDLE; road per plot cell: the road it is under (an index
 // into roads), or −1
 export type Plots = { n: number; id: Int32Array; plots: Plot[]; road: Int32Array; roads: Road[] };
@@ -135,7 +136,7 @@ export function makePlots(p_d: Districts, p_roads: Road[], p_width: number, p_de
     const keyOf = new Map<string, number>();
     const time = new Float64Array(n * n).fill(Infinity);
     const queue = new Queue();
-    const sums: { x: number; y: number; ax: number; ay: number; ix: number; iy: number; count: number }[] = [];
+    const sums: { x: number; y: number; ax: number; ay: number; ix: number; iy: number; count: number; road: number; side: number; stretch: number }[] = [];
     for (let c = 0; c < n * n; c++) {
         if (id[c] === ROAD) continue;
         const i = c % n;
@@ -159,7 +160,7 @@ export function makePlots(p_d: Districts, p_roads: Road[], p_width: number, p_de
         if (plot === undefined) {
             plot = sums.length;
             keyOf.set(key, plot);
-            sums.push({ x: 0, y: 0, ax: 0, ay: 0, ix: 0, iy: 0, count: 0 });
+            sums.push({ x: 0, y: 0, ax: 0, ay: 0, ix: 0, iy: 0, count: 0, road, side, stretch });
         }
         const s = sums[plot];
         const flip = s.count > 0 && s.ax * r.dx[best] + s.ay * r.dy[best] < 0 ? -1 : 1;
@@ -227,7 +228,7 @@ export function makePlots(p_d: Districts, p_roads: Road[], p_width: number, p_de
     const plots = merged.map((s, k) => {
         const al = Math.hypot(s.ax, s.ay) || 1;
         const il = Math.hypot(s.ix, s.iy) || 1;
-        return { front: { x: s.x / s.count / PLOT, y: s.y / s.count / PLOT }, along: { x: s.ax / al, y: s.ay / al }, inward: { x: s.ix / il, y: s.iy / il }, frontage: s.count / PLOT, area: area[k] };
+        return { front: { x: s.x / s.count / PLOT, y: s.y / s.count / PLOT }, along: { x: s.ax / al, y: s.ay / al }, inward: { x: s.ix / il, y: s.iy / il }, frontage: s.count / PLOT, area: area[k], road: s.road, side: s.side, stretch: s.stretch };
     });
     return { n, id, plots, road: r.road, roads: p_roads };
 }
