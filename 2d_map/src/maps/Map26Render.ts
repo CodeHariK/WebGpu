@@ -4,7 +4,8 @@
 // arterials, or (step 11) all that on two islands, a motorway bridge between their ring roads, with
 // (step 12) the streets along a street field, (step 13) the blocks cut into plots and (step 14)
 // each block given a use, (step 15) the plots joined into lots by use, (step 16) a placeholder
-// building on every lot, (step 17) docks on the coast; and draws a step (at a point in the spread's animation: p_progress 0..1).
+// building on every lot, (step 17) docks on the coast, (step 18) malls and parks as superblocks;
+// and draws a step (at a point in the spread's animation: p_progress 0..1).
 import { findArterials, type Arterials } from './Map26Arterials';
 import { findBorders, type Borders, type Highway, type Point } from './Map26Borders';
 import { DETAIL, makeDistricts, type Districts } from './Map26Districts';
@@ -14,6 +15,7 @@ import { housesOnPlots } from './Map26PlotHouses';
 import { makePlots, type Plots, type Road } from './Map26Plots';
 import { bridgeEnds, makeZoning, type Zoning } from './Map26Zoning';
 import { makeLots, type Lots } from './Map26Lots';
+import { makeSuperblocks, openStreets } from './Map26Superblocks';
 import { makeBuildings, type Buildings } from './Map26Buildings';
 import { drawBuildings } from './Map26DrawBuildings';
 import { makeDocks, type Docks } from './Map26Docks';
@@ -61,6 +63,7 @@ const ZONING_FROM = 14; // each block given a use
 const LOTS_FROM = 15; // the plots joined into lots by use
 const BUILDINGS_FROM = 16; // a placeholder building on every lot
 const DOCKS_FROM = 17; // docks on each island's coast
+const SUPERBLOCKS_FROM = 18; // malls and parks take in the blocks round them
 const STREET_HALF = 0.55; // fine cells either side of a road's line, as the houses keep clear of them
 const MAIN_HALF = 1.0;
 const HIGHWAY_HALF = 1.6;
@@ -88,12 +91,14 @@ export function makeBlocks(p_settings: Settings, p_size: number): Blocks {
     const streets = !districts || p_settings.step < STREETS_FROM ? null : field ? makeFieldStreets(districts, roads, field, p_settings) : makeStreets(districts, roads, p_settings);
     const plots = districts && streets && p_settings.step >= PLOTS_FROM ? makePlots(districts, plotRoads(districts, streets, roads, wide), p_settings.plotWidth, p_settings.plotDepth) : null;
     const zoning = plots && island && p_settings.step >= ZONING_FROM ? makeZoning(plots, island, p_size, bridgeEnds(motorway?.road.points ?? null), p_settings) : null;
-    const lots = plots && zoning && p_settings.step >= LOTS_FROM ? makeLots(plots, zoning, p_settings.plotWidth * p_settings.plotDepth, makeRandom(p_settings.seed * 2741 + 5)) : null;
+    const superblocks = plots && zoning && p_settings.step >= SUPERBLOCKS_FROM ? makeSuperblocks(plots, zoning, p_settings) : null; // changes the zoning's blocks
+    const lots = plots && zoning && p_settings.step >= LOTS_FROM ? makeLots(plots, zoning, p_settings.plotWidth * p_settings.plotDepth, superblocks?.closedRoads ?? new Set(), makeRandom(p_settings.seed * 2741 + 5)) : null;
     const buildings = lots && zoning && plots && p_settings.step >= BUILDINGS_FROM ? makeBuildings(lots, zoning, plots.n, makeRandom(p_settings.seed * 4813 + 11)) : null;
     const docks = island && outside && p_settings.step >= DOCKS_FROM ? makeDocks(s, borders, island, p_size, bridgeEnds(motorway?.road.points ?? null), p_settings, makeRandom(p_settings.seed * 9001 + 13)) : null;
     const houseRandom = makeRandom(p_settings.seed * 104729 + 7);
     const houses = !districts || !streets || p_settings.step < HOUSES_FROM ? null : plots ? housesOnPlots(plots, zoning && houseZone(plots, zoning), p_settings, houseRandom) : placeHouses(districts, streets, roads, wide, field !== null, p_settings, houseRandom);
-    return { settings: p_settings, spread: s, borders, districts, streets, houses, island, arterials, motorway, field, plots, zoning, lots, buildings, docks };
+    const shown = streets && superblocks && plots ? openStreets(streets, superblocks.closed, plots.n) : streets; // the closed streets cut out
+    return { settings: p_settings, spread: s, borders, districts, streets: shown, houses, island, arterials, motorway, field, plots, zoning, lots, buildings, docks };
 }
 
 // Every road the plots front onto, in fine cells, each with its half width: the streets (whole

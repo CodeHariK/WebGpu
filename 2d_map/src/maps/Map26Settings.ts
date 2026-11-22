@@ -20,6 +20,8 @@ export type Settings = {
     industryShare: number; // step 14: ... industry (on the shore)
     parkShare: number; // step 14: ... parks
     dockLength: number; // step 17: how long each island's docks are along the ring road (fine cells)
+    mallBlocks: number; // step 18: how many street blocks a mall takes in (with the streets between)
+    parkBlocks: number; // step 18: ... a park
     streetGaps: number; // share of street pieces left out (bigger, irregular blocks)
     houseSize: number; // a house's usual width and depth (fine cells)
     houseFill: number; // share of lots that get a house
@@ -55,6 +57,8 @@ export const DEFAULT_SETTINGS: Settings = {
     industryShare: 0.1,
     parkShare: 0.1,
     dockLength: 36,
+    mallBlocks: 4,
+    parkBlocks: 2,
     streetGaps: 0.15,
     houseSize: 2.6,
     houseFill: 0.85,
@@ -138,5 +142,9 @@ export const STEPS: { title: string; text: string }[] = [
     {
         title: 'Docks',
         text: 'Docks on one stretch of each island\'s coast, in the strip between the ring road and the sea (the city stops city margin short of the coast). The site: the ring road is walked a fine cell at a time, every stretch dock length long is scored by how near the sea it runs (the average coast distance of its points), stretches near the bridge left out; the nearest wins. Along it the yard (grey concrete) reaches from the road\'s edge, square to the road and away from the city, to the coast. On it: warehouses along the road in 3 lengths, as deep as the yard allows. From the coast: piers straight out into the water every 7 fine cells, each kept only if all of it is over water, and beside some of them a ship (on water too).',
+    },
+    {
+        title: 'Superblocks',
+        text: 'A mall or a park on one street block is long and thin, so it takes in the blocks round it and the streets between them are closed. Two blocks are neighbours across a street if a straight run from a cell of one (4 ways, a few cells) over street cells only reaches the other; those street cells lie between them. Each mall grows to mall blocks blocks, each park to park blocks: one at a time it takes the neighbour whose middle is nearest its own (so it grows round, not long), only from blocks that are houses (or, for a park, park). A block taken in joins it with the street cells between them; those streets are cut out of the street lines (no longer drawn, and no lot faces them). Its houses go, and the mall or park is built on the whole superblock.',
     },
 ];

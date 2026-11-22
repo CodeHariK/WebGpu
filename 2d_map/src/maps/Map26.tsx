@@ -161,6 +161,8 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
                         {num('downtownShare', 'downtown share', 0, 0.5, 0.01)}
                         {num('industryShare', 'industry share', 0, 0.4, 0.01)}
                         {num('parkShare', 'park share', 0, 0.4, 0.01)}
+                        {settings.step >= 18 && num('mallBlocks', 'mall blocks', 1, 8, 1)}
+                        {settings.step >= 18 && num('parkBlocks', 'park blocks', 1, 6, 1)}
                         {settings.step >= 17 && num('dockLength', 'dock length (fine cells)', 12, 80, 1)}
                     </Section>
                 )}

@@ -101,7 +101,8 @@ function industryHalves(p_cells: number[], p_n: number, p_area: number, p_plotAr
     return side;
 }
 
-export function makeLots(p_p: Plots, p_z: Zoning, p_plotArea: number, p_random: () => number): Lots {
+// p_closedRoads: streets closed (step 18): no lot faces them.
+export function makeLots(p_p: Plots, p_z: Zoning, p_plotArea: number, p_closedRoads: Set<number>, p_random: () => number): Lots {
     const n = p_p.n;
     const lotOfCell = new Int32Array(n * n).fill(-1);
     const lots: Lot[] = [];
@@ -128,9 +129,11 @@ export function makeLots(p_p: Plots, p_z: Zoning, p_plotArea: number, p_random: 
             if (cells.length === 0) continue;
             const mine = new Set<number>();
             for (const c of cells) if (p_p.id[c] >= 0) mine.add(p_p.id[c]);
-            if (mine.size === 0) continue;
+            const open = [...mine].filter((k) => !p_closedRoads.has(p_p.plots[k].road)); // facing a street still open
+            const facing = open.length ? open : [...mine];
+            if (facing.length === 0) continue;
             for (const c of cells) lotOfCell[c] = lots.length;
-            lots.push(lotOf([...mine].map((k) => p_p.plots[k]), block.zone, b, cells.length / (PLOT * PLOT)));
+            lots.push(lotOf(facing.map((k) => p_p.plots[k]), block.zone, b, cells.length / (PLOT * PLOT)));
         }
     });
     return { lotOf: lotOfCell, lots };
