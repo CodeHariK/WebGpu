@@ -87,6 +87,10 @@ run_octo:
 # Same scene with FX debug test keys enabled:
 #   T = toggle time-slow (bullet-time)   G = toggle low-time red flash
 #   R = refill slow-mo meter             K = camera shake (trauma)
+# The Map 26 city from 2d_map (Export JSON there, save it as project/assets/city/map26.json)
+run_city:
+	$(GODOT) --path project/ --scene scene/city/city.tscn
+
 run_octo_fx:
 	$(GODOT) --path project/ --scene scene/octocar/octocar.tscn -- --fxtest
 

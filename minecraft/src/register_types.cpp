@@ -119,6 +119,9 @@
 #include "ai/bt_player.h"
 #include "ai/bt_store.h"
 #include "ai/bt_task.h"
+#include "city/city_map.h"
+#include "city/city_minimap.h"
+#include "city/city_traffic.h"
 #include "road/road_generator.h"
 #include "road/transform_gizmo.h"
 
@@ -272,6 +275,9 @@ void initialize_gdextension_types(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(ProceduralSpline3D);
 
 	GDREGISTER_CLASS(RoadGenerator);
+	GDREGISTER_CLASS(CityMap);
+	GDREGISTER_CLASS(CityMinimap);
+	GDREGISTER_CLASS(CityTraffic);
 	GDREGISTER_CLASS(ProceduralLofter);
 
 	GDREGISTER_CLASS(TerrainHeightmap);
