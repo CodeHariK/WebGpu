@@ -227,8 +227,9 @@ export function makePlots(p_d: Districts, p_roads: Road[], p_width: number, p_de
     }
     const plots = merged.map((s, k) => {
         const al = Math.hypot(s.ax, s.ay) || 1;
-        const il = Math.hypot(s.ix, s.iy) || 1;
-        return { front: { x: s.x / s.count / PLOT, y: s.y / s.count / PLOT }, along: { x: s.ax / al, y: s.ay / al }, inward: { x: s.ix / il, y: s.iy / il }, frontage: s.count / PLOT, area: area[k], road: s.road, side: s.side, stretch: s.stretch };
+        const along = { x: s.ax / al, y: s.ay / al };
+        const sign = -along.y * s.ix + along.x * s.iy >= 0 ? 1 : -1; // the way in: square to the road, on the frontage's side
+        return { front: { x: s.x / s.count / PLOT, y: s.y / s.count / PLOT }, along, inward: { x: -along.y * sign, y: along.x * sign }, frontage: s.count / PLOT, area: area[k], road: s.road, side: s.side, stretch: s.stretch };
     });
     return { n, id, plots, road: r.road, roads: p_roads };
 }

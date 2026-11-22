@@ -3,7 +3,8 @@
 // the city on the island, kept cityMargin off the coast, a ring road round it, with (step 10)
 // arterials, or (step 11) all that on two islands, a motorway bridge between their ring roads, with
 // (step 12) the streets along a street field, (step 13) the blocks cut into plots and (step 14)
-// each block given a use, (step 15) the plots joined into lots by use; and draws a step (at a point in the spread's animation: p_progress 0..1).
+// each block given a use, (step 15) the plots joined into lots by use, (step 16) a placeholder
+// building on every lot; and draws a step (at a point in the spread's animation: p_progress 0..1).
 import { findArterials, type Arterials } from './Map26Arterials';
 import { findBorders, type Borders, type Highway, type Point } from './Map26Borders';
 import { DETAIL, makeDistricts, type Districts } from './Map26Districts';
@@ -13,6 +14,8 @@ import { housesOnPlots } from './Map26PlotHouses';
 import { makePlots, type Plots, type Road } from './Map26Plots';
 import { bridgeEnds, makeZoning, type Zoning } from './Map26Zoning';
 import { makeLots, type Lots } from './Map26Lots';
+import { makeBuildings, type Buildings } from './Map26Buildings';
+import { drawBuildings } from './Map26DrawBuildings';
 import { cityOutside, withEdge } from './Map26City';
 import { drawIsland, drawRings, islandLayout, makeIsland, type Island, type IslandView } from './Map26Island';
 import { makeBridge, type Motorway } from './Map26Bridge';
@@ -38,6 +41,7 @@ export type Blocks = {
     plots: Plots | null; // step 13 on
     zoning: Zoning | null; // step 14 on
     lots: Lots | null; // step 15 on
+    buildings: Buildings | null; // step 16 on
 };
 export type Show = { queue: boolean; ground: boolean; island: IslandView; rings: boolean; field: boolean }; // steps 1 - 2, 8 and 12 extras
 
@@ -52,6 +56,7 @@ const FIELD_FROM = 12; // streets along the street field
 const PLOTS_FROM = 13; // the blocks cut into plots, one house each
 const ZONING_FROM = 14; // each block given a use
 const LOTS_FROM = 15; // the plots joined into lots by use
+const BUILDINGS_FROM = 16; // a placeholder building on every lot
 const STREET_HALF = 0.55; // fine cells either side of a road's line, as the houses keep clear of them
 const MAIN_HALF = 1.0;
 const HIGHWAY_HALF = 1.6;
@@ -67,7 +72,7 @@ export function makeBlocks(p_settings: Settings, p_size: number): Blocks {
     const s = spread(p_settings, random, noise, outside);
     const borders = findBorders(s.n, outside ? withEdge(s.owner) : s.owner, p_settings.straighten, p_settings.smoothing); // on the island: with the ring road
     if (island && !outside) {
-        return { settings: p_settings, spread: s, borders, districts: null, streets: null, houses: null, island, arterials: null, motorway: null, field: null, plots: null, zoning: null, lots: null };
+        return { settings: p_settings, spread: s, borders, districts: null, streets: null, houses: null, island, arterials: null, motorway: null, field: null, plots: null, zoning: null, lots: null, buildings: null };
     }
     const arterials = outside && p_settings.step >= ARTERIALS_FROM ? findArterials(borders, s, p_settings) : null;
     const motorway = island && outside && p_settings.step >= TWO_ISLANDS_FROM ? makeBridge(s, borders, island, p_size, p_settings) : null;
@@ -80,9 +85,10 @@ export function makeBlocks(p_settings: Settings, p_size: number): Blocks {
     const plots = districts && streets && p_settings.step >= PLOTS_FROM ? makePlots(districts, plotRoads(districts, streets, roads, wide), p_settings.plotWidth, p_settings.plotDepth) : null;
     const zoning = plots && island && p_settings.step >= ZONING_FROM ? makeZoning(plots, island, p_size, bridgeEnds(motorway?.road.points ?? null), p_settings) : null;
     const lots = plots && zoning && p_settings.step >= LOTS_FROM ? makeLots(plots, zoning, p_settings.plotWidth * p_settings.plotDepth, makeRandom(p_settings.seed * 2741 + 5)) : null;
+    const buildings = lots && zoning && plots && p_settings.step >= BUILDINGS_FROM ? makeBuildings(lots, zoning, plots.n, makeRandom(p_settings.seed * 4813 + 11)) : null;
     const houseRandom = makeRandom(p_settings.seed * 104729 + 7);
     const houses = !districts || !streets || p_settings.step < HOUSES_FROM ? null : plots ? housesOnPlots(plots, zoning && houseZone(plots, zoning), p_settings, houseRandom) : placeHouses(districts, streets, roads, wide, field !== null, p_settings, houseRandom);
-    return { settings: p_settings, spread: s, borders, districts, streets, houses, island, arterials, motorway, field, plots, zoning, lots };
+    return { settings: p_settings, spread: s, borders, districts, streets, houses, island, arterials, motorway, field, plots, zoning, lots, buildings };
 }
 
 // Every road the plots front onto, in fine cells, each with its half width: the streets (whole
@@ -167,10 +173,11 @@ function drawCity(p_ctx: CanvasRenderingContext2D, p_b: Blocks, p_size: number):
     drawDistrictCells(p_ctx, p_b.districts, p_size);
     if (p_b.plots) drawPlots(p_ctx, p_b.plots, p_size);
     if (p_b.zoning && p_b.plots) drawZones(p_ctx, p_b.zoning, p_b.plots.n, p_size);
-    if (p_b.lots && p_b.plots) drawLots(p_ctx, p_b.lots, p_b.plots.n, p_size);
+    if (p_b.lots && p_b.plots && !p_b.buildings) drawLots(p_ctx, p_b.lots, p_b.plots.n, p_size); // the lots only while they are the step
     if (p_b.streets) drawStreets(p_ctx, p_b.streets, p_b.districts.n, p_size);
     drawMainRoads(p_ctx, p_b.districts.roads, p_b.districts.n, p_size);
     if (p_b.houses) drawHouses(p_ctx, p_b.houses, p_b.districts.n, p_size);
+    if (p_b.buildings) drawBuildings(p_ctx, p_b.buildings, p_size / p_b.districts.n);
     drawHighways(p_ctx, p_b.borders, p_b.spread.n, p_size, p_b.arterials?.pieces ?? null);
     if (p_b.arterials) drawArterials(p_ctx, p_b.arterials.lines, p_b.spread.n, p_size);
     if (p_b.motorway) drawMotorway(p_ctx, p_b.motorway.road, p_b.motorway.bridges, p_b.spread.n, p_size);

@@ -36,8 +36,11 @@ function lotOf(p_plots: Plot[], p_zone: Zone, p_block: number, p_area: number): 
     const ix = mean((p) => p.inward.x);
     const iy = mean((p) => p.inward.y);
     const al = Math.hypot(ax, ay) || 1;
-    const il = Math.hypot(ix, iy) || 1;
-    return { zone: p_zone, block: p_block, area: p_area, front: { x: mean((p) => p.front.x), y: mean((p) => p.front.y) }, along: { x: ax / al, y: ay / al }, inward: { x: ix / il, y: iy / il }, frontage };
+    const along = { x: ax / al, y: ay / al };
+    // the way in: square to the road, on the side the frontage cells lie (cells by a road's end
+    // point along it, so the average alone can be off)
+    const sign = -along.y * ix + along.x * iy >= 0 ? 1 : -1;
+    return { zone: p_zone, block: p_block, area: p_area, front: { x: mean((p) => p.front.x), y: mean((p) => p.front.y) }, along, inward: { x: -along.y * sign, y: along.x * sign }, frontage };
 }
 
 // Downtown: the block's plots in runs along their road (same road and side, stretches one after
