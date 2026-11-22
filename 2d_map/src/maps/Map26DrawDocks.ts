@@ -24,8 +24,8 @@ function shipPath(p_ctx: CanvasRenderingContext2D, p_r: Rect, p_cell: number): v
     p_ctx.closePath();
 }
 
-// p_cell: pixels a fine cell.
-export function drawDocks(p_ctx: CanvasRenderingContext2D, p_d: Docks, p_cell: number): void {
+// p_cell: pixels a fine cell. p_flat: only the yards and piers (for the 3D view's ground).
+export function drawDocks(p_ctx: CanvasRenderingContext2D, p_d: Docks, p_cell: number, p_flat = false): void {
     p_ctx.save();
     p_ctx.lineJoin = 'round';
     for (const yard of p_d.yards) {
@@ -47,6 +47,10 @@ export function drawDocks(p_ctx: CanvasRenderingContext2D, p_d: Docks, p_cell: n
         rectPath(p_ctx, pier, p_cell);
         p_ctx.fill();
         p_ctx.stroke();
+    }
+    if (p_flat) {
+        p_ctx.restore();
+        return;
     }
     for (const ship of p_d.ships) {
         p_ctx.fillStyle = '#f4f1ea';

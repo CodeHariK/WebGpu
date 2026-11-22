@@ -33,6 +33,7 @@ import { spread, type Spread } from './Map26Spread';
 
 export type Blocks = {
     settings: Settings;
+    ms: number; // how long making it took
     spread: Spread;
     borders: Borders;
     districts: Districts | null;
@@ -48,7 +49,9 @@ export type Blocks = {
     buildings: Buildings | null; // step 16 on
     docks: Docks | null; // step 17 on
 };
-export type Show = { queue: boolean; ground: boolean; island: IslandView; rings: boolean; field: boolean }; // steps 1 - 2, 8 and 12 extras
+// steps 1 - 2, 8 and 12 extras; flat: only what lies on the ground (no houses, buildings, trees,
+// ships or motorway: the 3D view's ground, under what it builds itself)
+export type Show = { queue: boolean; ground: boolean; island: IslandView; rings: boolean; field: boolean; flat?: boolean };
 
 const DISTRICTS_FROM = 5; // the step the districts appear
 const STREETS_FROM = 6;
@@ -71,6 +74,12 @@ const ARTERIAL_HALF = 2.1; // fine cells either side of an arterial's line kept 
 const MOTORWAY_HALF = 2.8;
 
 export function makeBlocks(p_settings: Settings, p_size: number): Blocks {
+    const start = performance.now();
+    const b = build(p_settings, p_size);
+    return { ...b, ms: performance.now() - start };
+}
+
+function build(p_settings: Settings, p_size: number): Omit<Blocks, 'ms'> {
     const random = makeRandom(p_settings.seed);
     const noise = makeNoise(random);
     const layout = islandLayout(p_size, p_settings, p_settings.step >= TWO_ISLANDS_FROM, makeRandom(p_settings.seed * 3301 + 9));
@@ -151,7 +160,7 @@ export function drawBlocks(p_ctx: CanvasRenderingContext2D, p_b: Blocks, p_progr
     }
     if (p_b.island) { // the city on the island: the map under it, the rings over it
         drawIsland(p_ctx, p_b.island, 'map', false);
-        drawCity(p_ctx, p_b, size);
+        drawCity(p_ctx, p_b, size, p_show.flat === true);
         if (p_b.field && p_show.field) drawField(p_ctx, p_b.field, p_b.spread, size);
         if (p_show.rings) drawRings(p_ctx, p_b.island);
         return null;
@@ -177,8 +186,9 @@ export function drawBlocks(p_ctx: CanvasRenderingContext2D, p_b: Blocks, p_progr
 }
 
 // The city on the island (step 9 on): the districts, streets, roads, houses, highways, arterials
-// and motorway, with no ground under them (outside the city the island shows).
-function drawCity(p_ctx: CanvasRenderingContext2D, p_b: Blocks, p_size: number): void {
+// and motorway, with no ground under them (outside the city the island shows). p_flat: only what
+// lies on the ground.
+function drawCity(p_ctx: CanvasRenderingContext2D, p_b: Blocks, p_size: number, p_flat: boolean): void {
     if (!p_b.districts) return;
     drawDistrictCells(p_ctx, p_b.districts, p_size);
     if (p_b.plots) drawPlots(p_ctx, p_b.plots, p_size);
@@ -186,10 +196,10 @@ function drawCity(p_ctx: CanvasRenderingContext2D, p_b: Blocks, p_size: number):
     if (p_b.lots && p_b.plots && !p_b.buildings) drawLots(p_ctx, p_b.lots, p_b.plots.n, p_size); // the lots only while they are the step
     if (p_b.streets) drawStreets(p_ctx, p_b.streets, p_b.districts.n, p_size);
     drawMainRoads(p_ctx, p_b.districts.roads, p_b.districts.n, p_size);
-    if (p_b.houses) drawHouses(p_ctx, p_b.houses, p_b.districts.n, p_size);
-    if (p_b.buildings) drawBuildings(p_ctx, p_b.buildings, p_size / p_b.districts.n);
-    if (p_b.docks) drawDocks(p_ctx, p_b.docks, p_size / p_b.districts.n);
+    if (p_b.houses && !p_flat) drawHouses(p_ctx, p_b.houses, p_b.districts.n, p_size);
+    if (p_b.buildings) drawBuildings(p_ctx, p_b.buildings, p_size / p_b.districts.n, p_flat);
+    if (p_b.docks) drawDocks(p_ctx, p_b.docks, p_size / p_b.districts.n, p_flat);
     drawHighways(p_ctx, p_b.borders, p_b.spread.n, p_size, p_b.arterials?.pieces ?? null);
     if (p_b.arterials) drawArterials(p_ctx, p_b.arterials.lines, p_b.spread.n, p_size);
-    if (p_b.motorway) drawMotorway(p_ctx, p_b.motorway.road, p_b.motorway.bridges, p_b.spread.n, p_size);
+    if (p_b.motorway && !p_flat) drawMotorway(p_ctx, p_b.motorway.road, p_b.motorway.bridges, p_b.spread.n, p_size);
 }

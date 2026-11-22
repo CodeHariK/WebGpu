@@ -72,10 +72,16 @@ function drawPark(p_ctx: CanvasRenderingContext2D, p_b: Buildings, p_cell: numbe
     }
 }
 
-// p_cell: pixels a fine cell.
-export function drawBuildings(p_ctx: CanvasRenderingContext2D, p_b: Buildings, p_cell: number): void {
+// p_cell: pixels a fine cell. p_flat: only what lies flat on the ground (car parks, ponds: for the
+// 3D view's ground, which builds the rest itself).
+export function drawBuildings(p_ctx: CanvasRenderingContext2D, p_b: Buildings, p_cell: number, p_flat = false): void {
     p_ctx.save();
     drawCarParks(p_ctx, p_b.carParks, p_cell);
+    if (p_flat) {
+        drawPark(p_ctx, { ...p_b, trees: [] }, p_cell);
+        p_ctx.restore();
+        return;
+    }
     drawPark(p_ctx, p_b, p_cell);
     const shape = (b: Building, dx: number, dy: number) => (b.rect ? rectPath(p_ctx, b.rect, p_cell, dx, dy) : circlePath(p_ctx, b.circle!, p_cell, dx, dy));
     p_ctx.fillStyle = 'rgba(40, 30, 35, 0.28)'; // shadows first, all of them under every roof

@@ -2,10 +2,11 @@
 // as area blocks, and their borders as highways. Built up in steps (Prev / Next, or ← →). Step 2
 // plays the spread; it can be paused and stepped a tick at a time (◀ ▶, or ← → while on step 2).
 // Map26Spread grows the colours, Map26Borders traces the highways, Map26Draw draws.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_SETTINGS, STEPS, type Settings } from './Map26Settings';
 import { ZONE_COLOURS } from './Map26Draw';
-import { drawBlocks, makeBlocks, type Blocks, type Show } from './Map26Render';
+import { drawBlocks, makeBlocks, type Show } from './Map26Render';
+import Map26Three from './Map26Three';
 
 import { Section, Slider } from './Map19Ui';
 import { btn } from './Map19UiStyle';
@@ -16,32 +17,32 @@ const TICK_MS = 66; // how long a tick lasts while playing
 export default function Map26({ width = 800 }: { width?: number; height?: number }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const timeRef = useRef<HTMLSpanElement>(null);
-    const blocksRef = useRef<Blocks | null>(null);
     const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
     const [tick, setTick] = useState(0);
     const [playing, setPlaying] = useState(true);
     const [show, setShow] = useState<Show>({ queue: true, ground: true, island: 'map', rings: true, field: true });
     const queueRef = useRef<HTMLSpanElement>(null);
 
+    const [threeD, setThreeD] = useState(false); // the 3D preview instead of the 2D map (step 9 on)
     // a new map whenever the settings change
+    const blocks = useMemo(() => makeBlocks(settings, width), [settings, width]);
+    const showThreeD = threeD && settings.step >= 9;
     useEffect(() => {
-        const start = performance.now();
-        blocksRef.current = makeBlocks(settings, width);
-        if (timeRef.current) timeRef.current.textContent = `made in ${(performance.now() - start).toFixed(0)} ms`;
-    }, [settings, width]);
+        if (timeRef.current) timeRef.current.textContent = `made in ${blocks.ms.toFixed(0)} ms`;
+    }, [blocks]);
 
     // draw: step 2 at the clock's tick, the others whole
     useEffect(() => {
         const ctx = canvasRef.current?.getContext('2d');
-        if (!ctx || !blocksRef.current) return;
-        const b = blocksRef.current;
+        if (!ctx) return;
+        const b = blocks;
         const queue = drawBlocks(ctx, b, tick / TICKS, show);
         if (!queueRef.current) return;
         const clock = settings.step === 1 ? 0 : (b.spread.lastTime * tick) / TICKS;
         queueRef.current.textContent = queue
             ? `clock ${clock.toFixed(1)} · ${queue.waiting.length} cells waiting · next burns at ${queue.next ? queue.next.at.toFixed(2) : '—'} (red ring)`
             : '';
-    }, [settings, tick, show]);
+    }, [blocks, settings, tick, show, showThreeD]);
 
     // playing: one tick every TICK_MS, stopping at the end
     useEffect(() => {
@@ -101,12 +102,17 @@ export default function Map26({ width = 800 }: { width?: number; height?: number
 
     return (
         <div style={{ width: '100%', color: '#e2e8f0', fontFamily: 'Inter, sans-serif', background: '#050407' }}>
-            <canvas ref={canvasRef} width={width} height={width} style={{ display: 'block', width: '100%', maxWidth: width, aspectRatio: '1' }} />
+            {showThreeD ? <Map26Three blocks={blocks} size={width} /> : <canvas ref={canvasRef} width={width} height={width} style={{ display: 'block', width: '100%', maxWidth: width, aspectRatio: '1' }} />}
             <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                     <button style={btn(false)} onClick={() => goStep(-1)}>Prev</button>
                     <button style={btn(true)} onClick={() => goStep(1)}>Next</button>
                     <strong style={{ fontSize: '0.85rem' }}>Step {settings.step} / {STEPS.length}: {current.title}</strong>
+                    {settings.step >= 9 && (
+                        <button style={btn(threeD)} onClick={() => setThreeD((v) => !v)} title="drag: orbit · right drag: pan · wheel: zoom">
+                            {threeD ? '2D' : '3D'}
+                        </button>
+                    )}
                     <span ref={timeRef} style={{ fontSize: '0.7rem', color: '#78716c', marginLeft: 'auto' }} />
                 </div>
                 {settings.step <= 2 && (

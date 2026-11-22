@@ -427,7 +427,7 @@ export function drawStreets(p_ctx: CanvasRenderingContext2D, p_s: Streets, p_n: 
     p_ctx.stroke();
 }
 
-const ROOF_COLOURS = ['#d9785f', '#c4655a', '#8e9bb5', '#e2b46c', '#b5836b', '#9db39d'];
+export const ROOF_COLOURS = ['#d9785f', '#c4655a', '#8e9bb5', '#e2b46c', '#b5836b', '#9db39d'];
 
 // The houses: a soft shadow, the roof in its colour with a darker edge, and a ridge along it.
 export function drawHouses(p_ctx: CanvasRenderingContext2D, p_h: Houses, p_n: number, p_size: number): void {
